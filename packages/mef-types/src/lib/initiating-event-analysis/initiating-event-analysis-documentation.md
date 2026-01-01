@@ -102,13 +102,13 @@ The categorization is further supported by the `InitiatingEventCategory` enum:
 
 ```typescript
 export enum InitiatingEventCategory {
-  TRANSIENT = 'TRANSIENT',
-  RCB_BREACH = 'RCB_BREACH',
-  INTERFACING_SYSTEMS_RCB_BREACH = 'INTERFACING_SYSTEMS_RCB_BREACH',
-  SPECIAL = 'SPECIAL',
-  INTERNAL_HAZARD = 'INTERNAL_HAZARD',
-  EXTERNAL_HAZARD = 'EXTERNAL_HAZARD',
-  HUMAN_FAILURE = 'HUMAN_FAILURE',
+  TRANSIENT = "TRANSIENT",
+  RCB_BREACH = "RCB_BREACH",
+  INTERFACING_SYSTEMS_RCB_BREACH = "INTERFACING_SYSTEMS_RCB_BREACH",
+  SPECIAL = "SPECIAL",
+  INTERNAL_HAZARD = "INTERNAL_HAZARD",
+  EXTERNAL_HAZARD = "EXTERNAL_HAZARD",
+  HUMAN_FAILURE = "HUMAN_FAILURE",
 }
 ```
 
@@ -458,45 +458,45 @@ Example usage pattern for documentation:
 
 ```typescript
 const analysis: InitiatingEventsAnalysis = {
-  'technical-element-type': TechnicalElementTypes.INITIATING_EVENT_ANALYSIS,
-  'technical-element-code': 'IE',
+  "technical-element-type": TechnicalElementTypes.INITIATING_EVENT_ANALYSIS,
+  "technical-element-code": "IE",
   // Core elements...
 
   // IE-D1 Documentation
   documentation: {
-    processDescription: 'Systematic process following RA-S-1.4-2021',
-    inputSources: ['System designs', 'FSAR', 'Industry OE'],
+    processDescription: "Systematic process following RA-S-1.4-2021",
+    inputSources: ["System designs", "FSAR", "Industry OE"],
     // Additional IE-D1 fields...
   },
 
   // IE-D3 Documentation
   pre_operational_assumptions: [
     {
-      statement: 'Assumed 4 RCPs based on current design',
-      impact: 'Affects LOCA frequency calculations',
-      treatmentApproach: 'Used parametric study to assess sensitivity',
-      validationPlan: 'Validate when final RCP design is confirmed',
+      statement: "Assumed 4 RCPs based on current design",
+      impact: "Affects LOCA frequency calculations",
+      treatmentApproach: "Used parametric study to assess sensitivity",
+      validationPlan: "Validate when final RCP design is confirmed",
     },
     // Additional pre-operational assumptions...
   ],
 
   // Peer Review Documentation
   peer_review: {
-    reviewDate: '2024-03-15',
-    reviewTeam: ['John Doe', 'Jane Smith'],
+    reviewDate: "2024-03-15",
+    reviewTeam: ["John Doe", "Jane Smith"],
     findings: [
       {
-        id: 'FIND-001',
-        description: 'Need to clarify basis for screening criteria',
-        significance: 'MEDIUM',
-        associatedRequirements: ['IE-D1.f'],
-        status: 'OPEN',
-        resolutionPlan: 'Update screening criteria documentation',
+        id: "FIND-001",
+        description: "Need to clarify basis for screening criteria",
+        significance: "MEDIUM",
+        associatedRequirements: ["IE-D1.f"],
+        status: "OPEN",
+        resolutionPlan: "Update screening criteria documentation",
       },
     ],
-    scope: 'Full review of initiating event analysis',
-    methodology: 'Independent technical review',
-    reportReference: 'PR-2024-001',
+    scope: "Full review of initiating event analysis",
+    methodology: "Independent technical review",
+    reportReference: "PR-2024-001",
   },
 };
 ```
@@ -531,7 +531,7 @@ export const validateInitiatingEventsAnalysis = {
     if (analysis.peer_review) {
       // Validate peer review documentation completeness
       if (!analysis.peer_review.findings.length) {
-        errors.push('Peer review must include at least one finding');
+        errors.push("Peer review must include at least one finding");
       }
       // Additional validation...
     }
@@ -543,7 +543,7 @@ export const validateInitiatingEventsAnalysis = {
 Additionally, the Typia validation ensures type compliance:
 
 ```typescript
-import typia from 'typia';
+import typia from "typia";
 export const InitiatingEventsAnalysisSchema = typia.json.schemas<[InitiatingEventsAnalysis]>();
 ```
 

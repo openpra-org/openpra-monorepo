@@ -2,7 +2,7 @@
  * @packageDocumentation
  * @module technical_elements.core
  */
-import typia, { tags } from 'typia';
+import typia, { tags } from "typia";
 
 /**
  * @internal
@@ -17,7 +17,7 @@ import typia, { tags } from 'typia';
  * @hidden
  */
 export interface Unique {
-  uuid: tags.Format<'uuid'>;
+  uuid: tags.Format<"uuid">;
 }
 
 /**

@@ -5,7 +5,7 @@
  */
 
 // Direct exports from the main module
-export * from './radiological-consequence-analysis';
+export * from "./radiological-consequence-analysis";
 
 // Export additional reference interfaces from references module
 export {
@@ -16,4 +16,4 @@ export {
   EventSequenceToReleaseCategoryMapping,
   ReleaseCategory,
   SourceTermDefinition,
-} from './references';
+} from "./references";

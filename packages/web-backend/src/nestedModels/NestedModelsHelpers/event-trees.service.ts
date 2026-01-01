@@ -1,14 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { NestedModelService } from '../nestedModel.service';
-import {
-  NestedModelHelperService,
-  TypedModelType,
-} from '../nested-model-helper.service';
-import { EventTree, EventTreeDocument } from '../schemas/event-tree.schema';
-import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
-import { Label } from '../../schemas/label.schema';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { NestedModelService } from "../nestedModel.service";
+import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
+import { EventTree, EventTreeDocument } from "../schemas/event-tree.schema";
+import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
+import { Label } from "../../schemas/label.schema";
 
 /**
  * Service for Event Tree nested model operations.
@@ -35,10 +32,7 @@ export class EventTreesService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getEventTrees(parentId: number): Promise<EventTree[]> {
-    return this.eventTreeModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.eventTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -75,18 +69,14 @@ export class EventTreesService {
    * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventTree(
-    body: Partial<NestedModel>,
-    typedModel: TypedModelType,
-  ): Promise<NestedModel> {
+  async createEventTree(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
     const newEventTree = new this.eventTreeModel(body);
-    newEventTree.id =
-      await this.nestedModelService.getNextValue('nestedCounter');
+    newEventTree.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newEventTree.save();
     for (const pId of newEventTree.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
-        'eventTrees',
+        "eventTrees",
         pId.toString(),
         newEventTree._id as string,
       );
@@ -101,11 +91,7 @@ export class EventTreesService {
    * @returns a promise with the updated model with an updated label
    */
   async updateEventTreeLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventTreeModel.findOneAndUpdate(
-      { _id: id },
-      { label: body },
-      { new: true },
-    );
+    return this.eventTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
   }
 
   /**
@@ -114,10 +100,7 @@ export class EventTreesService {
    * @param typedModel - is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
-  async deleteEventTree(
-    modelId: string,
-    typedModel: TypedModelType,
-  ): Promise<void> {
+  async deleteEventTree(modelId: string, typedModel: TypedModelType): Promise<void> {
     const eventTree = await this.eventTreeModel.findOne({
       _id: modelId,
     });
@@ -126,7 +109,7 @@ export class EventTreesService {
     for (const pId of eventTree.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
         typedModel,
-        'eventTrees',
+        "eventTrees",
         pId.toString(),
         eventTree._id as string,
       );

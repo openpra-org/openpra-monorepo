@@ -80,7 +80,7 @@ interface DesignInformation {
 A named storage location for data that can hold values of specific types.
 
 ```typescript
-import typia from 'typia';
+import typia from "typia";
 const EventSequenceAnalysisSchema = typia.json.schemas<[EventSequenceAnalysis]>();
 // Stores the JSON validation schema for event sequences
 ```
@@ -91,7 +91,7 @@ A name given to a specific type or combination of types, making complex types mo
 
 ```typescript
 interface EndState {
-  name: 'Controlled Release';
+  name: "Controlled Release";
   category: string;
   releaseType: string;
   classification: string;
@@ -104,9 +104,9 @@ A set of named constants that represent distinct values.
 
 ```typescript
 enum PreventionMitigationLevel {
-  FULL = 'FULL',
-  PARTIAL = 'PARTIAL',
-  NONE = 'NONE',
+  FULL = "FULL",
+  PARTIAL = "PARTIAL",
+  NONE = "NONE",
 }
 ```
 
@@ -261,7 +261,7 @@ npm run serve
    - Ensure your TypeScript file has proper export statements
    - Add an `index.ts` in the directory if not present:
      ```typescript
-     export * from './risk-integration/risk-integration';
+     export * from "./risk-integration/risk-integration";
      ```
    - Check that the file is included in `tsconfig.json`'s `include` paths
 

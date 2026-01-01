@@ -14,7 +14,7 @@
  */
 
 // Re-export all types from the main module
-export * from './risk-integration';
+export * from "./risk-integration";
 
 // Define commonly used type groupings for easier imports
 export {
@@ -41,7 +41,7 @@ export {
 
   // Primary interface
   RiskIntegration,
-} from './risk-integration';
+} from "./risk-integration";
 
 /**
  * Standard import pattern for Risk Integration:

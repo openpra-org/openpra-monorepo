@@ -35,8 +35,7 @@ export type SignUpErrorProps = SignUpPropsGeneric<boolean>;
 /** Signup credentials payload for string fields. */
 export type SignUpCredentials = SignUpCredentialsGeneric<string>;
 /** Signup credentials payload with roles for string fields. */
-export type SignUpCredentialsWithRole =
-  SignUpCredentialsGenericWithRole<string>;
+export type SignUpCredentialsWithRole = SignUpCredentialsGenericWithRole<string>;
 
 /** Login payload for string fields. */
 export type LoginProps = LoginCredentials<string>;

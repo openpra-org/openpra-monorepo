@@ -1,15 +1,8 @@
-import {
-  Controller,
-  Post,
-  Request,
-  UseFilters,
-  UseGuards,
-  Body,
-} from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { LoginErrorFilter } from '../filters/login-error.filter';
-import { User } from '../collab/schemas/user.schema';
-import { AuthService } from './auth.service';
+import { Controller, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
+import { LoginErrorFilter } from "../filters/login-error.filter";
+import { User } from "../collab/schemas/user.schema";
+import { AuthService } from "./auth.service";
 
 /**
  * Controller for authentication endpoints.
@@ -17,7 +10,7 @@ import { AuthService } from './auth.service';
  * @public
  */
 @Controller()
-@UseGuards(AuthGuard('local'))
+@UseGuards(AuthGuard("local"))
 @UseFilters(LoginErrorFilter)
 export class AuthController {
   /**
@@ -40,7 +33,7 @@ export class AuthController {
    * @example
    * POST request: https://staging.app.openpra.org/api/auth/token-obtain
    */
-  @Post('/token-obtain/')
+  @Post("/token-obtain/")
   async loginUser(@Request() req: { user: User }): Promise<{ token: string }> {
     return this.authService.getJwtToken(req.user);
   }
@@ -57,14 +50,9 @@ export class AuthController {
    *   "password": "FullMetalAlchemist"
    * \}
    */
-  @Post('/verify-password/')
-  async verifyPassword(
-    @Body() body: { username: string; password: string },
-  ): Promise<{ match: boolean }> {
-    const match = await this.authService.verifyPassword(
-      body.username,
-      body.password,
-    );
+  @Post("/verify-password/")
+  async verifyPassword(@Body() body: { username: string; password: string }): Promise<{ match: boolean }> {
+    const match = await this.authService.verifyPassword(body.username, body.password);
     return {
       match: match,
     };

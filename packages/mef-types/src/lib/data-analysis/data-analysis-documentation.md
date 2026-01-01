@@ -99,16 +99,16 @@ This is supported by the `DistributionType` enum and the `probability_model` fie
 
 ```typescript
 export enum DistributionType {
-  EXPONENTIAL = 'exponential',
-  BINOMIAL = 'binomial',
-  NORMAL = 'normal',
-  LOGNORMAL = 'lognormal',
-  WEIBULL = 'weibull',
-  POISSON = 'poisson',
-  UNIFORM = 'uniform',
-  BETA = 'beta',
-  GAMMA = 'gamma',
-  POINT_ESTIMATE = 'point_estimate',
+  EXPONENTIAL = "exponential",
+  BINOMIAL = "binomial",
+  NORMAL = "normal",
+  LOGNORMAL = "lognormal",
+  WEIBULL = "weibull",
+  POISSON = "poisson",
+  UNIFORM = "uniform",
+  BETA = "beta",
+  GAMMA = "gamma",
+  POINT_ESTIMATE = "point_estimate",
 }
 ```
 
@@ -135,7 +135,7 @@ export interface DataSource {
   context?: string;
   notes?: string;
   documentationReferences?: string[];
-  sourceType?: 'GENERIC_INDUSTRY' | 'PLANT_SPECIFIC' | 'EXPERT_JUDGMENT';
+  sourceType?: "GENERIC_INDUSTRY" | "PLANT_SPECIFIC" | "EXPERT_JUDGMENT";
   timePeriod?: {
     startDate: string;
     endDate: string;
@@ -274,12 +274,12 @@ export interface Uncertainty {
   model_uncertainty_sources?: string[];
   riskImplications?: {
     affectedMetrics: string[];
-    significanceLevel: 'high' | 'medium' | 'low';
+    significanceLevel: "high" | "medium" | "low";
     propagationNotes?: string;
   };
   correlations?: {
     parameterId: string;
-    correlationType: 'common_cause' | 'environmental' | 'operational' | 'other';
+    correlationType: "common_cause" | "environmental" | "operational" | "other";
     correlationFactor: number;
     description?: string;
   }[];
@@ -310,7 +310,7 @@ The schema uses a standardized reference pattern for plant operating states thro
  * Type representing a reference to a plant operating state
  * @group Core Definition and Enums
  */
-export type PlantOperatingStateReference = string & tags.Pattern<'^POS-[A-Z0-9_-]+$'>;
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
 ```
 
 This reference type ensures consistent identification of plant operating states across the codebase while avoiding direct dependencies on the plant operating states module.
@@ -413,7 +413,7 @@ export interface PreOperationalAssumption extends BaseAssumption {
   resolutionPlan?: string;
 
   /** Current status - required for pre-operational assumptions */
-  status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
+  status: "OPEN" | "CLOSED" | "IN_PROGRESS";
 
   /** Limitations imposed by this assumption - required for pre-operational assumptions */
   limitations: string[];
@@ -430,21 +430,21 @@ This section provides simplified examples of how the schema would be implemented
 
 ```typescript
 // Example implementation of system component boundaries documentation
-const boundaries: DataAnalysisDocumentation['systemComponentBoundaries'] = [
+const boundaries: DataAnalysisDocumentation["systemComponentBoundaries"] = [
   {
-    systemId: 'SYS-RCS-001',
+    systemId: "SYS-RCS-001",
     boundaryDescription:
-      'Reactor Coolant System pump boundary includes the pump, motor, seals, and associated control circuitry',
-    boundaries: ['Primary coolant loop', 'Pump systems', 'Seal systems'],
-    references: ['Drawing RCS-PID-001', 'Design Spec DS-RCS-PUMP-001'],
+      "Reactor Coolant System pump boundary includes the pump, motor, seals, and associated control circuitry",
+    boundaries: ["Primary coolant loop", "Pump systems", "Seal systems"],
+    references: ["Drawing RCS-PID-001", "Design Spec DS-RCS-PUMP-001"],
   },
   {
-    systemId: 'SYS-EDG-001',
-    componentId: 'COMP-EDG-001',
+    systemId: "SYS-EDG-001",
+    componentId: "COMP-EDG-001",
     boundaryDescription:
-      'Emergency Diesel Generator includes the engine, generator, starting system, and local control panel',
-    boundaries: ['Starting system', 'Air intake', 'Fuel system', 'Control system'],
-    references: ['Drawing EDG-PID-001', 'Maintenance Procedure MP-EDG-START-001'],
+      "Emergency Diesel Generator includes the engine, generator, starting system, and local control panel",
+    boundaries: ["Starting system", "Air intake", "Fuel system", "Control system"],
+    references: ["Drawing EDG-PID-001", "Maintenance Procedure MP-EDG-START-001"],
   },
 ];
 ```
@@ -453,17 +453,17 @@ const boundaries: DataAnalysisDocumentation['systemComponentBoundaries'] = [
 
 ```typescript
 // Example implementation of data collection periods documentation
-const dataCollectionPeriods: DataAnalysisDocumentation['dataCollectionPeriods'] = [
+const dataCollectionPeriods: DataAnalysisDocumentation["dataCollectionPeriods"] = [
   {
-    parameterId: 'PARAM-EDG-FR-001',
-    startDate: '2018-01-01',
-    endDate: '2023-12-31',
-    censoringJustification: 'Excluded data prior to 2018 due to major design modification to the starting system',
+    parameterId: "PARAM-EDG-FR-001",
+    startDate: "2018-01-01",
+    endDate: "2023-12-31",
+    censoringJustification: "Excluded data prior to 2018 due to major design modification to the starting system",
   },
   {
-    parameterId: 'PARAM-PUMP-FS-001',
-    startDate: '2015-01-01',
-    endDate: '2023-12-31',
+    parameterId: "PARAM-PUMP-FS-001",
+    startDate: "2015-01-01",
+    endDate: "2023-12-31",
     censoringJustification: null,
   },
 ];
@@ -473,17 +473,17 @@ const dataCollectionPeriods: DataAnalysisDocumentation['dataCollectionPeriods'] 
 
 ```typescript
 // Example implementation of operating state data justification
-const operatingStateJustifications: DataAnalysisDocumentation['operatingStateDataJustifications'] = [
+const operatingStateJustifications: DataAnalysisDocumentation["operatingStateDataJustifications"] = [
   {
-    parameterId: 'PARAM-EDG-FR-001',
-    operatingState: 'POS-FULL-POWER-100',
+    parameterId: "PARAM-EDG-FR-001",
+    operatingState: "POS-FULL-POWER-100",
     justification:
-      'Data collected during full power operation provides the most representative conditions for EDG failure rate estimation',
+      "Data collected during full power operation provides the most representative conditions for EDG failure rate estimation",
   },
   {
-    parameterId: 'PARAM-PUMP-FS-001',
-    operatingState: 'POS-STARTUP-200',
-    justification: 'Startup conditions are critical for pump failure rate assessment due to thermal stresses',
+    parameterId: "PARAM-PUMP-FS-001",
+    operatingState: "POS-STARTUP-200",
+    justification: "Startup conditions are critical for pump failure rate assessment due to thermal stresses",
   },
 ];
 ```
@@ -492,12 +492,12 @@ const operatingStateJustifications: DataAnalysisDocumentation['operatingStateDat
 
 ```typescript
 // Example implementation of generic parameter rationales
-const genericParameterRationales: DataAnalysisDocumentation['genericParameterRationales'] = [
+const genericParameterRationales: DataAnalysisDocumentation["genericParameterRationales"] = [
   {
-    parameterId: 'PARAM-VALVE-FR-001',
-    operatingStates: ['POS-FULL-POWER-100', 'POS-PARTIAL-POWER-150'],
+    parameterId: "PARAM-VALVE-FR-001",
+    operatingStates: ["POS-FULL-POWER-100", "POS-PARTIAL-POWER-150"],
     rationale:
-      'Generic industry data is applicable across full and partial power conditions due to similar operating characteristics',
+      "Generic industry data is applicable across full and partial power conditions due to similar operating characteristics",
   },
 ];
 ```

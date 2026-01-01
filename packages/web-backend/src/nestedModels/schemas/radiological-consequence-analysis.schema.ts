@@ -1,6 +1,6 @@
-import { Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { NestedModel } from './templateSchema/nested-model.schema';
+import { Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { NestedModel } from "./templateSchema/nested-model.schema";
 
 /**
  * Nested model representing a Radiological Consequence Analysis technical element.
@@ -9,8 +9,6 @@ import { NestedModel } from './templateSchema/nested-model.schema';
 export class RadiologicalConsequenceAnalysis extends NestedModel {}
 
 /** Mongoose document type for RadiologicalConsequenceAnalysis. */
-export type RadiologicalConsequenceAnalysisDocument =
-  RadiologicalConsequenceAnalysis & Document;
+export type RadiologicalConsequenceAnalysisDocument = RadiologicalConsequenceAnalysis & Document;
 /** Mongoose schema for RadiologicalConsequenceAnalysis. */
-export const RadiologicalConsequenceAnalysisSchema =
-  SchemaFactory.createForClass(RadiologicalConsequenceAnalysis);
+export const RadiologicalConsequenceAnalysisSchema = SchemaFactory.createForClass(RadiologicalConsequenceAnalysis);

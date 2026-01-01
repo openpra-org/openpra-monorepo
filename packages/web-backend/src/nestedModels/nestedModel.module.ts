@@ -1,122 +1,53 @@
-import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import {
-  NestedCounter,
-  NestedCounterSchema,
-} from '../schemas/tree-counter.schema';
-import { GraphModelService } from '../graphModels/graphModel.service';
+import { Module } from "@nestjs/common";
+import { MongooseModule } from "@nestjs/mongoose";
+import { NestedCounter, NestedCounterSchema } from "../schemas/tree-counter.schema";
+import { GraphModelService } from "../graphModels/graphModel.service";
 import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphSchema,
-} from '../schemas/graphs/event-sequence-diagram-graph.schema';
-import {
-  FaultTreeGraph,
-  FaultTreeGraphSchema,
-} from '../schemas/graphs/fault-tree-graph.schema';
-import {
-  EventTreeGraph,
-  EventTreeGraphSchema,
-} from '../schemas/graphs/event-tree-graph.schema';
-import {
-  InternalEvents,
-  InternalEventsSchema,
-} from '../typedModel/schemas/internal-events.schema';
-import {
-  InternalHazards,
-  InternalHazardsSchema,
-} from '../typedModel/schemas/internal-hazards.schema';
-import {
-  ExternalHazards,
-  ExternalHazardsSchema,
-} from '../typedModel/schemas/external-hazards.schema';
-import {
-  FullScope,
-  FullScopeSchema,
-} from '../typedModel/schemas/full-scope.schema';
-import {
-  ModelCounter,
-  ModelCounterSchema,
-} from '../schemas/model-counter.schema';
-import { NestedModelService } from './nestedModel.service';
-import { NestedModelController } from './nestedModel.controller';
-import {
-  BayesianEstimation,
-  BayesianEstimationSchema,
-} from './schemas/bayesian-estimation.schema';
-import {
-  EventSequenceDiagram,
-  EventSequenceDiagramSchema,
-} from './schemas/event-sequence-diagram.schema';
-import { EventTree, EventTreeSchema } from './schemas/event-tree.schema';
-import { FaultTree, FaultTreeSchema } from './schemas/fault-tree.schema';
-import {
-  HeatBalanceFaultTree,
-  HeatBalanceFaultTreeSchema,
-} from './schemas/heat-balance-fault-tree.schema';
-import {
-  InitiatingEvent,
-  InitiatingEventSchema,
-} from './schemas/initiating-event.schema';
-import { MarkovChain, MarkovChainSchema } from './schemas/markov-chain.schema';
-import {
-  WeibullAnalysis,
-  WeibullAnalysisSchema,
-} from './schemas/weibull-analysis.schema';
-import {
-  BayesianNetwork,
-  BayesianNetworkSchema,
-} from './schemas/bayesian-network.schema';
-import {
-  FunctionalEvent,
-  FunctionalEventSchema,
-} from './schemas/functional-event.schema';
-import {
-  RiskIntegration,
-  RiskIntegrationSchema,
-} from './schemas/risk-integration.schema';
+} from "../schemas/graphs/event-sequence-diagram-graph.schema";
+import { FaultTreeGraph, FaultTreeGraphSchema } from "../schemas/graphs/fault-tree-graph.schema";
+import { EventTreeGraph, EventTreeGraphSchema } from "../schemas/graphs/event-tree-graph.schema";
+import { InternalEvents, InternalEventsSchema } from "../typedModel/schemas/internal-events.schema";
+import { InternalHazards, InternalHazardsSchema } from "../typedModel/schemas/internal-hazards.schema";
+import { ExternalHazards, ExternalHazardsSchema } from "../typedModel/schemas/external-hazards.schema";
+import { FullScope, FullScopeSchema } from "../typedModel/schemas/full-scope.schema";
+import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
+import { NestedModelService } from "./nestedModel.service";
+import { NestedModelController } from "./nestedModel.controller";
+import { BayesianEstimation, BayesianEstimationSchema } from "./schemas/bayesian-estimation.schema";
+import { EventSequenceDiagram, EventSequenceDiagramSchema } from "./schemas/event-sequence-diagram.schema";
+import { EventTree, EventTreeSchema } from "./schemas/event-tree.schema";
+import { FaultTree, FaultTreeSchema } from "./schemas/fault-tree.schema";
+import { HeatBalanceFaultTree, HeatBalanceFaultTreeSchema } from "./schemas/heat-balance-fault-tree.schema";
+import { InitiatingEvent, InitiatingEventSchema } from "./schemas/initiating-event.schema";
+import { MarkovChain, MarkovChainSchema } from "./schemas/markov-chain.schema";
+import { WeibullAnalysis, WeibullAnalysisSchema } from "./schemas/weibull-analysis.schema";
+import { BayesianNetwork, BayesianNetworkSchema } from "./schemas/bayesian-network.schema";
+import { FunctionalEvent, FunctionalEventSchema } from "./schemas/functional-event.schema";
+import { RiskIntegration, RiskIntegrationSchema } from "./schemas/risk-integration.schema";
 import {
   RadiologicalConsequenceAnalysis,
   RadiologicalConsequenceAnalysisSchema,
-} from './schemas/radiological-consequence-analysis.schema';
-import {
-  MechanisticSourceTerm,
-  MechanisticSourceTermSchema,
-} from './schemas/mechanistic-source-term.schema';
+} from "./schemas/radiological-consequence-analysis.schema";
+import { MechanisticSourceTerm, MechanisticSourceTermSchema } from "./schemas/mechanistic-source-term.schema";
 import {
   EventSequenceQuantificationDiagram,
   EventSequenceQuantificationDiagramSchema,
-} from './schemas/event-sequence-quantification-diagram.schema';
-import {
-  DataAnalysis,
-  DataAnalysisSchema,
-} from './schemas/data-analysis.schema';
-import {
-  HumanReliabilityAnalysis,
-  HumanReliabilityAnalysisSchema,
-} from './schemas/human-reliability-analysis.schema';
-import {
-  SystemsAnalysis,
-  SystemsAnalysisSchema,
-} from './schemas/systems-analysis.schema';
-import {
-  SuccessCriteria,
-  SuccessCriteriaSchema,
-} from './schemas/success-criteria.schema';
-import {
-  EventSequenceAnalysis,
-  EventSequenceAnalysisSchema,
-} from './schemas/event-sequence-analysis.schema';
-import {
-  OperatingStateAnalysis,
-  OperatingStateAnalysisSchema,
-} from './schemas/operatingStateAnalysis.schema';
-import { NestedModelHelperService } from './nested-model-helper.service';
-import { InitiatingEventsService } from './NestedModelsHelpers/initiating-events.service';
-import { EventSequenceDiagramService } from './NestedModelsHelpers/event-sequence-diagram.service';
-import { EventSequenceAnalysisService } from './NestedModelsHelpers/event-sequence-analysis.service';
-import { EventTreesService } from './NestedModelsHelpers/event-trees.service';
-import { BayesianNetworksService } from './NestedModelsHelpers/bayesian-networks.service';
-import { FaultTreesService } from './NestedModelsHelpers/fault-trees.service';
+} from "./schemas/event-sequence-quantification-diagram.schema";
+import { DataAnalysis, DataAnalysisSchema } from "./schemas/data-analysis.schema";
+import { HumanReliabilityAnalysis, HumanReliabilityAnalysisSchema } from "./schemas/human-reliability-analysis.schema";
+import { SystemsAnalysis, SystemsAnalysisSchema } from "./schemas/systems-analysis.schema";
+import { SuccessCriteria, SuccessCriteriaSchema } from "./schemas/success-criteria.schema";
+import { EventSequenceAnalysis, EventSequenceAnalysisSchema } from "./schemas/event-sequence-analysis.schema";
+import { OperatingStateAnalysis, OperatingStateAnalysisSchema } from "./schemas/operatingStateAnalysis.schema";
+import { NestedModelHelperService } from "./nested-model-helper.service";
+import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
+import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
+import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
+import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
+import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
+import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 
 /**
  * Nested models module composing controllers, services and schemas for technical elements.

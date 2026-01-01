@@ -1,9 +1,9 @@
-import * as fs from 'fs';
-import * as process from 'process';
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import * as fs from "fs";
+import * as process from "process";
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
 
 interface JwtPayload {
   user_id?: unknown;
@@ -24,18 +24,14 @@ interface JwtPayload {
 export const ParseJwtSecret = (configService: ConfigService): string => {
   // if the env-var for the secret key file has been set, read from it.
   if (process.env.JWT_SECRET_KEY_FILE) {
-    return fs
-      .readFileSync(configService.get<string>('JWT_SECRET_KEY_FILE'))
-      .toString();
+    return fs.readFileSync(configService.get<string>("JWT_SECRET_KEY_FILE")).toString();
   }
   // otherwise, read from the unsafe env-var
-  console.warn(
-    'Setting the JWT secret as an environment variable is unsafe, use JWT_SECRET_KEY_FILE instead',
-  );
-  const key = configService.get<string>('UNSAFE_JWT_SECRET_KEY');
+  console.warn("Setting the JWT secret as an environment variable is unsafe, use JWT_SECRET_KEY_FILE instead");
+  const key = configService.get<string>("UNSAFE_JWT_SECRET_KEY");
 
   if (!process.env.UNSAFE_JWT_SECRET_KEY) {
-    console.warn('Failed to fetch UNSAFE_JWT_SECRET_KEY');
+    console.warn("Failed to fetch UNSAFE_JWT_SECRET_KEY");
   }
   return key;
 };
@@ -49,14 +45,14 @@ export const ParseJwtSecret = (configService: ConfigService): string => {
  * 2. After decrypting the User object, it is sent to the validate function where the User data (userID, username, email) is separated.
  */
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   /**
    * Configure the JWT Passport strategy from configuration.
    * @param configService - Nest configuration provider used to read JWT secret sources.
    */
   constructor(private readonly configService: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('JWT'),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme("JWT"),
       ignoreExpiration: false,
       secretOrKey: ParseJwtSecret(configService),
     });
@@ -70,14 +66,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
    */
   validate(payload: JwtPayload) {
     const user_id =
-      typeof payload.user_id === 'number'
-        ? payload.user_id
-        : typeof payload.user_id === 'string'
-          ? Number(payload.user_id)
-          : undefined;
-    const username =
-      typeof payload.username === 'string' ? payload.username : undefined;
-    const email = typeof payload.email === 'string' ? payload.email : undefined;
+      typeof payload.user_id === "number" ? payload.user_id
+      : typeof payload.user_id === "string" ? Number(payload.user_id)
+      : undefined;
+    const username = typeof payload.username === "string" ? payload.username : undefined;
+    const email = typeof payload.email === "string" ? payload.email : undefined;
     return { user_id, username, email };
   }
 }

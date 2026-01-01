@@ -14,16 +14,16 @@ export {
   EventSequenceReference,
   EventSequenceFamilyReference,
   ReleaseCategoryMapping,
-} from '../event-sequence-analysis/event-sequence-analysis';
+} from "../event-sequence-analysis/event-sequence-analysis";
 
 // Re-export types from initiating-event-analysis
-export { PlantOperatingStateReference } from '../initiating-event-analysis/initiating-event-analysis';
+export { PlantOperatingStateReference } from "../initiating-event-analysis/initiating-event-analysis";
 
 // Re-export types from systems-analysis
-export { SystemReference } from '../systems-analysis/systems-analysis';
+export { SystemReference } from "../systems-analysis/systems-analysis";
 
 // Re-export types from core shared patterns
-export { SuccessCriteriaId } from '../core/shared-patterns';
+export { SuccessCriteriaId } from "../core/shared-patterns";
 
 /**
  * Risk-integrated event sequence results with importance metrics and risk significance.
@@ -36,7 +36,7 @@ export interface RiskSignificantEventSequence {
   sequenceId: string;
 
   /** Type of sequence (individual or family) */
-  sequenceType: 'INDIVIDUAL' | 'FAMILY';
+  sequenceType: "INDIVIDUAL" | "FAMILY";
 
   /** Mean frequency estimate */
   meanFrequency: number;
@@ -45,7 +45,7 @@ export interface RiskSignificantEventSequence {
   frequencyUnit: string;
 
   /** Risk significance level */
-  riskSignificance: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+  riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
   /** Importance metrics */
   importanceMetrics?: {

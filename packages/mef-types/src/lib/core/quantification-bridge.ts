@@ -34,18 +34,13 @@ export interface QuantificationReference {
   /**
    * Type of reference to support different reference strategies
    */
-  referenceType: 'direct' | 'template-based' | 'component-based' | 'custom';
+  referenceType: "direct" | "template-based" | "component-based" | "custom";
 
   /**
    * Quantification method to use
    * This allows flexibility in choosing different quantification approaches
    */
-  quantificationMethod?:
-    | 'point-estimate'
-    | 'distribution'
-    | 'bayesian'
-    | 'maximum-likelihood'
-    | string;
+  quantificationMethod?: "point-estimate" | "distribution" | "bayesian" | "maximum-likelihood" | string;
 
   /**
    * Optional metadata for extensibility
@@ -82,17 +77,17 @@ export enum QuantificationDirection {
   /**
    * Starting from system analysis, referencing data analysis
    */
-  SYSTEM_TO_DATA = 'SYSTEM_TO_DATA',
+  SYSTEM_TO_DATA = "SYSTEM_TO_DATA",
 
   /**
    * Starting from data analysis, linking to system analysis
    */
-  DATA_TO_SYSTEM = 'DATA_TO_SYSTEM',
+  DATA_TO_SYSTEM = "DATA_TO_SYSTEM",
 
   /**
    * Bidirectional workflow
    */
-  BIDIRECTIONAL = 'BIDIRECTIONAL',
+  BIDIRECTIONAL = "BIDIRECTIONAL",
 }
 
 /**
@@ -113,7 +108,7 @@ export interface QuantificationWorkflowConfig {
   /**
    * How to handle missing references
    */
-  missingReferenceHandling?: 'error' | 'warn' | 'ignore';
+  missingReferenceHandling?: "error" | "warn" | "ignore";
 
   /**
    * Whether to cache quantification results
@@ -156,11 +151,7 @@ export class QuantificationReferenceManager {
     systemBasicEventId: string,
     dataAnalysisReference?: string,
     options?: {
-      referenceType?:
-        | 'direct'
-        | 'template-based'
-        | 'component-based'
-        | 'custom';
+      referenceType?: "direct" | "template-based" | "component-based" | "custom";
       quantificationMethod?: string;
       metadata?: Record<string, any>;
     },
@@ -169,7 +160,7 @@ export class QuantificationReferenceManager {
       id: `quant_ref_${systemBasicEventId}`,
       systemBasicEventId,
       dataAnalysisReference,
-      referenceType: options?.referenceType ?? 'direct',
+      referenceType: options?.referenceType ?? "direct",
       quantificationMethod: options?.quantificationMethod,
       metadata: options?.metadata,
     };

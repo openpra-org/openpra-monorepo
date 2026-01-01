@@ -1,6 +1,6 @@
-import { Schema, SchemaFactory, Prop } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { TypedModel } from './templateSchema/typed-model.schema';
+import { Schema, SchemaFactory, Prop } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { TypedModel } from "./templateSchema/typed-model.schema";
 
 /**
  * Typed model representing Internal Hazards projects.
@@ -15,5 +15,4 @@ export class InternalHazards extends TypedModel {
 /** Mongoose document type for InternalHazards. */
 export type InternalHazardsDocument = InternalHazards & Document;
 /** Mongoose schema for InternalHazards. */
-export const InternalHazardsSchema =
-  SchemaFactory.createForClass(InternalHazards);
+export const InternalHazardsSchema = SchemaFactory.createForClass(InternalHazards);

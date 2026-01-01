@@ -1,8 +1,8 @@
-import { AuthService } from '../AuthService';
-import { ApiManager } from '../ApiManager';
-import { RoleSchemaDto } from 'shared-types/src/lib/types/roles/RoleSchemaDto';
+import { AuthService } from "../AuthService";
+import { ApiManager } from "../ApiManager";
+import { RoleSchemaDto } from "shared-types/src/lib/types/roles/RoleSchemaDto";
 
-const ApiEndpoint = '/api';
+const ApiEndpoint = "/api";
 
 /**
  * Get the current user's roles from the auth token.
@@ -12,7 +12,7 @@ export function GetRole(): string[] {
   try {
     return AuthService.getRole();
   } catch {
-    throw new Error('The user is not logged in or token expired');
+    throw new Error("The user is not logged in or token expired");
   }
 }
 
@@ -24,9 +24,7 @@ export function GetRole(): string[] {
 export async function GetAllRoles(ids: string[]): Promise<RoleSchemaDto[]> {
   let url = `${ApiEndpoint}/roles/`;
   if (ids.length > 0) {
-    const queryParams = ids
-      .map((id) => `id=${encodeURIComponent(id)}`)
-      .join('&');
+    const queryParams = ids.map((id) => `id=${encodeURIComponent(id)}`).join("&");
     url += `?${queryParams}`;
   }
   const response = await ApiManager.getWithOptions(url);
@@ -41,12 +39,8 @@ export async function GetAllRoles(ids: string[]): Promise<RoleSchemaDto[]> {
  * @param roleId - Role identifier.
  * @returns Role definition or throws when not found.
  */
-export async function GetRoleById(
-  roleId: string,
-): Promise<RoleSchemaDto | null> {
-  const response = await ApiManager.getWithOptions(
-    `${ApiEndpoint}/roles/${roleId}`,
-  );
+export async function GetRoleById(roleId: string): Promise<RoleSchemaDto | null> {
+  const response = await ApiManager.getWithOptions(`${ApiEndpoint}/roles/${roleId}`);
   if (response.ok) {
     return (await response.json()) as RoleSchemaDto;
   }
@@ -58,10 +52,7 @@ export async function GetRoleById(
  * @param role - Role definition to create.
  */
 export async function CreateRole(role: RoleSchemaDto): Promise<void> {
-  const response = await ApiManager.post(
-    `${ApiEndpoint}/roles/`,
-    JSON.stringify(role),
-  );
+  const response = await ApiManager.post(`${ApiEndpoint}/roles/`, JSON.stringify(role));
   if (response.ok) {
     return;
   }
@@ -73,10 +64,7 @@ export async function CreateRole(role: RoleSchemaDto): Promise<void> {
  * @param role - Updated role definition.
  */
 export async function UpdateRole(role: RoleSchemaDto): Promise<void> {
-  const response = await ApiManager.put(
-    `${ApiEndpoint}/roles/`,
-    JSON.stringify(role),
-  );
+  const response = await ApiManager.put(`${ApiEndpoint}/roles/`, JSON.stringify(role));
   if (response.ok) {
     return;
   }

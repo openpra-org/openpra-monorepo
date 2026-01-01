@@ -32,7 +32,7 @@ An `index.ts` file has been added to the Risk Integration module to provide a cl
 
 ```typescript
 // Export all types from the main module
-export * from './risk-integration';
+export * from "./risk-integration";
 
 // Define commonly used type groupings for easier imports
 export {
@@ -41,7 +41,7 @@ export {
   RiskSignificanceEvaluation,
 
   // Other interface exports...
-} from './risk-integration';
+} from "./risk-integration";
 ```
 
 ### 2. Dependency Proxying
@@ -55,9 +55,9 @@ These modules re-export necessary types from their upstream modules, maintaining
 
 ```typescript
 // In risk-integration.ts
-import { EventSequenceReference, RiskSignificantEventSequence } from '../event-sequence-quantification';
+import { EventSequenceReference, RiskSignificantEventSequence } from "../event-sequence-quantification";
 
-import { ReleaseCategoryReference, RiskSignificantConsequence } from '../radiological-consequence-analysis';
+import { ReleaseCategoryReference, RiskSignificantConsequence } from "../radiological-consequence-analysis";
 ```
 
 ### 3. Reference-Based Integration
@@ -65,8 +65,8 @@ import { ReleaseCategoryReference, RiskSignificantConsequence } from '../radiolo
 String-based reference types are used throughout the codebase to maintain loose coupling:
 
 ```typescript
-export type EventSequenceReference = string & tags.Pattern<'^ES-[A-Za-z0-9_-]+$'>;
-export type ReleaseCategoryReference = string & tags.Pattern<'^RC-[A-Za-z0-9_-]+$'>;
+export type EventSequenceReference = string & tags.Pattern<"^ES-[A-Za-z0-9_-]+$">;
+export type ReleaseCategoryReference = string & tags.Pattern<"^RC-[A-Za-z0-9_-]+$">;
 ```
 
 ### 4. Enhanced Documentation
@@ -235,20 +235,20 @@ Used to link systems identified in Systems Analysis to risk contributors.
 
    ```typescript
    // ✅ GOOD
-   import { RiskIntegration } from '../technical-elements/risk-integration';
+   import { RiskIntegration } from "../technical-elements/risk-integration";
 
    // ❌ BAD
-   import { RiskIntegration } from '../technical-elements/risk-integration/risk-integration';
+   import { RiskIntegration } from "../technical-elements/risk-integration/risk-integration";
    ```
 
 2. **Import Proxied Types**: Always import types from ESQ and RCA, not directly from upstream modules:
 
    ```typescript
    // ✅ GOOD
-   import { EventSequenceReference } from '../event-sequence-quantification';
+   import { EventSequenceReference } from "../event-sequence-quantification";
 
    // ❌ BAD
-   import { EventSequenceReference } from '../event-sequence-analysis';
+   import { EventSequenceReference } from "../event-sequence-analysis";
    ```
 
 3. **Use Reference Types**: Use reference types when referring to entities from other modules:
@@ -256,8 +256,8 @@ Used to link systems identified in Systems Analysis to risk contributors.
    ```typescript
    // ✅ GOOD
    const mapping = {
-     eventSequenceId: 'ES-LOCA-001', // EventSequenceReference
-     releaseCategoryId: 'RC-SMALL-001', // ReleaseCategoryReference
+     eventSequenceId: "ES-LOCA-001", // EventSequenceReference
+     releaseCategoryId: "RC-SMALL-001", // ReleaseCategoryReference
    };
 
    // ❌ BAD
@@ -372,8 +372,8 @@ Create a shared reference type pattern library in a dedicated file:
 ```typescript
 // reference-types.ts
 export type ReferencePattern = {
-  EVENT_SEQUENCE: string & tags.Pattern<'^ES-[A-Za-z0-9_-]+$'>;
-  RELEASE_CATEGORY: string & tags.Pattern<'^RC-[A-Za-z0-9_-]+$'>;
+  EVENT_SEQUENCE: string & tags.Pattern<"^ES-[A-Za-z0-9_-]+$">;
+  RELEASE_CATEGORY: string & tags.Pattern<"^RC-[A-Za-z0-9_-]+$">;
   // Other reference patterns...
 };
 ```
@@ -381,9 +381,9 @@ export type ReferencePattern = {
 Gradually migrate existing reference types to use this library:
 
 ```typescript
-import { ReferencePattern } from '../core/reference-patterns';
+import { ReferencePattern } from "../core/reference-patterns";
 
-export type EventSequenceReference = ReferencePattern['EVENT_SEQUENCE'];
+export type EventSequenceReference = ReferencePattern["EVENT_SEQUENCE"];
 ```
 
 This centralized registry will improve consistency and maintainability of reference types across the codebase.
@@ -409,13 +409,13 @@ The following examples demonstrate how to use the Risk Integration module while 
 
 ```typescript
 // Import the entire module (preferred for most cases)
-import * as RiskIntegration from '../technical-elements/risk-integration';
+import * as RiskIntegration from "../technical-elements/risk-integration";
 
 // Create a new risk integration instance
 const riskIntegration: RiskIntegration.RiskIntegration = {
-  uuid: '123e4567-e89b-12d3-a456-426614174000',
+  uuid: "123e4567-e89b-12d3-a456-426614174000",
   elementType: TechnicalElementTypes.RISK_INTEGRATION,
-  name: 'Plant Risk Integration Analysis',
+  name: "Plant Risk Integration Analysis",
   // ...other fields
 };
 ```
@@ -428,14 +428,14 @@ import {
   RiskSignificanceCriteria,
   IntegratedRiskResults,
   EventSequenceToReleaseCategory,
-} from '../technical-elements/risk-integration';
+} from "../technical-elements/risk-integration";
 
 // Create a risk significance criteria
 const criteria: RiskSignificanceCriteria = {
-  uuid: '123e4567-e89b-12d3-a456-426614174001',
-  name: 'Core Damage Frequency Significance',
-  criteriaType: 'HYBRID',
-  metricType: 'CDF',
+  uuid: "123e4567-e89b-12d3-a456-426614174001",
+  name: "Core Damage Frequency Significance",
+  criteriaType: "HYBRID",
+  metricType: "CDF",
   // ...other fields
 };
 ```
@@ -446,22 +446,22 @@ const criteria: RiskSignificanceCriteria = {
 
 ```typescript
 // ❌ BAD: Importing directly from upstream module
-import { EventSequence } from '../technical-elements/event-sequence-analysis';
+import { EventSequence } from "../technical-elements/event-sequence-analysis";
 
 // ✅ GOOD: Import from ESQ which re-exports necessary types
 import {
   EventSequenceReference,
   RiskSignificantEventSequence,
-} from '../technical-elements/event-sequence-quantification';
+} from "../technical-elements/event-sequence-quantification";
 
 // Use the re-exported types in Risk Integration
 const sequenceMapping: EventSequenceToReleaseCategory = {
-  uuid: '123e4567-e89b-12d3-a456-426614174002',
-  eventSequenceId: 'ESF-LOCA-001', // EventSequenceReference
-  releaseCategoryId: 'RC-SMALL-001',
-  mappingBasis: 'Based on thermal-hydraulic analysis of LOCA scenarios',
+  uuid: "123e4567-e89b-12d3-a456-426614174002",
+  eventSequenceId: "ESF-LOCA-001", // EventSequenceReference
+  releaseCategoryId: "RC-SMALL-001",
+  mappingBasis: "Based on thermal-hydraulic analysis of LOCA scenarios",
   frequency: 1.2e-6,
-  frequencyUnit: 'PER_REACTOR_YEAR',
+  frequencyUnit: "PER_REACTOR_YEAR",
 };
 ```
 
@@ -471,16 +471,16 @@ const sequenceMapping: EventSequenceToReleaseCategory = {
 // Providing feedback to Event Sequence Quantification
 const feedback = {
   eventSequenceAnalysisFeedback: {
-    analysisId: 'ESA-2023-001',
+    analysisId: "ESA-2023-001",
     eventSequenceFamilyFeedback: [
       {
-        familyId: 'ESF-LOCA-001',
-        riskSignificance: 'HIGH',
+        familyId: "ESF-LOCA-001",
+        riskSignificance: "HIGH",
         insights: [
-          'This sequence family contributes 15% of total core damage frequency',
-          'Dominant cut sets involve operator failures during recirculation',
+          "This sequence family contributes 15% of total core damage frequency",
+          "Dominant cut sets involve operator failures during recirculation",
         ],
-        recommendations: ['Consider more detailed modeling of operator actions during recirculation'],
+        recommendations: ["Consider more detailed modeling of operator actions during recirculation"],
       },
     ],
   },
@@ -493,8 +493,8 @@ const feedback = {
 
 ```typescript
 // AVOID: Importing directly from upstream modules
-import { EventSequence } from '../technical-elements/event-sequence-analysis';
-import { SourceTerm } from '../technical-elements/mechanistic-source-term';
+import { EventSequence } from "../technical-elements/event-sequence-analysis";
+import { SourceTerm } from "../technical-elements/mechanistic-source-term";
 ```
 
 #### ❌ Bypassing Proxy Types
@@ -512,10 +512,10 @@ const mapping = {
 ```typescript
 // AVOID: Creating circular dependencies
 // In risk-integration.ts
-import { EventSequenceQuantification } from '../event-sequence-quantification';
+import { EventSequenceQuantification } from "../event-sequence-quantification";
 
 // In event-sequence-quantification.ts
-import { RiskIntegration } from '../risk-integration';
+import { RiskIntegration } from "../risk-integration";
 ```
 
 ## Conclusion
@@ -527,36 +527,36 @@ The Risk Integration module serves as the synthesis point for the entire PRA fra
 Below is a comprehensive example showing how to create a complete integrated risk assessment while maintaining proper dependency structure:
 
 ```typescript
-import * as RiskIntegration from '../technical-elements/risk-integration';
-import { TechnicalElementTypes } from '../technical-elements/technical-element';
-import { RiskMetricType, ImportanceLevel } from '../technical-elements/core/shared-patterns';
-import { FrequencyUnit } from '../technical-elements/core/events';
-import { DistributionType } from '../technical-elements/data-analysis';
+import * as RiskIntegration from "../technical-elements/risk-integration";
+import { TechnicalElementTypes } from "../technical-elements/technical-element";
+import { RiskMetricType, ImportanceLevel } from "../technical-elements/core/shared-patterns";
+import { FrequencyUnit } from "../technical-elements/core/events";
+import { DistributionType } from "../technical-elements/data-analysis";
 
 // Import proxied types from ESQ and RCA
 import {
   EventSequenceReference,
   RiskSignificantEventSequence,
-} from '../technical-elements/event-sequence-quantification';
+} from "../technical-elements/event-sequence-quantification";
 
 import {
   ReleaseCategoryReference,
   RiskSignificantConsequence,
-} from '../technical-elements/radiological-consequence-analysis';
+} from "../technical-elements/radiological-consequence-analysis";
 
 // Create a complete Risk Integration instance
 const plantRiskIntegration: RiskIntegration.RiskIntegration = {
-  uuid: '123e4567-e89b-12d3-a456-426614174000',
+  uuid: "123e4567-e89b-12d3-a456-426614174000",
   elementType: TechnicalElementTypes.RISK_INTEGRATION,
-  name: 'Plant Risk Integration Analysis',
-  version: '1.0',
+  name: "Plant Risk Integration Analysis",
+  version: "1.0",
 
   // Define risk significance criteria
   riskSignificanceCriteria: [
     {
-      uuid: '123e4567-e89b-12d3-a456-426614174001',
-      name: 'Core Damage Frequency Significance',
-      criteriaType: 'HYBRID',
+      uuid: "123e4567-e89b-12d3-a456-426614174001",
+      name: "Core Damage Frequency Significance",
+      criteriaType: "HYBRID",
       metricType: RiskMetricType.CDF,
       absoluteThresholds: {
         eventSequence: 1.0e-7,
@@ -568,17 +568,17 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
         basic: 0.005,
         component: 0.01,
       },
-      justification: 'Based on regulatory guidance and industry practice',
+      justification: "Based on regulatory guidance and industry practice",
     },
   ],
 
   // Define event sequence to release category mappings
   eventSequenceToReleaseCategoryMappings: [
     {
-      uuid: '123e4567-e89b-12d3-a456-426614174002',
-      eventSequenceId: 'ESF-LOCA-001',
-      releaseCategoryId: 'RC-SMALL-001',
-      mappingBasis: 'Based on thermal-hydraulic analysis of LOCA scenarios',
+      uuid: "123e4567-e89b-12d3-a456-426614174002",
+      eventSequenceId: "ESF-LOCA-001",
+      releaseCategoryId: "RC-SMALL-001",
+      mappingBasis: "Based on thermal-hydraulic analysis of LOCA scenarios",
       frequency: 1.2e-6,
       frequencyUnit: FrequencyUnit.PER_REACTOR_YEAR,
     },
@@ -586,12 +586,12 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
 
   // Define integrated risk results
   integratedRiskResults: {
-    uuid: '123e4567-e89b-12d3-a456-426614174003',
-    name: 'Integrated Plant Risk Results',
+    uuid: "123e4567-e89b-12d3-a456-426614174003",
+    name: "Integrated Plant Risk Results",
     metrics: [
       {
-        uuid: '123e4567-e89b-12d3-a456-426614174004',
-        name: 'Total Core Damage Frequency',
+        uuid: "123e4567-e89b-12d3-a456-426614174004",
+        name: "Total Core Damage Frequency",
         metricType: RiskMetricType.CDF,
         value: 2.5e-6,
         units: FrequencyUnit.PER_REACTOR_YEAR,
@@ -607,7 +607,7 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
     calculationApproach: {
       meanValueApproach: true,
       frequencyConsequencePlots: true,
-      justification: 'Mean values provide best estimate of expected risk',
+      justification: "Mean values provide best estimate of expected risk",
     },
     hazardGroupContributions: {
       INTERNAL_EVENTS: 1.5e-6,
@@ -618,15 +618,15 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
 
   // Define significant contributors
   significantContributors: {
-    uuid: '123e4567-e89b-12d3-a456-426614174005',
+    uuid: "123e4567-e89b-12d3-a456-426614174005",
     metricType: RiskMetricType.CDF,
     significantEventSequences: [
       {
-        uuid: '123e4567-e89b-12d3-a456-426614174006',
-        name: 'Station Blackout (SBO)',
-        contributorType: 'event-sequence',
+        uuid: "123e4567-e89b-12d3-a456-426614174006",
+        name: "Station Blackout (SBO)",
+        contributorType: "event-sequence",
         sourceElement: TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
-        sourceId: 'ES-SBO-001',
+        sourceId: "ES-SBO-001",
         importanceMetrics: {
           fussellVesely: 0.15,
           raw: 12.5,
@@ -635,37 +635,37 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
         importanceLevel: ImportanceLevel.HIGH,
       },
     ],
-    insights: ['Station blackout events represent 15% of the total core damage frequency'],
+    insights: ["Station blackout events represent 15% of the total core damage frequency"],
   },
 
   // Define integration methods
   integrationMethods: [
     {
-      uuid: '123e4567-e89b-12d3-a456-426614174007',
-      name: 'MinMaxCut Importance Analysis',
-      version: '2.3.1',
-      description: 'Method for calculating importance measures for minimal cut sets',
-      applicability: 'Suitable for Boolean logic models with well-defined minimal cut sets',
-      limitations: ['Assumes independence between basic events', 'May not be suitable for highly non-linear models'],
-      justification: 'Industry standard approach with well-documented validation history',
+      uuid: "123e4567-e89b-12d3-a456-426614174007",
+      name: "MinMaxCut Importance Analysis",
+      version: "2.3.1",
+      description: "Method for calculating importance measures for minimal cut sets",
+      applicability: "Suitable for Boolean logic models with well-defined minimal cut sets",
+      limitations: ["Assumes independence between basic events", "May not be suitable for highly non-linear models"],
+      justification: "Industry standard approach with well-documented validation history",
     },
   ],
 
   // Define uncertainty analyses
   uncertaintyAnalyses: [
     {
-      uuid: '123e4567-e89b-12d3-a456-426614174008',
-      name: 'Complete Plant CDF Uncertainty Analysis',
-      description: 'Comprehensive uncertainty analysis for the integrated CDF',
+      uuid: "123e4567-e89b-12d3-a456-426614174008",
+      name: "Complete Plant CDF Uncertainty Analysis",
+      description: "Comprehensive uncertainty analysis for the integrated CDF",
       metric: RiskMetricType.CDF,
-      propagationMethod: 'Monte Carlo sampling with 10,000 trials',
+      propagationMethod: "Monte Carlo sampling with 10,000 trials",
       parameterUncertainty: {
         distribution: DistributionType.LOGNORMAL,
         parameters: {
           mean: 2.5e-6,
-          '5th_percentile': 8.3e-7,
-          '50th_percentile': 2.1e-6,
-          '95th_percentile': 7.2e-6,
+          "5th_percentile": 8.3e-7,
+          "50th_percentile": 2.1e-6,
+          "95th_percentile": 7.2e-6,
         },
       },
     },
@@ -673,29 +673,29 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
 
   // Define documentation
   documentation: {
-    uuid: '123e4567-e89b-12d3-a456-426614174009',
+    uuid: "123e4567-e89b-12d3-a456-426614174009",
     processDescription:
-      'This risk integration process synthesizes results from event sequence quantification and radiological consequence analysis to calculate overall plant risk metrics and identify significant contributors.',
+      "This risk integration process synthesizes results from event sequence quantification and radiological consequence analysis to calculate overall plant risk metrics and identify significant contributors.",
     riskSignificanceCriteriaDescription:
-      'Risk significance criteria are based on both absolute threshold values and relative contribution to the total risk.',
+      "Risk significance criteria are based on both absolute threshold values and relative contribution to the total risk.",
     calculationMethodsDescription:
-      'Risk metrics are calculated using mean value approaches and complemented with uncertainty analysis via Monte Carlo simulation.',
+      "Risk metrics are calculated using mean value approaches and complemented with uncertainty analysis via Monte Carlo simulation.",
     uncertaintyAnalysisDescription:
-      'Uncertainties from both parameter data and modeling approaches are propagated through the analysis using Monte Carlo simulation.',
+      "Uncertainties from both parameter data and modeling approaches are propagated through the analysis using Monte Carlo simulation.",
     keyAssumptionsDescription:
-      'Key assumptions include independence of certain failure modes and conservatism in source term characterization.',
+      "Key assumptions include independence of certain failure modes and conservatism in source term characterization.",
     limitationsDescription:
-      'This analysis is limited by the level of detail in external hazards modeling and simplified treatment of recovery actions.',
+      "This analysis is limited by the level of detail in external hazards modeling and simplified treatment of recovery actions.",
   },
 
   // Define primary inputs from Event Sequence Quantification
   eventSequenceQuantificationInputs: {
     analysisReferences: [
       {
-        analysisId: 'ESQ-2023-001',
-        version: '1.0',
-        date: '2023-06-15',
-        usageDescription: 'Used for sequence frequencies and importance measures',
+        analysisId: "ESQ-2023-001",
+        version: "1.0",
+        date: "2023-06-15",
+        usageDescription: "Used for sequence frequencies and importance measures",
       },
     ],
     riskSignificantSequences: [
@@ -707,10 +707,10 @@ const plantRiskIntegration: RiskIntegration.RiskIntegration = {
   radiologicalConsequenceInputs: {
     analysisReferences: [
       {
-        analysisId: 'RCA-2023-001',
-        version: '1.0',
-        date: '2023-07-20',
-        usageDescription: 'Used for consequence metrics and uncertainty analysis',
+        analysisId: "RCA-2023-001",
+        version: "1.0",
+        date: "2023-07-20",
+        usageDescription: "Used for consequence metrics and uncertainty analysis",
       },
     ],
     riskSignificantConsequences: [

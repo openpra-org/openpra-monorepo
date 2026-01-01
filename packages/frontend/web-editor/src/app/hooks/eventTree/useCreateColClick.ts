@@ -1,10 +1,10 @@
 //
-import { Edge, NodeProps, Node, useReactFlow } from 'reactflow';
-import { GraphApiManager } from 'shared-sdk/lib/api/GraphApiManager';
-import { useParams } from 'react-router-dom';
-import { EventTreeGraph } from 'shared-types/src/lib/types/reactflowGraph/Graph';
-import { EventTreeState, GenerateUUID } from '../../../utils/treeUtils';
-import { UseToastContext } from '../../providers/toastProvider';
+import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
 
 // Minimal data shape used by Event Tree nodes in this hook
 interface EventTreeNodeData {
@@ -28,7 +28,7 @@ interface EventTreeNodeData {
  * @param clickedNodeId - The id of a node in the column to split/extend.
  * @returns A function that performs the insertion when invoked.
  */
-function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
+function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
@@ -37,9 +37,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
     // Get current nodes and edges
     const nodeData = getNodes() as Node<EventTreeNodeData>[];
     let edges = getEdges();
-    const clickedNode = getNode(clickedNodeId) as
-      | Node<EventTreeNodeData>
-      | undefined;
+    const clickedNode = getNode(clickedNodeId) as Node<EventTreeNodeData> | undefined;
     if (!clickedNode) return;
 
     const currentDepth = clickedNode.data.depth;
@@ -49,21 +47,19 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
 
     // Get nodes in the next column
     const nextColumnNodes = nodeData.filter(
-      (node) =>
-        node.type !== 'columnNode' && node.data.depth === currentDepth + 1,
+      (node) => node.type !== "columnNode" && node.data.depth === currentDepth + 1,
     );
 
     // Check if next column has only invisible nodes (no output nodes)
     const hasOnlyInvisibleNodes =
-      nextColumnNodes.length > 0 &&
-      nextColumnNodes.every((node) => node.type === 'invisibleNode');
+      nextColumnNodes.length > 0 && nextColumnNodes.every((node) => node.type === "invisibleNode");
 
     if (hasOnlyInvisibleNodes) {
       addToast({
         id: GenerateUUID(),
-        title: 'Warning',
-        color: 'warning',
-        text: 'Cannot create a new functional event with an existing empty functional event',
+        title: "Warning",
+        color: "warning",
+        text: "Cannot create a new functional event with an existing empty functional event",
       });
       return;
     }
@@ -73,7 +69,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
     const cols: Node<EventTreeNodeData>[] = [];
 
     nodeData.forEach((node) => {
-      if (node.type === 'columnNode') {
+      if (node.type === "columnNode") {
         cols.push(node);
       } else {
         nodes.push(node);
@@ -104,9 +100,9 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
         const newNodeId = GenerateUUID();
         const newInvisibleNode: Node<EventTreeNodeData> = {
           id: newNodeId,
-          type: clickedNode.data.output ? 'outputNode' : 'invisibleNode',
+          type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
-            label: 'New Node',
+            label: "New Node",
             depth: clickedDepth + 1,
             width: node.data.width,
           },
@@ -127,7 +123,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
               id: `${newNodeId}-${edge.target}`,
               source: newNodeId,
               target: edge.target,
-              type: 'custom',
+              type: "custom",
               animated: false,
             });
           }
@@ -136,7 +132,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
           id: `${node.id}-${newNodeId}`,
           source: node.id,
           target: newNodeId,
-          type: 'custom',
+          type: "custom",
           animated: false,
         });
 
@@ -149,7 +145,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
 
     const newColNode: Node<EventTreeNodeData> = {
       id: newColNodeId,
-      type: 'columnNode',
+      type: "columnNode",
       data: {
         label: clickedNode.data.output ? `End State ` : `Functional Event `,
         depth: clickedDepth + 1,
@@ -170,17 +166,17 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
         id: `${clickedNodeId}-${newColNodeId}`,
         source: clickedNodeId,
         target: newColNodeId,
-        type: 'custom',
+        type: "custom",
         animated: false,
         data: {
           hidden: true,
         },
       },
       {
-        id: clickedNodeEdge ? `${newColNodeId}-${clickedNodeEdge.target}` : '',
+        id: clickedNodeEdge ? `${newColNodeId}-${clickedNodeEdge.target}` : "",
         source: newColNodeId,
-        target: clickedNodeEdge ? clickedNodeEdge.target : '',
-        type: 'custom',
+        target: clickedNodeEdge ? clickedNodeEdge.target : "",
+        type: "custom",
         animated: false,
         data: {
           hidden: true,
@@ -188,9 +184,7 @@ function useCreateColClick(clickedNodeId: NodeProps['id']): () => void {
       },
     ];
 
-    edges = edges
-      .filter((e) => e.source !== clickedNodeId)
-      .concat([...newColEdges, ...newEdges]);
+    edges = edges.filter((e) => e.source !== clickedNodeId).concat([...newColEdges, ...newEdges]);
 
     // Determine the index of the col with the previous depth
     cols.forEach((node, index) => {

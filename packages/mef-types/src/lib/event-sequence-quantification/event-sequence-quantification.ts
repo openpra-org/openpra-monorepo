@@ -26,36 +26,24 @@
  */
 
 // Import BarrierStatus from plant operating states for reuse in this module
-import { BarrierStatus } from '../plant-operating-states-analysis/plant-operating-states-analysis';
+import { BarrierStatus } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 
 // Re-export BarrierStatus for use by downstream modules
 export { BarrierStatus };
 
 // Core imports
-import typia, { tags } from 'typia';
-import { Named, Unique } from '../core/meta';
+import typia, { tags } from "typia";
+import { Named, Unique } from "../core/meta";
 
 // Event and data analysis imports
-import { BaseEvent, InitiatingEvent, FrequencyUnit } from '../core/events';
-import {
-  Uncertainty,
-  DistributionType,
-  BayesianUpdate,
-} from '../data-analysis/data-analysis';
+import { BaseEvent, InitiatingEvent, FrequencyUnit } from "../core/events";
+import { Uncertainty, DistributionType, BayesianUpdate } from "../data-analysis/data-analysis";
 
 // Other technical element imports
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 // This line ensures the EVENT_SEQUENCE_QUANTIFICATION type is available
 // EVENT_SEQUENCE_QUANTIFICATION = "event-sequence-quantification"
-import {
-  EventSequence,
-  EventSequenceFamily,
-  DependencyType,
-} from '../event-sequence-analysis/event-sequence-analysis';
+import { EventSequence, EventSequenceFamily, DependencyType } from "../event-sequence-analysis/event-sequence-analysis";
 
 // Documentation and shared patterns imports
 import {
@@ -64,10 +52,10 @@ import {
   ScreeningCriteria,
   SensitivityStudy,
   BaseUncertaintyAnalysis,
-} from '../core/shared-patterns';
+} from "../core/shared-patterns";
 
 // Import from uncertainty.ts instead of shared-patterns.ts
-import { BaseAssumption as Assumption } from '../core/documentation';
+import { BaseAssumption as Assumption } from "../core/documentation";
 
 // Import documentation interfaces from documentation.ts
 import {
@@ -76,7 +64,7 @@ import {
   BaseModelUncertaintyDocumentation,
   BasePreOperationalAssumptionsDocumentation,
   BasePeerReviewDocumentation,
-} from '../core/documentation';
+} from "../core/documentation";
 
 // Define FrequencyQuantification interface if it's missing from events.ts
 interface FrequencyQuantification {
@@ -85,11 +73,7 @@ interface FrequencyQuantification {
   /** The unit of the frequency */
   unit: string;
 }
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 /**
  * Runtime validation functions for EventSequenceQuantification
@@ -101,40 +85,26 @@ export const validateEventSequenceQuantification = {
    * @param analysis - The EventSequenceQuantification to validate
    * @returns Array of validation error messages
    */
-  validateFamilyConsistency: (
-    analysis: EventSequenceQuantification,
-  ): string[] => {
+  validateFamilyConsistency: (analysis: EventSequenceQuantification): string[] => {
     const errors: string[] = [];
 
     // Check if all event sequences referenced in families are referenced in quantification results
-    Object.entries(analysis.eventSequenceFamilies).forEach(
-      ([familyId, family]) => {
-        for (const sequenceId of family.memberSequenceIds) {
-          const sequenceInResults = Object.values(
-            analysis.quantificationResults,
-          ).some(
-            (result) =>
-              result.sequenceId === sequenceId &&
-              result.sequenceType === 'INDIVIDUAL',
-          );
+    Object.entries(analysis.eventSequenceFamilies).forEach(([familyId, family]) => {
+      for (const sequenceId of family.memberSequenceIds) {
+        const sequenceInResults = Object.values(analysis.quantificationResults).some(
+          (result) => result.sequenceId === sequenceId && result.sequenceType === "INDIVIDUAL",
+        );
 
-          if (!sequenceInResults) {
-            errors.push(
-              `Family ${familyId} references sequence ${sequenceId} that is not quantified in results`,
-            );
-          }
+        if (!sequenceInResults) {
+          errors.push(`Family ${familyId} references sequence ${sequenceId} that is not quantified in results`);
         }
+      }
 
-        // Check if representative sequence is a member of the family
-        if (
-          !family.memberSequenceIds.includes(family.representativeSequenceId)
-        ) {
-          errors.push(
-            `Representative sequence ${family.representativeSequenceId} is not a member of family ${familyId}`,
-          );
-        }
-      },
-    );
+      // Check if representative sequence is a member of the family
+      if (!family.memberSequenceIds.includes(family.representativeSequenceId)) {
+        errors.push(`Representative sequence ${family.representativeSequenceId} is not a member of family ${familyId}`);
+      }
+    });
 
     return errors;
   },
@@ -144,23 +114,15 @@ export const validateEventSequenceQuantification = {
    * @param analysis - The EventSequenceQuantification to validate
    * @returns Array of validation error messages
    */
-  validateDependencyTreatment: (
-    analysis: EventSequenceQuantification,
-  ): string[] => {
+  validateDependencyTreatment: (analysis: EventSequenceQuantification): string[] => {
     const errors: string[] = [];
 
     // Check if all dependency types are addressed
-    const requiredDependencyTypes = ['FUNCTIONAL', 'PHYSICAL', 'HUMAN'];
+    const requiredDependencyTypes = ["FUNCTIONAL", "PHYSICAL", "HUMAN"];
 
     for (const depType of requiredDependencyTypes) {
-      if (
-        !analysis.dependencyTreatment.dependenciesByType[
-          depType as DependencyType
-        ]
-      ) {
-        errors.push(
-          `Required dependency type ${depType} is not addressed in the analysis`,
-        );
+      if (!analysis.dependencyTreatment.dependenciesByType[depType as DependencyType]) {
+        errors.push(`Required dependency type ${depType} is not addressed in the analysis`);
       }
     }
 
@@ -179,17 +141,12 @@ export const validateEventSequenceQuantification = {
 
     // Check if truncation progression has at least 3 values to demonstrate convergence
     if (truncation.truncationProgression.length < 3) {
-      errors.push(
-        `Truncation progression needs at least 3 values to demonstrate convergence`,
-      );
+      errors.push(`Truncation progression needs at least 3 values to demonstrate convergence`);
     }
 
     // Check if truncation values are in decreasing order
     for (let i = 1; i < truncation.truncationProgression.length; i++) {
-      if (
-        truncation.truncationProgression[i] >=
-        truncation.truncationProgression[i - 1]
-      ) {
+      if (truncation.truncationProgression[i] >= truncation.truncationProgression[i - 1]) {
         errors.push(`Truncation values must be in decreasing order`);
         break;
       }
@@ -203,48 +160,32 @@ export const validateEventSequenceQuantification = {
    * @param analysis - The EventSequenceQuantification to validate
    * @returns Array of validation error messages
    */
-  validateUncertaintyAnalysis: (
-    analysis: EventSequenceQuantification,
-  ): string[] => {
+  validateUncertaintyAnalysis: (analysis: EventSequenceQuantification): string[] => {
     const errors: string[] = [];
 
     // Check if simulation-based methods have enough samples
     if (
-      (analysis.uncertaintyAnalysis.propagationMethod === 'MONTE_CARLO' ||
-        analysis.uncertaintyAnalysis.propagationMethod === 'LATIN_HYPERCUBE') &&
-      (!analysis.uncertaintyAnalysis.numberOfSamples ||
-        analysis.uncertaintyAnalysis.numberOfSamples < 1000)
+      (analysis.uncertaintyAnalysis.propagationMethod === "MONTE_CARLO" ||
+        analysis.uncertaintyAnalysis.propagationMethod === "LATIN_HYPERCUBE") &&
+      (!analysis.uncertaintyAnalysis.numberOfSamples || analysis.uncertaintyAnalysis.numberOfSamples < 1000)
     ) {
-      errors.push(
-        `Simulation-based uncertainty propagation requires at least 1000 samples`,
-      );
+      errors.push(`Simulation-based uncertainty propagation requires at least 1000 samples`);
     }
 
     // Check if unquantified uncertainties have sensitivity studies
-    const unquantifiedUncertainties =
-      analysis.uncertaintyAnalysis.modelUncertainties.filter(
-        (u) => !u.isQuantified,
-      );
+    const unquantifiedUncertainties = analysis.uncertaintyAnalysis.modelUncertainties.filter((u) => !u.isQuantified);
 
     if (
       unquantifiedUncertainties.length > 0 &&
-      (!analysis.uncertaintyAnalysis.sensitivityStudies ||
-        analysis.uncertaintyAnalysis.sensitivityStudies.length === 0)
+      (!analysis.uncertaintyAnalysis.sensitivityStudies || analysis.uncertaintyAnalysis.sensitivityStudies.length === 0)
     ) {
-      errors.push(
-        `Unquantified uncertainties must be addressed via sensitivity studies`,
-      );
+      errors.push(`Unquantified uncertainties must be addressed via sensitivity studies`);
     }
 
     // Check state-of-knowledge correlation
     const { stateOfKnowledgeCorrelation } = analysis.uncertaintyAnalysis;
-    if (
-      !stateOfKnowledgeCorrelation.isConsidered &&
-      !stateOfKnowledgeCorrelation.justificationIfNotConsidered
-    ) {
-      errors.push(
-        `If state-of-knowledge correlation is not considered, justification must be provided`,
-      );
+    if (!stateOfKnowledgeCorrelation.isConsidered && !stateOfKnowledgeCorrelation.justificationIfNotConsidered) {
+      errors.push(`If state-of-knowledge correlation is not considered, justification must be provided`);
     }
 
     return errors;
@@ -260,13 +201,13 @@ export const validateEventSequenceQuantification = {
 
     // Check for required documentation fields
     const requiredDocFields = [
-      'processDescription',
-      'inputs',
-      'appliedMethods',
-      'resultsSummary',
-      'quantificationProcess',
-      'truncationProcess',
-      'familyFrequencies',
+      "processDescription",
+      "inputs",
+      "appliedMethods",
+      "resultsSummary",
+      "quantificationProcess",
+      "truncationProcess",
+      "familyFrequencies",
     ];
 
     for (const field of requiredDocFields) {
@@ -310,8 +251,7 @@ export const validateEventSequenceQuantification = {
  * ```
  * @group API
  */
-export const EventSequenceQuantificationSchema =
-  typia.json.schemas<[EventSequenceQuantification]>();
+export const EventSequenceQuantificationSchema = typia.json.schemas<[EventSequenceQuantification]>();
 
 // List of interfaces that are dependent on the ESQ technical element file:
 /**
@@ -362,16 +302,16 @@ export type EventSequenceFamilyReference = string;
 
 export enum TruncationMethod {
   /** Truncate based on absolute frequency value */
-  ABSOLUTE_FREQUENCY = 'ABSOLUTE_FREQUENCY',
+  ABSOLUTE_FREQUENCY = "ABSOLUTE_FREQUENCY",
 
   /** Truncate based on percentage of total frequency */
-  PERCENTAGE_OF_TOTAL = 'PERCENTAGE_OF_TOTAL',
+  PERCENTAGE_OF_TOTAL = "PERCENTAGE_OF_TOTAL",
 
   /** Truncate based on number of significant digits */
-  SIGNIFICANT_DIGITS = 'SIGNIFICANT_DIGITS',
+  SIGNIFICANT_DIGITS = "SIGNIFICANT_DIGITS",
 
   /** Truncate based on relative contribution to specific end states */
-  RELATIVE_CONTRIBUTION = 'RELATIVE_CONTRIBUTION',
+  RELATIVE_CONTRIBUTION = "RELATIVE_CONTRIBUTION",
 }
 
 /**
@@ -381,22 +321,22 @@ export enum TruncationMethod {
  */
 export enum QuantificationApproach {
   /** Fault Tree Linking approach */
-  FAULT_TREE_LINKING = 'FAULT_TREE_LINKING',
+  FAULT_TREE_LINKING = "FAULT_TREE_LINKING",
 
   /** Event Tree with Boundary Conditions approach */
-  EVENT_TREE_BOUNDARY_CONDITIONS = 'EVENT_TREE_BOUNDARY_CONDITIONS',
+  EVENT_TREE_BOUNDARY_CONDITIONS = "EVENT_TREE_BOUNDARY_CONDITIONS",
 
   /** Binary Decision Diagram approach */
-  BINARY_DECISION_DIAGRAM = 'BINARY_DECISION_DIAGRAM',
+  BINARY_DECISION_DIAGRAM = "BINARY_DECISION_DIAGRAM",
 
   /** Markov Model approach */
-  MARKOV_MODEL = 'MARKOV_MODEL',
+  MARKOV_MODEL = "MARKOV_MODEL",
 
   /** Discrete Event Simulation approach */
-  DISCRETE_EVENT_SIMULATION = 'DISCRETE_EVENT_SIMULATION',
+  DISCRETE_EVENT_SIMULATION = "DISCRETE_EVENT_SIMULATION",
 
   /** Monte Carlo Simulation approach */
-  MONTE_CARLO_SIMULATION = 'MONTE_CARLO_SIMULATION',
+  MONTE_CARLO_SIMULATION = "MONTE_CARLO_SIMULATION",
 }
 
 /**
@@ -406,16 +346,16 @@ export enum QuantificationApproach {
  */
 export enum CircularLogicResolutionMethod {
   /** Break loops by inserting conditional split fractions */
-  CONDITIONAL_SPLIT_FRACTIONS = 'CONDITIONAL_SPLIT_FRACTIONS',
+  CONDITIONAL_SPLIT_FRACTIONS = "CONDITIONAL_SPLIT_FRACTIONS",
 
   /** Use of transfer gates and flag variables to break circular references */
-  TRANSFER_GATES = 'TRANSFER_GATES',
+  TRANSFER_GATES = "TRANSFER_GATES",
 
   /** Iterative convergence methods */
-  ITERATIVE_CONVERGENCE = 'ITERATIVE_CONVERGENCE',
+  ITERATIVE_CONVERGENCE = "ITERATIVE_CONVERGENCE",
 
   /** Logic transformations to remove circles */
-  LOGIC_TRANSFORMATION = 'LOGIC_TRANSFORMATION',
+  LOGIC_TRANSFORMATION = "LOGIC_TRANSFORMATION",
 }
 
 /**
@@ -696,7 +636,7 @@ export interface QuantificationCutSet {
   /**
    * Whether this cut set was included or truncated
    */
-  truncationStatus: 'included' | 'truncated';
+  truncationStatus: "included" | "truncated";
 
   /**
    * Justification for truncation if applicable
@@ -716,7 +656,7 @@ export interface EventSequenceFrequencyEstimate {
   sequenceId: string;
 
   /** Type of sequence (individual or family) */
-  sequenceType: 'INDIVIDUAL' | 'FAMILY';
+  sequenceType: "INDIVIDUAL" | "FAMILY";
 
   /** Mean frequency estimate */
   meanFrequency: FrequencyQuantification;
@@ -908,15 +848,10 @@ export interface ConvergenceAnalysis {
  */
 export interface ImportanceAnalysis {
   /** Type of importance analysis */
-  analysisType:
-    | 'FUSSELL_VESELY'
-    | 'RISK_REDUCTION_WORTH'
-    | 'RISK_ACHIEVEMENT_WORTH'
-    | 'BIRNBAUM'
-    | 'OTHER';
+  analysisType: "FUSSELL_VESELY" | "RISK_REDUCTION_WORTH" | "RISK_ACHIEVEMENT_WORTH" | "BIRNBAUM" | "OTHER";
 
   /** Scope of the analysis */
-  scope: 'OVERALL' | 'PER_SEQUENCE' | 'PER_FAMILY';
+  scope: "OVERALL" | "PER_SEQUENCE" | "PER_FAMILY";
 
   /** Importance results for basic events */
   basicEventImportance?: Record<string, number>;
@@ -994,11 +929,7 @@ export interface EventQuantUncertaintyAnalysis extends BaseUncertaintyAnalysis {
     justificationIfNotConsidered?: string;
 
     /** Method used to account for state-of-knowledge correlation */
-    handlingMethod?:
-      | 'SAME_RANDOM_SEED'
-      | 'EXPLICIT_CORRELATION_MATRIX'
-      | 'PARAMETER_GROUPING'
-      | 'OTHER';
+    handlingMethod?: "SAME_RANDOM_SEED" | "EXPLICIT_CORRELATION_MATRIX" | "PARAMETER_GROUPING" | "OTHER";
 
     /** Description of how state-of-knowledge correlation is handled */
     handlingDescription?: string;
@@ -1314,8 +1245,7 @@ export interface RadionuclideBarrierTreatment {
  * @remarks **ESQ-F1**
  * @group Documentation & Traceability
  */
-export interface EventSequenceQuantificationDocumentation
-  extends BaseProcessDocumentation {
+export interface EventSequenceQuantificationDocumentation extends BaseProcessDocumentation {
   /** Process description */
   processDescription: string;
 
@@ -1406,8 +1336,7 @@ export interface EventSequenceQuantificationDocumentation
  * @remarks **ESQ-F3**
  * @group Documentation & Traceability
  */
-export interface EventSequenceQuantificationUncertaintyDocumentation
-  extends BaseModelUncertaintyDocumentation {
+export interface EventSequenceQuantificationUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   /** Sources of model uncertainty */
   modelUncertaintySources: {
     /** Source ID */
@@ -1529,8 +1458,7 @@ export interface EventSequenceQuantificationPreOperationalDocumentation
  * @remarks Part of **HLR-ESQ-F**
  * @group Documentation & Traceability
  */
-export interface EventSequenceQuantificationPeerReviewDocumentation
-  extends BasePeerReviewDocumentation {
+export interface EventSequenceQuantificationPeerReviewDocumentation extends BasePeerReviewDocumentation {
   /** Review date */
   reviewDate: string;
 
@@ -1549,10 +1477,10 @@ export interface EventSequenceQuantificationPeerReviewDocumentation
     description: string;
 
     /** Finding significance */
-    significance: 'HIGH' | 'MEDIUM' | 'LOW';
+    significance: "HIGH" | "MEDIUM" | "LOW";
 
     /** Finding status */
-    status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
+    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
 
     /** Finding resolution */
     resolution?: string;
@@ -2008,7 +1936,7 @@ export interface EventSequenceQuantification
       sequenceId: string;
 
       /** Type of sequence (individual or family) */
-      sequenceType: 'INDIVIDUAL' | 'FAMILY';
+      sequenceType: "INDIVIDUAL" | "FAMILY";
 
       /** Mean frequency estimate */
       meanFrequency: number;
@@ -2017,7 +1945,7 @@ export interface EventSequenceQuantification
       frequencyUnit: string;
 
       /** Risk significance level */
-      riskSignificance: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+      riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
       /** Importance metrics */
       importanceMetrics?: {
@@ -2086,7 +2014,7 @@ export interface EventSequenceQuantification
         changes?: string[];
 
         /** Status of the response */
-        status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+        status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
       };
     };
   };
@@ -2163,7 +2091,7 @@ export interface CutSetUsage {
   /**
    * Whether this cut set contributes to the sequence frequency
    */
-  contributionStatus: 'active' | 'truncated' | 'modified';
+  contributionStatus: "active" | "truncated" | "modified";
 
   /**
    * Validation of cut set usage in this sequence

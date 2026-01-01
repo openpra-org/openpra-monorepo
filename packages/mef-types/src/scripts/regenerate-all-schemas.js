@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
 
 // List of all technical elements
 const elements = [
-  'core',
-  'systems-analysis',
-  'event-sequence-analysis',
-  'data-analysis',
-  'plant-operating-states-analysis',
-  'initiating-event-analysis',
-  'risk-integration',
-  'success-criteria',
-  'event-sequence-quantification',
-  'mechanistic-source-term',
-  'radiological-consequence-analysis',
-  'integration',
+  "core",
+  "systems-analysis",
+  "event-sequence-analysis",
+  "data-analysis",
+  "plant-operating-states-analysis",
+  "initiating-event-analysis",
+  "risk-integration",
+  "success-criteria",
+  "event-sequence-quantification",
+  "mechanistic-source-term",
+  "radiological-consequence-analysis",
+  "integration",
 ];
 
 // Create output directory if it doesn't exist
-const outputDir = path.join(process.cwd(), 'docs', 'json-schemas');
+const outputDir = path.join(process.cwd(), "docs", "json-schemas");
 if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
@@ -31,7 +31,7 @@ function isSchemaEmpty(schemaPath) {
   if (!fs.existsSync(schemaPath)) return true;
 
   try {
-    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
     // Check if schema has only basic structure and no actual definitions
     return !schema.definitions || Object.keys(schema.definitions).length === 0;
   } catch (e) {
@@ -49,21 +49,17 @@ for (const element of elements) {
   const schemaPath = path.join(outputDir, `${element}.json`);
 
   // Only regenerate if schema is empty or minimal, or if --force is specified
-  if (process.argv.includes('--force') || isSchemaEmpty(schemaPath)) {
+  if (process.argv.includes("--force") || isSchemaEmpty(schemaPath)) {
     console.log(
-      `Schema for ${element} ${isSchemaEmpty(schemaPath) ? 'is empty or missing' : 'force regeneration requested'}, regenerating...`,
+      `Schema for ${element} ${isSchemaEmpty(schemaPath) ? "is empty or missing" : "force regeneration requested"}, regenerating...`,
     );
     try {
       // Call the generate-element-schema.js script
-      execSync(`node scripts/generate-element-schema.js ${element}`, {
-        stdio: 'inherit',
-      });
+      execSync(`node scripts/generate-element-schema.js ${element}`, { stdio: "inherit" });
 
       // Verify the schema was generated successfully
       if (isSchemaEmpty(schemaPath)) {
-        console.error(
-          `Failed to generate schema for ${element} - schema is still empty after generation.`,
-        );
+        console.error(`Failed to generate schema for ${element} - schema is still empty after generation.`);
         failedCount++;
       } else {
         regeneratedCount++;
@@ -73,9 +69,7 @@ for (const element of elements) {
       failedCount++;
     }
   } else {
-    console.log(
-      `Schema for ${element} already exists and is not empty, skipping.`,
-    );
+    console.log(`Schema for ${element} already exists and is not empty, skipping.`);
     skippedCount++;
   }
 }

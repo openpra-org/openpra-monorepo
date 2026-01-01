@@ -14,19 +14,10 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from 'typia';
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
-import { Named, Unique } from '../core/meta';
-import {
-  InitiatingEvent,
-  BaseEvent,
-  Frequency,
-  FrequencyUnit,
-} from '../core/events';
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import { Named, Unique } from "../core/meta";
+import { InitiatingEvent, BaseEvent, Frequency, FrequencyUnit } from "../core/events";
 import {
   IdPatterns,
   ImportanceLevel,
@@ -34,9 +25,9 @@ import {
   ScreeningStatus,
   ScreeningCriteria,
   SuccessCriteriaId,
-} from '../core/shared-patterns';
-import { PlantOperatingStateReference } from '../initiating-event-analysis/initiating-event-analysis';
-import { DistributionType } from '../data-analysis/data-analysis';
+} from "../core/shared-patterns";
+import { PlantOperatingStateReference } from "../initiating-event-analysis/initiating-event-analysis";
+import { DistributionType } from "../data-analysis/data-analysis";
 import {
   BaseDesignInformation,
   BaseProcessDocumentation,
@@ -46,13 +37,9 @@ import {
   BaseTraceabilityDocumentation,
   BaseAssumption,
   PreOperationalAssumption,
-} from '../core/documentation';
-import { ComponentReference } from '../core/component';
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+} from "../core/documentation";
+import { ComponentReference } from "../core/component";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 interface SuccessCriterion extends Unique, Named {
   description?: string;
@@ -132,10 +119,10 @@ interface HumanActionSuccessCriteriaDefinition extends Unique {
  */
 export enum EndState {
   /** Successful prevention of radioactive material release */
-  SUCCESSFUL_MITIGATION = 'SUCCESSFUL_MITIGATION',
+  SUCCESSFUL_MITIGATION = "SUCCESSFUL_MITIGATION",
 
   /** Release of radioactive material occurred */
-  RADIONUCLIDE_RELEASE = 'RADIONUCLIDE_RELEASE',
+  RADIONUCLIDE_RELEASE = "RADIONUCLIDE_RELEASE",
 }
 
 /**
@@ -144,22 +131,22 @@ export enum EndState {
  */
 export enum DependencyType {
   /** Functional dependency where one system requires another to operate */
-  FUNCTIONAL = 'FUNCTIONAL',
+  FUNCTIONAL = "FUNCTIONAL",
 
   /** Physical dependency based on physical connections or shared environment */
-  PHYSICAL = 'PHYSICAL',
+  PHYSICAL = "PHYSICAL",
 
   /** Dependency on human actions */
-  HUMAN = 'HUMAN',
+  HUMAN = "HUMAN",
 
   /** Dependency based on operational procedures or practices */
-  OPERATIONAL = 'OPERATIONAL',
+  OPERATIONAL = "OPERATIONAL",
 
   /** Dependency based on physical phenomena */
-  PHENOMENOLOGICAL = 'PHENOMENOLOGICAL',
+  PHENOMENOLOGICAL = "PHENOMENOLOGICAL",
 
   /** Dependency based on shared or common components */
-  COMMON_CAUSE = 'COMMON_CAUSE',
+  COMMON_CAUSE = "COMMON_CAUSE",
 }
 
 /**
@@ -168,8 +155,7 @@ export enum DependencyType {
  * Example: SYS-RCIC
  * @group Core Definitions & Enums
  */
-export type SystemReference = string &
-  tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
+export type SystemReference = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
 
 /**
  * Type for human action references.
@@ -177,8 +163,7 @@ export type SystemReference = string &
  * Example: HRA-001
  * @group Core Definitions & Enums
  */
-export type HumanActionReference = string &
-  tags.Pattern<typeof IdPatterns.HUMAN_ACTION_ID>;
+export type HumanActionReference = string & tags.Pattern<typeof IdPatterns.HUMAN_ACTION_ID>;
 
 /**
  * Type for source term references.
@@ -186,8 +171,7 @@ export type HumanActionReference = string &
  * Example: ST-001
  * @group Core Definitions & Enums
  */
-export type SourceTermReference = string &
-  tags.Pattern<typeof IdPatterns.SOURCE_TERM_ID>;
+export type SourceTermReference = string & tags.Pattern<typeof IdPatterns.SOURCE_TERM_ID>;
 
 /**
  * Type for release category references.
@@ -195,8 +179,7 @@ export type SourceTermReference = string &
  * Example: RC-001
  * @group Core Definitions & Enums
  */
-export type ReleaseCategoryReference = string &
-  tags.Pattern<typeof IdPatterns.RELEASE_CATEGORY_ID>;
+export type ReleaseCategoryReference = string & tags.Pattern<typeof IdPatterns.RELEASE_CATEGORY_ID>;
 
 /**
  * Type for event sequence references.
@@ -204,8 +187,7 @@ export type ReleaseCategoryReference = string &
  * Example: ES-001
  * @group Core Definitions & Enums
  */
-export type EventSequenceReference = string &
-  tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_ID>;
+export type EventSequenceReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_ID>;
 
 /**
  * Type for event sequence family references.
@@ -213,14 +195,13 @@ export type EventSequenceReference = string &
  * Example: ESF-001
  * @group Core Definitions & Enums
  */
-export type EventSequenceFamilyReference = string &
-  tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_FAMILY_ID>;
+export type EventSequenceFamilyReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_FAMILY_ID>;
 
 /**
  * Type for representing the status of a system in an event sequence.
  * @group Core Definitions & Enums
  */
-export type SystemStatus = 'SUCCESS' | 'FAILURE';
+export type SystemStatus = "SUCCESS" | "FAILURE";
 
 /**
  * Type for sequence designator IDs.
@@ -389,12 +370,7 @@ export interface IntermediateEndState extends Unique, Named {
      * Operating mode at this intermediate state
      * Reuses OperatingState from Plant Operating States
      */
-    operatingMode?:
-      | 'POWER'
-      | 'STARTUP'
-      | 'SHUTDOWN'
-      | 'REFUELING'
-      | 'MAINTENANCE';
+    operatingMode?: "POWER" | "STARTUP" | "SHUTDOWN" | "REFUELING" | "MAINTENANCE";
 
     /** Key plant parameters that define this intermediate state */
     keyParameters: Record<string, string | number>;
@@ -406,10 +382,7 @@ export interface IntermediateEndState extends Unique, Named {
      * Barrier statuses at this intermediate state
      * Reuses BarrierStatus values from Plant Operating States
      */
-    barrierStatuses?: Record<
-      string,
-      'INTACT' | 'BREACHED' | 'DEGRADED' | 'BYPASSED' | 'OPEN'
-    >;
+    barrierStatuses?: Record<string, "INTACT" | "BREACHED" | "DEGRADED" | "BYPASSED" | "OPEN">;
 
     /** References to success criteria applicable at this state */
     successCriteriaIds?: SuccessCriteriaId[];
@@ -501,7 +474,7 @@ export interface EventSequence extends Unique, Named {
    * path in the event tree, ensuring consistency between representations.
    * @implements ES-A6, A-10
    */
-  functionalEventStates?: Record<string, 'SUCCESS' | 'FAILURE'>;
+  functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">;
 
   /** Design information supporting this event sequence */
   designInformation?: EventSequenceDesignInformation[];
@@ -850,7 +823,7 @@ export interface SystemInterfaceDependency extends Unique, Named {
   involvedSystems: SystemReference[];
 
   /** Type of interface (physical, functional, operational) */
-  interfaceType: 'PHYSICAL' | 'FUNCTIONAL' | 'OPERATIONAL';
+  interfaceType: "PHYSICAL" | "FUNCTIONAL" | "OPERATIONAL";
 
   /** Specific connection points or interfaces */
   connectionPoints?: string[];
@@ -880,11 +853,7 @@ export interface ModelUncertainty extends Unique, Named {
   description: string;
 
   /** Aspects of the analysis affected by this uncertainty */
-  affectedAspects?: (
-    | 'eventSequenceDefinition'
-    | 'dependencies'
-    | 'releasePhenomena'
-  )[];
+  affectedAspects?: ("eventSequenceDefinition" | "dependencies" | "releasePhenomena")[];
 
   /** Assumptions related to this uncertainty */
   assumptions?: Assumption[];
@@ -901,7 +870,7 @@ export interface ModelUncertainty extends Unique, Named {
   /** Characterization of the uncertainty (qualitative or quantitative) */
   characterization?: {
     /** Type of characterization */
-    type: 'QUALITATIVE' | 'QUANTITATIVE';
+    type: "QUALITATIVE" | "QUANTITATIVE";
 
     /** Description of the characterization */
     description: string;
@@ -1172,8 +1141,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
  * @group Documentation & Traceability
  * @implements ES-D2
  */
-export interface ModelUncertaintyDocumentation
-  extends BaseModelUncertaintyDocumentation {
+export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   /**
    * Event sequence specific uncertainty impacts
    * @implements ES-D2
@@ -1195,8 +1163,7 @@ export interface ModelUncertaintyDocumentation
  * @group Documentation & Traceability
  * @implements ES-D3
  */
-export interface PreOperationalAssumptionsDocumentation
-  extends BasePreOperationalAssumptionsDocumentation {
+export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
   /**
    * Event sequence specific assumptions
    * @implements ES-D3
@@ -1369,13 +1336,13 @@ export interface FunctionalEvent extends Unique, Named {
  */
 export interface EventTreePath {
   /** State of the path (SUCCESS/FAILURE) */
-  state: 'SUCCESS' | 'FAILURE';
+  state: "SUCCESS" | "FAILURE";
 
   /** Target of the path (could be another branch, sequence, or end state) */
   target: string;
 
   /** Type of target (BRANCH, SEQUENCE, END_STATE) */
-  targetType: 'BRANCH' | 'SEQUENCE' | 'END_STATE';
+  targetType: "BRANCH" | "SEQUENCE" | "END_STATE";
 
   /** Optional description of this path */
   description?: string;
@@ -1427,7 +1394,7 @@ export interface EventTreeSequence extends Unique, Named {
   eventSequenceId?: EventSequenceReference;
 
   /** The states of functional events in this sequence */
-  functionalEventStates?: Record<string, 'SUCCESS' | 'FAILURE'>;
+  functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">;
 }
 
 /**
@@ -1581,8 +1548,7 @@ export interface EventSequenceValidationRules {
  * @group API
  * @extends {TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS>}
  */
-export interface EventSequenceAnalysis
-  extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
+export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
   /**
    * Additional metadata specific to Event Sequence Analysis
    * @implements ES-D1
@@ -1632,10 +1598,7 @@ export interface EventSequenceAnalysis
    * @implements ES-C3
    * @implements ES-C4
    */
-  eventSequenceFamilies: Record<
-    EventSequenceFamilyReference,
-    EventSequenceFamily
-  >;
+  eventSequenceFamilies: Record<EventSequenceFamilyReference, EventSequenceFamily>;
 
   /**
    * Intermediate end states used in the analysis
@@ -1759,9 +1722,7 @@ export const validateEventTree = {
 
     // Check if initial state points to a valid branch
     if (!eventTree.initialState.branchId) {
-      errors.push(
-        `Event tree ${eventTree.name} must have an initial state branch ID`,
-      );
+      errors.push(`Event tree ${eventTree.name} must have an initial state branch ID`);
     } else if (!eventTree.branches[eventTree.initialState.branchId]) {
       errors.push(
         `Event tree ${eventTree.name} has invalid initial state branch ID: ${eventTree.initialState.branchId}`,
@@ -1774,26 +1735,17 @@ export const validateEventTree = {
         const { target, targetType } = path;
 
         // Check if target exists based on targetType
-        if (targetType === 'BRANCH' && !eventTree.branches[target]) {
-          errors.push(
-            `Branch ${branchId} path ${index} references non-existent branch: ${target}`,
-          );
-        } else if (targetType === 'SEQUENCE' && !eventTree.sequences[target]) {
-          errors.push(
-            `Branch ${branchId} path ${index} references non-existent sequence: ${target}`,
-          );
+        if (targetType === "BRANCH" && !eventTree.branches[target]) {
+          errors.push(`Branch ${branchId} path ${index} references non-existent branch: ${target}`);
+        } else if (targetType === "SEQUENCE" && !eventTree.sequences[target]) {
+          errors.push(`Branch ${branchId} path ${index} references non-existent sequence: ${target}`);
         }
         // END_STATE targets don't need to exist within the event tree
       });
 
       // Check if functional event exists if referenced
-      if (
-        branch.functionalEventId &&
-        !eventTree.functionalEvents[branch.functionalEventId]
-      ) {
-        errors.push(
-          `Branch ${branchId} references non-existent functional event: ${branch.functionalEventId}`,
-        );
+      if (branch.functionalEventId && !eventTree.functionalEvents[branch.functionalEventId]) {
+        errors.push(`Branch ${branchId} references non-existent functional event: ${branch.functionalEventId}`);
       }
     });
 
@@ -1803,9 +1755,7 @@ export const validateEventTree = {
 
     const checkForCycles = (branchId: string): boolean => {
       if (stack.has(branchId)) {
-        errors.push(
-          `Event tree ${eventTree.name} has a cycle involving branch: ${branchId}`,
-        );
+        errors.push(`Event tree ${eventTree.name} has a cycle involving branch: ${branchId}`);
         return true;
       }
 
@@ -1818,7 +1768,7 @@ export const validateEventTree = {
 
       const branch = eventTree.branches[branchId];
       for (const path of branch.paths) {
-        if (path.targetType === 'BRANCH' && checkForCycles(path.target)) {
+        if (path.targetType === "BRANCH" && checkForCycles(path.target)) {
           return true;
         }
       }
@@ -1860,16 +1810,11 @@ export const validateEventTree = {
           // Validate functional event states match the sequence path
           if (treeSeq.functionalEventStates && eventSeq.systemResponses) {
             // Map tree functional events to system references where possible
-            for (const [funcEventId, state] of Object.entries(
-              treeSeq.functionalEventStates,
-            )) {
+            for (const [funcEventId, state] of Object.entries(treeSeq.functionalEventStates)) {
               const funcEvent = eventTree.functionalEvents[funcEventId];
               if (funcEvent?.systemReference) {
                 const sysRef = funcEvent.systemReference;
-                if (
-                  eventSeq.systemResponses[sysRef] &&
-                  eventSeq.systemResponses[sysRef] !== state
-                ) {
+                if (eventSeq.systemResponses[sysRef] && eventSeq.systemResponses[sysRef] !== state) {
                   errors.push(
                     `Inconsistent system state: Event tree sequence ${seqId} has state ${state} for functional event ${funcEventId} (system ${sysRef}) but event sequence ${eventSeq.name} has system response ${eventSeq.systemResponses[sysRef]}`,
                   );
@@ -1886,11 +1831,7 @@ export const validateEventTree = {
           }
 
           // Validate timing consistency if applicable
-          if (
-            treeSeq.functionalEventStates &&
-            eventSeq.timing &&
-            eventSeq.timing.length > 0
-          ) {
+          if (treeSeq.functionalEventStates && eventSeq.timing && eventSeq.timing.length > 0) {
             // Ensure events in sequence timing align with functional events in the event tree
             // This would need custom logic based on naming conventions or explicit mappings
           }
@@ -1935,9 +1876,7 @@ export const validateEventTree = {
     // Check if all event tree sequences have a corresponding event sequence
     Object.entries(eventTree.sequences).forEach(([treeSeqId, treeSeq]) => {
       if (!treeSeq.eventSequenceId) {
-        errors.push(
-          `Event tree sequence ${treeSeqId} has no corresponding event sequence reference`,
-        );
+        errors.push(`Event tree sequence ${treeSeqId} has no corresponding event sequence reference`);
       } else if (!sequences[treeSeq.eventSequenceId]) {
         errors.push(
           `Event tree sequence ${treeSeqId} references non-existent event sequence ${treeSeq.eventSequenceId}`,
@@ -2005,8 +1944,7 @@ export const validateEventTree = {
  * const isValid = EventSequenceAnalysisSchema.validate(someData);
  * ```
  */
-export const EventSequenceAnalysisSchema =
-  typia.json.schemas<[EventSequenceAnalysis]>();
+export const EventSequenceAnalysisSchema = typia.json.schemas<[EventSequenceAnalysis]>();
 
 /**
  * Example of creating a new event sequence analysis with proper versioning

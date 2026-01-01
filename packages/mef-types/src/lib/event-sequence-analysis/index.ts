@@ -5,7 +5,7 @@
  */
 
 // Direct exports from the main module
-export * from './event-sequence-analysis';
+export * from "./event-sequence-analysis";
 
 // Export examples directly
-export * from './event-tree-example';
+export * from "./event-tree-example";

@@ -1,2 +1,2 @@
 # Run lint-staged to lint/format only staged files; keep fast and focused
-pnpm exec lint-staged --concurrent 1
+pnpm exec lint-staged

@@ -1,10 +1,10 @@
-import { Edge, NodeProps, Node, useReactFlow } from 'reactflow';
-import { EventTreeGraph } from 'shared-types/src/lib/types/reactflowGraph/Graph';
-import { GraphApiManager } from 'shared-sdk/lib/api/GraphApiManager';
-import { useParams } from 'react-router-dom';
-import { EventTreeState, GenerateUUID } from '../../../utils/treeUtils';
-import { recalculateFrequencies } from '../../../utils/recalculateFrequencies';
-import { createEndStates } from './useTreeData';
+import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
+import { createEndStates } from "./useTreeData";
 
 // Minimal data shape used in Event Tree reactflow nodes within this hook
 interface EventTreeNodeData {
@@ -29,7 +29,7 @@ interface EventTreeNodeData {
  * @param clickedNodeId - The id of the node where the new branch should be inserted.
  * @returns A function that performs the mutation when invoked.
  */
-function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
+function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
 
@@ -44,14 +44,14 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
     // Handle potential undefined rootNode
     if (!rootNode) {
       // Handle the case where the root node is not found
-      throw new Error('Root node with Level 1 not found');
+      throw new Error("Root node with Level 1 not found");
     }
 
     // Extract the output depth from the root node
-    const [outputLevels, inputLevels] = [
-      rootNode.data.outputDepth ?? 0,
-      rootNode.data.inputDepth ?? 0,
-    ] as [number, number];
+    const [outputLevels, inputLevels] = [rootNode.data.outputDepth ?? 0, rootNode.data.inputDepth ?? 0] as [
+      number,
+      number,
+    ];
 
     const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
       clickedNodeId,
@@ -62,15 +62,12 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
     );
 
     // Find the clicked node
-    const clickedNodeIndex = nodes.findIndex(
-      (node) => node.id === clickedNodeId,
-    );
-    const clickedNode: Node<EventTreeNodeData> | null =
-      clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
+    const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
+    const clickedNode: Node<EventTreeNodeData> | null = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
     // put the clicked node as activated (for an invisible node)
-    if (clickedNode?.type === 'invisibleNode') {
-      nodes[clickedNodeIndex].type = 'visibleNode';
+    if (clickedNode?.type === "invisibleNode") {
+      nodes[clickedNodeIndex].type = "visibleNode";
 
       const idx = edges.findIndex((edge) => edge.target === clickedNodeId);
       edges[idx].animated = false;
@@ -85,7 +82,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
     // Initialize placeholders for new nodes and edges
 
     const newEdges: Edge[] = [];
-    let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : '';
+    let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
 
     rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
       // Skip invalid levels
@@ -96,23 +93,21 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
 
       // Decide the node type based on its level
       const nodeType =
-        level === 0
-          ? 'visibleNode'
-          : level <= inputLevels - clickedNodeDepth
-            ? 'invisibleNode'
-            : 'outputNode';
+        level === 0 ? "visibleNode"
+        : level <= inputLevels - clickedNodeDepth ? "invisibleNode"
+        : "outputNode";
 
       // Create the new node based on the level and type
       const newNode: Node<EventTreeNodeData> = {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: 'New Node',
+          label: "New Node",
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: false,
           isSequenceId: level >= inputLevels - clickedNodeDepth,
-          sequenceId: level >= inputLevels - clickedNodeDepth ? '' : null, // Set to null if its not a sequence
+          sequenceId: level >= inputLevels - clickedNodeDepth ? "" : null, // Set to null if its not a sequence
         },
         position: {
           x: clickedNode?.position.x ?? 0,
@@ -135,7 +130,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
         id: GenerateUUID(),
         source: sourceNodeId,
         target: newNodeId,
-        type: 'custom',
+        type: "custom",
         animated: false,
       };
 
@@ -182,10 +177,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps['id']): () => void {
     setEdges(updatedEdges);
 
     // Then recalculate frequencies and update nodes
-    const recalculatedNodes = recalculateFrequencies(
-      nodes as unknown as Node[],
-      updatedEdges,
-    );
+    const recalculatedNodes = recalculateFrequencies(nodes as unknown as Node[], updatedEdges);
     setNodes(recalculatedNodes);
 
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
@@ -220,10 +212,7 @@ function findRightmostNodeIndicesAtEachLevel(
 
   // Calculate total depth to explore from the clicked node
   const totalDepth = inputLevel + outputLevel - clickedNodeDepth + 1;
-  const rightmostNodeIndices: number[] = Array.from(
-    { length: totalDepth },
-    () => -1 as number,
-  );
+  const rightmostNodeIndices: number[] = Array.from({ length: totalDepth }, () => -1 as number);
 
   // DFS to find rightmost nodes
   function dfs(nodeId: string, currentDepth: number): void {

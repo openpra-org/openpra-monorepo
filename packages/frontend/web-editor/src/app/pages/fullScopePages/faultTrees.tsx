@@ -10,17 +10,7 @@
  * The graph elements are added via hook calls in the custom nodes and edges. The layout is calculated every time the graph changes (see hooks/useLayout.ts).
  **/
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, {
-  Background,
-  Edge,
-  EdgeChange,
-  FitViewOptions,
-  Node,
-  NodeChange,
-  Panel,
-  ProOptions,
-  ReactFlowProvider,
-} from "reactflow";
+import ReactFlow, { Background, FitViewOptions, Node, Panel, ProOptions, ReactFlowProvider } from "reactflow";
 
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
@@ -39,7 +29,7 @@ import {
 } from "../../components/context_menu/faultTreeNodeContextMenu";
 import { exitGrayedState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
-import { RFState, useStore } from "../../store/faultTreeStore";
+import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
 import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
 import Minimap from "../../components/minimap/minimap";
@@ -52,29 +42,16 @@ const fitViewOptions: FitViewOptions = {
   padding: 0.95,
 };
 
-const selector = (
-  state: RFState,
-): {
-  nodes: Node[];
-  edges: Edge[];
-  onNodesChange: (changes: NodeChange[]) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
-} => ({
-  nodes: state.nodes,
-  edges: state.edges,
-  onNodesChange: state.onNodesChange,
-  onEdgesChange: state.onEdgesChange,
-  setNodes: state.setNodes,
-  setEdges: state.setEdges,
-});
-
 function ReactFlowPro(): JSX.Element {
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
-  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector);
+  const nodes = useStore((s) => s.nodes);
+  const edges = useStore((s) => s.edges);
+  const onNodesChange = useStore((s) => s.onNodesChange);
+  const onEdgesChange = useStore((s) => s.onEdgesChange);
+  const setNodes = useStore((s) => s.setNodes);
+  const setEdges = useStore((s) => s.setEdges);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
@@ -193,88 +170,86 @@ function ReactFlowPro(): JSX.Element {
     addToast({ id: GenerateUUID(), ...toast });
   };
 
-  return isLoading ? (
-    <EuiSkeletonRectangle
-      isLoading={isLoading}
-      width={"100%"}
-      height={500}
-    ></EuiSkeletonRectangle>
-  ) : (
-    <ReactFlow
-      ref={ref}
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      proOptions={proOptions}
-      fitView
-      nodeTypes={FaultTreeNodeTypes}
-      edgeTypes={EdgeTypes}
-      fitViewOptions={fitViewOptions}
-      onPaneClick={onPaneClick}
-      onNodeContextMenu={onNodeContextMenu}
-      minZoom={1.2}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      zoomOnDoubleClick={false}
-      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-      // deleteKeyCode={"Delete"}
-    >
-      <Background />
-      <Minimap />
-      <Panel position="bottom-left">
-        <EuiFlexGroup
-          responsive={false}
-          gutterSize={SMALL}
-          alignItems="center"
-        >
-          <EuiFlexItem
-            grow={false}
-            onClick={undo}
-          >
-            <EuiButtonIcon
-              isDisabled={canUndo}
-              iconType={EDITOR_UNDO}
-              display={"base"}
-              aria-label="undo"
-            />
-          </EuiFlexItem>
-          <EuiFlexItem
-            grow={false}
-            onClick={redo}
-          >
-            <EuiButtonIcon
-              isDisabled={canRedo}
-              iconType={EDITOR_REDO}
-              display={"base"}
-              aria-label="redo"
-            />
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </Panel>
-      <EuiPopover
-        button={""}
-        isOpen={isOpen}
-        anchorPosition="downRight"
-        style={{
-          top: typeof menu?.top === "number" ? menu.top : undefined,
-          left: typeof menu?.left === "number" ? menu.left : undefined,
-          bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-          right: typeof menu?.right === "number" ? menu.right : undefined,
-        }}
-        closePopover={closePopover}
+  return isLoading ?
+      <EuiSkeletonRectangle
+        isLoading={isLoading}
+        width={"100%"}
+        height={500}
+      ></EuiSkeletonRectangle>
+    : <ReactFlow
+        ref={ref}
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        proOptions={proOptions}
+        fitView
+        nodeTypes={FaultTreeNodeTypes}
+        edgeTypes={EdgeTypes}
+        fitViewOptions={fitViewOptions}
+        onPaneClick={onPaneClick}
+        onNodeContextMenu={onNodeContextMenu}
+        minZoom={1.2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        zoomOnDoubleClick={false}
+        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+        // deleteKeyCode={"Delete"}
       >
-        {menu && (
-          <FaultTreeNodeContextMenu
-            onClick={closePopover}
-            addToastHandler={addToastHandler}
-            {...menu}
-          />
-        )}
-      </EuiPopover>
-    </ReactFlow>
-  );
+        <Background />
+        <Minimap />
+        <Panel position="bottom-left">
+          <EuiFlexGroup
+            responsive={false}
+            gutterSize={SMALL}
+            alignItems="center"
+          >
+            <EuiFlexItem
+              grow={false}
+              onClick={undo}
+            >
+              <EuiButtonIcon
+                isDisabled={canUndo}
+                iconType={EDITOR_UNDO}
+                display={"base"}
+                aria-label="undo"
+              />
+            </EuiFlexItem>
+            <EuiFlexItem
+              grow={false}
+              onClick={redo}
+            >
+              <EuiButtonIcon
+                isDisabled={canRedo}
+                iconType={EDITOR_REDO}
+                display={"base"}
+                aria-label="redo"
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </Panel>
+        <EuiPopover
+          button={""}
+          isOpen={isOpen}
+          anchorPosition="downRight"
+          style={{
+            top: typeof menu?.top === "number" ? menu.top : undefined,
+            left: typeof menu?.left === "number" ? menu.left : undefined,
+            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+            right: typeof menu?.right === "number" ? menu.right : undefined,
+          }}
+          closePopover={closePopover}
+        >
+          {menu && (
+            <FaultTreeNodeContextMenu
+              onClick={closePopover}
+              addToastHandler={addToastHandler}
+              {...menu}
+            />
+          )}
+        </EuiPopover>
+      </ReactFlow>;
 }
 
 export function FaultTreeEditor(): JSX.Element {

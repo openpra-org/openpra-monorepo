@@ -65,7 +65,7 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
   radioactiveSourceCharacterizations?: Record<
     string,
     {
-      source: RadioactiveSource['uuid'];
+      source: RadioactiveSource["uuid"];
       description: string;
       inventoryBasis: string;
     }
@@ -378,13 +378,13 @@ The schema includes an enum for release forms and a field in `SourceTermDefiniti
 ```typescript
 export enum ReleaseForm {
   /** Elemental gaseous form */
-  ELEMENTAL = 'ELEMENTAL',
+  ELEMENTAL = "ELEMENTAL",
   /** Aerosol particles suspended in air */
-  AEROSOL = 'AEROSOL',
+  AEROSOL = "AEROSOL",
   /** Dust particles */
-  DUST = 'DUST',
+  DUST = "DUST",
   /** Other forms not covered by the standard categories */
-  OTHER = 'OTHER',
+  OTHER = "OTHER",
 }
 
 // In SourceTermDefinition:
@@ -624,23 +624,23 @@ To demonstrate the application of the schema for a sodium-cooled fast reactor li
 
 ```typescript
 const sodiumCoolantBarrier: RadionuclideTransportBarrier = {
-  uuid: 'rtb-002',
-  name: 'Primary Sodium Coolant',
-  description: 'Liquid sodium coolant in the primary loop that provides retention of certain radionuclides',
-  barrierType: 'Chemical',
-  effectiveness: 'High for cesium and iodine due to chemical retention, moderate for noble gases',
-  failureConditions: ['Sodium fire', 'Sodium-water reaction'],
-  affectedRadionuclides: ['Cs-137', 'I-131', 'Sr-90'],
+  uuid: "rtb-002",
+  name: "Primary Sodium Coolant",
+  description: "Liquid sodium coolant in the primary loop that provides retention of certain radionuclides",
+  barrierType: "Chemical",
+  effectiveness: "High for cesium and iodine due to chemical retention, moderate for noble gases",
+  failureConditions: ["Sodium fire", "Sodium-water reaction"],
+  affectedRadionuclides: ["Cs-137", "I-131", "Sr-90"],
   physicalChemicalConditions: {
-    temperature: '371-482°C during normal operation',
-    pressure: 'Near atmospheric in the pool-type design',
-    chemicalEnvironment: 'Highly reducing environment, low oxygen content (<5 ppm)',
-    impactOnTransport: 'Chemical affinity for cesium and iodine significantly reduces release fractions',
+    temperature: "371-482°C during normal operation",
+    pressure: "Near atmospheric in the pool-type design",
+    chemicalEnvironment: "Highly reducing environment, low oxygen content (<5 ppm)",
+    impactOnTransport: "Chemical affinity for cesium and iodine significantly reduces release fractions",
   },
   transportMechanisms: [
     {
       mechanismType: TransportPhenomenonType.CHEMICAL_INTERACTION,
-      description: 'Dissolution and chemical bonding of radionuclides in sodium',
+      description: "Dissolution and chemical bonding of radionuclides in sodium",
       significance: ImportanceLevel.HIGH,
     },
   ],

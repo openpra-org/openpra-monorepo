@@ -1,5 +1,5 @@
-import { z } from 'nestjs-zod/z';
-import { createZodDto } from 'nestjs-zod';
+import { z } from "nestjs-zod/z";
+import { createZodDto } from "nestjs-zod";
 
 const globalParameterSchema = z.object({
   parameter_name: z.string(),

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 import {
   Edge,
   EdgeChange,
@@ -9,9 +9,9 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   NodeProps,
-} from 'reactflow';
-import { initialEdges, initialNodes } from '../../utils/faultTreeData';
-import { FaultTreeNodeProps } from '../components/treeNodes/faultTreeNodes/faultTreeNodeType';
+} from "reactflow";
+import { initialEdges, initialNodes } from "../../utils/faultTreeData";
+import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
 /**
  * React Flow editor state for the Fault Tree editor.
@@ -19,10 +19,10 @@ import { FaultTreeNodeProps } from '../components/treeNodes/faultTreeNodes/fault
 export interface RFState {
   nodes: Node<FaultTreeNodeProps>[];
   edges: Edge<FaultTreeNodeProps>[];
-  focusNodeId: NodeProps['id'] | undefined;
+  focusNodeId: NodeProps["id"] | undefined;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
-  setFocusNodeId: (focusNodeId: NodeProps['id']) => void;
+  setFocusNodeId: (focusNodeId: NodeProps["id"]) => void;
   resetFocusNodeId: () => void;
   setNodes: (nodes: Node<FaultTreeNodeProps>[]) => void;
   setEdges: (edges: Edge<FaultTreeNodeProps>[]) => void;
@@ -64,7 +64,7 @@ const useStore = create<RFState>((set, get) => ({
       edges: applyEdgeChanges(changes, get().edges),
     });
   },
-  setFocusNodeId: (focusNodeId: NodeProps['id']): void => {
+  setFocusNodeId: (focusNodeId: NodeProps["id"]): void => {
     set({ focusNodeId });
   },
   resetFocusNodeId: (): void => {

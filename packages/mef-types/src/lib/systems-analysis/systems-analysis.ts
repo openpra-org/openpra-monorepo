@@ -14,22 +14,18 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from 'typia';
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
-import { Named, Unique } from '../core/meta';
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import { Named, Unique } from "../core/meta";
 import {
   IdPatterns,
   ImportanceLevel,
   SensitivityStudy,
   BaseUncertaintyAnalysis,
   SuccessCriteriaId,
-} from '../core/shared-patterns';
-import { BaseEvent, BasicEvent, TopEvent } from '../core/events';
-import { SaphireFieldMapping } from '../integration/SAPHIRE/saphire-annotations';
+} from "../core/shared-patterns";
+import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
+import { SaphireFieldMapping } from "../integration/SAPHIRE/saphire-annotations";
 import {
   BaseDesignInformation,
   BaseProcessDocumentation,
@@ -39,27 +35,12 @@ import {
   BaseTraceabilityDocumentation,
   BaseAssumption,
   PreOperationalAssumption,
-} from '../core/documentation';
-import {
-  Component,
-  ComponentReference,
-  ComponentTypeReference,
-} from '../core/component';
-import {
-  SuccessCriterion,
-  SystemSuccessCriterion,
-} from '../success-criteria/success-criteria-development';
-import {
-  DistributionType,
-  ProbabilityModel,
-  ComponentBasicEvent,
-} from '../data-analysis/data-analysis';
-import { QuantificationReferenceManager } from '../core/quantification-bridge';
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+} from "../core/documentation";
+import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
+import { SuccessCriterion, SystemSuccessCriterion } from "../success-criteria/success-criteria-development";
+import { DistributionType, ProbabilityModel, ComponentBasicEvent } from "../data-analysis/data-analysis";
+import { QuantificationReferenceManager } from "../core/quantification-bridge";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**
@@ -73,22 +54,21 @@ import {
  * Format: SYS-[NAME] (e.g., SYS-RHR)
  * @group Core Definitions & Enums
  */
-export type SystemReference = string & tags.Pattern<'^SYS-[A-Za-z0-9_-]+$'>;
+export type SystemReference = string & tags.Pattern<"^SYS-[A-Za-z0-9_-]+$">;
 
 /**
  * Reference to a Human Action by its unique identifier.
  * Format: HRA-[NUMBER] (e.g., HRA-001)
  * @group Core Definitions & Enums
  */
-export type HumanActionReference = string & tags.Pattern<'^HRA-[0-9]+$'>;
+export type HumanActionReference = string & tags.Pattern<"^HRA-[0-9]+$">;
 
 /**
  * Reference to a plant operating state
  * Format: POS-[NAME] (e.g., POS-FULL-POWER)
  * @group Core Definitions & Enums
  */
-export type PlantOperatingStateReference = string &
-  tags.Pattern<'^POS-[A-Z0-9_-]+$'>;
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
 
 /**
  * Simple reference to plant operating states for a system
@@ -130,19 +110,19 @@ export interface Assumption {
  */
 export enum DependencyType {
   /** Functional dependency (e.g., power, control, cooling) */
-  FUNCTIONAL = 'FUNCTIONAL',
+  FUNCTIONAL = "FUNCTIONAL",
 
   /** Spatial dependency (e.g., shared location) */
-  SPATIAL = 'SPATIAL',
+  SPATIAL = "SPATIAL",
 
   /** Environmental dependency (e.g., temperature, radiation) */
-  ENVIRONMENTAL = 'ENVIRONMENTAL',
+  ENVIRONMENTAL = "ENVIRONMENTAL",
 
   /** Human dependency (e.g., shared operator actions) */
-  HUMAN = 'HUMAN',
+  HUMAN = "HUMAN",
 
   /** Other dependencies not covered by the above */
-  OTHER = 'OTHER',
+  OTHER = "OTHER",
 }
 
 /**
@@ -151,25 +131,25 @@ export enum DependencyType {
  */
 export enum FailureModeType {
   /** Failure to start/open/close/change position */
-  FAILURE_TO_START = 'FAILURE_TO_START',
+  FAILURE_TO_START = "FAILURE_TO_START",
 
   /** Failure to run/continue operating */
-  FAILURE_TO_RUN = 'FAILURE_TO_RUN',
+  FAILURE_TO_RUN = "FAILURE_TO_RUN",
 
   /** Failure due to common cause */
-  COMMON_CAUSE_FAILURE = 'COMMON_CAUSE_FAILURE',
+  COMMON_CAUSE_FAILURE = "COMMON_CAUSE_FAILURE",
 
   /** Failure due to test or maintenance unavailability */
-  TEST_MAINTENANCE = 'TEST_MAINTENANCE',
+  TEST_MAINTENANCE = "TEST_MAINTENANCE",
 
   /** Failure due to human error */
-  HUMAN_ERROR = 'HUMAN_ERROR',
+  HUMAN_ERROR = "HUMAN_ERROR",
 
   /** Failure due to external event */
-  EXTERNAL_EVENT = 'EXTERNAL_EVENT',
+  EXTERNAL_EVENT = "EXTERNAL_EVENT",
 
   /** Other failure modes not covered by the above */
-  OTHER = 'OTHER',
+  OTHER = "OTHER",
 }
 
 /**
@@ -183,11 +163,11 @@ export enum FailureModeType {
  * ```
  */
 export type ComponentState =
-  | 'operational' // Normal operation
-  | 'degraded' // Operating but with reduced capability
-  | 'failed' // Complete loss of function
-  | 'recovering' // Being restored to service
-  | 'maintenance'; // Under planned maintenance
+  | "operational" // Normal operation
+  | "degraded" // Operating but with reduced capability
+  | "failed" // Complete loss of function
+  | "recovering" // Being restored to service
+  | "maintenance"; // Under planned maintenance
 
 /**
  * Interface for a basic event in a system logic model.
@@ -262,24 +242,14 @@ export interface SystemBasicEvent extends BasicEvent {
     formula?: string;
 
     /** Expression type */
-    type?: 'constant' | 'parameter' | 'formula';
+    type?: "constant" | "parameter" | "formula";
   };
 
   /**
    * Unit for the probability/frequency value
    * Used by the quantification adapter for proper unit conversion
    */
-  unit?:
-    | 'bool'
-    | 'int'
-    | 'float'
-    | 'hours'
-    | 'hours-1'
-    | 'years'
-    | 'years-1'
-    | 'fit'
-    | 'demands'
-    | string;
+  unit?: "bool" | "int" | "float" | "hours" | "hours-1" | "years" | "years-1" | "fit" | "demands" | string;
 
   /**
    * Attributes for the quantification adapter
@@ -291,7 +261,7 @@ export interface SystemBasicEvent extends BasicEvent {
    * Role of this basic event in quantification
    * Used by the quantification adapter for model organization
    */
-  role?: 'public' | 'private' | 'interface';
+  role?: "public" | "private" | "interface";
 }
 
 //==============================================================================
@@ -323,7 +293,7 @@ export interface DepletionModel extends Unique {
   /**
    * Type of resource being depleted
    */
-  resourceType: 'fuel' | 'coolant' | 'battery' | 'other';
+  resourceType: "fuel" | "coolant" | "battery" | "other";
 
   /**
    * Description of the resource
@@ -353,7 +323,7 @@ export interface DepletionModel extends Unique {
   /**
    * Whether depletion leads to immediate failure or degraded operation
    */
-  depletionImpact?: 'immediate-failure' | 'degraded-operation';
+  depletionImpact?: "immediate-failure" | "degraded-operation";
 }
 
 /**
@@ -532,7 +502,7 @@ export interface SystemComponent extends Component {
     failureProbability?: number;
 
     /** Time unit for the failure rate */
-    timeUnit?: 'hours' | 'years' | string;
+    timeUnit?: "hours" | "years" | string;
 
     /** Source of the failure data */
     dataSource?: string;
@@ -844,7 +814,7 @@ export interface SystemDefinition extends Unique, Named {
    * or as-designed/as-intended-to-operate information
    * @implements SY-A2
    */
-  informationBasis: 'as-built-as-operated' | 'as-designed-as-intended';
+  informationBasis: "as-built-as-operated" | "as-designed-as-intended";
 
   /**
    * For pre-operational PRAs, justification for information sources used
@@ -1067,7 +1037,7 @@ export interface FaultTree extends Unique, Named {
    * Quantification settings
    */
   quantificationSettings?: {
-    method?: 'mincut' | 'exact' | 'rare-event' | 'mcub';
+    method?: "mincut" | "exact" | "rare-event" | "mcub";
     truncationLimit?: number;
     maxOrder?: number;
   };
@@ -1155,7 +1125,7 @@ export interface MinimalCutSet {
   /**
    * Whether this cut set was included or truncated in the system analysis
    */
-  truncationStatus?: 'included' | 'truncated';
+  truncationStatus?: "included" | "truncated";
 
   /**
    * Justification for truncation if applicable
@@ -1199,25 +1169,25 @@ export interface MinimalCutSet {
  */
 export enum FaultTreeNodeType {
   // Gates
-  AND_GATE = 'AND_GATE', // Output occurs if and only if all inputs occur
-  OR_GATE = 'OR_GATE', // Output occurs if one or more inputs occur
-  INHIBIT_GATE = 'INHIBIT_GATE', // Output exists when input exists and condition is met
+  AND_GATE = "AND_GATE", // Output occurs if and only if all inputs occur
+  OR_GATE = "OR_GATE", // Output occurs if one or more inputs occur
+  INHIBIT_GATE = "INHIBIT_GATE", // Output exists when input exists and condition is met
 
   // Events
-  BASIC_EVENT = 'BASIC_EVENT', // Circle: Independent Primary Fault Event
-  INTERMEDIATE_EVENT = 'INTERMEDIATE_EVENT', // Rectangle: Fault Event (result of logical combination)
-  UNDEVELOPED_EVENT = 'UNDEVELOPED_EVENT', // Diamond: Undeveloped Event
-  HOUSE_EVENT = 'HOUSE_EVENT', // House: Normally Occurring Basic Event
+  BASIC_EVENT = "BASIC_EVENT", // Circle: Independent Primary Fault Event
+  INTERMEDIATE_EVENT = "INTERMEDIATE_EVENT", // Rectangle: Fault Event (result of logical combination)
+  UNDEVELOPED_EVENT = "UNDEVELOPED_EVENT", // Diamond: Undeveloped Event
+  HOUSE_EVENT = "HOUSE_EVENT", // House: Normally Occurring Basic Event
 
   // Special Events
-  TRUE_EVENT = 'TRUE_EVENT', // Probability = 1.0
-  FALSE_EVENT = 'FALSE_EVENT', // Probability = 0.0
-  PASS_EVENT = 'PASS_EVENT', // Logic flow control
-  INIT_EVENT = 'INIT_EVENT', // Initiating event placeholder
+  TRUE_EVENT = "TRUE_EVENT", // Probability = 1.0
+  FALSE_EVENT = "FALSE_EVENT", // Probability = 0.0
+  PASS_EVENT = "PASS_EVENT", // Logic flow control
+  INIT_EVENT = "INIT_EVENT", // Initiating event placeholder
 
   // Transfers
-  TRANSFER_IN = 'TRANSFER_IN', // Triangle In: continues a branch from another page
-  TRANSFER_OUT = 'TRANSFER_OUT', // Triangle Out: continues a branch on another page
+  TRANSFER_IN = "TRANSFER_IN", // Triangle In: continues a branch from another page
+  TRANSFER_OUT = "TRANSFER_OUT", // Triangle Out: continues a branch on another page
 }
 
 /**
@@ -1437,7 +1407,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
    * - BETA_FACTOR, MGL, ALPHA_FACTOR, PHI_FACTOR are directly mapped
    * - Other types may require mapping in the adapter
    */
-  modelType: 'BETA_FACTOR' | 'MGL' | 'ALPHA_FACTOR' | 'PHI_FACTOR' | string;
+  modelType: "BETA_FACTOR" | "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR" | string;
 
   /**
    * Parameters of the CCF model.
@@ -1629,7 +1599,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
     /**
      * Whether this is plant-specific or generic data
      */
-    dataType: 'plant-specific' | 'generic' | 'expert-judgment';
+    dataType: "plant-specific" | "generic" | "expert-judgment";
   }[];
 
   /**
@@ -1644,7 +1614,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
       /**
        * CCF model type in OpenPSA format
        */
-      modelType: 'beta-factor' | 'MGL' | 'alpha-factor' | 'phi-factor';
+      modelType: "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
 
       /**
        * Factor mappings for OpenPSA
@@ -2169,8 +2139,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
  * @group Documentation & Traceability
  * @implements SY-C2
  */
-export interface ModelUncertaintyDocumentation
-  extends BaseModelUncertaintyDocumentation {
+export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   /**
    * Systems-specific uncertainty impacts.
    * @implements SY-C2
@@ -2219,8 +2188,7 @@ export interface ModelUncertaintyDocumentation
  * @group Documentation & Traceability
  * @implements HLR-SY-A, HLR-SY-B, HLR-SY-C
  */
-export interface SystemsAnalysis
-  extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
+export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
   /**
    * System definitions, including boundaries, components, and success criteria.
    * @implements SY-A1
@@ -2298,10 +2266,7 @@ export interface SystemsAnalysis
    * Digital instrumentation and control systems modeling.
    * @implements SY-C1(t)
    */
-  digitalInstrumentationAndControl: Record<
-    string,
-    DigitalInstrumentationAndControl
-  >;
+  digitalInstrumentationAndControl: Record<string, DigitalInstrumentationAndControl>;
 
   /**
    * Passive safety systems modeling.
@@ -2455,7 +2420,7 @@ export interface ComponentScreeningJustification extends Unique {
    * Screening criterion used (a or b from SY-A20)
    * @implements SY-A20
    */
-  screeningCriterion: 'a' | 'b';
+  screeningCriterion: "a" | "b";
 
   /**
    * Quantitative justification for screening
@@ -2482,7 +2447,7 @@ export interface SupportSystemSuccessCriteria extends Unique {
   /**
    * Whether the success criteria are conservative or realistic
    */
-  criteriaType: 'conservative' | 'realistic';
+  criteriaType: "conservative" | "realistic";
 
   /**
    * Systems supported by this support system

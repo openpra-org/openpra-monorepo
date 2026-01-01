@@ -24,10 +24,7 @@
         "baseHref": "/",
         "main": "packages/frontend/web-editor/src/main.tsx",
         "tsConfig": "packages/frontend/web-editor/tsconfig.app.json",
-        "assets": [
-          "packages/frontend/web-editor/src/favicon.ico",
-          "packages/frontend/web-editor/src/assets"
-        ],
+        "assets": ["packages/frontend/web-editor/src/favicon.ico", "packages/frontend/web-editor/src/assets"],
         "styles": ["packages/frontend/web-editor/src/styles.css"],
         "scripts": [],
         "webpackConfig": "packages/frontend/web-editor/webpack.config.js"
@@ -78,10 +75,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/frontend/web-editor/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,tsx}",
-          "{projectRoot}/**/*.{js,jsx}"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.{ts,tsx}", "{projectRoot}/**/*.{js,jsx}"]
       }
     },
     "lint-canary": {
@@ -131,9 +125,7 @@
     },
     "e2e-cli": {
       "executor": "@nx/playwright:playwright",
-      "outputs": [
-        "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
-      ],
+      "outputs": ["{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"],
       "options": {
         "config": "packages/frontend/web-editor/playwright.config.ts",
         "ui": false

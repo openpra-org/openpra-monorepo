@@ -1,14 +1,9 @@
-import {
-  AbilityBuilder,
-  createMongoAbility,
-  MongoAbility,
-  RawRuleOf,
-} from '@casl/ability';
-import type { PermissionDto as Role } from 'shared-types';
-import { GetAllRoles } from 'shared-sdk/lib/api/roles/rolesApi';
+import { AbilityBuilder, createMongoAbility, MongoAbility, RawRuleOf } from "@casl/ability";
+import type { PermissionDto as Role } from "shared-types";
+import { GetAllRoles } from "shared-sdk/lib/api/roles/rolesApi";
 
-type Actions = 'create' | 'read' | 'update' | 'delete' | 'manage';
-type Subjects = 'users' | 'roles' | 'invitation' | 'all';
+type Actions = "create" | "read" | "update" | "delete" | "manage";
+type Subjects = "users" | "roles" | "invitation" | "all";
 type AppAbility = MongoAbility<[Actions, Subjects]>;
 
 /**
@@ -35,10 +30,7 @@ const DefineAbility = (roles: Role[]): MongoAbility<[Actions, Subjects]> => {
  * This function fetches the latest roles from the API using `GetAllRoles`, extracts the permissions,
  * and updates the provided `AppAbility` instance with the new rules.
  */
-async function UpdateAbility(
-  ability: AppAbility,
-  roles: string[],
-): Promise<void> {
+async function UpdateAbility(ability: AppAbility, roles: string[]): Promise<void> {
   const fetchedRoles = await GetAllRoles(roles);
   const extractedRoles = fetchedRoles.map((fetchedRole) => {
     return fetchedRole.permissions;
@@ -57,15 +49,8 @@ async function UpdateAbility(
  */
 const DefaultAbility = (): MongoAbility<[Actions, Subjects]> => {
   const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
-  can('read', 'all');
+  can("read", "all");
   return build();
 };
 
-export {
-  DefineAbility,
-  Actions,
-  Subjects,
-  AppAbility,
-  DefaultAbility,
-  UpdateAbility,
-};
+export { DefineAbility, Actions, Subjects, AppAbility, DefaultAbility, UpdateAbility };

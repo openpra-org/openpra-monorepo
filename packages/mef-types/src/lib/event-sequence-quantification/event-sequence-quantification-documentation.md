@@ -80,14 +80,14 @@ import {
   QuantificationApproach,
   CircularLogicResolutionMethod,
   BarrierStatus, // Re-exported from plant-operating-states-analysis
-} from './event-sequence-quantification';
+} from "./event-sequence-quantification";
 
 // Use string references for cross-module relationships
 const example: EventSequenceQuantification = {
   eventSequenceFamilies: {
-    'ESF-LOCA-SMALL': {
-      memberSequenceIds: ['ES-SLOCA-001', 'ES-SLOCA-002'], // String references
-      representativeInitiatingEventId: 'IE-SLOCA', // String reference
+    "ESF-LOCA-SMALL": {
+      memberSequenceIds: ["ES-SLOCA-001", "ES-SLOCA-002"], // String references
+      representativeInitiatingEventId: "IE-SLOCA", // String reference
     },
   },
 };
@@ -124,15 +124,15 @@ Implementation example:
 // Example implementation for EBR-II
 const documentation: EventSequenceQuantificationDocumentation = {
   processDescription:
-    'Event trees were developed for EBR-II loss of flow scenarios and quantified using fault tree linking methodology with special consideration for passive safety systems',
+    "Event trees were developed for EBR-II loss of flow scenarios and quantified using fault tree linking methodology with special consideration for passive safety systems",
   inputs: [
-    'EBR-II system reliability data',
-    'Metallic fuel failure modes analysis',
-    'Sodium coolant thermal-hydraulic models',
+    "EBR-II system reliability data",
+    "Metallic fuel failure modes analysis",
+    "Sodium coolant thermal-hydraulic models",
   ],
-  appliedMethods: ['Fault Tree Linking', 'Monte Carlo uncertainty propagation'],
+  appliedMethods: ["Fault Tree Linking", "Monte Carlo uncertainty propagation"],
   nonRecoveryTermsProcess:
-    'Recovery of passive cooling was modeled using explicit operator actions with timing based on thermal-hydraulic simulations',
+    "Recovery of passive cooling was modeled using explicit operator actions with timing based on thermal-hydraulic simulations",
   // Other fields...
 };
 ```
@@ -155,20 +155,20 @@ const quantificationMethods = {
     finalTruncationValue: 1.0e-10,
     truncationProgression: [1.0e-8, 1.0e-9, 1.0e-10, 1.0e-11, 1.0e-12],
     frequencyAtTruncation: {
-      '1.0e-8': 2.3e-6,
-      '1.0e-9': 2.5e-6,
-      '1.0e-10': 2.51e-6,
-      '1.0e-11': 2.511e-6,
-      '1.0e-12': 2.511e-6,
+      "1.0e-8": 2.3e-6,
+      "1.0e-9": 2.5e-6,
+      "1.0e-10": 2.51e-6,
+      "1.0e-11": 2.511e-6,
+      "1.0e-12": 2.511e-6,
     },
     percentageChangeAtTruncation: {
-      '1.0e-9': 8.7,
-      '1.0e-10': 0.4,
-      '1.0e-11': 0.04,
-      '1.0e-12': 0.0,
+      "1.0e-9": 8.7,
+      "1.0e-10": 0.4,
+      "1.0e-11": 0.04,
+      "1.0e-12": 0.0,
     },
-    basisForSelection: 'Final truncation value of 1.0e-10 selected based on <0.5% change in results',
-    convergenceDemonstration: 'Results converged at 1.0e-10 with <0.5% change in sequence frequencies',
+    basisForSelection: "Final truncation value of 1.0e-10 selected based on <0.5% change in results",
+    convergenceDemonstration: "Results converged at 1.0e-10 with <0.5% change in sequence frequencies",
   },
 };
 ```
@@ -184,19 +184,19 @@ Implementation example:
 
 ```typescript
 const modelIntegration: ModelIntegration = {
-  integrationMethod: 'Linked Event Trees with Fault Trees for EBR-II LOFA scenarios',
-  softwareTools: ['SAPHIRE', 'MELCOR'],
+  integrationMethod: "Linked Event Trees with Fault Trees for EBR-II LOFA scenarios",
+  softwareTools: ["SAPHIRE", "MELCOR"],
   integrationSteps: [
-    'Link initiating events to event trees',
-    'Map sodium pump failure modes to system fault trees',
-    'Integrate passive safety responses into event sequences',
+    "Link initiating events to event trees",
+    "Map sodium pump failure modes to system fault trees",
+    "Integrate passive safety responses into event sequences",
   ],
   integrationVerification:
-    'Verified through manual checks of selected sequences with special attention to passive cooling systems',
+    "Verified through manual checks of selected sequences with special attention to passive cooling systems",
 };
 
 documentation.cutsetReviewProcess =
-  'Cutsets for EBR-II unprotected loss of flow sequences were reviewed to verify correct modeling of passive heat removal systems including natural circulation in primary sodium';
+  "Cutsets for EBR-II unprotected loss of flow sequences were reviewed to verify correct modeling of passive heat removal systems including natural circulation in primary sodium";
 ```
 
 ### 3.4 Dependency Treatment Documentation
@@ -212,26 +212,26 @@ Implementation example:
 const dependencyTreatment: DependencyRepresentation = {
   dependenciesByType: {
     FUNCTIONAL: {
-      treatmentDescription: 'Explicit modeling of functional dependencies in EBR-II systems',
-      modelingMethod: 'Shared basic events and explicit logic gates',
-      examples: ['Dependency between electrical power and sodium pumps'],
+      treatmentDescription: "Explicit modeling of functional dependencies in EBR-II systems",
+      modelingMethod: "Shared basic events and explicit logic gates",
+      examples: ["Dependency between electrical power and sodium pumps"],
     },
     PHYSICAL: {
-      treatmentDescription: 'Physical dependencies modeled through environmental factors',
-      modelingMethod: 'Conditional probabilities based on room environments',
-      examples: ['Sodium fire effects on adjacent equipment'],
+      treatmentDescription: "Physical dependencies modeled through environmental factors",
+      modelingMethod: "Conditional probabilities based on room environments",
+      examples: ["Sodium fire effects on adjacent equipment"],
     },
     HUMAN: {
-      treatmentDescription: 'Operator action dependencies modeled through HRA dependency analysis',
-      modelingMethod: 'THERP dependency factors',
-      examples: ['Dependency between diagnosis of loss of flow and subsequent actions'],
+      treatmentDescription: "Operator action dependencies modeled through HRA dependency analysis",
+      modelingMethod: "THERP dependency factors",
+      examples: ["Dependency between diagnosis of loss of flow and subsequent actions"],
     },
   },
   // Other fields...
 };
 
 documentation.dependenciesTreatment =
-  'Dependencies in EBR-II were modeled through explicit functional relationships, environmental factors for physical dependencies, and HRA dependency analysis for operator actions';
+  "Dependencies in EBR-II were modeled through explicit functional relationships, environmental factors for physical dependencies, and HRA dependency analysis for operator actions";
 ```
 
 ### 3.5 Results and Risk Insights Documentation
@@ -245,15 +245,15 @@ Implementation example:
 
 ```typescript
 documentation.familyFrequencies = {
-  ULOF: '2.3E-6/yr',
-  ULOHS: '1.5E-6/yr',
-  UTOP: '8.7E-7/yr',
+  ULOF: "2.3E-6/yr",
+  ULOHS: "1.5E-6/yr",
+  UTOP: "8.7E-7/yr",
 };
 
 documentation.riskInsights = [
-  'Metal fuel damage in EBR-II is dominated by unprotected loss of flow scenarios during full power operation',
-  'Passive safety features significantly reduce the contribution from protected loss of flow events',
-  'Human error contribution is minimal due to extended time available for operator actions',
+  "Metal fuel damage in EBR-II is dominated by unprotected loss of flow scenarios during full power operation",
+  "Passive safety features significantly reduce the contribution from protected loss of flow events",
+  "Human error contribution is minimal due to extended time available for operator actions",
 ];
 ```
 
@@ -270,13 +270,13 @@ Implementation example:
 
 ```typescript
 documentation.eventSequencesAndBinning =
-  'Summary of dominant cutsets for EBR-II unprotected loss of flow sequences, including CCF of primary pumps combined with failure of reactor protection system';
+  "Summary of dominant cutsets for EBR-II unprotected loss of flow sequences, including CCF of primary pumps combined with failure of reactor protection system";
 
 documentation.radionuclideBarrierTreatment =
-  'Metallic fuel cladding failure modes under ULOF conditions were modeled with specific attention to eutectic formation between fuel and cladding at elevated temperatures';
+  "Metallic fuel cladding failure modes under ULOF conditions were modeled with specific attention to eutectic formation between fuel and cladding at elevated temperatures";
 
 documentation.mutuallyExclusiveEventsTreatment =
-  'Mutually exclusive events in EBR-II PRA were identified and eliminated, including concurrent active pump failure and natural circulation failure modes';
+  "Mutually exclusive events in EBR-II PRA were identified and eliminated, including concurrent active pump failure and natural circulation failure modes";
 ```
 
 ## ESQ-F2
@@ -285,8 +285,8 @@ The schema implements this through both dedicated fields in `EventSequenceQuanti
 
 ```typescript
 export interface ImportanceAnalysis {
-  analysisType: 'FUSSELL_VESELY' | 'RISK_REDUCTION_WORTH' | 'RISK_ACHIEVEMENT_WORTH' | 'BIRNBAUM' | 'OTHER';
-  scope: 'OVERALL' | 'PER_SEQUENCE' | 'PER_FAMILY';
+  analysisType: "FUSSELL_VESELY" | "RISK_REDUCTION_WORTH" | "RISK_ACHIEVEMENT_WORTH" | "BIRNBAUM" | "OTHER";
+  scope: "OVERALL" | "PER_SEQUENCE" | "PER_FAMILY";
   // Importance results for different element types
   basicEventImportance?: Record<string, number>;
   initiatingEventImportance?: Record<string, number>;
@@ -303,30 +303,30 @@ Implementation example for EBR-II:
 
 ```typescript
 const importanceAnalysisFV: ImportanceAnalysis = {
-  analysisType: 'FUSSELL_VESELY',
-  scope: 'OVERALL',
+  analysisType: "FUSSELL_VESELY",
+  scope: "OVERALL",
   basicEventImportance: {
-    'BE-PRIM-PUMP-CCF': 0.32,
-    'BE-RPS-FAILURE': 0.28,
-    'BE-DC-POWER-LOSS': 0.15,
+    "BE-PRIM-PUMP-CCF": 0.32,
+    "BE-RPS-FAILURE": 0.28,
+    "BE-DC-POWER-LOSS": 0.15,
   },
   initiatingEventImportance: {
-    'IE-LOFA': 0.45,
-    'IE-LOHS': 0.3,
-    'IE-TOP': 0.25,
+    "IE-LOFA": 0.45,
+    "IE-LOHS": 0.3,
+    "IE-TOP": 0.25,
   },
   humanFailureEventImportance: {
-    'HFE-RECOVER-POWER': 0.12,
-    'HFE-MANUAL-SCRAM': 0.08,
+    "HFE-RECOVER-POWER": 0.12,
+    "HFE-MANUAL-SCRAM": 0.08,
   },
   significanceCutoff: 0.05,
-  significantBasicEvents: ['BE-PRIM-PUMP-CCF', 'BE-RPS-FAILURE', 'BE-DC-POWER-LOSS'],
-  significantInitiatingEvents: ['IE-LOFA', 'IE-LOHS'],
+  significantBasicEvents: ["BE-PRIM-PUMP-CCF", "BE-RPS-FAILURE", "BE-DC-POWER-LOSS"],
+  significantInitiatingEvents: ["IE-LOFA", "IE-LOHS"],
 };
 
 // Documentation field for risk-significant contributors
 documentation.riskSignificanceDrivers =
-  'EBR-II risk is primarily driven by common cause failure of primary sodium pumps (F-V=0.32) and reactor protection system failures (F-V=0.28) during unprotected loss of flow accidents';
+  "EBR-II risk is primarily driven by common cause failure of primary sodium pumps (F-V=0.32) and reactor protection system failures (F-V=0.28) during unprotected loss of flow accidents";
 ```
 
 ## ESQ-F3
@@ -358,44 +358,44 @@ Implementation example for EBR-II:
 const uncertaintyDocumentation: EventSequenceQuantificationUncertaintyDocumentation = {
   modelUncertaintySources: [
     {
-      sourceId: 'MU-METAL-FUEL',
-      description: 'Uncertainty in metal fuel failure thresholds during unprotected transients',
-      impact: 'Significant impact on source term magnitude and timing',
-      relatedAssumptions: ['Metal fuel failure occurs at 1000°C based on IFR test data'],
+      sourceId: "MU-METAL-FUEL",
+      description: "Uncertainty in metal fuel failure thresholds during unprotected transients",
+      impact: "Significant impact on source term magnitude and timing",
+      relatedAssumptions: ["Metal fuel failure occurs at 1000°C based on IFR test data"],
       alternativeApproaches: [
-        'Use of mechanistic fuel behavior models with temperature-dependent failure probabilities',
+        "Use of mechanistic fuel behavior models with temperature-dependent failure probabilities",
       ],
-      treatmentApproach: 'Sensitivity analysis with varying failure thresholds',
+      treatmentApproach: "Sensitivity analysis with varying failure thresholds",
     },
     {
-      sourceId: 'MU-NATURAL-CIRC',
-      description: 'Uncertainty in natural circulation effectiveness in primary sodium system',
-      impact: 'Moderate impact on sequence timing and success criteria',
-      relatedAssumptions: ['Natural circulation provides sufficient cooling to prevent fuel damage'],
-      alternativeApproaches: ['Detailed thermal-hydraulic modeling with uncertainty propagation'],
-      treatmentApproach: 'Conservative success criteria with sensitivity studies',
+      sourceId: "MU-NATURAL-CIRC",
+      description: "Uncertainty in natural circulation effectiveness in primary sodium system",
+      impact: "Moderate impact on sequence timing and success criteria",
+      relatedAssumptions: ["Natural circulation provides sufficient cooling to prevent fuel damage"],
+      alternativeApproaches: ["Detailed thermal-hydraulic modeling with uncertainty propagation"],
+      treatmentApproach: "Conservative success criteria with sensitivity studies",
     },
   ],
   keyAssumptions: [
     {
-      id: 'A-001',
-      description: 'Metal fuel failure occurs at 1000°C based on IFR test data',
-      basis: 'EBR-II and IFR experimental data',
-      impact: 'Determines timing and extent of radionuclide release',
+      id: "A-001",
+      description: "Metal fuel failure occurs at 1000°C based on IFR test data",
+      basis: "EBR-II and IFR experimental data",
+      impact: "Determines timing and extent of radionuclide release",
     },
     {
-      id: 'A-002',
-      description: 'Natural circulation in primary sodium system is sufficient to prevent fuel damage',
-      basis: 'EBR-II shutdown heat removal tests',
-      impact: 'Critical for passive safety credit in loss of flow sequences',
+      id: "A-002",
+      description: "Natural circulation in primary sodium system is sufficient to prevent fuel damage",
+      basis: "EBR-II shutdown heat removal tests",
+      impact: "Critical for passive safety credit in loss of flow sequences",
     },
   ],
   reasonableAlternatives: [
     {
-      alternative: 'Use of mechanistic fuel behavior models with temperature-dependent failure probabilities',
-      reasonNotSelected: 'Insufficient validation data for full mechanistic model implementation',
-      applicableElements: ['Fuel Damage Criteria', 'Source Term Evaluation'],
-      potentialImpact: 'Could reduce conservatism in metal fuel damage estimates',
+      alternative: "Use of mechanistic fuel behavior models with temperature-dependent failure probabilities",
+      reasonNotSelected: "Insufficient validation data for full mechanistic model implementation",
+      applicableElements: ["Fuel Damage Criteria", "Source Term Evaluation"],
+      potentialImpact: "Could reduce conservatism in metal fuel damage estimates",
     },
   ],
 };
@@ -426,29 +426,29 @@ Implementation example for EBR-II:
 const limitationsDocumentation: EventSequenceQuantificationLimitationsDocumentation = {
   quantificationLimitations: [
     {
-      limitationId: 'LIM-SODIUM-FIRE',
-      description: 'Limited validation of sodium fire and aerosol models for containment response analysis',
-      applicationImpact: 'May impact source term estimates for sodium fire scenarios',
-      potentialWorkarounds: 'Use of conservative bounding approaches for sodium fire consequences',
+      limitationId: "LIM-SODIUM-FIRE",
+      description: "Limited validation of sodium fire and aerosol models for containment response analysis",
+      applicationImpact: "May impact source term estimates for sodium fire scenarios",
+      potentialWorkarounds: "Use of conservative bounding approaches for sodium fire consequences",
     },
     {
-      limitationId: 'LIM-METAL-FUEL-DATA',
-      description: 'Limited operational experience with metal fuel under severe accident conditions',
-      applicationImpact: 'Introduces uncertainty in fuel failure thresholds and release fractions',
-      potentialWorkarounds: 'Reliance on experimental data and conservative treatment of uncertainties',
+      limitationId: "LIM-METAL-FUEL-DATA",
+      description: "Limited operational experience with metal fuel under severe accident conditions",
+      applicationImpact: "Introduces uncertainty in fuel failure thresholds and release fractions",
+      potentialWorkarounds: "Reliance on experimental data and conservative treatment of uncertainties",
     },
   ],
   validationLimitations: [
-    'Limited operational experience with passive safety features under actual accident conditions',
-    'Validation of natural circulation models based primarily on scaled experiments',
+    "Limited operational experience with passive safety features under actual accident conditions",
+    "Validation of natural circulation models based primarily on scaled experiments",
   ],
   dataLimitations: [
-    'Limited component reliability data specific to sodium systems',
-    'Limited data on common cause failures in liquid metal systems',
+    "Limited component reliability data specific to sodium systems",
+    "Limited data on common cause failures in liquid metal systems",
   ],
   modelIntegrationLimitations: [
-    'Simplified treatment of thermal-hydraulic phenomena in probabilistic model',
-    'Limited coupling between neutronics and thermal-hydraulics in transient analysis',
+    "Simplified treatment of thermal-hydraulic phenomena in probabilistic model",
+    "Limited coupling between neutronics and thermal-hydraulics in transient analysis",
   ],
 };
 ```
@@ -482,32 +482,32 @@ Implementation example (note: EBR-II is a historical reactor, but we'll use it a
 const preOperationalDocumentation: EventSequenceQuantificationPreOperationalDocumentation = {
   preOperationalAssumptions: [
     {
-      assumptionId: 'PRE-OP-001',
-      description: 'Sodium pump reliability based on design specifications and limited testing',
-      impact: 'May not reflect actual operational reliability after extended operation',
-      validationApproach: 'Collect and analyze plant-specific pump failure data during operation',
-      validationTiming: 'After first two years of operation',
+      assumptionId: "PRE-OP-001",
+      description: "Sodium pump reliability based on design specifications and limited testing",
+      impact: "May not reflect actual operational reliability after extended operation",
+      validationApproach: "Collect and analyze plant-specific pump failure data during operation",
+      validationTiming: "After first two years of operation",
     },
     {
-      assumptionId: 'PRE-OP-002',
-      description: 'Operator response times based on simulator exercises and training protocols',
-      impact: 'May not reflect actual response times during real events',
-      validationApproach: 'Analyze operator performance during operational transients and drills',
-      validationTiming: 'Continuous validation during operational phase',
+      assumptionId: "PRE-OP-002",
+      description: "Operator response times based on simulator exercises and training protocols",
+      impact: "May not reflect actual response times during real events",
+      validationApproach: "Analyze operator performance during operational transients and drills",
+      validationTiming: "Continuous validation during operational phase",
     },
   ],
   preOperationalLimitations: [
     {
-      limitationId: 'PRE-OP-LIM-001',
-      description: 'Limited operational experience with metal fuel under varying burnup conditions',
-      impact: 'Uncertainty in fuel performance parameters across operational cycle',
-      resolutionApproach: 'Implement fuel monitoring program and update models with operational data',
+      limitationId: "PRE-OP-LIM-001",
+      description: "Limited operational experience with metal fuel under varying burnup conditions",
+      impact: "Uncertainty in fuel performance parameters across operational cycle",
+      resolutionApproach: "Implement fuel monitoring program and update models with operational data",
     },
     {
-      limitationId: 'PRE-OP-LIM-002',
-      description: 'Limited validation of natural circulation performance with as-built geometry',
-      impact: 'Uncertainty in passive cooling capability under accident conditions',
-      resolutionApproach: 'Perform natural circulation testing during commissioning and startup',
+      limitationId: "PRE-OP-LIM-002",
+      description: "Limited validation of natural circulation performance with as-built geometry",
+      impact: "Uncertainty in passive cooling capability under accident conditions",
+      resolutionApproach: "Perform natural circulation testing during commissioning and startup",
     },
   ],
 };

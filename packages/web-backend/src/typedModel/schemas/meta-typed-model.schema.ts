@@ -1,5 +1,5 @@
-import { Prop, Schema } from '@nestjs/mongoose';
-import { Label, LabelSchema } from '../../schemas/label.schema';
+import { Prop, Schema } from "@nestjs/mongoose";
+import { Label, LabelSchema } from "../../schemas/label.schema";
 
 /**
  * JSON shape for the lightweight TypedModel metadata projection.

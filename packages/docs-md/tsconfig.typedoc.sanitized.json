@@ -1,7 +1,4 @@
 {
   "extends": "./tsconfig.typedoc.json",
-  "include": [
-    ".tmp/typedoc-sanitized/mef-types/**/*.ts",
-    ".tmp/typedoc-sanitized/mef-types/**/*.d.ts"
-  ]
+  "include": [".tmp/typedoc-sanitized/mef-types/**/*.ts", ".tmp/typedoc-sanitized/mef-types/**/*.d.ts"]
 }

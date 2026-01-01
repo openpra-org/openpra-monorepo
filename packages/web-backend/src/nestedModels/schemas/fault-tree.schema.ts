@@ -1,6 +1,6 @@
-import { Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { NestedModel } from './templateSchema/nested-model.schema';
+import { Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { NestedModel } from "./templateSchema/nested-model.schema";
 
 /**
  * Nested model representing a Fault Tree technical element.

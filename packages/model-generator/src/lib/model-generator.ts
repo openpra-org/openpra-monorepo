@@ -11,5 +11,5 @@
  */
 export function ModelGenerator(name?: string): string {
   void name; // intentionally unused; preserved for demonstration
-  return 'model-generator';
+  return "model-generator";
 }

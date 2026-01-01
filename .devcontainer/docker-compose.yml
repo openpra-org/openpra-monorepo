@@ -1,4 +1,5 @@
 volumes:
+  mongo_data:
   rabbitmq_data:
   minio_data:
 
@@ -12,10 +13,11 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
     volumes:
-      - ..:/workspaces/microservices
+      - ..:/workspaces/openpra-monorepo
     ports:
       - '5672:5672'
       - '15672:15672'
+      - '27017:27017'
       - '9000:9000'
       - '9001:9001'
 
@@ -27,6 +29,13 @@ services:
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
+    network_mode: 'service:devcontainer'
+
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
     network_mode: 'service:devcontainer'
 
   minio:

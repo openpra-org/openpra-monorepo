@@ -1,86 +1,38 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  NestedCounter,
-  NestedCounterDocument,
-} from '../schemas/tree-counter.schema';
-import { Label } from '../schemas/label.schema';
-import { NestedModel } from './schemas/templateSchema/nested-model.schema';
-import {
-  BayesianEstimation,
-  BayesianEstimationDocument,
-} from './schemas/bayesian-estimation.schema';
-import {
-  EventSequenceDiagram,
-  EventSequenceDiagramDocument,
-} from './schemas/event-sequence-diagram.schema';
-import { EventTree, EventTreeDocument } from './schemas/event-tree.schema';
-import { FaultTree, FaultTreeDocument } from './schemas/fault-tree.schema';
-import {
-  HeatBalanceFaultTree,
-  HeatBalanceFaultTreeDocument,
-} from './schemas/heat-balance-fault-tree.schema';
-import {
-  InitiatingEvent,
-  InitiatingEventDocument,
-} from './schemas/initiating-event.schema';
-import {
-  MarkovChain,
-  MarkovChainDocument,
-} from './schemas/markov-chain.schema';
-import {
-  WeibullAnalysis,
-  WeibullAnalysisDocument,
-} from './schemas/weibull-analysis.schema';
-import {
-  FunctionalEvent,
-  FunctionalEventDocument,
-} from './schemas/functional-event.schema';
-import {
-  BayesianNetwork,
-  BayesianNetworkDocument,
-} from './schemas/bayesian-network.schema';
-import {
-  RiskIntegration,
-  RiskIntegrationDocument,
-} from './schemas/risk-integration.schema';
-import {
-  MechanisticSourceTerm,
-  MechanisticSourceTermDocument,
-} from './schemas/mechanistic-source-term.schema';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { NestedCounter, NestedCounterDocument } from "../schemas/tree-counter.schema";
+import { Label } from "../schemas/label.schema";
+import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
+import { BayesianEstimation, BayesianEstimationDocument } from "./schemas/bayesian-estimation.schema";
+import { EventSequenceDiagram, EventSequenceDiagramDocument } from "./schemas/event-sequence-diagram.schema";
+import { EventTree, EventTreeDocument } from "./schemas/event-tree.schema";
+import { FaultTree, FaultTreeDocument } from "./schemas/fault-tree.schema";
+import { HeatBalanceFaultTree, HeatBalanceFaultTreeDocument } from "./schemas/heat-balance-fault-tree.schema";
+import { InitiatingEvent, InitiatingEventDocument } from "./schemas/initiating-event.schema";
+import { MarkovChain, MarkovChainDocument } from "./schemas/markov-chain.schema";
+import { WeibullAnalysis, WeibullAnalysisDocument } from "./schemas/weibull-analysis.schema";
+import { FunctionalEvent, FunctionalEventDocument } from "./schemas/functional-event.schema";
+import { BayesianNetwork, BayesianNetworkDocument } from "./schemas/bayesian-network.schema";
+import { RiskIntegration, RiskIntegrationDocument } from "./schemas/risk-integration.schema";
+import { MechanisticSourceTerm, MechanisticSourceTermDocument } from "./schemas/mechanistic-source-term.schema";
 import {
   EventSequenceQuantificationDiagram,
   EventSequenceQuantificationDiagramDocument,
-} from './schemas/event-sequence-quantification-diagram.schema';
-import {
-  DataAnalysis,
-  DataAnalysisDocument,
-} from './schemas/data-analysis.schema';
-import {
-  SystemsAnalysis,
-  SystemsAnalysisDocument,
-} from './schemas/systems-analysis.schema';
-import {
-  SuccessCriteria,
-  SuccessCriteriaDocument,
-} from './schemas/success-criteria.schema';
-import {
-  EventSequenceAnalysis,
-  EventSequenceAnalysisDocument,
-} from './schemas/event-sequence-analysis.schema';
-import {
-  OperatingStateAnalysis,
-  OperatingStateAnalysisDocument,
-} from './schemas/operatingStateAnalysis.schema';
+} from "./schemas/event-sequence-quantification-diagram.schema";
+import { DataAnalysis, DataAnalysisDocument } from "./schemas/data-analysis.schema";
+import { SystemsAnalysis, SystemsAnalysisDocument } from "./schemas/systems-analysis.schema";
+import { SuccessCriteria, SuccessCriteriaDocument } from "./schemas/success-criteria.schema";
+import { EventSequenceAnalysis, EventSequenceAnalysisDocument } from "./schemas/event-sequence-analysis.schema";
+import { OperatingStateAnalysis, OperatingStateAnalysisDocument } from "./schemas/operatingStateAnalysis.schema";
 import {
   RadiologicalConsequenceAnalysis,
   RadiologicalConsequenceAnalysisDocument,
-} from './schemas/radiological-consequence-analysis.schema';
+} from "./schemas/radiological-consequence-analysis.schema";
 import {
   HumanReliabilityAnalysis,
   HumanReliabilityAnalysisDocument,
-} from './schemas/human-reliability-analysis.schema';
+} from "./schemas/human-reliability-analysis.schema";
 
 /**
  * Service for nested model creation and persistence across technical elements.
@@ -169,11 +121,7 @@ export class NestedModelService {
    * @returns ID number
    */
   async getNextValue(name: string) {
-    const record = await this.nestedCounterModel.findByIdAndUpdate(
-      name,
-      { $inc: { seq: 1 } },
-      { new: true },
-    );
+    const record = await this.nestedCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if (!record) {
       const newCounter = new this.nestedCounterModel({ _id: name, seq: 1 });
       await newCounter.save();
@@ -202,11 +150,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createBayesianEstimation(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createBayesianEstimation(body: Partial<NestedModel>): Promise<NestedModel> {
     const newBayesianEstimation = new this.bayesianEstimationModel(body);
-    newBayesianEstimation.id = await this.getNextValue('nestedCounter');
+    newBayesianEstimation.id = await this.getNextValue("nestedCounter");
     return newBayesianEstimation.save();
   }
 
@@ -216,11 +162,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createHeatBalanceFaultTree(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createHeatBalanceFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newHeatBalanceFaultTree = new this.heatBalanceFaultTreeModel(body);
-    newHeatBalanceFaultTree.id = await this.getNextValue('nestedCounter');
+    newHeatBalanceFaultTree.id = await this.getNextValue("nestedCounter");
     return newHeatBalanceFaultTree.save();
   }
 
@@ -230,11 +174,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createFunctionalEvent(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createFunctionalEvent(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFunctionalEvent = new this.functionalEventsModel(body);
-    newFunctionalEvent.id = await this.getNextValue('nestedCounter');
+    newFunctionalEvent.id = await this.getNextValue("nestedCounter");
     return newFunctionalEvent.save();
   }
 
@@ -246,7 +188,7 @@ export class NestedModelService {
    */
   async createMarkovChain(body: Partial<NestedModel>): Promise<NestedModel> {
     const newMarkovChain = new this.markovChainModel(body);
-    newMarkovChain.id = await this.getNextValue('nestedCounter');
+    newMarkovChain.id = await this.getNextValue("nestedCounter");
     return newMarkovChain.save();
   }
 
@@ -256,11 +198,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createWeibullAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createWeibullAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newWeibullAnalysis = new this.weibullAnalysisModel(body);
-    newWeibullAnalysis.id = await this.getNextValue('nestedCounter');
+    newWeibullAnalysis.id = await this.getNextValue("nestedCounter");
     return newWeibullAnalysis.save();
   }
 
@@ -269,11 +209,9 @@ export class NestedModelService {
    * @param body - Nested model payload including parentIds and label
    * @returns The created Bayesian Network document
    */
-  async createBayesianNetwork(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createBayesianNetwork(body: Partial<NestedModel>): Promise<NestedModel> {
     const newBayesianNetwork = new this.bayesianNetworkModel(body);
-    newBayesianNetwork.id = await this.getNextValue('nestedCounter');
+    newBayesianNetwork.id = await this.getNextValue("nestedCounter");
     return newBayesianNetwork.save();
   }
 
@@ -282,11 +220,9 @@ export class NestedModelService {
    * @param body - Nested model payload including parentIds and label
    * @returns The created Event Sequence Diagram document
    */
-  async createEventSequenceDiagram(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createEventSequenceDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
-    newEventSequenceDiagram.id = await this.getNextValue('nestedCounter');
+    newEventSequenceDiagram.id = await this.getNextValue("nestedCounter");
     return newEventSequenceDiagram.save();
   }
 
@@ -297,7 +233,7 @@ export class NestedModelService {
    */
   async createEventTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventTree = new this.eventTreeModel(body);
-    newEventTree.id = await this.getNextValue('nestedCounter');
+    newEventTree.id = await this.getNextValue("nestedCounter");
     return newEventTree.save();
   }
 
@@ -308,7 +244,7 @@ export class NestedModelService {
    */
   async createFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFaultTree = new this.faultTreeModel(body);
-    newFaultTree.id = await this.getNextValue('nestedCounter');
+    newFaultTree.id = await this.getNextValue("nestedCounter");
     return newFaultTree.save();
   }
 
@@ -317,11 +253,9 @@ export class NestedModelService {
    * @param body - Nested model payload including parentIds and label
    * @returns The created Initiating Event document
    */
-  async createInitiatingEvent(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createInitiatingEvent(body: Partial<NestedModel>): Promise<NestedModel> {
     const newInitiatingEvent = new this.initiatingEventModel(body);
-    newInitiatingEvent.id = await this.getNextValue('nestedCounter');
+    newInitiatingEvent.id = await this.getNextValue("nestedCounter");
     return newInitiatingEvent.save();
   }
 
@@ -330,11 +264,9 @@ export class NestedModelService {
    * @param body - Nested model payload including parentIds and label
    * @returns The created Event Sequence Analysis document
    */
-  async createEventSequenceAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createEventSequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventSequenceAnalysis = new this.eventSequenceAnalysisModel(body);
-    newEventSequenceAnalysis.id = await this.getNextValue('nestedCounter');
+    newEventSequenceAnalysis.id = await this.getNextValue("nestedCounter");
     return newEventSequenceAnalysis.save();
   }
 
@@ -344,11 +276,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createRiskIntegration(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createRiskIntegration(body: Partial<NestedModel>): Promise<NestedModel> {
     const newRiskIntegration = new this.riskIntegrationModel(body);
-    newRiskIntegration.id = await this.getNextValue('nestedCounter');
+    newRiskIntegration.id = await this.getNextValue("nestedCounter");
     return newRiskIntegration.save();
   }
 
@@ -358,11 +288,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createRadiologicalConsequenceAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createRadiologicalConsequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newRCA = new this.radiologicalConsequenceAnalysisModel(body);
-    newRCA.id = await this.getNextValue('nestedCounter');
+    newRCA.id = await this.getNextValue("nestedCounter");
     return newRCA.save();
   }
 
@@ -372,11 +300,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createMechanisticSourceTerm(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createMechanisticSourceTerm(body: Partial<NestedModel>): Promise<NestedModel> {
     const newMachnisticSourceTerm = new this.mechanisticSourceTermModel(body);
-    newMachnisticSourceTerm.id = await this.getNextValue('nestedCounter');
+    newMachnisticSourceTerm.id = await this.getNextValue("nestedCounter");
     return newMachnisticSourceTerm.save();
   }
 
@@ -386,11 +312,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventSequenceQuantificationDiagram(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createEventSequenceQuantificationDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
     const newESQD = new this.eventSequenceQuantificationDiagramModel(body);
-    newESQD.id = await this.getNextValue('nestedCounter');
+    newESQD.id = await this.getNextValue("nestedCounter");
     return newESQD.save();
   }
 
@@ -402,7 +326,7 @@ export class NestedModelService {
    */
   async createDataAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newDataAnalysis = new this.dataAnalysisModel(body);
-    newDataAnalysis.id = await this.getNextValue('nestedCounter');
+    newDataAnalysis.id = await this.getNextValue("nestedCounter");
     return newDataAnalysis.save();
   }
 
@@ -412,11 +336,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createHumanReliabilityAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createHumanReliabilityAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newHRA = new this.humanReliabilityAnalysisModel(body);
-    newHRA.id = await this.getNextValue('nestedCounter');
+    newHRA.id = await this.getNextValue("nestedCounter");
     return newHRA.save();
   }
 
@@ -426,11 +348,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createSystemsAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createSystemsAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newSystemsAnalysis = new this.systemsAnalysisModel(body);
-    newSystemsAnalysis.id = await this.getNextValue('nestedCounter');
+    newSystemsAnalysis.id = await this.getNextValue("nestedCounter");
     return newSystemsAnalysis.save();
   }
 
@@ -440,11 +360,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createSuccessCriteria(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createSuccessCriteria(body: Partial<NestedModel>): Promise<NestedModel> {
     const newSuccessCriteria = new this.successCriteriaModel(body);
-    newSuccessCriteria.id = await this.getNextValue('nestedCounter');
+    newSuccessCriteria.id = await this.getNextValue("nestedCounter");
     return newSuccessCriteria.save();
   }
 
@@ -454,11 +372,9 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createOperatingStateAnalysis(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
+  async createOperatingStateAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newOSA = new this.operatingStateAnalysisModel(body);
-    newOSA.id = await this.getNextValue('nestedCounter');
+    newOSA.id = await this.getNextValue("nestedCounter");
     return newOSA.save();
   }
 
@@ -469,15 +385,10 @@ export class NestedModelService {
    * @param parentId - id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getBayesianEstimations(
-    parentId: number,
-  ): Promise<BayesianEstimation[]> {
+  async getBayesianEstimations(parentId: number): Promise<BayesianEstimation[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.bayesianEstimationModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.bayesianEstimationModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -485,15 +396,10 @@ export class NestedModelService {
    * @param parentId - id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getHeatBalanceFaultTrees(
-    parentId: number,
-  ): Promise<HeatBalanceFaultTree[]> {
+  async getHeatBalanceFaultTrees(parentId: number): Promise<HeatBalanceFaultTree[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.heatBalanceFaultTreeModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.heatBalanceFaultTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -504,10 +410,7 @@ export class NestedModelService {
   async getFunctionalEvents(parentId: number): Promise<FunctionalEvent[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.functionalEventsModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.functionalEventsModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -518,10 +421,7 @@ export class NestedModelService {
   async getMarkovChains(parentId: number): Promise<MarkovChain[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.markovChainModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.markovChainModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -532,10 +432,7 @@ export class NestedModelService {
   async getWeibullAnalysis(parentId: number): Promise<WeibullAnalysis[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.weibullAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.weibullAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -544,10 +441,7 @@ export class NestedModelService {
    * @returns A promise with an array of Bayesian Network models for the specified parent.
    */
   async getBayesianNetworks(parentId: number): Promise<BayesianNetwork[]> {
-    return this.bayesianNetworkModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.bayesianNetworkModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -555,13 +449,8 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of Event Sequence Diagram models for the specified parent.
    */
-  async getEventSequenceDiagrams(
-    parentId: number,
-  ): Promise<EventSequenceDiagram[]> {
-    return this.eventSequenceDiagramModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+  async getEventSequenceDiagrams(parentId: number): Promise<EventSequenceDiagram[]> {
+    return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -570,10 +459,7 @@ export class NestedModelService {
    * @returns A promise with an array of Event Tree models for the specified parent.
    */
   async getEventTrees(parentId: number): Promise<EventTree[]> {
-    return this.eventTreeModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.eventTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -582,10 +468,7 @@ export class NestedModelService {
    * @returns A promise with an array of Fault Tree models for the specified parent.
    */
   async getFaultTrees(parentId: number): Promise<FaultTree[]> {
-    return this.faultTreeModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.faultTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -594,10 +477,7 @@ export class NestedModelService {
    * @returns A promise with an array of Initiating Event models for the specified parent.
    */
   async getInitiatingEvents(parentId: number): Promise<InitiatingEvent[]> {
-    return this.initiatingEventModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.initiatingEventModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -605,13 +485,8 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of Event Sequence Analysis models for the specified parent.
    */
-  async getEventSequenceAnalysis(
-    parentId: number,
-  ): Promise<EventSequenceAnalysis[]> {
-    return this.eventSequenceAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+  async getEventSequenceAnalysis(parentId: number): Promise<EventSequenceAnalysis[]> {
+    return this.eventSequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -622,10 +497,7 @@ export class NestedModelService {
   async getRiskIntegration(parentId: number): Promise<RiskIntegration[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.riskIntegrationModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.riskIntegrationModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -633,15 +505,10 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Radiological Consequence Analysis models associated with the specified parent ID.
    */
-  async getRadiologicalConsequenceAnalysis(
-    parentId: number,
-  ): Promise<RadiologicalConsequenceAnalysis[]> {
+  async getRadiologicalConsequenceAnalysis(parentId: number): Promise<RadiologicalConsequenceAnalysis[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.radiologicalConsequenceAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.radiologicalConsequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -649,15 +516,10 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Mechanistic Source Term models associated with the specified parent ID.
    */
-  async getMechanisticSourceTerm(
-    parentId: number,
-  ): Promise<MechanisticSourceTerm[]> {
+  async getMechanisticSourceTerm(parentId: number): Promise<MechanisticSourceTerm[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.mechanisticSourceTermModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.mechanisticSourceTermModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -665,15 +527,10 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Event Sequence Quantification Diagram models associated with the specified parent ID.
    */
-  async getEventSequenceQuantificationDiagram(
-    parentId: number,
-  ): Promise<EventSequenceQuantificationDiagram[]> {
+  async getEventSequenceQuantificationDiagram(parentId: number): Promise<EventSequenceQuantificationDiagram[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.eventSequenceQuantificationDiagramModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.eventSequenceQuantificationDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -684,10 +541,7 @@ export class NestedModelService {
   async getDataAnalysis(parentId: number): Promise<DataAnalysis[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.dataAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.dataAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -695,15 +549,10 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Human Reliability Analysis models associated with the specified parent ID.
    */
-  async getHumanReliabilityAnalysis(
-    parentId: number,
-  ): Promise<HumanReliabilityAnalysis[]> {
+  async getHumanReliabilityAnalysis(parentId: number): Promise<HumanReliabilityAnalysis[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.humanReliabilityAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.humanReliabilityAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -714,10 +563,7 @@ export class NestedModelService {
   async getSystemsAnalysis(parentId: number): Promise<SystemsAnalysis[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.systemsAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.systemsAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -728,10 +574,7 @@ export class NestedModelService {
   async getSuccessCriteria(parentId: number): Promise<SuccessCriteria[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.successCriteriaModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.successCriteriaModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   /**
@@ -739,15 +582,10 @@ export class NestedModelService {
    * @param parentId - The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Operating State Analysis models associated with the specified parent ID.
    */
-  async getOperatingStateAnalysis(
-    parentId: number,
-  ): Promise<OperatingStateAnalysis[]> {
+  async getOperatingStateAnalysis(parentId: number): Promise<OperatingStateAnalysis[]> {
     // Typecast to a number because for some reason, it isn't a number????
 
-    return this.operatingStateAnalysisModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.operatingStateAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
   //singular get methods
@@ -757,9 +595,7 @@ export class NestedModelService {
    * @param modelId - the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleBayesianEstimation(
-    modelId: number,
-  ): Promise<BayesianEstimation> {
+  async getSingleBayesianEstimation(modelId: number): Promise<BayesianEstimation> {
     return this.bayesianEstimationModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -768,9 +604,7 @@ export class NestedModelService {
    * @param modelId - the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleHeatBalanceFaultTree(
-    modelId: number,
-  ): Promise<HeatBalanceFaultTree> {
+  async getSingleHeatBalanceFaultTree(modelId: number): Promise<HeatBalanceFaultTree> {
     return this.heatBalanceFaultTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -815,9 +649,7 @@ export class NestedModelService {
    * @param modelId - The id of the model to retrieve
    * @returns The model which has the associated id
    */
-  async getSingleEventSequenceDiagram(
-    modelId: number,
-  ): Promise<EventSequenceDiagram> {
+  async getSingleEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -853,9 +685,7 @@ export class NestedModelService {
    * @param modelId - The id of the model to retrieve
    * @returns The model which has the associated id
    */
-  async getSingleEventSequenceAnalysis(
-    modelId: number,
-  ): Promise<EventSequenceAnalysis> {
+  async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -873,13 +703,8 @@ export class NestedModelService {
    * @param modelId - The ID of the Radiological Consequence Analysis model to be retrieved.
    * @returns The Radiological Consequence Analysis model associated with the specified ID.
    */
-  async getSingleRadiologicalConsequenceAnalysis(
-    modelId: number,
-  ): Promise<RadiologicalConsequenceAnalysis> {
-    return this.radiologicalConsequenceAnalysisModel.findOne(
-      { id: modelId },
-      { _id: 0 },
-    );
+  async getSingleRadiologicalConsequenceAnalysis(modelId: number): Promise<RadiologicalConsequenceAnalysis> {
+    return this.radiologicalConsequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
   /**
@@ -887,9 +712,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Mechanistic Source Term model to be retrieved.
    * @returns The Mechanistic Source Term model associated with the specified ID.
    */
-  async getSingleMechanisticSourceTerm(
-    modelId: number,
-  ): Promise<MechanisticSourceTerm> {
+  async getSingleMechanisticSourceTerm(modelId: number): Promise<MechanisticSourceTerm> {
     return this.mechanisticSourceTermModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -898,13 +721,8 @@ export class NestedModelService {
    * @param modelId - The ID of the Event Sequence Quantification Diagram model to be retrieved.
    * @returns The Event Sequence Quantification Diagram model associated with the specified ID.
    */
-  async getSingleEventSequenceQuantificationDiagram(
-    modelId: number,
-  ): Promise<EventSequenceQuantificationDiagram> {
-    return this.eventSequenceQuantificationDiagramModel.findOne(
-      { id: modelId },
-      { _id: 0 },
-    );
+  async getSingleEventSequenceQuantificationDiagram(modelId: number): Promise<EventSequenceQuantificationDiagram> {
+    return this.eventSequenceQuantificationDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
   /**
@@ -921,13 +739,8 @@ export class NestedModelService {
    * @param modelId - The ID of the Human Reliability Analysis model to be retrieved.
    * @returns The Human Reliability Analysis model associated with the specified ID.
    */
-  async getSingleHumanReliabilityAnalysis(
-    modelId: number,
-  ): Promise<HumanReliabilityAnalysis> {
-    return this.humanReliabilityAnalysisModel.findOne(
-      { id: modelId },
-      { _id: 0 },
-    );
+  async getSingleHumanReliabilityAnalysis(modelId: number): Promise<HumanReliabilityAnalysis> {
+    return this.humanReliabilityAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
   /**
@@ -953,13 +766,8 @@ export class NestedModelService {
    * @param modelId - The ID of the Operating State Analysis model to be retrieved.
    * @returns The Operating State Analysis model associated with the specified ID.
    */
-  async getSingleOperatingStateAnalysis(
-    modelId: number,
-  ): Promise<OperatingStateAnalysis> {
-    return this.operatingStateAnalysisModel.findOne(
-      { id: modelId },
-      { _id: 0 },
-    );
+  async getSingleOperatingStateAnalysis(modelId: number): Promise<OperatingStateAnalysis> {
+    return this.operatingStateAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
   //delete methods
@@ -978,9 +786,7 @@ export class NestedModelService {
    * @param modelId - the id of the model we want to delete
    * @returns a promise with the deleted model
    */
-  async deleteHeatBalanceFaultTree(
-    modelId: number,
-  ): Promise<HeatBalanceFaultTree> {
+  async deleteHeatBalanceFaultTree(modelId: number): Promise<HeatBalanceFaultTree> {
     return this.heatBalanceFaultTreeModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1025,9 +831,7 @@ export class NestedModelService {
    * @param modelId - The id of the model to delete
    * @returns A promise with the deleted model
    */
-  async deleteEventSequenceDiagram(
-    modelId: number,
-  ): Promise<EventSequenceDiagram> {
+  async deleteEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1063,9 +867,7 @@ export class NestedModelService {
    * @param modelId - The id of the model to delete
    * @returns A promise with the deleted model
    */
-  async deleteEventSequenceAnalysis(
-    modelId: number,
-  ): Promise<EventSequenceAnalysis> {
+  async deleteEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1083,9 +885,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Radiological Consequence Analysis model to be deleted.
    * @returns A promise with the deleted Radiological Consequence Analysis model.
    */
-  async deleteRadiologicalConsequenceAnalysis(
-    modelId: number,
-  ): Promise<RadiologicalConsequenceAnalysis> {
+  async deleteRadiologicalConsequenceAnalysis(modelId: number): Promise<RadiologicalConsequenceAnalysis> {
     return this.radiologicalConsequenceAnalysisModel.findOneAndDelete({
       id: modelId,
     });
@@ -1096,9 +896,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Mechanistic Source Term model to be deleted.
    * @returns A promise with the deleted Mechanistic Source Term model.
    */
-  async deleteMechanisticSourceTerm(
-    modelId: number,
-  ): Promise<MechanisticSourceTerm> {
+  async deleteMechanisticSourceTerm(modelId: number): Promise<MechanisticSourceTerm> {
     return this.mechanisticSourceTermModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1107,9 +905,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Event Sequence Quantification Diagram model to be deleted.
    * @returns A promise with the deleted Event Sequence Quantification Diagram model.
    */
-  async deleteEventSequenceQuantificationDiagram(
-    modelId: number,
-  ): Promise<EventSequenceQuantificationDiagram> {
+  async deleteEventSequenceQuantificationDiagram(modelId: number): Promise<EventSequenceQuantificationDiagram> {
     return this.eventSequenceQuantificationDiagramModel.findOneAndDelete({
       id: modelId,
     });
@@ -1129,9 +925,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Human Reliability Analysis model to be deleted.
    * @returns A promise with the deleted Human Reliability Analysis model.
    */
-  async deleteHumanReliabilityAnalysis(
-    modelId: number,
-  ): Promise<HumanReliabilityAnalysis> {
+  async deleteHumanReliabilityAnalysis(modelId: number): Promise<HumanReliabilityAnalysis> {
     return this.humanReliabilityAnalysisModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1158,9 +952,7 @@ export class NestedModelService {
    * @param modelId - The ID of the Operating State Analysis model to be deleted.
    * @returns A promise with the deleted Operating State Analysis model.
    */
-  async deleteOperatingStateAnalysis(
-    modelId: number,
-  ): Promise<OperatingStateAnalysis> {
+  async deleteOperatingStateAnalysis(modelId: number): Promise<OperatingStateAnalysis> {
     return this.operatingStateAnalysisModel.findOneAndDelete({ id: modelId });
   }
 
@@ -1170,15 +962,8 @@ export class NestedModelService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateBayesianEstimationLabel(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.bayesianEstimationModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateBayesianEstimationLabel(id: number, body: Label): Promise<NestedModel> {
+    return this.bayesianEstimationModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1187,15 +972,8 @@ export class NestedModelService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateFunctionalEventLabel(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.functionalEventsModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateFunctionalEventLabel(id: number, body: Label): Promise<NestedModel> {
+    return this.functionalEventsModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1205,11 +983,7 @@ export class NestedModelService {
    * @returns a promise with the updated model with an updated label
    */
   async updateMarkovChainLabel(id: number, body: Label): Promise<NestedModel> {
-    return this.markovChainModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+    return this.markovChainModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1218,15 +992,8 @@ export class NestedModelService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateHeatBalanceFaultTreeLabel(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.heatBalanceFaultTreeModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateHeatBalanceFaultTreeLabel(id: number, body: Label): Promise<NestedModel> {
+    return this.heatBalanceFaultTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1235,15 +1002,8 @@ export class NestedModelService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateWeibullAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.weibullAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateWeibullAnalysisLabel(id: number, body: Label): Promise<NestedModel> {
+    return this.weibullAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1252,15 +1012,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateBayesianNetworkLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.bayesianNetworkModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateBayesianNetworkLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.bayesianNetworkModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1269,15 +1022,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateEventSequenceDiagramLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.eventSequenceDiagramModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateEventSequenceDiagramLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.eventSequenceDiagramModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1286,15 +1032,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateEventTreeLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.eventTreeModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateEventTreeLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.eventTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1303,15 +1042,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateFaultTreeLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.faultTreeModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateFaultTreeLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.faultTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1320,15 +1052,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateInitiatingEventLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.initiatingEventModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateInitiatingEventLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.initiatingEventModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1337,15 +1062,8 @@ export class NestedModelService {
    * @param body - Label payload with name and (optional) description
    * @returns The updated model
    */
-  async updateEventSequenceAnalysisLabelNumber(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.eventSequenceAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateEventSequenceAnalysisLabelNumber(id: number, body: Label): Promise<NestedModel> {
+    return this.eventSequenceAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1354,15 +1072,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Risk Integration model with an updated label.
    */
-  async updateRiskIntegrationLabel(
-    id: number,
-    body: Label,
-  ): Promise<RiskIntegration> {
-    return this.riskIntegrationModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateRiskIntegrationLabel(id: number, body: Label): Promise<RiskIntegration> {
+    return this.riskIntegrationModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1371,10 +1082,7 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Radiological Consequence Analysis model with an updated label.
    */
-  async updateRadiologicalConsequenceAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<RadiologicalConsequenceAnalysis> {
+  async updateRadiologicalConsequenceAnalysisLabel(id: number, body: Label): Promise<RadiologicalConsequenceAnalysis> {
     return this.radiologicalConsequenceAnalysisModel.findOneAndUpdate(
       { id: Number(id) },
       { label: body },
@@ -1388,15 +1096,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Mechanistic Source Term model with an updated label.
    */
-  async updateMechanisticSourceTermLabel(
-    id: number,
-    body: Label,
-  ): Promise<MechanisticSourceTerm> {
-    return this.mechanisticSourceTermModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateMechanisticSourceTermLabel(id: number, body: Label): Promise<MechanisticSourceTerm> {
+    return this.mechanisticSourceTermModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1422,15 +1123,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Data Analysis model with an updated label.
    */
-  async updateDataAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<DataAnalysis> {
-    return this.dataAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateDataAnalysisLabel(id: number, body: Label): Promise<DataAnalysis> {
+    return this.dataAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1439,15 +1133,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Human Reliability Analysis model with an updated label.
    */
-  async updateHumanReliabilityAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<HumanReliabilityAnalysis> {
-    return this.humanReliabilityAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateHumanReliabilityAnalysisLabel(id: number, body: Label): Promise<HumanReliabilityAnalysis> {
+    return this.humanReliabilityAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1456,15 +1143,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Systems Analysis model with an updated label.
    */
-  async updateSystemsAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<SystemsAnalysis> {
-    return this.systemsAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateSystemsAnalysisLabel(id: number, body: Label): Promise<SystemsAnalysis> {
+    return this.systemsAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1473,15 +1153,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Success Criteria model with an updated label.
    */
-  async updateSuccessCriteriaLabel(
-    id: number,
-    body: Label,
-  ): Promise<SuccessCriteria> {
-    return this.successCriteriaModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateSuccessCriteriaLabel(id: number, body: Label): Promise<SuccessCriteria> {
+    return this.successCriteriaModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**
@@ -1490,15 +1163,8 @@ export class NestedModelService {
    * @param body - A label with a name and description.
    * @returns A promise with the updated Operating State Analysis model with an updated label.
    */
-  async updateOperatingStateAnalysisLabel(
-    id: number,
-    body: Label,
-  ): Promise<OperatingStateAnalysis> {
-    return this.operatingStateAnalysisModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
+  async updateOperatingStateAnalysisLabel(id: number, body: Label): Promise<OperatingStateAnalysis> {
+    return this.operatingStateAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   //method to remove something a single parent from a child given just the parent id
@@ -1528,11 +1194,7 @@ export class NestedModelService {
     //goes through each model type, checks if the id is on any of those
     //then checks if its the *only* one, and either updates and removes or delete it accordingly
     //when a model is permanently removed from the database the removed value does up
-    while (
-      (result = (await this.bayesianEstimationModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.bayesianEstimationModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.bayesianEstimationModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1541,9 +1203,7 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.bayesianNetworkModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.bayesianNetworkModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.bayesianNetworkModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1552,9 +1212,7 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.initiatingEventModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.initiatingEventModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.initiatingEventModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1563,25 +1221,16 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.eventSequenceDiagramModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.eventSequenceDiagramModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.eventSequenceDiagramModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.eventSequenceDiagramModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.eventSequenceDiagramModel.findOneAndUpdate(query, updateData);
       }
     }
 
-    while (
-      (result = (await this.eventTreeModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.eventTreeModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.eventTreeModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1590,9 +1239,7 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.faultTreeModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.faultTreeModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.faultTreeModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1601,27 +1248,16 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.heatBalanceFaultTreeModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.heatBalanceFaultTreeModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.heatBalanceFaultTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.heatBalanceFaultTreeModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.heatBalanceFaultTreeModel.findOneAndUpdate(query, updateData);
       }
     }
 
-    while (
-      (result = (await this.functionalEventsModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.functionalEventsModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.functionalEventsModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1630,9 +1266,7 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.markovChainModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.markovChainModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.markovChainModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1641,9 +1275,7 @@ export class NestedModelService {
       }
     }
 
-    while (
-      (result = (await this.weibullAnalysisModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.weibullAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.weibullAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1653,9 +1285,7 @@ export class NestedModelService {
     }
 
     // For Risk Integration
-    while (
-      (result = (await this.riskIntegrationModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.riskIntegrationModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.riskIntegrationModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1665,62 +1295,37 @@ export class NestedModelService {
     }
 
     // For Radiological Consequence Analysis
-    while (
-      (result = (await this.radiologicalConsequenceAnalysisModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.radiologicalConsequenceAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.radiologicalConsequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.radiologicalConsequenceAnalysisModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.radiologicalConsequenceAnalysisModel.findOneAndUpdate(query, updateData);
       }
     }
 
     // For Mechanistic Source Term
-    while (
-      (result = (await this.mechanisticSourceTermModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.mechanisticSourceTermModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.mechanisticSourceTermModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.mechanisticSourceTermModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.mechanisticSourceTermModel.findOneAndUpdate(query, updateData);
       }
     }
 
     // For Event Sequence Quantification Diagram
-    while (
-      (result = (await this.eventSequenceQuantificationDiagramModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.eventSequenceQuantificationDiagramModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
-        await this.eventSequenceQuantificationDiagramModel.findOneAndDelete(
-          query,
-        );
+        await this.eventSequenceQuantificationDiagramModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.eventSequenceQuantificationDiagramModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.eventSequenceQuantificationDiagramModel.findOneAndUpdate(query, updateData);
       }
     }
 
     // For Data Analysis
-    while (
-      (result = (await this.dataAnalysisModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.dataAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.dataAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1730,26 +1335,17 @@ export class NestedModelService {
     }
 
     // For Human Reliability Analysis
-    while (
-      (result = (await this.humanReliabilityAnalysisModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.humanReliabilityAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.humanReliabilityAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.humanReliabilityAnalysisModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.humanReliabilityAnalysisModel.findOneAndUpdate(query, updateData);
       }
     }
 
     // For Systems Analysis
-    while (
-      (result = (await this.systemsAnalysisModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.systemsAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.systemsAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1759,9 +1355,7 @@ export class NestedModelService {
     }
 
     // For Success Criteria
-    while (
-      (result = (await this.successCriteriaModel.findOne(query)) as WithParents)
-    ) {
+    while ((result = (await this.successCriteriaModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.successCriteriaModel.findOneAndDelete(query);
         numberRemoved++;
@@ -1771,36 +1365,22 @@ export class NestedModelService {
     }
 
     // For Event Sequence Analysis
-    while (
-      (result = (await this.eventSequenceAnalysisModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.eventSequenceAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.eventSequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.eventSequenceAnalysisModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.eventSequenceAnalysisModel.findOneAndUpdate(query, updateData);
       }
     }
 
     // For Operating State Analysis
-    while (
-      (result = (await this.operatingStateAnalysisModel.findOne(
-        query,
-      )) as WithParents)
-    ) {
+    while ((result = (await this.operatingStateAnalysisModel.findOne(query)) as WithParents)) {
       if (result && result.parentIds.length === 1) {
         await this.operatingStateAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
-        await this.operatingStateAnalysisModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
+        await this.operatingStateAnalysisModel.findOneAndUpdate(query, updateData);
       }
     }
 

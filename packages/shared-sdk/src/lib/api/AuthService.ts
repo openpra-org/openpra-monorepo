@@ -1,7 +1,7 @@
-import { jwtDecode } from 'jwt-decode';
-import { AuthToken, EMPTY_TOKEN } from 'shared-types';
-import { emitAuthEvent } from './AuthEvents';
-import { MemberRole } from '../data/predefiniedRoles';
+import { jwtDecode } from "jwt-decode";
+import { AuthToken, EMPTY_TOKEN } from "shared-types";
+import { emitAuthEvent } from "./AuthEvents";
+import { MemberRole } from "../data/predefiniedRoles";
 
 /**
  * Stateless helpers for working with JWT-based authentication in the browser.
@@ -17,13 +17,11 @@ export class AuthService {
    */
   static hasTokenExpired(token: string | null): boolean {
     // if token is null, it has certainly expired
-    if (!token || token === 'undefined') {
+    if (!token || token === "undefined") {
       return true;
     }
     try {
-      const payload: AuthToken | null = jwtDecode<AuthToken>(
-        token,
-      ) as AuthToken | null;
+      const payload: AuthToken | null = jwtDecode<AuthToken>(token) as AuthToken | null;
       if (payload === null) {
         return true;
       }
@@ -44,13 +42,11 @@ export class AuthService {
    */
   static getTokenTimer(token: string | null): number {
     // if token is null, it has certainly expired
-    if (!token || token === 'undefined') {
+    if (!token || token === "undefined") {
       return -1;
     }
     try {
-      const payload: AuthToken | null = jwtDecode<AuthToken>(
-        token,
-      ) as AuthToken | null;
+      const payload: AuthToken | null = jwtDecode<AuthToken>(token) as AuthToken | null;
       if (payload === null) {
         return -1;
       }
@@ -70,25 +66,25 @@ export class AuthService {
    */
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
-      localStorage.setItem('id_token', idToken);
+      localStorage.setItem("id_token", idToken);
       // Notify subscribers that a login occurred
       try {
         const decoded = jwtDecode<AuthToken>(idToken);
-        emitAuthEvent({ type: 'login', user: decoded });
+        emitAuthEvent({ type: "login", user: decoded });
       } catch (_e) {
-        emitAuthEvent({ type: 'login' });
+        emitAuthEvent({ type: "login" });
       }
     }
   }
 
   static getEncodedToken(): string | null {
-    const idToken = localStorage.getItem('id_token');
-    return idToken === 'undefined' ? null : idToken;
+    const idToken = localStorage.getItem("id_token");
+    return idToken === "undefined" ? null : idToken;
   }
 
   static logout(): boolean {
-    localStorage.removeItem('id_token');
-    emitAuthEvent({ type: 'logout', user: null });
+    localStorage.removeItem("id_token");
+    emitAuthEvent({ type: "logout", user: null });
     return AuthService.getEncodedToken() === null;
   }
 
@@ -120,7 +116,7 @@ export class AuthService {
       return decodedToken.roles ?? [MemberRole];
     } catch (_e) {
       // Something bad happened
-      throw new Error('The user is not logged in or token expired');
+      throw new Error("The user is not logged in or token expired");
     }
   }
 }

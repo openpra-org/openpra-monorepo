@@ -1,13 +1,13 @@
-import fs from 'fs';
-import path from 'path';
-import { promises as promise_fs } from 'fs';
-import { tmpdir } from 'os';
-import { spawn } from 'child_process';
+import fs from "fs";
+import path from "path";
+import { promises as promise_fs } from "fs";
+import { tmpdir } from "os";
+import { spawn } from "child_process";
 
-import { Injectable } from '@nestjs/common';
-import type { CommandLineOptions } from 'shared-types';
-import type { QuantifyRequest } from 'shared-types';
-import type { BinaryQuantifyReport } from 'shared-types';
+import { Injectable } from "@nestjs/common";
+import type { CommandLineOptions } from "shared-types";
+import type { QuantifyRequest } from "shared-types";
+import type { BinaryQuantifyReport } from "shared-types";
 
 /**
  * Service for executing external solver quantification flows (e.g., SCRAM).
@@ -66,9 +66,7 @@ export class QuantifyService {
    * @param modelsWithConfig - The quantification request containing models and command-line options.
    * @returns A promise that resolves with the quantification report.
    */
-  public async usingScramBinary(
-    modelsWithConfig: QuantifyRequest,
-  ): Promise<BinaryQuantifyReport> {
+  public async usingScramBinary(modelsWithConfig: QuantifyRequest): Promise<BinaryQuantifyReport> {
     const { models, ...options } = modelsWithConfig;
     // Step 1: Write the model data XMLs to a set of files
     const modelFilePaths = await this.writeModelFilesBase64(models);
@@ -77,10 +75,7 @@ export class QuantifyService {
     const optionsString = this.constructCommandLineOptions(options);
 
     // Step 3: Execute the scram shell command with the given options string and path for the XML file set
-    const reportFilePath = await this.executeScramCommand(
-      optionsString,
-      modelFilePaths,
-    );
+    const reportFilePath = await this.executeScramCommand(optionsString, modelFilePaths);
 
     // Step 4: Read the content of the generated report file
     const reportContent: string = await this.readReportFile(reportFilePath);
@@ -99,15 +94,15 @@ export class QuantifyService {
    */
   public async writeModelFilesBase64(models: string[]): Promise<string[]> {
     // Create a unique temporary directory for our model files
-    const tempDir = await promise_fs.mkdtemp(path.join(tmpdir(), 'models-'));
+    const tempDir = await promise_fs.mkdtemp(path.join(tmpdir(), "models-"));
 
     // Write each model to a separate file within the temporary directory
     const fileWrites = models.map(async (model, index) => {
       // Decode the base64 model string
-      const decodedModel = Buffer.from(model, 'base64').toString('utf8');
+      const decodedModel = Buffer.from(model, "base64").toString("utf8");
 
       const filePath = path.join(tempDir, `model-${index}.xml`);
-      await promise_fs.writeFile(filePath, decodedModel, 'utf8');
+      await promise_fs.writeFile(filePath, decodedModel, "utf8");
       return filePath;
     });
 
@@ -127,14 +122,11 @@ export class QuantifyService {
   public constructCommandLineOptions(options: CommandLineOptions): string {
     const flags = Object.entries(options).map(([key, value]) => {
       // Transform camelCase keys to kebab-case for command-line flags
-      const flag = key.replace(
-        /[A-Z]/g,
-        (letter) => `-${letter.toLowerCase()}`,
-      );
+      const flag = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-      if (typeof value === 'boolean') {
+      if (typeof value === "boolean") {
         // For boolean flags, just return the flag if true; otherwise, return an empty string
-        return value ? `--${flag}` : '';
+        return value ? `--${flag}` : "";
       } else {
         // For options with values, return the flag followed by its value
         return `--${flag} ${value}`;
@@ -142,7 +134,7 @@ export class QuantifyService {
     });
 
     // Filter out any empty strings and join the flags with spaces
-    return flags.filter(Boolean).join(' ');
+    return flags.filter(Boolean).join(" ");
   }
 
   /**
@@ -153,19 +145,16 @@ export class QuantifyService {
    * @param modelFilePaths - An array of paths to the model files.
    * @returns A promise that resolves with the path to the output report file.
    */
-  public async executeScramCommand(
-    optionsString: string,
-    modelFilePaths: string[],
-  ): Promise<string> {
+  public async executeScramCommand(optionsString: string, modelFilePaths: string[]): Promise<string> {
     // Define paths for the output report and error log
-    const reportFilePath = path.join(process.cwd(), 'report.xml');
-    const errorLogPath = path.join(process.cwd(), 'error.log');
+    const reportFilePath = path.join(process.cwd(), "report.xml");
+    const errorLogPath = path.join(process.cwd(), "error.log");
 
     // Prepare the scram command arguments
-    const args = optionsString.split(' ').concat(modelFilePaths);
+    const args = optionsString.split(" ").concat(modelFilePaths);
 
     return new Promise((resolve, reject) => {
-      const scramProcess = spawn('scram-cli', args, { shell: true });
+      const scramProcess = spawn("scram-cli", args, { shell: true });
 
       // Stream for capturing standard error
       const errorStream = fs.createWriteStream(errorLogPath);
@@ -174,21 +163,17 @@ export class QuantifyService {
       scramProcess.stderr.pipe(errorStream);
       scramProcess.stdout.pipe(outputStream);
 
-      scramProcess.on('close', (code) => {
+      scramProcess.on("close", (code) => {
         errorStream.close();
 
         if (code === 0) {
           resolve(reportFilePath);
         } else {
-          reject(
-            new Error(
-              `Scram command failed with exit code ${code}. See error log at: ${errorLogPath}`,
-            ),
-          );
+          reject(new Error(`Scram command failed with exit code ${code}. See error log at: ${errorLogPath}`));
         }
       });
 
-      scramProcess.on('error', (error) => {
+      scramProcess.on("error", (error) => {
         reject(new Error(`Failed to start scram command: ${error.message}`));
       });
     });
@@ -202,7 +187,7 @@ export class QuantifyService {
    */
   public async readReportFile(filePath: string): Promise<string> {
     try {
-      return await promise_fs.readFile(filePath, { encoding: 'utf8' });
+      return await promise_fs.readFile(filePath, { encoding: "utf8" });
     } catch {
       throw new Error(`Failed to read report file at ${filePath}.`);
     }

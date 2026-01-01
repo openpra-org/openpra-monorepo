@@ -9,7 +9,7 @@
  * Unique, Named, and other interface requirements would need to be satisfied.
  */
 
-import { EndState } from './event-sequence-analysis';
+import { EndState } from "./event-sequence-analysis";
 
 /**
  * Event Tree Conceptual Structure
@@ -74,9 +74,9 @@ export interface ConceptualBranch {
  * @hidden
  */
 export interface ConceptualPath {
-  state: 'SUCCESS' | 'FAILURE'; // Outcome of the functional event
+  state: "SUCCESS" | "FAILURE"; // Outcome of the functional event
   target: string; // Where this path leads (branch, sequence, or end state)
-  targetType: 'BRANCH' | 'SEQUENCE' | 'END_STATE'; // Type of target
+  targetType: "BRANCH" | "SEQUENCE" | "END_STATE"; // Type of target
   description?: string;
 }
 
@@ -91,7 +91,7 @@ export interface ConceptualSequence {
   endState?: string; // Final outcome (e.g., SUCCESSFUL_MITIGATION or RADIONUCLIDE_RELEASE)
   instructions?: string[];
   eventSequenceId?: string; // Reference to the corresponding event sequence
-  functionalEventStates?: Record<string, 'SUCCESS' | 'FAILURE'>; // States of all functional events on this path
+  functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">; // States of all functional events on this path
 }
 
 /**
@@ -111,7 +111,7 @@ export interface ConceptualEventSequence {
   progression: string;
 
   // System responses along this sequence path
-  systemResponses: Record<string, 'SUCCESS' | 'FAILURE'>;
+  systemResponses: Record<string, "SUCCESS" | "FAILURE">;
 
   // Operator actions involved in this sequence
   operatorActions?: string[];
@@ -139,111 +139,111 @@ export interface ConceptualEventSequence {
 export function createConceptualEventTree(): ConceptualEventTree {
   // Define functional events (systems or operator actions that can succeed or fail)
   const functionalEvents: Record<string, ConceptualFunctionalEvent> = {
-    'FE-EDG': {
-      name: 'FE-EDG',
-      label: 'Emergency Diesel Generator',
-      description: 'EDG starts and runs for mission time',
-      systemReference: 'SYS-EDG',
+    "FE-EDG": {
+      name: "FE-EDG",
+      label: "Emergency Diesel Generator",
+      description: "EDG starts and runs for mission time",
+      systemReference: "SYS-EDG",
       order: 1,
     },
-    'FE-BATT': {
-      name: 'FE-BATT',
-      label: 'Battery Power',
-      description: 'DC power from batteries is available',
-      systemReference: 'SYS-DC',
+    "FE-BATT": {
+      name: "FE-BATT",
+      label: "Battery Power",
+      description: "DC power from batteries is available",
+      systemReference: "SYS-DC",
       order: 2,
     },
-    'FE-PORVs': {
-      name: 'FE-PORVs',
-      label: 'PORVs for RCS Cooling',
-      description: 'Power-operated relief valves for decay heat removal',
-      systemReference: 'SYS-RCS',
+    "FE-PORVs": {
+      name: "FE-PORVs",
+      label: "PORVs for RCS Cooling",
+      description: "Power-operated relief valves for decay heat removal",
+      systemReference: "SYS-RCS",
       order: 3,
     },
-    'FE-OP-REC': {
-      name: 'FE-OP-REC',
-      label: 'Operator Recovers Power',
-      description: 'Operator action to recover AC power',
-      humanActionReference: 'HRA-001',
+    "FE-OP-REC": {
+      name: "FE-OP-REC",
+      label: "Operator Recovers Power",
+      description: "Operator action to recover AC power",
+      humanActionReference: "HRA-001",
       order: 4,
     },
   };
 
   // Define branches for the event tree
   const branches: Record<string, ConceptualBranch> = {
-    'BR-INIT': {
-      name: 'BR-INIT',
-      label: 'Initial Branch',
-      functionalEventId: 'FE-EDG',
+    "BR-INIT": {
+      name: "BR-INIT",
+      label: "Initial Branch",
+      functionalEventId: "FE-EDG",
       paths: [
         {
-          state: 'SUCCESS',
-          target: 'BR-EDG-S',
-          targetType: 'BRANCH',
-          description: 'EDG starts and runs successfully',
+          state: "SUCCESS",
+          target: "BR-EDG-S",
+          targetType: "BRANCH",
+          description: "EDG starts and runs successfully",
         },
         {
-          state: 'FAILURE',
-          target: 'BR-EDG-F',
-          targetType: 'BRANCH',
-          description: 'EDG fails to start or run',
+          state: "FAILURE",
+          target: "BR-EDG-F",
+          targetType: "BRANCH",
+          description: "EDG fails to start or run",
         },
       ],
     },
-    'BR-EDG-S': {
-      name: 'BR-EDG-S',
-      label: 'EDG Success Branch',
-      functionalEventId: 'FE-PORVs',
+    "BR-EDG-S": {
+      name: "BR-EDG-S",
+      label: "EDG Success Branch",
+      functionalEventId: "FE-PORVs",
       paths: [
         {
-          state: 'SUCCESS',
-          target: 'SEQ-1',
-          targetType: 'SEQUENCE',
-          description: 'PORVs operate successfully',
+          state: "SUCCESS",
+          target: "SEQ-1",
+          targetType: "SEQUENCE",
+          description: "PORVs operate successfully",
         },
         {
-          state: 'FAILURE',
-          target: 'SEQ-2',
-          targetType: 'SEQUENCE',
-          description: 'PORVs fail to operate',
+          state: "FAILURE",
+          target: "SEQ-2",
+          targetType: "SEQUENCE",
+          description: "PORVs fail to operate",
         },
       ],
     },
-    'BR-EDG-F': {
-      name: 'BR-EDG-F',
-      label: 'EDG Failure Branch',
-      functionalEventId: 'FE-BATT',
+    "BR-EDG-F": {
+      name: "BR-EDG-F",
+      label: "EDG Failure Branch",
+      functionalEventId: "FE-BATT",
       paths: [
         {
-          state: 'SUCCESS',
-          target: 'BR-BATT-S',
-          targetType: 'BRANCH',
-          description: 'DC power is available',
+          state: "SUCCESS",
+          target: "BR-BATT-S",
+          targetType: "BRANCH",
+          description: "DC power is available",
         },
         {
-          state: 'FAILURE',
-          target: 'SEQ-5',
-          targetType: 'SEQUENCE',
-          description: 'Loss of all power',
+          state: "FAILURE",
+          target: "SEQ-5",
+          targetType: "SEQUENCE",
+          description: "Loss of all power",
         },
       ],
     },
-    'BR-BATT-S': {
-      name: 'BR-BATT-S',
-      label: 'Battery Success Branch',
-      functionalEventId: 'FE-OP-REC',
+    "BR-BATT-S": {
+      name: "BR-BATT-S",
+      label: "Battery Success Branch",
+      functionalEventId: "FE-OP-REC",
       paths: [
         {
-          state: 'SUCCESS',
-          target: 'SEQ-3',
-          targetType: 'SEQUENCE',
-          description: 'Operator recovers power',
+          state: "SUCCESS",
+          target: "SEQ-3",
+          targetType: "SEQUENCE",
+          description: "Operator recovers power",
         },
         {
-          state: 'FAILURE',
-          target: 'SEQ-4',
-          targetType: 'SEQUENCE',
-          description: 'Operator fails to recover power',
+          state: "FAILURE",
+          target: "SEQ-4",
+          targetType: "SEQUENCE",
+          description: "Operator fails to recover power",
         },
       ],
     },
@@ -251,61 +251,61 @@ export function createConceptualEventTree(): ConceptualEventTree {
 
   // Define sequences (end points of the event tree)
   const sequences: Record<string, ConceptualSequence> = {
-    'SEQ-1': {
-      name: 'SEQ-1',
-      label: 'Success Path',
+    "SEQ-1": {
+      name: "SEQ-1",
+      label: "Success Path",
       endState: EndState.SUCCESSFUL_MITIGATION,
-      instructions: ['Transfer to safe shutdown'],
-      eventSequenceId: 'ES-LOOP-1',
+      instructions: ["Transfer to safe shutdown"],
+      eventSequenceId: "ES-LOOP-1",
       functionalEventStates: {
-        'FE-EDG': 'SUCCESS',
-        'FE-PORVs': 'SUCCESS',
+        "FE-EDG": "SUCCESS",
+        "FE-PORVs": "SUCCESS",
       },
     },
-    'SEQ-2': {
-      name: 'SEQ-2',
-      label: 'EDG Success, PORV Failure',
+    "SEQ-2": {
+      name: "SEQ-2",
+      label: "EDG Success, PORV Failure",
       endState: EndState.RADIONUCLIDE_RELEASE,
-      instructions: ['Model core damage'],
-      eventSequenceId: 'ES-LOOP-2',
+      instructions: ["Model core damage"],
+      eventSequenceId: "ES-LOOP-2",
       functionalEventStates: {
-        'FE-EDG': 'SUCCESS',
-        'FE-PORVs': 'FAILURE',
+        "FE-EDG": "SUCCESS",
+        "FE-PORVs": "FAILURE",
       },
     },
-    'SEQ-3': {
-      name: 'SEQ-3',
-      label: 'EDG Failure, Battery Success, Recovery Success',
+    "SEQ-3": {
+      name: "SEQ-3",
+      label: "EDG Failure, Battery Success, Recovery Success",
       endState: EndState.SUCCESSFUL_MITIGATION,
-      instructions: ['Transfer to safe shutdown'],
-      eventSequenceId: 'ES-LOOP-3',
+      instructions: ["Transfer to safe shutdown"],
+      eventSequenceId: "ES-LOOP-3",
       functionalEventStates: {
-        'FE-EDG': 'FAILURE',
-        'FE-BATT': 'SUCCESS',
-        'FE-OP-REC': 'SUCCESS',
+        "FE-EDG": "FAILURE",
+        "FE-BATT": "SUCCESS",
+        "FE-OP-REC": "SUCCESS",
       },
     },
-    'SEQ-4': {
-      name: 'SEQ-4',
-      label: 'EDG Failure, Battery Success, Recovery Failure',
+    "SEQ-4": {
+      name: "SEQ-4",
+      label: "EDG Failure, Battery Success, Recovery Failure",
       endState: EndState.RADIONUCLIDE_RELEASE,
-      instructions: ['Model core damage'],
-      eventSequenceId: 'ES-LOOP-4',
+      instructions: ["Model core damage"],
+      eventSequenceId: "ES-LOOP-4",
       functionalEventStates: {
-        'FE-EDG': 'FAILURE',
-        'FE-BATT': 'SUCCESS',
-        'FE-OP-REC': 'FAILURE',
+        "FE-EDG": "FAILURE",
+        "FE-BATT": "SUCCESS",
+        "FE-OP-REC": "FAILURE",
       },
     },
-    'SEQ-5': {
-      name: 'SEQ-5',
-      label: 'Station Blackout',
+    "SEQ-5": {
+      name: "SEQ-5",
+      label: "Station Blackout",
       endState: EndState.RADIONUCLIDE_RELEASE,
-      instructions: ['Model core damage'],
-      eventSequenceId: 'ES-LOOP-5',
+      instructions: ["Model core damage"],
+      eventSequenceId: "ES-LOOP-5",
       functionalEventStates: {
-        'FE-EDG': 'FAILURE',
-        'FE-BATT': 'FAILURE',
+        "FE-EDG": "FAILURE",
+        "FE-BATT": "FAILURE",
       },
     },
   };
@@ -313,136 +313,128 @@ export function createConceptualEventTree(): ConceptualEventTree {
   // Define the corresponding event sequences
   // These represent the actual chronological event progressions modeled by the event tree
   const eventSequences: Record<string, ConceptualEventSequence> = {
-    'ES-LOOP-1': {
-      id: 'ES-LOOP-1',
-      name: 'Loss of Offsite Power with Successful AC and Cooling',
-      description:
-        'Loss of offsite power followed by successful EDG start and PORV cooling',
-      initiatingEventId: 'IE-LOOP',
-      plantOperatingStateId: 'POS-POWER',
-      progression:
-        'LOOP → EDG starts → AC power available → PORVs operate → Core cooling maintained',
+    "ES-LOOP-1": {
+      id: "ES-LOOP-1",
+      name: "Loss of Offsite Power with Successful AC and Cooling",
+      description: "Loss of offsite power followed by successful EDG start and PORV cooling",
+      initiatingEventId: "IE-LOOP",
+      plantOperatingStateId: "POS-POWER",
+      progression: "LOOP → EDG starts → AC power available → PORVs operate → Core cooling maintained",
       systemResponses: {
-        'SYS-EDG': 'SUCCESS',
-        'SYS-RCS': 'SUCCESS',
+        "SYS-EDG": "SUCCESS",
+        "SYS-RCS": "SUCCESS",
       },
       timing: [
-        { event: 'Loss of Offsite Power', timeAfterInitiator: 0 },
-        { event: 'EDG Start', timeAfterInitiator: 0.1 },
-        { event: 'PORV Operation', timeAfterInitiator: 0.5 },
+        { event: "Loss of Offsite Power", timeAfterInitiator: 0 },
+        { event: "EDG Start", timeAfterInitiator: 0.1 },
+        { event: "PORV Operation", timeAfterInitiator: 0.5 },
       ],
       endState: EndState.SUCCESSFUL_MITIGATION,
-      eventTreeId: 'ET-LOOP',
-      eventTreeSequenceId: 'SEQ-1',
+      eventTreeId: "ET-LOOP",
+      eventTreeSequenceId: "SEQ-1",
     },
-    'ES-LOOP-2': {
-      id: 'ES-LOOP-2',
-      name: 'Loss of Offsite Power with AC but PORV Failure',
-      description: 'Loss of offsite power with EDG success but PORV failure',
-      initiatingEventId: 'IE-LOOP',
-      plantOperatingStateId: 'POS-POWER',
-      progression:
-        'LOOP → EDG starts → AC power available → PORVs fail → Inadequate cooling → Core damage',
+    "ES-LOOP-2": {
+      id: "ES-LOOP-2",
+      name: "Loss of Offsite Power with AC but PORV Failure",
+      description: "Loss of offsite power with EDG success but PORV failure",
+      initiatingEventId: "IE-LOOP",
+      plantOperatingStateId: "POS-POWER",
+      progression: "LOOP → EDG starts → AC power available → PORVs fail → Inadequate cooling → Core damage",
       systemResponses: {
-        'SYS-EDG': 'SUCCESS',
-        'SYS-RCS': 'FAILURE',
+        "SYS-EDG": "SUCCESS",
+        "SYS-RCS": "FAILURE",
       },
       timing: [
-        { event: 'Loss of Offsite Power', timeAfterInitiator: 0 },
-        { event: 'EDG Start', timeAfterInitiator: 0.1 },
-        { event: 'PORV Failure', timeAfterInitiator: 0.5 },
-        { event: 'Core Damage Onset', timeAfterInitiator: 3.0 },
+        { event: "Loss of Offsite Power", timeAfterInitiator: 0 },
+        { event: "EDG Start", timeAfterInitiator: 0.1 },
+        { event: "PORV Failure", timeAfterInitiator: 0.5 },
+        { event: "Core Damage Onset", timeAfterInitiator: 3.0 },
       ],
       endState: EndState.RADIONUCLIDE_RELEASE,
-      eventTreeId: 'ET-LOOP',
-      eventTreeSequenceId: 'SEQ-2',
+      eventTreeId: "ET-LOOP",
+      eventTreeSequenceId: "SEQ-2",
     },
-    'ES-LOOP-3': {
-      id: 'ES-LOOP-3',
-      name: 'Loss of Offsite Power with EDG Failure but Recovery',
-      description:
-        'LOOP with EDG failure, battery success, and operator recovery of power',
-      initiatingEventId: 'IE-LOOP',
-      plantOperatingStateId: 'POS-POWER',
-      progression:
-        'LOOP → EDG fails → Battery power available → Operator recovers power → Core cooling maintained',
+    "ES-LOOP-3": {
+      id: "ES-LOOP-3",
+      name: "Loss of Offsite Power with EDG Failure but Recovery",
+      description: "LOOP with EDG failure, battery success, and operator recovery of power",
+      initiatingEventId: "IE-LOOP",
+      plantOperatingStateId: "POS-POWER",
+      progression: "LOOP → EDG fails → Battery power available → Operator recovers power → Core cooling maintained",
       systemResponses: {
-        'SYS-EDG': 'FAILURE',
-        'SYS-DC': 'SUCCESS',
+        "SYS-EDG": "FAILURE",
+        "SYS-DC": "SUCCESS",
       },
-      operatorActions: ['HRA-001'],
+      operatorActions: ["HRA-001"],
       timing: [
-        { event: 'Loss of Offsite Power', timeAfterInitiator: 0 },
-        { event: 'EDG Failure', timeAfterInitiator: 0.1 },
-        { event: 'Operator Recovery', timeAfterInitiator: 1.0 },
+        { event: "Loss of Offsite Power", timeAfterInitiator: 0 },
+        { event: "EDG Failure", timeAfterInitiator: 0.1 },
+        { event: "Operator Recovery", timeAfterInitiator: 1.0 },
       ],
       endState: EndState.SUCCESSFUL_MITIGATION,
-      eventTreeId: 'ET-LOOP',
-      eventTreeSequenceId: 'SEQ-3',
+      eventTreeId: "ET-LOOP",
+      eventTreeSequenceId: "SEQ-3",
     },
-    'ES-LOOP-4': {
-      id: 'ES-LOOP-4',
-      name: 'Loss of Offsite Power with EDG Failure and Failed Recovery',
-      description:
-        'LOOP with EDG failure, battery success, but operator fails to recover power',
-      initiatingEventId: 'IE-LOOP',
-      plantOperatingStateId: 'POS-POWER',
-      progression:
-        'LOOP → EDG fails → Battery power available → Operator fails to recover power → Core damage',
+    "ES-LOOP-4": {
+      id: "ES-LOOP-4",
+      name: "Loss of Offsite Power with EDG Failure and Failed Recovery",
+      description: "LOOP with EDG failure, battery success, but operator fails to recover power",
+      initiatingEventId: "IE-LOOP",
+      plantOperatingStateId: "POS-POWER",
+      progression: "LOOP → EDG fails → Battery power available → Operator fails to recover power → Core damage",
       systemResponses: {
-        'SYS-EDG': 'FAILURE',
-        'SYS-DC': 'SUCCESS',
+        "SYS-EDG": "FAILURE",
+        "SYS-DC": "SUCCESS",
       },
-      operatorActions: ['HRA-001'],
+      operatorActions: ["HRA-001"],
       timing: [
-        { event: 'Loss of Offsite Power', timeAfterInitiator: 0 },
-        { event: 'EDG Failure', timeAfterInitiator: 0.1 },
-        { event: 'Operator Recovery Failure', timeAfterInitiator: 2.0 },
-        { event: 'Core Damage Onset', timeAfterInitiator: 4.0 },
+        { event: "Loss of Offsite Power", timeAfterInitiator: 0 },
+        { event: "EDG Failure", timeAfterInitiator: 0.1 },
+        { event: "Operator Recovery Failure", timeAfterInitiator: 2.0 },
+        { event: "Core Damage Onset", timeAfterInitiator: 4.0 },
       ],
       endState: EndState.RADIONUCLIDE_RELEASE,
-      eventTreeId: 'ET-LOOP',
-      eventTreeSequenceId: 'SEQ-4',
+      eventTreeId: "ET-LOOP",
+      eventTreeSequenceId: "SEQ-4",
     },
-    'ES-LOOP-5': {
-      id: 'ES-LOOP-5',
-      name: 'Station Blackout',
-      description: 'LOOP with EDG failure and battery failure',
-      initiatingEventId: 'IE-LOOP',
-      plantOperatingStateId: 'POS-POWER',
-      progression:
-        'LOOP → EDG fails → Battery power unavailable → Complete loss of power → Core damage',
+    "ES-LOOP-5": {
+      id: "ES-LOOP-5",
+      name: "Station Blackout",
+      description: "LOOP with EDG failure and battery failure",
+      initiatingEventId: "IE-LOOP",
+      plantOperatingStateId: "POS-POWER",
+      progression: "LOOP → EDG fails → Battery power unavailable → Complete loss of power → Core damage",
       systemResponses: {
-        'SYS-EDG': 'FAILURE',
-        'SYS-DC': 'FAILURE',
+        "SYS-EDG": "FAILURE",
+        "SYS-DC": "FAILURE",
       },
       timing: [
-        { event: 'Loss of Offsite Power', timeAfterInitiator: 0 },
-        { event: 'EDG Failure', timeAfterInitiator: 0.1 },
-        { event: 'Battery Failure', timeAfterInitiator: 0.2 },
-        { event: 'Core Damage Onset', timeAfterInitiator: 2.0 },
+        { event: "Loss of Offsite Power", timeAfterInitiator: 0 },
+        { event: "EDG Failure", timeAfterInitiator: 0.1 },
+        { event: "Battery Failure", timeAfterInitiator: 0.2 },
+        { event: "Core Damage Onset", timeAfterInitiator: 2.0 },
       ],
       endState: EndState.RADIONUCLIDE_RELEASE,
-      eventTreeId: 'ET-LOOP',
-      eventTreeSequenceId: 'SEQ-5',
+      eventTreeId: "ET-LOOP",
+      eventTreeSequenceId: "SEQ-5",
     },
   };
 
   // Create the event tree
   const eventTree: ConceptualEventTree = {
-    name: 'ET-LOOP',
-    label: 'Loss of Offsite Power Event Tree',
-    initiatingEventId: 'IE-LOOP',
-    plantOperatingStateId: 'POS-POWER',
-    description: 'Models plant response following a loss of offsite power',
+    name: "ET-LOOP",
+    label: "Loss of Offsite Power Event Tree",
+    initiatingEventId: "IE-LOOP",
+    plantOperatingStateId: "POS-POWER",
+    description: "Models plant response following a loss of offsite power",
     functionalEvents,
     branches,
     sequences,
     initialState: {
-      branchId: 'BR-INIT',
+      branchId: "BR-INIT",
     },
     missionTime: 24,
-    missionTimeUnits: 'hours',
+    missionTimeUnits: "hours",
     // Map the event sequences that correspond to paths through this event tree
     mappedEventSequences: eventSequences,
   };
@@ -533,8 +525,8 @@ export function explainEventTreeSequenceRelationship(): string {
 // Example usage
 if (require.main === module) {
   console.log(printEventTreeDiagram());
-  console.log('\nEvent Tree to Event Sequence Relationship:');
+  console.log("\nEvent Tree to Event Sequence Relationship:");
   console.log(explainEventTreeSequenceRelationship());
-  console.log('\nDetailed Event Tree Structure (with event sequences):');
+  console.log("\nDetailed Event Tree Structure (with event sequences):");
   console.log(stringifyConceptualEventTree());
 }

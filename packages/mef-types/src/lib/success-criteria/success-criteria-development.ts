@@ -12,19 +12,10 @@
  * @category Technical Elements
  */
 
-import typia, { tags, type IValidation } from 'typia';
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
-import { Named, Unique } from '../core/meta';
-import {
-  IdPatterns,
-  ImportanceLevel,
-  SensitivityStudy,
-  SuccessCriteriaId,
-} from '../core/shared-patterns';
+import typia, { tags, type IValidation } from "typia";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import { Named, Unique } from "../core/meta";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
 import {
   BaseDesignInformation,
   BaseProcessDocumentation,
@@ -34,17 +25,10 @@ import {
   BaseTraceabilityDocumentation,
   BaseAssumption,
   PreOperationalAssumption,
-} from '../core/documentation';
-import { ComponentReference } from '../core/component';
-import {
-  EndState,
-  EventSequenceReference,
-} from '../event-sequence-analysis/event-sequence-analysis';
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+} from "../core/documentation";
+import { ComponentReference } from "../core/component";
+import { EndState, EventSequenceReference } from "../event-sequence-analysis/event-sequence-analysis";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**
@@ -59,19 +43,19 @@ import {
  */
 export enum AnalysisType {
   /** Thermal-hydraulic analysis (e.g., coolant flow, heat transfer) */
-  THERMAL_HYDRAULIC = 'THERMAL_HYDRAULIC',
+  THERMAL_HYDRAULIC = "THERMAL_HYDRAULIC",
 
   /** Structural analysis (e.g., containment integrity) */
-  STRUCTURAL = 'STRUCTURAL',
+  STRUCTURAL = "STRUCTURAL",
 
   /** Neutronic analysis (e.g., reactor physics, criticality) */
-  NEUTRONIC = 'NEUTRONIC',
+  NEUTRONIC = "NEUTRONIC",
 
   /** Radiation transport analysis */
-  RADIATION_TRANSPORT = 'RADIATION_TRANSPORT',
+  RADIATION_TRANSPORT = "RADIATION_TRANSPORT",
 
   /** Other analysis types not covered by the above */
-  OTHER = 'OTHER',
+  OTHER = "OTHER",
 }
 
 /**
@@ -691,7 +675,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     description: string;
 
     /** Whether it's generic or plant-specific */
-    calculationType: 'GENERIC' | 'PLANT_SPECIFIC';
+    calculationType: "GENERIC" | "PLANT_SPECIFIC";
 
     /** References to the calculation documentation */
     references: string[];
@@ -889,8 +873,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
  * @group Documentation & Traceability
  * @implements SC-C2
  */
-export interface ModelUncertaintyDocumentation
-  extends BaseModelUncertaintyDocumentation {
+export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   /**
    * Success criteria specific uncertainty impacts
    * @implements SC-C2
@@ -927,8 +910,7 @@ export interface ModelUncertaintyDocumentation
  * @group Documentation & Traceability
  * @implements SC-C3
  */
-export interface PreOperationalAssumptionsDocumentation
-  extends BasePreOperationalAssumptionsDocumentation {
+export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
   /**
    * Success criteria specific assumptions
    * @implements SC-C3
@@ -970,8 +952,7 @@ export interface PeerReviewDocumentation extends BasePeerReviewDocumentation {
  * Interface representing success criteria design information.
  * @group Documentation & Traceability
  */
-export interface SuccessCriteriaDesignInformation
-  extends BaseDesignInformation {
+export interface SuccessCriteriaDesignInformation extends BaseDesignInformation {
   /**
    * Specific aspects of the success criteria supported by this design information.
    */
@@ -1032,10 +1013,7 @@ export interface SuccessCriteriaDevelopment
    * Overall success criteria defined for preventing a release of radioactive material
    * @implements HLR-SC-A
    */
-  overallSuccessCriteria: Record<
-    SuccessCriteriaId,
-    OverallSuccessCriteriaDefinition
-  >;
+  overallSuccessCriteria: Record<SuccessCriteriaId, OverallSuccessCriteriaDefinition>;
 
   /**
    * System-specific success criteria
@@ -1054,10 +1032,7 @@ export interface SuccessCriteriaDevelopment
    * Human action success criteria
    * @implements SC-A6
    */
-  humanActionSuccessCriteria?: Record<
-    string,
-    HumanActionSuccessCriteriaDefinition
-  >;
+  humanActionSuccessCriteria?: Record<string, HumanActionSuccessCriteriaDefinition>;
 
   /**
    * Shared resource definitions between reactors
@@ -1191,40 +1166,33 @@ export interface SuccessCriteriaDevelopment
  * const isValid = SuccessCriteriaDevelopmentSchema.validate(someData);
  * ```
  */
-export const SuccessCriteriaDevelopmentSchema =
-  typia.json.schemas<[SuccessCriteriaDevelopment]>();
+export const SuccessCriteriaDevelopmentSchema = typia.json.schemas<[SuccessCriteriaDevelopment]>();
 
 /**
  * Runtime validation for Success Criteria Development.
  * @group API
  */
-export const validateSuccessCriteriaDevelopment: (
-  input: unknown,
-) => IValidation<SuccessCriteriaDevelopment> =
+export const validateSuccessCriteriaDevelopment: (input: unknown) => IValidation<SuccessCriteriaDevelopment> =
   typia.createValidate<SuccessCriteriaDevelopment>();
 
 /**
  * Type guard for Success Criteria Development.
  * @group API
  */
-export const isSuccessCriteriaDevelopment =
-  typia.createIs<SuccessCriteriaDevelopment>();
+export const isSuccessCriteriaDevelopment = typia.createIs<SuccessCriteriaDevelopment>();
 
 /**
  * Runtime validation for Consistency Verification.
  * @group API
  */
-export const validateConsistencyVerification: (
-  input: unknown,
-) => IValidation<ConsistencyVerification> =
+export const validateConsistencyVerification: (input: unknown) => IValidation<ConsistencyVerification> =
   typia.createValidate<ConsistencyVerification>();
 
 /**
  * Type guard for Consistency Verification.
  * @group API
  */
-export const isConsistencyVerification =
-  typia.createIs<ConsistencyVerification>();
+export const isConsistencyVerification = typia.createIs<ConsistencyVerification>();
 
 /**
  * Interface representing mission time information for event sequences.

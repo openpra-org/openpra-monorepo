@@ -44,14 +44,14 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "raptor:build"
+        "buildTarget": "microservices-raptor:build"
       },
       "configurations": {
         "development": {
-          "buildTarget": "raptor:build:development"
+          "buildTarget": "microservices-raptor:build:development"
         },
         "production": {
-          "buildTarget": "raptor:build:production"
+          "buildTarget": "microservices-raptor:build:production"
         }
       }
     },
@@ -59,16 +59,16 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "raptor:build",
+        "buildTarget": "microservices-raptor:build",
         "watch": false,
         "inspect": false
       },
       "configurations": {
         "development": {
-          "buildTarget": "raptor:build:development"
+          "buildTarget": "microservices-raptor:build:development"
         },
         "production": {
-          "buildTarget": "raptor:build:production"
+          "buildTarget": "microservices-raptor:build:production"
         }
       }
     },
@@ -103,16 +103,16 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "raptor:build-engine"
+        "buildTarget": "microservices-raptor:build-engine"
       },
       "configurations": {
         "development": {
-          "buildTarget": "raptor:build-engine:development",
+          "buildTarget": "microservices-raptor:build-engine:development",
           "watch": true,
           "inspect": true
         },
         "production": {
-          "buildTarget": "raptor:build-engine:production",
+          "buildTarget": "microservices-raptor:build-engine:production",
           "watch": false,
           "inspect": false
         }
@@ -122,16 +122,16 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "raptor:build-engine",
+        "buildTarget": "microservices-raptor:build-engine",
         "watch": false,
         "inspect": false
       },
       "configurations": {
         "development": {
-          "buildTarget": "raptor:build-engine:development"
+          "buildTarget": "microservices-raptor:build-engine:development"
         },
         "production": {
-          "buildTarget": "raptor:build-engine:production"
+          "buildTarget": "microservices-raptor:build-engine:production"
         }
       }
     },

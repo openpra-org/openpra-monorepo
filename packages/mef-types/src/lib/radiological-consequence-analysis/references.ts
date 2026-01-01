@@ -16,7 +16,7 @@ export {
   EventSequenceToReleaseCategoryMapping,
   ReleaseCategory,
   SourceTermDefinition,
-} from '../mechanistic-source-term/mechanistic-source-term';
+} from "../mechanistic-source-term/mechanistic-source-term";
 
 /**
  * Risk-significant consequence results with integrated risk metrics.
@@ -35,7 +35,7 @@ export interface RiskSignificantConsequence {
   consequenceMetrics: Record<string, number>;
 
   /** Risk significance level */
-  riskSignificance: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+  riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
   /** Risk insights derived from this consequence */
   riskInsights?: string[];

@@ -5,4 +5,4 @@
  */
 
 // Direct exports from the main module
-export * from './initiating-event-analysis';
+export * from "./initiating-event-analysis";

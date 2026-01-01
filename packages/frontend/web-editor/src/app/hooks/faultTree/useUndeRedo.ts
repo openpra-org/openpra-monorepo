@@ -1,6 +1,6 @@
-import { useCallback, useEffect } from 'react';
-import { cloneDeep } from 'lodash';
-import { HistoryItem, useStore } from '../../store/faultTreeStore';
+import { useCallback, useEffect } from "react";
+import { cloneDeep } from "lodash";
+import { HistoryItem, useStore } from "../../store/faultTreeStore";
 
 /** Options to configure the undo/redo history behavior. */
 interface UseUndoRedoOptions {
@@ -40,8 +40,7 @@ const useUndoRedo: UseUndoRedo = ({
   maxHistorySize = defaultOptions.maxHistorySize,
   enableShortcuts = defaultOptions.enableShortcuts,
 } = defaultOptions) => {
-  const { nodes, edges, past, future, setNodes, setEdges, setPast, setFuture } =
-    useStore();
+  const { nodes, edges, past, future, setNodes, setEdges, setPast, setFuture } = useStore();
   const takeSnapshot = useCallback(() => {
     // push the current graph to the past state
     const pastItems: HistoryItem[] = [
@@ -86,21 +85,17 @@ const useUndoRedo: UseUndoRedo = ({
     }
 
     const keyDownHandler = (event: KeyboardEvent): void => {
-      if (
-        event.key === 'z' &&
-        (event.ctrlKey || event.metaKey) &&
-        event.shiftKey
-      ) {
+      if (event.key === "z" && (event.ctrlKey || event.metaKey) && event.shiftKey) {
         redo();
-      } else if (event.key === 'z' && (event.ctrlKey || event.metaKey)) {
+      } else if (event.key === "z" && (event.ctrlKey || event.metaKey)) {
         undo();
       }
     };
 
-    document.addEventListener('keydown', keyDownHandler);
+    document.addEventListener("keydown", keyDownHandler);
 
     return (): void => {
-      document.removeEventListener('keydown', keyDownHandler);
+      document.removeEventListener("keydown", keyDownHandler);
     };
   }, [undo, redo, enableShortcuts]);
 

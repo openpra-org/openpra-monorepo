@@ -60,7 +60,7 @@ When converting model elements, the adapter follows this prioritization:
 
 ```typescript
 // Import models from both Systems Analysis and Data Analysis
-import { QuantificationAdapter } from 'mef-types/src/lib/integration';
+import { QuantificationAdapter } from "mef-types/src/lib/integration";
 
 // Ensure your Systems Analysis model has references to Data Analysis
 // This can be done via the dataAnalysisReference field in the SystemsAnalysis interface
@@ -80,7 +80,7 @@ const quantificationInput = result.quantificationInput;
 ### Basic Usage
 
 ```typescript
-import { QuantificationAdapter } from 'mef-types/src/lib/integration';
+import { QuantificationAdapter } from "mef-types/src/lib/integration";
 
 // Convert OpenPRA models to the quantification input format
 const result = QuantificationAdapter.convertToQuantificationInput(
@@ -91,7 +91,7 @@ const result = QuantificationAdapter.convertToQuantificationInput(
     includeEventTrees: true, // Optional configuration
     includeFaultTrees: true,
     includeCCFGroups: true,
-    errorHandling: 'warn', // "fail", "warn", or "ignore"
+    errorHandling: "warn", // "fail", "warn", or "ignore"
   },
 );
 
@@ -105,7 +105,7 @@ if (result.warnings.length > 0) {
 }
 
 // Use ID mapping to trace between models
-const openPRAId = 'BE-001';
+const openPRAId = "BE-001";
 const quantificationId = result.idMapping[openPRAId];
 ```
 
@@ -116,7 +116,7 @@ Since the adapter uses its own type definitions, you have two options for type s
 #### Option 1: Use Type Assertion (Simplest)
 
 ```typescript
-import { QuantificationAdapter } from '../shared-types/src/openpra-mef/technical-elements/integration';
+import { QuantificationAdapter } from "../shared-types/src/openpra-mef/technical-elements/integration";
 
 // Just pass your OpenPRA models directly
 const result = QuantificationAdapter.convertToQuantificationInput(systemsAnalysis, eventSequenceAnalysis);
@@ -125,8 +125,8 @@ const result = QuantificationAdapter.convertToQuantificationInput(systemsAnalysi
 #### Option 2: Use the Adapter's Type Conversion Functions (More Type-Safe)
 
 ```typescript
-import { QuantificationAdapter } from 'mef-types/src/lib/integration';
-import { asSystemsAnalysis, asEventSequenceAnalysis } from 'mef-types/src/lib/integration';
+import { QuantificationAdapter } from "mef-types/src/lib/integration";
+import { asSystemsAnalysis, asEventSequenceAnalysis } from "mef-types/src/lib/integration";
 
 // First convert to adapter types (optional, performed internally anyway)
 const adaptedSystemsAnalysis = asSystemsAnalysis(systemsAnalysis);
@@ -216,14 +216,14 @@ For example:
 
 ```typescript
 // Safe property access with default value
-const id = safeGet(basicEvent, 'id', 'UNKNOWN_ID');
+const id = safeGet(basicEvent, "id", "UNKNOWN_ID");
 
 // Safe iteration with empty fallback
-const basicEventsRecord = safeGet(systemsAnalysis, 'systemBasicEvents', {});
+const basicEventsRecord = safeGet(systemsAnalysis, "systemBasicEvents", {});
 Object.values(basicEventsRecord).forEach(/* ... */);
 
 // Accessing Data Analysis references
-const dataAnalysisRef = safeGet(basicEvent, 'dataAnalysisBasicEventRef', null);
+const dataAnalysisRef = safeGet(basicEvent, "dataAnalysisBasicEventRef", null);
 if (dataAnalysisRef) {
   // Use Data Analysis reference...
 }

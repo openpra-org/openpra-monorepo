@@ -1,4 +1,4 @@
-import { InternalHazardsModelType } from 'shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
+import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 
 /**
  * Initial Zustand slice state for Internal Hazards models.

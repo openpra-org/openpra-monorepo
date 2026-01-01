@@ -1,5 +1,5 @@
-import { Parsable } from './Parsable';
-import { Defaults } from './ObjectTypes';
+import { Parsable } from "./Parsable";
+import { Defaults } from "./ObjectTypes";
 
 /** JSON shape for a label (name + description). */
 export interface LabelJSON {
@@ -12,8 +12,8 @@ export type LabelJSONMap = Record<string, LabelJSON>;
 
 /** Default, empty label JSON. */
 export const DEFAULT_LABEL_JSON: LabelJSON = {
-  name: '',
-  description: '',
+  name: "",
+  description: "",
 };
 
 export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
@@ -34,9 +34,9 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
    * @param name - The label name
    * @param description - The label description
    */
-  constructor(name = '', description = '') {
-    this.name = name || '';
-    this.description = description || '';
+  constructor(name = "", description = "") {
+    this.name = name || "";
+    this.description = description || "";
   }
 
   /**

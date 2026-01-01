@@ -3,19 +3,20 @@ import {
   GetInternalHazards,
   PatchInternalHazard,
   PostInternalHazard,
-} from 'shared-sdk/lib/api/TypedModelApiManager';
-import { ApiManager } from 'shared-sdk/lib/api/ApiManager';
-import { InternalHazardsModelType } from 'shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
-import { TypedModelJSON } from 'shared-types/src/lib/types/modelTypes/largeModels/typedModel';
-import { UseGlobalStore } from '../Store';
+} from "shared-sdk/lib/api/TypedModelApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { UseGlobalStore } from "../Store";
 
 /**
  * Load and set Internal Hazards for the current user.
  */
 export const SetInternalHazards = async (): Promise<void> => {
   try {
-    const internalHazardsList: InternalHazardsModelType[] =
-      await GetInternalHazards(ApiManager.getCurrentUser().user_id);
+    const internalHazardsList: InternalHazardsModelType[] = await GetInternalHazards(
+      ApiManager.getCurrentUser().user_id,
+    );
     UseGlobalStore.setState({
       InternalHazards: internalHazardsList,
     });
@@ -29,9 +30,7 @@ export const SetInternalHazards = async (): Promise<void> => {
  *
  * @param data - Partial typed model payload for creation.
  */
-export const AddInternalHazard = async (
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ihr: InternalHazardsModelType = await PostInternalHazard(data);
     UseGlobalStore.setState((state) => ({
@@ -55,21 +54,15 @@ export const EditInternalHazard = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ihr: InternalHazardsModelType = await PatchInternalHazard(
-      modelId,
-      userId,
-      data,
-    );
+    const ihr: InternalHazardsModelType = await PatchInternalHazard(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      InternalHazards: state.InternalHazards.map(
-        (ih: InternalHazardsModelType) => {
-          if (ih.id === modelId) {
-            return ihr;
-          } else {
-            return ih;
-          }
-        },
-      ),
+      InternalHazards: state.InternalHazards.map((ih: InternalHazardsModelType) => {
+        if (ih.id === modelId) {
+          return ihr;
+        } else {
+          return ih;
+        }
+      }),
     }));
   } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
@@ -86,9 +79,7 @@ export const DeleteInternalHazard = async (id: number): Promise<void> => {
     await DeleteInternalHazardAPI(id);
 
     UseGlobalStore.setState((state) => ({
-      InternalHazards: state.InternalHazards.filter(
-        (ih: InternalHazardsModelType) => ih.id !== id,
-      ),
+      InternalHazards: state.InternalHazards.filter((ih: InternalHazardsModelType) => ih.id !== id),
     }));
   } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure

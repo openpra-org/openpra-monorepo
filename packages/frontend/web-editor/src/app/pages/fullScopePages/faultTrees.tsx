@@ -10,17 +10,7 @@
  * The graph elements are added via hook calls in the custom nodes and edges. The layout is calculated every time the graph changes (see hooks/useLayout.ts).
  **/
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, {
-  Background,
-  Edge,
-  EdgeChange,
-  FitViewOptions,
-  Node,
-  NodeChange,
-  Panel,
-  ProOptions,
-  ReactFlowProvider,
-} from "reactflow";
+import ReactFlow, { Background, FitViewOptions, Node, Panel, ProOptions, ReactFlowProvider } from "reactflow";
 
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
@@ -39,7 +29,7 @@ import {
 } from "../../components/context_menu/faultTreeNodeContextMenu";
 import { exitGrayedState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
-import { RFState, useStore } from "../../store/faultTreeStore";
+import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
 import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
 import Minimap from "../../components/minimap/minimap";

@@ -68,7 +68,7 @@ jobs:
       - name: Install scram CLI (optional)
         run: |
           if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram/build
+            sudo cmake --install packages/engine/scram/build
           else
             echo "No CMake install script found; skipping scram-cli install"
           fi

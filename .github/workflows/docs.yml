@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - docs/unified-pages-tsdoc-doxygen
+      - fix/docs-and-cd-pipeline
     paths:
       - 'packages/docs-md/**'
       - 'packages/mef-types/**'

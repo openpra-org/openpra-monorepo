@@ -78,7 +78,7 @@
     "ts:markdown:raptor": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservices/raptor && npx typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/raptor --json ../../docs-md/api/ts/raptor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/test/** --tsconfig tsconfig.app.json --options ../../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/raptor --json api/ts/raptor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/test/** --tsconfig ../../packages/microservices/raptor/tsconfig.app.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../packages/microservices/raptor/src"
       }
     },
     "ts:markdown:scram-node": {

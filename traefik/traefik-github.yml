@@ -5,7 +5,7 @@ services:
     networks:
       - traefik-github-public
     environment:
-      - TUNNEL_TOKEN=${CF_TUNNEL_CONNECTOR_TOKEN}
+      - TUNNEL_TOKEN=${CF_TUNNEL_GITHUB_TOKEN}
     deploy:
       placement:
         constraints:
@@ -42,10 +42,10 @@ services:
       - DOMAIN1=openpra.org
       - DOMAIN1_ZONE_ID=${ZONE_ID}
       - DOMAIN1_PROXIED=TRUE
+      - CF_ZONE_EDIT_DNS_API_TOKEN=${CF_ZONE_EDIT_DNS_API_TOKEN}
+      - ZONE_ID=${ZONE_ID}
     networks:
       - traefik-github-private
-    secrets:
-      - cf_token
 
   traefik-github:
     # Use Traefik v3.6 for GitHub deployments
@@ -61,10 +61,9 @@ services:
         mode: host
     secrets:
       - basic_auth_users
-      - cf_token
     environment:
-      - CLOUDFLARE_DNS_API_TOKEN_FILE=/run/secrets/cf_token
-      - CLOUDFLARE_ZONE_API_TOKEN_FILE=/run/secrets/cf_token
+      - CLOUDFLARE_DNS_API_TOKEN=${CF_ZONE_EDIT_DNS_API_TOKEN}
+      - CLOUDFLARE_ZONE_API_TOKEN=${CF_ZONE_EDIT_DNS_API_TOKEN}
       - CLOUDFLARE_HTTP_TIMEOUT=60
       - CLOUDFLARE_POLLING_INTERVAL=10
       - CLOUDFLARE_PROPAGATION_TIMEOUT=3600
@@ -96,8 +95,8 @@ services:
         
         # Use the special Traefik service api@internal with the web UI/Dashboard
         - traefik.http.routers.traefik-github-public-https.service=api@internal
-        - traefik.http.routers.traefik-github-public-https.tls.certresolver=le
-        - traefik.http.routers.traefik-github-public-https.middlewares=gzip,traefik-forward-auth-github
+        - traefik.http.routers.traefik-github-public-https.tls.certresolver=cloudflare
+        - traefik.http.routers.traefik-github-public-https.middlewares=gzip
         - traefik.http.services.traefik-github-public-https.loadbalancer.server.port=8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -116,15 +115,17 @@ services:
       - --providers.file.directory=/file-provider-config
       - --providers.file.watch=true
       - --serversTransport.insecureSkipVerify=false
+      
+      # Trust Cloudflare tunnel forwarded headers
+      - --entryPoints.http.forwardedHeaders.insecure=true
+      - --entryPoints.https.forwardedHeaders.insecure=true
 
       # create entrypoints
       - --entryPoints.http.address=:80
       - --entryPoints.https.address=:443
       
-      # set redirects
-      - --entryPoints.http.http.redirections.entryPoint.scheme=https
-      - --entryPoints.http.http.redirections.entryPoint.to=https
-      - --entryPoints.http.http.redirections.entryPoint.permanent=true
+      # Don't redirect HTTP to HTTPS since Cloudflare tunnel handles TLS
+      # Traffic comes in as HTTP from tunnel even though it's HTTPS externally
       
       # set certresolvers
       - --entryPoints.https.http.tls.certResolver=cloudflare
@@ -135,14 +136,14 @@ services:
       - --entryPoints.http.transport.respondingTimeouts.readTimeout=0
       - --entryPoints.https.transport.respondingTimeouts.readTimeout=0
       
-      # Create the certificate resolver "le" for Let's Encrypt
-      - --certificatesresolvers.le.acme.dnschallenge.provider=cloudflare
-      - --certificatesresolvers.le.acme.dnschallenge.delayBeforeCheck=60
-      - --certificatesresolvers.le.acme.dnschallenge.disablePropagationCheck=true
-      - --certificatesresolvers.le.acme.dnschallenge.resolvers=8.8.8.8:53
-      - --certificatesresolvers.le.acme.email=admin@openpra.org
+      # Create the certificate resolver "cloudflare" for Let's Encrypt
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.delayBeforeCheck=60
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.disablePropagationCheck=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.resolvers=8.8.8.8:53
+      - --certificatesresolvers.cloudflare.acme.email=admin@openpra.org
       # Store the Let's Encrypt certificates in the mounted volume
-      - --certificatesresolvers.le.acme.storage=/certificates/acme.json
+      - --certificatesresolvers.cloudflare.acme.storage=/certificates/acme.json
       
       # Enable the access log, with HTTP requests
       - --accesslog
@@ -175,8 +176,15 @@ services:
         - traefik.enable=true
         - traefik.docker.network=traefik-github-public
         - traefik.constraint-label=traefik-github-public
+        # Router for the auth service itself
+        - traefik.http.routers.traefik-forward-auth-github.rule=Host(`github-proxy.openpra.org`) && PathPrefix(`/_oauth`)
+        - traefik.http.routers.traefik-forward-auth-github.entrypoints=https
+        - traefik.http.routers.traefik-forward-auth-github.tls=true
+        - traefik.http.routers.traefik-forward-auth-github.tls.certresolver=cloudflare
+        # Middleware definition
         - traefik.http.middlewares.traefik-forward-auth-github.forwardauth.address=http://traefik-forward-auth-github:4181
         - traefik.http.middlewares.traefik-forward-auth-github.forwardauth.authResponseHeaders=X-Forwarded-User
+        # Service definition
         - traefik.http.services.traefik-forward-auth-github.loadbalancer.server.port=4181
 
   error-pages-github:
@@ -200,7 +208,8 @@ services:
         - traefik.http.routers.error-pages-github.rule=HostRegexp(`{host:.+}`)
         - traefik.http.routers.error-pages-github.priority=10
         # should say that all of your services work on https
-        - traefik.http.routers.error-pages-github.tls='true'
+        - traefik.http.routers.error-pages-github.tls=true
+        - traefik.http.routers.error-pages-github.tls.certresolver=cloudflare
         - traefik.http.routers.error-pages-github.entrypoints=https
         - traefik.http.routers.error-pages-github.middlewares=error-pages-github
         - traefik.http.services.error-pages-github.loadbalancer.server.port=8080
@@ -217,5 +226,3 @@ networks:
 secrets:
   basic_auth_users:
     file: ./secrets/basic_auth_users.txt
-  cf_token:
-    file: ./secrets/cf_token.txt

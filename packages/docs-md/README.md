@@ -1,6 +1,8 @@
 # OpenPRA Unified Docs (VitePress + Doxybook2)
 
-This package builds the unified Markdown documentation for the monorepo:
+This package builds the unified Markdown documentation for the monorepo.
+
+## Documentation includes:
 
 - TypeScript API via TypeDoc (Markdown output)
 - C++ API via Doxygen XML converted by Doxybook2

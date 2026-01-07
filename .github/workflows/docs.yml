@@ -27,7 +27,7 @@ jobs:
     concurrency:
       group: docs-${{ github.ref }}
       cancel-in-progress: true
-    runs-on: self-hosted
+    runs-on: gaia
     steps:
       - name: Checkout
         uses: actions/checkout@v4

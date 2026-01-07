@@ -134,7 +134,7 @@ jobs:
           # Deploy stack with registry auth
           docker stack deploy \
             --with-registry-auth \
-            --compose-file .github/workflows/docs-stack.yml \
+            --compose-file docker/docs-stack.yml \
             ${STACK_NAME}
           
           echo "Documentation deployed to https://${DOMAIN}"

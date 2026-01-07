@@ -128,9 +128,11 @@ jobs:
           # Create or update the service
           docker service ls --filter "name=${SERVICE_NAME}" --format "{{.Name}}" | grep -q "^${SERVICE_NAME}$" && \
           docker service update \
+            --with-registry-auth \
             --image ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG} \
             ${SERVICE_NAME} || \
           docker service create \
+            --with-registry-auth \
             --name ${SERVICE_NAME} \
             --network traefik-github-public \
             --label "traefik.enable=true" \

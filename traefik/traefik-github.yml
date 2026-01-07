@@ -64,6 +64,7 @@ services:
       - cf_token
     environment:
       - CLOUDFLARE_DNS_API_TOKEN_FILE=/run/secrets/cf_token
+      - CLOUDFLARE_ZONE_API_TOKEN_FILE=/run/secrets/cf_token
       - CLOUDFLARE_HTTP_TIMEOUT=60
       - CLOUDFLARE_POLLING_INTERVAL=10
       - CLOUDFLARE_PROPAGATION_TIMEOUT=3600

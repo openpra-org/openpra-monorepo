@@ -1,0 +1,221 @@
+services:
+  tunnel-github:
+    image: cloudflare/cloudflared
+    command: tunnel run
+    networks:
+      - traefik-github-public
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_CONNECTOR_TOKEN}
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      mode: replicated
+      replicas: 1
+      update_config:
+        delay: 30s
+        order: start-first
+        monitor: 20s
+
+  cloudflare-companion-github:
+    image: ghcr.io/tiredofit/docker-traefik-cloudflare-companion:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      replicas: 0
+      placement:
+        constraints:
+          - node.role == manager
+    environment:
+      - TIMEZONE=America/New_York
+      - LOG_TYPE=CONSOLE
+      - LOG_LEVEL=INFO
+      - TRAEFIK_VERSION=3
+      - RC_TYPE=CNAME
+      - TARGET_DOMAIN=openpra.org
+      - REFRESH_ENTRIES=TRUE
+      - DOCKER_SWARM_MODE=TRUE
+      - ENABLE_TRAEFIK_POLL=TRUE
+      - TRAEFIK_POLL_URL=https://github-proxy.openpra.org/api
+      - TRAEFIK_FILTER_LABEL=traefik.constraint-label
+      - TRAEFIK_FILTER=traefik-github-public
+      - DOMAIN1=openpra.org
+      - DOMAIN1_ZONE_ID=${ZONE_ID}
+      - DOMAIN1_PROXIED=TRUE
+    networks:
+      - traefik-github-private
+    secrets:
+      - cf_token
+
+  traefik-github:
+    # Use Traefik v3.6 for GitHub deployments
+    image: traefik:v3.6
+    ports:
+      # Listen on port 8081 (mapped to internal 80) to avoid conflict with existing proxy
+      - target: 80
+        published: 8081
+        mode: host
+      # Listen on port 8443 (mapped to internal 443) to avoid conflict with existing proxy
+      - target: 443
+        published: 8443
+        mode: host
+    secrets:
+      - basic_auth_users
+      - cf_token
+    environment:
+      - CLOUDFLARE_DNS_API_TOKEN_FILE=/run/secrets/cf_token
+      - CLOUDFLARE_HTTP_TIMEOUT=60
+      - CLOUDFLARE_POLLING_INTERVAL=10
+      - CLOUDFLARE_PROPAGATION_TIMEOUT=3600
+      - CLOUDFLARE_TTL=300
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-github-public
+        - traefik.constraint-label=traefik-github-public
+        - traefik.http.middlewares.gzip.compress=true
+        
+        # https-redirect middleware to redirect HTTP to HTTPS
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        
+        # traefik-http set up only to use the middleware to redirect to https
+        - traefik.http.routers.traefik-github-public-http.rule=Host(`github-proxy.openpra.org`)
+        - traefik.http.routers.traefik-github-public-http.entrypoints=http
+        - traefik.http.routers.traefik-github-public-http.middlewares=https-redirect,gzip
+        
+        # traefik-https the actual router using HTTPS
+        - traefik.http.routers.traefik-github-public-https.rule=Host(`github-proxy.openpra.org`)
+        - traefik.http.routers.traefik-github-public-https.entrypoints=https
+        - traefik.http.routers.traefik-github-public-https.tls=true
+        
+        # Use the special Traefik service api@internal with the web UI/Dashboard
+        - traefik.http.routers.traefik-github-public-https.service=api@internal
+        - traefik.http.routers.traefik-github-public-https.tls.certresolver=le
+        - traefik.http.routers.traefik-github-public-https.middlewares=gzip,traefik-forward-auth-github
+        - traefik.http.services.traefik-github-public-https.loadbalancer.server.port=8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./volumes/public-certificates:/certificates
+      - ./volumes/cloudflare:/cloudflare
+      - ./volumes/file-provider-config:/file-provider-config
+    command:
+      # Enable Docker in Traefik, so that it reads labels from Docker services
+      - --providers.docker
+      # Add a constraint to only use services with the label "traefik.constraint-label=traefik-github-public"
+      - --providers.docker.constraints=Label(`traefik.constraint-label`, `traefik-github-public`)
+      # Do not expose all Docker services, only the ones explicitly exposed
+      - --providers.docker.exposedbydefault=false
+      # Enable Docker Swarm mode
+      - --providers.docker.swarmmode
+      # also enable file provider
+      - --providers.file.directory=/file-provider-config
+      - --providers.file.watch=true
+      - --serversTransport.insecureSkipVerify=false
+
+      # create entrypoints
+      - --entryPoints.http.address=:80
+      - --entryPoints.https.address=:443
+      
+      # set redirects
+      - --entryPoints.http.http.redirections.entryPoint.scheme=https
+      - --entryPoints.http.http.redirections.entryPoint.to=https
+      - --entryPoints.http.http.redirections.entrypoint.permanent=true
+      
+      # set certresolvers
+      - --entryPoints.https.http.tls.certResolver=cloudflare
+      - --entryPoints.https.http.tls.domains[0].main=openpra.org
+      - --entryPoints.https.http.tls.domains[0].sans=*.openpra.org,*.app.openpra.org,*.space.openpra.org
+      
+      # unset the read (uploads) timeout, from 60s to +inf
+      - --entryPoints.http.transport.respondingTimeouts.readTimeout=0
+      - --entryPoints.https.transport.respondingTimeouts.readTimeout=0
+      
+      # Create the certificate resolver "le" for Let's Encrypt
+      - --certificatesresolvers.le.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.le.acme.dnschallenge.delayBeforeCheck=60
+      - --certificatesresolvers.le.acme.dnschallenge.disablePropagationCheck=true
+      - --certificatesresolvers.le.acme.dnschallenge.resolvers=8.8.8.8:53
+      - --certificatesresolvers.le.acme.email=admin@openpra.org
+      # Store the Let's Encrypt certificates in the mounted volume
+      - --certificatesresolvers.le.acme.storage=/certificates/acme.json
+      
+      # Enable the access log, with HTTP requests
+      - --accesslog
+      # Enable the Traefik log, for configurations and errors
+      - --log
+      # Enable the Dashboard and API
+      - --api
+      - --api.insecure=true
+    networks:
+      # Use the GitHub-specific public network
+      - traefik-github-public
+      - traefik-github-private
+
+  traefik-forward-auth-github:
+    image: thomseddon/traefik-forward-auth:2
+    environment:
+      - DEFAULT_PROVIDER=oidc
+      - PROVIDERS_OIDC_ISSUER_URL=https://hub.openpra.org/hub
+      - PROVIDERS_OIDC_CLIENT_ID=98343f6e-4772-4850-9107-e0bcef80c4ec
+      - PROVIDERS_OIDC_CLIENT_SECRET=51gI1bmj0niH
+      - SECRET=something-random
+      - INSECURE_COOKIE=false
+      - COOKIE_DOMAIN=openpra.org
+      - URL_PATH=/_oauth
+      - LOG_LEVEL=debug
+    networks:
+      - traefik-github-public
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-github-public
+        - traefik.constraint-label=traefik-github-public
+        - traefik.http.middlewares.traefik-forward-auth-github.forwardauth.address=http://traefik-forward-auth-github:4181
+        - traefik.http.middlewares.traefik-forward-auth-github.forwardauth.authResponseHeaders=X-Forwarded-User
+        - traefik.http.services.traefik-forward-auth-github.loadbalancer.server.port=4181
+
+  error-pages-github:
+    image: tarampampam/error-pages:latest
+    environment:
+      TEMPLATE_NAME: lost-in-space
+    networks:
+      - traefik-github-public
+    deploy:
+      mode: replicated
+      replicas: 2
+      update_config:
+        delay: 20s
+        order: start-first
+        monitor: 10s
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-github-public
+        - traefik.constraint-label=traefik-github-public
+        # use as "fallback" for any non-registered services (with priority below normal)
+        - traefik.http.routers.error-pages-github.rule=HostRegexp(`{host:.+}`)
+        - traefik.http.routers.error-pages-github.priority=10
+        # should say that all of your services work on https
+        - traefik.http.routers.error-pages-github.tls='true'
+        - traefik.http.routers.error-pages-github.entrypoints=https
+        - traefik.http.routers.error-pages-github.middlewares=error-pages-github
+        - traefik.http.services.error-pages-github.loadbalancer.server.port=8080
+        # "errors" middleware settings
+        - traefik.http.middlewares.error-pages-github.errors.status=400-599
+        - traefik.http.middlewares.error-pages-github.errors.service=error-pages-github
+        - traefik.http.middlewares.error-pages-github.errors.query=/{status}.html
+
+networks:
+  traefik-github-public:
+    external: true
+  traefik-github-private:
+
+secrets:
+  basic_auth_users:
+    file: ./secrets/basic_auth_users.txt
+  cf_token:
+    file: ./secrets/cf_token.txt

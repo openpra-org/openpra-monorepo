@@ -41,7 +41,6 @@ services:
         - "traefik.http.routers.${BRANCH_SLUG}-docs-https.rule=Host(`${DOMAIN}`)"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-https.entrypoints=https"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-https.tls=true"
-        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.tls.certresolver=le"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-https.middlewares=gzip"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-https.service=${BRANCH_SLUG}-docs"
         # Service configuration

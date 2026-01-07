@@ -27,7 +27,7 @@ jobs:
     concurrency:
       group: docs-${{ github.ref }}
       cancel-in-progress: true
-    runs-on: gaia
+    runs-on: monorepo-runner
     steps:
       - name: Checkout
         uses: actions/checkout@v4

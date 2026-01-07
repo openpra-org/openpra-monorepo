@@ -123,29 +123,18 @@ jobs:
         run: |
           DOMAIN="${{ steps.vars.outputs.domain }}"
           IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
-          SERVICE_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
+          STACK_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
+          BRANCH_SLUG="${{ steps.vars.outputs.sanitized_branch }}"
           
-          # Create or update the service
-          docker service ls --filter "name=${SERVICE_NAME}" --format "{{.Name}}" | grep -q "^${SERVICE_NAME}$" && \
-          docker service update \
+          # Export variables for docker stack
+          export IMAGE_DOCS="ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG}"
+          export DOMAIN="${DOMAIN}"
+          export BRANCH_SLUG="${BRANCH_SLUG}"
+          
+          # Deploy stack with registry auth
+          docker stack deploy \
             --with-registry-auth \
-            --image ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG} \
-            ${SERVICE_NAME} || \
-          docker service create \
-            --with-registry-auth \
-            --name ${SERVICE_NAME} \
-            --network traefik-github-public \
-            --label "traefik.enable=true" \
-            --label "traefik.docker.network=traefik-github-public" \
-            --label "traefik.constraint-label=traefik-github-public" \
-            --label "traefik.http.routers.${SERVICE_NAME}.rule=Host(\`${DOMAIN}\`)" \
-            --label "traefik.http.routers.${SERVICE_NAME}.entrypoints=https" \
-            --label "traefik.http.routers.${SERVICE_NAME}.tls=true" \
-            --label "traefik.http.routers.${SERVICE_NAME}.tls.certresolver=le" \
-            --label "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=80" \
-            --replicas 2 \
-            --update-parallelism 1 \
-            --update-delay 10s \
-            ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG}
+            --compose-file .github/workflows/docs-stack.yml \
+            ${STACK_NAME}
           
           echo "Documentation deployed to https://${DOMAIN}"

@@ -104,14 +104,13 @@ services:
       - ./volumes/cloudflare:/cloudflare
       - ./volumes/file-provider-config:/file-provider-config
     command:
-      # Enable Docker in Traefik, so that it reads labels from Docker services
-      - --providers.docker
+      # Enable Swarm provider for Traefik v3
+      - --providers.swarm
+      - --providers.swarm.endpoint=unix:///var/run/docker.sock
       # Add a constraint to only use services with the label "traefik.constraint-label=traefik-github-public"
-      - --providers.docker.constraints=Label(`traefik.constraint-label`, `traefik-github-public`)
+      - --providers.swarm.constraints=Label(`traefik.constraint-label`, `traefik-github-public`)
       # Do not expose all Docker services, only the ones explicitly exposed
-      - --providers.docker.exposedbydefault=false
-      # Enable Docker Swarm mode
-      - --providers.docker.swarmmode
+      - --providers.swarm.exposedbydefault=false
       # also enable file provider
       - --providers.file.directory=/file-provider-config
       - --providers.file.watch=true
@@ -124,7 +123,7 @@ services:
       # set redirects
       - --entryPoints.http.http.redirections.entryPoint.scheme=https
       - --entryPoints.http.http.redirections.entryPoint.to=https
-      - --entryPoints.http.http.redirections.entrypoint.permanent=true
+      - --entryPoints.http.http.redirections.entryPoint.permanent=true
       
       # set certresolvers
       - --entryPoints.https.http.tls.certResolver=cloudflare

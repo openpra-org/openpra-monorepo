@@ -19,7 +19,7 @@ HIDE_UNDOC_CLASSES     = YES
 
 RECURSIVE              = YES
 INPUT                  = \
-  packages/engine/scram-node
+  packages/engine/scram
 FILE_PATTERNS          = *.h *.hpp *.cc *.cpp
 EXCLUDE_PATTERNS       = \
   */build/* \

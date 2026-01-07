@@ -34,12 +34,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug user info
-        run: |
-          whoami
-          id
-          groups
-
       - name: Setup Node.js 20 + pnpm
         uses: actions/setup-node@v4
         with:

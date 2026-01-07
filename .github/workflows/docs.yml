@@ -3,7 +3,6 @@ name: 'Docs: Unified TypeScript + C++'
 on:
   push:
     branches:
-      - main
       - fix/docs-and-cd-pipeline
     paths:
       - 'packages/docs-md/**'
@@ -22,18 +21,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   build-and-deploy:
     concurrency:
       group: docs-${{ github.ref }}
       cancel-in-progress: true
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -81,14 +75,74 @@ jobs:
           VITEPRESS_BASE: '/${{ github.event.repository.name }}/'
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          path: packages/docs-md/.vitepress/dist
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Determine branch-based domain and image tag
+        id: vars
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          # Sanitize branch name for domain (replace / with -)
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+          
+          if [ "$BRANCH_NAME" = "main" ]; then
+            DOMAIN="docs.openpra.org"
+            IMAGE_TAG="latest"
+          else
+            DOMAIN="${SANITIZED_BRANCH}-docs.openpra.org"
+            IMAGE_TAG="${SANITIZED_BRANCH}"
+          fi
+          
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/docs-md/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/openpra-docs:${{ steps.vars.outputs.image_tag }}
+            ghcr.io/${{ github.repository_owner }}/openpra-docs:${{ github.sha }}
+          build-args: |
+            VITEPRESS_BASE=/
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Docker Swarm
+        run: |
+          DOMAIN="${{ steps.vars.outputs.domain }}"
+          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
+          SERVICE_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
+          
+          # Create or update the service
+          docker service ls --filter "name=${SERVICE_NAME}" --format "{{.Name}}" | grep -q "^${SERVICE_NAME}$" && \
+          docker service update \
+            --image ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG} \
+            ${SERVICE_NAME} || \
+          docker service create \
+            --name ${SERVICE_NAME} \
+            --network traefik-github-public \
+            --label "traefik.enable=true" \
+            --label "traefik.docker.network=traefik-github-public" \
+            --label "traefik.constraint-label=traefik-github-public" \
+            --label "traefik.http.routers.${SERVICE_NAME}.rule=Host(\`${DOMAIN}\`)" \
+            --label "traefik.http.routers.${SERVICE_NAME}.entrypoints=https" \
+            --label "traefik.http.routers.${SERVICE_NAME}.tls=true" \
+            --label "traefik.http.routers.${SERVICE_NAME}.tls.certresolver=le" \
+            --label "traefik.http.services.${SERVICE_NAME}.loadbalancer.server.port=80" \
+            --replicas 2 \
+            --update-parallelism 1 \
+            --update-delay 10s \
+            ghcr.io/${{ github.repository_owner }}/openpra-docs:${IMAGE_TAG}
+          
+          echo "Documentation deployed to https://${DOMAIN}"

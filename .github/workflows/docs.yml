@@ -47,17 +47,17 @@ jobs:
 
       - name: Install Doxygen
         run: |
-          apt-get update
-          apt-get install -y doxygen graphviz
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y doxygen graphviz
 
       - name: Install Doxybook2
         run: |
-          apt-get update
-          apt-get install -y unzip
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip
           curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
           # Unpack into /usr/local so the binary lands in /usr/local/bin
-          unzip -o doxybook2.zip -d /usr/local
-          chmod +x /usr/local/bin/doxybook2 || true
+          sudo unzip -o doxybook2.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 
       - name: Build unified Markdown docs (VitePress)

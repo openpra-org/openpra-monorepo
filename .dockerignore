@@ -40,8 +40,8 @@ __tests__
 # Documentation
 README.md
 README/
-packages/docs-md/
-*.md
+# packages/docs-md/  # Needed for docs Docker build
+# *.md  # Needed for VitePress content in docs-md
 
 # CI/CD and config files not needed in container
 .github

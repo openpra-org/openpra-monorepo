@@ -17,6 +17,9 @@ COPY packages/docs-md ./packages/docs-md
 COPY packages/mef-types ./packages/mef-types
 COPY packages/shared-types ./packages/shared-types
 COPY packages/shared-sdk ./packages/shared-sdk
+COPY packages/model-generator ./packages/model-generator
+COPY packages/web-backend ./packages/web-backend
+COPY packages/microservices/raptor ./packages/microservices/raptor
 COPY packages/frontend/web-editor ./packages/frontend/web-editor
 COPY packages/engine/scram ./packages/engine/scram
 

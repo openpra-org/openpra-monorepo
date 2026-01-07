@@ -53,7 +53,7 @@
         "ts:markdown:mef-types",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
-        "ts:markdown:job-broker",
+        "ts:markdown:raptor",
         "ts:markdown:scram-node"
       ]
     },
@@ -75,16 +75,16 @@
         "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --json ../docs-md/api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.app.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
       }
     },
-    "ts:markdown:job-broker": {
+    "ts:markdown:raptor": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservice/job-broker && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/job-broker --json ../../docs-md/api/ts/job-broker/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.app.json --options ../../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservices/raptor && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/raptor --json ../../docs-md/api/ts/raptor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/test/** --tsconfig tsconfig.app.json --options ../../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
       }
     },
     "ts:markdown:scram-node": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/engine/scram-node && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/scram-node --json ../../docs-md/api/ts/scram-node/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.lib.json --options ../../docs-md/typedoc.base.json --skipErrorChecking targets/scram-node/lib/index.d.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/engine/scram && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/scram-node --json ../../docs-md/api/ts/scram-node/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.lib.json --options ../../docs-md/typedoc.base.json --skipErrorChecking targets/scram-node/lib/index.d.ts'"
       }
     },
     "cpp:doxygen-xml": {
@@ -136,7 +136,7 @@
         "ts:explore:folders",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
-        "ts:markdown:job-broker",
+        "ts:markdown:raptor",
         "ts:markdown:scram-node",
         "cpp:sanitize"
       ]

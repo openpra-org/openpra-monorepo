@@ -117,7 +117,7 @@ export default defineConfig({
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
-          { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
+          { text: "Raptor (microservice)", link: "/api/ts/raptor/README.html" },
           // Coverage and param-gap pages are no longer surfaced
         ],
       },
@@ -296,14 +296,14 @@ export default defineConfig({
           ],
         },
       ],
-      "/api/ts/job-broker/": [
+      "/api/ts/raptor/": [
         {
-          text: "Job Broker",
+          text: "Raptor",
           items: [
-            { text: "Index", link: "/api/ts/job-broker/README.html" },
-            { text: "Modules", link: "/api/ts/job-broker/modules.html" },
+            { text: "Index", link: "/api/ts/raptor/README.html" },
+            { text: "Modules", link: "/api/ts/raptor/modules.html" },
             ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/job-broker/_explore/index.html" }]
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/raptor/_explore/index.html" }]
             : []),
           ],
         },

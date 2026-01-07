@@ -15,7 +15,7 @@ pnpm nx run-many -t test
 pnpm nx test web-backend
 
 # Microservice
-yarn nx test microservice-job-broker
+yarn nx test raptor
 
 # Frontend
 yarn nx test frontend-web-editor

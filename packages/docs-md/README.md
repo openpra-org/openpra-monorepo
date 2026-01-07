@@ -15,7 +15,7 @@ This package builds the unified Markdown documentation for the monorepo:
   - `api/ts/mef-types` — MEF technical element types
   - `api/ts/model-generator` — model generator utilities
   - `api/ts/web-backend` — NestJS backend (entry/main)
-  - `api/ts/job-broker` — job-broker microservice (entry/main)
+  - `api/ts/raptor` — raptor microservice (entry/main)
 - C++ docs:
   - `api/cpp-doxybook2` — structured pages (files/classes/namespaces)
 - Site output: `.vitepress/dist`
@@ -41,7 +41,7 @@ Recommended (faster dev loop):
        - `nx run docs-md:ts:markdown:mef-types --no-cloud`
        - `nx run docs-md:ts:markdown:model-generator --no-cloud`
        - `nx run docs-md:ts:markdown:web-backend --no-cloud`
-       - `nx run docs-md:ts:markdown:job-broker --no-cloud`
+       - `nx run docs-md:ts:markdown:raptor --no-cloud`
        - `nx run docs-md:ts:markdown:scram-node --no-cloud`
 2. Start the dev server
    - `nx run docs-md:site:dev --no-cloud`
@@ -88,7 +88,7 @@ TypeScript
 - mef-types: `src/index.ts` (aggregated)
 - model-generator: `src/index.ts` (aggregated)
 - web-backend: `src/main.ts` (entrypoint)
-- job-broker: `src/main.ts` (entrypoint)
+- raptor: `src/main.ts` (entrypoint)
 
 C++
 

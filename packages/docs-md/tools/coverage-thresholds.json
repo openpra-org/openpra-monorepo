@@ -11,6 +11,6 @@
     "mef-types": { "symbolDocPct": 78, "paramsPct": 90, "returnsPct": 89 },
     "web-editor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
     "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 },
-    "job-broker": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 80 }
+    "raptor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 80 }
   }
 }

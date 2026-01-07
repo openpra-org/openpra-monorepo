@@ -12,6 +12,7 @@ on:
       - 'packages/frontend/web-editor/src/utils/**'
       - 'packages/engine/scram/**'
       - '.github/workflows/docs.yml'
+      - '.dockerignore'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - 'nx.json'

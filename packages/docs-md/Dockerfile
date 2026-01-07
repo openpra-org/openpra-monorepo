@@ -1,5 +1,5 @@
 # Multi-stage build for VitePress documentation
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY packages/engine/scram ./packages/engine/scram
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Install system dependencies for Doxygen
-RUN apk add --no-cache doxygen graphviz wget unzip
+RUN apt-get update && apt-get install -y doxygen graphviz wget unzip && rm -rf /var/lib/apt/lists/*
 
 # Install Doxybook2
 RUN wget -O /tmp/doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip && \

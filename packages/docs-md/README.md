@@ -1,4 +1,4 @@
-# OpenPRA Unified Docs (VitePress + Doxybook2)
+# OpenPRA Unified Documentation (VitePress + Doxybook2)
 
 This package builds the unified Markdown documentation for the OpenPRA monorepo.
 

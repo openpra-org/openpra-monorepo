@@ -43,7 +43,7 @@ services:
         # HTTPS Router
         - "traefik.http.routers.${BRANCH_SLUG}-docs.rule=Host(`${DOMAIN}`)"
         - "traefik.http.routers.${BRANCH_SLUG}-docs.entrypoints=https"
-        - "traefik.http.routers.${BRANCH_SLUG}-docs.tls.certresolver=le"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs.tls.certresolver=cloudflare"
         - "traefik.http.routers.${BRANCH_SLUG}-docs.middlewares=gzip"
         - "traefik.http.routers.${BRANCH_SLUG}-docs.service=${BRANCH_SLUG}-docs"
         # Service configuration

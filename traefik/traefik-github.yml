@@ -130,7 +130,7 @@ services:
       # set certresolvers
       - --entryPoints.https.http.tls.certResolver=cloudflare
       - --entryPoints.https.http.tls.domains[0].main=openpra.org
-      - --entryPoints.https.http.tls.domains[0].sans=*.openpra.org,*.app.openpra.org,*.space.openpra.org
+      - --entryPoints.https.http.tls.domains[0].sans=*.openpra.org,*.app.openpra.org,*.space.openpra.org,*.gh.openpra.org
       
       # unset the read (uploads) timeout, from 60s to +inf
       - --entryPoints.http.transport.respondingTimeouts.readTimeout=0

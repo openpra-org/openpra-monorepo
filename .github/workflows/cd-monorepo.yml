@@ -1,9 +1,7 @@
 name: 'CD: Deploy Monorepo Application'
 
 on:
-  push:
-    branches:
-      - '**'
+  workflow_call:
   workflow_dispatch:
 
 permissions:

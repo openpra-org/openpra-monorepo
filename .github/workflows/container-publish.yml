@@ -215,3 +215,9 @@ jobs:
             ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/cd-monorepo.yml
+    secrets: inherit

@@ -95,10 +95,10 @@ jobs:
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
           
           if [ "$BRANCH_NAME" = "main" ]; then
-            DOMAIN="docs.gh.openpra.org"
+            DOMAIN="docs.openpra.org"
             IMAGE_TAG="latest"
           else
-            DOMAIN="${SANITIZED_BRANCH}-docs.gh.openpra.org"
+            DOMAIN="docs-${SANITIZED_BRANCH}.openpra.org"
             IMAGE_TAG="${SANITIZED_BRANCH}"
           fi
           

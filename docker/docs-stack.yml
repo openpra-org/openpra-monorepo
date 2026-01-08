@@ -1,14 +1,17 @@
 version: "3.8"
 
 networks:
-  traefik-github-public:
+  traefik-public:
     external: true
 
 services:
   docs:
     image: ${IMAGE_DOCS}
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     networks:
-      - traefik-github-public
+      - traefik-public
     deploy:
       mode: replicated
       replicas: 2
@@ -30,12 +33,21 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-github-public"
-        - "traefik.constraint-label=traefik-github-public"
-        # HTTP Router (tunnel sends HTTP traffic)
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        # HTTP Router with redirect
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-http.rule=Host(`${DOMAIN}`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-http.entrypoints=http"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-http.middlewares=${BRANCH_SLUG}-docs-https-redirect,gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-http.service=${BRANCH_SLUG}-docs"
+        # HTTPS Router
         - "traefik.http.routers.${BRANCH_SLUG}-docs.rule=Host(`${DOMAIN}`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-docs.entrypoints=http"
-        - "traefik.http.routers.${BRANCH_SLUG}-docs.priority=100"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs.entrypoints=https"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs.tls.certresolver=le"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs.middlewares=gzip"
         - "traefik.http.routers.${BRANCH_SLUG}-docs.service=${BRANCH_SLUG}-docs"
         # Service configuration
         - "traefik.http.services.${BRANCH_SLUG}-docs.loadbalancer.server.port=80"
+        # Middleware for HTTPS redirect
+        - "traefik.http.middlewares.${BRANCH_SLUG}-docs-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.gzip.compress=true"

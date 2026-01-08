@@ -1,0 +1,50 @@
+name: 'CD: Deploy Monorepo Application'
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: monorepo-runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: vars
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          BRANCH_SLUG=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+          
+          if [ "$BRANCH_NAME" = "main" ]; then
+            IMAGE_TAG="latest"
+          else
+            IMAGE_TAG="${BRANCH_SLUG}"
+          fi
+          
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Docker Swarm
+        env:
+          IMAGE_BACKEND: registry.openpra.org/openpra-web-backend:${{ steps.vars.outputs.image_tag }}
+        run: |
+          # Deploy stack with registry authentication
+          docker stack deploy \
+            --with-registry-auth \
+            --compose-file docker/stack.yml \
+            openpra-app
+          
+          echo "Application deployed with image tag: ${{ steps.vars.outputs.image_tag }}"
+
+      - name: Check deployment status
+        run: |
+          echo "Waiting for services to start..."
+          sleep 30
+          docker service ls --filter label=com.docker.stack.namespace=openpra-app

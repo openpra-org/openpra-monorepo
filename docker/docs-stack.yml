@@ -35,6 +35,7 @@ services:
         # HTTP Router (no redirect, tunnel handles TLS)
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.rule=Host(`${DOMAIN}`)"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.entrypoints=http"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-http.priority=100"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.service=${BRANCH_SLUG}-docs"
         # Service configuration
         - "traefik.http.services.${BRANCH_SLUG}-docs.loadbalancer.server.port=80"

@@ -1,0 +1,35 @@
+version: 0.1
+log:
+  level: debug
+  fields:
+    service: registry
+    environment: production
+storage:
+    delete:
+      enabled: true
+    cache:
+        blobdescriptor: inmemory
+    filesystem:
+        rootdirectory: /var/lib/registry
+    tag:
+      concurrencylimit: 0
+http:
+    addr: :5000
+    debug:
+        addr: :5001
+        prometheus:
+            enabled: true
+            path: /metrics
+health:
+  storagedriver:
+    enabled: true
+    interval: 10s
+    threshold: 3
+#auth:
+#  token:
+#    autoredirect: true
+#    realm: https://hub.openpra.org/hub/api/rest/oauth2/token
+#    jwks: https://hub.openpra.org/hub/api/rest/oauth2/keys
+#    service: hub.openpra.org
+#    issuer: "OpenPRA Hub"
+#    rootcertbundle: /certs/sign-ca.pem

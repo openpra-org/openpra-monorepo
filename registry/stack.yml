@@ -1,0 +1,54 @@
+networks:
+  traefik-public:
+    external: true
+
+secrets:
+  registry_basic_auth:
+    external: true
+
+configs:
+  deployment:
+    file: ${REGISTRY_CONFIG_PATH?Registry config path unset}
+
+services:
+  server:
+    image: ${IMG_APP?image not set}
+    environment:
+      - TZ=America/New_York
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_HTTP_SECRET=${REGISTRY_HTTP_SECRET?http secret unset}
+      - REGISTRY_AUTH_HTPASSWD_PATH=/run/secrets/registry_basic_auth
+      - REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm
+    networks:
+      - traefik-public
+    volumes:
+      - ${VOL_APP?vol not set}:/var/lib/registry
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - registry_basic_auth
+    configs:
+      - source: deployment
+        target: /etc/distribution/config.yml
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == gaia
+      labels:
+        - traefik.http.routers.${APP?unset}-https.tls=true
+        - traefik.http.routers.${APP?unset}-https.entrypoints=https
+        - traefik.http.services.${APP?unset}.loadbalancer.server.port=${APP_PORT?port unset}
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP?unset}-https.rule=Host(`${URL_APP?url unset}`)
+        - traefik.http.routers.${APP?unset}-https.tls.certresolver=cloudflare
+        - traefik.http.routers.${APP?unset}-https.middlewares=gzip
+        - traefik.docker.network=traefik-public
+        - traefik.enable=true
+        - traefik.http.routers.${APP?unset}-http.entrypoints=http
+        - traefik.http.routers.${APP?unset}-http.middlewares=${APP?unset}-https-redirect,gzip
+        - traefik.http.routers.${APP?unset}-http.rule=Host(`${URL_APP?url unset}`)
+        - traefik.http.routers.${APP?unset}-http.service=${APP?unset}
+        - traefik.http.middlewares.${APP?unset}-https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.gzip.compress=true

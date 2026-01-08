@@ -34,12 +34,26 @@ jobs:
       - name: Deploy to Docker Swarm
         env:
           IMAGE_BACKEND: registry.openpra.org/openpra-web-backend:${{ steps.vars.outputs.image_tag }}
+          HOST_URL: app-${{ steps.vars.outputs.branch_slug }}.openpra.org
+          APP_NAME: openpra-${{ steps.vars.outputs.branch_slug }}
+          CI_BUILD_TYPE: production
+          CI_DEBUG: "false"
+          CI_ALLOWED_HOST: app-${{ steps.vars.outputs.branch_slug }}.openpra.org
+          NUM_FRONTENDS: "1"
+          NUM_BACKENDS: "1"
+          NUM_BROKERS: "1"
+          NUM_WORKERS: "1"
+          DEPLOYMENT_FRONTEND_POOL: node.role == worker
+          DEPLOYMENT_BACKEND_POOL: node.role == worker
+          DEPLOYMENT_BROKER_POOL: node.role == worker
+          DEPLOYMENT_WORKER_POOL: node.role == worker
+          ENV_SHARED_VOLUME_PATH: /opt/openpra-data/${{ steps.vars.outputs.branch_slug }}
         run: |
           # Deploy stack with registry authentication
           docker stack deploy \
             --with-registry-auth \
             --compose-file docker/stack.yml \
-            openpra-app
+            openpra-${{ steps.vars.outputs.branch_slug }}
           
           echo "Application deployed with image tag: ${{ steps.vars.outputs.image_tag }}"
 
@@ -47,4 +61,4 @@ jobs:
         run: |
           echo "Waiting for services to start..."
           sleep 30
-          docker service ls --filter label=com.docker.stack.namespace=openpra-app
+          docker service ls --filter label=com.docker.stack.namespace=openpra-${{ steps.vars.outputs.branch_slug }}

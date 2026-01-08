@@ -32,10 +32,18 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-github-public"
         - "traefik.constraint-label=traefik-github-public"
-        # HTTP Router (no redirect, tunnel handles TLS)
+        # HTTP Router
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.rule=Host(`${DOMAIN}`)"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.entrypoints=http"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.priority=100"
         - "traefik.http.routers.${BRANCH_SLUG}-docs-http.service=${BRANCH_SLUG}-docs"
+        # HTTPS Router with Let's Encrypt
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.rule=Host(`${DOMAIN}`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.entrypoints=https"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.priority=100"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.tls=true"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.tls.domains[0].main=*.gh.openpra.org"
+        - "traefik.http.routers.${BRANCH_SLUG}-docs-https.service=${BRANCH_SLUG}-docs"
         # Service configuration
         - "traefik.http.services.${BRANCH_SLUG}-docs.loadbalancer.server.port=80"

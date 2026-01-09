@@ -713,6 +713,9 @@ importers:
       dot-object:
         specifier: 2.1.5
         version: 2.1.5
+      jwt-decode:
+        specifier: 4.0.0
+        version: 4.0.0
       mongodb:
         specifier: 6.20.0
         version: 6.20.0(socks@2.8.3)
@@ -740,6 +743,9 @@ importers:
       tmp:
         specifier: 0.2.5
         version: 0.2.5
+      tslib:
+        specifier: 2.8.1
+        version: 2.8.1
     devDependencies:
       '@darraghor/eslint-plugin-nestjs-typed':
         specifier: 5.0.18

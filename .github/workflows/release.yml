@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       dryRun:
-        description: 'Run release in dry-run mode'
+        description: "Run release in dry-run mode"
         required: false
-        default: 'true'
+        default: "true"
   push:
     branches:
       - main
+      - fix/update-lockfile
 
 jobs:
   release:
@@ -82,7 +83,7 @@ jobs:
 
       - name: Test
         env:
-          CI: 'true'
+          CI: "true"
           # MONGO_URI should be provided by repo/env secrets or self-hosted action
           MONGO_URI: ${{ secrets.MONGO_URI }}
           # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}  # (disabled)

@@ -1,23 +1,24 @@
-name: 'Docs: Unified TypeScript + C++'
+name: "Docs: Unified TypeScript + C++"
 
 on:
   push:
     branches:
       - main
+      - fix/update-lockfile
     paths:
-      - 'packages/docs-md/**'
-      - 'packages/mef-types/**'
-      - 'packages/shared-types/**'
-      - 'packages/shared-sdk/**'
-      - 'packages/frontend/web-editor/src/utils/**'
-      - 'packages/engine/scram/**'
-      - '.github/workflows/docs.yml'
-      - '.dockerignore'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - 'nx.json'
-      - 'tsconfig.base.json'
-      - 'package.json'
+      - "packages/docs-md/**"
+      - "packages/mef-types/**"
+      - "packages/shared-types/**"
+      - "packages/shared-sdk/**"
+      - "packages/frontend/web-editor/src/utils/**"
+      - "packages/engine/scram/**"
+      - ".github/workflows/docs.yml"
+      - ".dockerignore"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "nx.json"
+      - "tsconfig.base.json"
+      - "package.json"
   workflow_dispatch: {}
 
 permissions:
@@ -38,7 +39,7 @@ jobs:
       - name: Setup Node.js 20 + pnpm
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
           # Removed pnpm cache here because it requires pnpm to be on PATH during this step
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
@@ -64,8 +65,8 @@ jobs:
       - name: Build unified Markdown docs (VitePress)
         # Nx Cloud temporarily disabled — retain config here for quick re-enable
         env:
-          NX_NO_CLOUD: 'true'
-          VITEPRESS_BASE: '/${{ github.event.repository.name }}/'
+          NX_NO_CLOUD: "true"
+          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
           # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
           # NX_BRANCH: ${{ github.ref_name }}
           # NX_RUN_GROUP: docs-${{ github.run_id }}
@@ -73,7 +74,7 @@ jobs:
 
       - name: Link check
         env:
-          VITEPRESS_BASE: '/${{ github.event.repository.name }}/'
+          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
       - name: Set up Docker Buildx
@@ -85,7 +86,7 @@ jobs:
           BRANCH_NAME="${{ github.ref_name }}"
           # Sanitize branch name for domain (replace / with -)
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
-          
+
           if [ "$BRANCH_NAME" = "main" ]; then
             DOMAIN="docs-dev.openpra.org"
             IMAGE_TAG="latest"
@@ -93,7 +94,7 @@ jobs:
             DOMAIN="${SANITIZED_BRANCH}-docs-dev.openpra.org"
             IMAGE_TAG="${SANITIZED_BRANCH}"
           fi
-          
+
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
@@ -125,16 +126,16 @@ jobs:
           IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
           STACK_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
           BRANCH_SLUG="${{ steps.vars.outputs.sanitized_branch }}"
-          
+
           # Export variables for docker stack
           export IMAGE_DOCS="registry.openpra.org/openpra-docs:${IMAGE_TAG}"
           export DOMAIN="${DOMAIN}"
           export BRANCH_SLUG="${BRANCH_SLUG}"
-          
+
           # Deploy stack with registry auth
           docker stack deploy \
             --with-registry-auth \
             --compose-file docker/docs-stack.yml \
             ${STACK_NAME}
-          
+
           echo "Documentation deployed to https://${DOMAIN}"

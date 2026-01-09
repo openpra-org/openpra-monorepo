@@ -22,12 +22,15 @@ jobs:
           
           if [ "$BRANCH_NAME" = "main" ]; then
             IMAGE_TAG="latest"
+            HOST_URL="app-dev.openpra.org"
           else
             IMAGE_TAG="${BRANCH_SLUG}"
+            HOST_URL="${BRANCH_SLUG}-app-dev.openpra.org"
           fi
           
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
+          echo "host_url=$HOST_URL" >> $GITHUB_OUTPUT
 
       - name: Prepare secrets
         run: |
@@ -47,12 +50,12 @@ jobs:
           IMAGE_BACKEND: registry.openpra.org/openpra-web-backend:${{ steps.vars.outputs.image_tag }}
           IMAGE_RAPTOR_MANAGER: registry.openpra.org/openpra-raptor-manager:${{ steps.vars.outputs.image_tag }}
           IMAGE_RAPTOR_ENGINE: registry.openpra.org/openpra-raptor-engine:${{ steps.vars.outputs.image_tag }}
-          HOST_URL: app-${{ steps.vars.outputs.branch_slug }}.openpra.org
+          HOST_URL: ${{ steps.vars.outputs.host_url }}
           BRANCH_SLUG: ${{ steps.vars.outputs.branch_slug }}
           APP_NAME: openpra-${{ steps.vars.outputs.branch_slug }}
           CI_BUILD_TYPE: production
           CI_DEBUG: "false"
-          CI_ALLOWED_HOST: app-${{ steps.vars.outputs.branch_slug }}.openpra.org
+          CI_ALLOWED_HOST: ${{ steps.vars.outputs.host_url }}
           NUM_FRONTENDS: "1"
           NUM_BACKENDS: "1"
           NUM_BROKERS: "1"

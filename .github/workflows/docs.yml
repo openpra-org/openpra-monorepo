@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/update-lockfile
     paths:
       - "packages/docs-md/**"
       - "packages/mef-types/**"

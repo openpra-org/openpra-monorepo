@@ -36,8 +36,12 @@ jobs:
 
       - name: Deploy to Docker Swarm
         env:
+          IMAGE_FRONTEND: registry.openpra.org/openpra-frontend:${{ steps.vars.outputs.image_tag }}
           IMAGE_BACKEND: registry.openpra.org/openpra-web-backend:${{ steps.vars.outputs.image_tag }}
+          IMAGE_RAPTOR_MANAGER: registry.openpra.org/openpra-raptor-manager:${{ steps.vars.outputs.image_tag }}
+          IMAGE_RAPTOR_ENGINE: registry.openpra.org/openpra-raptor-engine:${{ steps.vars.outputs.image_tag }}
           HOST_URL: app-${{ steps.vars.outputs.branch_slug }}.openpra.org
+          BRANCH_SLUG: ${{ steps.vars.outputs.branch_slug }}
           APP_NAME: openpra-${{ steps.vars.outputs.branch_slug }}
           CI_BUILD_TYPE: production
           CI_DEBUG: "false"
@@ -50,12 +54,11 @@ jobs:
           DEPLOYMENT_BACKEND_POOL: node.role == worker
           DEPLOYMENT_BROKER_POOL: node.role == worker
           DEPLOYMENT_WORKER_POOL: node.role == worker
-          ENV_SHARED_VOLUME_PATH: /opt/openpra-data/${{ steps.vars.outputs.branch_slug }}
         run: |
           # Deploy stack with registry authentication
           docker stack deploy \
             --with-registry-auth \
-            --compose-file docker/stack.yml \
+            --compose-file docker/cd-stack.yml \
             openpra-${{ steps.vars.outputs.branch_slug }}
           
           echo "Application deployed with image tag: ${{ steps.vars.outputs.image_tag }}"

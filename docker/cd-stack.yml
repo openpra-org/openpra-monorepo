@@ -13,7 +13,7 @@ configs:
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
   nestjs_env_vars:
-    file: configs/cd.stack.env
+    file: configs/.stack.env
 
 x-base-shared-vols: &volumes-timezone
   volumes:
@@ -42,22 +42,19 @@ x-base-replicated: &shared-replicated
     monitor: 120s
 
 secrets:
-  JWT_SECRET:
-    external: true
-    name: jwt_secret
+  CI_JWT_SECRET:
+    file: secrets/DSF_JWT_SECRET
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
 
 services:
   frontend:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
-      - app_net
       - traefik-public
-    ports:
-      - target: 80
-        published: 8080
-        protocol: tcp
-        mode: ingress
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
@@ -69,31 +66,28 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        # Dynamic Routers using BRANCH_SLUG
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=http"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.service=${BRANCH_SLUG}-frontend"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=https"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.middlewares=gzip"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.service=${BRANCH_SLUG}-frontend"
-        - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80"
-        # Middleware for redirect (Needs unique name too)
-        - "traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.service=${APP_NAME}-frontend"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend"
+        - "traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.${APP_NAME}-https-redirect.redirectscheme.scheme=https"
         - "traefik.http.middlewares.gzip.compress=true"
 
   backend:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
-      - app_net
       - traefik-public
     secrets:
-      - JWT_SECRET
+      - CI_JWT_SECRET
     environment:
-      JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
+      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
       NODE_ENV: production
       DEBUG: "false"
     command: ["node", "main.js"]
@@ -108,20 +102,19 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        # Dynamic Routers
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=http"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.service=${BRANCH_SLUG}-backend"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=https"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=le"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.middlewares=gzip"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.service=${BRANCH_SLUG}-backend"
-        - "traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000"
+        - "traefik.http.routers.${APP_NAME}-backend-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-backend-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-backend-http.service=${APP_NAME}-backend"
+        - "traefik.http.routers.${APP_NAME}-backend-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-backend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-backend-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend"
+        - "traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000"
 
-  job-broker:
-    image: ${IMAGE_JOB_BROKER}
+  raptor-manager:
+    image: ${IMAGE_RAPTOR_MANAGER}
     <<: *shared-app-config
     command: ["node", "main.js"]
     environment:
@@ -141,24 +134,25 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        # Dynamic Routers
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=http"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.entrypoints=https"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.tls.certresolver=le"
-        - "traefik.http.services.${BRANCH_SLUG}-broker.loadbalancer.server.port=3000"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/q`)"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.service=${APP_NAME}-raptor-manager"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/q`)"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.service=${APP_NAME}-raptor-manager"
+        - "traefik.http.services.${APP_NAME}-raptor-manager.loadbalancer.server.port=3000"
 
-  job-worker:
-    image: ${IMAGE_JOB_BROKER}
+  raptor-engine:
+    image: ${IMAGE_RAPTOR_ENGINE}
     <<: *shared-app-config
     command: ["node", "main.js"]
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
-      WORKER_MODE: "true"
     networks:
       - traefik-public
     deploy:
@@ -172,16 +166,11 @@ services:
   rabbitmq:
     image: rabbitmq:management-alpine
     volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
-      - app_net
       - traefik-public
-    ports:
-      - target: 15672
-        published: 15672
-        protocol: tcp
-        mode: ingress
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -198,24 +187,23 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        # Dynamic Routers
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.entrypoints=http"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.service=${BRANCH_SLUG}-rmq"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.entrypoints=https"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.tls.certresolver=le"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.middlewares=gzip,traefik-forward-auth"
-        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.service=${BRANCH_SLUG}-rmq"
-        - "traefik.http.services.${BRANCH_SLUG}-rmq.loadbalancer.server.port=15672"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.rule=Host(`rmq-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.service=${APP_NAME}-rmq"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.rule=Host(`rmq-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.middlewares=gzip,traefik-forward-auth"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.service=${APP_NAME}-rmq"
+        - "traefik.http.services.${APP_NAME}-rmq.loadbalancer.server.port=15672"
 
   mongodb:
     image: mongo:latest
     networks:
       - app_net
-      - traefik-public
     volumes:
+      - mongodb_data:/data/db
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     deploy:

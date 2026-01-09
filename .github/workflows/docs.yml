@@ -3,7 +3,7 @@ name: 'Docs: Unified TypeScript + C++'
 on:
   push:
     branches:
-      - fix/docs-and-cd-pipeline
+      - main
     paths:
       - 'packages/docs-md/**'
       - 'packages/mef-types/**'

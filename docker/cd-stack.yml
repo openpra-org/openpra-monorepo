@@ -54,6 +54,7 @@ services:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
+      - app_net
       - traefik-public
     deploy:
       <<: *shared-replicated
@@ -83,6 +84,7 @@ services:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
+      - app_net
       - traefik-public
     secrets:
       - CI_JWT_SECRET
@@ -122,6 +124,7 @@ services:
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
+      - app_net
       - traefik-public
     deploy:
       <<: *shared-replicated
@@ -154,6 +157,7 @@ services:
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
+      - app_net
       - traefik-public
     deploy:
       mode: replicated
@@ -170,6 +174,7 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
+      - app_net
       - traefik-public
     configs:
       - source: rabbitmq_plugins

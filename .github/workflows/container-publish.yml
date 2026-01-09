@@ -140,12 +140,16 @@ jobs:
             fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
           '
           cat > docker-context/raptor-engine/Dockerfile <<'EOF'
+            # syntax=docker/dockerfile:1.7
           FROM node:20-slim
           WORKDIR /app
           RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
           ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
           COPY package.json ./
-          RUN pnpm install --prod --no-frozen-lockfile
+            # Keep pnpm store out of the image layer to reduce layer size and improve push reliability.
+            RUN --mount=type=cache,target=/pnpm/store \
+              pnpm config set store-dir /pnpm/store && \
+              pnpm install --prod --no-frozen-lockfile
           COPY . ./
           ENV NODE_ENV=production
           CMD ["node","main.js"]
@@ -181,6 +185,8 @@ jobs:
           context: docker-context/raptor-engine
           file: docker-context/raptor-engine/Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ${{ env.REGISTRY }}/openpra-raptor-engine:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/openpra-raptor-engine:${{ steps.prep.outputs.branch_slug }}

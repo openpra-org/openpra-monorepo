@@ -1,0 +1,244 @@
+version: "3.8"
+
+networks:
+  app_net:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/.stack.env
+
+x-base-shared-vols: &volumes-timezone
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
+
+x-base-app-config: &shared-app-config
+  <<: *volumes-timezone
+  configs:
+    - source: nestjs_env_vars
+      target: /app/.env
+
+x-base-replicated: &shared-replicated
+  mode: replicated
+  update_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: rollback
+    order: stop-first
+    monitor: 120s
+  rollback_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: continue
+    order: stop-first
+    monitor: 120s
+
+secrets:
+  CI_JWT_SECRET:
+    file: secrets/DSF_JWT_SECRET
+
+volumes:
+  mongodb_data:
+  rabbitmq_data:
+  minio_data:
+
+services:
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2022-10-08T20-11-00Z}
+    volumes:
+      - minio_data:/data
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - app_net
+    environment:
+      MINIO_ROOT_USER: "minioadmin"
+      MINIO_ROOT_PASSWORD: "minioadmin"
+    command: ["server", "/data", "--console-address", ":9001"]
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    image: ${IMAGE_FRONTEND}
+    <<: *volumes-timezone
+    networks:
+      - app_net
+      - traefik-public
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_FRONTENDS}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.service=${APP_NAME}-frontend"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend"
+        - "traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.${APP_NAME}-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.gzip.compress=true"
+
+  backend:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-app-config
+    networks:
+      - app_net
+      - traefik-public
+    secrets:
+      - CI_JWT_SECRET
+    environment:
+      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
+      NODE_ENV: production
+      DEBUG: "false"
+    command: ["node", "main.js"]
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BACKENDS}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-backend-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-backend-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-backend-http.service=${APP_NAME}-backend"
+        - "traefik.http.routers.${APP_NAME}-backend-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-backend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-backend-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend"
+        - "traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000"
+
+  raptor-manager:
+    image: ${IMAGE_RAPTOR_MANAGER}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - app_net
+      - traefik-public
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/q`)"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-http.service=${APP_NAME}-raptor-manager"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/q`)"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.middlewares=gzip"
+        - "traefik.http.routers.${APP_NAME}-raptor-manager-https.service=${APP_NAME}-raptor-manager"
+        - "traefik.http.services.${APP_NAME}-raptor-manager.loadbalancer.server.port=3000"
+
+  raptor-engine:
+    image: ${IMAGE_RAPTOR_ENGINE}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - app_net
+      - traefik-public
+    deploy:
+      mode: replicated
+      replicas: ${NUM_WORKERS}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - app_net
+      - traefik-public
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.rule=Host(`rmq-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.middlewares=${APP_NAME}-https-redirect,gzip"
+        - "traefik.http.routers.${APP_NAME}-rmq-http.service=${APP_NAME}-rmq"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.rule=Host(`rmq-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.middlewares=gzip,traefik-forward-auth"
+        - "traefik.http.routers.${APP_NAME}-rmq-https.service=${APP_NAME}-rmq"
+        - "traefik.http.services.${APP_NAME}-rmq.loadbalancer.server.port=15672"
+
+  mongodb:
+    image: mongo:latest
+    networks:
+      - app_net
+    volumes:
+      - mongodb_data:/data/db
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == gaia"
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3

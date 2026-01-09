@@ -16,7 +16,7 @@ const TS_ALLOWED_FOLDERS = new Set([
   'mef-types',
   'model-generator',
   'web-backend',
-  'job-broker',
+  'raptor',
   'scram-node',
 ]);
 
@@ -137,7 +137,7 @@ function main() {
   } catch {}
 
   // Pretty print a concise checklist to stdout
-  const failing = new Set(['job-broker','mef-types','model-generator','shared-types','web-backend','web-editor']);
+  const failing = new Set(['raptor','mef-types','model-generator','shared-types','web-backend','web-editor']);
   for (const pkg of report.packages) {
     if (!failing.has(pkg.package)) continue;
     console.log(`\n[missing] ${pkg.package}`);

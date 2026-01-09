@@ -8,18 +8,18 @@ WARN_IF_UNDOCUMENTED   = NO
 JAVADOC_AUTOBRIEF      = YES
 
 # Scope and extraction: prefer public, documented API to reduce noise
-EXTRACT_ALL            = NO
+EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 EXTRACT_LOCAL_CLASSES  = NO
 EXTRACT_ANON_NSPACES   = NO
 INTERNAL_DOCS          = NO
-HIDE_UNDOC_MEMBERS     = YES
-HIDE_UNDOC_CLASSES     = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
 
 RECURSIVE              = YES
 INPUT                  = \
-  packages/engine/scram-node
+  packages/engine/scram
 FILE_PATTERNS          = *.h *.hpp *.cc *.cpp
 EXCLUDE_PATTERNS       = \
   */build/* \
@@ -35,9 +35,7 @@ EXCLUDE_SYMBOLS        = \
   Napi::* \
   boost::* \
   Napi \
-  boost \
-  ext \
-  ScramCLI
+  boost
 
 # Avoid generating TODO/BUG/DEPRECATED lists into XML (and thus pages)
 GENERATE_TODOLIST      = NO

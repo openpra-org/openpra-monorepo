@@ -27,7 +27,7 @@ const PACKAGES = [
   { id: 'mef-types', title: 'MEF Types' },
   { id: 'model-generator', title: 'Model Generator' },
   { id: 'web-backend', title: 'Web Backend (NestJS)' },
-  { id: 'job-broker', title: 'Job Broker' },
+  { id: 'raptor', title: 'Raptor' },
   // scram-node is generated from d.ts; skip folder mapping by default
 ];
 

@@ -3,19 +3,17 @@ name: "Containers: Build & Publish (GHCR)"
 on:
   push:
     branches:
-      - "**"
+      - '**'
   pull_request:
     branches:
-      - "**"
+      - '**'
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 env:
-  REGISTRY: ghcr.io
-  OWNER: ${{ github.repository_owner }}
+  REGISTRY: registry.openpra.org
 
 jobs:
   build-and-push:
@@ -44,18 +42,16 @@ jobs:
           npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine
           npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production
 
-      - name: Log in to GHCR
+      - name: Log in to self-hosted registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Prepare tags
         id: prep
         run: |
-          REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
           BRANCH_SLUG="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           BRANCH_SLUG=${BRANCH_SLUG//\//-}
           echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
@@ -113,12 +109,16 @@ jobs:
             fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
           '
           cat > docker-context/raptor-manager/Dockerfile <<'EOF'
+            # syntax=docker/dockerfile:1.7
           FROM node:20-slim
           WORKDIR /app
           RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
           ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
           COPY package.json ./
-          RUN pnpm install --prod --no-frozen-lockfile
+            # Keep pnpm store out of the image layer to reduce layer size and improve push reliability.
+            RUN --mount=type=cache,target=/pnpm/store \
+              pnpm config set store-dir /pnpm/store && \
+              pnpm install --prod --no-frozen-lockfile
           COPY . ./
           ENV NODE_ENV=production
           EXPOSE 3000
@@ -140,12 +140,16 @@ jobs:
             fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
           '
           cat > docker-context/raptor-engine/Dockerfile <<'EOF'
+            # syntax=docker/dockerfile:1.7
           FROM node:20-slim
           WORKDIR /app
           RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
           ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
           COPY package.json ./
-          RUN pnpm install --prod --no-frozen-lockfile
+            # Keep pnpm store out of the image layer to reduce layer size and improve push reliability.
+            RUN --mount=type=cache,target=/pnpm/store \
+              pnpm config set store-dir /pnpm/store && \
+              pnpm install --prod --no-frozen-lockfile
           COPY . ./
           ENV NODE_ENV=production
           CMD ["node","main.js"]
@@ -158,9 +162,9 @@ jobs:
           file: docker-context/web-backend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.branch_slug }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.channel_tag }}
+            ${{ env.REGISTRY }}/openpra-web-backend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-web-backend:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/openpra-web-backend:${{ steps.prep.outputs.channel_tag }}
 
       - name: Build and push raptor-manager image
         uses: docker/build-push-action@v6
@@ -168,10 +172,12 @@ jobs:
           context: docker-context/raptor-manager
           file: docker-context/raptor-manager/Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.branch_slug }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.channel_tag }}
+            ${{ env.REGISTRY }}/openpra-raptor-manager:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-raptor-manager:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/openpra-raptor-manager:${{ steps.prep.outputs.channel_tag }}
 
       - name: Build and push raptor-engine image
         uses: docker/build-push-action@v6
@@ -179,10 +185,12 @@ jobs:
           context: docker-context/raptor-engine
           file: docker-context/raptor-engine/Dockerfile
           push: true
+          provenance: false
+          sbom: false
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.branch_slug }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.channel_tag }}
+            ${{ env.REGISTRY }}/openpra-raptor-engine:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-raptor-engine:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/openpra-raptor-engine:${{ steps.prep.outputs.channel_tag }}
 
       - name: Prepare frontend build context
         run: |
@@ -216,6 +224,12 @@ jobs:
           file: docker-context/frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
+            ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
+
+  deploy:
+    needs: build-and-push
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/cd-monorepo.yml
+    secrets: inherit

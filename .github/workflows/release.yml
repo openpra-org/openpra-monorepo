@@ -61,13 +61,14 @@ jobs:
 
       - name: Build scram-node native addon
         run: |
-          cd packages/engine/scram-node
+          cd packages/engine/scram
           npx -y pnpm@10.19.0 run install
 
       - name: Install scram CLI (optional)
         run: |
-          if [ -f packages/engine/scram-node/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram-node/build
+          if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
+            sudo cmake --install packages/engine/scram/build
+            sudo ldconfig
           else
             echo "No CMake install script found; skipping scram-cli install"
           fi
@@ -89,7 +90,7 @@ jobs:
           # NX_RUN_GROUP: release-${{ github.run_id }}                    # (disabled)
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
           npx -y pnpm@10.19.0 nx run-many -t test --no-cloud -- --test-timeout=60000
 
       - name: Nx Release Version (Conventional Commits)

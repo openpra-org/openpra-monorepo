@@ -18,7 +18,7 @@ const TS_ALLOWED_FOLDERS = new Set([
   'mef-types',
   'model-generator',
   'web-backend',
-  'job-broker',
+  'raptor',
   'scram-node',
 ]);
 

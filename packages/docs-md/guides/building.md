@@ -19,8 +19,8 @@ pnpm nx build frontend-web-editor
 # Backend (NestJS)
 pnpm nx build web-backend
 
-# Microservice (Job Broker)
-pnpm nx build microservice-job-broker
+# Microservice (Raptor)
+pnpm nx build raptor
 
 # Shared libraries
 a) pnpm nx build shared-types

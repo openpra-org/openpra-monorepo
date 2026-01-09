@@ -17,8 +17,8 @@ This guide provides a quick orientation to the backend services and how their do
   - Docs: [Web Backend API](../api/ts/web-backend/README.html)
   - Related runtime: [Shared SDK API](api/ts/shared-sdk/README.html)
   - Shared types: [Shared Types API](api/ts/shared-types/README.html)
-- Job Broker (microservice): background jobs and orchestration
-  - Docs: [Job Broker API](../api/ts/job-broker/README.html)
+- Raptor (microservice): background jobs and orchestration
+  - Docs: [Raptor API](../api/ts/raptor/README.html)
   - Related runtime: [Shared SDK API](api/ts/shared-sdk/README.html)
   - Shared types: [Shared Types API](api/ts/shared-types/README.html)
   - Solver Engine: [SCRAM API](api/cpp-doxybook2/index_classes.html)
@@ -42,6 +42,6 @@ This guide provides a quick orientation to the backend services and how their do
 Links
 
 - Web Backend API: ../api/ts/web-backend/README.html
-- Job Broker API: ../api/ts/job-broker/README.html
+- Raptor API: ../api/ts/raptor/README.html
 - Shared SDK: ../api/ts/shared-sdk/README.html
 - Shared Types: ../api/ts/shared-types/README.html

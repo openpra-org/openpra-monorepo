@@ -34,6 +34,13 @@ jobs:
           mkdir -p docker/secrets
           echo "${{ secrets.JWT_SECRET || 'default-jwt-secret-change-in-production' }}" > docker/secrets/DSF_JWT_SECRET
 
+      - name: Log in to self-hosted registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.openpra.org
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
       - name: Deploy to Docker Swarm
         env:
           IMAGE_FRONTEND: registry.openpra.org/openpra-frontend:${{ steps.vars.outputs.image_tag }}

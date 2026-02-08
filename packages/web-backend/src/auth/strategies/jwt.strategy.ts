@@ -24,11 +24,11 @@ interface JwtPayload {
 export const ParseJwtSecret = (configService: ConfigService): string => {
   // if the env-var for the secret key file has been set, read from it.
   if (process.env.JWT_SECRET_KEY_FILE) {
-    return fs.readFileSync(configService.get<string>("JWT_SECRET_KEY_FILE")).toString();
+    return fs.readFileSync(configService.get<string>("JWT_SECRET_KEY_FILE")!).toString();
   }
   // otherwise, read from the unsafe env-var
   console.warn("Setting the JWT secret as an environment variable is unsafe, use JWT_SECRET_KEY_FILE instead");
-  const key = configService.get<string>("UNSAFE_JWT_SECRET_KEY");
+  const key = configService.get<string>("UNSAFE_JWT_SECRET_KEY")!;
 
   if (!process.env.UNSAFE_JWT_SECRET_KEY) {
     console.warn("Failed to fetch UNSAFE_JWT_SECRET_KEY");

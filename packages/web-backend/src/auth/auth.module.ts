@@ -7,6 +7,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { LocalStrategy } from "./strategies/local.strategy";
 import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
+import { GoogleStrategy } from "./strategies/google.strategy";
 
 /**
  * Authentication module wiring JWT/local strategies and controller endpoints.
@@ -25,6 +26,6 @@ import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}

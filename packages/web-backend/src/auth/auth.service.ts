@@ -128,4 +128,32 @@ export class AuthService {
       return false;
     }
   }
+
+  /**
+   * Find or create a user from OAuth profile.
+   * @param profile - OAuth profile data
+   * @returns User document
+   */
+  async validateOAuthUser(profile: { email: string; firstName: string; lastName: string }): Promise<User> {
+    // Check if user exists by email
+    let user = await this.collabService.findUserByEmail(profile.email);
+
+    if (!user) {
+      // Create new user from OAuth profile
+      // Generate username from email or use a unique identifier
+      const username = profile.email.split("@")[0];
+
+      // Create user (password not required for OAuth users)
+      const newUser = await this.collabService.createOAuthUser({
+        email: profile.email,
+        username: username,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        // Optionally store OAuth provider info
+      });
+      user = newUser;
+    }
+
+    return user;
+  }
 }

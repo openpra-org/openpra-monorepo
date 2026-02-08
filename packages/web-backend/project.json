@@ -17,6 +17,7 @@
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
+      "dependsOn": ["^build"],
       "options": {
         "target": "node",
         "compiler": "tsc",

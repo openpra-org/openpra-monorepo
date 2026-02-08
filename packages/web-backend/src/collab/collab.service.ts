@@ -346,4 +346,80 @@ export class CollabService {
       upsert: false,
     });
   }
+
+  /**
+   * Find user by email address.
+   * Used for OAuth authentication to check if user already exists.
+   *
+   * @param email - Email of the user
+   * @returns User document if found, undefined otherwise
+   */
+  async findUserByEmail(email: string): Promise<User | undefined> {
+    return this.userModel.findOne({ email }).lean();
+  }
+
+  /**
+   * Create a new user from OAuth profile.
+   * Similar to createNewUser but handles OAuth-specific requirements:
+   * - Generates a random password (OAuth users don't need to set one)
+   * - Handles username conflicts by appending a random suffix
+   * - Sets up default preferences and recently_accessed
+   *
+   * @param profile - OAuth user profile data
+   * @returns A mongoose document of the new user
+   */
+  async createOAuthUser(profile: {
+    email: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    roles?: string[];
+  }): Promise<User> {
+    // Check if email already exists (shouldn't happen if called correctly, but safety check)
+    const existingEmail = await this.userModel.findOne({ email: profile.email });
+    if (existingEmail) {
+      throw new Error("Email already exists");
+    }
+
+    // Handle username conflicts
+    let username = profile.username;
+    // use email prefix with timestamp
+    username = `${profile.email.split("@")[0]}_${Date.now()}`;
+
+    // Generate a random password (OAuth users won't use it, but field is required)
+    const randomPassword = Math.random().toString(36).slice(-16) + Date.now().toString(36);
+    const hashedPassword = await argon2.hash(randomPassword);
+
+    // Create new user with OAuth profile data
+    const newUser = new this.userModel({
+      email: profile.email,
+      username: username,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      password: hashedPassword,
+      roles: profile.roles ?? [],
+    });
+
+    // Set up defaults (same as createNewUser)
+    newUser.id = await this.getNextUserValue("UserCounter");
+    newUser.recently_accessed = {
+      models: [],
+      subsystems: [],
+      projects: [],
+    };
+    newUser.preferences = {
+      theme: "Light",
+      nodeIdsVisible: true,
+      outlineVisible: true,
+      node_value_visible: true,
+      nodeDescriptionEnabled: true,
+      pageBreaksVisible: true,
+      quantificationConfigurations: {
+        configurations: {},
+        currentlySelected: " ",
+      },
+    };
+
+    return newUser.save();
+  }
 }

@@ -12,7 +12,6 @@
  * @category Technical Elements
  */
 
-import typia, { tags, type IValidation } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
@@ -1166,33 +1165,26 @@ export interface SuccessCriteriaDevelopment
  * const isValid = SuccessCriteriaDevelopmentSchema.validate(someData);
  * ```
  */
-export const SuccessCriteriaDevelopmentSchema = typia.json.schemas<[SuccessCriteriaDevelopment]>();
 
 /**
  * Runtime validation for Success Criteria Development.
  * @group API
  */
-export const validateSuccessCriteriaDevelopment: (input: unknown) => IValidation<SuccessCriteriaDevelopment> =
-  typia.createValidate<SuccessCriteriaDevelopment>();
 
 /**
  * Type guard for Success Criteria Development.
  * @group API
  */
-export const isSuccessCriteriaDevelopment = typia.createIs<SuccessCriteriaDevelopment>();
 
 /**
  * Runtime validation for Consistency Verification.
  * @group API
  */
-export const validateConsistencyVerification: (input: unknown) => IValidation<ConsistencyVerification> =
-  typia.createValidate<ConsistencyVerification>();
 
 /**
  * Type guard for Consistency Verification.
  * @group API
  */
-export const isConsistencyVerification = typia.createIs<ConsistencyVerification>();
 
 /**
  * Interface representing mission time information for event sequences.
@@ -1204,7 +1196,7 @@ export interface MissionTimeDefinition extends Unique {
   eventSequenceReference: EventSequenceReference;
 
   /** Mission time in hours */
-  missionTimeHours: number & tags.Minimum<0>;
+  missionTimeHours: number;
 
   /** Basis for the mission time */
   basis: string;
@@ -1226,7 +1218,7 @@ export interface ComponentMissionTimeDefinition extends Unique {
   componentId: ComponentReference;
 
   /** Mission time in hours */
-  missionTimeHours: number & tags.Minimum<0>;
+  missionTimeHours: number;
 
   /** Reference to the event sequence */
   eventSequenceReference: EventSequenceReference;

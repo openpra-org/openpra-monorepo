@@ -1,4 +1,3 @@
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import {
@@ -711,14 +710,14 @@ export interface RadiologicalConsequenceAnalysis extends TechnicalElement<Techni
  * @example "RCAT-001", "RCAT-42"
  * @group Release Category Analysis
  */
-export type ReleaseCategoryReference = string & tags.Pattern<"^RCAT-[1-9]+$">;
+export type ReleaseCategoryReference = string;
 
 /**
  * Reference to a site.
  * @example "SITE-001", "SITE-42"
  * @group Release Category Analysis
  */
-export type SiteReference = string & tags.Pattern<"^SITE-[1-9]+$">;
+export type SiteReference = string;
 
 /**
  * Represents a bounding site with relevant characteristics for consequence analysis.
@@ -1989,4 +1988,3 @@ export interface ProtectiveActionAnalysis {
  * ```
  * @group API
  */
-export const RadiologicalConsequenceAnalysisSchema = typia.json.schemas<[RadiologicalConsequenceAnalysis]>();

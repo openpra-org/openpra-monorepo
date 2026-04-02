@@ -2,7 +2,6 @@
  * @packageDocumentation
  * @module technical_elements.core
  */
-import typia, { tags } from "typia";
 
 /**
  * @internal
@@ -17,7 +16,7 @@ import typia, { tags } from "typia";
  * @hidden
  */
 export interface Unique {
-  uuid: tags.Format<"uuid">;
+  uuid: string;
 }
 
 /**
@@ -47,7 +46,6 @@ export interface Named {
  * ```
  * @hidden
  */
-export const UniqueTagSchema = typia.json.schemas<[Unique]>();
 
 /**
  * @internal
@@ -59,11 +57,8 @@ export const UniqueTagSchema = typia.json.schemas<[Unique]>();
  * ```
  * @hidden
  */
-export const NamedTagSchema = typia.json.schemas<[Named]>();
 
 export interface Versioned {
   version: string;
   lastUpdated: string;
 }
-
-export const VersionedTagSchema = typia.json.schemas<[Versioned]>();

@@ -1,5 +1,5 @@
-import { z } from "nestjs-zod/z";
-import { createZodDto } from "nestjs-zod";
+import { z } from "zod";
+import { createZodDto } from "../../zod/zod-dto";
 
 const userPreferencesSchema = z.object({
   preferences: z.object({
@@ -12,7 +12,4 @@ const userPreferencesSchema = z.object({
   }),
 });
 
-/**
- * DTO for updating or returning user preferences.
- */
 export class UserPreferencesDto extends createZodDto(userPreferencesSchema) {}

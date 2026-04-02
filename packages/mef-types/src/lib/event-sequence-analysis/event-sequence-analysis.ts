@@ -14,7 +14,6 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency, FrequencyUnit } from "../core/events";
@@ -155,7 +154,7 @@ export enum DependencyType {
  * Example: SYS-RCIC
  * @group Core Definitions & Enums
  */
-export type SystemReference = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
+export type SystemReference = string;
 
 /**
  * Type for human action references.
@@ -163,7 +162,7 @@ export type SystemReference = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>
  * Example: HRA-001
  * @group Core Definitions & Enums
  */
-export type HumanActionReference = string & tags.Pattern<typeof IdPatterns.HUMAN_ACTION_ID>;
+export type HumanActionReference = string;
 
 /**
  * Type for source term references.
@@ -171,7 +170,7 @@ export type HumanActionReference = string & tags.Pattern<typeof IdPatterns.HUMAN
  * Example: ST-001
  * @group Core Definitions & Enums
  */
-export type SourceTermReference = string & tags.Pattern<typeof IdPatterns.SOURCE_TERM_ID>;
+export type SourceTermReference = string;
 
 /**
  * Type for release category references.
@@ -179,7 +178,7 @@ export type SourceTermReference = string & tags.Pattern<typeof IdPatterns.SOURCE
  * Example: RC-001
  * @group Core Definitions & Enums
  */
-export type ReleaseCategoryReference = string & tags.Pattern<typeof IdPatterns.RELEASE_CATEGORY_ID>;
+export type ReleaseCategoryReference = string;
 
 /**
  * Type for event sequence references.
@@ -187,7 +186,7 @@ export type ReleaseCategoryReference = string & tags.Pattern<typeof IdPatterns.R
  * Example: ES-001
  * @group Core Definitions & Enums
  */
-export type EventSequenceReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_ID>;
+export type EventSequenceReference = string;
 
 /**
  * Type for event sequence family references.
@@ -195,7 +194,7 @@ export type EventSequenceReference = string & tags.Pattern<typeof IdPatterns.EVE
  * Example: ESF-001
  * @group Core Definitions & Enums
  */
-export type EventSequenceFamilyReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_FAMILY_ID>;
+export type EventSequenceFamilyReference = string;
 
 /**
  * Type for representing the status of a system in an event sequence.
@@ -224,10 +223,10 @@ export type SequenceDesignatorId = string;
  */
 export interface TimeWindow {
   /** Start time for the action (hours after initiating event) */
-  startTime: number & tags.Minimum<0>;
+  startTime: number;
 
   /** End time for the action (hours after initiating event) */
-  endTime: number & tags.Minimum<0>;
+  endTime: number;
 
   /** Description of the time window */
   description?: string;
@@ -249,10 +248,10 @@ export interface SequenceTiming extends Unique {
   event: string;
 
   /** Time after initiating event (hours) */
-  timeAfterInitiator: number & tags.Minimum<0>;
+  timeAfterInitiator: number;
 
   /** Duration or mission time if applicable (hours) */
-  duration?: number & tags.Minimum<0>;
+  duration?: number;
 
   /** Time window for operator actions if applicable */
   timeWindow?: TimeWindow;
@@ -264,7 +263,7 @@ export interface SequenceTiming extends Unique {
   deterministicAnalysisReferences?: string[];
 
   /** Uncertainty in timing (hours) */
-  uncertaintyRange?: [number & tags.Minimum<0>, number & tags.Minimum<0>];
+  uncertaintyRange?: [number, number];
 }
 
 /**
@@ -313,10 +312,10 @@ export interface PhenomenologicalImpact extends Unique, Named {
   affectedElements: (SystemReference | HumanActionReference)[];
 
   /** Timing of the impact (hours after initiating event) */
-  timing?: number & tags.Minimum<0>;
+  timing?: number;
 
   /** Duration of the impact (hours) */
-  duration?: number & tags.Minimum<0>;
+  duration?: number;
 
   /** Deterministic analyses supporting the impact characterization */
   deterministicAnalysisReferences?: string[];
@@ -1944,7 +1943,6 @@ export const validateEventTree = {
  * const isValid = EventSequenceAnalysisSchema.validate(someData);
  * ```
  */
-export const EventSequenceAnalysisSchema = typia.json.schemas<[EventSequenceAnalysis]>();
 
 /**
  * Example of creating a new event sequence analysis with proper versioning

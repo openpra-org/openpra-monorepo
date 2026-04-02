@@ -5,7 +5,7 @@
  */
 
 import { Unique } from "./meta";
-import typia, { tags } from "typia";
+
 // Import DistributionType from data-analysis
 import { DistributionType } from "../data-analysis/data-analysis";
 
@@ -45,7 +45,7 @@ export const IdPatterns = {
  * Example: SC-RCIC-001
  * @group Shared Patterns
  */
-export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
+export type SuccessCriteriaId = string;
 
 /**
  * Standardized levels for expressing importance, impact, or significance in probabilistic risk assessment

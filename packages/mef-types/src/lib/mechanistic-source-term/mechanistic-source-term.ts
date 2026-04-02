@@ -12,7 +12,6 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
@@ -46,14 +45,14 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * Format: RC-[NAME] (e.g., RC-LER)
  * @group Core Definitions & Enums
  */
-export type ReleaseCategoryReference = string & tags.Pattern<"^RC-[A-Za-z0-9_-]+$">;
+export type ReleaseCategoryReference = string;
 
 /**
  * Type for source term IDs.
  * Format: ST-[NUMBER] (e.g., ST-001)
  * @group Core Definitions & Enums
  */
-export type SourceTermDefinitionReference = string & tags.Pattern<"^ST-[0-9]+$">;
+export type SourceTermDefinitionReference = string;
 
 /**
  * Type for event sequence references from event sequence quantification
@@ -1479,4 +1478,3 @@ export interface MechanisticSourceTermAnalysis
  * }
  * ```
  */
-export const MechanisticSourceTermAnalysisSchema = typia.json.schemas<[MechanisticSourceTermAnalysis]>();

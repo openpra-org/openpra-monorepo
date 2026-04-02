@@ -1,4 +1,3 @@
-import typia, { type IValidation } from "typia";
 import { Named, Unique } from "./core/meta";
 import { BaseAssumption } from "./core/documentation";
 import { VersionInfo, SCHEMA_VERSION } from "./core/version";
@@ -191,54 +190,3 @@ export interface TechnicalElement<T extends TechnicalElementTypes> extends Uniqu
     description: string;
   }[];
 }
-
-/**
- * JSON schema for validating {@link TechnicalElementTypes}.
- * @remarks
- * This schema is generated using typia and provides runtime validation
- * for technical element types. It ensures that only valid enum values
- * are used throughout the application.
- * @example
- * ```
- * const isValid = TechnicalElementTypesSchema.validate(someData);
- * ```
- */
-export const TechnicalElementTypesSchema = typia.json.schemas<[TechnicalElementTypes]>();
-
-/**
- * Runtime validation for technical elements
- *
- * @remarks
- * Provides runtime type checking for technical elements including both
- * their type and code. This ensures data consistency throughout the application.
- */
-export const validateTechnicalElement: (input: unknown) => IValidation<TechnicalElement<TechnicalElementTypes>> =
-  typia.createValidate<TechnicalElement<TechnicalElementTypes>>();
-
-/**
- * Type guard for technical elements
- *
- * @remarks
- * A type guard function that checks if a given object is a valid technical element.
- * This is useful for runtime type checking and validation.
- */
-export const isTechnicalElement = typia.createIs<TechnicalElement<TechnicalElementTypes>>();
-
-/**
- * Runtime validation for technical element metadata
- *
- * @remarks
- * Provides runtime type checking for technical element metadata.
- * This ensures data consistency throughout the application.
- */
-export const validateTechnicalElementMetadata: (input: unknown) => IValidation<TechnicalElementMetadata> =
-  typia.createValidate<TechnicalElementMetadata>();
-
-/**
- * Type guard for technical element metadata
- *
- * @remarks
- * A type guard function that checks if a given object is valid technical element metadata.
- * This is useful for runtime type checking and validation.
- */
-export const isTechnicalElementMetadata = typia.createIs<TechnicalElementMetadata>();

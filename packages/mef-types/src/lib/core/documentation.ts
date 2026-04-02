@@ -4,7 +4,6 @@
  * @description Documentation types and interfaces for technical elements
  */
 
-import typia, { tags } from "typia";
 import { Unique, Named } from "./meta";
 import { ImportanceLevel } from "./shared-patterns";
 
@@ -307,13 +306,3 @@ export interface BaseTraceabilityDocumentation extends Unique, Named {
  * JSON schema for validating documentation entities.
  * @group Documentation & Traceability
  */
-export const DocumentationSchemas = {
-  designInformation: typia.json.schemas<[BaseDesignInformation]>(),
-  processDocumentation: typia.json.schemas<[BaseProcessDocumentation]>(),
-  modelUncertainty: typia.json.schemas<[BaseModelUncertaintyDocumentation]>(),
-  preOperationalAssumptions: typia.json.schemas<[BasePreOperationalAssumptionsDocumentation]>(),
-  peerReview: typia.json.schemas<[BasePeerReviewDocumentation]>(),
-  traceability: typia.json.schemas<[BaseTraceabilityDocumentation]>(),
-  baseAssumption: typia.json.schemas<[BaseAssumption]>(),
-  preOperationalAssumption: typia.json.schemas<[PreOperationalAssumption]>(),
-} as const;

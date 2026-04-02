@@ -1,5 +1,5 @@
-import { z } from "nestjs-zod/z";
-import { createZodDto } from "nestjs-zod";
+import { z } from "zod";
+import { createZodDto } from "../../zod/zod-dto";
 
 const createNewColumnSchema = z.object({
   name: z.string(),
@@ -11,7 +11,5 @@ const createNewColumnSchema = z.object({
     }),
   ),
 });
-/**
- * DTO for adding an FMEA column with type and optional dropdown options.
- */
+
 export class CreateNewColumnDto extends createZodDto(createNewColumnSchema) {}

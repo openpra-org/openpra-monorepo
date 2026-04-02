@@ -74,7 +74,6 @@ import {
 import { DistributionType, Frequency, FrequencyWithDistribution, InitiatingEvent, FrequencyUnit } from "../core/events"; // Assuming path
 import { ImportanceLevel, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns"; // Assuming path - Enums are likely here
 import { createVersionInfo, SCHEMA_VERSION } from "../core/version"; // Assuming path and SCHEMA_VERSION export
-import { tags } from "typia"; // Ensure tags is imported for Format assertion
 
 /**
  * Helper function to extract numeric value from Frequency or FrequencyWithDistribution
@@ -97,7 +96,7 @@ function getFrequencyValue(frequency: Frequency | FrequencyWithDistribution | un
 // --- Core Event Definitions ---
 const loopInitiatingEvent: InitiatingEvent = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440001" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440001",
   name: "Loss of Offsite Power (LOOP)",
   description:
     "Complete loss of external 13.8kV grid connection to the plant, challenging power supply to primary pumps and support systems.",
@@ -139,7 +138,7 @@ const tempLowTransitionParam: TransitionParameter = {
 // --- Detailed Instrument Definitions ---
 const coreOutletTC: Instrument = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440002" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440002",
   name: "Core Outlet Thermocouple Array",
   parameter: "Core Outlet Temperature",
   // ... rest of properties
@@ -153,7 +152,7 @@ const coreOutletTC: Instrument = {
 
 const primaryFlowMeter: Instrument = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440003" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440003",
   name: "Primary Sodium Flow Meter (EM Type)",
   parameter: "Primary Sodium Flow Rate",
   // ... rest of properties
@@ -166,7 +165,7 @@ const primaryFlowMeter: Instrument = {
 
 const shutdownCoolerFlow: Instrument = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440004" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440004",
   name: "Shutdown Cooler A Flow Monitor",
   parameter: "NaK Flow Rate",
   // ... rest of properties
@@ -180,7 +179,7 @@ const shutdownCoolerFlow: Instrument = {
 // --- Safety Function Definitions ---
 const reactivityControlSF: SafetyFunction = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440005" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440005",
   name: "Reactivity Control",
   // ... rest of properties
   successCriteriaIds: ["SC-SCRAM-001"],
@@ -211,7 +210,7 @@ const reactivityControlSF: SafetyFunction = {
 
 const decayHeatRemovalSF_FP: SafetyFunction = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440006" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440006",
   name: "Decay Heat Removal (Full Power Availability)",
   // ... rest of properties
   successCriteriaIds: ["SC-DHR-AVAIL-001"],
@@ -236,7 +235,7 @@ const decayHeatRemovalSF_FP: SafetyFunction = {
 
 const decayHeatRemovalSF_SD: SafetyFunction = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440007" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440007",
   name: "Decay Heat Removal (Shutdown Operation)",
   // ... rest of properties
   successCriteriaIds: ["SC-DHR-OPERATE-001", "SC-NATCIRC-001", "SC-AUX-PUMP-001"],
@@ -268,7 +267,7 @@ const decayHeatRemovalSF_SD: SafetyFunction = {
 // --- Radioactive Source Definitions ---
 const coreSource: RadioactiveSource = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440008" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440008",
   name: "EBR-II Reactor Core",
   // ... rest of properties
   // FIX 5: Replace ScreeningStatus enum value
@@ -282,7 +281,7 @@ const coreSource: RadioactiveSource = {
 
 const spentFuelSource: RadioactiveSource = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440009" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440009",
   name: "In-Tank Spent Fuel Storage Basket",
   // ... rest of properties
   // FIX 5: Replace ScreeningStatus enum value
@@ -296,7 +295,7 @@ const spentFuelSource: RadioactiveSource = {
 
 const activatedSodiumSource: RadioactiveSource = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-44665544000a" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-44665544000a",
   name: "Activated Primary Sodium Coolant",
   // ... rest of properties
   // FIX 5: Replace ScreeningStatus enum value
@@ -310,7 +309,7 @@ const activatedSodiumSource: RadioactiveSource = {
 
 const activatedSteelSource: RadioactiveSource = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-44665544000b" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-44665544000b",
   name: "Activated Structural Components",
   // ... rest of properties
   // FIX 5: Replace ScreeningStatus enum value based on original intent
@@ -325,7 +324,7 @@ const activatedSteelSource: RadioactiveSource = {
 // --- Time Varying Condition Example ---
 const decayHeatTVC: TimeVaryingCondition = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440011" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440011",
   name: "EBR-II Decay Heat - First 24 Hours",
   uncertainty: 0.05,
   // Add required properties with correct types
@@ -338,7 +337,7 @@ const decayHeatTVC: TimeVaryingCondition = {
 
 const decayHeatTVC_Late: TimeVaryingCondition = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440012" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440012",
   name: "EBR-II Decay Heat - Beyond 24 Hours",
   uncertainty: 0.03,
   // Add required properties with correct types
@@ -354,7 +353,7 @@ const decayHeatTVC_Late: TimeVaryingCondition = {
 // In production code, all required properties (timeBoundary, operatingMode, etc.) must be included.
 const fullPowerPOS = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-44665544000e" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-44665544000e",
   name: "Full Power Operation",
   // ... rest of properties (including nested objects, check if they use affected types)
   radioactiveMaterialSources: [
@@ -413,7 +412,7 @@ const fullPowerPOS = {
 // In production code, all required properties (timeBoundary, operatingMode, etc.) must be included.
 const controlledShutdownPOS = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-44665544000f" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-44665544000f",
   name: "Controlled Shutdown (Post-Trip/LOOP)",
   // ... rest of properties
   radioactiveMaterialSources: [
@@ -525,7 +524,7 @@ const ebr2HazardousSources: HazardousSources = {
 // In production code, all required properties of PlantEvolution must be included.
 const normalCycleEvolution = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440010" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440010",
   name: "EBR-II Normal Operating Cycle",
   // ... rest of properties
   plantOperatingStates: [fullPowerPOS, controlledShutdownPOS],
@@ -554,7 +553,7 @@ ebr2HazardousSources.plantEvolution = normalCycleEvolution;
 // --- Transition Event Example ---
 const fpToShutdownTransitionLoop: TransitionEvent = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440011" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440011",
   name: "Transition: Full Power to Shutdown via LOOP",
   description: "Sequence initiated by Loss of Offsite Power (LOOP)...",
   fromStateId: fullPowerPOS.uuid as string, // Assuming POS UUIDs are correct strings now
@@ -600,7 +599,7 @@ normalCycleEvolution.transitions = [fpToShutdownTransitionLoop];
 // --- Grouping Example ---
 const lpsdGroup: PlantOperatingStatesGroup = {
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440012" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440012",
   name: "Low Power and Shutdown (LPSD) Group",
   description: "Groups operating states where the reactor is subcritical...",
   plantOperatingStateIds: [controlledShutdownPOS.uuid as string /* Add other POS UUIDs */],
@@ -679,7 +678,7 @@ const exampleSubsumedPOS: SubsumedPOS = {
   riskImpact: ImportanceLevel.LOW,
   validationMethod: "Review of system alignments...",
   sensitivityAnalysis: {
-    uuid: "sens-subsume-hsby-01" as tags.Format<"uuid">,
+    uuid: "sens-subsume-hsby-01",
     description: "Quantified impact...",
     variedParameters: ["Duration of Hot Standby", "HF Probability during HS"],
     parameterRanges: {
@@ -696,7 +695,7 @@ const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
   type: TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS,
   version: "POS-EBR2-EX02",
   // FIX 2: Apply UUID format and assertion
-  uuid: "550e8400-e29b-41d4-a716-446655440000" as tags.Format<"uuid">,
+  uuid: "550e8400-e29b-41d4-a716-446655440000",
   name: "EBR-II Plant Operating States Analysis Example (Enhanced)",
   description: "Enhanced POS analysis example for EBR-II...",
   created: new Date().toISOString(),

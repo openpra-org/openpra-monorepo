@@ -32,7 +32,6 @@ import { BarrierStatus } from "../plant-operating-states-analysis/plant-operatin
 export { BarrierStatus };
 
 // Core imports
-import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
 
 // Event and data analysis imports
@@ -251,7 +250,6 @@ export const validateEventSequenceQuantification = {
  * ```
  * @group API
  */
-export const EventSequenceQuantificationSchema = typia.json.schemas<[EventSequenceQuantification]>();
 
 // List of interfaces that are dependent on the ESQ technical element file:
 /**

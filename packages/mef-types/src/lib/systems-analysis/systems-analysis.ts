@@ -14,7 +14,6 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import {
@@ -54,21 +53,21 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * Format: SYS-[NAME] (e.g., SYS-RHR)
  * @group Core Definitions & Enums
  */
-export type SystemReference = string & tags.Pattern<"^SYS-[A-Za-z0-9_-]+$">;
+export type SystemReference = string;
 
 /**
  * Reference to a Human Action by its unique identifier.
  * Format: HRA-[NUMBER] (e.g., HRA-001)
  * @group Core Definitions & Enums
  */
-export type HumanActionReference = string & tags.Pattern<"^HRA-[0-9]+$">;
+export type HumanActionReference = string;
 
 /**
  * Reference to a plant operating state
  * Format: POS-[NAME] (e.g., POS-FULL-POWER)
  * @group Core Definitions & Enums
  */
-export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+export type PlantOperatingStateReference = string;
 
 /**
  * Simple reference to plant operating states for a system
@@ -349,13 +348,13 @@ export interface TemporalPhase extends Unique {
    * Start time of the phase in hours from sequence initiation
    * @minimum 0
    */
-  startTime: number & tags.Minimum<0>;
+  startTime: number;
 
   /**
    * End time of the phase in hours
    * @minimum 0
    */
-  endTime: number & tags.Minimum<0>;
+  endTime: number;
 
   /**
    * Current state of the component or system during this phase

@@ -3,7 +3,6 @@
  * @module technical_elements.core
  * @description Core component types and interfaces
  */
-import typia, { tags, type IValidation } from "typia";
 import { Unique, Named, Versioned } from "./meta";
 import { isValidComponentReference } from "./validators";
 
@@ -26,14 +25,14 @@ export const COMPONENT_TYPE_ID_PATTERN = "^CMPTYPE-[A-Za-z0-9_-]+$";
  * @memberof technical_elements.core
  * @group Component
  */
-export type ComponentReference = string & tags.Pattern<typeof COMPONENT_ID_PATTERN>;
+export type ComponentReference = string;
 
 /**
  * Type representing a component type reference
  * @memberof technical_elements.core
  * @group Component
  */
-export type ComponentTypeReference = string & tags.Pattern<typeof COMPONENT_TYPE_ID_PATTERN>;
+export type ComponentTypeReference = string;
 
 /**
  * Base interface for components
@@ -58,21 +57,18 @@ export interface Component extends Unique, Named {
  * @memberof technical_elements.core
  * @group Component
  */
-export const ComponentReferenceSchema = typia.json.schemas<[ComponentReference]>();
 
 /**
  * Runtime validation for components
  * @memberof technical_elements.core
  * @hidden
  */
-export const validateComponent: (input: unknown) => IValidation<Component> = typia.createValidate<Component>();
 
 /**
  * Type guard for components
  * @memberof technical_elements.core
  * @hidden
  */
-export const isComponent = typia.createIs<Component>();
 
 /**
  * Interface representing a component registry
@@ -116,22 +112,18 @@ export interface ComponentType extends Unique, Named, Versioned {
  * @memberof technical_elements.core
  * @group Component
  */
-export const ComponentTypeReferenceSchema = typia.json.schemas<[ComponentTypeReference]>();
 
 /**
  * Runtime validation for component types
  * @memberof technical_elements.core
  * @hidden
  */
-export const validateComponentType: (input: unknown) => IValidation<ComponentType> =
-  typia.createValidate<ComponentType>();
 
 /**
  * Type guard for component types
  * @memberof technical_elements.core
  * @hidden
  */
-export const isComponentType = typia.createIs<ComponentType>();
 
 /**
  * Utility functions for components

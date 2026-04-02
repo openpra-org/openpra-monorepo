@@ -36,7 +36,6 @@
  */
 
 // Core imports
-import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
 import {
   ImportanceLevel,
@@ -83,25 +82,25 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * @example "RSC-CDF-01"
  * @group Core Definitions & Enums
  */
-export type RiskSignificanceCriteriaReference = string & tags.Pattern<"^RSC-[A-Za-z0-9_-]+$">;
+export type RiskSignificanceCriteriaReference = string;
 
 /**
  * Reference to an Integrated Risk Result by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type IntegratedRiskResultReference = string & tags.Pattern<"^IRR-[A-Za-z0-9_-]+$">;
+export type IntegratedRiskResultReference = string;
 
 /**
  * Reference to a significant risk contributor analysis by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type SignificantContributorReference = string & tags.Pattern<"^SRC-[A-Za-z0-9_-]+$">;
+export type SignificantContributorReference = string;
 
 /**
  * Reference to a risk integration method by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type RiskIntegrationMethodReference = string & tags.Pattern<"^RIM-[A-Za-z0-9_-]+$">;
+export type RiskIntegrationMethodReference = string;
 
 /**
  * Interface for a risk metric with value and uncertainty.
@@ -1620,4 +1619,3 @@ export interface RiskIntegrationValidationRules {
  * const isValid = RiskIntegrationSchema.validate(someData);
  * ```
  */
-export const RiskIntegrationSchema = typia.json.schemas<[RiskIntegration]>();

@@ -17,7 +17,6 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency, FrequencyWithDistribution } from "../core/events";
@@ -481,16 +480,16 @@ export interface DecayHeatRemovalSystems {
  */
 export interface ReactorCoolantSystemParameters {
   /** Power level range [min, max] as fraction of rated power */
-  powerLevel: [number & tags.Minimum<0>, number & tags.Maximum<1>];
+  powerLevel: [number, number];
 
   /** Decay heat level range [min, max] as fraction of rated power */
-  decayHeatLevel: [number & tags.Minimum<0>, number & tags.Maximum<1>];
+  decayHeatLevel: [number, number];
 
   /** Reactor coolant temperature range at control volume 1 [min, max] */
-  reactorCoolantTemperatureAtControlVolume1: [number & tags.Minimum<0>, number & tags.Maximum<1>];
+  reactorCoolantTemperatureAtControlVolume1: [number, number];
 
   /** Coolant pressure range at control volume 1 [min, max] */
-  coolantPressureAtControlVolume1: [number & tags.Minimum<0>, number & tags.Maximum<1>];
+  coolantPressureAtControlVolume1: [number, number];
 
   /** Other parameter ranges [min, max] */
   others?: [number, number];
@@ -499,7 +498,7 @@ export interface ReactorCoolantSystemParameters {
    * For reactors with liquid coolant, reactor level range [min, max]
    * Per RG 1.247, POS definitions should consider reactor level (for reactors with liquid coolant)
    */
-  reactorLevel?: [number & tags.Minimum<0>, number & tags.Maximum<1>];
+  reactorLevel?: [number, number];
 
   /**
    * Time after shutdown or scram, if applicable [hours]
@@ -1504,4 +1503,3 @@ export interface PlantOperatingStatesAnalysis
  * ```
  * @group API
  */
-export const PlantOperatingStatesAnalysisSchema = typia.json.schemas<[PlantOperatingStatesAnalysis]>();

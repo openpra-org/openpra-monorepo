@@ -1,9 +1,5 @@
-/* Auto generated file DO NOT UPDATE.
-To change the Zod Dto update the relevant schema file
- */
-
-import { z } from "nestjs-zod/z";
-import { createZodDto } from "nestjs-zod";
+import { z } from "zod";
+import { createZodDto } from "../../zod/zod-dto";
 
 const CreateNewUserSchema = z
   .object({
@@ -16,10 +12,6 @@ const CreateNewUserSchema = z
   })
   .describe("A new user in the backend");
 
-/**
- * DTO for creating a new user.
- * Fields are derived from the Zod schema above.
- */
 class CreateNewUserSchemaDto extends createZodDto(CreateNewUserSchema) {}
 
 export { CreateNewUserSchemaDto };

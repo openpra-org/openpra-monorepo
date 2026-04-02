@@ -92,3 +92,8 @@ lerna-debug.log*
 
 # Editor/cache artifacts
 .eslintcache
+
+# Environment variables - never commit secrets
+.env
+.env.local
+.env.*.local

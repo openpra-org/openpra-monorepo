@@ -28,7 +28,6 @@
  */
 
 // Core imports (most upstream)
-import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
 import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
 import {
@@ -1058,7 +1057,6 @@ export const validateInitiatingEventsAnalysis = {
  * ```
  * @group API
  */
-export const InitiatingEventsAnalysisSchema = typia.json.schemas<[InitiatingEventsAnalysis]>();
 
 // List of interfaces that are dependent on the IE technical element file:
 /**

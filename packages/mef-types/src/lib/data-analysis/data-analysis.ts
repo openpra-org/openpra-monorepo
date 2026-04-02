@@ -29,7 +29,6 @@
  * - Expanded support for failure event data extraction criteria (DA-C5 to DA-C7)
  */
 
-import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { BasicEvent, FrequencyUnit } from "../core/events";
@@ -48,7 +47,7 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * Type representing a reference to a plant operating state
  * @group Core Definition and Enums
  */
-export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+export type PlantOperatingStateReference = string;
 
 //==============================================================================
 /**
@@ -595,7 +594,7 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
   /**
    * The estimated value for the parameter
    */
-  value: number & tags.Minimum<0>;
+  value: number;
 
   /**
    * Links to basic event this parameter is associated with
@@ -1808,7 +1807,6 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
  * const isValid = DataAnalysisSchema.validate(someData);
  * ```
  */
-export const DataAnalysisSchema = typia.json.schemas<[DataAnalysis]>();
 
 /**
  * Service class for managing data analysis operations
@@ -1822,10 +1820,10 @@ export const DataAnalysisSchema = typia.json.schemas<[DataAnalysis]>();
  */
 export class DataAnalysisService {
   /** Map of component basic events indexed by UUID */
-  private basicEvents: Map<tags.Format<"uuid">, ComponentBasicEvent> = new Map();
+  private basicEvents: Map<string, ComponentBasicEvent> = new Map();
 
   /** Map of failure modes indexed by UUID */
-  private failureModes: Map<tags.Format<"uuid">, FailureModeType> = new Map();
+  private failureModes: Map<string, FailureModeType> = new Map();
 
   /** Registry containing operational data points */
   private dataRegistry: OperationalDataRegistry | null = null;
@@ -1839,7 +1837,7 @@ export class DataAnalysisService {
    * @returns The requested component basic event
    * @throws Error if the basic event is not found
    */
-  getComponentBasicEvent(id: tags.Format<"uuid">): ComponentBasicEvent {
+  getComponentBasicEvent(id: string): ComponentBasicEvent {
     const event = this.basicEvents.get(id);
     if (!event) throw new Error(`Basic event ${id} not found`);
     return event;
@@ -1850,7 +1848,7 @@ export class DataAnalysisService {
    * @param event - The component basic event to create
    * @returns The UUID of the created event
    */
-  createComponentBasicEvent(event: ComponentBasicEvent): tags.Format<"uuid"> {
+  createComponentBasicEvent(event: ComponentBasicEvent): string {
     this.basicEvents.set(event.uuid, event);
     return event.uuid;
   }
@@ -1861,7 +1859,7 @@ export class DataAnalysisService {
    * @returns The requested failure mode
    * @throws Error if the failure mode is not found
    */
-  getFailureMode(id: tags.Format<"uuid">): FailureModeType {
+  getFailureMode(id: string): FailureModeType {
     const mode = this.failureModes.get(id);
     if (!mode) throw new Error(`Failure mode ${id} not found`);
     return mode;
@@ -1872,7 +1870,7 @@ export class DataAnalysisService {
    * @param mode - The failure mode to create
    * @returns The UUID of the created failure mode
    */
-  createFailureMode(mode: FailureModeType): tags.Format<"uuid"> {
+  createFailureMode(mode: FailureModeType): string {
     this.failureModes.set(mode.uuid, mode);
     return mode.uuid;
   }
@@ -1919,10 +1917,7 @@ export class DataAnalysisService {
    * @param estimationResult - Results from failure rate estimation
    * @throws Error if the basic event is not found
    */
-  updateBasicEventWithEstimation(
-    basicEventId: tags.Format<"uuid">,
-    estimationResult: FailureRateEstimationResult,
-  ): void {
+  updateBasicEventWithEstimation(basicEventId: string, estimationResult: FailureRateEstimationResult): void {
     const event = this.getComponentBasicEvent(basicEventId);
 
     // Update probability model with estimation results

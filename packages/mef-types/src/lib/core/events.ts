@@ -2,7 +2,6 @@
  * @packageDocumentation
  * @module technical_elements.core
  */
-import typia, { tags } from "typia";
 import { Named, Unique } from "./meta";
 
 /**
@@ -16,7 +15,7 @@ import { Named, Unique } from "./meta";
  * @memberof technical_elements.core.events
  * @group Events
  */
-export type Frequency = number & tags.Minimum<0>;
+export type Frequency = number;
 
 /**
  * Types of probability distributions used for uncertainty analysis
@@ -167,10 +166,3 @@ export interface InitiatingEvent extends BaseEvent {
  * @memberof technical_elements.core.validation
  * @group Events
  */
-export const EventSchemas = {
-  base: typia.json.schemas<[BaseEvent]>(),
-  basic: typia.json.schemas<[BasicEvent]>(),
-  functional: typia.json.schemas<[FunctionalEvent]>(),
-  top: typia.json.schemas<[TopEvent]>(),
-  initiating: typia.json.schemas<[InitiatingEvent]>(),
-} as const;

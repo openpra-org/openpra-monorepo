@@ -3,7 +3,7 @@ import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ZodValidationPipe } from "nestjs-zod";
+import { ZodValidationPipe } from "./zod/zod-dto";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { AuthModule } from "./auth/auth.module";
@@ -15,10 +15,8 @@ import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
+import { PraModelModule } from "./pra-model/pra-model.module";
 
-/**
- * Root application module composing all feature modules and global providers.
- */
 @Module({
   imports: [
     AuthModule,
@@ -27,6 +25,7 @@ import { RolesModule } from "./roles/roles.module";
     GraphModelModule,
     InviteModule,
     NestedModelModule,
+    PraModelModule,
     QuantifyModule,
     TypedModelModule,
     RolesModule,
@@ -83,6 +82,10 @@ import { RolesModule } from "./roles/roles.module";
           {
             path: "roles",
             module: RolesModule,
+          },
+          {
+            path: "",
+            module: PraModelModule,
           },
         ],
       },

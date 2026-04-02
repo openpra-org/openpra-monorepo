@@ -1,5 +1,5 @@
-import { z } from "nestjs-zod/z";
-import { createZodDto } from "nestjs-zod";
+import { z } from "zod";
+import { createZodDto } from "../../zod/zod-dto";
 
 const hclModelQuantificationConfigurationSchema = z.object({
   configuration: z.object({
@@ -35,6 +35,3 @@ const hclModelQuantificationConfigurationSchema = z.object({
 });
 
 export class HclModelQuantificationConfigurationDto extends createZodDto(hclModelQuantificationConfigurationSchema) {}
-/**
- * DTO for configuring HCL model quantification (constructor, engine and quantify settings).
- */

@@ -25,6 +25,8 @@ import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { ToTitleCase, TokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
@@ -34,25 +36,31 @@ const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
   const internalEvents = UseGlobalStore.use.InternalEvents();
   const internalHazards = UseGlobalStore.use.InternalHazards();
+  const externalHazards = UseGlobalStore.use.ExternalHazards();
+  const fullScope = UseGlobalStore.use.FullScope();
 
-  const getModelName = (id: string): string => {
-    const ieName = internalEvents.find((ie: InternalEventsModelType) => ie._id === id)?.label.name;
-    if (ieName) return ieName;
-
-    const ihName = internalHazards.find((ih: InternalHazardsModelType) => ih._id === id)?.label.name;
-    if (ihName) return ihName;
-
-    return id;
+  const getModelName = (token: string): string => {
+    const numericId = Number(token);
+    if (!isNaN(numericId)) {
+      const ieName = internalEvents.find((ie: InternalEventsModelType) => ie.id === numericId)?.label.name;
+      if (ieName) return ieName;
+      const ihName = internalHazards.find((ih: InternalHazardsModelType) => ih.id === numericId)?.label.name;
+      if (ihName) return ihName;
+      const ehName = externalHazards.find((eh: ExternalHazardsModelType) => eh.id === numericId)?.label.name;
+      if (ehName) return ehName;
+      const fsName = fullScope.find((fs: FullScopeModelType) => fs.id === numericId)?.label.name;
+      if (fsName) return fsName;
+    }
+    return token;
   };
 
   const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
     const tokens = TokenizePath(path);
     return tokens.map((token, i) => {
-      if (token.length === 24) {
-        token = getModelName(token);
-      }
+      const resolved = getModelName(token);
+      const text = resolved !== token ? resolved : ToTitleCase(token);
       return {
-        text: ToTitleCase(token),
+        text,
         style: { fontWeight: 500 },
         onClick: (e): void => {
           e.preventDefault();

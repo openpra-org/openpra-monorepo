@@ -32,13 +32,13 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
     <GenericListItem
       itemName={modelItem.label.name}
       id={modelItem.id}
-      key={modelItem._id} // Use a unique key for each item (e.g., the ID)
+      key={modelItem._id}
       label={{
         name: modelItem.label.name,
         description: modelItem.label.description,
       }}
-      path={modelItem._id}
-      endpoint={endpoint} // Adjust this based on your model's structure
+      path={String(modelItem.id)}
+      endpoint={endpoint}
       postTypedEndpoint={postTypedEndpoint}
       deleteTypedEndpoint={deleteTypedEndpoint}
       patchTypedEndpoint={patchTypedEndpoint}
@@ -47,6 +47,8 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
       deleteNestedEndpointNew={deleteNestedEndpoint}
       users={"users" in modelItem ? modelItem.users : null}
       _id={modelItem._id}
+      createdAt={"createdAt" in modelItem ? (modelItem.createdAt as string) : undefined}
+      updatedAt={"updatedAt" in modelItem ? (modelItem.updatedAt as string) : undefined}
     />
   )) as ReactElement[];
 }

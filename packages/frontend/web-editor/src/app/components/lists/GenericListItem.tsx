@@ -15,9 +15,6 @@ import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerMode
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
-// TODO: After all nested models are converted to use Zustand
-// TODO: Remove patchNestedEndpoint and replace it with patchNestedEndpointNew renamed to patchNestedEndpoint
-// TODO: Remove deleteNestedEndpoint and replace it with deleteNestedEndpointNew renamed to deleteNestedEndpoint
 export interface GenericListItemProps {
   id: number;
   label: LabelJSON;
@@ -34,17 +31,15 @@ export interface GenericListItemProps {
   path: string;
   itemName: string;
   _id?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-/**
- * @param props - that contains all the input props for the component
- */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
-  //grabs the props
-  const { label, id, path } = props;
+  const { label, id, path, createdAt, updatedAt } = props;
+  const timestamp = updatedAt ?? createdAt;
+  const timestampMs = timestamp ? Date.parse(timestamp) : Date.now();
 
-  // TODO
-  //setting theming constants to be used later
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle("border-bottom", `${String(border.width.thin)} solid ${String(border.color)}`);
   const paddingLine = logicalStyle("padding-vertical", String(useEuiPaddingSize("s")));
@@ -54,7 +49,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
       style={customStyles}
       icon={
         <Link to={path}>
-          {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
+          {}
           <EuiAvatar
             name={label.name ? label.name : ""}
             size="l"
@@ -70,7 +65,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
         >
           <EuiFlexItem grow={5}>
             <Link to={path}>
-              {/** this is the title for the item */}
+              {}
               <EuiText
                 size="m"
                 color="default"
@@ -79,7 +74,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
                 <strong>{label.name}</strong>
               </EuiText>
             </Link>
-            {/** this is the description for the item */}
+            {}
             <EuiText
               size="s"
               color="subdued"
@@ -95,10 +90,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
               textAlign="right"
             >
               <small>
-                <LastActionText
-                  action="viewed"
-                  timestamp={Date.now()}
-                />
+                <LastActionText timestamp={timestampMs} />
               </small>
             </EuiText>
           </EuiFlexItem>

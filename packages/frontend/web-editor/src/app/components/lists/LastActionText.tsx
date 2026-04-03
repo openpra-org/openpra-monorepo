@@ -1,20 +1,12 @@
-import { usePrettyDuration } from "@elastic/eui";
-import { ToTitleCase } from "../../../utils/StringUtils";
-
 export interface LastActionTextProps {
   timestamp: number;
-  action: "created" | "updated" | "viewed";
 }
 
-// TODO
-function LastActionText({ timestamp: _timestamp, action }: LastActionTextProps): JSX.Element {
-  let text = usePrettyDuration({
-    timeFrom: "now-3w",
-    timeTo: "now",
-    dateFormat: "MMMM Do YYYY @ HH:mm:ss.SS",
-  });
+function LastActionText({ timestamp }: LastActionTextProps): JSX.Element {
+  const date = new Date(timestamp);
+  const datePart = date.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+  const timePart = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 
-  text = `${ToTitleCase(action)} within the ${text.toLowerCase()}`;
-  return <div>{text}</div>;
+  return <div>{`Updated ${datePart} at ${timePart}`}</div>;
 }
 export { LastActionText };

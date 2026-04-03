@@ -36,6 +36,7 @@ import {
   EventSequenceQuantificationDiagramSchema,
 } from "./schemas/event-sequence-quantification-diagram.schema";
 import { DataAnalysis, DataAnalysisSchema } from "./schemas/data-analysis.schema";
+import { ComponentParameter, ComponentParameterSchema } from "./schemas/component-parameter.schema";
 import { HumanReliabilityAnalysis, HumanReliabilityAnalysisSchema } from "./schemas/human-reliability-analysis.schema";
 import { SystemsAnalysis, SystemsAnalysisSchema } from "./schemas/systems-analysis.schema";
 import { SuccessCriteria, SuccessCriteriaSchema } from "./schemas/success-criteria.schema";
@@ -49,9 +50,6 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 
-/**
- * Nested models module composing controllers, services and schemas for technical elements.
- */
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -67,31 +65,17 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
       { name: WeibullAnalysis.name, schema: WeibullAnalysisSchema },
       { name: NestedCounter.name, schema: NestedCounterSchema },
       { name: RiskIntegration.name, schema: RiskIntegrationSchema },
-      {
-        name: RadiologicalConsequenceAnalysis.name,
-        schema: RadiologicalConsequenceAnalysisSchema,
-      },
+      { name: RadiologicalConsequenceAnalysis.name, schema: RadiologicalConsequenceAnalysisSchema },
       { name: MechanisticSourceTerm.name, schema: MechanisticSourceTermSchema },
-      {
-        name: EventSequenceQuantificationDiagram.name,
-        schema: EventSequenceQuantificationDiagramSchema,
-      },
+      { name: EventSequenceQuantificationDiagram.name, schema: EventSequenceQuantificationDiagramSchema },
       { name: DataAnalysis.name, schema: DataAnalysisSchema },
-      {
-        name: HumanReliabilityAnalysis.name,
-        schema: HumanReliabilityAnalysisSchema,
-      },
+      { name: ComponentParameter.name, schema: ComponentParameterSchema },
+      { name: HumanReliabilityAnalysis.name, schema: HumanReliabilityAnalysisSchema },
       { name: SystemsAnalysis.name, schema: SystemsAnalysisSchema },
       { name: SuccessCriteria.name, schema: SuccessCriteriaSchema },
       { name: EventSequenceAnalysis.name, schema: EventSequenceAnalysisSchema },
-      {
-        name: OperatingStateAnalysis.name,
-        schema: OperatingStateAnalysisSchema,
-      },
-      {
-        name: EventSequenceDiagramGraph.name,
-        schema: EventSequenceDiagramGraphSchema,
-      },
+      { name: OperatingStateAnalysis.name, schema: OperatingStateAnalysisSchema },
+      { name: EventSequenceDiagramGraph.name, schema: EventSequenceDiagramGraphSchema },
       { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
       { name: EventTreeGraph.name, schema: EventTreeGraphSchema },
       { name: InternalEvents.name, schema: InternalEventsSchema },

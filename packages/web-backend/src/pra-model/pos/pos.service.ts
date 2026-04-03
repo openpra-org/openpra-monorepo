@@ -18,4 +18,21 @@ export class PosService {
     const keys = await this.storage.listObjects(modelId, TE_TYPE);
     return Promise.all(keys.map((key) => this.storage.getObject<PlantOperatingStatesAnalysis>(modelId, TE_TYPE, key)));
   }
+
+  async findOne(modelId: string, uuid: string): Promise<PlantOperatingStatesAnalysis> {
+    return this.storage.getObject<PlantOperatingStatesAnalysis>(modelId, TE_TYPE, uuid);
+  }
+
+  async update(
+    modelId: string,
+    uuid: string,
+    data: PlantOperatingStatesAnalysis,
+  ): Promise<PlantOperatingStatesAnalysis> {
+    await this.storage.putObject(modelId, TE_TYPE, uuid, data);
+    return data;
+  }
+
+  async delete(modelId: string, uuid: string): Promise<void> {
+    await this.storage.deleteObject(modelId, TE_TYPE, uuid);
+  }
 }

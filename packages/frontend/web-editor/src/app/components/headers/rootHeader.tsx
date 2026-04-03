@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../api/auth/AuthContext";
 import {
   EuiAvatar,
   EuiFlexGroup,
@@ -61,10 +62,8 @@ const RootHeader = (): JSX.Element => {
     });
   };
 
-  //Initiates using location
   const location = useLocation();
 
-  //redirects to the auth page if the user is not logged in
   useEffect(() => {
     if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
       void navigate("/");
@@ -142,6 +141,7 @@ const RootHeader = (): JSX.Element => {
 export { RootHeader };
 const HeaderUserMenu = (): JSX.Element => {
   const navigate = useNavigate();
+  const { logout: authLogout } = useAuth();
 
   const headerUserPopoverId = useGeneratedHtmlId({
     prefix: "headerUserPopover",
@@ -153,7 +153,6 @@ const HeaderUserMenu = (): JSX.Element => {
     setIsOpen(!isOpen);
   };
 
-  //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
   const nameString = currentUser.username ? currentUser.username : "Unknown User";
 
@@ -162,7 +161,7 @@ const HeaderUserMenu = (): JSX.Element => {
   };
 
   const logoutFunction = (): void => {
-    ApiManager.logout();
+    authLogout();
     ResetAllSlices();
     void navigate("");
   };

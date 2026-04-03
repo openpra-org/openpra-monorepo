@@ -15,6 +15,8 @@ import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
+import { AuthProvider } from "./api/auth/AuthContext";
+import { PrivateRoute } from "./components/PrivateRoute";
 
 const routes: RouteObject[] = [
   {
@@ -34,39 +36,75 @@ const routes: RouteObject[] = [
           },
           {
             path: "internal-events/*",
-            element: <InternalEventsPage />,
+            element: (
+              <PrivateRoute>
+                <InternalEventsPage />
+              </PrivateRoute>
+            ),
           },
           {
             path: "internal-hazards/*",
-            element: <InternalHazardsPage />,
+            element: (
+              <PrivateRoute>
+                <InternalHazardsPage />
+              </PrivateRoute>
+            ),
           },
           {
             path: "external-hazards/*",
-            element: <ExternalHazardsPage />,
+            element: (
+              <PrivateRoute>
+                <ExternalHazardsPage />
+              </PrivateRoute>
+            ),
           },
           {
             path: "full-scope/*",
-            element: <FullScopePage />,
+            element: (
+              <PrivateRoute>
+                <FullScopePage />
+              </PrivateRoute>
+            ),
           },
           {
             path: "about",
-            element: <>about</>,
+            element: (
+              <PrivateRoute>
+                <>about</>
+              </PrivateRoute>
+            ),
           },
           {
             path: "data-analysis/*",
-            element: <DataPage />,
+            element: (
+              <PrivateRoute>
+                <DataPage />
+              </PrivateRoute>
+            ),
           },
           {
             path: "physical-security/*",
-            element: <>WIP</>,
+            element: (
+              <PrivateRoute>
+                <>WIP</>
+              </PrivateRoute>
+            ),
           },
           {
             path: "cybersecurity/*",
-            element: <>WIP</>,
+            element: (
+              <PrivateRoute>
+                <>WIP</>
+              </PrivateRoute>
+            ),
           },
           {
             path: "settings/*",
-            element: <SettingsPage />,
+            element: (
+              <PrivateRoute>
+                <SettingsPage />
+              </PrivateRoute>
+            ),
           },
         ],
       },
@@ -76,7 +114,6 @@ const routes: RouteObject[] = [
 
 const router = createBrowserRouter(routes, {
   future: {
-    // Normalize `useNavigation()`/`useFetcher()` `formMethod` to uppercase
     v7_normalizeFormMethod: true,
   },
 });
@@ -86,10 +123,12 @@ function App(): ReactElement {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <AbilityContext.Provider value={ability}>
-          <RouterProvider router={router} />
-          <GlobalToastList />
-        </AbilityContext.Provider>
+        <AuthProvider>
+          <AbilityContext.Provider value={ability}>
+            <RouterProvider router={router} />
+            <GlobalToastList />
+          </AbilityContext.Provider>
+        </AuthProvider>
       </ToastProvider>
     </ThemeProvider>
   );

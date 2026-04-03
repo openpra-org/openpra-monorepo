@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
 import { LoginProps, LoginErrorProps } from "shared-sdk/lib/api/AuthTypes";
-import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { AuthService } from "shared-sdk/lib/api/AuthService";
 import { UpdateAbility } from "../../casl/ability";
 import { AbilityContext } from "../../providers/abilityProvider";
 import { UseToastContext } from "../../providers/toastProvider";
+import { useAuth } from "../../api/auth/AuthContext";
 import { GetESToast } from "../../../utils/treeUtils";
 
 function LoginForm(): JSX.Element {
@@ -26,31 +26,26 @@ function LoginForm(): JSX.Element {
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
   const ability = useContext(AbilityContext);
   const { addToast } = UseToastContext();
+  const { login: authLogin } = useAuth();
 
   async function handleLogin(): Promise<void> {
     setInvalid(false);
     const { username, password } = login;
     try {
-      await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
-        if (ApiManager.isLoggedIn()) {
-          UpdateAbility(ability, AuthService.getRole())
-            .then((_res) => {
-              setRedirectToHomepage(true);
-            })
-            .catch((_error: unknown) => {
-              addToast(GetESToast("danger", "Something went wrong while getting abilities"));
-              setInvalid(true);
-            });
-        } else {
+      await authLogin(username, password);
+      UpdateAbility(ability, AuthService.getRole())
+        .then((_res) => {
+          setRedirectToHomepage(true);
+        })
+        .catch((_error: unknown) => {
+          addToast(GetESToast("danger", "Something went wrong while getting abilities"));
           setInvalid(true);
-        }
-      });
+        });
     } catch (_error: unknown) {
-      // Intentionally ignoring error here; invalid state is handled via setInvalid
+      setInvalid(true);
     }
   }
 
-  //Corrects the isInvalid when a user types something in a blank input field
   useEffect(() => {
     if (login.username && error.username) {
       setError({
@@ -69,7 +64,6 @@ function LoginForm(): JSX.Element {
   function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
 
-    //need errorCheck in the later if statement due to how states and renders work
     const errorCheck = {
       username: !login.username,
       password: !login.password,
@@ -80,25 +74,8 @@ function LoginForm(): JSX.Element {
       password: !login.password,
     });
 
-    //makes sure all input fields are not empty
     if (!errorCheck.username && !errorCheck.password) {
-      handleLogin()
-        .then(() => {
-          // Handle successful login
-          if (redirectToHomepage) {
-            // Redirect to the homepage (root) to show recent models
-            return (
-              <Navigate
-                to="/"
-                replace={true}
-              />
-            );
-          }
-        })
-        .catch((_error: unknown) => {
-          // Handle login error
-          // Optionally, you can also set an error state to display to the user
-        });
+      void handleLogin();
     }
   }
 

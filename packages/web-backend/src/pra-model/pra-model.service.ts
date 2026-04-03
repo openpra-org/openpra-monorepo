@@ -10,6 +10,7 @@ export interface CreatePraModelDto {
 }
 
 const MODELS_PREFIX = "pra-models";
+const MODELS_COLLECTION = "meta";
 
 @Injectable()
 export class PraModelService {
@@ -23,7 +24,20 @@ export class PraModelService {
       ownerId: dto.ownerId,
       createdAt: new Date().toISOString(),
     };
-    await this.storage.putObject(MODELS_PREFIX, meta.type, meta.uuid, meta);
+    await this.storage.putObject(MODELS_PREFIX, MODELS_COLLECTION, meta.uuid, meta);
     return meta;
+  }
+
+  async findAll(): Promise<PraModelMeta[]> {
+    const keys = await this.storage.listObjects(MODELS_PREFIX, MODELS_COLLECTION);
+    return Promise.all(keys.map((key) => this.storage.getObject<PraModelMeta>(MODELS_PREFIX, MODELS_COLLECTION, key)));
+  }
+
+  async findOne(uuid: string): Promise<PraModelMeta> {
+    return this.storage.getObject<PraModelMeta>(MODELS_PREFIX, MODELS_COLLECTION, uuid);
+  }
+
+  async delete(uuid: string): Promise<void> {
+    await this.storage.deleteObject(MODELS_PREFIX, MODELS_COLLECTION, uuid);
   }
 }

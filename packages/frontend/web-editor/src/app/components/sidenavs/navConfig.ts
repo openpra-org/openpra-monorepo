@@ -1,13 +1,5 @@
 import type { NavNode, ScopedNavScope } from "./types";
 
-/**
- * Navigation configuration grouped by scoped model context.
- *
- * Provides the left-hand navigation tree for each OpenPRA analysis scope
- * (InternalEvents, InternalHazards, ExternalHazards, FullScope).
- */
-
-// Define individual sections with stable ids and relative paths
 const POS: NavNode = {
   id: "plant-operating-state",
   name: "Plant Operating State Analysis",
@@ -80,7 +72,7 @@ const SY: NavNode = {
   path: "systems-analysis",
   expanded: true,
   items: [
-    { id: "systems-analysis-item", name: "Systems Analysis", path: "systems-analysis", iconType: "aggregate" },
+    { id: "fmea", name: "FMEA", path: "systems-analysis", iconType: "tableDensityNormal" },
     { id: "fault-trees", name: "Fault Trees", path: "fault-trees", iconType: "tokenRepo" },
     { id: "bayesian-networks", name: "Bayesian Networks", path: "bayesian-networks", iconType: "editorBold" },
     { id: "markov-chains", name: "Markov Chains", path: "markov-chains", iconType: "tokenShape" },
@@ -108,7 +100,12 @@ const DA: NavNode = {
   path: "data-analysis",
   expanded: true,
   items: [
-    { id: "data-analysis-item", name: "Data Analysis", path: "data-analysis", iconType: "aggregate" },
+    {
+      id: "component-reliability",
+      name: "Component Reliability",
+      path: "data-analysis",
+      iconType: "tableDensityNormal",
+    },
     { id: "bayesian-estimation", name: "Bayesian Estimation", path: "bayesian-estimation", iconType: "tokenRepo" },
     { id: "weibull-analysis", name: "Weibull Analysis", path: "weibull-analysis", iconType: "bolt" },
   ],
@@ -186,9 +183,6 @@ const SETTINGS: NavNode = {
   iconType: "gear",
 };
 
-/**
- * Map of model scope to the ordered list of navigation sections displayed in the UI.
- */
 export const NAV_BY_SCOPE: Record<ScopedNavScope, NavNode[]> = {
   InternalEvents: [POS, IE, ES, SC, SY, HR, DA, ESQ, MS, RC, RI, SETTINGS],
   InternalHazards: [POS, IE, ES, SC, SY, HR, DA, FL, F, HS, O, ESQ, MS, RC, RI, SETTINGS],
@@ -196,5 +190,4 @@ export const NAV_BY_SCOPE: Record<ScopedNavScope, NavNode[]> = {
   FullScope: [POS, IE, ES, SC, SY, HR, DA, FL, F, S, HS, W, XF, O, ESQ, MS, RC, RI, SETTINGS],
 };
 
-/** Re-export of the NavNode shape used by the navigation builder. */
 export type { NavNode };

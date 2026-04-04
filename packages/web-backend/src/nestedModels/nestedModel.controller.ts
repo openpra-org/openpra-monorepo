@@ -175,7 +175,12 @@ export class NestedModelController {
   }
 
   @Post("/systems-analysis/")
-  async createSystemsAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  async createSystemsAnalysis(
+    @Body() body: { data: Partial<NestedModel>; typedModel?: string } | Partial<NestedModel>,
+  ): Promise<NestedModel> {
+    const hasWrapper = (v: unknown): v is { data: Partial<NestedModel>; typedModel?: string } =>
+      typeof v === "object" && v !== null && "data" in (v as Record<string, unknown>);
+    const data = hasWrapper(body) ? body.data : body;
     return this.nestedModelService.createSystemsAnalysis(data);
   }
 

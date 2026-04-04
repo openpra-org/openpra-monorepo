@@ -11,13 +11,12 @@ import { Document } from "mongoose";
     },
   },
 })
-/**
- * Failure Modes and Effects Analysis (FMEA) document.
- * Stores columns configuration and row data for an FMEA table.
- */
 export class Fmea {
   @Prop({ required: false })
   id: number;
+
+  @Prop({ required: false })
+  systemsAnalysisId: number;
 
   @Prop()
   title: string;
@@ -25,7 +24,6 @@ export class Fmea {
   @Prop()
   description: string;
 
-  //prop of type array named columns which containing strings
   @Prop({ default: [] })
   columns: {
     id: string;
@@ -43,11 +41,7 @@ export class Fmea {
     row_data: Record<string, string>;
   }[];
 }
-/**
- * Mongoose schema for Fmea.
- */
+
 export const FmeaSchema = SchemaFactory.createForClass(Fmea);
-/**
- * Mongoose document type for Fmea.
- */
+
 export type FmeaDocument = Fmea & Document;

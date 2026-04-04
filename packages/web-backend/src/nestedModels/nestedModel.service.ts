@@ -204,7 +204,8 @@ export class NestedModelService {
   }
 
   async createSystemsAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
-    const newSystemsAnalysis = new this.systemsAnalysisModel(body);
+    const parentIds = (body.parentIds ?? []).map((id) => Number(id));
+    const newSystemsAnalysis = new this.systemsAnalysisModel({ ...body, parentIds });
     newSystemsAnalysis.id = await this.getNextValue("nestedCounter");
     return newSystemsAnalysis.save();
   }
@@ -290,7 +291,7 @@ export class NestedModelService {
   }
 
   async getSystemsAnalysis(parentId: number): Promise<SystemsAnalysis[]> {
-    return this.systemsAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
+    return this.systemsAnalysisModel.find({ parentIds: { $in: [Number(parentId), String(parentId)] } }, { _id: 0 });
   }
 
   async getSuccessCriteria(parentId: number): Promise<SuccessCriteria[]> {

@@ -22,20 +22,12 @@ import { ToTitleCase } from "../../../utils/StringUtils";
 import { UseGlobalStore } from "../../zustand/Store";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
-//different props depending on different type of objects we are using for the add button
 export type CreateItemButtonProps = Omit<ItemFormProps, "action">;
 
-export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
+export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action"> & { buttonText?: string };
 
-/**
- * for typed models
- * @param itemName - the type of item that is being passed
- * @param endpoint - endpoint that will be used to add the item
- * @returns the create item button
- */
 function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
-  //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
@@ -45,11 +37,10 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
       popoverProps={{
         initialFocus: "#name",
       }}
-      //iconType="plusInCircleFilled"
       iconSize="m"
       size="s"
     >
-      {/*TODO:: replace endpoint string with TypedModelApiManager method */}
+      {}
       <TypedModelActionForm
         compressed
         action="create"
@@ -60,29 +51,23 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
   );
 }
 export { CreateItemButton };
-/**
- * @remarks for nested models
- * @param itemName - the type of item that is being passed
- * @param endpoint - endpoint that will be used to add the item
- * @returns the create item button
- */
+
 export function CreateNestedItemButton({
   itemName,
   postNestedEndpoint,
   postEndpoint,
+  buttonText: buttonTextOverride,
 }: CreateNestedItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
-  //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText={"Create " + ToTitleCase(itemName)}
+      buttonText={buttonTextOverride ?? "Create " + ToTitleCase(itemName)}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name",
       }}
-      //iconType="plusInCircleFilled"
       iconSize="m"
       size="s"
     >
@@ -97,7 +82,6 @@ export function CreateNestedItemButton({
   );
 }
 
-//TODO: Functions have placeholders for the creates that don't exist
 export function CreateInternalEventsButton(): JSX.Element {
   const createInternalEvent = UseGlobalStore.use.AddInternalEvent();
 
@@ -265,6 +249,7 @@ export function CreateDataAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="data-analysis"
+      buttonText="Create Component Reliability"
       postEndpoint={PostDataAnalysis}
     />
   );
@@ -283,6 +268,7 @@ export function CreateSystemsAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="systems-analysis"
+      buttonText="Create FMEA"
       postEndpoint={PostSystemsAnalysis}
     />
   );

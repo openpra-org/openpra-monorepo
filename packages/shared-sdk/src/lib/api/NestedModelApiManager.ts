@@ -514,6 +514,18 @@ export function Patch(url: string, data: unknown): Promise<Response> {
   });
 }
 
+export function PostDirect(url: string, data: unknown): Promise<Response> {
+  return fetch(url, {
+    method: "POST",
+    cache: OPTION_CACHE,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `JWT ${AuthService.getEncodedToken()}`,
+    },
+    body: JSON.stringify(data),
+  });
+}
+
 export async function DeleteFunctionalEvent(id = -1): Promise<NestedModel> {
   const response = await Delete(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,

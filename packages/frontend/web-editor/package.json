@@ -28,6 +28,7 @@
     "react-router-dom": "7.9.4",
     "reactflow": "11.11.4",
     "shared-types": "workspace:^",
+    "xlsx": "0.18.5",
     "zustand": "5.0.8"
   },
   "devDependencies": {

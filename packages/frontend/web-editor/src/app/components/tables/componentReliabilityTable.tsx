@@ -8,6 +8,7 @@ export type ComponentReliabilityTableProps = {
   onAdd: () => void;
   onEdit: (row: ComponentParameterType) => void;
   onDelete: (id: number) => void;
+  onImport: () => void;
 };
 
 const SCIENTIFIC_COLUMNS = new Set([
@@ -46,7 +47,13 @@ const COLUMNS = [
   { id: "effectiveDate", displayAsText: "Effective Date" },
 ];
 
-function ComponentReliabilityTable({ rows, onAdd, onEdit, onDelete }: ComponentReliabilityTableProps): JSX.Element {
+function ComponentReliabilityTable({
+  rows,
+  onAdd,
+  onEdit,
+  onDelete,
+  onImport,
+}: ComponentReliabilityTableProps): JSX.Element {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.id));
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
   const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
@@ -84,6 +91,14 @@ function ComponentReliabilityTable({ rows, onAdd, onEdit, onDelete }: ComponentR
           justifyContent="flexEnd"
           responsive={false}
         >
+          <EuiFlexItem grow={false}>
+            <EuiButton
+              iconType="importAction"
+              onClick={onImport}
+            >
+              Import from Excel / CSV
+            </EuiButton>
+          </EuiFlexItem>
           <EuiFlexItem grow={false}>
             <EuiButton
               iconType="plusInCircle"

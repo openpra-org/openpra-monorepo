@@ -11,7 +11,7 @@ const createComponentParameterSchema = z.object({
   units: z.string().optional(),
   dhUnit: z.string().optional(),
   dhValue: z.number().nonnegative().optional(),
-  componentCount: z.number().int().positive().optional(),
+  componentCount: z.number().int().nonnegative().optional(),
   distribution: z.string().optional(),
   analysisType: z.string().optional(),
   fth: z.number().optional(),
@@ -28,9 +28,7 @@ const createComponentParameterSchema = z.object({
 const updateComponentParameterSchema = createComponentParameterSchema.partial();
 
 export class CreateComponentParameterDto extends createZodDto(createComponentParameterSchema) {}
-
 export class UpdateComponentParameterDto extends createZodDto(updateComponentParameterSchema) {}
 
 export type CreateComponentParameterBody = z.infer<typeof createComponentParameterSchema>;
-
 export type UpdateComponentParameterBody = z.infer<typeof updateComponentParameterSchema>;

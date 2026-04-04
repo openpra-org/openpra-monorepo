@@ -169,9 +169,8 @@ const HeaderUserMenu = (): JSX.Element => {
   };
 
   const logoutFunction = (): void => {
-    authLogout();
-    ResetAllSlices();
-    void navigate("");
+    ApiManager.logout();
+    window.location.replace("/");
   };
 
   const adminFunction = (): void => {

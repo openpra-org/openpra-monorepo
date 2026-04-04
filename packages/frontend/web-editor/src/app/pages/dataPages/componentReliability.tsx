@@ -14,6 +14,7 @@ function ComponentReliability(): JSX.Element {
         onAdd={(): void => undefined}
         onEdit={(): void => undefined}
         onDelete={(): void => undefined}
+        onImport={(): void => undefined}
       />
     </TemplatedPageBody>
   );

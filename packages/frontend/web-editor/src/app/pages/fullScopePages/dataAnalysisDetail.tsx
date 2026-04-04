@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import * as XLSX from "xlsx";
 import {
   EuiButton,
   EuiButtonEmpty,
+  EuiCallOut,
   EuiConfirmModal,
   EuiFieldNumber,
   EuiFieldText,
@@ -16,8 +18,10 @@ import {
   EuiModalHeader,
   EuiModalHeaderTitle,
   EuiPageTemplate,
+  EuiProgress,
   EuiSkeletonRectangle,
   EuiSpacer,
+  EuiText,
   EuiTitle,
 } from "@elastic/eui";
 import {
@@ -29,6 +33,102 @@ import {
   PostComponentParameter,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { ComponentReliabilityTable } from "../../components/tables/componentReliabilityTable";
+
+function excelSerialToISO(serial: number): string {
+  const ms = (serial - 25569) * 86400 * 1000;
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function num(v: unknown): number | undefined {
+  if (v === undefined || v === null || v === "" || v === "--") return undefined;
+  const n = Number(v);
+  return isNaN(n) ? undefined : n;
+}
+
+function str(v: unknown): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).trim();
+  return s === "" || s === "--" ? undefined : s;
+}
+
+function parseComponentReliabilitySheet(wb: XLSX.WorkBook): CreateComponentParameterBody[] {
+  const sheetName = wb.SheetNames.find((n) => n.toLowerCase().includes("component reliability")) ?? wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+
+  const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
+
+  let dataStart = 5; // default
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    const row = raw[i] as unknown[];
+    if (
+      String(row[1] ?? "")
+        .toLowerCase()
+        .includes("component type")
+    ) {
+      dataStart = i + 2;
+      break;
+    }
+  }
+
+  const results: CreateComponentParameterBody[] = [];
+  let currentGrouping: string | undefined;
+  let currentComponentType: string | undefined;
+
+  for (let i = dataStart; i < raw.length; i++) {
+    const r = raw[i] as unknown[];
+
+    const colA = str(r[0]);
+    const colB = str(r[1]);
+    const colC = str(r[2]);
+    const colD = str(r[3]);
+
+    if (!colC && !colD) continue;
+
+    if (colA && isNaN(Number(colA))) {
+      currentGrouping = colA;
+    }
+
+    if (colB) {
+      currentComponentType = colB;
+    }
+
+    const componentType = currentComponentType;
+    const componentFailureMode = colC ?? colD ?? "";
+    if (!componentType || !componentFailureMode) continue;
+
+    const rawT = r[19];
+    let effectiveDate: string | undefined;
+    if (rawT !== "" && rawT !== undefined) {
+      const n = Number(rawT);
+      effectiveDate = isNaN(n) ? str(rawT) : excelSerialToISO(n);
+    }
+
+    results.push({
+      grouping: currentGrouping,
+      componentType,
+      componentFailureMode,
+      description: colC ? colD : undefined,
+      dataSource: str(r[4]),
+      failures: num(r[5]),
+      dhValue: num(r[6]),
+      dhUnit: str(r[7]),
+      componentCount: num(r[8]),
+      distribution: str(r[9]),
+      analysisType: str(r[10]),
+      fth: num(r[11]),
+      median: num(r[12]),
+      mean: num(r[13]),
+      nfth: num(r[14]),
+      alpha: num(r[15]),
+      beta: num(r[16]),
+      errorFactor: num(r[17]),
+      dateRange: str(r[18]),
+      effectiveDate,
+    });
+  }
+
+  return results;
+}
 
 type FormState = {
   componentType: string;
@@ -150,6 +250,13 @@ function DataAnalysisDetail(): JSX.Element {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importRows, setImportRows] = useState<CreateComponentParameterBody[]>([]);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+
   const loadRows = useCallback((): void => {
     if (!parsedId) return;
     setIsLoading(true);
@@ -244,6 +351,70 @@ function DataAnalysisDetail(): JSX.Element {
     setFormError(null);
   }, []);
 
+  const handleImportClick = useCallback((): void => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImportError(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt): void => {
+      try {
+        const data = evt.target?.result;
+        const wb = XLSX.read(data, { type: "array" });
+        const parsed = parseComponentReliabilitySheet(wb);
+        if (parsed.length === 0) {
+          setImportError("No data rows were found. Make sure you selected the correct sheet.");
+          return;
+        }
+        setImportRows(parsed);
+        setImportModalOpen(true);
+      } catch {
+        setImportError("Failed to parse the file. Please check the format and try again.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }, []);
+
+  const handleImportConfirm = useCallback((): void => {
+    if (importRows.length === 0) return;
+    setIsImporting(true);
+    setImportProgress(0);
+
+    let completed = 0;
+    const postNext = (): void => {
+      if (completed >= importRows.length) {
+        setIsImporting(false);
+        setImportModalOpen(false);
+        setImportRows([]);
+        loadRows();
+        return;
+      }
+      PostComponentParameter(parsedId, importRows[completed])
+        .then(() => {
+          completed++;
+          setImportProgress(Math.round((completed / importRows.length) * 100));
+          postNext();
+        })
+        .catch(() => {
+          setImportError(`Failed on row ${String(completed + 1)}. Partial import may have occurred.`);
+          setIsImporting(false);
+        });
+    };
+    postNext();
+  }, [importRows, parsedId, loadRows]);
+
+  const handleImportCancel = useCallback((): void => {
+    if (isImporting) return;
+    setImportModalOpen(false);
+    setImportRows([]);
+    setImportError(null);
+  }, [isImporting]);
+
   return (
     <EuiPageTemplate
       panelled={false}
@@ -262,11 +433,31 @@ function DataAnalysisDetail(): JSX.Element {
           isLoading={isLoading}
           contentAriaLabel="Component reliability parameters table"
         >
+          {importError !== null && !importModalOpen && (
+            <>
+              <EuiCallOut
+                title="Import error"
+                color="danger"
+                iconType="alert"
+              >
+                <p>{importError}</p>
+              </EuiCallOut>
+              <EuiSpacer size="s" />
+            </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            style={{ display: "none" }}
+            onChange={handleFileSelect}
+          />
           <ComponentReliabilityTable
             rows={rows}
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onImport={handleImportClick}
           />
         </EuiSkeletonRectangle>
       </EuiPageTemplate.Section>
@@ -411,7 +602,7 @@ function DataAnalysisDetail(): JSX.Element {
                       onChange={(e): void => {
                         setField("componentCount", e.target.value);
                       }}
-                      min={1}
+                      min={0}
                     />
                   </EuiFormRow>
                 </EuiFlexItem>
@@ -553,6 +744,64 @@ function DataAnalysisDetail(): JSX.Element {
               onClick={handleSubmit}
             >
               {isEditing ? "Save Changes" : "Add"}
+            </EuiButton>
+          </EuiModalFooter>
+        </EuiModal>
+      )}
+
+      {}
+      {importModalOpen && (
+        <EuiModal
+          onClose={handleImportCancel}
+          style={{ minWidth: 480 }}
+        >
+          <EuiModalHeader>
+            <EuiModalHeaderTitle>Import Component Parameters</EuiModalHeaderTitle>
+          </EuiModalHeader>
+          <EuiModalBody>
+            {importError !== null ?
+              <EuiCallOut
+                title="Import error"
+                color="danger"
+                iconType="alert"
+              >
+                <p>{importError}</p>
+              </EuiCallOut>
+            : isImporting ?
+              <>
+                <EuiText size="s">
+                  <p>Importing {String(importRows.length)} rows…</p>
+                </EuiText>
+                <EuiSpacer size="s" />
+                <EuiProgress
+                  value={importProgress}
+                  max={100}
+                  size="m"
+                  color="primary"
+                />
+              </>
+            : <EuiText size="s">
+                <p>
+                  <strong>{String(importRows.length)} rows</strong> were detected. They will be imported into this data
+                  analysis. This cannot be undone.
+                </p>
+              </EuiText>
+            }
+          </EuiModalBody>
+          <EuiModalFooter>
+            <EuiButtonEmpty
+              onClick={handleImportCancel}
+              isDisabled={isImporting}
+            >
+              Cancel
+            </EuiButtonEmpty>
+            <EuiButton
+              fill
+              isLoading={isImporting}
+              isDisabled={importError !== null}
+              onClick={handleImportConfirm}
+            >
+              Import
             </EuiButton>
           </EuiModalFooter>
         </EuiModal>

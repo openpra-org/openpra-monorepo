@@ -1,4 +1,4 @@
-import { Delete, Get, Patch, Post } from "../NestedModelApiManager";
+import { Delete, Get, Patch, PostDirect } from "../NestedModelApiManager";
 
 const DATA_ANALYSIS_ENDPOINT = "/api/nested-models/data-analysis";
 
@@ -47,10 +47,7 @@ export async function PostComponentParameter(
   body: CreateComponentParameterBody,
 ): Promise<ComponentParameterType> {
   try {
-    const response = await Post(
-      `${DATA_ANALYSIS_ENDPOINT}/${dataAnalysisId}/parameters`,
-      body as unknown as Parameters<typeof Post>[1],
-    );
+    const response = await PostDirect(`${DATA_ANALYSIS_ENDPOINT}/${dataAnalysisId}/parameters`, body);
     return (await response.json()) as ComponentParameterType;
   } catch (error) {
     console.error("Failed to create component parameter:", error);

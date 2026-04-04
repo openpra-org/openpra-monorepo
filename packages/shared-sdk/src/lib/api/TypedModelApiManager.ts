@@ -18,7 +18,7 @@ import { ApiManager } from "./ApiManager";
 import { RemoveParentIds } from "./NestedModelApiManager";
 
 const API_ENDPOINT = "/api";
-const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
+const OPTION_CACHE = "no-cache";
 const TYPED_ENDPOINT = `${API_ENDPOINT}/typed-models`;
 const DELETE_NESTED_END = "/delete-nested";
 const INTERNAL_EVENTS_ENDPOINT = `${TYPED_ENDPOINT}/internal-events`;
@@ -31,123 +31,73 @@ const TYPED_MODEL_ID_LOCATION = 2;
 const METADATA_ENDPOINT = `${API_ENDPOINT}/typed-models/metadata`;
 const MD_INTERNAL_EVENTS_ENDPOINT = `${METADATA_ENDPOINT}/internal-events`;
 
-/**
- * gets a list of metadata of the internal events based on a users id
- * @param id - the id of the user whose events we want to load
- * @returns a promise with an internal event list
- */
 export function GetInternalEventsMetadata(id = -1): Promise<InternalEventsMetadata[]> {
   return Get(`${MD_INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<InternalEventsMetadata[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalEventsMetadata[]>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * gets a list of internal events based on a users id
- * @param id - the id of the user whose events we want to load
- * @returns a promise with an internal event list
- */
 export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
   return Get(`${INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<InternalEventsModelType[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalEventsModelType[]>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * gets a list of external hazards based on a users id
- * @param id - the id of the user whose events we want to load
- * @returns a promise with an external hazards list
- */
 export function GetExternalHazards(id = -1): Promise<ExternalHazardsModelType[]> {
   return Get(`${EXTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<ExternalHazardsModelType[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<ExternalHazardsModelType[]>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * gets a list of internal hazards based on a users id
- * @param id - the id of the user whose models we want to load
- * @returns a promise with an internal hazards list
- */
 export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]> {
   return Get(`${INTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<InternalHazardsModelType[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalHazardsModelType[]>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * gets a list of full scope based on a users id
- * @param id - the id of the user whose models we want to load
- * @returns a promise with a full scope list
- */
 export function GetFullScopeModels(id = -1): Promise<FullScopeModelType[]> {
   return Get(`${FULL_SCOPE_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<FullScopeModelType[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<FullScopeModelType[]>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-//singular get current
-
-/**
- *   takes in nothing and gives the current model the user is on based on their page
- * useful for getting data, or possibly using  to add things to later down the line
- * @returns the model the user is currently viewing
- */
 export function GetCurrentTypedModel(): Promise<TypedModel> {
-  //setting up data so get current model doesn't need unknown parameters, as it will probably be called frequently
   const userId = ApiManager.getCurrentUser().user_id;
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character
-  const currentModelType = splitPath[TYPED_MODEL_TYPE_LOCATION]; // The second part is "internal-events"
+  const splitPath = window.location.pathname.split("/");
+  const currentModelType = splitPath[TYPED_MODEL_TYPE_LOCATION];
   const modelId = parseInt(splitPath[TYPED_MODEL_ID_LOCATION]);
   return Get(`${TYPED_ENDPOINT}/${currentModelType}/${modelId}/?userId=${Number(userId)}`)
-    .then((response) => response.json() as Promise<TypedModel>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<TypedModel>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * Read the current typed model id from the URL as a string.
- * @returns Model id segment from the path without parsing.
- */
 export function GetCurrentModelIdString(): string {
   const splitPath = window.location.pathname.split("/");
   return splitPath[TYPED_MODEL_ID_LOCATION];
 }
 
-/**
- * Read the current typed model id from the URL as a number.
- * @returns Parsed numeric model id from the path.
- */
 export function GetCurrentModelId(): number {
   const splitPath = window.location.pathname.split("/");
   return parseInt(splitPath[TYPED_MODEL_ID_LOCATION]);
 }
 
-/**
- * Read the current typed model type from the URL.
- * @returns Model type segment from the path (e.g., "internal-events").
- */
 export function GetCurrentModelType(): string {
   const splitPath = window.location.pathname.split("/");
   return splitPath[TYPED_MODEL_TYPE_LOCATION];
 }
 
-/**
- * gets a list of internal events based on a users id
- * @param url - the url where we are grabbing a data list from
- * @returns a promise with a list of a type of models
- */
 export function Get(url: string): Promise<Response> {
   return fetch(url, {
     method: "GET",
@@ -159,56 +109,28 @@ export function Get(url: string): Promise<Response> {
   });
 }
 
-//post Methods
-
-/**
- *  is the method that posts a new internal event
- * @param data - the new internal Event Model
- * @returns a promise with a typed model
- */
 export function PostInternalEvent(data: Partial<TypedModelJSON>): Promise<InternalEventsModelType> {
   return Post(`${INTERNAL_EVENTS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<InternalEventsModelType>,
   );
 }
 
-/**
- *  is the method that posts a new internal hazard
- * @param data - the new internal hazard
- * @returns a promise with a typed model
- */
 export function PostInternalHazard(data: Partial<TypedModelJSON>): Promise<InternalHazardsModelType> {
   return Post(`${INTERNAL_HAZARDS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<InternalHazardsModelType>,
   );
 }
 
-/**
- *  posts a new external hazard
- * @param data - the new external hazard model
- * @returns a promise with a typed model
- */
 export function PostExternalHazard(data: Partial<TypedModelJSON>): Promise<ExternalHazardsModelType> {
   return Post(`${EXTERNAL_HAZARDS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<ExternalHazardsModelType>,
   );
 }
 
-/**
- *  is the method that posts a new full scope
- * @param data - the new full scope model
- * @returns a promise with a typed model
- */
 export function PostFullScope(data: Partial<TypedModelJSON>): Promise<FullScopeModelType> {
   return Post(`${FULL_SCOPE_ENDPOINT}/`, data).then((response) => response.json() as Promise<FullScopeModelType>);
 }
 
-/**
- *  is the method that posts one of the model types
- * @param url - the endpoint we are going to
- * @param data - the new model
- * @returns a promise with the response from the backend
- */
 export function Post(url: string, data: Partial<TypedModelJSON>): Promise<Response> {
   return fetch(url, {
     method: "POST",
@@ -217,19 +139,10 @@ export function Post(url: string, data: Partial<TypedModelJSON>): Promise<Respon
       "Content-Type": "application/json",
       Authorization: `JWT ${AuthService.getEncodedToken()}`,
     },
-    body: JSON.stringify(data), // body data type must match "Content-Type" header
+    body: JSON.stringify(data),
   });
 }
 
-//patch methods
-
-/**
- * Patches an internal event by updating its users list, and label
- * @param modelId - the model id of the model to be patched
- * @param userId - the id of the user who is patching the model
- * @param data - the partial of an internal events model that at least contains a label and users list
- * @returns the newly patched model in a promise
- */
 export function PatchInternalEvent(
   modelId: number,
   userId: number,
@@ -240,13 +153,6 @@ export function PatchInternalEvent(
   );
 }
 
-/**
- * Patches an external hazard by updating its users list, and label
- * @param modelId - the model id of the model to be patched
- * @param userId - the id of the user who is patching the model
- * @param data - the partial of an external hazards model that at least contains a label and users list
- * @returns the newly patched model in a promise
- */
 export function PatchExternalHazard(
   modelId: number,
   userId: number,
@@ -257,13 +163,6 @@ export function PatchExternalHazard(
   );
 }
 
-/**
- * Patches an internal hazard by updating its users list, and label
- * @param modelId - the model id of the model to be patched
- * @param userId - the id of the user who is patching the model
- * @param data - the partial of an internal hazards model that at least contains a label and users list
- * @returns the newly patched model in a promise
- */
 export function PatchInternalHazard(
   modelId: number,
   userId: number,
@@ -274,13 +173,6 @@ export function PatchInternalHazard(
   );
 }
 
-/**
- * Patches a full scope by updating its users list, and label
- * @param modelId - the model id of the model to be patched
- * @param userId - the id of the user who is patching the model
- * @param data - the partial of a full scope model that at least contains a label and users list
- * @returns the newly patched model in a promise
- */
 export function PatchFullScope(
   modelId: number,
   userId: number,
@@ -291,12 +183,6 @@ export function PatchFullScope(
   );
 }
 
-/**
- * Patches a typed model, is generic and used by other things in this file only
- * @param url - the url we grab the data from, passed by the other methods
- * @param data - the partial of a model, or a collection of data for a nested model, or a collection of data from a nested model and a parent id.
- * @returns the newly patched model in a promise
- */
 function Patch(
   url: string,
   data:
@@ -311,77 +197,50 @@ function Patch(
       "Content-Type": "application/json",
       Authorization: `JWT ${AuthService.getEncodedToken()}`,
     },
-    body: JSON.stringify(data), // body data type must match "Content-Type" header
+    body: JSON.stringify(data),
   });
 }
 
-//delete methods
-
-/**
- * deletes an internal event with a given model id
- * @param id - id of model
- * @returns a promise with the deleted internal event
- */
 export async function DeleteInternalEvent(id = -1): Promise<InternalEventsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${INTERNAL_EVENTS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
-    .then((response) => response.json() as Promise<InternalEventsModelType>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalEventsModelType>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * deletes an external hazard with a given model id
- * @param id - id of model
- * @returns a promise with the deleted external hazard
- */
 export async function DeleteExternalHazard(id = -1): Promise<ExternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${EXTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
-    .then((response) => response.json() as Promise<ExternalHazardsModelType>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<ExternalHazardsModelType>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * deletes an internal hazard with a given model id
- * @param id - id of model
- * @returns a promise with the deleted internal hazard
- */
 export async function DeleteInternalHazard(id = -1): Promise<InternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${INTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
-    .then((response) => response.json() as Promise<InternalHazardsModelType>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalHazardsModelType>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * deletes a full scope with a given model id
- * @param id - id of model
- * @returns a promise with the deleted full scope
- */
 export async function DeleteFullScope(id = -1): Promise<FullScopeModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${FULL_SCOPE_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
-    .then((response) => response.json() as Promise<FullScopeModelType>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<FullScopeModelType>)
     .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
+      throw error;
     });
 }
 
-/**
- * deletes something, one fo the 4 model types
- * @param url - the url of where we are deleting things from
- * @returns a promise with the deleted model
- */
 export function DeleteCall(url: string): Promise<Response> {
   return fetch(url, {
     method: "DELETE",
@@ -393,66 +252,50 @@ export function DeleteCall(url: string): Promise<Response> {
   });
 }
 
-/**
- * puts the nested model's id at the appropriate endpoint
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function AddNestedToInternalEvent(body: {
   modelId: number;
   nestedId: number;
   nestedType: string;
-}): Promise<InternalEventsModel> {
-  return Patch(INTERNAL_EVENTS_ENDPOINT, body).then((response) => response.json() as Promise<InternalEventsModel>);
+}): Promise<InternalEventsModel | null> {
+  return Patch(INTERNAL_EVENTS_ENDPOINT, body).then(async (response) => {
+    const text = await response.text();
+    return text ? (JSON.parse(text) as InternalEventsModel) : null;
+  });
 }
 
-/**
- * puts the nested model's id at the appropriate endpoint
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function AddNestedToInternalHazard(body: {
   modelId: number;
   nestedId: number;
   nestedType: string;
-}): Promise<InternalHazardsModel> {
-  return Patch(INTERNAL_HAZARDS_ENDPOINT, body).then((response) => response.json() as Promise<InternalHazardsModel>);
+}): Promise<InternalHazardsModel | null> {
+  return Patch(INTERNAL_HAZARDS_ENDPOINT, body).then(async (response) => {
+    const text = await response.text();
+    return text ? (JSON.parse(text) as InternalHazardsModel) : null;
+  });
 }
 
-/**
- * puts the nested model's id at the appropriate endpoint
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function AddNestedToExternalHazard(body: {
   modelId: number;
   nestedId: number;
   nestedType: string;
-}): Promise<ExternalHazardsModel> {
-  return Patch(EXTERNAL_HAZARDS_ENDPOINT, body).then((response) => response.json() as Promise<ExternalHazardsModel>);
+}): Promise<ExternalHazardsModel | null> {
+  return Patch(EXTERNAL_HAZARDS_ENDPOINT, body).then(async (response) => {
+    const text = await response.text();
+    return text ? (JSON.parse(text) as ExternalHazardsModel) : null;
+  });
 }
 
-/**
- * puts the nested model's id at the appropriate endpoint
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function AddNestedToFullScope(body: {
   modelId: number;
   nestedId: number;
   nestedType: string;
-}): Promise<FullScopeModel> {
-  return Patch(FULL_SCOPE_ENDPOINT, body).then((response) => response.json() as Promise<FullScopeModel>);
+}): Promise<FullScopeModel | null> {
+  return Patch(FULL_SCOPE_ENDPOINT, body).then(async (response) => {
+    const text = await response.text();
+    return text ? (JSON.parse(text) as FullScopeModel) : null;
+  });
 }
 
-//deleting nested models
-
-/**
- * removes the nested model's id at the appropriate endpoint
- * @param modelId -  the id of the typed model
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function DeleteNestedFromInternalEvent(
   modelId: number,
   body: { nestedId: number | string; nestedType: string },
@@ -462,12 +305,6 @@ export function DeleteNestedFromInternalEvent(
   );
 }
 
-/**
- * removes the nested model's id at the appropriate endpoint
- * @param modelId -  the id of the typed model
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function DeleteNestedFromInternalHazard(
   modelId: number,
   body: { nestedId: number | string; nestedType: string },
@@ -477,12 +314,6 @@ export function DeleteNestedFromInternalHazard(
   );
 }
 
-/**
- * removes the nested model's id at the appropriate endpoint
- * @param modelId -  the id of the typed model
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @returns a promise with the updated model
- */
 export function DeleteNestedFromExternalHazard(
   modelId: number,
   body: { nestedId: number | string; nestedType: string },
@@ -492,12 +323,6 @@ export function DeleteNestedFromExternalHazard(
   );
 }
 
-/**
- * removes the nested model's id at the appropriate endpoint
- * @param body - contains a model id number, a nested id number, and a nested type that is a string of the camel case of the nested model type
- * @param modelId - the id of the typed model
- * @returns a promise with the updated model
- */
 export function DeleteNestedFromFullScope(
   modelId: number,
   body: { nestedId: number | string; nestedType: string },

@@ -1,213 +1,155 @@
-import { DataTable } from "./templatetable/dataTable";
+import { SetStateAction, useCallback, useState } from "react";
+import { EuiButton, EuiButtonIcon, EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
+import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
+import { ComponentParameterType } from "shared-sdk/lib/api/NestedModelApiManager";
 
-function ComponentReliabilityTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
-  const rows = [
-    {
-      id: "id1",
-      grouping: "Values",
-      componentType: "Air-Operated Valve (AOV)",
-      componentFailureMode: "AOV_FTO",
-      description: "Air-Operated Valve Fails To Open",
-      dataSource: "EPIX/RADS",
-      failures: 50,
-      units: "",
-      dhUnit: "d",
-      dhValue: 0.000304,
-      componentCount: 0.000304,
-      distribution: "Beta",
-      analysisType: "JNID/IL",
-      fth: 0.000304,
-      median: 0.000304,
-      nfth: 0.000304,
-      alpha: 0.000304,
-      beta: 0.000304,
-      mean: 0.000304,
-      errorFactor: 0.000304,
-      dateRange: "2006-2020",
-      effectiveDate: "2021-11-01",
-    },
-    {
-      id: "id1",
-      grouping: "Values",
-      componentType: "Air-Operated Valve (AOV)",
-      componentFailureMode: "AOV_FTO",
-      description: "Air-Operated Valve Fails To Open",
-      dataSource: "EPIX/RADS",
-      failures: 50,
-      units: "",
-      dhUnit: "d",
-      dhValue: 0.000304,
-      componentCount: 0.000304,
-      distribution: "Beta",
-      analysisType: "JNID/IL",
-      fth: 0.000304,
-      median: 0.000304,
-      nfth: 0.000304,
-      alpha: 0.000304,
-      beta: 0.000304,
-      mean: 0.000304,
-      errorFactor: 0.000304,
-      dateRange: "2006-2020",
-      effectiveDate: "2021-11-01",
-    },
-    {
-      id: "id1",
-      grouping: "Values",
-      componentType: "Air-Operated Valve (AOV)",
-      componentFailureMode: "AOV_FTO",
-      description: "Air-Operated Valve Fails To Open",
-      dataSource: "EPIX/RADS",
-      failures: 50,
-      units: "",
-      dhUnit: "d",
-      dhValue: 0.000304,
-      componentCount: 0.000304,
-      distribution: "Beta",
-      analysisType: "JNID/IL",
-      fth: 0.000304,
-      median: 0.000304,
-      nfth: 0.000304,
-      alpha: 0.000304,
-      beta: 0.000304,
-      mean: 0.000304,
-      errorFactor: 0.000304,
-      dateRange: "2006-2020",
-      effectiveDate: "2021-11-01",
-    },
-  ];
+export type ComponentReliabilityTableProps = {
+  rows: ComponentParameterType[];
+  onAdd: () => void;
+  onEdit: (row: ComponentParameterType) => void;
+  onDelete: (id: number) => void;
+};
 
-  //has the following column headers
-  // Grouping, Component Type, Component Failure Mode, Description, Data Source, Failures, Units, D/H Type, D/H Value,
-  // Component Count, Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, Error Factor, Date Range, Effective Date
-  // It may be worth going back and making some of these enums instead for limited options
-  const columns = [
-    {
-      id: "id",
-      displayAsText: "ID",
+const SCIENTIFIC_COLUMNS = new Set([
+  "fth",
+  "median",
+  "nfth",
+  "alpha",
+  "beta",
+  "mean",
+  "errorFactor",
+  "dhValue",
+  "componentCount",
+]);
+
+const COLUMNS = [
+  { id: "grouping", displayAsText: "Grouping", truncateText: true },
+  { id: "componentType", displayAsText: "Component Type", truncateText: true },
+  { id: "componentFailureMode", displayAsText: "Component Failure Mode" },
+  { id: "description", displayAsText: "Description" },
+  { id: "dataSource", displayAsText: "Data Source", truncateText: true },
+  { id: "failures", displayAsText: "Failures", dataType: "number" },
+  { id: "units", displayAsText: "Units", truncateText: true },
+  { id: "dhUnit", displayAsText: "D/H Unit", truncateText: true },
+  { id: "dhValue", displayAsText: "D/H Value", dataType: "number" },
+  { id: "componentCount", displayAsText: "Component Count", dataType: "number" },
+  { id: "distribution", displayAsText: "Distribution", truncateText: true },
+  { id: "analysisType", displayAsText: "Analysis Type", truncateText: true },
+  { id: "fth", displayAsText: "5th", dataType: "number" },
+  { id: "median", displayAsText: "Median", dataType: "number" },
+  { id: "nfth", displayAsText: "95th", dataType: "number" },
+  { id: "alpha", displayAsText: "\u03B1", dataType: "number" },
+  { id: "beta", displayAsText: "\u03B2", dataType: "number" },
+  { id: "mean", displayAsText: "Mean", dataType: "number" },
+  { id: "errorFactor", displayAsText: "Error Factor", dataType: "number" },
+  { id: "dateRange", displayAsText: "Date Range" },
+  { id: "effectiveDate", displayAsText: "Effective Date" },
+];
+
+function ComponentReliabilityTable({ rows, onAdd, onEdit, onDelete }: ComponentReliabilityTableProps): JSX.Element {
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.id));
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+  const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
+
+  const onChangeItemsPerPage = useCallback((pageSize: number): void => {
+    setPagination((p) => ({ ...p, pageSize, pageIndex: 0 }));
+  }, []);
+
+  const onChangePage = useCallback((pageIndex: number): void => {
+    setPagination((p) => ({ ...p, pageIndex }));
+  }, []);
+
+  const onSort = useCallback((updated: SetStateAction<EuiDataGridColumnSortingConfig[]>): void => {
+    setSortingColumns(updated);
+  }, []);
+
+  const renderCellValue = useCallback(
+    ({ rowIndex, columnId }: { rowIndex: number; columnId: string }): string | null => {
+      const row = rows[rowIndex];
+      if (!row) return null;
+      const value = row[columnId as keyof ComponentParameterType];
+      if (value === undefined || value === null) return null;
+      if (typeof value === "number" && SCIENTIFIC_COLUMNS.has(columnId)) {
+        return value.toExponential(3);
+      }
+      return String(value);
     },
-    {
-      id: "grouping",
-      displayAsText: "Grouping",
-      truncateText: true,
-    },
-    {
-      id: "componentType",
-      displayAsText: "Component Type",
-      truncateText: true,
-    },
-    {
-      id: "componentFailureMode",
-      displayAsText: "Component Failure Mode",
-    },
-    {
-      id: "description",
-      displayAsText: "Description",
-    },
-    {
-      id: "dataSource",
-      displayAsText: "Data Source",
-      truncateText: true,
-    },
-    {
-      id: "failures",
-      displayAsText: "Failure",
-      dataType: "number",
-    },
-    {
-      id: "units",
-      displayAsText: "Units",
-      truncateText: true,
-      textOnly: true,
-    },
-    {
-      id: "dhUnit",
-      displayAsText: "D/H Unit",
-      truncateText: true,
-      textOnly: true,
-    },
-    {
-      id: "dhValue",
-      displayAsText: "D/H Value",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "componentCount",
-      displayAsText: "Component Count",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "distribution",
-      displayAsText: "Distribution",
-      truncateText: true,
-      textOnly: true,
-    },
-    {
-      id: "analysisType",
-      displayAsText: "Analysis Type",
-      truncateText: true,
-      textOnly: true,
-    },
-    {
-      id: "fth",
-      displayAsText: "5th",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "median",
-      displayAsText: "Median",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "nfth",
-      displayAsText: "95th",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "alpha",
-      displayAsText: "\u03B1",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "beta",
-      displayAsText: "\u03B2",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "mean",
-      displayAsText: "Mean",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "errorFactor",
-      displayAsText: "Error Factor",
-      dataType: "number",
-      formatter: "scientificFormatter",
-    },
-    {
-      id: "dateRange",
-      displayAsText: "Date Range",
-    },
-    {
-      id: "effectiveDate",
-      displayAsText: "Effective Date",
-    },
-  ];
+    [rows],
+  );
 
   return (
-    <DataTable
-      rows={rows}
-      columns={columns}
-    />
+    <EuiFlexGroup direction="column">
+      <EuiFlexItem grow={false}>
+        <EuiFlexGroup
+          justifyContent="flexEnd"
+          responsive={false}
+        >
+          <EuiFlexItem grow={false}>
+            <EuiButton
+              iconType="plusInCircle"
+              onClick={onAdd}
+            >
+              Add Component Parameter
+            </EuiButton>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </EuiFlexItem>
+      <EuiFlexItem>
+        <EuiDataGrid
+          aria-label="Component Reliability Parameters"
+          columns={COLUMNS}
+          columnVisibility={{ visibleColumns, setVisibleColumns }}
+          rowCount={rows.length}
+          renderCellValue={renderCellValue}
+          sorting={{ columns: sortingColumns, onSort }}
+          inMemory={{ level: "sorting" }}
+          pagination={{
+            ...pagination,
+            pageSizeOptions: [20, 50, 100],
+            onChangeItemsPerPage,
+            onChangePage,
+          }}
+          leadingControlColumns={[
+            {
+              id: "actions",
+              width: 70,
+              headerCellRender: () => null,
+              rowCellRender: ({ rowIndex }: { rowIndex: number }) => {
+                const row = rows[rowIndex];
+                if (!row) return null;
+                return (
+                  <EuiFlexGroup
+                    gutterSize="xs"
+                    responsive={false}
+                    alignItems="center"
+                  >
+                    <EuiFlexItem grow={false}>
+                      <EuiButtonIcon
+                        iconType="pencil"
+                        aria-label={`Edit component parameter ${String(row.id)}`}
+                        onClick={() => {
+                          onEdit(row);
+                        }}
+                      />
+                    </EuiFlexItem>
+                    <EuiFlexItem grow={false}>
+                      <EuiButtonIcon
+                        iconType="trash"
+                        color="danger"
+                        aria-label={`Delete component parameter ${String(row.id)}`}
+                        onClick={() => {
+                          onDelete(row.id);
+                        }}
+                      />
+                    </EuiFlexItem>
+                  </EuiFlexGroup>
+                );
+              },
+            },
+          ]}
+        />
+      </EuiFlexItem>
+    </EuiFlexGroup>
   );
 }
 

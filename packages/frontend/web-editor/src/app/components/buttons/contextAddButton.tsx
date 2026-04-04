@@ -30,8 +30,6 @@ import {
 const ContextAddButton = (): JSX.Element => {
   const location = useLocation().pathname;
 
-  //creates the correct object depending on the path, uses starts with and ends with and conditional logic to keep things in the root header
-  //this is a lot of stuff to look at
   if (location.startsWith("/internal-events")) {
     if (location === "/internal-events") return <CreateInternalEventsButton />;
     if (location.endsWith("/initiating-events")) return <CreateInitiatingEventButton />;
@@ -69,6 +67,10 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
     if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
+    if (location.endsWith("/data-analysis")) return <CreateDataAnalysisButton />;
+    if (location.endsWith("/human-reliability-analysis")) return <CreateHumanReliabilityAnalysisButton />;
+    if (location.endsWith("/systems-analysis")) return <CreateSystemsAnalysisButton />;
+    if (location.endsWith("/success-criteria")) return <CreateSuccessCriteriaButton />;
     return null as unknown as JSX.Element;
   } else if (location.startsWith("/external-hazards")) {
     if (location === "/external-hazards") return <CreateExternalHazardsButton />;
@@ -83,6 +85,10 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
     if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
+    if (location.endsWith("/data-analysis")) return <CreateDataAnalysisButton />;
+    if (location.endsWith("/human-reliability-analysis")) return <CreateHumanReliabilityAnalysisButton />;
+    if (location.endsWith("/systems-analysis")) return <CreateSystemsAnalysisButton />;
+    if (location.endsWith("/success-criteria")) return <CreateSuccessCriteriaButton />;
     return null as unknown as JSX.Element;
   } else if (location.startsWith("/full-scope")) {
     if (location === "/full-scope") return <CreateFullScopeButton />;
@@ -97,6 +103,10 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
     if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
+    if (location.endsWith("/data-analysis")) return <CreateDataAnalysisButton />;
+    if (location.endsWith("/human-reliability-analysis")) return <CreateHumanReliabilityAnalysisButton />;
+    if (location.endsWith("/systems-analysis")) return <CreateSystemsAnalysisButton />;
+    if (location.endsWith("/success-criteria")) return <CreateSuccessCriteriaButton />;
     return null as unknown as JSX.Element;
   } else {
     return null as unknown as JSX.Element;

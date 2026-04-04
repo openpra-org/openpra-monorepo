@@ -1,6 +1,6 @@
-import { Delete, Get, NESTED_ENDPOINT, Patch, Post } from "../NestedModelApiManager";
+import { Delete, Get, Patch, Post } from "../NestedModelApiManager";
 
-const DATA_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/data-analysis`;
+const DATA_ANALYSIS_ENDPOINT = "/api/nested-models/data-analysis";
 
 export type ComponentParameterType = {
   id: number;

@@ -17,28 +17,21 @@ export interface NestedModelListProps {
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
 }
 
-//grabs the model List
 async function fetchModelList(
   getNestedEndpoint?: (id: number) => Promise<NestedModel[]>,
   getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<NestedModel[]> {
-  // const modelId = GetCurrentModelIdString();
   try {
-    const modelList = getNestedEndpoint
-      ? await getNestedEndpoint(GetCurrentModelId())
-      : getNestedEndpointString
-      ? await getNestedEndpointString(GetCurrentModelIdString())
+    const modelList =
+      getNestedEndpoint ? await getNestedEndpoint(GetCurrentModelId())
+      : getNestedEndpointString ? await getNestedEndpointString(GetCurrentModelIdString())
       : [];
     return modelList;
-    // return await getNestedEndpointString(modelId);
   } catch {
     return [];
   }
 }
 
-//this doesn't work right now, it returns a typedModelJSon I think instead of internaleventsmdoel
-//this works but poorly, need to fix how ids are done
-//I also cant really get the items to know what type they are, I'm assuming typedmodeljson
 const getFixtures = async (
   deleteNestedEndpoint: (id: number) => NonNullable<unknown>,
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>,
@@ -47,10 +40,9 @@ const getFixtures = async (
   getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<JSX.Element[]> => {
   try {
-    const modelList = getNestedEndpoint
-      ? await fetchModelList(getNestedEndpoint, undefined)
-      : getNestedEndpointString
-      ? await fetchModelList(undefined, getNestedEndpointString)
+    const modelList =
+      getNestedEndpoint ? await fetchModelList(getNestedEndpoint, undefined)
+      : getNestedEndpointString ? await fetchModelList(undefined, getNestedEndpointString)
       : [];
     const nestedModelList: NestedModel[] = modelList.map((item: unknown) => {
       const typed = item as {
@@ -62,24 +54,23 @@ const getFixtures = async (
       return new NestedModel(typed.label.name, typed.label.description, Number(typed.id), parentIds);
     });
 
-    //now we map these events to what they should be and display them
     return nestedModelList.map((modelItem: NestedModel) => (
       <GenericListItem
         itemName={modelItem.getLabel().getName()}
         id={modelItem.getId()}
-        key={modelItem.getId()} // Use a unique key for each item (e.g., the ID)
+        key={modelItem.getId()}
         label={{
           name: modelItem.getLabel().getName(),
           description: modelItem.getLabel().getDescription(),
         }}
         path={String(modelItem.getId())}
-        endpoint={name} // Adjust this based on your model's structure
+        endpoint={name}
         deleteNestedEndpoint={deleteNestedEndpoint}
         patchNestedEndpoint={patchNestedEndpoint}
       />
     ));
   } catch {
-    return []; // Return an empty array or handle the error as needed
+    return [];
   }
 };
 
@@ -88,6 +79,7 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
   const { name, deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, patchNestedEndpoint } = props;
+  const refreshCount = UseGlobalStore((state) => state.NestedModels.nestedListRefreshCount);
 
   useEffect(() => {
     const fetchGenericListItems = async (): Promise<void> => {
@@ -102,14 +94,14 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
         setGenericListItems(items);
         setIsLoading(false);
       } catch (error) {
-        setGenericListItems([]); // Set empty array or handle the error as needed
+        setGenericListItems([]);
         if (error) {
           setIsLoading(true);
         }
       }
     };
     void fetchGenericListItems();
-  }, [deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, name, patchNestedEndpoint]);
+  }, [deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, name, patchNestedEndpoint, refreshCount]);
 
   const SetInitiatingEvents = UseGlobalStore.use.SetInitiatingEvents();
 

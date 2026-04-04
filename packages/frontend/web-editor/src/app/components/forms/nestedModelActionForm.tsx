@@ -17,10 +17,10 @@ import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/ty
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
+import { StoreStateType, UseGlobalStore } from "../../zustand/Store";
 
 export interface NestedItemFormProps {
   itemName: string;
-  // TODO:: TODO :: replace endpoint string with TypedApiManager method
   id?: number;
   _id?: string;
   postEndpoint?: (data: NestedModelJSON) => NonNullable<unknown>;
@@ -29,9 +29,8 @@ export interface NestedItemFormProps {
   patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
-  // onCancel receives a boolean to control visibility (previously any)
   onCancel?: (visible: boolean) => void;
-  action: "create" | "edit"; // TODO: Use this in the title with .ToTitleCase() to prettify
+  action: "create" | "edit";
   initialFormValues?: NestedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
@@ -51,18 +50,14 @@ function NestedModelActionForm({
   id,
   _id,
 }: NestedItemFormProps): JSX.Element {
-  //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
   const formInitials = initialFormValues ? initialFormValues : DefaultNestedModelJSON;
 
-  //sets the current typed model using our formInitials, in a React state, so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
 
-  //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
   const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
     if (typedModel.label.name !== "") {
-      //creating a partial model to pass for update, may update to work for adding later as well
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
         parentIds: [GetCurrentModelIdString()],
@@ -87,7 +82,15 @@ function NestedModelActionForm({
         }
       } else {
         if (postEndpoint) {
-          postEndpoint(partialModel);
+          void Promise.resolve(postEndpoint(partialModel)).then(() => {
+            UseGlobalStore.setState((state: StoreStateType) => ({
+              NestedModels: {
+                ...state.NestedModels,
+                nestedListRefreshCount: state.NestedModels.nestedListRefreshCount + 1,
+              },
+            }));
+            onCancel && onCancel(false);
+          });
         } else if (patchEndpoint) {
           if (id) {
             patchEndpoint(id, typedModel.label);
@@ -99,7 +102,6 @@ function NestedModelActionForm({
     }
   };
 
-  //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
   const actionLabel = ToTitleCase(action);
   const itemLabel = ToTitleCase(itemName);
   return (

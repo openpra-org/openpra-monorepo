@@ -1,4 +1,3 @@
-//this is all placeholder so that I can test hrefs and stuff
 import { ComponentReliabilityTable } from "../../components/tables/componentReliabilityTable";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
@@ -10,7 +9,12 @@ function ComponentReliability(): JSX.Element {
         iconType: "tableDensityNormal",
       }}
     >
-      <ComponentReliabilityTable />
+      <ComponentReliabilityTable
+        rows={[]}
+        onAdd={(): void => undefined}
+        onEdit={(): void => undefined}
+        onDelete={(): void => undefined}
+      />
     </TemplatedPageBody>
   );
 }

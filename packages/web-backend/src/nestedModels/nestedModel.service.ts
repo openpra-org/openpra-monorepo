@@ -191,7 +191,8 @@ export class NestedModelService {
   }
 
   async createDataAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
-    const newDataAnalysis = new this.dataAnalysisModel(body);
+    const parentIds = (body.parentIds ?? []).map((id) => Number(id));
+    const newDataAnalysis = new this.dataAnalysisModel({ ...body, parentIds });
     newDataAnalysis.id = await this.getNextValue("nestedCounter");
     return newDataAnalysis.save();
   }
@@ -281,7 +282,7 @@ export class NestedModelService {
   }
 
   async getDataAnalysis(parentId: number): Promise<DataAnalysis[]> {
-    return this.dataAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
+    return this.dataAnalysisModel.find({ parentIds: { $in: [Number(parentId), String(parentId)] } }, { _id: 0 });
   }
 
   async getHumanReliabilityAnalysis(parentId: number): Promise<HumanReliabilityAnalysis[]> {

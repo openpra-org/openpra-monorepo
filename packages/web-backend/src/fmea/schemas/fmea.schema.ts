@@ -33,6 +33,8 @@ export class Fmea {
       number: number;
       description: string;
     }[];
+    computedFrom?: string[];
+    formula?: string;
   }[];
 
   @Prop()

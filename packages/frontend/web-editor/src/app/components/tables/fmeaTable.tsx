@@ -1,10 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  EuiBasicTable,
-  EuiBasicTableColumn,
+  EuiBadge,
   EuiButton,
   EuiButtonEmpty,
   EuiButtonIcon,
+  EuiDataGrid,
+  EuiFieldNumber,
   EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
@@ -17,11 +18,149 @@ import {
   EuiModalHeaderTitle,
   EuiPopover,
   EuiSelect,
-  EuiSpacer,
   EuiText,
-  EuiToolTip,
 } from "@elastic/eui";
-import { FmeaColumn, FmeaRow, FmeaType } from "shared-sdk/lib/api/FmeaApiManager";
+import { EuiDataGridColumn } from "@elastic/eui/src/components/datagrid/data_grid_types";
+import { FmeaColumn, FmeaColumnBadge, FmeaRow, FmeaType } from "shared-sdk/lib/api/FmeaApiManager";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function computeRpn(row: FmeaRow, computedFrom: string[]): number | null {
+  const vals = computedFrom.map((id) => Number(row.row_data[id] ?? ""));
+  if (vals.some((v) => isNaN(v) || v === 0)) return null;
+  return vals.reduce((acc, v) => acc * v, 1);
+}
+
+function rpnToRisk(rpn: number | null): { label: string; color: "danger" | "warning" | "success" | "hollow" } {
+  if (rpn === null) return { label: "—", color: "hollow" };
+  if (rpn > 100) return { label: "HIGH", color: "danger" };
+  if (rpn > 50) return { label: "MEDIUM", color: "warning" };
+  return { label: "LOW", color: "success" };
+}
+
+function badgeForColumn(col: FmeaColumn): FmeaColumnBadge | undefined {
+  if (col.type === "computed") return { text: "Auto-calculated", color: "success" };
+  if (col.type === "risk") return { text: "Auto-calculated", color: "success" };
+  if (col.type === "number" && ["S", "D", "O"].includes(col.id)) return { text: "Auto RPN", color: "accent" };
+  if (col.id === "pra_be_id") return { text: "Links: Fault Trees", color: "primary" };
+  if (col.id === "ccf_group") return { text: "Links: CCF", color: "primary" };
+  return undefined;
+}
+
+/** Sensible initial widths per column id or type. */
+function initialWidth(col: FmeaColumn): number {
+  if (col.type === "number") return 70;
+  if (col.type === "computed") return 80;
+  if (col.type === "risk") return 90;
+  if (col.type === "dropdown") return 100;
+  const narrow = new Set(["fmea_id", "fm_code", "subsystem", "safety_class"]);
+  if (narrow.has(col.id)) return 130;
+  const wide = new Set(["local_effect", "system_effect", "end_effect", "recommended_actions", "failure_cause"]);
+  if (wide.has(col.id)) return 220;
+  return 160;
+}
+
+// ─── Column modal helpers ─────────────────────────────────────────────────────
+
+function parseOptions(text: string): { number: number; description: string }[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line, i) => {
+      const ci = line.indexOf(":");
+      if (ci > -1) {
+        const n = Number(line.slice(0, ci).trim());
+        return { number: isNaN(n) ? i + 1 : n, description: line.slice(ci + 1).trim() };
+      }
+      return { number: i + 1, description: line };
+    });
+}
+
+function optionsToText(opts: { number: number; description: string }[]): string {
+  return opts.map((o) => `${o.number}:${o.description}`).join("\n");
+}
+
+// ─── Column header with badge + popover ──────────────────────────────────────
+
+function ColumnHeader({
+  col,
+  onEdit,
+  onDelete,
+}: {
+  col: FmeaColumn;
+  onEdit: (col: FmeaColumn) => void;
+  onDelete: (colId: string) => void;
+}): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const badge = badgeForColumn(col);
+  const isReadOnly = col.type === "computed" || col.type === "risk";
+
+  return (
+    <EuiPopover
+      isOpen={open}
+      closePopover={(): void => {
+        setOpen(false);
+      }}
+      button={
+        <div
+          style={{ cursor: "pointer", lineHeight: 1.3 }}
+          onClick={(): void => {
+            setOpen(true);
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: "0.85em" }}>{col.name}</span>
+          {badge && (
+            <div style={{ marginTop: 2 }}>
+              <EuiBadge
+                color={badge.color}
+                style={{ fontSize: "0.6em" }}
+              >
+                {badge.text}
+              </EuiBadge>
+            </div>
+          )}
+        </div>
+      }
+      panelPaddingSize="s"
+    >
+      <EuiFlexGroup
+        direction="column"
+        gutterSize="xs"
+      >
+        {!isReadOnly && (
+          <EuiFlexItem>
+            <EuiButtonEmpty
+              size="s"
+              iconType="pencil"
+              onClick={(): void => {
+                setOpen(false);
+                onEdit(col);
+              }}
+            >
+              Edit column
+            </EuiButtonEmpty>
+          </EuiFlexItem>
+        )}
+        <EuiFlexItem>
+          <EuiButtonEmpty
+            size="s"
+            iconType="trash"
+            color="danger"
+            onClick={(): void => {
+              setOpen(false);
+              onDelete(col.id);
+            }}
+          >
+            Delete column
+          </EuiButtonEmpty>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </EuiPopover>
+  );
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface FmeaTableProps {
   fmea: FmeaType;
@@ -50,98 +189,9 @@ type ColumnModalState = {
   optionsText: string;
 };
 
-const EMPTY_COLUMN_MODAL: ColumnModalState = {
-  mode: "add",
-  name: "",
-  type: "string",
-  optionsText: "",
-};
+const EMPTY_MODAL: ColumnModalState = { mode: "add", name: "", type: "string", optionsText: "" };
 
-function parseOptions(text: string): { number: number; description: string }[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, i) => {
-      const colonIdx = line.indexOf(":");
-      if (colonIdx > -1) {
-        const num = Number(line.slice(0, colonIdx).trim());
-        const desc = line.slice(colonIdx + 1).trim();
-        return { number: isNaN(num) ? i + 1 : num, description: desc };
-      }
-      return { number: i + 1, description: line };
-    });
-}
-
-function optionsToText(opts: { number: number; description: string }[]): string {
-  return opts.map((o) => `${o.number}:${o.description}`).join("\n");
-}
-
-function ColumnHeader({
-  col,
-  onEdit,
-  onDelete,
-}: {
-  col: FmeaColumn;
-  onEdit: (col: FmeaColumn) => void;
-  onDelete: (colId: string) => void;
-}): JSX.Element {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <EuiPopover
-      isOpen={isOpen}
-      closePopover={(): void => {
-        setIsOpen(false);
-      }}
-      button={
-        <span
-          style={{ cursor: "pointer", fontWeight: 600 }}
-          onClick={(): void => {
-            setIsOpen(true);
-          }}
-        >
-          {col.name}
-          {col.type === "dropdown" && (
-            <span style={{ fontSize: "0.75em", color: "#888", marginLeft: 4 }}>(dropdown)</span>
-          )}
-        </span>
-      }
-      panelPaddingSize="s"
-    >
-      <EuiFlexGroup
-        direction="column"
-        gutterSize="xs"
-      >
-        <EuiFlexItem>
-          <EuiButtonEmpty
-            size="s"
-            iconType="pencil"
-            onClick={(): void => {
-              setIsOpen(false);
-              onEdit(col);
-            }}
-          >
-            Edit column
-          </EuiButtonEmpty>
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <EuiButtonEmpty
-            size="s"
-            iconType="trash"
-            color="danger"
-            onClick={(): void => {
-              setIsOpen(false);
-              onDelete(col.id);
-            }}
-          >
-            Delete column
-          </EuiButtonEmpty>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-    </EuiPopover>
-  );
-}
+// ─── Main component ───────────────────────────────────────────────────────────
 
 function FmeaTable({
   fmea,
@@ -154,31 +204,35 @@ function FmeaTable({
 }: FmeaTableProps): JSX.Element {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [columnModal, setColumnModal] = useState<ColumnModalState | null>(null);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
 
-  const commitCell = useCallback((): void => {
-    if (!editingCell) return;
-    onUpdateCell(editingCell.rowId, editingCell.columnId, editingCell.draft);
-    setEditingCell(null);
-  }, [editingCell, onUpdateCell]);
-
-  const openAddColumn = useCallback((): void => {
-    setColumnModal({ ...EMPTY_COLUMN_MODAL, mode: "add" });
-  }, []);
+  // Sync visible columns when FMEA columns change (add/remove)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => fmea.columns.map((c) => c.id));
+  useEffect(() => {
+    setVisibleColumns((prev) => {
+      const current = new Set(fmea.columns.map((c) => c.id));
+      const prevSet = new Set(prev);
+      const next = prev.filter((id) => current.has(id));
+      fmea.columns.forEach((c) => {
+        if (!prevSet.has(c.id)) next.push(c.id);
+      });
+      return next;
+    });
+  }, [fmea.columns]);
 
   const openEditColumn = useCallback((col: FmeaColumn): void => {
     setColumnModal({
       mode: "edit",
       columnId: col.id,
       name: col.name,
-      type: col.type,
+      type: col.type as "string" | "dropdown",
       optionsText: optionsToText(col.dropdownOptions ?? []),
     });
   }, []);
 
   const handleColumnModalConfirm = useCallback((): void => {
-    if (!columnModal) return;
+    if (!columnModal || !columnModal.name.trim()) return;
     const { name, type, optionsText, mode, columnId } = columnModal;
-    if (!name.trim()) return;
     const opts = type === "dropdown" ? parseOptions(optionsText) : [];
     if (mode === "add") {
       onAddColumn(name.trim(), type, opts.length > 0 ? opts : undefined);
@@ -188,99 +242,188 @@ function FmeaTable({
     setColumnModal(null);
   }, [columnModal, onAddColumn, onUpdateColumn]);
 
-  const columns: EuiBasicTableColumn<FmeaRow>[] = [
-    ...fmea.columns.map(
-      (col): EuiBasicTableColumn<FmeaRow> => ({
-        field: col.id,
-        name: (
+  const commitCell = useCallback((): void => {
+    if (!editingCell) return;
+    const col = fmea.columns.find((c) => c.id === editingCell.columnId);
+    if (!col || col.type === "computed" || col.type === "risk") {
+      setEditingCell(null);
+      return;
+    }
+    onUpdateCell(editingCell.rowId, editingCell.columnId, editingCell.draft);
+    setEditingCell(null);
+  }, [editingCell, fmea.columns, onUpdateCell]);
+
+  // ── EuiDataGrid column definitions ─────────────────────────────────────────
+  const gridColumns: EuiDataGridColumn[] = useMemo(
+    () =>
+      fmea.columns.map((col) => ({
+        id: col.id,
+        display: (
           <ColumnHeader
             col={col}
             onEdit={openEditColumn}
             onDelete={onDeleteColumn}
           />
         ),
-        render: (_val: unknown, row: FmeaRow): JSX.Element => {
-          const value = row.row_data[col.id] ?? "";
-          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === col.id;
+        displayAsText: col.name,
+        initialWidth: initialWidth(col),
+        isResizable: true,
+        isSortable: false,
+        actions: false as const,
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fmea.columns, openEditColumn, onDeleteColumn],
+  );
 
-          if (isEditing) {
-            if (col.type === "dropdown") {
-              const options = (col.dropdownOptions ?? []).map((o) => ({
-                value: String(o.number),
-                text: `${o.number} — ${o.description}`,
-              }));
-              return (
-                <EuiSelect
-                  compressed
-                  options={options}
-                  value={editingCell.draft}
-                  onChange={(e): void => {
-                    setEditingCell({ ...editingCell, draft: e.target.value });
-                  }}
-                  onBlur={commitCell}
-                  autoFocus
-                />
-              );
-            }
-            return (
-              <EuiFieldText
-                compressed
-                value={editingCell.draft}
-                onChange={(e): void => {
-                  setEditingCell({ ...editingCell, draft: e.target.value });
-                }}
-                onBlur={commitCell}
-                onKeyDown={(e): void => {
-                  if (e.key === "Enter") commitCell();
-                  if (e.key === "Escape") setEditingCell(null);
-                }}
-                autoFocus
-              />
-            );
-          }
+  // ── Cell renderer ───────────────────────────────────────────────────────────
+  const renderCellValue = useCallback(
+    ({ rowIndex, columnId }: { rowIndex: number; columnId: string }): JSX.Element | null => {
+      const row = fmea.rows[rowIndex];
+      if (!row) return null;
+      const col = fmea.columns.find((c) => c.id === columnId);
+      if (!col) return null;
 
-          const display =
-            col.type === "dropdown" ?
-              ((col.dropdownOptions ?? []).find((o) => String(o.number) === value)?.description ?? value)
-            : value;
+      const value = row.row_data[col.id] ?? "";
 
+      // computed (RPN)
+      if (col.type === "computed") {
+        const rpn = computeRpn(row, col.computedFrom ?? []);
+        return (
+          <span style={{ fontWeight: 600 }}>
+            {rpn !== null ? String(rpn) : <span style={{ color: "#aaa" }}>—</span>}
+          </span>
+        );
+      }
+
+      // risk badge
+      if (col.type === "risk") {
+        const rpn = computeRpn(row, ["S", "D", "O"]);
+        const { label, color } = rpnToRisk(rpn);
+        return <EuiBadge color={color}>{label}</EuiBadge>;
+      }
+
+      // editing cell
+      const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === col.id;
+
+      if (isEditing) {
+        if (col.type === "dropdown") {
+          const opts = (col.dropdownOptions ?? []).map((o) => ({
+            value: String(o.number),
+            text: `${o.number} — ${o.description}`,
+          }));
           return (
-            <span
-              style={{ cursor: "text", display: "block", minWidth: 80, minHeight: 20 }}
-              onClick={(): void => {
-                setEditingCell({ rowId: row.id, columnId: col.id, draft: value });
+            <EuiSelect
+              compressed
+              options={opts}
+              value={editingCell.draft}
+              onChange={(e): void => {
+                setEditingCell({ ...editingCell, draft: e.target.value });
               }}
-            >
-              {display || <span style={{ color: "#aaa" }}>—</span>}
-            </span>
+              onBlur={commitCell}
+              autoFocus
+            />
+          );
+        }
+        if (col.type === "number") {
+          return (
+            <EuiFieldNumber
+              compressed
+              value={editingCell.draft}
+              min={1}
+              max={10}
+              onChange={(e): void => {
+                setEditingCell({ ...editingCell, draft: e.target.value });
+              }}
+              onBlur={commitCell}
+              onKeyDown={(e): void => {
+                e.stopPropagation();
+                if (e.key === "Enter") commitCell();
+                if (e.key === "Escape") setEditingCell(null);
+              }}
+              style={{ width: 60 }}
+              autoFocus
+            />
+          );
+        }
+        return (
+          <EuiFieldText
+            compressed
+            value={editingCell.draft}
+            onChange={(e): void => {
+              setEditingCell({ ...editingCell, draft: e.target.value });
+            }}
+            onBlur={commitCell}
+            onKeyDown={(e): void => {
+              e.stopPropagation();
+              if (e.key === "Enter") commitCell();
+              if (e.key === "Escape") setEditingCell(null);
+            }}
+            autoFocus
+          />
+        );
+      }
+
+      // display
+      const display =
+        col.type === "dropdown" ?
+          ((col.dropdownOptions ?? []).find((o) => String(o.number) === value)?.description ?? value)
+        : value;
+
+      return (
+        <span
+          title={display}
+          style={{
+            cursor: "text",
+            display: "block",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+          onClick={(): void => {
+            setEditingCell({ rowId: row.id, columnId: col.id, draft: value });
+          }}
+        >
+          {display || <span style={{ color: "#aaa" }}>—</span>}
+        </span>
+      );
+    },
+    [fmea.rows, fmea.columns, editingCell, commitCell],
+  );
+
+  // ── Leading control column (delete row) ─────────────────────────────────────
+  const leadingControlColumns = useMemo(
+    () => [
+      {
+        id: "delete_row",
+        width: 36,
+        headerCellRender: (): null => null,
+        rowCellRender: ({ rowIndex }: { rowIndex: number }): JSX.Element | null => {
+          const row = fmea.rows[rowIndex];
+          if (!row) return null;
+          return (
+            <EuiButtonIcon
+              iconType="trash"
+              color="danger"
+              size="xs"
+              aria-label="Delete row"
+              onClick={(): void => {
+                onDeleteRow(row.id);
+              }}
+            />
           );
         },
-      }),
-    ),
-    {
-      name: "",
-      width: "40px",
-      actions: [
-        {
-          name: "Delete row",
-          description: "Delete this row",
-          icon: "trash",
-          color: "danger",
-          type: "icon",
-          onClick: (row: FmeaRow): void => {
-            onDeleteRow(row.id);
-          },
-        },
-      ],
-    },
-  ];
+      },
+    ],
+    [fmea.rows, onDeleteRow],
+  );
 
   return (
     <>
+      {/* Toolbar */}
       <EuiFlexGroup
         alignItems="center"
         gutterSize="s"
-        wrap
+        style={{ marginBottom: 12 }}
       >
         <EuiFlexItem grow={false}>
           <EuiButton
@@ -295,7 +438,9 @@ function FmeaTable({
           <EuiButton
             size="s"
             iconType="listAdd"
-            onClick={openAddColumn}
+            onClick={(): void => {
+              setColumnModal({ ...EMPTY_MODAL, mode: "add" });
+            }}
           >
             Add Column
           </EuiButton>
@@ -312,18 +457,48 @@ function FmeaTable({
         )}
       </EuiFlexGroup>
 
-      <EuiSpacer size="m" />
-
+      {/* Grid */}
       {fmea.columns.length > 0 && (
-        <EuiBasicTable<FmeaRow>
-          tableCaption="FMEA Table"
-          items={fmea.rows ?? []}
-          rowHeader={fmea.columns[0]?.id}
-          columns={columns}
-          noItemsMessage="No rows yet. Click 'Add Row' to begin."
-        />
+        <>
+          <EuiDataGrid
+            aria-label="FMEA Table"
+            columns={gridColumns}
+            columnVisibility={{ visibleColumns, setVisibleColumns }}
+            rowCount={fmea.rows.length}
+            renderCellValue={renderCellValue}
+            leadingControlColumns={leadingControlColumns}
+            toolbarVisibility={{
+              showColumnSelector: true,
+              showDisplaySelector: false,
+              showSortSelector: false,
+              showFullScreenSelector: true,
+              additionalControls: null,
+            }}
+            pagination={{
+              ...pagination,
+              pageSizeOptions: [10, 25, 50],
+              onChangeItemsPerPage: (pageSize): void => {
+                setPagination((p) => ({ ...p, pageSize, pageIndex: 0 }));
+              },
+              onChangePage: (pageIndex): void => {
+                setPagination((p) => ({ ...p, pageIndex }));
+              },
+            }}
+            gridStyle={{ border: "horizontal", rowHover: "highlight", header: "shade" }}
+          />
+          {fmea.rows.length === 0 && (
+            <EuiText
+              size="s"
+              color="subdued"
+              style={{ padding: "12px 0" }}
+            >
+              <p>No rows yet. Click &lsquo;Add Row&rsquo; to begin.</p>
+            </EuiText>
+          )}
+        </>
       )}
 
+      {/* Column add/edit modal */}
       {columnModal !== null && (
         <EuiModal
           onClose={(): void => {
@@ -354,10 +529,7 @@ function FmeaTable({
                   ]}
                   value={columnModal.type}
                   onChange={(e): void => {
-                    setColumnModal({
-                      ...columnModal,
-                      type: e.target.value as "string" | "dropdown",
-                    });
+                    setColumnModal({ ...columnModal, type: e.target.value as "string" | "dropdown" });
                   }}
                 />
               </EuiFormRow>

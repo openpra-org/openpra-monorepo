@@ -35,7 +35,7 @@ export class FmeaService {
       systemsAnalysisId: body.systemsAnalysisId !== undefined ? Number(body.systemsAnalysisId) : undefined,
       title: body.title,
       description: body.description,
-      columns: [],
+      columns: Array.isArray(body.columns) ? body.columns : [],
       rows: [],
     });
     await newfmea.save();

@@ -1,0 +1,6 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "name": "quantum-readiness",
+  "tsconfig": "tsconfig.lib.json"
+}

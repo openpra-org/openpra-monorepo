@@ -92,3 +92,11 @@ lerna-debug.log*
 
 # Editor/cache artifacts
 .eslintcache
+
+# OpenPRA quantum readiness generated artifacts
+packages/quantum-readiness/node_modules/
+packages/quantum-readiness/tmp/
+AUTHORSHIP_MANIFESTS/
+RELEASES/
+REGISTRATION_PACKETS/
+

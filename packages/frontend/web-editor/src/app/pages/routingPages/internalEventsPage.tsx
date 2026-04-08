@@ -19,6 +19,7 @@ import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
 import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
+import { PlantDiagrams } from "../fullScopePages/plantDiagrams";
 import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
 import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { FaultTrees } from "../fullScopePages/faultTrees";
@@ -65,23 +66,17 @@ export function LoadModel(): ModelProps {
   return getModelFixture();
 }
 
-// const internalEventsLoader = async () => {
-//   return TypedModelApiManager.getInternalEvents(ApiManager.getCurrentUser().user_id)
-// }
-
 function InternalEventsPage(): JSX.Element {
   return (
     <ToastProvider>
       <Routes>
         <Route
           path=""
-          //loader={internalEventsLoader}
           element={<InternalEventsList />}
         />
         <Route
           path=":modelId"
           element={<InternalEventsContainer />}
-          // loader={loadModel}
         >
           <Route
             path="plant-operating-state-analysis/*"
@@ -168,6 +163,10 @@ function InternalEventsPage(): JSX.Element {
             element={<SystemsAnalysis />}
           />
           <Route
+            path="plant-diagrams/*"
+            element={<PlantDiagrams />}
+          />
+          <Route
             path="data-analysis/*"
             element={<DataAnalysis />}
           />
@@ -176,9 +175,7 @@ function InternalEventsPage(): JSX.Element {
             element={<ModelSettings />}
           />
         </Route>
-        {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-         * else a problem happens where the parent takes precedence and loads its content over everything else
-         */}
+        {}
       </Routes>
       <GlobalToastList />
     </ToastProvider>

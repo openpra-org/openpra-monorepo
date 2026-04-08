@@ -33,7 +33,7 @@ function WorkspaceSelectorMenu(): JSX.Element {
     setSpaces(options);
     const next = options.filter((option) => option.checked)[0];
     setSelectedSpace(next);
-    // Navigate immediately on explicit user selection
+    closePopover();
     if (next && typeof next.key === "string") {
       void navigate(`/${next.key}`);
     }

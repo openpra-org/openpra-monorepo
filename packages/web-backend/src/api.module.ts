@@ -16,6 +16,7 @@ import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
 import { PraModelModule } from "./pra-model/pra-model.module";
+import { PlantDiagramModule } from "./plant-diagram/plant-diagram.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PraModelModule } from "./pra-model/pra-model.module";
     CollabModule,
     FmeaModule,
     GraphModelModule,
+    PlantDiagramModule,
     InviteModule,
     NestedModelModule,
     PraModelModule,
@@ -58,6 +60,10 @@ import { PraModelModule } from "./pra-model/pra-model.module";
           {
             path: "fmea",
             module: FmeaModule,
+          },
+          {
+            path: "plant-diagrams",
+            module: PlantDiagramModule,
           },
           {
             path: "graph-models",

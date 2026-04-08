@@ -73,6 +73,7 @@ const SY: NavNode = {
   expanded: true,
   items: [
     { id: "fmea", name: "FMEA", path: "systems-analysis", iconType: "tableDensityNormal" },
+    { id: "plant-diagrams", name: "Plant Diagrams (P&ID / PFD)", path: "plant-diagrams", iconType: "node" },
     { id: "fault-trees", name: "Fault Trees", path: "fault-trees", iconType: "tokenRepo" },
     { id: "bayesian-networks", name: "Bayesian Networks", path: "bayesian-networks", iconType: "editorBold" },
     { id: "markov-chains", name: "Markov Chains", path: "markov-chains", iconType: "tokenShape" },

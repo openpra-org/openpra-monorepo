@@ -12,25 +12,29 @@ import {
 } from "@elastic/eui";
 import { UseGlobalStore } from "../../zustand/Store";
 
+const TOP_N = 5;
+
 /**
  * RecentModelsPage
- * Displays a quick list of recent models across workspaces when landing on "/" while authenticated.
- * Note: We currently do not receive timestamps; items are displayed in the API/store order.
+ * Displays up to 5 recent models from each of the 4 risk scopes.
  */
 export function RecentModelsPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
-  // Lists and loaders from global store
   const internalEvents = UseGlobalStore.use.InternalEvents();
   const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
   const internalHazards = UseGlobalStore.use.InternalHazards();
   const setInternalHazards = UseGlobalStore.use.SetInternalHazards();
+  const externalHazards = UseGlobalStore.use.ExternalHazards();
+  const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
+  const fullScope = UseGlobalStore.use.FullScope();
+  const setFullScope = UseGlobalStore.use.SetFullScope();
 
   useEffect(() => {
     let cancelled = false;
     const run = async (): Promise<void> => {
       try {
-        await Promise.all([setInternalEvents(), setInternalHazards()]);
+        await Promise.all([setInternalEvents(), setInternalHazards(), setExternalHazards(), setFullScope()]);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -39,11 +43,35 @@ export function RecentModelsPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [setInternalEvents, setInternalHazards]);
+  }, [setInternalEvents, setInternalHazards, setExternalHazards, setFullScope]);
 
-  const topN = 5;
-  const recentIE = useMemo(() => internalEvents.slice(0, topN), [internalEvents]);
-  const recentIH = useMemo(() => internalHazards.slice(0, topN), [internalHazards]);
+  const recentIE = useMemo(() => internalEvents.slice(0, TOP_N), [internalEvents]);
+  const recentIH = useMemo(() => internalHazards.slice(0, TOP_N), [internalHazards]);
+  const recentEH = useMemo(() => externalHazards.slice(0, TOP_N), [externalHazards]);
+  const recentFS = useMemo(() => fullScope.slice(0, TOP_N), [fullScope]);
+
+  const renderList = (items: { _id: string; label?: { name?: string } }[], basePath: string): JSX.Element => (
+    <EuiListGroup
+      flush
+      bordered={false}
+      maxWidth={false}
+      gutterSize="s"
+    >
+      {items.length === 0 ?
+        <EuiListGroupItem
+          label="No models yet"
+          isDisabled
+        />
+      : items.map((m) => (
+          <EuiListGroupItem
+            key={m._id}
+            label={m.label?.name ?? m._id}
+            href={`/${basePath}/${m._id}`}
+          />
+        ))
+      }
+    </EuiListGroup>
+  );
 
   return (
     <EuiPageTemplate
@@ -67,58 +95,33 @@ export function RecentModelsPage(): JSX.Element {
           height={isLoading ? 300 : undefined}
           borderRadius="m"
         >
-          <EuiFlexGroup gutterSize="l">
-            <EuiFlexItem>
+          <EuiFlexGroup
+            gutterSize="l"
+            wrap
+          >
+            <EuiFlexItem style={{ minWidth: 180 }}>
               <EuiTitle size="s">
                 <h3>Internal Events</h3>
               </EuiTitle>
-              <EuiListGroup
-                flush
-                bordered={false}
-                maxWidth={false}
-                gutterSize="s"
-              >
-                {recentIE.length === 0 ? (
-                  <EuiListGroupItem
-                    label="No models yet"
-                    isDisabled
-                  />
-                ) : (
-                  recentIE.map((m) => (
-                    <EuiListGroupItem
-                      key={m._id}
-                      label={m.label?.name ?? m._id}
-                      href={`/internal-events/${m._id}`}
-                    />
-                  ))
-                )}
-              </EuiListGroup>
+              {renderList(recentIE, "internal-events")}
             </EuiFlexItem>
-            <EuiFlexItem>
+            <EuiFlexItem style={{ minWidth: 180 }}>
               <EuiTitle size="s">
                 <h3>Internal Hazards</h3>
               </EuiTitle>
-              <EuiListGroup
-                flush
-                bordered={false}
-                maxWidth={false}
-                gutterSize="s"
-              >
-                {recentIH.length === 0 ? (
-                  <EuiListGroupItem
-                    label="No models yet"
-                    isDisabled
-                  />
-                ) : (
-                  recentIH.map((m) => (
-                    <EuiListGroupItem
-                      key={m._id}
-                      label={m.label?.name ?? m._id}
-                      href={`/internal-hazards/${m._id}`}
-                    />
-                  ))
-                )}
-              </EuiListGroup>
+              {renderList(recentIH, "internal-hazards")}
+            </EuiFlexItem>
+            <EuiFlexItem style={{ minWidth: 180 }}>
+              <EuiTitle size="s">
+                <h3>External Hazards</h3>
+              </EuiTitle>
+              {renderList(recentEH, "external-hazards")}
+            </EuiFlexItem>
+            <EuiFlexItem style={{ minWidth: 180 }}>
+              <EuiTitle size="s">
+                <h3>Full Scope</h3>
+              </EuiTitle>
+              {renderList(recentFS, "full-scope")}
             </EuiFlexItem>
           </EuiFlexGroup>
         </EuiSkeletonRectangle>

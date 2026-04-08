@@ -24,6 +24,7 @@ import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
 import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
+import { PlantDiagrams } from "../fullScopePages/plantDiagrams";
 import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { FaultTrees } from "../fullScopePages/faultTrees";
 
@@ -75,7 +76,6 @@ function InternalHazardsPage(): JSX.Element {
       <Route
         path=":modelId"
         element={<InternalHazardsContainer />}
-        // loader={loadModel}
       >
         <Route
           path="plant-operating-state-analysis/*"
@@ -170,6 +170,10 @@ function InternalHazardsPage(): JSX.Element {
           element={<SystemsAnalysis />}
         />
         <Route
+          path="plant-diagrams/*"
+          element={<PlantDiagrams />}
+        />
+        <Route
           path="data-analysis/*"
           element={<DataAnalysis />}
         />
@@ -178,9 +182,7 @@ function InternalHazardsPage(): JSX.Element {
           element={<ModelSettings />}
         />
       </Route>
-      {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-       * else a problem happens where the parent takes precedence and loads its content over everything else
-       */}
+      {}
     </Routes>
   );
 }

@@ -1,29 +1,36 @@
-import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
+import { Edge, Node, useReactFlow } from "reactflow";
 
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { exitGrayedState, FaultTreeState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
-import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
+import {
+  exitGrayedState,
+  FaultTreeState,
+  getBasicEventNode,
+  getWorkflowEdge,
+  isSubgraphGrayed,
+} from "../../../utils/treeUtils";
+import { LEAF_NODE_TYPES, NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
+import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
 /**
- * Hook for handling click events on edges in a React Flow diagram.
+ * Hook that returns a function for inserting a new sibling node onto an edge.
  *
- * This hook provides a function, `handleEdgeClick`, that can be used to perform actions when an edge is clicked.
- * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
+ * Clicking the + button on edge (source → target) adds a new node as a
+ * NEW CHILD of source (i.e. a sibling of target). The existing edge is kept.
  *
- * @param id - The unique identifier of the clicked edge.
- * @returns \{Function\} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * If the chosen type is a gate, its required children are automatically added:
+ *   - AND / OR / AT-LEAST: 2 new basic-event children
+ *   - NOT gate          : 1 new basic-event child
+ *   - Leaf types (BASIC_EVENT, HOUSE_EVENT, TRANSFER_GATE): no children
  *
- * @example
- * ```typescript
- * const handleEdgeClick = useEdgeClick('uniqueEdgeId');
- * <Edge onClick={handleEdgeClick} />;
- * ```
+ * All new nodes receive sequential integer IDs (max of current IDs + 1).
+ *
+ * @returns A function `(edgeId, nodeType) => void` that performs the insertion.
  */
-function UseEdgeClick(id: EdgeProps["id"]): () => void {
+function useEdgeInsert(): (edgeId: string, nodeType: string) => void {
   let { nodes, edges } = useStore();
   const { setNodes, setEdges, setFocusNodeId } = useStore();
   if (isSubgraphGrayed(nodes, edges)) {
@@ -35,87 +42,84 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
   const { takeSnapshot } = useUndoRedo();
   const { faultTreeId } = useParams();
 
-  const handleEdgeClick = (): void => {
-    // first we retrieve the edge object to get the source and target id
-    const edge = getEdge(id);
+  return (edgeId: string, nodeType: string): void => {
+    const edge = getEdge(edgeId);
+    if (!edge) return;
 
-    if (!edge) {
-      return;
-    }
-
-    // we retrieve the target node to get its position
     const targetNode = getNode(edge.target);
     const sourceNode = getNode(edge.source);
+    if (!targetNode || !sourceNode) return;
 
-    if (!targetNode || !sourceNode) {
-      return;
-    }
+    // NOT gate already has its single required child — don't add siblings.
+    if (sourceNode.type === NOT_GATE) return;
 
-    if (targetNode.type === NOT_GATE || sourceNode.type === NOT_GATE) {
-      return;
-    }
+    const nodesToAdd: Node<FaultTreeNodeProps>[] = [];
+    const edgesToAdd: Edge<FaultTreeNodeProps>[] = [];
 
-    // create a unique id for newly added elements
-    const insertNodeId = GenerateUUID();
+    /** Next sequential ID, taking already-planned nodes into account. */
+    const nextId = (): string => {
+      const all = [...nodes, ...nodesToAdd];
+      const nums = all.map((n: Node) => parseInt(n.id, 10)).filter((n: number) => !isNaN(n));
+      return nums.length > 0 ? String(Math.max(...nums) + 1) : "2";
+    };
 
-    // this is the node object that will be added in between source and target node
-    const insertNode = {
-      id: insertNodeId,
-      // we place the node at the current position of the target (prevents jumping)
-      position: { x: targetNode.position.x, y: targetNode.position.y },
+    // ── Create the new sibling node ──────────────────────────────────────
+    const newId = nextId();
+    const newNode: Node<FaultTreeNodeProps> = {
+      id: newId,
       data: {},
-      type: NOT_GATE,
+      // Initial position near the target; the layout pass will reposition it.
+      position: { x: targetNode.position.x + 200, y: targetNode.position.y },
+      type: nodeType,
     };
+    nodesToAdd.push(newNode);
 
-    // new connection from source to new node
-    const sourceEdge = {
-      id: `${edge.source}->${insertNodeId}`,
+    // Edge: parent (source) → new sibling
+    edgesToAdd.push({
+      id: `${edge.source}=>${newId}`,
       source: edge.source,
-      target: insertNodeId,
+      target: newId,
       type: WORKFLOW,
-    };
+      data: {},
+      animated: false,
+    } as Edge<FaultTreeNodeProps>);
 
-    // new connection from new node to target
-    const targetEdge = {
-      id: `${insertNodeId}->${edge.target}`,
-      source: insertNodeId,
-      target: edge.target,
-      type: WORKFLOW,
-    };
+    // ── Auto-create children for gate types ─────────────────────────────
+    if (nodeType === NOT_GATE) {
+      // NOT gate gets exactly 1 basic-event child
+      const child = getBasicEventNode([...nodes, ...nodesToAdd]);
+      nodesToAdd.push(child);
+      edgesToAdd.push(getWorkflowEdge(newId, child.id));
+    } else if (!LEAF_NODE_TYPES.includes(nodeType)) {
+      // AND / OR / AT-LEAST gates get 2 basic-event children
+      const child1 = getBasicEventNode([...nodes, ...nodesToAdd]);
+      nodesToAdd.push(child1);
+      edgesToAdd.push(getWorkflowEdge(newId, child1.id));
 
-    //take snapshot for undo redo
+      const child2 = getBasicEventNode([...nodes, ...nodesToAdd]);
+      nodesToAdd.push(child2);
+      edgesToAdd.push(getWorkflowEdge(newId, child2.id));
+    }
+    // LEAF_NODE_TYPES (BASIC_EVENT, HOUSE_EVENT, TRANSFER_GATE): no children.
+
     takeSnapshot();
 
-    // remove the edge that was clicked as we have a new connection with a node in between
-    const newEdges = edges.filter((e: Edge) => e.id !== id).concat([sourceEdge, targetEdge]);
-    setEdges(newEdges);
+    // Keep ALL existing nodes and edges — we are adding, not replacing.
+    const newNodes = [...nodes, ...nodesToAdd];
+    const newEdges = [...edges, ...edgesToAdd];
 
-    // insert the node between the source and target node in the React flow state
-    const currentNodes = nodes;
-    const targetNodeIndex = currentNodes.findIndex((node: Node) => node.id === edge.target);
-    const newNodes = [
-      ...currentNodes.slice(0, targetNodeIndex),
-      insertNode,
-      ...currentNodes.slice(targetNodeIndex, currentNodes.length),
-    ];
     setNodes(newNodes);
+    setEdges(newEdges);
+    setFocusNodeId(newId);
 
-    //set focus
-    setFocusNodeId(insertNodeId);
-
-    // fitView({ nodes: [{ id: insertNode.id }], duration: 500, maxZoom: 1.6 });
     void GraphApiManager.storeFaultTree(
       FaultTreeState({
         faultTreeId: faultTreeId ?? "",
         nodes: newNodes,
         edges: newEdges,
       }),
-    ).then((_r: FaultTreeGraph) => {
-      // console.log(r);
-    });
+    ).then((_r: FaultTreeGraph) => {});
   };
-
-  return handleEdgeClick;
 }
 
-export { UseEdgeClick };
+export { useEdgeInsert };

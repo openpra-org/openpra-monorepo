@@ -38,7 +38,7 @@ export type FaultTreeNodeTypes =
   | "houseEvent"
   | "basicEvent";
 
-function getNodeIcon(type: string, id: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
+function getNodeIcon(type: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
   switch (type) {
     case AND_GATE:
       return (
@@ -153,6 +153,40 @@ function getNodeLabel(type: string): string {
   }
 }
 
+/**
+ * Returns the short quantification label displayed above a node.
+ * Gates show nothing (probability is derived); leaf nodes show their value.
+ */
+function getQuantificationLabel(nodeType: string, data: FaultTreeNodeProps): string {
+  if (!data) return "";
+  const q = data.quantification;
+
+  switch (nodeType) {
+    case BASIC_EVENT: {
+      if (!q) return "—";
+      if (q.probabilityType === "constant") {
+        const v = q.constantValue;
+        return v !== undefined ? v.toExponential(2) : "—";
+      }
+      if (q.probabilityType === "distribution") {
+        const dist = q.distributionType ?? "dist";
+        return dist.charAt(0).toUpperCase() + dist.slice(1);
+      }
+      if (q.probabilityType === "bayesian_network_link") return "BN";
+      return "—";
+    }
+    case HOUSE_EVENT:
+      return q?.houseEventState === "true" ? "True" : "False";
+    case TRANSFER_GATE:
+      return q?.targetFaultTreeId ? `→ FT` : "—";
+    case ATLEAST_GATE:
+      return q?.kValue !== undefined ? `K=${q.kValue}` : "";
+    default:
+      // Logic gates — probability derived from children
+      return "";
+  }
+}
+
 function FaultTreeNode(
   type: FaultTreeNodeTypes,
 ): MemoExoticComponent<React.ComponentType<NodeProps<FaultTreeNodeProps>>> {
@@ -178,15 +212,15 @@ function FaultTreeNode(
         onMouseEnter={mouseEnterHandler}
         onMouseLeave={mouseLeaveHandler}
       >
-        <div className={stylesMap.node_quantification}>0.05</div>
+        <div className={stylesMap.node_quantification}>{getQuantificationLabel(type, data as FaultTreeNodeProps)}</div>
         <div
           className={
-            data.isGrayed
-              ? `${stylesMap.node} ${stylesMap.placeholder}`
-              : `${stylesMap.node} ${selected ? stylesMap.selected : ``}`
+            data.isGrayed ?
+              `${stylesMap.node} ${stylesMap.placeholder}`
+            : `${stylesMap.node} ${selected ? stylesMap.selected : ``}`
           }
         >
-          <FaultTreeNodeLabel label={getNodeLabel(type)} />
+          <FaultTreeNodeLabel label={data?.quantification?.name?.trim() || getNodeLabel(type)} />
           <div className={stylesMap.node_id}>id: {id}</div>
           <Handle
             className={stylesMap.handle}
@@ -201,7 +235,7 @@ function FaultTreeNode(
             isConnectable={false}
           />
         </div>
-        {getNodeIcon(type, id, selected, data as object)}
+        {getNodeIcon(type, selected, data as object)}
       </div>
     );
   });

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { InternalEvents, InternalEventsDocument } from "../typedModel/schemas/internal-events.schema";
@@ -32,6 +32,8 @@ export type NestedModelType =
  */
 @Injectable()
 export class NestedModelHelperService {
+  private readonly logger = new Logger(NestedModelHelperService.name);
+
   /**
    * Construct the helper with injected typed model collections.
    *
@@ -65,31 +67,38 @@ export class NestedModelHelperService {
     typedModelId: string,
     nestedModelId: string,
   ): Promise<void> {
+    const numericId = Number(typedModelId);
+    if (isNaN(numericId)) {
+      this.logger.warn(
+        `AddNestedModelToTypedModel: skipping — cannot convert parentId "${typedModelId}" to a numeric id (${typedModel}.${nestedModel})`,
+      );
+      return;
+    }
     switch (typedModel) {
       case "InternalEvents":
         await this.internalEventsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "InternalHazards":
         await this.internalHazardsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "ExternalHazards":
         await this.externalHazardsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "FullScope":
         await this.fullScopeModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
@@ -111,31 +120,38 @@ export class NestedModelHelperService {
     typedModelId: string,
     nestedModelId: string,
   ): Promise<void> {
+    const numericId = Number(typedModelId);
+    if (isNaN(numericId)) {
+      this.logger.warn(
+        `RemoveNestedModelToTypedModel: skipping — cannot convert parentId "${typedModelId}" to a numeric id (${typedModel}.${nestedModel})`,
+      );
+      return;
+    }
     switch (typedModel) {
       case "InternalEvents":
         await this.internalEventsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "InternalHazards":
         await this.internalHazardsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "ExternalHazards":
         await this.externalHazardsModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
       case "FullScope":
         await this.fullScopeModel.findOneAndUpdate(
-          { _id: typedModelId },
+          { id: numericId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );

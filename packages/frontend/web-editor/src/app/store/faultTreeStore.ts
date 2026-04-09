@@ -30,6 +30,8 @@ export interface RFState {
   future: HistoryItem[];
   setPast: (past: HistoryItem[]) => void;
   setFuture: (future: HistoryItem[]) => void;
+  pendingEdge: { edgeId: string; x: number; y: number } | null;
+  setPendingEdge: (pending: { edgeId: string; x: number; y: number } | null) => void;
 }
 
 /**
@@ -81,6 +83,10 @@ const useStore = create<RFState>((set, get) => ({
   },
   setFuture: (future: HistoryItem[]): void => {
     set({ future });
+  },
+  pendingEdge: null,
+  setPendingEdge: (pending): void => {
+    set({ pendingEdge: pending });
   },
 }));
 

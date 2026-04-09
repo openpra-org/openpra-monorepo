@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NestedModelService } from "../nestedModel.service";
-import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { FaultTree, FaultTreeDocument } from "../schemas/fault-tree.schema";
@@ -14,16 +13,14 @@ import { FaultTree, FaultTreeDocument } from "../schemas/fault-tree.schema";
 @Injectable()
 export class FaultTreesService {
   /**
-   * Construct the service with persistence and helper dependencies.
+   * Construct the service with persistence dependencies.
    * @param FaultTreeModel - Mongoose model for FaultTree collection
    * @param nestedModelService - Service to allocate IDs and shared nested model ops
-   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
    */
   constructor(
     @InjectModel(FaultTree.name)
     private readonly FaultTreeModel: Model<FaultTreeDocument>,
     private readonly nestedModelService: NestedModelService,
-    private readonly nestedModelHelperService: NestedModelHelperService,
   ) {}
 
   /**
@@ -66,22 +63,12 @@ export class FaultTreesService {
    * creates the type of nested model defined in the function name
    * @param body - a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createFaultTree(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
+  async createFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFaultTree = new this.FaultTreeModel(body);
     newFaultTree.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newFaultTree.save();
-
-    for (const pId of newFaultTree.parentIds) {
-      await this.nestedModelHelperService.AddNestedModelToTypedModel(
-        typedModel,
-        "faultTrees",
-        pId.toString(),
-        newFaultTree._id as string,
-      );
-    }
     return newFaultTree;
   }
 
@@ -96,24 +83,11 @@ export class FaultTreesService {
   }
 
   /**
-   * finds and deletes the nested model in this collection with the give model id
+   * finds and deletes the nested model in this collection with the given model id
    * @param modelId - the id of the model we want to delete
-   * @param typedModel - is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * @returns a promise that resolves when the model is deleted
    */
-  async deleteFaultTree(modelId: string, typedModel: TypedModelType): Promise<void> {
-    const faultTree = await this.FaultTreeModel.findOne({
-      _id: modelId,
-    });
+  async deleteFaultTree(modelId: string): Promise<void> {
     await this.FaultTreeModel.findOneAndDelete({ _id: modelId });
-
-    for (const pId of faultTree.parentIds) {
-      await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
-        typedModel,
-        "faultTrees",
-        pId.toString(),
-        faultTree._id as string,
-      );
-    }
   }
 }

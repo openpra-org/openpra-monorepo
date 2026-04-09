@@ -15,7 +15,6 @@ import {
   FAULT_TREE_ROOT_NODE_ID,
   HOUSE_EVENT,
   HOUSE_EVENT_LABEL,
-  IMPORT_ACTION,
   LARGE,
   MEDIUM,
   NODE_TYPES,
@@ -81,16 +80,6 @@ const FaultTreeNodeContextMenu = ({
         ></EuiIcon>
       ),
       panel: 1,
-    },
-    {
-      name: "Import JSON",
-      icon: (
-        <EuiIcon
-          type={IMPORT_ACTION}
-          size={MEDIUM}
-          color={EDITOR_BLUE_COLOR}
-        ></EuiIcon>
-      ),
     },
   ];
   if (id !== FAULT_TREE_ROOT_NODE_ID) {

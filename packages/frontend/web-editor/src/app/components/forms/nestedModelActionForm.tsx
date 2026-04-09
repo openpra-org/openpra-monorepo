@@ -12,7 +12,7 @@ import {
 } from "@elastic/eui";
 import { useState } from "react";
 
-import { GetCurrentModelIdString } from "shared-sdk/lib/api/TypedModelApiManager";
+import { GetCurrentModelId } from "shared-sdk/lib/api/TypedModelApiManager";
 import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
@@ -60,7 +60,7 @@ function NestedModelActionForm({
     if (typedModel.label.name !== "") {
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
-        parentIds: [GetCurrentModelIdString()],
+        parentIds: [GetCurrentModelId()],
       };
 
       if (

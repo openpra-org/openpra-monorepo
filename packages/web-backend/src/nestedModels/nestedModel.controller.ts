@@ -102,7 +102,7 @@ export class NestedModelController {
     const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
       typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
     if (hasTypedModel(body)) {
-      return this.faultTreesService.createFaultTree(body.data, body.typedModel);
+      return this.faultTreesService.createFaultTree(body.data);
     }
     return this.nestedModelService.createFaultTree(body as Partial<NestedModel>);
   }
@@ -494,11 +494,11 @@ export class NestedModelController {
   }
 
   @Delete("/fault-trees/")
-  async deleteFaultTree(@Query("id") id: string | number, @Query("type") typedModel?: TypedModelType): Promise<any> {
+  async deleteFaultTree(@Query("id") id: string | number): Promise<any> {
     if (typeof id === "number") {
       return this.nestedModelService.deleteFaultTree(id);
     }
-    await this.faultTreesService.deleteFaultTree(id, typedModel as TypedModelType);
+    await this.faultTreesService.deleteFaultTree(id as string);
   }
 
   @Delete("/heat-balance-fault-trees/")

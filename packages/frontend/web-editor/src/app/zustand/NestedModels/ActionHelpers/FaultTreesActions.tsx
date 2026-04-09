@@ -7,7 +7,7 @@ import {
 import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
-import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
+import { GetTypedModelName } from "../Helper";
 
 /**
  * Load and set Fault Trees for a given parent typed model id.
@@ -41,8 +41,6 @@ export const AddFaultTree = async (data: NestedModelJSON): Promise<void> => {
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.SystemAnalysis.FaultTrees.push(FaultTree);
-
-        state[typedModelName] = AddToParentModel(state, FaultTree._id, FaultTree.parentIds);
       }),
     );
   } catch (_error: unknown) {
@@ -87,13 +85,9 @@ export const DeleteFaultTree = async (id: string): Promise<void> => {
 
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        const parentIds = state.NestedModels.SystemAnalysis.FaultTrees.find((ft) => ft._id === id)?.parentIds ?? [];
-
         state.NestedModels.SystemAnalysis.FaultTrees = state.NestedModels.SystemAnalysis.FaultTrees.filter(
           (ft: NestedModelType) => ft._id !== id,
         );
-
-        state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
   } catch (_error: unknown) {

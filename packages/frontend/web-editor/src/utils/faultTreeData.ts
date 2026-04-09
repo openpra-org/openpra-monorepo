@@ -12,6 +12,7 @@ import {
   WARNING,
   WORKFLOW,
 } from "./constants";
+import { defaultGateQuantification, defaultQuantification } from "../app/types/faultTreeQuantification";
 
 /**
  * Initial set of nodes used to bootstrap a minimal Fault Tree graph in the editor.
@@ -19,19 +20,28 @@ import {
 export const initialNodes: Node[] = [
   {
     id: FAULT_TREE_ROOT_NODE_ID,
-    data: { label: "OR Gate" },
+    data: {
+      label: "OR Gate",
+      quantification: defaultGateQuantification(),
+    },
     position: { x: 0, y: 0 },
     type: OR_GATE,
   },
   {
     id: "2",
-    data: { label: "Basic Event" },
+    data: {
+      label: "Basic Event",
+      quantification: defaultQuantification(),
+    },
     position: { x: 0, y: 150 },
     type: BASIC_EVENT,
   },
   {
     id: "3",
-    data: { label: "Basic Event" },
+    data: {
+      label: "Basic Event",
+      quantification: defaultQuantification(),
+    },
     position: { x: 0, y: 150 },
     type: BASIC_EVENT,
   },

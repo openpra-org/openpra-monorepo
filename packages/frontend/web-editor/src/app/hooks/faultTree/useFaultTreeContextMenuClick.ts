@@ -104,8 +104,8 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
         ) {
           // case 1: current node is basic event (or any leaf event like house/transfer) and new node is and/or gate (not a leaf event)
           // add two basic events as children and update the current node to the type of new node
-          const childNode1 = getBasicEventNode();
-          const childNode2 = getBasicEventNode();
+          const childNode1 = getBasicEventNode([...nodes, ...nodesToAdd]);
+          const childNode2 = getBasicEventNode([...nodes, ...nodesToAdd, childNode1]);
           const childEdge1 = getWorkflowEdge(clickedNode.id, childNode1.id);
           const childEdge2 = getWorkflowEdge(clickedNode.id, childNode2.id);
 
@@ -124,7 +124,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
           // and a basic event as another subtree
 
           // add a basic event as child
-          const childNode1 = getBasicEventNode();
+          const childNode1 = getBasicEventNode([...nodes, ...nodesToAdd]);
           const childEdge1 = getWorkflowEdge(clickedNode.id, childNode1.id);
 
           nodesToAdd.push(childNode1);
@@ -138,7 +138,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
           nodesToRemove.push(...subGraphNodes);
 
           // add a basic event as child to not gate
-          const childNode = getBasicEventNode();
+          const childNode = getBasicEventNode([...nodes, ...nodesToAdd]);
           const childEdge = getWorkflowEdge(clickedNode.id, childNode.id);
 
           nodesToAdd.push(childNode);

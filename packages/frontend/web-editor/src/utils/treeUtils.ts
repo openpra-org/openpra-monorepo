@@ -142,14 +142,20 @@ function getEdges<T>(edges: Edge[]): GraphEdge<T>[] {
 
 /**
  * Generates a new empty Basic Event node for Fault Trees.
+ * Assigns a sequential numeric ID based on the current node list.
+ * @param currentNodes - The existing nodes in the tree (used to determine the next ID).
  * @returns New empty Basic Event node.
  */
-export const getBasicEventNode = (): Node => ({
-  id: GenerateUUID(),
-  data: {},
-  position: { x: 0, y: 0 },
-  type: BASIC_EVENT,
-});
+export const getBasicEventNode = (currentNodes: Node[] = []): Node => {
+  const numericIds = currentNodes.map((n) => parseInt(n.id, 10)).filter((n) => !isNaN(n));
+  const nextId = numericIds.length > 0 ? String(Math.max(...numericIds) + 1) : "2";
+  return {
+    id: nextId,
+    data: {},
+    position: { x: 0, y: 0 },
+    type: BASIC_EVENT,
+  };
+};
 
 /**
  * Generates a new workflow edge.

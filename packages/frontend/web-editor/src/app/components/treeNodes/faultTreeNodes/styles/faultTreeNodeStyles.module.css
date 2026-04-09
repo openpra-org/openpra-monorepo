@@ -45,18 +45,15 @@
   align-items: center;
 }
 
-.editable_text_field {
+.node_label {
   border: none;
   background-color: transparent;
-  outline: none;
-  resize: none;
   text-align: center;
-  color: #0984e3
-}
-
-.editable_text_field:focus {
-  outline: none !important;
-  border: none !important;
+  color: #0984e3;
+  cursor: default;
+  user-select: none;
+  padding: 0 4px;
+  word-break: break-word;
 }
 
 .node_id {

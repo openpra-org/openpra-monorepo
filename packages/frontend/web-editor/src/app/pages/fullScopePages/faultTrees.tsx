@@ -1,19 +1,30 @@
 /**
- * This example shows how you can use custom nodes and edges to dynamically add elements to your react flow graph.
- * A global layouting function calculates the new positions for the nodes every time the graph changes and animates existing nodes to their new position.
- *
- * There are three ways of adding nodes to the graph:
- *  1. Click an existing node: Create a new child node of the clicked node
- *  2. Click on the plus icon of an existing edge: Create a node in between the connected nodes of the edge
- *  3. Click a placeholder node: Turn the placeholder into a "real" node to prevent jumping of the layout
- *
- * The graph elements are added via hook calls in the custom nodes and edges. The layout is calculated every time the graph changes (see hooks/useLayout.ts).
- **/
+ * Fault Tree editor page.
+ * Canvas is ReactFlow; a right-side PropertiesPanel appears when a node is selected.
+ * Clicking the + button on an edge opens a type-picker so the user can choose what
+ * kind of node to insert.
+ */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, FitViewOptions, Node, Panel, ProOptions, ReactFlowProvider } from "reactflow";
+import ReactFlow, {
+  Background,
+  FitViewOptions,
+  Node,
+  NodeMouseHandler,
+  Panel,
+  ProOptions,
+  ReactFlowProvider,
+} from "reactflow";
 
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
-import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
+import {
+  EuiButtonIcon,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiIcon,
+  EuiPanel,
+  EuiPopover,
+  EuiSkeletonRectangle,
+} from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
@@ -31,16 +42,60 @@ import { exitGrayedState, GenerateUUID, isSubgraphGrayed } from "../../../utils/
 import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
-import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
+import { useEdgeInsert } from "../../hooks/faultTree/useEdgeClick";
+import {
+  AND_GATE,
+  AND_GATE_LABEL,
+  ATLEAST_GATE,
+  ATLEAST_GATE_LABEL,
+  BASIC_EVENT,
+  BASIC_EVENT_LABEL,
+  EDITOR_REDO,
+  EDITOR_UNDO,
+  HOUSE_EVENT,
+  HOUSE_EVENT_LABEL,
+  LARGE,
+  NOT_GATE,
+  NOT_GATE_LABEL,
+  OR_GATE,
+  OR_GATE_LABEL,
+  SMALL,
+  TRANSFER_GATE,
+  TRANSFER_GATE_LABEL,
+} from "../../../utils/constants";
 import Minimap from "../../components/minimap/minimap";
 import { UseToastContext } from "../../providers/toastProvider";
 import { getGraphSignature, shouldApplyGraph } from "../../hooks/faultTree/graphApplyGuard";
+import { FaultTreePropertiesPanel } from "../../components/treeNodes/faultTreeNodes/faultTreePropertiesPanel";
+import type { FaultTreeNodeQuantification } from "../../types/faultTreeQuantification";
+import type { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { TypedContextMenu } from "../../components/context_menu/contextMenuTypes";
+import AndGateIcon from "../../../assets/images/faultTreeNodeIcons/AndGateIcon.svg";
+import OrGateIcon from "../../../assets/images/faultTreeNodeIcons/OrGateIcon.svg";
+import AtLeastIcon from "../../../assets/images/faultTreeNodeIcons/AtLeastGateIcon.svg";
+import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.svg";
+import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
+import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
+import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
 const fitViewOptions: FitViewOptions = {
   padding: 0.95,
 };
+
+const PANEL_WIDTH = 300;
+
+/** Node-type options shown in the edge + button picker. */
+const NODE_TYPE_OPTIONS = [
+  { type: AND_GATE, label: AND_GATE_LABEL, icon: AndGateIcon },
+  { type: OR_GATE, label: OR_GATE_LABEL, icon: OrGateIcon },
+  { type: ATLEAST_GATE, label: ATLEAST_GATE_LABEL, icon: AtLeastIcon },
+  { type: NOT_GATE, label: NOT_GATE_LABEL, icon: NotGateIcon },
+  { type: TRANSFER_GATE, label: TRANSFER_GATE_LABEL, icon: TransferGateIcon },
+  { type: HOUSE_EVENT, label: HOUSE_EVENT_LABEL, icon: HouseEventIcon },
+  { type: BASIC_EVENT, label: BASIC_EVENT_LABEL, icon: BasicEventIcon },
+];
 
 function ReactFlowPro(): JSX.Element {
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
@@ -52,25 +107,30 @@ function ReactFlowPro(): JSX.Element {
   const onEdgesChange = useStore((s) => s.onEdgesChange);
   const setNodes = useStore((s) => s.setNodes);
   const setEdges = useStore((s) => s.setEdges);
+  const pendingEdge = useStore((s) => s.pendingEdge);
+  const setPendingEdge = useStore((s) => s.setPendingEdge);
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
-  const [isOpen, setIsOpen] = useState(false);
   const { addToast } = UseToastContext();
-  // ensure layout only runs after initial load to avoid re-entrant state updates while loading
+
+  // ── Properties panel state ──────────────────────────────────────────────
+  const [selectedNode, setSelectedNode] = useState<Node<FaultTreeNodeProps> | null>(null);
+
+  // ── Edge insert hook ────────────────────────────────────────────────────
+  const insertOnEdge = useEdgeInsert();
+
   UseLayout(!isLoading);
-  // instrumentation & re-apply guard
   const lastAppliedSigRef = useRef<string | undefined>(undefined);
   const loadRunsRef = useRef<number>(0);
 
-  // if the route param changes, reset loading state and last-applied signature
-  // so we fetch and apply the new graph
   useEffect(() => {
     lastAppliedSigRef.current = undefined;
     setIsLoading(true);
+    setSelectedNode(null);
   }, [faultTreeId]);
 
   useEffect(() => {
-    // fetch and initialize graph only once per id when loading
     if (!isLoading) return;
     if (!faultTreeId) return;
 
@@ -88,22 +148,18 @@ function ReactFlowPro(): JSX.Element {
         const nextEdges = backendEmpty ? initialEdges : res.edges;
         const nextSig = getGraphSignature(nextNodes, nextEdges);
         if (lastAppliedSigRef.current && !shouldApplyGraph(lastAppliedSigRef.current, nextSig)) {
-          // same graph shape as last applied; skip to avoid redundant state updates
-          // eslint-disable-next-line no-console
           console.debug("[FaultTreeEditor] loadGraph skipped redundant apply", {
             runs: loadRunsRef.current,
             faultTreeId,
             nextSig,
-          });
+          }); // eslint-disable-line no-console
         } else {
           setNodes(nextNodes);
           setEdges(nextEdges);
           lastAppliedSigRef.current = nextSig;
-          // eslint-disable-next-line no-console
-          console.debug("[FaultTreeEditor] loadGraph applied", { runs: loadRunsRef.current, faultTreeId, nextSig });
+          console.debug("[FaultTreeEditor] loadGraph applied", { runs: loadRunsRef.current, faultTreeId, nextSig }); // eslint-disable-line no-console
         }
       } catch (_err) {
-        // graceful fallback if API is down or unauthorized
         if (cancelled) return;
         const fallbackSig = getGraphSignature(initialNodes, initialEdges);
         if (!lastAppliedSigRef.current || shouldApplyGraph(lastAppliedSigRef.current, fallbackSig)) {
@@ -123,20 +179,21 @@ function ReactFlowPro(): JSX.Element {
     };
   }, [faultTreeId, isLoading]);
 
+  // Keep selectedNode in sync when node data changes (e.g. quantification edits)
+  useEffect(() => {
+    if (!selectedNode) return;
+    const updated = nodes.find((n) => n.id === selectedNode.id);
+    if (updated) setSelectedNode(updated as Node<FaultTreeNodeProps>);
+  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      // Prevent native context menu from showing
       event.preventDefault();
-
-      //exit grayed state if present
       if (isSubgraphGrayed(nodes, edges)) {
         const { newNodes, newEdges } = exitGrayedState(nodes, edges);
         setNodes(newNodes);
         setEdges(newEdges);
       }
-
-      // Calculate position of the context menu. We want to make sure it
-      // doesn't get positioned off-screen.
       setIsOpen(!isOpen);
       const pane = ref.current.getBoundingClientRect();
       setMenu({
@@ -150,15 +207,20 @@ function ReactFlowPro(): JSX.Element {
     [nodes, edges, isOpen, setNodes, setEdges],
   );
 
-  // Close the context menu if it's open whenever the window is clicked.
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    setSelectedNode(node as Node<FaultTreeNodeProps>);
+  }, []);
+
   const onPaneClick = useCallback(() => {
     closePopover();
+    setPendingEdge(null);
+    setSelectedNode(null);
     if (isSubgraphGrayed(nodes, edges)) {
       const { newNodes, newEdges } = exitGrayedState(nodes, edges);
       setNodes(newNodes);
       setEdges(newEdges);
     }
-  }, [edges, nodes, setEdges, setNodes]);
+  }, [edges, nodes, setEdges, setNodes, setPendingEdge]);
 
   const closePopover = (): void => {
     setMenu(null);
@@ -166,97 +228,193 @@ function ReactFlowPro(): JSX.Element {
   };
 
   const addToastHandler = (type: string): void => {
-    const toast = allToasts.filter((toast) => toast.type === type)[0];
+    const toast = allToasts.filter((t) => t.type === type)[0];
     addToast({ id: GenerateUUID(), ...toast });
   };
 
-  return isLoading ?
+  // Properties panel: update node data + persist
+  const onQuantificationChange = useCallback(
+    (nodeId: string, q: FaultTreeNodeQuantification) => {
+      const updatedNodes = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, quantification: q } } : n));
+      setNodes(updatedNodes);
+      if (faultTreeId) {
+        void GraphApiManager.storeFaultTree({
+          faultTreeId,
+          nodes: updatedNodes,
+          edges,
+        } as FaultTreeGraph);
+      }
+    },
+    [nodes, edges, faultTreeId, setNodes],
+  );
+
+  // Edge type-picker: build panels for TypedContextMenu
+  const edgeTypePanelItems = NODE_TYPE_OPTIONS.map(({ type, label, icon }) => ({
+    name: label,
+    icon: (
+      <EuiIcon
+        type={icon}
+        size={LARGE}
+      />
+    ),
+    onClick: (): void => {
+      if (pendingEdge) {
+        insertOnEdge(pendingEdge.edgeId, type);
+        setPendingEdge(null);
+      }
+    },
+  }));
+
+  if (isLoading) {
+    return (
       <EuiSkeletonRectangle
-        isLoading={isLoading}
-        width={"100%"}
+        isLoading
+        width="100%"
         height={500}
-      ></EuiSkeletonRectangle>
-    : <ReactFlow
-        ref={ref}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        proOptions={proOptions}
-        fitView
-        nodeTypes={FaultTreeNodeTypes}
-        edgeTypes={EdgeTypes}
-        fitViewOptions={fitViewOptions}
-        onPaneClick={onPaneClick}
-        onNodeContextMenu={onNodeContextMenu}
-        minZoom={1.2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        zoomOnDoubleClick={false}
-        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-        // deleteKeyCode={"Delete"}
-      >
-        <Background />
-        <Minimap />
-        <Panel position="bottom-left">
-          <EuiFlexGroup
-            responsive={false}
-            gutterSize={SMALL}
-            alignItems="center"
-          >
-            <EuiFlexItem
-              grow={false}
-              onClick={undo}
-            >
-              <EuiButtonIcon
-                isDisabled={canUndo}
-                iconType={EDITOR_UNDO}
-                display={"base"}
-                aria-label="undo"
-              />
-            </EuiFlexItem>
-            <EuiFlexItem
-              grow={false}
-              onClick={redo}
-            >
-              <EuiButtonIcon
-                isDisabled={canRedo}
-                iconType={EDITOR_REDO}
-                display={"base"}
-                aria-label="redo"
-              />
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        </Panel>
-        <EuiPopover
-          button={""}
-          isOpen={isOpen}
-          anchorPosition="downRight"
-          style={{
-            top: typeof menu?.top === "number" ? menu.top : undefined,
-            left: typeof menu?.left === "number" ? menu.left : undefined,
-            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-            right: typeof menu?.right === "number" ? menu.right : undefined,
-          }}
-          closePopover={closePopover}
+      />
+    );
+  }
+
+  return (
+    // position: absolute; inset: 0 fills the FaultTreeEditor container exactly,
+    // avoiding height-100% inheritance issues across the EUI page template chain.
+    <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+      {/* ── Canvas ── */}
+      <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+        <ReactFlow
+          ref={ref}
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          proOptions={proOptions}
+          fitView
+          nodeTypes={FaultTreeNodeTypes}
+          edgeTypes={EdgeTypes}
+          fitViewOptions={fitViewOptions}
+          onPaneClick={onPaneClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onNodeClick={onNodeClick}
+          minZoom={1.2}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          zoomOnDoubleClick={false}
         >
-          {menu && (
-            <FaultTreeNodeContextMenu
-              onClick={closePopover}
-              addToastHandler={addToastHandler}
-              {...menu}
+          <Background />
+          <Minimap />
+          <Panel position="bottom-left">
+            <EuiFlexGroup
+              responsive={false}
+              gutterSize={SMALL}
+              alignItems="center"
+            >
+              <EuiFlexItem
+                grow={false}
+                onClick={undo}
+              >
+                <EuiButtonIcon
+                  isDisabled={canUndo}
+                  iconType={EDITOR_UNDO}
+                  display="base"
+                  aria-label="undo"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem
+                grow={false}
+                onClick={redo}
+              >
+                <EuiButtonIcon
+                  isDisabled={canRedo}
+                  iconType={EDITOR_REDO}
+                  display="base"
+                  aria-label="redo"
+                />
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </Panel>
+
+          {/* Node context menu */}
+          <EuiPopover
+            button=""
+            isOpen={isOpen}
+            anchorPosition="downRight"
+            style={{
+              top: typeof menu?.top === "number" ? menu.top : undefined,
+              left: typeof menu?.left === "number" ? menu.left : undefined,
+              bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+              right: typeof menu?.right === "number" ? menu.right : undefined,
+            }}
+            closePopover={closePopover}
+          >
+            {menu && (
+              <FaultTreeNodeContextMenu
+                onClick={closePopover}
+                addToastHandler={addToastHandler}
+                {...menu}
+              />
+            )}
+          </EuiPopover>
+
+          {/* Edge type picker */}
+          <EuiPopover
+            button=""
+            isOpen={!!pendingEdge}
+            anchorPosition="downLeft"
+            style={{
+              position: "fixed",
+              top: pendingEdge?.y ?? 0,
+              left: pendingEdge?.x ?? 0,
+            }}
+            closePopover={() => setPendingEdge(null)}
+          >
+            <TypedContextMenu
+              panels={[{ id: 0, title: "Insert node", items: edgeTypePanelItems }]}
+              size="s"
             />
-          )}
-        </EuiPopover>
-      </ReactFlow>;
+          </EuiPopover>
+        </ReactFlow>
+      </div>
+
+      {/* ── Properties panel ── */}
+      {selectedNode && faultTreeId && (
+        <EuiPanel
+          paddingSize="none"
+          style={{
+            width: PANEL_WIDTH,
+            minWidth: PANEL_WIDTH,
+            maxWidth: PANEL_WIDTH,
+            overflowY: "auto",
+            borderLeft: "1px solid #d3dae6",
+            flexShrink: 0,
+            borderRadius: 0,
+          }}
+        >
+          <FaultTreePropertiesPanel
+            node={selectedNode}
+            modelId={faultTreeId}
+            onChange={onQuantificationChange}
+          />
+        </EuiPanel>
+      )}
+    </div>
+  );
 }
 
 export function FaultTreeEditor(): JSX.Element {
   return (
-    <ReactFlowProvider>
-      <ReactFlowPro />
-    </ReactFlowProvider>
+    // position: relative establishes the containing block for the absolute inner div.
+    // The height calc keeps the editor below the fixed EUI header.
+    <div
+      style={{
+        position: "relative",
+        height: "calc(100vh - var(--euiFixedHeadersOffset, 0px))",
+        overflow: "hidden",
+      }}
+    >
+      <ReactFlowProvider>
+        <ReactFlowPro />
+      </ReactFlowProvider>
+    </div>
   );
 }
 

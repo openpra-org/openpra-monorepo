@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import styles from "./styles/faultTreeNodeStyles.module.css";
 
 interface FaultTreeNodeLabelProps {
@@ -7,20 +6,8 @@ interface FaultTreeNodeLabelProps {
 
 const stylesMap = styles as Record<string, string>;
 
-const FaultTreeNodeLabel = ({ label }: FaultTreeNodeLabelProps): JSX.Element => {
-  const [isEditable, setIsEditable] = useState(false);
-  const handleClick = (): void => {
-    setIsEditable(true);
-  };
-
-  return (
-    <textarea
-      defaultValue={label}
-      className={stylesMap.editable_text_field}
-      onClick={handleClick}
-      readOnly={!isEditable}
-    />
-  );
-};
+const FaultTreeNodeLabel = ({ label }: FaultTreeNodeLabelProps): JSX.Element => (
+  <div className={stylesMap.node_label}>{label}</div>
+);
 
 export { FaultTreeNodeLabel };

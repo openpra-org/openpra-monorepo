@@ -1,8 +1,8 @@
 import React from "react";
 import { EdgeProps, getSmoothStepPath } from "reactflow";
 
-import { UseEdgeClick } from "../../../hooks/faultTree/useEdgeClick";
 import { FaultTreeNodeProps } from "../../treeNodes/faultTreeNodes/faultTreeNodeType";
+import { useStore } from "../../../store/faultTreeStore";
 import styles from "./styles/edgeType.module.css";
 
 function WorkFlowEdge({
@@ -17,9 +17,7 @@ function WorkFlowEdge({
   markerEnd,
   data,
 }: EdgeProps<FaultTreeNodeProps>): JSX.Element {
-  // see the hook for implementation details
-  // onClick adds a node in between the nodes that are connected by this edge
-  const onClick = UseEdgeClick(id);
+  const setPendingEdge = useStore((s) => s.setPendingEdge);
   const stylesMap = styles as Record<string, string>;
 
   const [edgePath, edgeCenterX, edgeCenterY] = getSmoothStepPath({
@@ -31,6 +29,12 @@ function WorkFlowEdge({
     targetPosition,
     borderRadius: 0,
   });
+
+  const handleAddClick = (e: React.MouseEvent): void => {
+    e.stopPropagation();
+    setPendingEdge({ edgeId: id, x: e.clientX, y: e.clientY });
+  };
+
   return (
     <>
       <path
@@ -43,7 +47,7 @@ function WorkFlowEdge({
       {data?.isGrayed ? null : (
         <g transform={`translate(${String(edgeCenterX)}, ${String(edgeCenterY)})`}>
           <rect
-            onClick={onClick}
+            onClick={handleAddClick}
             x={-5}
             y={-5}
             width={10}

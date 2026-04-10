@@ -12,6 +12,13 @@ import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-
 import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
 
+/** Shape of the MEF fault tree graph payload (wire format) */
+interface FaultTreeMEFPayload {
+  faultTreeId: string;
+  topEventId?: string;
+  nodes?: Record<string, object>;
+}
+
 /**
  * Enum of supported graph types
  */
@@ -87,16 +94,29 @@ export class GraphModelService {
   }
 
   /**
-   * Saves the fault tree diagram graph
-   * @param body - The current state of the fault tree diagram graph
-   * @returns A promise with a fault tree diagram graph in it
+   * Saves the fault tree diagram graph in MEF format.
+   * @param body - MEF fault tree payload (faultTreeId, topEventId, nodes)
+   * @returns true on success
    */
-  async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
+  async saveFaultTreeGraph(body: FaultTreeMEFPayload): Promise<boolean> {
     try {
-      const existingGraph = await this.faultTreeGraphModel.findOne({
-        faultTreeId: body.faultTreeId,
-      });
-      return this.saveGraph(existingGraph, body, GraphTypes.FaultTree);
+      const existing = await this.faultTreeGraphModel.findOne({ faultTreeId: body.faultTreeId });
+      if (existing !== null) {
+        if (body.topEventId !== undefined) existing.topEventId = body.topEventId;
+        if (body.nodes !== undefined) (existing as any).nodes = body.nodes;
+        await existing.save();
+      } else {
+        const defaults = this.getDefaultFaultTreeGraph();
+        const doc = new this.faultTreeGraphModel({
+          id: this.generateUUID(),
+          _id: new mongoose.Types.ObjectId(),
+          faultTreeId: body.faultTreeId,
+          topEventId: body.topEventId ?? defaults.topEventId,
+          nodes: body.nodes ?? defaults.nodes,
+        });
+        await doc.save();
+      }
+      return true;
     } catch (exception) {
       const error = exception as Error;
       this.logger.error(error.message, error.stack);
@@ -105,41 +125,29 @@ export class GraphModelService {
   }
 
   /**
-   * Sets the fault tree diagram graph for the given fault tree ID
+   * Retrieves the fault tree graph in MEF format for the given fault tree ID.
+   * Returns an empty MEF graph if no document exists yet.
    * @param faultTreeId - Fault tree ID
-   * @returns A promise with the fault tree diagram graph
    */
   async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
-    const result = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
+    const result = await this.faultTreeGraphModel.findOne({ faultTreeId }, { _id: 0 });
     if (result !== null) {
-      // Proactive migration: if an existing doc is empty, seed defaults and persist once
-      const hasEmptyNodes = !Array.isArray(result.nodes) || result.nodes.length === 0;
-      const hasEmptyEdges = !Array.isArray(result.edges) || result.edges.length === 0;
-      if (hasEmptyNodes && hasEmptyEdges) {
+      // Migration guard: old documents stored nodes as an array — treat as empty.
+      const nodesIsArray = Array.isArray((result as any).nodes);
+      const hasNodes = !nodesIsArray && result.nodes != null && Object.keys(result.nodes).length > 0;
+      if (!hasNodes) {
         const defaults = this.getDefaultFaultTreeGraph();
-        // need a hydrated doc with _id to save; refetch without projection
-        const hydrated = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId });
+        const hydrated = await this.faultTreeGraphModel.findOne({ faultTreeId });
         if (hydrated) {
-          hydrated.nodes = defaults.nodes as unknown as typeof hydrated.nodes;
-          hydrated.edges = defaults.edges as unknown as typeof hydrated.edges;
+          hydrated.topEventId = defaults.topEventId;
+          (hydrated as any).nodes = defaults.nodes;
           await hydrated.save();
-          return {
-            faultTreeId,
-            nodes: defaults.nodes as unknown as FaultTreeGraph["nodes"],
-            edges: defaults.edges as unknown as FaultTreeGraph["edges"],
-          } as FaultTreeGraph;
         }
+        return { faultTreeId, topEventId: defaults.topEventId, nodes: defaults.nodes } as unknown as FaultTreeGraph;
       }
       return result as unknown as FaultTreeGraph;
-    } else {
-      return {
-        id: "",
-        _id: new mongoose.Types.ObjectId(),
-        faultTreeId: faultTreeId,
-        nodes: [],
-        edges: [],
-      };
     }
+    return { faultTreeId, topEventId: "", nodes: {} } as unknown as FaultTreeGraph;
   }
 
   /**
@@ -250,32 +258,18 @@ export class GraphModelService {
   }
 
   /**
-   * Save the graph document
-   * @param graph - Graph document
-   * @param body - Model data
-   * @param modelType - Type of graph model
-   * @returns Graph document, after saving it in the database
+   * Save a graph document for event-sequence or event-tree types.
+   * Fault tree graphs are handled separately via saveFaultTreeGraph.
    */
   private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
-    type AnyGraphDocument = EventSequenceDiagramGraphDocument | FaultTreeGraphDocument | EventTreeGraphDocument;
+    type AnyGraphDocument = EventSequenceDiagramGraphDocument | EventTreeGraphDocument;
     const doc = graph as AnyGraphDocument | null;
     if (doc !== null) {
-      // assign nodes/edges if provided; preserve existing when undefined
       if (body.nodes !== undefined) (doc as any).nodes = body.nodes as any;
       if (body.edges !== undefined) (doc as any).edges = body.edges as any;
       await (doc as any).save();
     } else {
       const newGraph = this.getModel(modelType, body);
-      // Seed defaults for Fault Trees when creating a new graph with empty payload
-      if (
-        modelType === GraphTypes.FaultTree &&
-        (body.nodes === undefined || body.nodes.length === 0) &&
-        (body.edges === undefined || body.edges.length === 0)
-      ) {
-        const defaults = this.getDefaultFaultTreeGraph();
-        (newGraph as any).nodes = defaults.nodes as any;
-        (newGraph as any).edges = defaults.edges as any;
-      }
       (newGraph as any).id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
       (newGraph as any)._id = new mongoose.Types.ObjectId();
       await (newGraph as any).save();
@@ -293,12 +287,10 @@ export class GraphModelService {
   private getModel(
     modelType: GraphTypes,
     body: Partial<BaseGraph>,
-  ): HydratedDocument<EventSequenceDiagramGraphDocument | FaultTreeGraphDocument | EventTreeGraphDocument> {
+  ): HydratedDocument<EventSequenceDiagramGraphDocument | EventTreeGraphDocument> {
     switch (modelType) {
       case GraphTypes.EventSequence:
         return new this.eventSequenceDiagramGraphModel(body);
-      case GraphTypes.FaultTree:
-        return new this.faultTreeGraphModel(body);
       case GraphTypes.EventTree:
         return new this.eventTreeGraphModel(body);
       default:
@@ -381,51 +373,39 @@ export class GraphModelService {
     return { nodes: defaultNodes, edges: defaultEdges };
   }
 
-  private getDefaultFaultTreeGraph(): Partial<BaseGraphDocument> {
-    // Mirror the frontend starter graph: one OR gate (id "1") and two basic events (id "2" and "3")
-    const defaultNodes: GraphNode<object>[] = [
-      {
-        id: "1",
-        data: { label: "OR Gate" },
-        position: { x: 0, y: 0 },
-        type: "orGate",
-      },
-      {
-        id: "2",
-        data: { label: "Basic Event" },
-        position: { x: 0, y: 150 },
-        type: "basicEvent",
-      },
-      {
-        id: "3",
-        data: { label: "Basic Event" },
-        position: { x: 0, y: 150 },
-        type: "basicEvent",
-      },
-    ];
-
-    const defaultEdges: GraphEdge<object>[] = [
-      {
-        id: "1=>2",
-        source: "1",
-        target: "2",
-        type: "workflow",
-        animated: false,
-        data: {},
-      },
-      {
-        id: "1=>3",
-        source: "1",
-        target: "3",
-        type: "workflow",
-        animated: false,
-        data: {},
-      },
-    ];
-
+  /** Default MEF fault tree: one OR gate (id "1") with two basic-event children (id "2", "3"). */
+  private getDefaultFaultTreeGraph(): { topEventId: string; nodes: Record<string, object> } {
     return {
-      nodes: defaultNodes as unknown as BaseGraphDocument["nodes"],
-      edges: defaultEdges as unknown as BaseGraphDocument["edges"],
+      topEventId: "1",
+      nodes: {
+        "1": {
+          uuid: "1",
+          nodeType: "OR_GATE",
+          name: "OR Gate",
+          description: "",
+          inputs: ["2", "3"],
+          probabilityType: "constant",
+          position: { x: 0, y: 0 },
+        },
+        "2": {
+          uuid: "2",
+          nodeType: "BASIC_EVENT",
+          name: "Basic Event",
+          description: "",
+          probabilityType: "constant",
+          probability: 0,
+          position: { x: 0, y: 150 },
+        },
+        "3": {
+          uuid: "3",
+          nodeType: "BASIC_EVENT",
+          name: "Basic Event",
+          description: "",
+          probabilityType: "constant",
+          probability: 0,
+          position: { x: 0, y: 150 },
+        },
+      },
     };
   }
 }

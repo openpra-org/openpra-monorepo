@@ -1171,6 +1171,7 @@ export enum FaultTreeNodeType {
   AND_GATE = "AND_GATE", // Output occurs if and only if all inputs occur
   OR_GATE = "OR_GATE", // Output occurs if one or more inputs occur
   INHIBIT_GATE = "INHIBIT_GATE", // Output exists when input exists and condition is met
+  ATLEAST_GATE = "ATLEAST_GATE", // K-of-N gate: output occurs if at least K of N inputs occur
 
   // Events
   BASIC_EVENT = "BASIC_EVENT", // Circle: Independent Primary Fault Event
@@ -1188,6 +1189,125 @@ export enum FaultTreeNodeType {
   TRANSFER_IN = "TRANSFER_IN", // Triangle In: continues a branch from another page
   TRANSFER_OUT = "TRANSFER_OUT", // Triangle Out: continues a branch on another page
 }
+
+/**
+ * How the probability of a basic event is specified.
+ * @group Fault Tree Analysis
+ */
+export type FaultTreeNodeProbabilityType = "constant" | "distribution" | "bayesian_network_link";
+
+/**
+ * Whether the failure model is per-demand or rate-based over time.
+ * @group Fault Tree Analysis
+ */
+export type FaultTreeNodeEventType = "on_demand" | "during_operation";
+
+/**
+ * Lognormal distribution for on-demand failures (parameterised by median and error factor).
+ * @group Fault Tree Analysis
+ */
+export interface LognormalDistribution {
+  type: "lognormal";
+  /** Geometric mean (central value) */
+  median: number;
+  /** Error factor EF = exp(1.645 × σ); relates to the spread */
+  errorFactor: number;
+}
+
+/**
+ * Beta distribution for on-demand failures.
+ * @group Fault Tree Analysis
+ */
+export interface BetaDistribution {
+  type: "beta";
+  /** Shape parameter α */
+  alpha: number;
+  /** Shape parameter β */
+  betaParam: number;
+}
+
+/**
+ * Normal distribution.
+ * @group Fault Tree Analysis
+ */
+export interface NormalDistribution {
+  type: "normal";
+  mean: number;
+  stdDev: number;
+}
+
+/**
+ * Uniform distribution.
+ * @group Fault Tree Analysis
+ */
+export interface UniformDistribution {
+  type: "uniform";
+  lower: number;
+  upper: number;
+}
+
+/**
+ * Exponential distribution for rate-based (during-operation) failures.
+ * @group Fault Tree Analysis
+ */
+export interface ExponentialDistribution {
+  type: "exponential";
+  /** Failure rate λ in failures per hour */
+  failureRate: number;
+}
+
+/**
+ * Weibull distribution for rate-based failures.
+ * @group Fault Tree Analysis
+ */
+export interface WeibullDistribution {
+  type: "weibull";
+  /** Scale parameter (characteristic life) */
+  scale: number;
+  /** Shape parameter β */
+  shape: number;
+  /** Location / threshold parameter γ (usually 0) */
+  location: number;
+}
+
+/**
+ * Gamma distribution for rate-based failures.
+ * @group Fault Tree Analysis
+ */
+export interface GammaDistribution {
+  type: "gamma";
+  /** Shape parameter α */
+  shape: number;
+  /** Rate parameter β = 1 / scale */
+  rate: number;
+}
+
+/**
+ * Lognormal distribution for rate-based (during-operation) failures
+ * (parameterised on the log scale by mean and standard deviation).
+ * @group Fault Tree Analysis
+ */
+export interface LognormalTimeDistribution {
+  type: "lognormal_time";
+  /** Log-mean μ */
+  mean: number;
+  /** Log-scale standard deviation σ */
+  stdDev: number;
+}
+
+/**
+ * Union of all supported probability distributions for fault tree basic events.
+ * @group Fault Tree Analysis
+ */
+export type FaultTreeDistribution =
+  | LognormalDistribution
+  | BetaDistribution
+  | NormalDistribution
+  | UniformDistribution
+  | ExponentialDistribution
+  | WeibullDistribution
+  | GammaDistribution
+  | LognormalTimeDistribution;
 
 /**
  * Unified interface for all fault tree nodes with type-specific properties
@@ -1283,6 +1403,51 @@ export interface FaultTreeNode extends Unique {
    * Reference to initiating event for INIT events
    */
   initiatingEventRef?: string;
+
+  /**
+   * Minimum number of inputs that must be true.
+   * Used by {@link FaultTreeNodeType.ATLEAST_GATE} (K-of-N logic).
+   */
+  kValue?: number;
+
+  /**
+   * How the probability of this node is specified.
+   * - `"constant"` — use the scalar {@link probability} field
+   * - `"distribution"` — use the {@link probabilityDistribution} field
+   * - `"bayesian_network_link"` — use the {@link bayesianNetworkRef} field
+   */
+  probabilityType?: FaultTreeNodeProbabilityType;
+
+  /**
+   * Whether the failure model is per-demand or rate-based over time.
+   * Relevant when {@link probabilityType} is `"distribution"`.
+   */
+  eventType?: FaultTreeNodeEventType;
+
+  /**
+   * Parametric uncertainty distribution.
+   * Populated when {@link probabilityType} is `"distribution"`.
+   */
+  probabilityDistribution?: FaultTreeDistribution;
+
+  /**
+   * Reference to a Bayesian Network node for probability inference.
+   * Populated when {@link probabilityType} is `"bayesian_network_link"`.
+   */
+  bayesianNetworkRef?: {
+    /** ID of the Bayesian Network nested model */
+    networkId: number;
+    /** ID of the specific node within the network */
+    nodeId?: string;
+  };
+
+  /**
+   * @visualMetadata
+   * ReactFlow-specific canvas position for this node.
+   * NOT part of the MEF semantic model.
+   * Other tools implementing MEF should replace this with their own typed equivalent.
+   */
+  position?: { x: number; y: number };
 }
 
 //==============================================================================

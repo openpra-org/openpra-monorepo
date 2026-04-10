@@ -26,7 +26,7 @@ export class GraphModelController {
    * @returns a promise with the newly created graph model
    */
   @Post("/fault-tree-graph")
-  async createFaultTreeGraph(@Body() data: Partial<FaultTreeGraph>): Promise<boolean> {
+  async createFaultTreeGraph(@Body() data: FaultTreeGraph): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
     } catch {

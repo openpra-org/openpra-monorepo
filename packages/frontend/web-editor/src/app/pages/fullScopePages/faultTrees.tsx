@@ -25,7 +25,7 @@ import {
   EuiPopover,
   EuiSkeletonRectangle,
 } from "@elastic/eui";
-import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { mefToReactFlow, reactFlowToMEF } from "../../../utils/faultTreeMEFSerializer";
 import { Route, Routes, useParams } from "react-router-dom";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
 import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
@@ -138,14 +138,15 @@ function ReactFlowPro(): JSX.Element {
     const loadGraph = async (): Promise<void> => {
       loadRunsRef.current += 1;
       try {
-        const res: FaultTreeGraph = await GraphApiManager.getFaultTree(faultTreeId);
+        const res = await GraphApiManager.getFaultTree(faultTreeId);
         if (cancelled) return;
-        const backendEmpty = res.nodes.length === 0 && res.edges.length === 0;
+        const backendEmpty = Object.keys(res.nodes).length === 0;
         if (backendEmpty) {
           addToast({ id: GenerateUUID(), title: "No saved fault tree found; showing starter graph", color: "warning" });
         }
-        const nextNodes = backendEmpty ? initialNodes : res.nodes;
-        const nextEdges = backendEmpty ? initialEdges : res.edges;
+        const { nodes: rfNodes, edges: rfEdges } = mefToReactFlow(res.nodes);
+        const nextNodes = backendEmpty ? initialNodes : rfNodes;
+        const nextEdges = backendEmpty ? initialEdges : rfEdges;
         const nextSig = getGraphSignature(nextNodes, nextEdges);
         if (lastAppliedSigRef.current && !shouldApplyGraph(lastAppliedSigRef.current, nextSig)) {
           console.debug("[FaultTreeEditor] loadGraph skipped redundant apply", {
@@ -238,11 +239,8 @@ function ReactFlowPro(): JSX.Element {
       const updatedNodes = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, quantification: q } } : n));
       setNodes(updatedNodes);
       if (faultTreeId) {
-        void GraphApiManager.storeFaultTree({
-          faultTreeId,
-          nodes: updatedNodes,
-          edges,
-        } as FaultTreeGraph);
+        const { topEventId, nodes: mefNodes } = reactFlowToMEF(updatedNodes, edges);
+        void GraphApiManager.storeFaultTree({ faultTreeId, topEventId, nodes: mefNodes });
       }
     },
     [nodes, edges, faultTreeId, setNodes],

@@ -12,6 +12,7 @@
   "main": "./src/index.js",
   "typings": "./src/index.d.ts",
   "dependencies": {
+    "mef-types": "workspace:^",
     "tslib": "2.5.2"
   },
   "devDependencies": {

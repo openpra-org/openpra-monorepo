@@ -1,4 +1,5 @@
 import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { reactFlowToMEF } from "./faultTreeMEFSerializer";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node } from "reactflow";
@@ -86,11 +87,10 @@ export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSeque
  * @param state - Object containing faultTreeId, nodes, and edges.
  * @returns A normalized FaultTreeGraph snapshot.
  */
-export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType): FaultTreeGraph => ({
-  faultTreeId: faultTreeId,
-  nodes: getNodes<object>(nodes),
-  edges: getEdges<object>(edges),
-});
+export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType): FaultTreeGraph => {
+  const { topEventId, nodes: mefNodes } = reactFlowToMEF(nodes, edges);
+  return { faultTreeId, topEventId, nodes: mefNodes };
+};
 
 /**
  * Generate the event tree state with the provided list of nodes and edges, for a particular event tree id.

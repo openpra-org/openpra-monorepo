@@ -1,4 +1,8 @@
 import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import type {
+  FaultTreeQuantificationRequest,
+  FaultTreeQuantificationResult,
+} from "shared-types/src/lib/types/faultTreeQuantification";
 import { AuthService } from "./AuthService";
 
 const ApiEndpoint = "/api";
@@ -124,6 +128,27 @@ export class GraphApiManager {
       .catch((err) => {
         throw err;
       });
+  }
+
+  /**
+   * Quantify a fault tree by posting algorithm settings to the backend.
+   * The backend fetches the stored graph and runs praxis.
+   *
+   * @param faultTreeId  - ID of the fault tree to quantify
+   * @param options      - Algorithm, approximation, and optional maxOrder
+   * @returns Structured quantification result
+   */
+  static async quantifyFaultTree(
+    faultTreeId: string,
+    options: Omit<FaultTreeQuantificationRequest, "graph">,
+  ): Promise<FaultTreeQuantificationResult> {
+    const url = `${FaultTreeGraphEndpoint}/quantify?faultTreeId=${encodeURIComponent(faultTreeId)}`;
+    const res = await fetch(url, this.getRequestInfo("POST", JSON.stringify(options)));
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(msg);
+    }
+    return res.json() as Promise<FaultTreeQuantificationResult>;
   }
 
   /**

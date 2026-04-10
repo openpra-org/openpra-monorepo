@@ -4,6 +4,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
+import type {
+  FaultTreeQuantificationRequest,
+  FaultTreeQuantificationResult,
+} from "shared-types/src/lib/types/faultTreeQuantification";
 import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphDocument,
@@ -371,6 +375,50 @@ export class GraphModelService {
     ];
 
     return { nodes: defaultNodes, edges: defaultEdges };
+  }
+
+  /**
+   * Quantify a fault tree using the praxis engine.
+   *
+   * Accepts the stored MEF FaultTreeGraph for the given fault tree id, merges in the
+   * caller-supplied algorithm / approximation settings from `options`, and delegates to
+   * the `praxis-node` native addon.
+   *
+   * @param faultTreeId  - ID of the fault tree whose graph is to be quantified
+   * @param options      - Algorithm, approximation, and optional maxOrder settings
+   * @returns Structured quantification result (top-event probability + cut sets)
+   * @throws If the praxis native addon is not built or quantification fails
+   */
+  async quantifyFaultTree(
+    faultTreeId: string,
+    options: Omit<FaultTreeQuantificationRequest, "graph">,
+  ): Promise<FaultTreeQuantificationResult> {
+    // Load the stored graph.
+    const graph = await this.getFaultTreeGraph(faultTreeId);
+
+    // Build the full request payload.
+    // The schema type uses `nodes: Record<string, object>` for flexibility; cast to the
+    // shared-types FaultTreeGraph which expects `Record<string, FaultTreeNode>`.
+    const request: FaultTreeQuantificationRequest = {
+      graph: graph as unknown as FaultTreeQuantificationRequest["graph"],
+      ...options,
+    };
+
+    // Dynamically load the praxis native addon (requires the addon to be built).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    let praxis: { quantifyFaultTree: (json: string) => string };
+    try {
+      praxis = require("praxis-node") as typeof praxis;
+    } catch (err) {
+      const hint =
+        "The praxis-node native addon is not built. " +
+        "Run: cd packages/engine/praxis && cargo build --features napi-rs --release " +
+        "&& cp target/release/libpraxis.so praxis.node";
+      throw new Error(`praxis-node not available: ${hint}`);
+    }
+
+    const resultJson = praxis.quantifyFaultTree(JSON.stringify(request));
+    return JSON.parse(resultJson) as FaultTreeQuantificationResult;
   }
 
   /** Default MEF fault tree: one OR gate (id "1") with two basic-event children (id "2", "3"). */

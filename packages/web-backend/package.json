@@ -9,6 +9,7 @@
     ]
   },
   "dependencies": {
+    "praxis-node": "workspace:*",
     "@nestjs/common": "11.1.7",
     "@nestjs/config": "4.0.2",
     "@nestjs/core": "11.1.7",

@@ -1,5 +1,6 @@
 pub mod addon_json;
 pub mod addon_openpsa_xml;
+pub mod fault_tree_quantification;
 pub mod napi;
 pub mod json_model;
 pub mod contracts;

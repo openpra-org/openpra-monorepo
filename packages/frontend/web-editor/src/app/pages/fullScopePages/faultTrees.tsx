@@ -13,6 +13,7 @@ import ReactFlow, {
   Panel,
   ProOptions,
   ReactFlowProvider,
+  useReactFlow,
 } from "reactflow";
 
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
@@ -26,6 +27,7 @@ import {
   EuiSkeletonRectangle,
 } from "@elastic/eui";
 import { mefToReactFlow, reactFlowToMEF } from "../../../utils/faultTreeMEFSerializer";
+import { parseOpenPsaXml } from "../../../utils/parseOpenPsaXml";
 import { Route, Routes, useParams } from "react-router-dom";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
 import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
@@ -67,6 +69,7 @@ import Minimap from "../../components/minimap/minimap";
 import { UseToastContext } from "../../providers/toastProvider";
 import { getGraphSignature, shouldApplyGraph } from "../../hooks/faultTree/graphApplyGuard";
 import { FaultTreePropertiesPanel } from "../../components/treeNodes/faultTreeNodes/faultTreePropertiesPanel";
+import { FaultTreeQuantificationPanel } from "../../components/treeNodes/faultTreeNodes/faultTreeQuantificationPanel";
 import type { FaultTreeNodeQuantification } from "../../types/faultTreeQuantification";
 import type { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { TypedContextMenu } from "../../components/context_menu/contextMenuTypes";
@@ -116,6 +119,14 @@ function ReactFlowPro(): JSX.Element {
 
   // ── Properties panel state ──────────────────────────────────────────────
   const [selectedNode, setSelectedNode] = useState<Node<FaultTreeNodeProps> | null>(null);
+  const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
+
+  // ── Import XML state ────────────────────────────────────────────────────
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  // ── Zoom helpers ────────────────────────────────────────────────────────
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   // ── Edge insert hook ────────────────────────────────────────────────────
   const insertOnEdge = useEdgeInsert();
@@ -246,6 +257,33 @@ function ReactFlowPro(): JSX.Element {
     [nodes, edges, faultTreeId, setNodes],
   );
 
+  // ── OpenPSA XML import ──────────────────────────────────────────────────
+  const handleImportXml = useCallback(
+    async (file: File): Promise<void> => {
+      if (!faultTreeId) return;
+      setIsImporting(true);
+      try {
+        const xml = await file.text();
+        const { topEventId, nodes: importedNodes } = parseOpenPsaXml(xml);
+        await GraphApiManager.storeFaultTree({ faultTreeId, topEventId, nodes: importedNodes });
+        setSelectedNode(null);
+        setIsLoading(true); // triggers the load useEffect to re-fetch and re-render
+        addToast({ id: GenerateUUID(), title: `Imported "${file.name}"`, color: "success" });
+      } catch (err) {
+        addToast({
+          id: GenerateUUID(),
+          title: `Import failed: ${err instanceof Error ? err.message : "unknown error"}`,
+          color: "danger",
+        });
+      } finally {
+        setIsImporting(false);
+        // Reset file input so the same file can be re-imported if needed
+        if (importFileRef.current) importFileRef.current.value = "";
+      }
+    },
+    [faultTreeId, addToast, importFileRef],
+  );
+
   // Edge type-picker: build panels for TypedContextMenu
   const edgeTypePanelItems = NODE_TYPE_OPTIONS.map(({ type, label, icon }) => ({
     name: label,
@@ -293,7 +331,7 @@ function ReactFlowPro(): JSX.Element {
           onPaneClick={onPaneClick}
           onNodeContextMenu={onNodeContextMenu}
           onNodeClick={onNodeClick}
-          minZoom={1.2}
+          minZoom={0.05}
           nodesDraggable={false}
           nodesConnectable={false}
           zoomOnDoubleClick={false}
@@ -328,8 +366,66 @@ function ReactFlowPro(): JSX.Element {
                   aria-label="redo"
                 />
               </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonIcon
+                  iconType="compute"
+                  display={isQuantifyOpen ? "fill" : "base"}
+                  aria-label="quantify fault tree"
+                  onClick={() => setIsQuantifyOpen((v) => !v)}
+                  title="Quantify"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonIcon
+                  iconType="importAction"
+                  display="base"
+                  aria-label="import OpenPSA XML"
+                  isLoading={isImporting}
+                  onClick={() => importFileRef.current?.click()}
+                  title="Import OpenPSA XML"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonIcon
+                  iconType="plusInCircle"
+                  display="base"
+                  aria-label="zoom in"
+                  onClick={() => void zoomIn({ duration: 200 })}
+                  title="Zoom in"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonIcon
+                  iconType="minusInCircle"
+                  display="base"
+                  aria-label="zoom out"
+                  onClick={() => void zoomOut({ duration: 200 })}
+                  title="Zoom out"
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiButtonIcon
+                  iconType="expand"
+                  display="base"
+                  aria-label="fit view"
+                  onClick={() => void fitView({ duration: 300, padding: 0.15 })}
+                  title="Fit to screen"
+                />
+              </EuiFlexItem>
             </EuiFlexGroup>
           </Panel>
+
+          {/* Hidden file input for OpenPSA XML import */}
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".xml,application/xml,text/xml"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleImportXml(file);
+            }}
+          />
 
           {/* Node context menu */}
           <EuiPopover
@@ -373,7 +469,7 @@ function ReactFlowPro(): JSX.Element {
         </ReactFlow>
       </div>
 
-      {/* ── Properties panel ── */}
+      {/* ── Properties panel (node selected) ── */}
       {selectedNode && faultTreeId && (
         <EuiPanel
           paddingSize="none"
@@ -381,6 +477,8 @@ function ReactFlowPro(): JSX.Element {
             width: PANEL_WIDTH,
             minWidth: PANEL_WIDTH,
             maxWidth: PANEL_WIDTH,
+            height: "100%",
+            minHeight: 0,
             overflowY: "auto",
             borderLeft: "1px solid #d3dae6",
             flexShrink: 0,
@@ -392,6 +490,26 @@ function ReactFlowPro(): JSX.Element {
             modelId={faultTreeId}
             onChange={onQuantificationChange}
           />
+        </EuiPanel>
+      )}
+
+      {/* ── Quantification panel (toggled via toolbar button) ── */}
+      {isQuantifyOpen && faultTreeId && (
+        <EuiPanel
+          paddingSize="none"
+          style={{
+            width: PANEL_WIDTH,
+            minWidth: PANEL_WIDTH,
+            maxWidth: PANEL_WIDTH,
+            height: "100%",
+            minHeight: 0,
+            overflowY: "auto",
+            borderLeft: "1px solid #d3dae6",
+            flexShrink: 0,
+            borderRadius: 0,
+          }}
+        >
+          <FaultTreeQuantificationPanel faultTreeId={faultTreeId} />
         </EuiPanel>
       )}
     </div>

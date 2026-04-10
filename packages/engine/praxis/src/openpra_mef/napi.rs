@@ -397,15 +397,8 @@ fn adaptive_cut_sets_for_sequence(
                             sets.to_vec()
                         }
                         AdaptiveCutSetEnumerationBackend::Zbdd => {
-                            let mut zbdd = crate::algorithms::zbdd::Zbdd::new();
-                            let root = zbdd.from_fault_tree(ft)?;
-                            zbdd.get_cut_sets_pruned(
-                                root,
-                                max_order_opt,
-                                tau,
-                                &prob_by_event_id,
-                                max_sets_working,
-                            )
+                            let (zbdd, root) = crate::algorithms::zbdd::Zbdd::from_fault_tree(ft)?;
+                            zbdd.get_cut_sets(root, max_order_opt)
                         }
                     };
                 original_cut_sets =
@@ -463,8 +456,7 @@ fn adaptive_cut_sets_for_sequence(
                         sets.to_vec()
                     }
                     AdaptiveCutSetEnumerationBackend::Zbdd => {
-                        let mut zbdd = crate::algorithms::zbdd::Zbdd::new();
-                        let root = zbdd.from_fault_tree(ft)?;
+                        let (zbdd, root) = crate::algorithms::zbdd::Zbdd::from_fault_tree(ft)?;
                         zbdd.get_cut_sets(root, max_order_opt)
                     }
                 };
@@ -2341,6 +2333,23 @@ mod node_bindings {
     #[napi]
     pub fn validate_openpra_json(input: String) -> napi::Result<String> {
         validate_openpra_json_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    /// Quantify a fault tree using praxis.
+    ///
+    /// `request_json` must be a JSON string matching `QuantificationRequest`:
+    /// ```json
+    /// {
+    ///   "graph": { "faultTreeId": "...", "topEventId": "...", "nodes": { ... } },
+    ///   "algorithm": "bdd" | "zbdd" | "mocus",
+    ///   "approximation": "rare_event" | "mcub",   // omit for bdd
+    ///   "maxOrder": 10                             // optional cut-set order limit
+    /// }
+    /// ```
+    #[napi]
+    pub fn quantify_fault_tree(request_json: String) -> napi::Result<String> {
+        crate::openpra_mef::fault_tree_quantification::quantify_fault_tree_contract(&request_json)
+            .map_err(|e| Error::from_reason(e.to_string()))
     }
 
     #[napi]

@@ -4,6 +4,10 @@ import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
+import type {
+  FaultTreeQuantificationRequest,
+  FaultTreeQuantificationResult,
+} from "shared-types/src/lib/types/faultTreeQuantification";
 
 /**
  * Controller for graph model operations and updates.
@@ -120,5 +124,29 @@ export class GraphModelController {
   @Get("/event-tree-graph/")
   async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
     return this.graphModelService.getEventTreeGraph(eventTreeId);
+  }
+
+  /**
+   * Quantify a fault tree using the praxis engine.
+   *
+   * The stored MEF graph for `faultTreeId` is fetched from the database and
+   * combined with the algorithm / approximation settings from the request body,
+   * then passed to the `praxis-node` native addon.
+   *
+   * @param faultTreeId   - ID of the fault tree to quantify (query param)
+   * @param body          - Algorithm, approximation, and optional maxOrder
+   * @returns Top-event probability and (for ZBDD / MOCUS) cut sets
+   */
+  @Post("/fault-tree-graph/quantify")
+  async quantifyFaultTree(
+    @Query("faultTreeId") faultTreeId: string,
+    @Body() body: Omit<FaultTreeQuantificationRequest, "graph">,
+  ): Promise<FaultTreeQuantificationResult> {
+    try {
+      return await this.graphModelService.quantifyFaultTree(faultTreeId, body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Quantification failed";
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

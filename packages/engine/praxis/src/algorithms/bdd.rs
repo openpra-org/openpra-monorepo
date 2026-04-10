@@ -15,6 +15,10 @@ impl NodeIndex {
     pub fn is_terminal(self) -> bool {
         self.0 <= 1
     }
+    /// Returns the raw `usize` index value.
+    pub fn raw(self) -> usize {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -497,6 +501,17 @@ impl Bdd {
                 ))
             })
         }
+    }
+
+    /// Returns `(variable, low_child, high_child)` for a non-terminal BDD node.
+    /// Returns `None` for terminal indices (FALSE=0, TRUE=1).
+    pub fn node_data(&self, idx: NodeIndex) -> Option<(usize, NodeIndex, NodeIndex)> {
+        self.get_node(idx).map(|n| (n.variable, n.low, n.high))
+    }
+
+    /// Returns the variable index → event id name mapping.
+    pub fn variable_names(&self) -> &HashMap<usize, String> {
+        &self.variable_names
     }
 
     pub fn stats(&self) -> BddStats {

@@ -228,9 +228,7 @@ fn run_pre_event_tree_impl(
             eprintln!("\nGenerating minimal cut sets using ZBDD...");
         }
 
-        let mut zbdd = Zbdd::new();
-        let root = zbdd
-            .from_fault_tree(&fault_tree)
+        let (zbdd, root) = Zbdd::from_fault_tree(&fault_tree)
             .map_err(|e| format!("ZBDD conversion failed: {}", e))?;
 
         let mut cut_sets = zbdd.get_cut_sets(root, cli.limit_order.map(|o| o as usize));

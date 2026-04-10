@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+  <information>
+    <software name="praxis" version="0.1.0"/>
+    <model-features>
+      <gates>1375</gates>
+      <basic-events>364</basic-events>
+    </model-features>
+  </information>
+  <results>
+    <event-tree-monte-carlo>
+      <event-tree id="SGTL-M">
+        <initiating-event id="SGTR-IE">
+          <frequency>1</frequency>
+        </initiating-event>
+        <monte-carlo-analysis>
+          <run-config>
+            <engine>dpmc</engine>
+            <target>event-tree</target>
+            <backend-requested>cuda</backend-requested>
+            <backend-used>cuda</backend-used>
+            <seed>847</seed>
+            <num-trials-requested>100000000000</num-trials-requested>
+            <dpmc-params t="10000" b="1250" p="125" omega="64"/>
+          </run-config>
+          <statistics>
+            <num-trials>100000000000</num-trials>
+          </statistics>
+          <sequences>
+            <sequence id="S151">
+              <frequency-estimate>0.00001368773</frequency-estimate>
+              <successes>1368773</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S152">
+              <frequency-estimate>0.00000000082</frequency-estimate>
+              <successes>82</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S153">
+              <frequency-estimate>0.00000000023</frequency-estimate>
+              <successes>23</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S154">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S155">
+              <frequency-estimate>0.00000207925</frequency-estimate>
+              <successes>207925</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S156">
+              <frequency-estimate>0.00005092424</frequency-estimate>
+              <successes>5092424</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S157">
+              <frequency-estimate>0.00000000001</frequency-estimate>
+              <successes>1</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S158">
+              <frequency-estimate>0.00000490182</frequency-estimate>
+              <successes>490182</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S159">
+              <frequency-estimate>0.00012005194</frequency-estimate>
+              <successes>12005194</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S160">
+              <frequency-estimate>0.00000000038</frequency-estimate>
+              <successes>38</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S161">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S162">
+              <frequency-estimate>0.00000415355</frequency-estimate>
+              <successes>415355</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S163">
+              <frequency-estimate>0.00010180362</frequency-estimate>
+              <successes>10180362</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S164">
+              <frequency-estimate>0.00000000001</frequency-estimate>
+              <successes>1</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S165">
+              <frequency-estimate>0.00000980904</frequency-estimate>
+              <successes>980904</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S166">
+              <frequency-estimate>0.00024014737</frequency-estimate>
+              <successes>24014737</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S167">
+              <frequency-estimate>0.00010980183</frequency-estimate>
+              <successes>10980183</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S168">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S169">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S170">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S171">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S172">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S173">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S174">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S175">
+              <frequency-estimate>0.00000000001</frequency-estimate>
+              <successes>1</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S176">
+              <frequency-estimate>0.00000000009</frequency-estimate>
+              <successes>9</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S177">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S178">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S179">
+              <frequency-estimate>0.00000000007</frequency-estimate>
+              <successes>7</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S180">
+              <frequency-estimate>0.00000000754</frequency-estimate>
+              <successes>754</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S181">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S182">
+              <frequency-estimate>0.00000002297</frequency-estimate>
+              <successes>2297</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S183">
+              <frequency-estimate>0.00000000223</frequency-estimate>
+              <successes>223</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S184">
+              <frequency-estimate>0.00000005082</frequency-estimate>
+              <successes>5082</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S185">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S186">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S187">
+              <frequency-estimate>0.00000000091</frequency-estimate>
+              <successes>91</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S188">
+              <frequency-estimate>0.0000000216</frequency-estimate>
+              <successes>2160</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S189">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S190">
+              <frequency-estimate>0.00000000196</frequency-estimate>
+              <successes>196</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S191">
+              <frequency-estimate>0.0000000499</frequency-estimate>
+              <successes>4990</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S192">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S193">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S194">
+              <frequency-estimate>0.00086458117</frequency-estimate>
+              <successes>86458117</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S195">
+              <frequency-estimate>0.0002572869</frequency-estimate>
+              <successes>25728690</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S196">
+              <frequency-estimate>0.00002381658</frequency-estimate>
+              <successes>2381658</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S197">
+              <frequency-estimate>0.00058347769</frequency-estimate>
+              <successes>58347769</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S198">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S199">
+              <frequency-estimate>0.00000020523</frequency-estimate>
+              <successes>20523</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S200">
+              <frequency-estimate>0.00000503731</frequency-estimate>
+              <successes>503731</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S201">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S202">
+              <frequency-estimate>0.00000048714</frequency-estimate>
+              <successes>48714</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S203">
+              <frequency-estimate>0.00001188494</frequency-estimate>
+              <successes>1188494</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S204">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S205">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S206">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S207">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S208">
+              <frequency-estimate>0</frequency-estimate>
+              <successes>0</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S209">
+              <frequency-estimate>0.00000007981</frequency-estimate>
+              <successes>7981</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S210">
+              <frequency-estimate>0.00000264765</frequency-estimate>
+              <successes>264765</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S211">
+              <frequency-estimate>0.00010587377</frequency-estimate>
+              <successes>10587377</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S212">
+              <frequency-estimate>0.02542248518</frequency-estimate>
+              <successes>2542248518</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S213">
+              <frequency-estimate>0.0624322462</frequency-estimate>
+              <successes>6243224620</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+          </sequences>
+        </monte-carlo-analysis>
+      </event-tree>
+    </event-tree-monte-carlo>
+  </results>
+</report>

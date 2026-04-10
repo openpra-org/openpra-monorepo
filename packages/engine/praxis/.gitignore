@@ -1,0 +1,44 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+**/*.rs.bk
+*.prof
+*.profdata
+*.profraw
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Log files
+*.log
+
+# Test output
+test-results/
+coverage/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Python scripts
+/tmp/
+
+# Folders
+/mc/
+/tools/
+/schema/
+/napi-rs-napi-v3.8.3
+/RAPTOR/

@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<opsa-mef><define-fault-tree name="FT"><define-gate name="g1"><and><basic-event name="be1" /><basic-event name="bee1" /></and></define-gate></define-fault-tree><model-data><define-basic-event name="be1"><float value="0.05" /></define-basic-event><define-basic-event name="bee1"><float value="0.05" /></define-basic-event></model-data></opsa-mef>

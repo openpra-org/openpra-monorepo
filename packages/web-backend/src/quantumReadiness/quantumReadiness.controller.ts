@@ -13,7 +13,11 @@ import type {
   QuantumRecoveryLadderResult,
 } from "quantum-readiness";
 
-import { QuantumExecutionArtifactRawCountsRequest, QuantumReadinessService } from "./quantumReadiness.service";
+import {
+  QuantumExecutionArtifactRawCountsRequest,
+  QuantumReadinessService,
+  type QuantumRecoveryArtifactWriteResult,
+} from "./quantumReadiness.service";
 
 export interface QuantumReadinessGraphRequest {
   graph: FaultTreeGraph | Record<string, unknown>;
@@ -41,6 +45,11 @@ export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumEx
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
+}
+
+export interface QuantumRecoveryCandidateDirWriteRequest {
+  candidateDir: string;
+  outputDir: string;
 }
 
 export interface QuantumRecoveryBatchRootRequest {
@@ -203,6 +212,18 @@ export class QuantumReadinessController {
   analyzeRecoveryCandidateDir(@Body() body: QuantumRecoveryCandidateDirRequest): QuantumRecoveryLadderResult {
     try {
       return this.quantumReadinessService.analyzeRecoveryCandidateDir(body.candidateDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/recovery/candidate-dir/write")
+  @HttpCode(HttpStatus.OK)
+  analyzeRecoveryCandidateDirToFilesystem(
+    @Body() body: QuantumRecoveryCandidateDirWriteRequest,
+  ): QuantumRecoveryArtifactWriteResult {
+    try {
+      return this.quantumReadinessService.analyzeRecoveryCandidateDirToFilesystem(body.candidateDir, body.outputDir);
     } catch (error) {
       throw this.toHttpException(error);
     }

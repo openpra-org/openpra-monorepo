@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
@@ -39,6 +41,11 @@ export interface QuantumExecutionArtifactRawCountsRequest {
   jobIdOrRunId?: string;
   status?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface QuantumRecoveryArtifactWriteResult {
+  outputDir: string;
+  recoveryArtifactPath: string;
 }
 
 @Injectable()
@@ -173,6 +180,20 @@ export class QuantumReadinessService {
 
   analyzeRecoveryCandidateDir(candidateDir: string): QuantumRecoveryLadderResult {
     return buildOpenpraQuantumRecoveryFromCandidateDir(candidateDir);
+  }
+
+  analyzeRecoveryCandidateDirToFilesystem(candidateDir: string, outputDir: string): QuantumRecoveryArtifactWriteResult {
+    const result = this.analyzeRecoveryCandidateDir(candidateDir);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const recoveryArtifactPath = path.join(resolvedOutputDir, "openpra_quantum_recovery_artifact_v1.json");
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(recoveryArtifactPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      recoveryArtifactPath,
+    };
   }
 
   analyzeRecoveryBatchRoot(

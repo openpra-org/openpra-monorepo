@@ -48,6 +48,11 @@ export interface QuantumRecoveryArtifactWriteResult {
   recoveryArtifactPath: string;
 }
 
+export interface QuantumRecoveryBatchRollupWriteResult {
+  outputDir: string;
+  recoveryBatchRollupPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -202,6 +207,25 @@ export class QuantumReadinessService {
     selectionMode: OpenpraQuantumRecoveryBatchSelectionMode = "package_result_only",
   ): OpenpraQuantumRecoveryBatchRollup {
     return buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot(batchRoot, candidateDirs, selectionMode);
+  }
+
+  analyzeRecoveryBatchRootToFilesystem(
+    batchRoot: string,
+    outputDir: string,
+    candidateDirs?: string[],
+    selectionMode: OpenpraQuantumRecoveryBatchSelectionMode = "package_result_only",
+  ): QuantumRecoveryBatchRollupWriteResult {
+    const rollup = this.analyzeRecoveryBatchRoot(batchRoot, candidateDirs, selectionMode);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const recoveryBatchRollupPath = path.join(resolvedOutputDir, "openpra_quantum_recovery_batch_rollup_v1.json");
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(recoveryBatchRollupPath, JSON.stringify(rollup, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      recoveryBatchRollupPath,
+    };
   }
 }
 

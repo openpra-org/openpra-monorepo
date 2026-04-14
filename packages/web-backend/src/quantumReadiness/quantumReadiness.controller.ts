@@ -17,6 +17,7 @@ import {
   QuantumExecutionArtifactRawCountsRequest,
   QuantumReadinessService,
   type QuantumRecoveryArtifactWriteResult,
+  type QuantumRecoveryBatchRollupWriteResult,
 } from "./quantumReadiness.service";
 
 export interface QuantumReadinessGraphRequest {
@@ -56,6 +57,10 @@ export interface QuantumRecoveryBatchRootRequest {
   batchRoot: string;
   candidateDirs?: string[];
   selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
+}
+
+export interface QuantumRecoveryBatchRootWriteRequest extends QuantumRecoveryBatchRootRequest {
+  outputDir: string;
 }
 
 @Controller()
@@ -235,6 +240,23 @@ export class QuantumReadinessController {
     try {
       return this.quantumReadinessService.analyzeRecoveryBatchRoot(
         body.batchRoot,
+        body.candidateDirs,
+        body.selectionMode ?? "package_result_only",
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/recovery/batch-root/write")
+  @HttpCode(HttpStatus.OK)
+  analyzeRecoveryBatchRootToFilesystem(
+    @Body() body: QuantumRecoveryBatchRootWriteRequest,
+  ): QuantumRecoveryBatchRollupWriteResult {
+    try {
+      return this.quantumReadinessService.analyzeRecoveryBatchRootToFilesystem(
+        body.batchRoot,
+        body.outputDir,
         body.candidateDirs,
         body.selectionMode ?? "package_result_only",
       );

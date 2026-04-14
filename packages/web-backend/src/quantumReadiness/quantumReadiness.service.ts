@@ -8,6 +8,7 @@ import {
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
   buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot,
   buildOpenpraQuantumRecoveryFromCandidateDir,
+  buildOpenpraQuantumWorkflowRunScaffold,
   buildQuantumPreparationClQuboExport,
   buildQuantumPreparationExport,
   writeOpenpraQuantumExecutionArtifactBundleToFilesystem,
@@ -21,6 +22,8 @@ import {
   type OpenpraQuantumPreparationArtifactFilesystemWriteResult,
   type OpenpraQuantumRecoveryBatchRollup,
   type OpenpraQuantumRecoveryBatchSelectionMode,
+  type OpenpraQuantumWorkflowRunScaffoldRequest,
+  type OpenpraQuantumWorkflowRunScaffoldResult,
   type QuantumPreparationExport,
   type QuantumRecoveryLadderResult,
 } from "quantum-readiness";
@@ -56,6 +59,12 @@ export interface QuantumRecoveryBatchRollupWriteResult {
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
+
+  createWorkflowRunScaffold(
+    request: OpenpraQuantumWorkflowRunScaffoldRequest,
+  ): OpenpraQuantumWorkflowRunScaffoldResult {
+    return buildOpenpraQuantumWorkflowRunScaffold(request);
+  }
 
   analyzeFaultTreeGraph(
     graph: FaultTreeGraph | Record<string, unknown>,

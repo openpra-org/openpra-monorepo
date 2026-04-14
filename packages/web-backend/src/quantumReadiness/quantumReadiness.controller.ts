@@ -9,6 +9,7 @@ import type {
   OpenpraQuantumPreparationArtifactFilesystemWriteResult,
   OpenpraQuantumRecoveryBatchRollup,
   OpenpraQuantumRecoveryBatchSelectionMode,
+  OpenpraQuantumWorkflowRunScaffoldResult,
   QuantumPreparationExport,
   QuantumRecoveryLadderResult,
 } from "quantum-readiness";
@@ -63,9 +64,29 @@ export interface QuantumRecoveryBatchRootWriteRequest extends QuantumRecoveryBat
   outputDir: string;
 }
 
+export interface QuantumWorkflowRunScaffoldRequest {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
+  workflowKind: "preparation" | "execution" | "recovery" | "recovery_batch" | "full_pipeline";
+  requestedBy?: string;
+  notes?: string[];
+  createdAtUtc?: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/workflow/run-scaffold")
+  @HttpCode(HttpStatus.OK)
+  createWorkflowRunScaffold(@Body() body: QuantumWorkflowRunScaffoldRequest): OpenpraQuantumWorkflowRunScaffoldResult {
+    try {
+      return this.quantumReadinessService.createWorkflowRunScaffold(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/fault-tree-graph")
   @HttpCode(HttpStatus.OK)

@@ -2,10 +2,15 @@ import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
+  buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot,
+  buildOpenpraQuantumRecoveryFromCandidateDir,
   buildQuantumPreparationExport,
   type OpenPraFaultTreeReadinessOptions,
   type OpenPraFaultTreeReadinessResult,
+  type OpenpraQuantumRecoveryBatchRollup,
+  type OpenpraQuantumRecoveryBatchSelectionMode,
   type QuantumPreparationExport,
+  type QuantumRecoveryLadderResult,
 } from "quantum-readiness";
 
 import { GraphModelService } from "../graphModels/graphModel.service";
@@ -15,7 +20,8 @@ import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
  * Backend integration service for quantum readiness analysis of fault tree graphs.
  *
  * This is the backend side seam into the quantum readiness package.
- * It supports direct graph analysis and graph lookup by faultTreeId.
+ * It supports direct graph analysis, graph lookup by faultTreeId,
+ * deterministic preparation export, and filesystem-backed recovery entrypoints.
  */
 @Injectable()
 export class QuantumReadinessService {
@@ -75,6 +81,18 @@ export class QuantumReadinessService {
     const readinessResult = analyzeGraphLikeInputToReadiness(converted, modelName, options);
 
     return buildQuantumPreparationExport(readinessResult.normalizedFaultTree, readinessResult.report);
+  }
+
+  analyzeRecoveryCandidateDir(candidateDir: string): QuantumRecoveryLadderResult {
+    return buildOpenpraQuantumRecoveryFromCandidateDir(candidateDir);
+  }
+
+  analyzeRecoveryBatchRoot(
+    batchRoot: string,
+    candidateDirs?: string[],
+    selectionMode: OpenpraQuantumRecoveryBatchSelectionMode = "package_result_only",
+  ): OpenpraQuantumRecoveryBatchRollup {
+    return buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot(batchRoot, candidateDirs, selectionMode);
   }
 }
 

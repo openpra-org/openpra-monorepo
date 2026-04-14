@@ -3,7 +3,10 @@ import type { FaultTreeGraph } from "shared-types";
 import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
+  OpenpraQuantumRecoveryBatchRollup,
+  OpenpraQuantumRecoveryBatchSelectionMode,
   QuantumPreparationExport,
+  QuantumRecoveryLadderResult,
 } from "quantum-readiness";
 
 import { QuantumReadinessService } from "./quantumReadiness.service";
@@ -70,6 +73,22 @@ export interface QuantumReadinessGraphByIdRequest {
 }
 
 /**
+ * Request body for filesystem-backed single-case recovery.
+ */
+export interface QuantumRecoveryCandidateDirRequest {
+  candidateDir: string;
+}
+
+/**
+ * Request body for filesystem-backed batch recovery rollup.
+ */
+export interface QuantumRecoveryBatchRootRequest {
+  batchRoot: string;
+  candidateDirs?: string[];
+  selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
+}
+
+/**
  * Controller for quantum readiness analysis endpoints.
  */
 @Controller()
@@ -118,7 +137,7 @@ export class QuantumReadinessController {
   }
 
   /**
-   * Retrieve a stored fault tree graph by id and analyze it for quantum readiness.
+   * Retrieve a stored fault tree graph by id and analyze it for readiness.
    *
    * Mounted under:
    * /api/quantum-readiness/fault-tree-graph/by-id
@@ -161,6 +180,42 @@ export class QuantumReadinessController {
     }
   }
 
+  /**
+   * Build a validated quantum recovery result from a single candidate directory.
+   *
+   * Mounted under:
+   * /api/quantum-readiness/recovery/candidate-dir
+   */
+  @Post("/recovery/candidate-dir")
+  @HttpCode(HttpStatus.OK)
+  analyzeRecoveryCandidateDir(@Body() body: QuantumRecoveryCandidateDirRequest): QuantumRecoveryLadderResult {
+    try {
+      return this.quantumReadinessService.analyzeRecoveryCandidateDir(body.candidateDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  /**
+   * Build a batch recovery rollup from a batch root.
+   *
+   * Mounted under:
+   * /api/quantum-readiness/recovery/batch-root
+   */
+  @Post("/recovery/batch-root")
+  @HttpCode(HttpStatus.OK)
+  analyzeRecoveryBatchRoot(@Body() body: QuantumRecoveryBatchRootRequest): OpenpraQuantumRecoveryBatchRollup {
+    try {
+      return this.quantumReadinessService.analyzeRecoveryBatchRoot(
+        body.batchRoot,
+        body.candidateDirs,
+        body.selectionMode ?? "package_result_only",
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
   private resolveOptions(
     body: QuantumReadinessGraphRequest | QuantumReadinessGraphByIdRequest,
   ): OpenPraFaultTreeReadinessOptions {
@@ -175,6 +230,15 @@ export class QuantumReadinessController {
     const message = error instanceof Error ? error.message : "Something went wrong";
 
     if (message.startsWith("No fault tree graph found for faultTreeId")) {
+      return new HttpException(message, HttpStatus.NOT_FOUND);
+    }
+
+    if (
+      message.includes("candidateDir does not exist") ||
+      message.includes("batchRoot does not exist") ||
+      message.includes("Missing candidate artifact") ||
+      message.includes("Missing package recovery result")
+    ) {
       return new HttpException(message, HttpStatus.NOT_FOUND);
     }
 

@@ -18,8 +18,10 @@ import {
   QuantumExecutionArtifactRawCountsRequest,
   QuantumReadinessService,
   type QuantumExecutionWorkflowRunResult,
+  type QuantumFullPipelineWorkflowRunResult,
   type QuantumPreparationWorkflowRunResult,
   type QuantumRecoveryArtifactWriteResult,
+  type QuantumRecoveryBatchRunInput,
   type QuantumRecoveryBatchRollupWriteResult,
   type QuantumRecoveryBatchWorkflowRunResult,
   type QuantumRecoveryWorkflowRunResult,
@@ -73,6 +75,20 @@ export interface QuantumRecoveryBatchWorkflowRunRequest {
   subtreeId: string;
   candidateDirs?: string[];
   selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
+}
+
+export interface QuantumFullPipelineWorkflowRunRequest {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
+  graph?: FaultTreeGraph | Record<string, unknown>;
+  modelName?: string;
+  options?: OpenPraFaultTreeReadinessOptions;
+  heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
+  analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
+  executionRequest?: QuantumExecutionArtifactRawCountsRequest;
+  recoveryCandidateDir?: string;
+  recoveryBatch?: QuantumRecoveryBatchRunInput;
 }
 
 export interface QuantumRecoveryCandidateDirRequest {
@@ -188,6 +204,28 @@ export class QuantumReadinessController {
         body.subtreeId,
         body.candidateDirs,
         body.selectionMode ?? "package_result_only",
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/full-pipeline-run")
+  @HttpCode(HttpStatus.OK)
+  createFullPipelineWorkflowRun(
+    @Body() body: QuantumFullPipelineWorkflowRunRequest,
+  ): QuantumFullPipelineWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.createFullPipelineWorkflowRun(
+        body.rootDir,
+        body.modelId,
+        body.subtreeId,
+        body.graph,
+        body.modelName,
+        this.resolveOptions(body),
+        body.executionRequest,
+        body.recoveryCandidateDir,
+        body.recoveryBatch,
       );
     } catch (error) {
       throw this.toHttpException(error);
@@ -393,7 +431,11 @@ export class QuantumReadinessController {
   }
 
   private resolveOptions(
-    body: QuantumReadinessGraphRequest | QuantumReadinessGraphByIdRequest,
+    body:
+      | QuantumReadinessGraphRequest
+      | QuantumReadinessGraphByIdRequest
+      | QuantumPreparationWorkflowRunRequest
+      | QuantumFullPipelineWorkflowRunRequest,
   ): OpenPraFaultTreeReadinessOptions {
     return {
       ...(body.options ?? {}),

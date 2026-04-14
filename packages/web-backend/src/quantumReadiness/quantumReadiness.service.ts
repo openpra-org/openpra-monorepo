@@ -46,6 +46,12 @@ export interface QuantumExecutionArtifactRawCountsRequest {
   metadata?: Record<string, unknown>;
 }
 
+export interface QuantumRecoveryBatchRunInput {
+  batchRoot: string;
+  candidateDirs?: string[];
+  selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
+}
+
 export interface QuantumRecoveryArtifactWriteResult {
   outputDir: string;
   recoveryArtifactPath: string;
@@ -74,6 +80,14 @@ export interface QuantumRecoveryWorkflowRunResult {
 export interface QuantumRecoveryBatchWorkflowRunResult {
   workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
   batchWrite: QuantumRecoveryBatchRollupWriteResult;
+}
+
+export interface QuantumFullPipelineWorkflowRunResult {
+  workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
+  preparationWrite?: OpenpraQuantumPreparationArtifactFilesystemWriteResult;
+  executionWrite?: OpenpraQuantumExecutionArtifactFilesystemWriteResult;
+  recoveryWrite?: QuantumRecoveryArtifactWriteResult;
+  batchWrite?: QuantumRecoveryBatchRollupWriteResult;
 }
 
 @Injectable()
@@ -187,6 +201,64 @@ export class QuantumReadinessService {
       workflowRun,
       batchWrite,
     };
+  }
+
+  createFullPipelineWorkflowRun(
+    rootDir: string,
+    modelId: string,
+    subtreeId: string,
+    graph?: FaultTreeGraph | Record<string, unknown>,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+    executionRequest?: QuantumExecutionArtifactRawCountsRequest,
+    recoveryCandidateDir?: string,
+    recoveryBatch?: QuantumRecoveryBatchRunInput,
+  ): QuantumFullPipelineWorkflowRunResult {
+    const workflowRun = this.createWorkflowRunScaffold({
+      rootDir,
+      modelId,
+      subtreeId,
+      workflowKind: "full_pipeline",
+      requestedBy: "web-backend:quantumReadiness.service",
+    });
+
+    const result: QuantumFullPipelineWorkflowRunResult = {
+      workflowRun,
+    };
+
+    if (graph) {
+      result.preparationWrite = this.analyzeFaultTreeGraphPreparationArtifactsToFilesystem(
+        graph,
+        workflowRun.directories.preparation,
+        modelName,
+        options,
+      );
+    }
+
+    if (executionRequest) {
+      result.executionWrite = this.buildExecutionArtifactsFromRawCountsToFilesystem(
+        executionRequest,
+        workflowRun.directories.execution,
+      );
+    }
+
+    if (recoveryCandidateDir) {
+      result.recoveryWrite = this.analyzeRecoveryCandidateDirToFilesystem(
+        recoveryCandidateDir,
+        workflowRun.directories.recovery,
+      );
+    }
+
+    if (recoveryBatch) {
+      result.batchWrite = this.analyzeRecoveryBatchRootToFilesystem(
+        recoveryBatch.batchRoot,
+        workflowRun.directories.batch,
+        recoveryBatch.candidateDirs,
+        recoveryBatch.selectionMode ?? "package_result_only",
+      );
+    }
+
+    return result;
   }
 
   analyzeFaultTreeGraph(

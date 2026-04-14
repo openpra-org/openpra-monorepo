@@ -17,6 +17,7 @@ import type {
 import {
   QuantumExecutionArtifactRawCountsRequest,
   QuantumReadinessService,
+  type QuantumExecutionWorkflowRunResult,
   type QuantumPreparationWorkflowRunResult,
   type QuantumRecoveryArtifactWriteResult,
   type QuantumRecoveryBatchRollupWriteResult,
@@ -50,6 +51,10 @@ export interface QuantumPreparationWorkflowRunRequest extends QuantumReadinessGr
 
 export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumExecutionArtifactRawCountsRequest {
   outputDir: string;
+}
+
+export interface QuantumExecutionWorkflowRunRequest extends QuantumExecutionArtifactRawCountsRequest {
+  rootDir: string;
 }
 
 export interface QuantumRecoveryCandidateDirRequest {
@@ -109,6 +114,29 @@ export class QuantumReadinessController {
         body.modelName,
         this.resolveOptions(body),
       );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/execution-run")
+  @HttpCode(HttpStatus.OK)
+  createExecutionWorkflowRun(@Body() body: QuantumExecutionWorkflowRunRequest): QuantumExecutionWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.createExecutionWorkflowRun(body.rootDir, {
+        modelId: body.modelId,
+        subtreeId: body.subtreeId,
+        sourcePreparationArtifactId: body.sourcePreparationArtifactId,
+        providerType: body.providerType,
+        providerName: body.providerName,
+        backendName: body.backendName,
+        executionMode: body.executionMode,
+        shots: body.shots,
+        rawCounts: body.rawCounts,
+        ...(body.jobIdOrRunId ? { jobIdOrRunId: body.jobIdOrRunId } : {}),
+        ...(body.status ? { status: body.status } : {}),
+        ...(body.metadata ? { metadata: body.metadata } : {}),
+      });
     } catch (error) {
       throw this.toHttpException(error);
     }

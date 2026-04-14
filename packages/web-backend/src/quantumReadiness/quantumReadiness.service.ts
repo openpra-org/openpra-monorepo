@@ -61,6 +61,11 @@ export interface QuantumPreparationWorkflowRunResult {
   preparationWrite: OpenpraQuantumPreparationArtifactFilesystemWriteResult;
 }
 
+export interface QuantumExecutionWorkflowRunResult {
+  workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
+  executionWrite: OpenpraQuantumExecutionArtifactFilesystemWriteResult;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -97,6 +102,29 @@ export class QuantumReadinessService {
     return {
       workflowRun,
       preparationWrite,
+    };
+  }
+
+  createExecutionWorkflowRun(
+    rootDir: string,
+    request: QuantumExecutionArtifactRawCountsRequest,
+  ): QuantumExecutionWorkflowRunResult {
+    const workflowRun = this.createWorkflowRunScaffold({
+      rootDir,
+      modelId: request.modelId,
+      subtreeId: request.subtreeId,
+      workflowKind: "execution",
+      requestedBy: "web-backend:quantumReadiness.service",
+    });
+
+    const executionWrite = this.buildExecutionArtifactsFromRawCountsToFilesystem(
+      request,
+      workflowRun.directories.execution,
+    );
+
+    return {
+      workflowRun,
+      executionWrite,
     };
   }
 

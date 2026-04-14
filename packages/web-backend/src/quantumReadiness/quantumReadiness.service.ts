@@ -56,6 +56,11 @@ export interface QuantumRecoveryBatchRollupWriteResult {
   recoveryBatchRollupPath: string;
 }
 
+export interface QuantumPreparationWorkflowRunResult {
+  workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
+  preparationWrite: OpenpraQuantumPreparationArtifactFilesystemWriteResult;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -64,6 +69,35 @@ export class QuantumReadinessService {
     request: OpenpraQuantumWorkflowRunScaffoldRequest,
   ): OpenpraQuantumWorkflowRunScaffoldResult {
     return buildOpenpraQuantumWorkflowRunScaffold(request);
+  }
+
+  createPreparationWorkflowRun(
+    rootDir: string,
+    graph: FaultTreeGraph | Record<string, unknown>,
+    modelId: string,
+    subtreeId: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): QuantumPreparationWorkflowRunResult {
+    const workflowRun = this.createWorkflowRunScaffold({
+      rootDir,
+      modelId,
+      subtreeId,
+      workflowKind: "preparation",
+      requestedBy: "web-backend:quantumReadiness.service",
+    });
+
+    const preparationWrite = this.analyzeFaultTreeGraphPreparationArtifactsToFilesystem(
+      graph,
+      workflowRun.directories.preparation,
+      modelName,
+      options,
+    );
+
+    return {
+      workflowRun,
+      preparationWrite,
+    };
   }
 
   analyzeFaultTreeGraph(

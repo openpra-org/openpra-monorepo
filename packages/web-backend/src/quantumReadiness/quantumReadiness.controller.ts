@@ -17,6 +17,7 @@ import type {
 import {
   QuantumExecutionArtifactRawCountsRequest,
   QuantumReadinessService,
+  type QuantumPreparationWorkflowRunResult,
   type QuantumRecoveryArtifactWriteResult,
   type QuantumRecoveryBatchRollupWriteResult,
 } from "./quantumReadiness.service";
@@ -39,6 +40,12 @@ export interface QuantumReadinessGraphByIdRequest {
 
 export interface QuantumPreparationArtifactsWriteRequest extends QuantumReadinessGraphRequest {
   outputDir: string;
+}
+
+export interface QuantumPreparationWorkflowRunRequest extends QuantumReadinessGraphRequest {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
 }
 
 export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumExecutionArtifactRawCountsRequest {
@@ -83,6 +90,25 @@ export class QuantumReadinessController {
   createWorkflowRunScaffold(@Body() body: QuantumWorkflowRunScaffoldRequest): OpenpraQuantumWorkflowRunScaffoldResult {
     try {
       return this.quantumReadinessService.createWorkflowRunScaffold(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/preparation-run")
+  @HttpCode(HttpStatus.OK)
+  createPreparationWorkflowRun(
+    @Body() body: QuantumPreparationWorkflowRunRequest,
+  ): QuantumPreparationWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.createPreparationWorkflowRun(
+        body.rootDir,
+        body.graph,
+        body.modelId,
+        body.subtreeId,
+        body.modelName,
+        this.resolveOptions(body),
+      );
     } catch (error) {
       throw this.toHttpException(error);
     }

@@ -4,7 +4,9 @@ import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
   OpenpraQuantumExecutionArtifactBundle,
+  OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
+  OpenpraQuantumPreparationArtifactFilesystemWriteResult,
   OpenpraQuantumRecoveryBatchRollup,
   OpenpraQuantumRecoveryBatchSelectionMode,
   QuantumPreparationExport,
@@ -27,6 +29,14 @@ export interface QuantumReadinessGraphByIdRequest {
   options?: OpenPraFaultTreeReadinessOptions;
   heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
+}
+
+export interface QuantumPreparationArtifactsWriteRequest extends QuantumReadinessGraphRequest {
+  outputDir: string;
+}
+
+export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumExecutionArtifactRawCountsRequest {
+  outputDir: string;
 }
 
 export interface QuantumRecoveryCandidateDirRequest {
@@ -75,6 +85,23 @@ export class QuantumReadinessController {
     try {
       return this.quantumReadinessService.analyzeFaultTreeGraphPreparationArtifacts(
         body.graph,
+        body.modelName,
+        this.resolveOptions(body),
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/fault-tree-graph/preparation-artifacts/write")
+  @HttpCode(HttpStatus.OK)
+  analyzeFaultTreeGraphPreparationArtifactsToFilesystem(
+    @Body() body: QuantumPreparationArtifactsWriteRequest,
+  ): OpenpraQuantumPreparationArtifactFilesystemWriteResult {
+    try {
+      return this.quantumReadinessService.analyzeFaultTreeGraphPreparationArtifactsToFilesystem(
+        body.graph,
+        body.outputDir,
         body.modelName,
         this.resolveOptions(body),
       );
@@ -138,6 +165,34 @@ export class QuantumReadinessController {
   ): OpenpraQuantumExecutionArtifactBundle {
     try {
       return this.quantumReadinessService.buildExecutionArtifactsFromRawCounts(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/artifacts/raw-counts/write")
+  @HttpCode(HttpStatus.OK)
+  buildExecutionArtifactsFromRawCountsToFilesystem(
+    @Body() body: QuantumExecutionArtifactRawCountsWriteRequest,
+  ): OpenpraQuantumExecutionArtifactFilesystemWriteResult {
+    try {
+      return this.quantumReadinessService.buildExecutionArtifactsFromRawCountsToFilesystem(
+        {
+          modelId: body.modelId,
+          subtreeId: body.subtreeId,
+          sourcePreparationArtifactId: body.sourcePreparationArtifactId,
+          providerType: body.providerType,
+          providerName: body.providerName,
+          backendName: body.backendName,
+          executionMode: body.executionMode,
+          shots: body.shots,
+          rawCounts: body.rawCounts,
+          ...(body.jobIdOrRunId ? { jobIdOrRunId: body.jobIdOrRunId } : {}),
+          ...(body.status ? { status: body.status } : {}),
+          ...(body.metadata ? { metadata: body.metadata } : {}),
+        },
+        body.outputDir,
+      );
     } catch (error) {
       throw this.toHttpException(error);
     }

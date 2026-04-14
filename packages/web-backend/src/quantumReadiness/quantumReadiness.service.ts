@@ -8,11 +8,15 @@ import {
   buildOpenpraQuantumRecoveryFromCandidateDir,
   buildQuantumPreparationClQuboExport,
   buildQuantumPreparationExport,
+  writeOpenpraQuantumExecutionArtifactBundleToFilesystem,
+  writeOpenpraQuantumPreparationArtifactBundleToFilesystem,
   type OpenPraFaultTreeReadinessOptions,
   type OpenPraFaultTreeReadinessResult,
   type OpenpraQuantumExecutionArtifactBundle,
+  type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
   type OpenpraQuantumPreparationArtifactBundle,
+  type OpenpraQuantumPreparationArtifactFilesystemWriteResult,
   type OpenpraQuantumRecoveryBatchRollup,
   type OpenpraQuantumRecoveryBatchSelectionMode,
   type QuantumPreparationExport,
@@ -73,6 +77,17 @@ export class QuantumReadinessService {
     return buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport(clQuboExport, {
       createdBy: "web-backend:quantumReadiness.service",
     });
+  }
+
+  analyzeFaultTreeGraphPreparationArtifactsToFilesystem(
+    graph: FaultTreeGraph | Record<string, unknown>,
+    outputDir: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): OpenpraQuantumPreparationArtifactFilesystemWriteResult {
+    const bundle = this.analyzeFaultTreeGraphPreparationArtifacts(graph, modelName, options);
+
+    return writeOpenpraQuantumPreparationArtifactBundleToFilesystem(bundle, outputDir);
   }
 
   async analyzeFaultTreeGraphById(
@@ -145,6 +160,15 @@ export class QuantumReadinessService {
     return buildOpenpraQuantumExecutionArtifactBundleFromRawCounts(request, {
       createdBy: "web-backend:quantumReadiness.service",
     });
+  }
+
+  buildExecutionArtifactsFromRawCountsToFilesystem(
+    request: QuantumExecutionArtifactRawCountsRequest,
+    outputDir: string,
+  ): OpenpraQuantumExecutionArtifactFilesystemWriteResult {
+    const bundle = this.buildExecutionArtifactsFromRawCounts(request);
+
+    return writeOpenpraQuantumExecutionArtifactBundleToFilesystem(bundle, outputDir);
   }
 
   analyzeRecoveryCandidateDir(candidateDir: string): QuantumRecoveryLadderResult {

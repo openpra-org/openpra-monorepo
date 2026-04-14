@@ -21,6 +21,7 @@ import {
   type QuantumPreparationWorkflowRunResult,
   type QuantumRecoveryArtifactWriteResult,
   type QuantumRecoveryBatchRollupWriteResult,
+  type QuantumRecoveryBatchWorkflowRunResult,
   type QuantumRecoveryWorkflowRunResult,
 } from "./quantumReadiness.service";
 
@@ -63,6 +64,15 @@ export interface QuantumRecoveryWorkflowRunRequest {
   candidateDir: string;
   modelId: string;
   subtreeId: string;
+}
+
+export interface QuantumRecoveryBatchWorkflowRunRequest {
+  rootDir: string;
+  batchRoot: string;
+  modelId: string;
+  subtreeId: string;
+  candidateDirs?: string[];
+  selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
 }
 
 export interface QuantumRecoveryCandidateDirRequest {
@@ -159,6 +169,25 @@ export class QuantumReadinessController {
         body.candidateDir,
         body.modelId,
         body.subtreeId,
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/recovery-batch-run")
+  @HttpCode(HttpStatus.OK)
+  createRecoveryBatchWorkflowRun(
+    @Body() body: QuantumRecoveryBatchWorkflowRunRequest,
+  ): QuantumRecoveryBatchWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.createRecoveryBatchWorkflowRun(
+        body.rootDir,
+        body.batchRoot,
+        body.modelId,
+        body.subtreeId,
+        body.candidateDirs,
+        body.selectionMode ?? "package_result_only",
       );
     } catch (error) {
       throw this.toHttpException(error);

@@ -71,6 +71,11 @@ export interface QuantumRecoveryWorkflowRunResult {
   recoveryWrite: QuantumRecoveryArtifactWriteResult;
 }
 
+export interface QuantumRecoveryBatchWorkflowRunResult {
+  workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
+  batchWrite: QuantumRecoveryBatchRollupWriteResult;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -152,6 +157,35 @@ export class QuantumReadinessService {
     return {
       workflowRun,
       recoveryWrite,
+    };
+  }
+
+  createRecoveryBatchWorkflowRun(
+    rootDir: string,
+    batchRoot: string,
+    modelId: string,
+    subtreeId: string,
+    candidateDirs?: string[],
+    selectionMode: OpenpraQuantumRecoveryBatchSelectionMode = "package_result_only",
+  ): QuantumRecoveryBatchWorkflowRunResult {
+    const workflowRun = this.createWorkflowRunScaffold({
+      rootDir,
+      modelId,
+      subtreeId,
+      workflowKind: "recovery_batch",
+      requestedBy: "web-backend:quantumReadiness.service",
+    });
+
+    const batchWrite = this.analyzeRecoveryBatchRootToFilesystem(
+      batchRoot,
+      workflowRun.directories.batch,
+      candidateDirs,
+      selectionMode,
+    );
+
+    return {
+      workflowRun,
+      batchWrite,
     };
   }
 

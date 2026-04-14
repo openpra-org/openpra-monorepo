@@ -3,6 +3,7 @@ import type { FaultTreeGraph } from "shared-types";
 import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
+  OpenpraQuantumPreparationArtifactBundle,
   OpenpraQuantumRecoveryBatchRollup,
   OpenpraQuantumRecoveryBatchSelectionMode,
   QuantumPreparationExport,
@@ -15,30 +16,10 @@ import { QuantumReadinessService } from "./quantumReadiness.service";
  * Request body for quantum readiness analysis of a fault tree graph.
  */
 export interface QuantumReadinessGraphRequest {
-  /**
-   * Fault tree graph payload shaped like the shared OpenPRA graph contract,
-   * or a normalized OpenPRA graph object.
-   */
   graph: FaultTreeGraph | Record<string, unknown>;
-
-  /**
-   * Optional human readable model name.
-   */
   modelName?: string;
-
-  /**
-   * Optional legacy wrapper for heuristics and readiness analysis overrides.
-   */
   options?: OpenPraFaultTreeReadinessOptions;
-
-  /**
-   * Optional top-level heuristics overrides.
-   */
   heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
-
-  /**
-   * Optional top-level readiness analysis overrides.
-   */
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
 }
 
@@ -46,29 +27,10 @@ export interface QuantumReadinessGraphRequest {
  * Request body for quantum readiness analysis by stored faultTreeId.
  */
 export interface QuantumReadinessGraphByIdRequest {
-  /**
-   * Existing fault tree identifier used by the graph model layer.
-   */
   faultTreeId: string;
-
-  /**
-   * Optional human readable model name.
-   */
   modelName?: string;
-
-  /**
-   * Optional legacy wrapper for heuristics and readiness analysis overrides.
-   */
   options?: OpenPraFaultTreeReadinessOptions;
-
-  /**
-   * Optional top-level heuristics overrides.
-   */
   heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
-
-  /**
-   * Optional top-level readiness analysis overrides.
-   */
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
 }
 
@@ -93,19 +55,8 @@ export interface QuantumRecoveryBatchRootRequest {
  */
 @Controller()
 export class QuantumReadinessController {
-  /**
-   * Construct controller with quantum readiness service dependency.
-   *
-   * @param quantumReadinessService - Service that performs graph readiness analysis
-   */
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
 
-  /**
-   * Analyze a fault tree graph for quantum readiness.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/fault-tree-graph
-   */
   @Post("/fault-tree-graph")
   @HttpCode(HttpStatus.OK)
   analyzeFaultTreeGraph(@Body() body: QuantumReadinessGraphRequest): OpenPraFaultTreeReadinessResult {
@@ -116,12 +67,6 @@ export class QuantumReadinessController {
     }
   }
 
-  /**
-   * Analyze a fault tree graph and export deterministic preparation payloads.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/fault-tree-graph/preparation
-   */
   @Post("/fault-tree-graph/preparation")
   @HttpCode(HttpStatus.OK)
   analyzeFaultTreeGraphPreparation(@Body() body: QuantumReadinessGraphRequest): QuantumPreparationExport {
@@ -136,12 +81,22 @@ export class QuantumReadinessController {
     }
   }
 
-  /**
-   * Retrieve a stored fault tree graph by id and analyze it for readiness.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/fault-tree-graph/by-id
-   */
+  @Post("/fault-tree-graph/preparation-artifacts")
+  @HttpCode(HttpStatus.OK)
+  analyzeFaultTreeGraphPreparationArtifacts(
+    @Body() body: QuantumReadinessGraphRequest,
+  ): OpenpraQuantumPreparationArtifactBundle {
+    try {
+      return this.quantumReadinessService.analyzeFaultTreeGraphPreparationArtifacts(
+        body.graph,
+        body.modelName,
+        this.resolveOptions(body),
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
   @Post("/fault-tree-graph/by-id")
   @HttpCode(HttpStatus.OK)
   async analyzeFaultTreeGraphById(
@@ -158,12 +113,6 @@ export class QuantumReadinessController {
     }
   }
 
-  /**
-   * Retrieve a stored fault tree graph by id and export deterministic preparation payloads.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/fault-tree-graph/by-id/preparation
-   */
   @Post("/fault-tree-graph/by-id/preparation")
   @HttpCode(HttpStatus.OK)
   async analyzeFaultTreeGraphByIdPreparation(
@@ -180,12 +129,22 @@ export class QuantumReadinessController {
     }
   }
 
-  /**
-   * Build a validated quantum recovery result from a single candidate directory.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/recovery/candidate-dir
-   */
+  @Post("/fault-tree-graph/by-id/preparation-artifacts")
+  @HttpCode(HttpStatus.OK)
+  async analyzeFaultTreeGraphByIdPreparationArtifacts(
+    @Body() body: QuantumReadinessGraphByIdRequest,
+  ): Promise<OpenpraQuantumPreparationArtifactBundle> {
+    try {
+      return await this.quantumReadinessService.analyzeFaultTreeGraphByIdPreparationArtifacts(
+        body.faultTreeId,
+        body.modelName,
+        this.resolveOptions(body),
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
   @Post("/recovery/candidate-dir")
   @HttpCode(HttpStatus.OK)
   analyzeRecoveryCandidateDir(@Body() body: QuantumRecoveryCandidateDirRequest): QuantumRecoveryLadderResult {
@@ -196,12 +155,6 @@ export class QuantumReadinessController {
     }
   }
 
-  /**
-   * Build a batch recovery rollup from a batch root.
-   *
-   * Mounted under:
-   * /api/quantum-readiness/recovery/batch-root
-   */
   @Post("/recovery/batch-root")
   @HttpCode(HttpStatus.OK)
   analyzeRecoveryBatchRoot(@Body() body: QuantumRecoveryBatchRootRequest): OpenpraQuantumRecoveryBatchRollup {

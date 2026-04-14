@@ -2,11 +2,14 @@ import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
+  buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
   buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot,
   buildOpenpraQuantumRecoveryFromCandidateDir,
+  buildQuantumPreparationClQuboExport,
   buildQuantumPreparationExport,
   type OpenPraFaultTreeReadinessOptions,
   type OpenPraFaultTreeReadinessResult,
+  type OpenpraQuantumPreparationArtifactBundle,
   type OpenpraQuantumRecoveryBatchRollup,
   type OpenpraQuantumRecoveryBatchSelectionMode,
   type QuantumPreparationExport,
@@ -21,7 +24,8 @@ import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
  *
  * This is the backend side seam into the quantum readiness package.
  * It supports direct graph analysis, graph lookup by faultTreeId,
- * deterministic preparation export, and filesystem-backed recovery entrypoints.
+ * deterministic preparation export, artifact-wrapped preparation export,
+ * and filesystem-backed recovery entrypoints.
  */
 @Injectable()
 export class QuantumReadinessService {
@@ -43,6 +47,22 @@ export class QuantumReadinessService {
     const readinessResult = analyzeGraphLikeInputToReadiness(graph, modelName, options);
 
     return buildQuantumPreparationExport(readinessResult.normalizedFaultTree, readinessResult.report);
+  }
+
+  analyzeFaultTreeGraphPreparationArtifacts(
+    graph: FaultTreeGraph | Record<string, unknown>,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): OpenpraQuantumPreparationArtifactBundle {
+    const readinessResult = analyzeGraphLikeInputToReadiness(graph, modelName, options);
+    const clQuboExport = buildQuantumPreparationClQuboExport(
+      readinessResult.normalizedFaultTree,
+      readinessResult.report,
+    );
+
+    return buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport(clQuboExport, {
+      createdBy: "web-backend:quantumReadiness.service",
+    });
   }
 
   async analyzeFaultTreeGraphById(
@@ -81,6 +101,32 @@ export class QuantumReadinessService {
     const readinessResult = analyzeGraphLikeInputToReadiness(converted, modelName, options);
 
     return buildQuantumPreparationExport(readinessResult.normalizedFaultTree, readinessResult.report);
+  }
+
+  async analyzeFaultTreeGraphByIdPreparationArtifacts(
+    faultTreeId: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): Promise<OpenpraQuantumPreparationArtifactBundle> {
+    const graph = (await this.graphModelService.getFaultTreeGraph(faultTreeId)) as
+      | FaultTreeGraph
+      | Record<string, unknown>;
+
+    const converted = adaptFaultTreeGraphInput(graph, faultTreeId);
+
+    if (!converted.nodes || converted.nodes.length === 0) {
+      throw new Error(`No fault tree graph found for faultTreeId ${faultTreeId}.`);
+    }
+
+    const readinessResult = analyzeGraphLikeInputToReadiness(converted, modelName, options);
+    const clQuboExport = buildQuantumPreparationClQuboExport(
+      readinessResult.normalizedFaultTree,
+      readinessResult.report,
+    );
+
+    return buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport(clQuboExport, {
+      createdBy: "web-backend:quantumReadiness.service",
+    });
   }
 
   analyzeRecoveryCandidateDir(candidateDir: string): QuantumRecoveryLadderResult {

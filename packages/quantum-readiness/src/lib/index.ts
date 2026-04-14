@@ -5,6 +5,7 @@ export * from "./types";
 export * from "./quantum-readiness";
 export * from "./quantum-preparation";
 export * from "./quantum-recovery";
+export * from "./openpra-quantum-preparation-artifacts";
 export * from "./openpra-quantum-recovery-artifacts";
 export * from "./openpra-quantum-recovery-rollup";
 export * from "./openpra-quantum-recovery-batch-artifacts";

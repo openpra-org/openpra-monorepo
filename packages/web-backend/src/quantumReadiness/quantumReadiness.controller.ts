@@ -3,6 +3,7 @@ import type { FaultTreeGraph } from "shared-types";
 import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
+  OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumPreparationArtifactBundle,
   OpenpraQuantumRecoveryBatchRollup,
   OpenpraQuantumRecoveryBatchSelectionMode,
@@ -10,11 +11,8 @@ import type {
   QuantumRecoveryLadderResult,
 } from "quantum-readiness";
 
-import { QuantumReadinessService } from "./quantumReadiness.service";
+import { QuantumExecutionArtifactRawCountsRequest, QuantumReadinessService } from "./quantumReadiness.service";
 
-/**
- * Request body for quantum readiness analysis of a fault tree graph.
- */
 export interface QuantumReadinessGraphRequest {
   graph: FaultTreeGraph | Record<string, unknown>;
   modelName?: string;
@@ -23,9 +21,6 @@ export interface QuantumReadinessGraphRequest {
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
 }
 
-/**
- * Request body for quantum readiness analysis by stored faultTreeId.
- */
 export interface QuantumReadinessGraphByIdRequest {
   faultTreeId: string;
   modelName?: string;
@@ -34,25 +29,16 @@ export interface QuantumReadinessGraphByIdRequest {
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
 }
 
-/**
- * Request body for filesystem-backed single-case recovery.
- */
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
 }
 
-/**
- * Request body for filesystem-backed batch recovery rollup.
- */
 export interface QuantumRecoveryBatchRootRequest {
   batchRoot: string;
   candidateDirs?: string[];
   selectionMode?: OpenpraQuantumRecoveryBatchSelectionMode;
 }
 
-/**
- * Controller for quantum readiness analysis endpoints.
- */
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -140,6 +126,18 @@ export class QuantumReadinessController {
         body.modelName,
         this.resolveOptions(body),
       );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/artifacts/raw-counts")
+  @HttpCode(HttpStatus.OK)
+  buildExecutionArtifactsFromRawCounts(
+    @Body() body: QuantumExecutionArtifactRawCountsRequest,
+  ): OpenpraQuantumExecutionArtifactBundle {
+    try {
+      return this.quantumReadinessService.buildExecutionArtifactsFromRawCounts(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

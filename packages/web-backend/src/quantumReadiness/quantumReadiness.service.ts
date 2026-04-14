@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
+  buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
   buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot,
   buildOpenpraQuantumRecoveryFromCandidateDir,
@@ -9,6 +10,8 @@ import {
   buildQuantumPreparationExport,
   type OpenPraFaultTreeReadinessOptions,
   type OpenPraFaultTreeReadinessResult,
+  type OpenpraQuantumExecutionArtifactBundle,
+  type OpenpraQuantumExecutionProviderType,
   type OpenpraQuantumPreparationArtifactBundle,
   type OpenpraQuantumRecoveryBatchRollup,
   type OpenpraQuantumRecoveryBatchSelectionMode,
@@ -19,14 +22,21 @@ import {
 import { GraphModelService } from "../graphModels/graphModel.service";
 import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
 
-/**
- * Backend integration service for quantum readiness analysis of fault tree graphs.
- *
- * This is the backend side seam into the quantum readiness package.
- * It supports direct graph analysis, graph lookup by faultTreeId,
- * deterministic preparation export, artifact-wrapped preparation export,
- * and filesystem-backed recovery entrypoints.
- */
+export interface QuantumExecutionArtifactRawCountsRequest {
+  modelId: string;
+  subtreeId: string;
+  sourcePreparationArtifactId: string;
+  providerType: OpenpraQuantumExecutionProviderType;
+  providerName: string;
+  backendName: string;
+  executionMode: string;
+  shots: number;
+  rawCounts: Record<string, number>;
+  jobIdOrRunId?: string;
+  status?: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -125,6 +135,14 @@ export class QuantumReadinessService {
     );
 
     return buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport(clQuboExport, {
+      createdBy: "web-backend:quantumReadiness.service",
+    });
+  }
+
+  buildExecutionArtifactsFromRawCounts(
+    request: QuantumExecutionArtifactRawCountsRequest,
+  ): OpenpraQuantumExecutionArtifactBundle {
+    return buildOpenpraQuantumExecutionArtifactBundleFromRawCounts(request, {
       createdBy: "web-backend:quantumReadiness.service",
     });
   }

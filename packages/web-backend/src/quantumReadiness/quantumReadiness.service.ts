@@ -66,6 +66,11 @@ export interface QuantumExecutionWorkflowRunResult {
   executionWrite: OpenpraQuantumExecutionArtifactFilesystemWriteResult;
 }
 
+export interface QuantumRecoveryWorkflowRunResult {
+  workflowRun: OpenpraQuantumWorkflowRunScaffoldResult;
+  recoveryWrite: QuantumRecoveryArtifactWriteResult;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -125,6 +130,28 @@ export class QuantumReadinessService {
     return {
       workflowRun,
       executionWrite,
+    };
+  }
+
+  createRecoveryWorkflowRun(
+    rootDir: string,
+    candidateDir: string,
+    modelId: string,
+    subtreeId: string,
+  ): QuantumRecoveryWorkflowRunResult {
+    const workflowRun = this.createWorkflowRunScaffold({
+      rootDir,
+      modelId,
+      subtreeId,
+      workflowKind: "recovery",
+      requestedBy: "web-backend:quantumReadiness.service",
+    });
+
+    const recoveryWrite = this.analyzeRecoveryCandidateDirToFilesystem(candidateDir, workflowRun.directories.recovery);
+
+    return {
+      workflowRun,
+      recoveryWrite,
     };
   }
 

@@ -129,6 +129,26 @@ export class QuantumReadinessService {
     };
   }
 
+  async createPreparationWorkflowRunById(
+    rootDir: string,
+    faultTreeId: string,
+    subtreeId: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): Promise<QuantumPreparationWorkflowRunResult> {
+    const graph = (await this.graphModelService.getFaultTreeGraph(faultTreeId)) as
+      | FaultTreeGraph
+      | Record<string, unknown>;
+
+    const converted = adaptFaultTreeGraphInput(graph, faultTreeId);
+
+    if (!converted.nodes || converted.nodes.length === 0) {
+      throw new Error(`No fault tree graph found for faultTreeId ${faultTreeId}.`);
+    }
+
+    return this.createPreparationWorkflowRun(rootDir, converted, faultTreeId, subtreeId, modelName, options);
+  }
+
   createExecutionWorkflowRun(
     rootDir: string,
     request: QuantumExecutionArtifactRawCountsRequest,

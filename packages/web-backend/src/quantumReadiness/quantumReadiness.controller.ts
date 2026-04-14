@@ -53,6 +53,16 @@ export interface QuantumPreparationWorkflowRunRequest extends QuantumReadinessGr
   subtreeId: string;
 }
 
+export interface QuantumPreparationWorkflowByIdRequest {
+  rootDir: string;
+  faultTreeId: string;
+  subtreeId: string;
+  modelName?: string;
+  options?: OpenPraFaultTreeReadinessOptions;
+  heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
+  analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
+}
+
 export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumExecutionArtifactRawCountsRequest {
   outputDir: string;
 }
@@ -144,6 +154,24 @@ export class QuantumReadinessController {
         body.rootDir,
         body.graph,
         body.modelId,
+        body.subtreeId,
+        body.modelName,
+        this.resolveOptions(body),
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/preparation-run/by-id")
+  @HttpCode(HttpStatus.OK)
+  async createPreparationWorkflowRunById(
+    @Body() body: QuantumPreparationWorkflowByIdRequest,
+  ): Promise<QuantumPreparationWorkflowRunResult> {
+    try {
+      return await this.quantumReadinessService.createPreparationWorkflowRunById(
+        body.rootDir,
+        body.faultTreeId,
         body.subtreeId,
         body.modelName,
         this.resolveOptions(body),
@@ -435,6 +463,7 @@ export class QuantumReadinessController {
       | QuantumReadinessGraphRequest
       | QuantumReadinessGraphByIdRequest
       | QuantumPreparationWorkflowRunRequest
+      | QuantumPreparationWorkflowByIdRequest
       | QuantumFullPipelineWorkflowRunRequest,
   ): OpenPraFaultTreeReadinessOptions {
     return {

@@ -11,6 +11,7 @@ import {
 import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-tree-graph.schema";
 import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
+import { adaptFaultTreeGraphInput } from "../quantumReadiness/openPraFaultTreeGraph.adapter";
 
 /**
  * Enum of supported graph types
@@ -29,6 +30,7 @@ enum GraphTypes {
 @Injectable()
 export class GraphModelService {
   private readonly logger = new Logger(GraphModelService.name);
+
   /**
    * Construct the service with Mongoose models for each supported graph type.
    * @param eventSequenceDiagramGraphModel - Mongoose model for event sequence diagram graphs
@@ -60,7 +62,7 @@ export class GraphModelService {
         eventSequenceId: eventSequenceId,
         nodes: [],
         edges: [],
-      };
+      } as unknown as EventSequenceDiagramGraph;
     }
   }
 
@@ -76,8 +78,8 @@ export class GraphModelService {
       newGraph.id = this.generateUUID();
       newGraph._id = new mongoose.Types.ObjectId();
       const defaultEventSequenceGraph = this.getDefaultEventSequenceDiagram();
-      newGraph.nodes = defaultEventSequenceGraph.nodes;
-      newGraph.edges = defaultEventSequenceGraph.edges;
+      newGraph.nodes = defaultEventSequenceGraph.nodes as typeof newGraph.nodes;
+      newGraph.edges = defaultEventSequenceGraph.edges as typeof newGraph.edges;
       return newGraph.save();
     } catch (exception) {
       const error = exception as Error;
@@ -93,10 +95,11 @@ export class GraphModelService {
    */
   async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
+      const normalizedBody = adaptFaultTreeGraphInput(body as Record<string, unknown>);
       const existingGraph = await this.faultTreeGraphModel.findOne({
-        faultTreeId: body.faultTreeId,
+        faultTreeId: normalizedBody.faultTreeId,
       });
-      return this.saveGraph(existingGraph, body, GraphTypes.FaultTree);
+      return this.saveGraph(existingGraph, normalizedBody as Partial<BaseGraph>, GraphTypes.FaultTree);
     } catch (exception) {
       const error = exception as Error;
       this.logger.error(error.message, error.stack);
@@ -112,17 +115,18 @@ export class GraphModelService {
   async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
     const result = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
     if (result !== null) {
-      // Proactive migration: if an existing doc is empty, seed defaults and persist once
       const hasEmptyNodes = !Array.isArray(result.nodes) || result.nodes.length === 0;
       const hasEmptyEdges = !Array.isArray(result.edges) || result.edges.length === 0;
+
       if (hasEmptyNodes && hasEmptyEdges) {
         const defaults = this.getDefaultFaultTreeGraph();
-        // need a hydrated doc with _id to save; refetch without projection
         const hydrated = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId });
+
         if (hydrated) {
           hydrated.nodes = defaults.nodes as unknown as typeof hydrated.nodes;
           hydrated.edges = defaults.edges as unknown as typeof hydrated.edges;
           await hydrated.save();
+
           return {
             faultTreeId,
             nodes: defaults.nodes as unknown as FaultTreeGraph["nodes"],
@@ -130,6 +134,7 @@ export class GraphModelService {
           } as FaultTreeGraph;
         }
       }
+
       return result as unknown as FaultTreeGraph;
     } else {
       return {
@@ -138,7 +143,7 @@ export class GraphModelService {
         faultTreeId: faultTreeId,
         nodes: [],
         edges: [],
-      };
+      } as unknown as FaultTreeGraph;
     }
   }
 
@@ -176,7 +181,7 @@ export class GraphModelService {
         eventTreeId: eventTreeId,
         nodes: [],
         edges: [],
-      };
+      } as unknown as EventTreeGraph;
     }
   }
 
@@ -189,22 +194,22 @@ export class GraphModelService {
    */
   async updateESLabel(id: string, type: string, label: string): Promise<boolean> {
     try {
-      // check if type is valid
       if (!["node", "edge"].includes(type)) {
         this.logger.error(`Invalid type (${type}) provided to update label`);
         return false;
       }
 
-      // attribute filter for node/edge
       const attribute = type === "node" ? "nodes" : "edges";
-      const filter = {};
-      const set = {};
+      const filter: Record<string, unknown> = {};
+      const set: Record<string, unknown> = {};
+
       filter[`${attribute}.id`] = id;
       set[`${attribute}.$.data.label`] = label;
 
       const result = await this.eventSequenceDiagramGraphModel.updateOne(filter, {
         $set: set,
       });
+
       return result.modifiedCount > 0;
     } catch (exception) {
       const error = exception as Error;
@@ -215,7 +220,6 @@ export class GraphModelService {
 
   /**
    * Apply partial updates to an Event Sequence Diagram graph.
-   * Removes nodes/edges present in the deleted set, then upserts those in the updated set.
    *
    * @param eventSequenceId - Event sequence diagram identifier
    * @param updatedSubgraph - Nodes/edges to add or replace
@@ -231,14 +235,23 @@ export class GraphModelService {
       const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
         eventSequenceId: eventSequenceId,
       });
-      if (existingGraph === null) return false;
+
+      if (existingGraph === null) {
+        return false;
+      }
+
+      const updatedNodes = updatedSubgraph.nodes ?? [];
+      const deletedNodes = deletedSubgraph.nodes ?? [];
+      const updatedEdges = updatedSubgraph.edges ?? [];
+      const deletedEdges = deletedSubgraph.edges ?? [];
 
       existingGraph.nodes = existingGraph.nodes
-        .filter((node) => ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some((n) => n.id === node.id))
-        .concat(...updatedSubgraph.nodes);
+        .filter((node) => ![...deletedNodes, ...updatedNodes].some((n) => n.id === node.id))
+        .concat(...updatedNodes);
+
       existingGraph.edges = existingGraph.edges
-        .filter((edge) => ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some((e) => e.id === edge.id))
-        .concat(...updatedSubgraph.edges);
+        .filter((edge) => ![...deletedEdges, ...updatedEdges].some((e) => e.id === edge.id))
+        .concat(...updatedEdges);
 
       await existingGraph.save();
       return true;
@@ -259,14 +272,20 @@ export class GraphModelService {
   private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
     type AnyGraphDocument = EventSequenceDiagramGraphDocument | FaultTreeGraphDocument | EventTreeGraphDocument;
     const doc = graph as AnyGraphDocument | null;
+
     if (doc !== null) {
-      // assign nodes/edges if provided; preserve existing when undefined
-      if (body.nodes !== undefined) (doc as any).nodes = body.nodes as any;
-      if (body.edges !== undefined) (doc as any).edges = body.edges as any;
+      if (body.nodes !== undefined) {
+        (doc as any).nodes = body.nodes as any;
+      }
+
+      if (body.edges !== undefined) {
+        (doc as any).edges = body.edges as any;
+      }
+
       await (doc as any).save();
     } else {
       const newGraph = this.getModel(modelType, body);
-      // Seed defaults for Fault Trees when creating a new graph with empty payload
+
       if (
         modelType === GraphTypes.FaultTree &&
         (body.nodes === undefined || body.nodes.length === 0) &&
@@ -276,10 +295,12 @@ export class GraphModelService {
         (newGraph as any).nodes = defaults.nodes as any;
         (newGraph as any).edges = defaults.edges as any;
       }
+
       (newGraph as any).id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
       (newGraph as any)._id = new mongoose.Types.ObjectId();
       await (newGraph as any).save();
     }
+
     return true;
   }
 
@@ -330,7 +351,7 @@ export class GraphModelService {
         data: {
           label: "Functional",
         },
-        position: { x: 0, y: 0 },
+        position: { x: 250, y: 0 },
         type: "functional",
       },
       {
@@ -338,94 +359,91 @@ export class GraphModelService {
         data: {
           label: "End State",
         },
-        position: { x: 0, y: 0 },
-        type: "end",
+        position: { x: 500, y: -100 },
+        type: "endstate",
       },
       {
         id: secondEndStateId,
         data: {
           label: "End State",
         },
-        position: { x: 0, y: 0 },
-        type: "end",
+        position: { x: 500, y: 100 },
+        type: "endstate",
       },
     ];
 
     const defaultEdges: GraphEdge<object>[] = [
       {
-        id: `${initiatingEventId}->${functionalEventId}`,
+        id: this.generateUUID(),
         source: initiatingEventId,
         target: functionalEventId,
-        type: "normal",
+        type: "default",
         animated: false,
-        data: {},
+        data: { label: "" },
       },
       {
-        id: `${functionalEventId}->${firstEndStateId}`,
+        id: this.generateUUID(),
         source: functionalEventId,
         target: firstEndStateId,
-        type: "functional",
-        data: { label: "Yes", order: 1 },
+        type: "success",
         animated: false,
+        data: { label: "Success" },
       },
       {
-        id: `${functionalEventId}->${secondEndStateId}`,
+        id: this.generateUUID(),
         source: functionalEventId,
         target: secondEndStateId,
-        type: "functional",
-        data: { label: "No", order: 2 },
+        type: "failure",
         animated: false,
-      },
-    ];
-
-    return { nodes: defaultNodes, edges: defaultEdges };
-  }
-
-  private getDefaultFaultTreeGraph(): Partial<BaseGraphDocument> {
-    // Mirror the frontend starter graph: one OR gate (id "1") and two basic events (id "2" and "3")
-    const defaultNodes: GraphNode<object>[] = [
-      {
-        id: "1",
-        data: { label: "OR Gate" },
-        position: { x: 0, y: 0 },
-        type: "orGate",
-      },
-      {
-        id: "2",
-        data: { label: "Basic Event" },
-        position: { x: 0, y: 150 },
-        type: "basicEvent",
-      },
-      {
-        id: "3",
-        data: { label: "Basic Event" },
-        position: { x: 0, y: 150 },
-        type: "basicEvent",
-      },
-    ];
-
-    const defaultEdges: GraphEdge<object>[] = [
-      {
-        id: "1=>2",
-        source: "1",
-        target: "2",
-        type: "workflow",
-        animated: false,
-        data: {},
-      },
-      {
-        id: "1=>3",
-        source: "1",
-        target: "3",
-        type: "workflow",
-        animated: false,
-        data: {},
+        data: { label: "Failure" },
       },
     ];
 
     return {
-      nodes: defaultNodes as unknown as BaseGraphDocument["nodes"],
-      edges: defaultEdges as unknown as BaseGraphDocument["edges"],
+      nodes: defaultNodes as unknown as EventSequenceDiagramGraphDocument["nodes"],
+      edges: defaultEdges as unknown as EventSequenceDiagramGraphDocument["edges"],
+    };
+  }
+
+  private getDefaultFaultTreeGraph(): Partial<FaultTreeGraphDocument> {
+    const topId = "TOP";
+    const basicId = "A";
+
+    const defaultNodes: GraphNode<object>[] = [
+      {
+        id: topId,
+        data: {
+          label: { name: "Top Gate" },
+          gateType: "OR",
+          isTop: true,
+        },
+        position: { x: 0, y: 0 },
+        type: "gate",
+      },
+      {
+        id: basicId,
+        data: {
+          label: { name: "Basic Event A" },
+        },
+        position: { x: 0, y: 120 },
+        type: "basicEvent",
+      },
+    ];
+
+    const defaultEdges: GraphEdge<object>[] = [
+      {
+        id: `${topId}__${basicId}`,
+        source: topId,
+        target: basicId,
+        type: "default",
+        animated: false,
+        data: { label: "" },
+      },
+    ];
+
+    return {
+      nodes: defaultNodes as unknown as FaultTreeGraphDocument["nodes"],
+      edges: defaultEdges as unknown as FaultTreeGraphDocument["edges"],
     };
   }
 }

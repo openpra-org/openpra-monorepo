@@ -1,11 +1,7 @@
 import type { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import type { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 
-import type {
-  NormalizedFaultTree,
-  NormalizedFaultTreeNode,
-  NormalizedGateType
-} from "./types";
+import type { NormalizedFaultTree, NormalizedFaultTreeNode, NormalizedGateType } from "./types";
 
 /**
  * Minimal OpenPRA fault tree graph input for the v1 adapter.
@@ -62,7 +58,7 @@ export interface OpenPraFaultTreeGraphAdapterOptions {
  */
 export function adaptFaultTreeGraphToNormalizedFaultTree(
   input: OpenPraFaultTreeGraphInput,
-  options: OpenPraFaultTreeGraphAdapterOptions
+  options: OpenPraFaultTreeGraphAdapterOptions,
 ): NormalizedFaultTree {
   const nodeById = new Map<string, GraphNode<object>>();
   const incomingCount = new Map<string, number>();
@@ -107,8 +103,8 @@ export function adaptFaultTreeGraphToNormalizedFaultTree(
         children: uniqueSorted(childMap.get(node.id) ?? []),
         metadata: {
           sourceNodeType: node.type,
-          sourceNodeData: node.data
-        }
+          sourceNodeData: node.data,
+        },
       };
       continue;
     }
@@ -119,8 +115,8 @@ export function adaptFaultTreeGraphToNormalizedFaultTree(
       kind: "basicEvent",
       metadata: {
         sourceNodeType: node.type,
-        sourceNodeData: node.data
-      }
+        sourceNodeData: node.data,
+      },
     };
   }
 
@@ -138,15 +134,12 @@ export function adaptFaultTreeGraphToNormalizedFaultTree(
     id: input.faultTreeId,
     name: input.modelName ?? `Fault Tree ${input.faultTreeId}`,
     topNodeId,
-    sourceFormat: "unknown",
-    nodes: normalizedNodes
+    sourceFormat: "normalized",
+    nodes: normalizedNodes,
   };
 }
 
-function inferTopNodeId(
-  nodes: GraphNode<object>[],
-  incomingCount: Map<string, number>
-): string | undefined {
+function inferTopNodeId(nodes: GraphNode<object>[], incomingCount: Map<string, number>): string | undefined {
   const roots = nodes
     .filter((node) => (incomingCount.get(node.id) ?? 0) === 0)
     .map((node) => node.id)

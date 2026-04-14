@@ -2,78 +2,96 @@ import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
+  buildQuantumPreparationExport,
   type OpenPraFaultTreeReadinessOptions,
-  type OpenPraFaultTreeReadinessResult
+  type OpenPraFaultTreeReadinessResult,
+  type QuantumPreparationExport,
 } from "quantum-readiness";
 
 import { GraphModelService } from "../graphModels/graphModel.service";
+import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
 
 /**
  * Backend integration service for quantum readiness analysis of fault tree graphs.
  *
- * This is the backend-side seam into the quantum-readiness package.
+ * This is the backend side seam into the quantum readiness package.
  * It supports direct graph analysis and graph lookup by faultTreeId.
  */
 @Injectable()
 export class QuantumReadinessService {
-  /**
-   * Construct the service with graph model lookup support.
-   *
-   * @param graphModelService - Existing backend service for retrieving stored graph models
-   */
   constructor(private readonly graphModelService: GraphModelService) {}
 
-  /**
-   * Analyze a shared FaultTreeGraph using the default OpenPRA heuristics.
-   *
-   * @param graph - Fault tree graph with nodes and edges
-   * @param modelName - Optional human-readable model name
-   * @param options - Optional heuristics and readiness analysis overrides
-   * @returns End-to-end readiness analysis result
-   */
   analyzeFaultTreeGraph(
-    graph: FaultTreeGraph,
+    graph: FaultTreeGraph | Record<string, unknown>,
     modelName?: string,
-    options: OpenPraFaultTreeReadinessOptions = {}
+    options: OpenPraFaultTreeReadinessOptions = {},
   ): OpenPraFaultTreeReadinessResult {
-    return analyzeLikelyOpenPraFaultTreeGraphToReadiness(graph, modelName, options);
+    return analyzeGraphLikeInputToReadiness(graph, modelName, options);
   }
 
-  /**
-   * Retrieve a stored fault tree graph by id and analyze it for readiness.
-   *
-   * @param faultTreeId - Fault tree identifier used by the existing graph model layer
-   * @param modelName - Optional human-readable model name override
-   * @param options - Optional heuristics and readiness analysis overrides
-   * @returns End-to-end readiness analysis result
-   */
+  analyzeFaultTreeGraphPreparation(
+    graph: FaultTreeGraph | Record<string, unknown>,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): QuantumPreparationExport {
+    const readinessResult = analyzeGraphLikeInputToReadiness(graph, modelName, options);
+
+    return buildQuantumPreparationExport(readinessResult.normalizedFaultTree, readinessResult.report);
+  }
+
   async analyzeFaultTreeGraphById(
     faultTreeId: string,
     modelName?: string,
-    options: OpenPraFaultTreeReadinessOptions = {}
+    options: OpenPraFaultTreeReadinessOptions = {},
   ): Promise<OpenPraFaultTreeReadinessResult> {
-    const graph = await this.graphModelService.getFaultTreeGraph(faultTreeId);
+    const graph = (await this.graphModelService.getFaultTreeGraph(faultTreeId)) as
+      | FaultTreeGraph
+      | Record<string, unknown>;
 
-    if (!graph.nodes || graph.nodes.length === 0) {
+    const converted = adaptFaultTreeGraphInput(graph, faultTreeId);
+
+    if (!converted.nodes || converted.nodes.length === 0) {
       throw new Error(`No fault tree graph found for faultTreeId ${faultTreeId}.`);
     }
 
-    return analyzeLikelyOpenPraFaultTreeGraphToReadiness(graph, modelName, options);
+    return analyzeGraphLikeInputToReadiness(converted, modelName, options);
+  }
+
+  async analyzeFaultTreeGraphByIdPreparation(
+    faultTreeId: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+  ): Promise<QuantumPreparationExport> {
+    const graph = (await this.graphModelService.getFaultTreeGraph(faultTreeId)) as
+      | FaultTreeGraph
+      | Record<string, unknown>;
+
+    const converted = adaptFaultTreeGraphInput(graph, faultTreeId);
+
+    if (!converted.nodes || converted.nodes.length === 0) {
+      throw new Error(`No fault tree graph found for faultTreeId ${faultTreeId}.`);
+    }
+
+    const readinessResult = analyzeGraphLikeInputToReadiness(converted, modelName, options);
+
+    return buildQuantumPreparationExport(readinessResult.normalizedFaultTree, readinessResult.report);
   }
 }
 
-function analyzeLikelyOpenPraFaultTreeGraphToReadiness(
-  graph: FaultTreeGraph,
+function analyzeGraphLikeInputToReadiness(
+  graph: FaultTreeGraph | Record<string, unknown>,
   modelName?: string,
-  options: OpenPraFaultTreeReadinessOptions = {}
+  options: OpenPraFaultTreeReadinessOptions = {},
 ): OpenPraFaultTreeReadinessResult {
+  const converted = adaptFaultTreeGraphInput(graph);
+
   return analyzeLikelyOpenPraFaultTreeGraphReadiness(
     {
-      faultTreeId: graph.faultTreeId,
+      faultTreeId: converted.faultTreeId,
       modelName,
-      nodes: graph.nodes,
-      edges: graph.edges
+      nodes: converted.nodes,
+      edges: converted.edges,
     },
-    options
+    options,
   );
 }

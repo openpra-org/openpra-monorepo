@@ -100,3 +100,9 @@ AUTHORSHIP_MANIFESTS/
 RELEASES/
 REGISTRATION_PACKETS/
 
+# BEGIN OPENPRA QUANTUM INTEGRATION MANAGED BLOCK
+# Generated scratch and environment paths for OpenPRA quantum integration work
+.venv_phase4_qiskit/
+_work/
+artifacts/quantum_integration/
+# END OPENPRA QUANTUM INTEGRATION MANAGED BLOCK

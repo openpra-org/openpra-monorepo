@@ -9,8 +9,8 @@
       "scope:shared"
     ]
   },
-  "main": "./src/index.js",
-  "typings": "./src/index.d.ts",
+  "main": "../../dist/packages/quantum-readiness/src/index.js",
+  "typings": "../../dist/packages/quantum-readiness/src/index.d.ts",
   "dependencies": {
     "tslib": "2.5.2"
   },

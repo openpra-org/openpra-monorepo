@@ -21,8 +21,12 @@ import {
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonRequest,
   type QuantumImportanceComparisonResult,
+  type QuantumImportanceComparisonWriteByKindRequest,
+  type QuantumImportanceComparisonWriteByKindResult,
   type QuantumImportanceComparisonWriteByTargetRequest,
   type QuantumImportanceComparisonWriteByTargetResult,
+  type QuantumImportanceComparisonWriteByWorkflowRunRequest,
+  type QuantumImportanceComparisonWriteByWorkflowRunResult,
   type QuantumImportanceComparisonWriteResult,
   type QuantumLatestWorkflowRunByKindResult,
   type QuantumLatestWorkflowRunByTargetResult,
@@ -183,6 +187,12 @@ export interface QuantumImportanceComparisonWriteRequest extends QuantumImportan
 export interface QuantumImportanceComparisonWriteByTargetRequestBody
   extends QuantumImportanceComparisonWriteByTargetRequest {}
 
+export interface QuantumImportanceComparisonWriteByKindRequestBody
+  extends QuantumImportanceComparisonWriteByKindRequest {}
+
+export interface QuantumImportanceComparisonWriteByWorkflowRunRequestBody
+  extends QuantumImportanceComparisonWriteByWorkflowRunRequest {}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -246,6 +256,30 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByTargetResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/write/by-kind")
+  @HttpCode(HttpStatus.OK)
+  compareImportanceMeasuresToLatestWorkflowRunByKind(
+    @Body() body: QuantumImportanceComparisonWriteByKindRequestBody,
+  ): QuantumImportanceComparisonWriteByKindResult {
+    try {
+      return this.quantumReadinessService.compareImportanceMeasuresToLatestWorkflowRunByKind(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/write/by-workflow-run")
+  @HttpCode(HttpStatus.OK)
+  compareImportanceMeasuresToWorkflowRunDir(
+    @Body() body: QuantumImportanceComparisonWriteByWorkflowRunRequestBody,
+  ): QuantumImportanceComparisonWriteByWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.compareImportanceMeasuresToWorkflowRunDir(body);
     } catch (error) {
       throw this.toHttpException(error);
     }
@@ -653,7 +687,8 @@ export class QuantumReadinessController {
       message.startsWith("No fault tree graph found for faultTreeId") ||
       message.startsWith("workflowRunDir does not exist") ||
       message.startsWith("rootDir does not exist") ||
-      message.startsWith("No workflow run found for modelId")
+      message.startsWith("No workflow run found for modelId") ||
+      message.startsWith("No workflow run found for workflowKind")
     ) {
       return new HttpException(message, HttpStatus.NOT_FOUND);
     }

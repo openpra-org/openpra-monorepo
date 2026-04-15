@@ -281,6 +281,42 @@ export interface QuantumImportanceComparisonReportWriteByWorkflowRunResult {
   importanceComparisonReportPath: string;
 }
 
+export interface QuantumWorkflowReleaseSummaryResult {
+  workflowRunDir: string;
+  manifestPath: string | null;
+  directories: {
+    preparation: string | null;
+    execution: string | null;
+    recovery: string | null;
+    batch: string | null;
+    logs: string | null;
+  };
+  counts: {
+    preparationBundles: number;
+    preparationArtifacts: number;
+    executionArtifacts: number;
+    executionProvenance: number;
+    recoveryArtifacts: number;
+    recoveryBatchRollups: number;
+    importanceComparisons: number;
+    importanceReports: number;
+    logFiles: number;
+  };
+  readiness: {
+    hasPreparation: boolean;
+    hasExecution: boolean;
+    hasRecovery: boolean;
+    hasImportanceComparison: boolean;
+    hasImportanceReport: boolean;
+    releaseReady: boolean;
+  };
+}
+
+export interface QuantumWorkflowReleaseSummaryWriteResult {
+  outputDir: string;
+  workflowReleaseSummaryPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -982,6 +1018,77 @@ export class QuantumReadinessService {
     return {
       outputDir: resolvedOutputDir,
       importanceComparisonPath,
+    };
+  }
+
+  buildWorkflowReleaseSummary(workflowRunDir: string): QuantumWorkflowReleaseSummaryResult {
+    const inspection = this.inspectWorkflowRun(workflowRunDir);
+    const recoveryDir = inspection.directories.recovery;
+    const importanceComparisons =
+      recoveryDir !== null ?
+        listFilesMatching(recoveryDir, /^openpra_quantum_importance_comparison_v1\.json$/).length
+      : 0;
+    const importanceReports =
+      recoveryDir !== null ?
+        listFilesMatching(recoveryDir, /^openpra_quantum_importance_comparison_report_v1\.json$/).length
+      : 0;
+
+    const counts = {
+      preparationBundles: inspection.files.preparationBundles.length,
+      preparationArtifacts: inspection.files.preparationArtifacts.length,
+      executionArtifacts: inspection.files.executionArtifacts.length,
+      executionProvenance: inspection.files.executionProvenance.length,
+      recoveryArtifacts: inspection.files.recoveryArtifacts.length,
+      recoveryBatchRollups: inspection.files.recoveryBatchRollups.length,
+      importanceComparisons,
+      importanceReports,
+      logFiles: inspection.files.logFiles.length,
+    };
+
+    const readiness = {
+      hasPreparation: counts.preparationBundles > 0,
+      hasExecution: counts.executionArtifacts > 0 && counts.executionProvenance > 0,
+      hasRecovery: counts.recoveryArtifacts > 0 || counts.recoveryBatchRollups > 0,
+      hasImportanceComparison: counts.importanceComparisons > 0,
+      hasImportanceReport: counts.importanceReports > 0,
+      releaseReady:
+        counts.preparationBundles > 0 &&
+        counts.executionArtifacts > 0 &&
+        counts.executionProvenance > 0 &&
+        (counts.recoveryArtifacts > 0 || counts.recoveryBatchRollups > 0) &&
+        counts.importanceComparisons > 0 &&
+        counts.importanceReports > 0,
+    };
+
+    return {
+      workflowRunDir: inspection.workflowRunDir,
+      manifestPath: inspection.manifestPath,
+      directories: {
+        preparation: inspection.directories.preparation,
+        execution: inspection.directories.execution,
+        recovery: inspection.directories.recovery,
+        batch: inspection.directories.batch,
+        logs: inspection.directories.logs,
+      },
+      counts,
+      readiness,
+    };
+  }
+
+  buildWorkflowReleaseSummaryToFilesystem(
+    workflowRunDir: string,
+    outputDir: string,
+  ): QuantumWorkflowReleaseSummaryWriteResult {
+    const result = this.buildWorkflowReleaseSummary(workflowRunDir);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const workflowReleaseSummaryPath = path.join(resolvedOutputDir, "openpra_quantum_workflow_release_summary_v1.json");
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(workflowReleaseSummaryPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      workflowReleaseSummaryPath,
     };
   }
 

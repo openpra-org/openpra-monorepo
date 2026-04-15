@@ -45,6 +45,8 @@ import {
   type QuantumRecoveryBatchRollupWriteResult,
   type QuantumRecoveryBatchWorkflowRunResult,
   type QuantumRecoveryWorkflowRunResult,
+  type QuantumWorkflowReleaseSummaryResult,
+  type QuantumWorkflowReleaseSummaryWriteResult,
   type QuantumWorkflowRunInspectionResult,
   type QuantumWorkflowRunListingResult,
 } from "./quantumReadiness.service";
@@ -214,9 +216,40 @@ export interface QuantumImportanceComparisonReportWriteByKindRequestBody
 export interface QuantumImportanceComparisonReportWriteByWorkflowRunRequestBody
   extends QuantumImportanceComparisonReportWriteByWorkflowRunRequest {}
 
+export interface QuantumWorkflowReleaseSummaryRequest {
+  workflowRunDir: string;
+}
+
+export interface QuantumWorkflowReleaseSummaryWriteRequest {
+  workflowRunDir: string;
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/release/workflow-summary")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseSummary(@Body() body: QuantumWorkflowReleaseSummaryRequest): QuantumWorkflowReleaseSummaryResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseSummary(body.workflowRunDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/release/workflow-summary/write")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseSummaryToFilesystem(
+    @Body() body: QuantumWorkflowReleaseSummaryWriteRequest,
+  ): QuantumWorkflowReleaseSummaryWriteResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseSummaryToFilesystem(body.workflowRunDir, body.outputDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/workflow/run-scaffold")
   @HttpCode(HttpStatus.OK)

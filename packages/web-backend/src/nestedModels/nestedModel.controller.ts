@@ -212,39 +212,39 @@ export class NestedModelController {
   }
 
   @Get("/bayesian-networks/")
-  async getBayesianNetworks(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.nestedModelService.getBayesianNetworks(id as number);
-    } else {
-      return this.bayesianNetworkService.getBayesianNetworkString(id);
+  async getBayesianNetworks(@Query("id") id: string): Promise<EventSequenceDiagram[]> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      return this.nestedModelService.getBayesianNetworks(numericId);
     }
+    return this.bayesianNetworkService.getBayesianNetworkString(id);
   }
 
   @Get("/event-sequence-diagrams/")
-  async getEventSequenceDiagrams(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.nestedModelService.getEventSequenceDiagrams(id as number);
-    } else {
-      return this.eventSequenceDiagramService.getEventSequenceDiagramsString(id);
+  async getEventSequenceDiagrams(@Query("id") id: string): Promise<EventSequenceDiagram[]> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      return this.nestedModelService.getEventSequenceDiagrams(numericId);
     }
+    return this.eventSequenceDiagramService.getEventSequenceDiagramsString(id);
   }
 
   @Get("/event-trees/")
-  async getEventTrees(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.nestedModelService.getEventTrees(id as number);
-    } else {
-      return this.eventTreeService.getEventTreesString(id);
+  async getEventTrees(@Query("id") id: string): Promise<EventSequenceDiagram[]> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      return this.nestedModelService.getEventTrees(numericId);
     }
+    return this.eventTreeService.getEventTreesString(id);
   }
 
   @Get("/fault-trees/")
-  async getFaultTrees(@Query("id") id: number | string): Promise<FaultTree[]> {
-    if (typeof id === "number") {
-      return this.nestedModelService.getFaultTrees(id as number);
-    } else {
-      return this.faultTreesService.getFaultTreeString(id);
+  async getFaultTrees(@Query("id") id: string): Promise<FaultTree[]> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      return this.nestedModelService.getFaultTrees(numericId);
     }
+    return this.faultTreesService.getFaultTreeString(id);
   }
 
   @Get("/heat-balance-fault-trees/")
@@ -258,12 +258,12 @@ export class NestedModelController {
   }
 
   @Get("/initiating-events/")
-  async getInitiatingEvents(@Query("id") id: number | string): Promise<InitiatingEvent[]> {
-    if (typeof id === "number") {
-      return this.initiatingEventsService.getInitiatingEvents(id);
-    } else {
-      return this.initiatingEventsService.getInitiatingEventsString(id);
+  async getInitiatingEvents(@Query("id") id: string): Promise<InitiatingEvent[]> {
+    const numericId = Number(id);
+    if (!isNaN(numericId)) {
+      return this.initiatingEventsService.getInitiatingEvents(numericId);
     }
+    return this.initiatingEventsService.getInitiatingEventsString(id);
   }
 
   @Get("/markov-chains/")

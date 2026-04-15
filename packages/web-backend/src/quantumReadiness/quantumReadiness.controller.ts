@@ -21,6 +21,8 @@ import {
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonRequest,
   type QuantumImportanceComparisonResult,
+  type QuantumImportanceComparisonWriteByTargetRequest,
+  type QuantumImportanceComparisonWriteByTargetResult,
   type QuantumImportanceComparisonWriteResult,
   type QuantumLatestWorkflowRunByKindResult,
   type QuantumLatestWorkflowRunByTargetResult,
@@ -178,6 +180,9 @@ export interface QuantumImportanceComparisonWriteRequest extends QuantumImportan
   outputDir: string;
 }
 
+export interface QuantumImportanceComparisonWriteByTargetRequestBody
+  extends QuantumImportanceComparisonWriteByTargetRequest {}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -241,6 +246,18 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByTargetResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/write/by-target")
+  @HttpCode(HttpStatus.OK)
+  compareImportanceMeasuresToLatestWorkflowRunByTarget(
+    @Body() body: QuantumImportanceComparisonWriteByTargetRequestBody,
+  ): QuantumImportanceComparisonWriteByTargetResult {
+    try {
+      return this.quantumReadinessService.compareImportanceMeasuresToLatestWorkflowRunByTarget(body);
     } catch (error) {
       throw this.toHttpException(error);
     }
@@ -635,7 +652,8 @@ export class QuantumReadinessController {
     if (
       message.startsWith("No fault tree graph found for faultTreeId") ||
       message.startsWith("workflowRunDir does not exist") ||
-      message.startsWith("rootDir does not exist")
+      message.startsWith("rootDir does not exist") ||
+      message.startsWith("No workflow run found for modelId")
     ) {
       return new HttpException(message, HttpStatus.NOT_FOUND);
     }

@@ -181,6 +181,16 @@ export interface QuantumImportanceComparisonWriteResult {
   importanceComparisonPath: string;
 }
 
+export interface QuantumImportanceComparisonWriteByTargetRequest extends QuantumImportanceComparisonRequest {
+  rootDir: string;
+}
+
+export interface QuantumImportanceComparisonWriteByTargetResult {
+  workflowRunDir: string;
+  outputDir: string;
+  importanceComparisonPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -582,6 +592,37 @@ export class QuantumReadinessService {
         maxAbsoluteDifference: differences.length > 0 ? Math.max(...differences) : null,
         spearmanRho: computeSpearmanRho(quantumCommonValues, classicalCommonValues),
       },
+    };
+  }
+
+  compareImportanceMeasuresToLatestWorkflowRunByTarget(
+    request: QuantumImportanceComparisonWriteByTargetRequest,
+  ): QuantumImportanceComparisonWriteByTargetResult {
+    const latest = this.getLatestWorkflowRunByTarget(request.rootDir, request.modelId, request.subtreeId);
+
+    if (!latest.latest) {
+      throw new Error(`No workflow run found for modelId ${request.modelId} and subtreeId ${request.subtreeId}.`);
+    }
+
+    const workflowRunDir = latest.latest.workflowRunDir;
+    const outputDir = path.join(workflowRunDir, "artifacts", "recovery");
+
+    const writeResult = this.compareImportanceMeasuresToFilesystem(
+      {
+        modelId: request.modelId,
+        subtreeId: request.subtreeId,
+        measureName: request.measureName,
+        quantumValues: request.quantumValues,
+        classicalValues: request.classicalValues,
+        ...(request.tolerance !== undefined ? { tolerance: request.tolerance } : {}),
+      },
+      outputDir,
+    );
+
+    return {
+      workflowRunDir,
+      outputDir: writeResult.outputDir,
+      importanceComparisonPath: writeResult.importanceComparisonPath,
     };
   }
 

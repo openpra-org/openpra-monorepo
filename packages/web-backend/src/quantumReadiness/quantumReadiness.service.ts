@@ -90,6 +90,28 @@ export interface QuantumFullPipelineWorkflowRunResult {
   batchWrite?: QuantumRecoveryBatchRollupWriteResult;
 }
 
+export interface QuantumWorkflowRunInspectionResult {
+  workflowRunDir: string;
+  manifestPath: string | null;
+  directories: {
+    artifacts: string | null;
+    preparation: string | null;
+    execution: string | null;
+    recovery: string | null;
+    batch: string | null;
+    logs: string | null;
+  };
+  files: {
+    preparationBundles: string[];
+    preparationArtifacts: string[];
+    executionArtifacts: string[];
+    executionProvenance: string[];
+    recoveryArtifacts: string[];
+    recoveryBatchRollups: string[];
+    logFiles: string[];
+  };
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -314,6 +336,47 @@ export class QuantumReadinessService {
     );
   }
 
+  inspectWorkflowRun(workflowRunDir: string): QuantumWorkflowRunInspectionResult {
+    const resolvedRunDir = path.resolve(workflowRunDir);
+
+    if (!fs.existsSync(resolvedRunDir)) {
+      throw new Error(`workflowRunDir does not exist: ${resolvedRunDir}`);
+    }
+
+    const artifactsDir = path.join(resolvedRunDir, "artifacts");
+    const preparationDir = path.join(artifactsDir, "preparation");
+    const executionDir = path.join(artifactsDir, "execution");
+    const recoveryDir = path.join(artifactsDir, "recovery");
+    const batchDir = path.join(artifactsDir, "batch");
+    const logsDir = path.join(resolvedRunDir, "logs");
+    const manifestPath = path.join(resolvedRunDir, "openpra_quantum_workflow_run_manifest_v1.json");
+
+    return {
+      workflowRunDir: resolvedRunDir,
+      manifestPath: fs.existsSync(manifestPath) ? manifestPath : null,
+      directories: {
+        artifacts: fs.existsSync(artifactsDir) ? artifactsDir : null,
+        preparation: fs.existsSync(preparationDir) ? preparationDir : null,
+        execution: fs.existsSync(executionDir) ? executionDir : null,
+        recovery: fs.existsSync(recoveryDir) ? recoveryDir : null,
+        batch: fs.existsSync(batchDir) ? batchDir : null,
+        logs: fs.existsSync(logsDir) ? logsDir : null,
+      },
+      files: {
+        preparationBundles: listFilesMatching(preparationDir, /^openpra_quantum_preparation_bundle_v1\.json$/),
+        preparationArtifacts: listFilesMatching(preparationDir, /^openpra_quantum_preparation_artifact_.*\.json$/),
+        executionArtifacts: listFilesMatching(executionDir, /^openpra_quantum_execution_artifact_v1\.json$/),
+        executionProvenance: listFilesMatching(
+          executionDir,
+          /^openpra_quantum_execution_provenance_manifest_v1\.json$/,
+        ),
+        recoveryArtifacts: listFilesMatching(recoveryDir, /^openpra_quantum_recovery_artifact_v1\.json$/),
+        recoveryBatchRollups: listFilesMatching(batchDir, /^openpra_quantum_recovery_batch_rollup_v1\.json$/),
+        logFiles: listAllFiles(logsDir),
+      },
+    };
+  }
+
   analyzeFaultTreeGraph(
     graph: FaultTreeGraph | Record<string, unknown>,
     modelName?: string,
@@ -502,4 +565,28 @@ function analyzeGraphLikeInputToReadiness(
     },
     options,
   );
+}
+
+function listFilesMatching(dirPath: string, pattern: RegExp): string[] {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(dirPath)
+    .filter((entry) => pattern.test(entry))
+    .map((entry) => path.join(dirPath, entry))
+    .sort();
+}
+
+function listAllFiles(dirPath: string): string[] {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(dirPath)
+    .map((entry) => path.join(dirPath, entry))
+    .filter((entryPath) => fs.statSync(entryPath).isFile())
+    .sort();
 }

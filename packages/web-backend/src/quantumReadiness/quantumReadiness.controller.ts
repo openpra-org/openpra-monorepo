@@ -25,6 +25,7 @@ import {
   type QuantumRecoveryBatchRollupWriteResult,
   type QuantumRecoveryBatchWorkflowRunResult,
   type QuantumRecoveryWorkflowRunResult,
+  type QuantumWorkflowRunInspectionResult,
 } from "./quantumReadiness.service";
 
 export interface QuantumReadinessGraphRequest {
@@ -114,6 +115,10 @@ export interface QuantumFullPipelineWorkflowByIdRequest {
   recoveryBatch?: QuantumRecoveryBatchRunInput;
 }
 
+export interface QuantumWorkflowRunInspectionRequest {
+  workflowRunDir: string;
+}
+
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
 }
@@ -152,6 +157,16 @@ export class QuantumReadinessController {
   createWorkflowRunScaffold(@Body() body: QuantumWorkflowRunScaffoldRequest): OpenpraQuantumWorkflowRunScaffoldResult {
     try {
       return this.quantumReadinessService.createWorkflowRunScaffold(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/inspect-run")
+  @HttpCode(HttpStatus.OK)
+  inspectWorkflowRun(@Body() body: QuantumWorkflowRunInspectionRequest): QuantumWorkflowRunInspectionResult {
+    try {
+      return this.quantumReadinessService.inspectWorkflowRun(body.workflowRunDir);
     } catch (error) {
       throw this.toHttpException(error);
     }
@@ -511,7 +526,10 @@ export class QuantumReadinessController {
   private toHttpException(error: unknown): HttpException {
     const message = error instanceof Error ? error.message : "Something went wrong";
 
-    if (message.startsWith("No fault tree graph found for faultTreeId")) {
+    if (
+      message.startsWith("No fault tree graph found for faultTreeId") ||
+      message.startsWith("workflowRunDir does not exist")
+    ) {
       return new HttpException(message, HttpStatus.NOT_FOUND);
     }
 

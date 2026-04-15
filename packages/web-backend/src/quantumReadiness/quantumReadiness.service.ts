@@ -212,6 +212,44 @@ export interface QuantumImportanceComparisonWriteByWorkflowRunResult {
   importanceComparisonPath: string;
 }
 
+export interface QuantumImportanceComparisonReportEntry {
+  basicEventId: string;
+  quantumValue: number | null;
+  classicalValue: number | null;
+  absoluteDifference: number | null;
+  quantumRank: number | null;
+  classicalRank: number | null;
+  rankDelta: number | null;
+  status: "common" | "missing_in_quantum" | "missing_in_classical";
+}
+
+export interface QuantumImportanceComparisonReportResult {
+  modelId: string;
+  subtreeId: string;
+  measureName: string;
+  tolerance: number;
+  summary: {
+    quantumCount: number;
+    classicalCount: number;
+    commonCount: number;
+    missingInQuantumCount: number;
+    missingInClassicalCount: number;
+    exactWithinToleranceCount: number;
+  };
+  stats: {
+    meanAbsoluteDifference: number | null;
+    maxAbsoluteDifference: number | null;
+    spearmanRho: number | null;
+  };
+  topDisagreements: QuantumImportanceComparisonReportEntry[];
+  entries: QuantumImportanceComparisonReportEntry[];
+}
+
+export interface QuantumImportanceComparisonReportWriteResult {
+  outputDir: string;
+  importanceComparisonReportPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -705,6 +743,105 @@ export class QuantumReadinessService {
       workflowRunDir,
       outputDir: writeResult.outputDir,
       importanceComparisonPath: writeResult.importanceComparisonPath,
+    };
+  }
+
+  buildImportanceComparisonReport(
+    request: QuantumImportanceComparisonRequest,
+  ): QuantumImportanceComparisonReportResult {
+    const comparison = this.compareImportanceMeasures(request);
+
+    const quantumIds = Object.keys(request.quantumValues).sort();
+    const classicalIds = Object.keys(request.classicalValues).sort();
+    const allIds = [...new Set([...quantumIds, ...classicalIds])].sort();
+
+    const quantumRanks = rankDescending(quantumIds.map((basicEventId) => request.quantumValues[basicEventId]));
+    const classicalRanks = rankDescending(classicalIds.map((basicEventId) => request.classicalValues[basicEventId]));
+
+    const quantumRankMap = new Map<string, number>(
+      quantumIds.map((basicEventId, index) => [basicEventId, quantumRanks[index]]),
+    );
+    const classicalRankMap = new Map<string, number>(
+      classicalIds.map((basicEventId, index) => [basicEventId, classicalRanks[index]]),
+    );
+
+    const entries = allIds
+      .map((basicEventId) => {
+        const quantumPresent = Object.prototype.hasOwnProperty.call(request.quantumValues, basicEventId);
+        const classicalPresent = Object.prototype.hasOwnProperty.call(request.classicalValues, basicEventId);
+
+        const quantumValue = quantumPresent ? request.quantumValues[basicEventId] : null;
+        const classicalValue = classicalPresent ? request.classicalValues[basicEventId] : null;
+
+        const absoluteDifference =
+          quantumPresent && classicalPresent ?
+            Math.abs(request.quantumValues[basicEventId] - request.classicalValues[basicEventId])
+          : null;
+
+        const quantumRank = quantumPresent ? (quantumRankMap.get(basicEventId) ?? null) : null;
+        const classicalRank = classicalPresent ? (classicalRankMap.get(basicEventId) ?? null) : null;
+
+        return {
+          basicEventId,
+          quantumValue,
+          classicalValue,
+          absoluteDifference,
+          quantumRank,
+          classicalRank,
+          rankDelta: quantumRank !== null && classicalRank !== null ? quantumRank - classicalRank : null,
+          status:
+            quantumPresent && classicalPresent ? "common"
+            : quantumPresent ? "missing_in_classical"
+            : "missing_in_quantum",
+        } as QuantumImportanceComparisonReportEntry;
+      })
+      .sort((left, right) => {
+        const leftDiff = left.absoluteDifference ?? -1;
+        const rightDiff = right.absoluteDifference ?? -1;
+
+        if (rightDiff !== leftDiff) {
+          return rightDiff - leftDiff;
+        }
+
+        return left.basicEventId.localeCompare(right.basicEventId);
+      });
+
+    return {
+      modelId: request.modelId,
+      subtreeId: request.subtreeId,
+      measureName: request.measureName,
+      tolerance: comparison.tolerance,
+      summary: {
+        quantumCount: comparison.counts.quantumCount,
+        classicalCount: comparison.counts.classicalCount,
+        commonCount: comparison.counts.commonCount,
+        missingInQuantumCount: comparison.missingInQuantum.length,
+        missingInClassicalCount: comparison.missingInClassical.length,
+        exactWithinToleranceCount: comparison.counts.exactWithinToleranceCount,
+      },
+      stats: comparison.stats,
+      topDisagreements: entries.filter((entry) => entry.status === "common").slice(0, 10),
+      entries,
+    };
+  }
+
+  buildImportanceComparisonReportToFilesystem(
+    request: QuantumImportanceComparisonRequest,
+    outputDir: string,
+  ): QuantumImportanceComparisonReportWriteResult {
+    const result = this.buildImportanceComparisonReport(request);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const importanceComparisonReportPath = path.join(
+      resolvedOutputDir,
+      "openpra_quantum_importance_comparison_report_v1.json",
+    );
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(importanceComparisonReportPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      importanceComparisonReportPath,
     };
   }
 

@@ -19,6 +19,8 @@ import {
   QuantumReadinessService,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
+  type QuantumImportanceComparisonReportResult,
+  type QuantumImportanceComparisonReportWriteResult,
   type QuantumImportanceComparisonRequest,
   type QuantumImportanceComparisonResult,
   type QuantumImportanceComparisonWriteByKindRequest,
@@ -193,6 +195,10 @@ export interface QuantumImportanceComparisonWriteByKindRequestBody
 export interface QuantumImportanceComparisonWriteByWorkflowRunRequestBody
   extends QuantumImportanceComparisonWriteByWorkflowRunRequest {}
 
+export interface QuantumImportanceComparisonReportWriteRequest extends QuantumImportanceComparisonRequest {
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -304,6 +310,40 @@ export class QuantumReadinessController {
   ): QuantumImportanceComparisonWriteResult {
     try {
       return this.quantumReadinessService.compareImportanceMeasuresToFilesystem(
+        {
+          modelId: body.modelId,
+          subtreeId: body.subtreeId,
+          measureName: body.measureName,
+          quantumValues: body.quantumValues,
+          classicalValues: body.classicalValues,
+          ...(body.tolerance !== undefined ? { tolerance: body.tolerance } : {}),
+        },
+        body.outputDir,
+      );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/report")
+  @HttpCode(HttpStatus.OK)
+  buildImportanceComparisonReport(
+    @Body() body: QuantumImportanceComparisonRequest,
+  ): QuantumImportanceComparisonReportResult {
+    try {
+      return this.quantumReadinessService.buildImportanceComparisonReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/report/write")
+  @HttpCode(HttpStatus.OK)
+  buildImportanceComparisonReportToFilesystem(
+    @Body() body: QuantumImportanceComparisonReportWriteRequest,
+  ): QuantumImportanceComparisonReportWriteResult {
+    try {
+      return this.quantumReadinessService.buildImportanceComparisonReportToFilesystem(
         {
           modelId: body.modelId,
           subtreeId: body.subtreeId,

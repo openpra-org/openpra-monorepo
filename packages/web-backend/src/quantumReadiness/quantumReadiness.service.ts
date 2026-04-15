@@ -124,6 +124,12 @@ export interface QuantumWorkflowRunListingResult {
   entries: QuantumWorkflowRunListingEntry[];
 }
 
+export interface QuantumLatestWorkflowRunResult {
+  rootDir: string;
+  latest: QuantumWorkflowRunListingEntry | null;
+  inspection: QuantumWorkflowRunInspectionResult | null;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -432,6 +438,17 @@ export class QuantumReadinessService {
     return {
       rootDir: resolvedRootDir,
       entries,
+    };
+  }
+
+  getLatestWorkflowRun(rootDir: string): QuantumLatestWorkflowRunResult {
+    const listing = this.listWorkflowRuns(rootDir);
+    const latest = listing.entries.length > 0 ? listing.entries[0] : null;
+
+    return {
+      rootDir: listing.rootDir,
+      latest,
+      inspection: latest ? this.inspectWorkflowRun(latest.workflowRunDir) : null,
     };
   }
 

@@ -250,6 +250,37 @@ export interface QuantumImportanceComparisonReportWriteResult {
   importanceComparisonReportPath: string;
 }
 
+export interface QuantumImportanceComparisonReportWriteByTargetRequest extends QuantumImportanceComparisonRequest {
+  rootDir: string;
+}
+
+export interface QuantumImportanceComparisonReportWriteByTargetResult {
+  workflowRunDir: string;
+  outputDir: string;
+  importanceComparisonReportPath: string;
+}
+
+export interface QuantumImportanceComparisonReportWriteByKindRequest extends QuantumImportanceComparisonRequest {
+  rootDir: string;
+  workflowKind: string;
+}
+
+export interface QuantumImportanceComparisonReportWriteByKindResult {
+  workflowRunDir: string;
+  outputDir: string;
+  importanceComparisonReportPath: string;
+}
+
+export interface QuantumImportanceComparisonReportWriteByWorkflowRunRequest extends QuantumImportanceComparisonRequest {
+  workflowRunDir: string;
+}
+
+export interface QuantumImportanceComparisonReportWriteByWorkflowRunResult {
+  workflowRunDir: string;
+  outputDir: string;
+  importanceComparisonReportPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -743,6 +774,98 @@ export class QuantumReadinessService {
       workflowRunDir,
       outputDir: writeResult.outputDir,
       importanceComparisonPath: writeResult.importanceComparisonPath,
+    };
+  }
+
+  buildImportanceComparisonReportToLatestWorkflowRunByTarget(
+    request: QuantumImportanceComparisonReportWriteByTargetRequest,
+  ): QuantumImportanceComparisonReportWriteByTargetResult {
+    const latest = this.getLatestWorkflowRunByTarget(request.rootDir, request.modelId, request.subtreeId);
+
+    if (!latest.latest) {
+      throw new Error(`No workflow run found for modelId ${request.modelId} and subtreeId ${request.subtreeId}.`);
+    }
+
+    const workflowRunDir = latest.latest.workflowRunDir;
+    const outputDir = path.join(workflowRunDir, "artifacts", "recovery");
+
+    const writeResult = this.buildImportanceComparisonReportToFilesystem(
+      {
+        modelId: request.modelId,
+        subtreeId: request.subtreeId,
+        measureName: request.measureName,
+        quantumValues: request.quantumValues,
+        classicalValues: request.classicalValues,
+        ...(request.tolerance !== undefined ? { tolerance: request.tolerance } : {}),
+      },
+      outputDir,
+    );
+
+    return {
+      workflowRunDir,
+      outputDir: writeResult.outputDir,
+      importanceComparisonReportPath: writeResult.importanceComparisonReportPath,
+    };
+  }
+
+  buildImportanceComparisonReportToLatestWorkflowRunByKind(
+    request: QuantumImportanceComparisonReportWriteByKindRequest,
+  ): QuantumImportanceComparisonReportWriteByKindResult {
+    const latest = this.getLatestWorkflowRunByKind(request.rootDir, request.workflowKind);
+
+    if (!latest.latest) {
+      throw new Error(`No workflow run found for workflowKind ${request.workflowKind}.`);
+    }
+
+    const workflowRunDir = latest.latest.workflowRunDir;
+    const outputDir = path.join(workflowRunDir, "artifacts", "recovery");
+
+    const writeResult = this.buildImportanceComparisonReportToFilesystem(
+      {
+        modelId: request.modelId,
+        subtreeId: request.subtreeId,
+        measureName: request.measureName,
+        quantumValues: request.quantumValues,
+        classicalValues: request.classicalValues,
+        ...(request.tolerance !== undefined ? { tolerance: request.tolerance } : {}),
+      },
+      outputDir,
+    );
+
+    return {
+      workflowRunDir,
+      outputDir: writeResult.outputDir,
+      importanceComparisonReportPath: writeResult.importanceComparisonReportPath,
+    };
+  }
+
+  buildImportanceComparisonReportToWorkflowRunDir(
+    request: QuantumImportanceComparisonReportWriteByWorkflowRunRequest,
+  ): QuantumImportanceComparisonReportWriteByWorkflowRunResult {
+    if (!request.workflowRunDir || request.workflowRunDir.trim().length === 0) {
+      throw new Error("workflowRunDir is required.");
+    }
+
+    const inspection = this.inspectWorkflowRun(request.workflowRunDir);
+    const workflowRunDir = inspection.workflowRunDir;
+    const outputDir = path.join(workflowRunDir, "artifacts", "recovery");
+
+    const writeResult = this.buildImportanceComparisonReportToFilesystem(
+      {
+        modelId: request.modelId,
+        subtreeId: request.subtreeId,
+        measureName: request.measureName,
+        quantumValues: request.quantumValues,
+        classicalValues: request.classicalValues,
+        ...(request.tolerance !== undefined ? { tolerance: request.tolerance } : {}),
+      },
+      outputDir,
+    );
+
+    return {
+      workflowRunDir,
+      outputDir: writeResult.outputDir,
+      importanceComparisonReportPath: writeResult.importanceComparisonReportPath,
     };
   }
 

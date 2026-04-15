@@ -20,6 +20,12 @@ import {
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
+  type QuantumImportanceComparisonReportWriteByKindRequest,
+  type QuantumImportanceComparisonReportWriteByKindResult,
+  type QuantumImportanceComparisonReportWriteByTargetRequest,
+  type QuantumImportanceComparisonReportWriteByTargetResult,
+  type QuantumImportanceComparisonReportWriteByWorkflowRunRequest,
+  type QuantumImportanceComparisonReportWriteByWorkflowRunResult,
   type QuantumImportanceComparisonReportWriteResult,
   type QuantumImportanceComparisonRequest,
   type QuantumImportanceComparisonResult,
@@ -199,6 +205,15 @@ export interface QuantumImportanceComparisonReportWriteRequest extends QuantumIm
   outputDir: string;
 }
 
+export interface QuantumImportanceComparisonReportWriteByTargetRequestBody
+  extends QuantumImportanceComparisonReportWriteByTargetRequest {}
+
+export interface QuantumImportanceComparisonReportWriteByKindRequestBody
+  extends QuantumImportanceComparisonReportWriteByKindRequest {}
+
+export interface QuantumImportanceComparisonReportWriteByWorkflowRunRequestBody
+  extends QuantumImportanceComparisonReportWriteByWorkflowRunRequest {}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -320,6 +335,42 @@ export class QuantumReadinessController {
         },
         body.outputDir,
       );
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/report/write/by-target")
+  @HttpCode(HttpStatus.OK)
+  buildImportanceComparisonReportToLatestWorkflowRunByTarget(
+    @Body() body: QuantumImportanceComparisonReportWriteByTargetRequestBody,
+  ): QuantumImportanceComparisonReportWriteByTargetResult {
+    try {
+      return this.quantumReadinessService.buildImportanceComparisonReportToLatestWorkflowRunByTarget(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/report/write/by-kind")
+  @HttpCode(HttpStatus.OK)
+  buildImportanceComparisonReportToLatestWorkflowRunByKind(
+    @Body() body: QuantumImportanceComparisonReportWriteByKindRequestBody,
+  ): QuantumImportanceComparisonReportWriteByKindResult {
+    try {
+      return this.quantumReadinessService.buildImportanceComparisonReportToLatestWorkflowRunByKind(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/report/write/by-workflow-run")
+  @HttpCode(HttpStatus.OK)
+  buildImportanceComparisonReportToWorkflowRunDir(
+    @Body() body: QuantumImportanceComparisonReportWriteByWorkflowRunRequestBody,
+  ): QuantumImportanceComparisonReportWriteByWorkflowRunResult {
+    try {
+      return this.quantumReadinessService.buildImportanceComparisonReportToWorkflowRunDir(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

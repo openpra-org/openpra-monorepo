@@ -348,6 +348,27 @@ export interface QuantumWorkflowReleaseBundleWriteResult {
   releaseManifestPath: string;
 }
 
+export interface QuantumWorkflowReleaseBundleWriteByTargetRequest {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
+  outputDir: string;
+}
+
+export interface QuantumWorkflowReleaseBundleWriteByTargetResult extends QuantumWorkflowReleaseBundleWriteResult {
+  workflowRunDir: string;
+}
+
+export interface QuantumWorkflowReleaseBundleWriteByKindRequest {
+  rootDir: string;
+  workflowKind: string;
+  outputDir: string;
+}
+
+export interface QuantumWorkflowReleaseBundleWriteByKindResult extends QuantumWorkflowReleaseBundleWriteResult {
+  workflowRunDir: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -1132,6 +1153,42 @@ export class QuantumReadinessService {
           : [],
         logFiles: inspection.files.logFiles,
       },
+    };
+  }
+
+  buildWorkflowReleaseBundleToLatestWorkflowRunByTarget(
+    request: QuantumWorkflowReleaseBundleWriteByTargetRequest,
+  ): QuantumWorkflowReleaseBundleWriteByTargetResult {
+    const latest = this.getLatestWorkflowRunByTarget(request.rootDir, request.modelId, request.subtreeId);
+
+    if (!latest.latest) {
+      throw new Error(`No workflow run found for modelId ${request.modelId} and subtreeId ${request.subtreeId}.`);
+    }
+
+    const workflowRunDir = latest.latest.workflowRunDir;
+    const writeResult = this.buildWorkflowReleaseBundleToFilesystem(workflowRunDir, request.outputDir);
+
+    return {
+      workflowRunDir,
+      ...writeResult,
+    };
+  }
+
+  buildWorkflowReleaseBundleToLatestWorkflowRunByKind(
+    request: QuantumWorkflowReleaseBundleWriteByKindRequest,
+  ): QuantumWorkflowReleaseBundleWriteByKindResult {
+    const latest = this.getLatestWorkflowRunByKind(request.rootDir, request.workflowKind);
+
+    if (!latest.latest) {
+      throw new Error(`No workflow run found for workflowKind ${request.workflowKind}.`);
+    }
+
+    const workflowRunDir = latest.latest.workflowRunDir;
+    const writeResult = this.buildWorkflowReleaseBundleToFilesystem(workflowRunDir, request.outputDir);
+
+    return {
+      workflowRunDir,
+      ...writeResult,
     };
   }
 

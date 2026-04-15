@@ -50,6 +50,10 @@ import {
   type QuantumWorkflowReleaseManifestResult,
   type QuantumWorkflowReleaseManifestWriteResult,
   type QuantumWorkflowReleaseBundleWriteResult,
+  type QuantumWorkflowReleaseBundleWriteByTargetRequest,
+  type QuantumWorkflowReleaseBundleWriteByTargetResult,
+  type QuantumWorkflowReleaseBundleWriteByKindRequest,
+  type QuantumWorkflowReleaseBundleWriteByKindResult,
   type QuantumWorkflowRunInspectionResult,
   type QuantumWorkflowRunListingResult,
 } from "./quantumReadiness.service";
@@ -242,9 +246,39 @@ export interface QuantumWorkflowReleaseBundleWriteRequest {
   outputDir: string;
 }
 
+export interface QuantumWorkflowReleaseBundleWriteByTargetRequestBody
+  extends QuantumWorkflowReleaseBundleWriteByTargetRequest {}
+
+export interface QuantumWorkflowReleaseBundleWriteByKindRequestBody
+  extends QuantumWorkflowReleaseBundleWriteByKindRequest {}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/release/workflow-bundle/write/by-target")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseBundleToLatestWorkflowRunByTarget(
+    @Body() body: QuantumWorkflowReleaseBundleWriteByTargetRequestBody,
+  ): QuantumWorkflowReleaseBundleWriteByTargetResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseBundleToLatestWorkflowRunByTarget(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/release/workflow-bundle/write/by-kind")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseBundleToLatestWorkflowRunByKind(
+    @Body() body: QuantumWorkflowReleaseBundleWriteByKindRequestBody,
+  ): QuantumWorkflowReleaseBundleWriteByKindResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseBundleToLatestWorkflowRunByKind(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/release/workflow-bundle/write")
   @HttpCode(HttpStatus.OK)

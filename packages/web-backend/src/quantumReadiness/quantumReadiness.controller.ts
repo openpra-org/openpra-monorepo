@@ -56,6 +56,8 @@ import {
   type QuantumWorkflowReleaseBundleWriteByKindResult,
   type QuantumWorkflowRunInspectionResult,
   type QuantumWorkflowRunListingResult,
+  type QuantumWorkflowHandoffAuditResult,
+  type QuantumWorkflowHandoffAuditWriteResult,
 } from "./quantumReadiness.service";
 
 export interface QuantumReadinessGraphRequest {
@@ -252,9 +254,40 @@ export interface QuantumWorkflowReleaseBundleWriteByTargetRequestBody
 export interface QuantumWorkflowReleaseBundleWriteByKindRequestBody
   extends QuantumWorkflowReleaseBundleWriteByKindRequest {}
 
+export interface QuantumWorkflowHandoffAuditRequest {
+  workflowRunDir: string;
+}
+
+export interface QuantumWorkflowHandoffAuditWriteRequest {
+  workflowRunDir: string;
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/release/workflow-handoff-audit")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowHandoffAudit(@Body() body: QuantumWorkflowHandoffAuditRequest): QuantumWorkflowHandoffAuditResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowHandoffAudit(body.workflowRunDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/release/workflow-handoff-audit/write")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowHandoffAuditToFilesystem(
+    @Body() body: QuantumWorkflowHandoffAuditWriteRequest,
+  ): QuantumWorkflowHandoffAuditWriteResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowHandoffAuditToFilesystem(body.workflowRunDir, body.outputDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/release/workflow-bundle/write/by-target")
   @HttpCode(HttpStatus.OK)

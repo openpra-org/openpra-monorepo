@@ -369,6 +369,29 @@ export interface QuantumWorkflowReleaseBundleWriteByKindResult extends QuantumWo
   workflowRunDir: string;
 }
 
+export interface QuantumWorkflowHandoffAuditResult {
+  workflowRunDir: string;
+  status: "ready" | "not_ready";
+  checks: {
+    hasWorkflowManifest: boolean;
+    hasPreparation: boolean;
+    hasExecution: boolean;
+    hasRecovery: boolean;
+    hasImportanceComparison: boolean;
+    hasImportanceReport: boolean;
+    releaseReady: boolean;
+  };
+  missingArtifacts: string[];
+  nextActions: string[];
+  releaseSummary: QuantumWorkflowReleaseSummaryResult;
+  releaseManifest: QuantumWorkflowReleaseManifestResult;
+}
+
+export interface QuantumWorkflowHandoffAuditWriteResult {
+  outputDir: string;
+  workflowHandoffAuditPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -1153,6 +1176,74 @@ export class QuantumReadinessService {
           : [],
         logFiles: inspection.files.logFiles,
       },
+    };
+  }
+
+  buildWorkflowHandoffAudit(workflowRunDir: string): QuantumWorkflowHandoffAuditResult {
+    const releaseSummary = this.buildWorkflowReleaseSummary(workflowRunDir);
+    const releaseManifest = this.buildWorkflowReleaseManifest(workflowRunDir);
+
+    const checks = {
+      hasWorkflowManifest: releaseManifest.manifestPath !== null,
+      hasPreparation: releaseSummary.readiness.hasPreparation,
+      hasExecution: releaseSummary.readiness.hasExecution,
+      hasRecovery: releaseSummary.readiness.hasRecovery,
+      hasImportanceComparison: releaseSummary.readiness.hasImportanceComparison,
+      hasImportanceReport: releaseSummary.readiness.hasImportanceReport,
+      releaseReady: releaseSummary.readiness.releaseReady,
+    };
+
+    const missingArtifacts: string[] = [];
+
+    if (!checks.hasWorkflowManifest) {
+      missingArtifacts.push("openpra_quantum_workflow_run_manifest_v1.json");
+    }
+    if (!checks.hasPreparation) {
+      missingArtifacts.push("openpra_quantum_preparation_bundle_v1.json");
+    }
+    if (!checks.hasExecution) {
+      missingArtifacts.push("execution artifact and provenance manifest");
+    }
+    if (!checks.hasRecovery) {
+      missingArtifacts.push("recovery artifact or recovery batch rollup");
+    }
+    if (!checks.hasImportanceComparison) {
+      missingArtifacts.push("openpra_quantum_importance_comparison_v1.json");
+    }
+    if (!checks.hasImportanceReport) {
+      missingArtifacts.push("openpra_quantum_importance_comparison_report_v1.json");
+    }
+
+    const nextActions =
+      missingArtifacts.length === 0 ?
+        ["Ready for handoff, review, and merge readiness assessment."]
+      : missingArtifacts.map((artifact) => `Add or regenerate ${artifact}.`);
+
+    return {
+      workflowRunDir: releaseSummary.workflowRunDir,
+      status: checks.releaseReady ? "ready" : "not_ready",
+      checks,
+      missingArtifacts,
+      nextActions,
+      releaseSummary,
+      releaseManifest,
+    };
+  }
+
+  buildWorkflowHandoffAuditToFilesystem(
+    workflowRunDir: string,
+    outputDir: string,
+  ): QuantumWorkflowHandoffAuditWriteResult {
+    const result = this.buildWorkflowHandoffAudit(workflowRunDir);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const workflowHandoffAuditPath = path.join(resolvedOutputDir, "openpra_quantum_workflow_handoff_audit_v1.json");
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(workflowHandoffAuditPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      workflowHandoffAuditPath,
     };
   }
 

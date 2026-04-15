@@ -117,6 +117,8 @@ export interface QuantumWorkflowRunListingEntry {
   workflowKind: string | null;
   createdAtUtc: string | null;
   manifestPath: string | null;
+  modelId: string | null;
+  subtreeId: string | null;
 }
 
 export interface QuantumWorkflowRunListingResult {
@@ -133,6 +135,14 @@ export interface QuantumLatestWorkflowRunResult {
 export interface QuantumLatestWorkflowRunByKindResult {
   rootDir: string;
   workflowKind: string;
+  latest: QuantumWorkflowRunListingEntry | null;
+  inspection: QuantumWorkflowRunInspectionResult | null;
+}
+
+export interface QuantumLatestWorkflowRunByTargetResult {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
   latest: QuantumWorkflowRunListingEntry | null;
   inspection: QuantumWorkflowRunInspectionResult | null;
 }
@@ -419,14 +429,20 @@ export class QuantumReadinessService {
 
         let workflowKind: string | null = null;
         let createdAtUtc: string | null = null;
+        let modelId: string | null = null;
+        let subtreeId: string | null = null;
 
         if (fs.existsSync(manifestPath)) {
           const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
             workflowKind?: string;
             createdAtUtc?: string;
+            modelId?: string;
+            subtreeId?: string;
           };
           workflowKind = manifest.workflowKind ?? null;
           createdAtUtc = manifest.createdAtUtc ?? null;
+          modelId = manifest.modelId ?? null;
+          subtreeId = manifest.subtreeId ?? null;
         }
 
         return {
@@ -434,6 +450,8 @@ export class QuantumReadinessService {
           workflowKind,
           createdAtUtc,
           manifestPath: fs.existsSync(manifestPath) ? manifestPath : null,
+          modelId,
+          subtreeId,
         };
       })
       .sort((a, b) => {
@@ -466,6 +484,23 @@ export class QuantumReadinessService {
     return {
       rootDir: listing.rootDir,
       workflowKind,
+      latest,
+      inspection: latest ? this.inspectWorkflowRun(latest.workflowRunDir) : null,
+    };
+  }
+
+  getLatestWorkflowRunByTarget(
+    rootDir: string,
+    modelId: string,
+    subtreeId: string,
+  ): QuantumLatestWorkflowRunByTargetResult {
+    const listing = this.listWorkflowRuns(rootDir);
+    const latest = listing.entries.find((entry) => entry.modelId === modelId && entry.subtreeId === subtreeId) ?? null;
+
+    return {
+      rootDir: listing.rootDir,
+      modelId,
+      subtreeId,
       latest,
       inspection: latest ? this.inspectWorkflowRun(latest.workflowRunDir) : null,
     };

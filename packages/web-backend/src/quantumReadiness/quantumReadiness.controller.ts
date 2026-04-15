@@ -20,6 +20,7 @@ import {
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumLatestWorkflowRunByKindResult,
+  type QuantumLatestWorkflowRunByTargetResult,
   type QuantumLatestWorkflowRunResult,
   type QuantumPreparationWorkflowRunResult,
   type QuantumRecoveryArtifactWriteResult,
@@ -135,6 +136,12 @@ export interface QuantumLatestWorkflowRunByKindRequest {
   workflowKind: string;
 }
 
+export interface QuantumLatestWorkflowRunByTargetRequest {
+  rootDir: string;
+  modelId: string;
+  subtreeId: string;
+}
+
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
 }
@@ -215,6 +222,18 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByKindResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByKind(body.rootDir, body.workflowKind);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/latest-run/by-target")
+  @HttpCode(HttpStatus.OK)
+  getLatestWorkflowRunByTarget(
+    @Body() body: QuantumLatestWorkflowRunByTargetRequest,
+  ): QuantumLatestWorkflowRunByTargetResult {
+    try {
+      return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
     } catch (error) {
       throw this.toHttpException(error);
     }

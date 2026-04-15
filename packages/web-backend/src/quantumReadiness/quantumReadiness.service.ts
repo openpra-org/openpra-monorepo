@@ -176,6 +176,11 @@ export interface QuantumImportanceComparisonResult {
   };
 }
 
+export interface QuantumImportanceComparisonWriteResult {
+  outputDir: string;
+  importanceComparisonPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -577,6 +582,23 @@ export class QuantumReadinessService {
         maxAbsoluteDifference: differences.length > 0 ? Math.max(...differences) : null,
         spearmanRho: computeSpearmanRho(quantumCommonValues, classicalCommonValues),
       },
+    };
+  }
+
+  compareImportanceMeasuresToFilesystem(
+    request: QuantumImportanceComparisonRequest,
+    outputDir: string,
+  ): QuantumImportanceComparisonWriteResult {
+    const result = this.compareImportanceMeasures(request);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const importanceComparisonPath = path.join(resolvedOutputDir, "openpra_quantum_importance_comparison_v1.json");
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(importanceComparisonPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      importanceComparisonPath,
     };
   }
 

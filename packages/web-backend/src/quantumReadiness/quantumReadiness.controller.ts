@@ -21,6 +21,7 @@ import {
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonRequest,
   type QuantumImportanceComparisonResult,
+  type QuantumImportanceComparisonWriteResult,
   type QuantumLatestWorkflowRunByKindResult,
   type QuantumLatestWorkflowRunByTargetResult,
   type QuantumLatestWorkflowRunResult,
@@ -173,6 +174,10 @@ export interface QuantumWorkflowRunScaffoldRequest {
   createdAtUtc?: string;
 }
 
+export interface QuantumImportanceComparisonWriteRequest extends QuantumImportanceComparisonRequest {
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
@@ -236,6 +241,28 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByTargetResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare/write")
+  @HttpCode(HttpStatus.OK)
+  compareImportanceMeasuresToFilesystem(
+    @Body() body: QuantumImportanceComparisonWriteRequest,
+  ): QuantumImportanceComparisonWriteResult {
+    try {
+      return this.quantumReadinessService.compareImportanceMeasuresToFilesystem(
+        {
+          modelId: body.modelId,
+          subtreeId: body.subtreeId,
+          measureName: body.measureName,
+          quantumValues: body.quantumValues,
+          classicalValues: body.classicalValues,
+          ...(body.tolerance !== undefined ? { tolerance: body.tolerance } : {}),
+        },
+        body.outputDir,
+      );
     } catch (error) {
       throw this.toHttpException(error);
     }

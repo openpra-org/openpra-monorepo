@@ -19,6 +19,8 @@ import {
   QuantumReadinessService,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
+  type QuantumImportanceComparisonRequest,
+  type QuantumImportanceComparisonResult,
   type QuantumLatestWorkflowRunByKindResult,
   type QuantumLatestWorkflowRunByTargetResult,
   type QuantumLatestWorkflowRunResult,
@@ -234,6 +236,16 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByTargetResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/compare")
+  @HttpCode(HttpStatus.OK)
+  compareImportanceMeasures(@Body() body: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {
+    try {
+      return this.quantumReadinessService.compareImportanceMeasures(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

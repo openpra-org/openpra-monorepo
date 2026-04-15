@@ -147,6 +147,35 @@ export interface QuantumLatestWorkflowRunByTargetResult {
   inspection: QuantumWorkflowRunInspectionResult | null;
 }
 
+export interface QuantumImportanceComparisonRequest {
+  modelId: string;
+  subtreeId: string;
+  measureName: string;
+  quantumValues: Record<string, number>;
+  classicalValues: Record<string, number>;
+  tolerance?: number;
+}
+
+export interface QuantumImportanceComparisonResult {
+  modelId: string;
+  subtreeId: string;
+  measureName: string;
+  tolerance: number;
+  counts: {
+    quantumCount: number;
+    classicalCount: number;
+    commonCount: number;
+    exactWithinToleranceCount: number;
+  };
+  missingInQuantum: string[];
+  missingInClassical: string[];
+  stats: {
+    meanAbsoluteDifference: number | null;
+    maxAbsoluteDifference: number | null;
+    spearmanRho: number | null;
+  };
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -506,6 +535,51 @@ export class QuantumReadinessService {
     };
   }
 
+  compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {
+    const tolerance = request.tolerance ?? 1e-9;
+
+    assertNumericRecord("quantumValues", request.quantumValues);
+    assertNumericRecord("classicalValues", request.classicalValues);
+
+    const quantumIds = Object.keys(request.quantumValues).sort();
+    const classicalIds = Object.keys(request.classicalValues).sort();
+
+    const quantumSet = new Set(quantumIds);
+    const classicalSet = new Set(classicalIds);
+
+    const commonIds = quantumIds.filter((basicEventId) => classicalSet.has(basicEventId));
+    const missingInQuantum = classicalIds.filter((basicEventId) => !quantumSet.has(basicEventId));
+    const missingInClassical = quantumIds.filter((basicEventId) => !classicalSet.has(basicEventId));
+
+    const differences = commonIds.map((basicEventId) =>
+      Math.abs(request.quantumValues[basicEventId] - request.classicalValues[basicEventId]),
+    );
+
+    const quantumCommonValues = commonIds.map((basicEventId) => request.quantumValues[basicEventId]);
+    const classicalCommonValues = commonIds.map((basicEventId) => request.classicalValues[basicEventId]);
+
+    return {
+      modelId: request.modelId,
+      subtreeId: request.subtreeId,
+      measureName: request.measureName,
+      tolerance,
+      counts: {
+        quantumCount: quantumIds.length,
+        classicalCount: classicalIds.length,
+        commonCount: commonIds.length,
+        exactWithinToleranceCount: differences.filter((difference) => difference <= tolerance).length,
+      },
+      missingInQuantum,
+      missingInClassical,
+      stats: {
+        meanAbsoluteDifference:
+          differences.length > 0 ? differences.reduce((sum, value) => sum + value, 0) / differences.length : null,
+        maxAbsoluteDifference: differences.length > 0 ? Math.max(...differences) : null,
+        spearmanRho: computeSpearmanRho(quantumCommonValues, classicalCommonValues),
+      },
+    };
+  }
+
   analyzeFaultTreeGraph(
     graph: FaultTreeGraph | Record<string, unknown>,
     modelName?: string,
@@ -676,6 +750,69 @@ export class QuantumReadinessService {
       recoveryBatchRollupPath,
     };
   }
+}
+
+function assertNumericRecord(name: string, values: Record<string, number>): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`${name} contains a non-finite value for key ${key}.`);
+    }
+  }
+}
+
+function computeSpearmanRho(left: number[], right: number[]): number | null {
+  if (left.length !== right.length) {
+    throw new Error("Spearman inputs must have equal length.");
+  }
+
+  if (left.length < 2) {
+    return null;
+  }
+
+  const leftRanks = rankDescending(left);
+  const rightRanks = rankDescending(right);
+
+  const leftMean = leftRanks.reduce((sum, value) => sum + value, 0) / leftRanks.length;
+  const rightMean = rightRanks.reduce((sum, value) => sum + value, 0) / rightRanks.length;
+
+  let numerator = 0;
+  let leftVariance = 0;
+  let rightVariance = 0;
+
+  for (let index = 0; index < leftRanks.length; index += 1) {
+    const leftCentered = leftRanks[index] - leftMean;
+    const rightCentered = rightRanks[index] - rightMean;
+    numerator += leftCentered * rightCentered;
+    leftVariance += leftCentered * leftCentered;
+    rightVariance += rightCentered * rightCentered;
+  }
+
+  const denominator = Math.sqrt(leftVariance * rightVariance);
+
+  if (denominator === 0) {
+    return null;
+  }
+
+  return numerator / denominator;
+}
+
+function rankDescending(values: number[]): number[] {
+  const uniqueDescending = [...new Set(values)].sort((a, b) => b - a);
+  const rankByValue = new Map<number, number>();
+
+  uniqueDescending.forEach((value, index) => {
+    rankByValue.set(value, index + 1);
+  });
+
+  return values.map((value) => {
+    const rank = rankByValue.get(value);
+
+    if (rank === undefined) {
+      throw new Error("Unable to compute rank.");
+    }
+
+    return rank;
+  });
 }
 
 function analyzeGraphLikeInputToReadiness(

@@ -392,6 +392,16 @@ export interface QuantumWorkflowHandoffAuditWriteResult {
   workflowHandoffAuditPath: string;
 }
 
+export interface QuantumReleaseHandoffBundleWriteResult {
+  outputDir: string;
+  bundleDir: string;
+  workflowBundleDir: string;
+  handoffAuditPath: string;
+  releaseSummaryPath: string;
+  releaseManifestPath: string;
+  workflowManifestCopyPath: string | null;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -1227,6 +1237,42 @@ export class QuantumReadinessService {
       nextActions,
       releaseSummary,
       releaseManifest,
+    };
+  }
+
+  buildReleaseHandoffBundleToFilesystem(
+    workflowRunDir: string,
+    outputDir: string,
+  ): QuantumReleaseHandoffBundleWriteResult {
+    const workflowBundle = this.buildWorkflowReleaseBundleToFilesystem(workflowRunDir, outputDir);
+    const handoffAudit = this.buildWorkflowHandoffAuditToFilesystem(workflowRunDir, outputDir);
+
+    const resolvedOutputDir = path.resolve(outputDir);
+    const bundleDir = path.join(resolvedOutputDir, "openpra_quantum_release_handoff_bundle_v1");
+    fs.mkdirSync(bundleDir, { recursive: true });
+
+    const releaseSummaryPath = path.join(bundleDir, "openpra_quantum_workflow_release_summary_v1.json");
+    const releaseManifestPath = path.join(bundleDir, "openpra_quantum_workflow_release_manifest_v1.json");
+    const handoffAuditPath = path.join(bundleDir, "openpra_quantum_workflow_handoff_audit_v1.json");
+
+    fs.copyFileSync(workflowBundle.releaseSummaryPath, releaseSummaryPath);
+    fs.copyFileSync(workflowBundle.releaseManifestPath, releaseManifestPath);
+    fs.copyFileSync(handoffAudit.workflowHandoffAuditPath, handoffAuditPath);
+
+    let workflowManifestCopyPath: string | null = null;
+    if (workflowBundle.manifestCopyPath) {
+      workflowManifestCopyPath = path.join(bundleDir, "openpra_quantum_workflow_run_manifest_v1.json");
+      fs.copyFileSync(workflowBundle.manifestCopyPath, workflowManifestCopyPath);
+    }
+
+    return {
+      outputDir: resolvedOutputDir,
+      bundleDir,
+      workflowBundleDir: workflowBundle.bundleDir,
+      handoffAuditPath,
+      releaseSummaryPath,
+      releaseManifestPath,
+      workflowManifestCopyPath,
     };
   }
 

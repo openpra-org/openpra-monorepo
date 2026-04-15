@@ -317,6 +317,28 @@ export interface QuantumWorkflowReleaseSummaryWriteResult {
   workflowReleaseSummaryPath: string;
 }
 
+export interface QuantumWorkflowReleaseManifestResult {
+  workflowRunDir: string;
+  manifestPath: string | null;
+  releaseSummary: QuantumWorkflowReleaseSummaryResult;
+  artifacts: {
+    preparationBundles: string[];
+    preparationArtifacts: string[];
+    executionArtifacts: string[];
+    executionProvenance: string[];
+    recoveryArtifacts: string[];
+    recoveryBatchRollups: string[];
+    importanceComparisons: string[];
+    importanceReports: string[];
+    logFiles: string[];
+  };
+}
+
+export interface QuantumWorkflowReleaseManifestWriteResult {
+  outputDir: string;
+  workflowReleaseManifestPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -1072,6 +1094,55 @@ export class QuantumReadinessService {
       },
       counts,
       readiness,
+    };
+  }
+
+  buildWorkflowReleaseManifest(workflowRunDir: string): QuantumWorkflowReleaseManifestResult {
+    const inspection = this.inspectWorkflowRun(workflowRunDir);
+    const releaseSummary = this.buildWorkflowReleaseSummary(workflowRunDir);
+    const recoveryDir = inspection.directories.recovery;
+
+    return {
+      workflowRunDir: inspection.workflowRunDir,
+      manifestPath: inspection.manifestPath,
+      releaseSummary,
+      artifacts: {
+        preparationBundles: inspection.files.preparationBundles,
+        preparationArtifacts: inspection.files.preparationArtifacts,
+        executionArtifacts: inspection.files.executionArtifacts,
+        executionProvenance: inspection.files.executionProvenance,
+        recoveryArtifacts: inspection.files.recoveryArtifacts,
+        recoveryBatchRollups: inspection.files.recoveryBatchRollups,
+        importanceComparisons:
+          recoveryDir !== null ?
+            listFilesMatching(recoveryDir, /^openpra_quantum_importance_comparison_v1\.json$/)
+          : [],
+        importanceReports:
+          recoveryDir !== null ?
+            listFilesMatching(recoveryDir, /^openpra_quantum_importance_comparison_report_v1\.json$/)
+          : [],
+        logFiles: inspection.files.logFiles,
+      },
+    };
+  }
+
+  buildWorkflowReleaseManifestToFilesystem(
+    workflowRunDir: string,
+    outputDir: string,
+  ): QuantumWorkflowReleaseManifestWriteResult {
+    const result = this.buildWorkflowReleaseManifest(workflowRunDir);
+    const resolvedOutputDir = path.resolve(outputDir);
+    const workflowReleaseManifestPath = path.join(
+      resolvedOutputDir,
+      "openpra_quantum_workflow_release_manifest_v1.json",
+    );
+
+    fs.mkdirSync(resolvedOutputDir, { recursive: true });
+    fs.writeFileSync(workflowReleaseManifestPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+
+    return {
+      outputDir: resolvedOutputDir,
+      workflowReleaseManifestPath,
     };
   }
 

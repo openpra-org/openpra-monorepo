@@ -47,6 +47,8 @@ import {
   type QuantumRecoveryWorkflowRunResult,
   type QuantumWorkflowReleaseSummaryResult,
   type QuantumWorkflowReleaseSummaryWriteResult,
+  type QuantumWorkflowReleaseManifestResult,
+  type QuantumWorkflowReleaseManifestWriteResult,
   type QuantumWorkflowRunInspectionResult,
   type QuantumWorkflowRunListingResult,
 } from "./quantumReadiness.service";
@@ -225,9 +227,42 @@ export interface QuantumWorkflowReleaseSummaryWriteRequest {
   outputDir: string;
 }
 
+export interface QuantumWorkflowReleaseManifestRequest {
+  workflowRunDir: string;
+}
+
+export interface QuantumWorkflowReleaseManifestWriteRequest {
+  workflowRunDir: string;
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/release/workflow-manifest")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseManifest(
+    @Body() body: QuantumWorkflowReleaseManifestRequest,
+  ): QuantumWorkflowReleaseManifestResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseManifest(body.workflowRunDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/release/workflow-manifest/write")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseManifestToFilesystem(
+    @Body() body: QuantumWorkflowReleaseManifestWriteRequest,
+  ): QuantumWorkflowReleaseManifestWriteResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseManifestToFilesystem(body.workflowRunDir, body.outputDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/release/workflow-summary")
   @HttpCode(HttpStatus.OK)

@@ -16,36 +16,22 @@ import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-
 import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
 
-/** Shape of the MEF fault tree graph payload (wire format) */
 interface FaultTreeMEFPayload {
   faultTreeId: string;
   topEventId?: string;
   nodes?: Record<string, object>;
 }
 
-/**
- * Enum of supported graph types
- */
 enum GraphTypes {
   EventSequence = "event-sequence",
   FaultTree = "fault-tree",
   EventTree = "event-tree",
 }
 
-/**
- * Service for graph model persistence and retrieval.
- * Handles create/update/get operations for supported graph types.
- * @public
- */
 @Injectable()
 export class GraphModelService {
   private readonly logger = new Logger(GraphModelService.name);
-  /**
-   * Construct the service with Mongoose models for each supported graph type.
-   * @param eventSequenceDiagramGraphModel - Mongoose model for event sequence diagram graphs
-   * @param faultTreeGraphModel - Mongoose model for fault tree graphs
-   * @param eventTreeGraphModel - Mongoose model for event tree graphs
-   */
+
   constructor(
     @InjectModel(EventSequenceDiagramGraph.name)
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
@@ -55,11 +41,6 @@ export class GraphModelService {
     private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
   ) {}
 
-  /**
-   * Sets the event sequence diagram graph for the given event sequence ID
-   * @param eventSequenceId - Event sequence ID
-   * @returns A promise with the event sequence diagram graph
-   */
   async getEventSequenceDiagramGraph(eventSequenceId: string): Promise<EventSequenceDiagramGraph> {
     const result = await this.eventSequenceDiagramGraphModel.findOne({ eventSequenceId: eventSequenceId }, { _id: 0 });
     if (result !== null) {
@@ -75,11 +56,6 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Saves the event sequence diagram graph
-   * @param body - The current state of the event sequence diagram graph
-   * @returns A promise with an event sequence diagram graph in it
-   */
   async saveEventSequenceDiagramGraph(body: Partial<EventSequenceDiagramGraph>): Promise<EventSequenceDiagramGraph> {
     try {
       const newGraph = new this.eventSequenceDiagramGraphModel(body);
@@ -97,29 +73,22 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Saves the fault tree diagram graph in MEF format.
-   * @param body - MEF fault tree payload (faultTreeId, topEventId, nodes)
-   * @returns true on success
-   */
   async saveFaultTreeGraph(body: FaultTreeMEFPayload): Promise<boolean> {
     try {
-      const existing = await this.faultTreeGraphModel.findOne({ faultTreeId: body.faultTreeId });
-      if (existing !== null) {
-        if (body.topEventId !== undefined) existing.topEventId = body.topEventId;
-        if (body.nodes !== undefined) (existing as any).nodes = body.nodes;
-        await existing.save();
-      } else {
-        const defaults = this.getDefaultFaultTreeGraph();
-        const doc = new this.faultTreeGraphModel({
-          id: this.generateUUID(),
-          _id: new mongoose.Types.ObjectId(),
-          faultTreeId: body.faultTreeId,
-          topEventId: body.topEventId ?? defaults.topEventId,
-          nodes: body.nodes ?? defaults.nodes,
-        });
-        await doc.save();
-      }
+      const $set: Record<string, unknown> = { faultTreeId: body.faultTreeId };
+      if (body.topEventId !== undefined) $set["topEventId"] = body.topEventId;
+      if (body.nodes !== undefined) $set["nodes"] = body.nodes;
+
+      const $setOnInsert: Record<string, unknown> = {
+        id: this.generateUUID(),
+      };
+
+      await this.faultTreeGraphModel.findOneAndUpdate(
+        { faultTreeId: body.faultTreeId },
+        { $set, $setOnInsert },
+        { upsert: true, new: true },
+      );
+
       return true;
     } catch (exception) {
       const error = exception as Error;
@@ -128,37 +97,14 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Retrieves the fault tree graph in MEF format for the given fault tree ID.
-   * Returns an empty MEF graph if no document exists yet.
-   * @param faultTreeId - Fault tree ID
-   */
   async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
-    const result = await this.faultTreeGraphModel.findOne({ faultTreeId }, { _id: 0 });
+    const result = await this.faultTreeGraphModel.findOne({ faultTreeId }).lean();
     if (result !== null) {
-      // Migration guard: old documents stored nodes as an array — treat as empty.
-      const nodesIsArray = Array.isArray((result as any).nodes);
-      const hasNodes = !nodesIsArray && result.nodes != null && Object.keys(result.nodes).length > 0;
-      if (!hasNodes) {
-        const defaults = this.getDefaultFaultTreeGraph();
-        const hydrated = await this.faultTreeGraphModel.findOne({ faultTreeId });
-        if (hydrated) {
-          hydrated.topEventId = defaults.topEventId;
-          (hydrated as any).nodes = defaults.nodes;
-          await hydrated.save();
-        }
-        return { faultTreeId, topEventId: defaults.topEventId, nodes: defaults.nodes } as unknown as FaultTreeGraph;
-      }
       return result as unknown as FaultTreeGraph;
     }
     return { faultTreeId, topEventId: "", nodes: {} } as unknown as FaultTreeGraph;
   }
 
-  /**
-   * Saves the event tree diagram graph
-   * @param body - The current state of the event tree diagram graph
-   * @returns A promise with a event tree diagram graph in it
-   */
   async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
     try {
       const existingGraph = await this.eventTreeGraphModel.findOne({
@@ -172,11 +118,6 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Sets the event tree diagram graph for the given event tree ID
-   * @param eventTreeId - Event tree ID
-   * @returns A promise with the event tree diagram graph
-   */
   async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
     const result = await this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
     if (result !== null) {
@@ -192,22 +133,13 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Updates the label of the node/edge present in the data attribute
-   * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
-   * @param label - New label for the node/edge
-   * @returns A promise with boolean confirmation of the update operation
-   */
   async updateESLabel(id: string, type: string, label: string): Promise<boolean> {
     try {
-      // check if type is valid
       if (!["node", "edge"].includes(type)) {
         this.logger.error(`Invalid type (${type}) provided to update label`);
         return false;
       }
 
-      // attribute filter for node/edge
       const attribute = type === "node" ? "nodes" : "edges";
       const filter = {};
       const set = {};
@@ -225,15 +157,6 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Apply partial updates to an Event Sequence Diagram graph.
-   * Removes nodes/edges present in the deleted set, then upserts those in the updated set.
-   *
-   * @param eventSequenceId - Event sequence diagram identifier
-   * @param updatedSubgraph - Nodes/edges to add or replace
-   * @param deletedSubgraph - Nodes/edges to remove
-   * @returns True if an existing graph was updated; false if no graph exists for the id
-   */
   async updateESSubgraph(
     eventSequenceId: string,
     updatedSubgraph: Partial<EventSequenceDiagramGraph>,
@@ -261,10 +184,6 @@ export class GraphModelService {
     }
   }
 
-  /**
-   * Save a graph document for event-sequence or event-tree types.
-   * Fault tree graphs are handled separately via saveFaultTreeGraph.
-   */
   private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
     type AnyGraphDocument = EventSequenceDiagramGraphDocument | EventTreeGraphDocument;
     const doc = graph as AnyGraphDocument | null;
@@ -281,13 +200,6 @@ export class GraphModelService {
     return true;
   }
 
-  /**
-   * Get the newly created schema model according to the type of model
-   * @param modelType - Graph model type
-   * @param body - Model data
-   * @returns A hydrated document of the graph document
-   * @throws Error If model type is incorrect
-   */
   private getModel(
     modelType: GraphTypes,
     body: Partial<BaseGraph>,
@@ -377,39 +289,26 @@ export class GraphModelService {
     return { nodes: defaultNodes, edges: defaultEdges };
   }
 
-  /**
-   * Quantify a fault tree using the praxis engine.
-   *
-   * Accepts the stored MEF FaultTreeGraph for the given fault tree id, merges in the
-   * caller-supplied algorithm / approximation settings from `options`, and delegates to
-   * the `praxis-node` native addon.
-   *
-   * @param faultTreeId  - ID of the fault tree whose graph is to be quantified
-   * @param options      - Algorithm, approximation, and optional maxOrder settings
-   * @returns Structured quantification result (top-event probability + cut sets)
-   * @throws If the praxis native addon is not built or quantification fails
-   */
   async quantifyFaultTree(
     faultTreeId: string,
     options: Omit<FaultTreeQuantificationRequest, "graph">,
   ): Promise<FaultTreeQuantificationResult> {
-    // Load the stored graph.
     const graph = await this.getFaultTreeGraph(faultTreeId);
+    const transferTrees = await this.collectTransferTrees(
+      graph.nodes as unknown as Record<string, { nodeType: string; transferTreeId?: string }>,
+      new Set<string>([faultTreeId]),
+    );
 
-    // Build the full request payload.
-    // The schema type uses `nodes: Record<string, object>` for flexibility; cast to the
-    // shared-types FaultTreeGraph which expects `Record<string, FaultTreeNode>`.
     const request: FaultTreeQuantificationRequest = {
       graph: graph as unknown as FaultTreeQuantificationRequest["graph"],
+      transferTrees: transferTrees as unknown as FaultTreeQuantificationRequest["transferTrees"],
       ...options,
     };
 
-    // Dynamically load the praxis native addon (requires the addon to be built).
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     let praxis: { quantifyFaultTree: (json: string) => string };
     try {
       praxis = require("praxis-node") as typeof praxis;
-    } catch (err) {
+    } catch {
       const hint =
         "The praxis-node native addon is not built. " +
         "Run: cd packages/engine/praxis && cargo build --features napi-rs --release " +
@@ -421,7 +320,28 @@ export class GraphModelService {
     return JSON.parse(resultJson) as FaultTreeQuantificationResult;
   }
 
-  /** Default MEF fault tree: one OR gate (id "1") with two basic-event children (id "2", "3"). */
+  private async collectTransferTrees(
+    nodes: Record<string, { nodeType: string; transferTreeId?: string }>,
+    visited: Set<string>,
+  ): Promise<Record<string, object>> {
+    const result: Record<string, object> = {};
+    for (const node of Object.values(nodes)) {
+      if ((node.nodeType === "TRANSFER_OUT" || node.nodeType === "TRANSFER_IN") && node.transferTreeId) {
+        const refId = node.transferTreeId;
+        if (visited.has(refId)) continue;
+        visited.add(refId);
+        const refGraph = await this.getFaultTreeGraph(refId);
+        result[refId] = refGraph;
+        const nested = await this.collectTransferTrees(
+          refGraph.nodes as unknown as Record<string, { nodeType: string; transferTreeId?: string }>,
+          visited,
+        );
+        Object.assign(result, nested);
+      }
+    }
+    return result;
+  }
+
   private getDefaultFaultTreeGraph(): { topEventId: string; nodes: Record<string, object> } {
     return {
       topEventId: "1",

@@ -14,10 +14,6 @@ import { UseGlobalStore } from "../../zustand/Store";
 
 const TOP_N = 5;
 
-/**
- * RecentModelsPage
- * Displays up to 5 recent models from each of the 4 risk scopes.
- */
 export function RecentModelsPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,7 +46,10 @@ export function RecentModelsPage(): JSX.Element {
   const recentEH = useMemo(() => externalHazards.slice(0, TOP_N), [externalHazards]);
   const recentFS = useMemo(() => fullScope.slice(0, TOP_N), [fullScope]);
 
-  const renderList = (items: { _id: string; label?: { name?: string } }[], basePath: string): JSX.Element => (
+  const renderList = (
+    items: { _id: string; id: number; label?: { name?: string } }[],
+    basePath: string,
+  ): JSX.Element => (
     <EuiListGroup
       flush
       bordered={false}
@@ -66,7 +65,7 @@ export function RecentModelsPage(): JSX.Element {
           <EuiListGroupItem
             key={m._id}
             label={m.label?.name ?? m._id}
-            href={`/${basePath}/${m._id}`}
+            href={`/${basePath}/${m.id}`}
           />
         ))
       }

@@ -11,17 +11,9 @@ const EventSequenceDiagramEndpoint = `${GraphEndpoint}/event-sequence-diagram-gr
 const FaultTreeGraphEndpoint = `${GraphEndpoint}/fault-tree-graph`;
 const EventTreeGraphEndpoint = `${GraphEndpoint}/event-tree-graph`;
 
-/**
- * Manager class to manage API calls of graph related endpoints
- */
 export class GraphApiManager {
   OPTIONS = "no-cache";
 
-  /**
-   * Store (create/update) the fault tree graph based on the latest state of the graph
-   * @param data - Current state of fault tree graph
-   * @returns Updated fault tree graph
-   */
   static async storeFaultTree(data: FaultTreeGraph): Promise<FaultTreeGraph> {
     return await this.post(FaultTreeGraphEndpoint, data)
       .then((res) => this.getFaultTreeResponse(res, data.faultTreeId))
@@ -30,11 +22,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Fetch the fault tree graph based on the fault tree id
-   * @param faultTreeId - Fault tree id
-   * @returns Latest fault tree graph
-   */
   static async getFaultTree(faultTreeId = "-1"): Promise<FaultTreeGraph> {
     return await this.get(`${FaultTreeGraphEndpoint}/?faultTreeId=${faultTreeId}`)
       .then((res) => this.getFaultTreeResponse(res, faultTreeId))
@@ -43,11 +30,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Fetch the event sequence graph based on the event sequence id
-   * @param eventSequenceId - Event sequence id
-   * @returns Latest event sequence graph
-   */
   static async getEventSequence(eventSequenceId = "-1"): Promise<EventSequenceGraph> {
     return await this.get(`${EventSequenceDiagramEndpoint}/?eventSequenceId=${eventSequenceId}`)
       .then((res) => this.getEventSequenceResponse(res, eventSequenceId))
@@ -56,11 +38,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Store (create/update) the event tree graph based on the latest state of the graph
-   * @param data - Current state of fault tree graph
-   * @returns Updated fault tree graph
-   */
   static async storeEventTree(data: EventTreeGraph): Promise<EventTreeGraph> {
     return await this.post(EventTreeGraphEndpoint, data)
       .then((res) => this.getEventTreeResponse(res, data.eventTreeId))
@@ -69,11 +46,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Fetch the fault tree graph based on the fault tree id
-   * @param eventTreeId - Fault tree id
-   * @returns Latest fault tree graph
-   */
   static async getEventTree(eventTreeId = "-1"): Promise<EventTreeGraph> {
     return await this.get(`${EventTreeGraphEndpoint}/?eventTreeId=${eventTreeId}`)
       .then((res) => this.getEventTreeResponse(res, eventTreeId))
@@ -82,13 +54,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Update the label of a node or edge for an event sequence diagram
-   * @param id - Node/Edge ID
-   * @param label - New label
-   * @param type - 'node' or 'edge' for which the label needs to be updated
-   * @returns boolean confirmation whether update was successful or not
-   */
   static async updateESLabel(id: string, label: string, type: string): Promise<boolean> {
     const url = `${EventSequenceDiagramEndpoint}/update-label/`;
     return await this.patch<{ id: string; type: string; label: string }>(url, {
@@ -102,14 +67,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Update a subgraph of an event sequence diagram by sending the updated and deleted portions.
-   *
-   * @param eventSequenceId - Identifier of the event sequence whose subgraph is being updated
-   * @param updatedSubgraph - Nodes and edges that should be upserted
-   * @param deletedSubgraph - Nodes and edges that should be removed
-   * @returns Promise resolving to true if the update succeeded, false otherwise
-   */
   static async updateESSubgraph(
     eventSequenceId: string,
     updatedSubgraph: EventSequenceGraph,
@@ -130,14 +87,6 @@ export class GraphApiManager {
       });
   }
 
-  /**
-   * Quantify a fault tree by posting algorithm settings to the backend.
-   * The backend fetches the stored graph and runs praxis.
-   *
-   * @param faultTreeId  - ID of the fault tree to quantify
-   * @param options      - Algorithm, approximation, and optional maxOrder
-   * @returns Structured quantification result
-   */
   static async quantifyFaultTree(
     faultTreeId: string,
     options: Omit<FaultTreeQuantificationRequest, "graph">,
@@ -151,31 +100,14 @@ export class GraphApiManager {
     return res.json() as Promise<FaultTreeQuantificationResult>;
   }
 
-  /**
-   * Make a POST call
-   * @param url - URL endpoint
-   * @param data - Graph data
-   * @returns Response from API
-   */
   private static post(url: string, data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }
 
-  /**
-   * Make a GET call
-   * @param url - URL endpoint
-   * @returns Response from API
-   */
   private static get(url: string): Promise<Response> {
     return fetch(url, this.getRequestInfo("GET"));
   }
 
-  /**
-   * Make a PATCH call
-   * @param url - URL endpoint
-   * @param data - Patch data
-   * @returns Response from API - boolean
-   */
   private static patch<T>(url: string, data: T): Promise<Response> {
     return fetch(url, this.getRequestInfo("PATCH", JSON.stringify(data)));
   }
@@ -192,12 +124,6 @@ export class GraphApiManager {
     };
   }
 
-  /**
-   * Read the API response and parse the event sequence data
-   * @param res - Response from API
-   * @param eventSequenceId - Event sequence id
-   * @returns EventSequenceGraph object, empty object if response is empty
-   */
   private static async getEventSequenceResponse(res: Response, eventSequenceId: string): Promise<EventSequenceGraph> {
     const response = await res.text();
     return response === "" ?
@@ -209,39 +135,23 @@ export class GraphApiManager {
       : (JSON.parse(response) as EventSequenceGraph);
   }
 
-  /**
-   * Read the API response and return boolean value to indicate successful operation
-   * @param res - Response from API
-   * @returns boolean, false if response is empty
-   */
   private static async getEventSequenceBooleanResponse(res: Response): Promise<boolean> {
     const response = await res.text();
     return response === "true";
   }
 
-  /**
-   * Read the API response and parse the fault tree data (MEF format)
-   * @param res - Response from API
-   * @param faultTreeId - Fault tree id
-   * @returns FaultTreeGraph object in MEF format, empty graph if response is empty
-   */
   private static async getFaultTreeResponse(res: Response, faultTreeId: string): Promise<FaultTreeGraph> {
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.statusText);
+      throw new Error(`storeFaultTree/getFaultTree failed [${String(res.status)}]: ${body}`);
+    }
     const response = await res.text();
-    return response === "" ?
-        ({
-          faultTreeId: faultTreeId,
-          topEventId: "",
-          nodes: {},
-        } as FaultTreeGraph)
-      : (JSON.parse(response) as FaultTreeGraph);
+    if (response === "" || response === "true" || response === "false") {
+      return { faultTreeId, topEventId: "", nodes: {} } as FaultTreeGraph;
+    }
+    return JSON.parse(response) as FaultTreeGraph;
   }
 
-  /**
-   * Read the API response and parse the fault tree data
-   * @param res - Response from API
-   * @param eventTreeId - Event tree id
-   * @returns FaultTreeGraph object, empty object if response is empty
-   */
   private static async getEventTreeResponse(res: Response, eventTreeId: string): Promise<EventTreeGraph> {
     const response = await res.text();
     return response === "" ?

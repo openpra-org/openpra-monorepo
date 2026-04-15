@@ -35,9 +35,26 @@ import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
   const internalEvents = UseGlobalStore.use.InternalEvents();
+  const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
   const internalHazards = UseGlobalStore.use.InternalHazards();
+  const setInternalHazards = UseGlobalStore.use.SetInternalHazards();
   const externalHazards = UseGlobalStore.use.ExternalHazards();
+  const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
   const fullScope = UseGlobalStore.use.FullScope();
+  const setFullScope = UseGlobalStore.use.SetFullScope();
+
+  useEffect(() => {
+    if (!ApiManager.isLoggedIn()) return;
+    const s = UseGlobalStore.getState();
+    const allEmpty =
+      s.InternalEvents.length === 0 &&
+      s.InternalHazards.length === 0 &&
+      s.ExternalHazards.length === 0 &&
+      s.FullScope.length === 0;
+    if (allEmpty) {
+      void Promise.all([setInternalEvents(), setInternalHazards(), setExternalHazards(), setFullScope()]);
+    }
+  }, [setInternalEvents, setInternalHazards, setExternalHazards, setFullScope]);
 
   const getModelName = (token: string): string => {
     const numericId = Number(token);

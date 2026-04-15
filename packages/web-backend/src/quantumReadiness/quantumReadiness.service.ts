@@ -281,6 +281,39 @@ export class QuantumReadinessService {
     return result;
   }
 
+  async createFullPipelineWorkflowRunById(
+    rootDir: string,
+    faultTreeId: string,
+    subtreeId: string,
+    modelName?: string,
+    options: OpenPraFaultTreeReadinessOptions = {},
+    executionRequest?: QuantumExecutionArtifactRawCountsRequest,
+    recoveryCandidateDir?: string,
+    recoveryBatch?: QuantumRecoveryBatchRunInput,
+  ): Promise<QuantumFullPipelineWorkflowRunResult> {
+    const graph = (await this.graphModelService.getFaultTreeGraph(faultTreeId)) as
+      | FaultTreeGraph
+      | Record<string, unknown>;
+
+    const converted = adaptFaultTreeGraphInput(graph, faultTreeId);
+
+    if (!converted.nodes || converted.nodes.length === 0) {
+      throw new Error(`No fault tree graph found for faultTreeId ${faultTreeId}.`);
+    }
+
+    return this.createFullPipelineWorkflowRun(
+      rootDir,
+      faultTreeId,
+      subtreeId,
+      converted,
+      modelName,
+      options,
+      executionRequest,
+      recoveryCandidateDir,
+      recoveryBatch,
+    );
+  }
+
   analyzeFaultTreeGraph(
     graph: FaultTreeGraph | Record<string, unknown>,
     modelName?: string,

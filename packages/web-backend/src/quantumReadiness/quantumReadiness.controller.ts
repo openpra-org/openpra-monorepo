@@ -26,6 +26,7 @@ import {
   type QuantumRecoveryBatchWorkflowRunResult,
   type QuantumRecoveryWorkflowRunResult,
   type QuantumWorkflowRunInspectionResult,
+  type QuantumWorkflowRunListingResult,
 } from "./quantumReadiness.service";
 
 export interface QuantumReadinessGraphRequest {
@@ -119,6 +120,10 @@ export interface QuantumWorkflowRunInspectionRequest {
   workflowRunDir: string;
 }
 
+export interface QuantumWorkflowRunListingRequest {
+  rootDir: string;
+}
+
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
 }
@@ -167,6 +172,16 @@ export class QuantumReadinessController {
   inspectWorkflowRun(@Body() body: QuantumWorkflowRunInspectionRequest): QuantumWorkflowRunInspectionResult {
     try {
       return this.quantumReadinessService.inspectWorkflowRun(body.workflowRunDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/workflow/list-runs")
+  @HttpCode(HttpStatus.OK)
+  listWorkflowRuns(@Body() body: QuantumWorkflowRunListingRequest): QuantumWorkflowRunListingResult {
+    try {
+      return this.quantumReadinessService.listWorkflowRuns(body.rootDir);
     } catch (error) {
       throw this.toHttpException(error);
     }
@@ -528,7 +543,8 @@ export class QuantumReadinessController {
 
     if (
       message.startsWith("No fault tree graph found for faultTreeId") ||
-      message.startsWith("workflowRunDir does not exist")
+      message.startsWith("workflowRunDir does not exist") ||
+      message.startsWith("rootDir does not exist")
     ) {
       return new HttpException(message, HttpStatus.NOT_FOUND);
     }

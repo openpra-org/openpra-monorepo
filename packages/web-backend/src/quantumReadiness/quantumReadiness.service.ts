@@ -112,6 +112,18 @@ export interface QuantumWorkflowRunInspectionResult {
   };
 }
 
+export interface QuantumWorkflowRunListingEntry {
+  workflowRunDir: string;
+  workflowKind: string | null;
+  createdAtUtc: string | null;
+  manifestPath: string | null;
+}
+
+export interface QuantumWorkflowRunListingResult {
+  rootDir: string;
+  entries: QuantumWorkflowRunListingEntry[];
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -374,6 +386,52 @@ export class QuantumReadinessService {
         recoveryBatchRollups: listFilesMatching(batchDir, /^openpra_quantum_recovery_batch_rollup_v1\.json$/),
         logFiles: listAllFiles(logsDir),
       },
+    };
+  }
+
+  listWorkflowRuns(rootDir: string): QuantumWorkflowRunListingResult {
+    const resolvedRootDir = path.resolve(rootDir);
+
+    if (!fs.existsSync(resolvedRootDir)) {
+      throw new Error(`rootDir does not exist: ${resolvedRootDir}`);
+    }
+
+    const entries = fs
+      .readdirSync(resolvedRootDir)
+      .map((entry) => path.join(resolvedRootDir, entry))
+      .filter((entryPath) => fs.statSync(entryPath).isDirectory())
+      .filter((entryPath) => path.basename(entryPath).startsWith("openpra_quantum_"))
+      .map((entryPath) => {
+        const manifestPath = path.join(entryPath, "openpra_quantum_workflow_run_manifest_v1.json");
+
+        let workflowKind: string | null = null;
+        let createdAtUtc: string | null = null;
+
+        if (fs.existsSync(manifestPath)) {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+            workflowKind?: string;
+            createdAtUtc?: string;
+          };
+          workflowKind = manifest.workflowKind ?? null;
+          createdAtUtc = manifest.createdAtUtc ?? null;
+        }
+
+        return {
+          workflowRunDir: entryPath,
+          workflowKind,
+          createdAtUtc,
+          manifestPath: fs.existsSync(manifestPath) ? manifestPath : null,
+        };
+      })
+      .sort((a, b) => {
+        const left = a.createdAtUtc ?? "";
+        const right = b.createdAtUtc ?? "";
+        return right.localeCompare(left);
+      });
+
+    return {
+      rootDir: resolvedRootDir,
+      entries,
     };
   }
 

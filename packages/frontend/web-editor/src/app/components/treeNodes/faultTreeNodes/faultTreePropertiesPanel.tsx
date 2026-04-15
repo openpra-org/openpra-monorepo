@@ -508,12 +508,11 @@ function DistributionParamsPanel({
 function BNLinkPanel({
   modelId,
   bnId,
-  bnNodeId,
   onChange,
 }: {
   modelId: string;
   bnId: number | undefined;
-  bnNodeId: string | undefined;
+  bnNodeId?: string;
   onChange: (bnId: number | undefined, bnNodeId: string | undefined) => void;
 }): JSX.Element {
   const [bns, setBns] = useState<NestedModelType[]>([]);
@@ -558,15 +557,18 @@ function BNLinkPanel({
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
 export interface FaultTreePropertiesPanelProps {
-  /** The currently selected ReactFlow node */
   node: Node<FaultTreeNodeProps>;
-  /** The typed model ID — needed to fetch sibling fault trees / BNs */
   modelId: string;
-  /** Called with the updated quantification whenever a field changes */
+  faultTreeId?: string;
   onChange: (nodeId: string, q: FaultTreeNodeQuantification) => void;
 }
 
-export function FaultTreePropertiesPanel({ node, modelId, onChange }: FaultTreePropertiesPanelProps): JSX.Element {
+export function FaultTreePropertiesPanel({
+  node,
+  modelId,
+  faultTreeId,
+  onChange,
+}: FaultTreePropertiesPanelProps): JSX.Element {
   const nodeType = node.type ?? BASIC_EVENT;
   const isLeaf = LEAF_TYPES.includes(nodeType);
   const isAtLeast = nodeType === ATLEAST_GATE;
@@ -591,7 +593,7 @@ export function FaultTreePropertiesPanel({ node, modelId, onChange }: FaultTreeP
   // ── Transfer gate: lazy-load sibling fault trees ─────────────────────────
   const [faultTrees, setFaultTrees] = useState<NestedModelType[]>([]);
   useEffect(() => {
-    if (!isTransfer) return;
+    if (!isTransfer || !modelId) return;
     void GetFaultTrees(modelId)
       .then(setFaultTrees)
       .catch(() => {});
@@ -600,7 +602,7 @@ export function FaultTreePropertiesPanel({ node, modelId, onChange }: FaultTreeP
   const ftOptions = [
     { value: "", text: "— select fault tree —" },
     ...faultTrees
-      .filter((ft) => String(ft.id) !== node.id)
+      .filter((ft) => String(ft.id) !== faultTreeId)
       .map((ft) => ({ value: String(ft.id), text: ft.label?.name ?? String(ft.id) })),
   ];
 

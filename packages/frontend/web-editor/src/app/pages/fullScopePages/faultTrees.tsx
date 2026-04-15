@@ -114,7 +114,7 @@ function ReactFlowPro(): JSX.Element {
   const setPendingEdge = useStore((s) => s.setPendingEdge);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { faultTreeId } = useParams();
+  const { faultTreeId, modelId } = useParams();
   const { addToast } = UseToastContext();
 
   // ── Properties panel state ──────────────────────────────────────────────
@@ -487,7 +487,8 @@ function ReactFlowPro(): JSX.Element {
         >
           <FaultTreePropertiesPanel
             node={selectedNode}
-            modelId={faultTreeId}
+            modelId={modelId ?? ""}
+            faultTreeId={faultTreeId}
             onChange={onQuantificationChange}
           />
         </EuiPanel>

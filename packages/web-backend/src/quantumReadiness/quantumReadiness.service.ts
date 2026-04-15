@@ -339,6 +339,15 @@ export interface QuantumWorkflowReleaseManifestWriteResult {
   workflowReleaseManifestPath: string;
 }
 
+export interface QuantumWorkflowReleaseBundleWriteResult {
+  outputDir: string;
+  bundleDir: string;
+  summaryPath: string;
+  manifestCopyPath: string | null;
+  releaseSummaryPath: string;
+  releaseManifestPath: string;
+}
+
 @Injectable()
 export class QuantumReadinessService {
   constructor(private readonly graphModelService: GraphModelService) {}
@@ -1123,6 +1132,41 @@ export class QuantumReadinessService {
           : [],
         logFiles: inspection.files.logFiles,
       },
+    };
+  }
+
+  buildWorkflowReleaseBundleToFilesystem(
+    workflowRunDir: string,
+    outputDir: string,
+  ): QuantumWorkflowReleaseBundleWriteResult {
+    const inspection = this.inspectWorkflowRun(workflowRunDir);
+    const summaryWrite = this.buildWorkflowReleaseSummaryToFilesystem(workflowRunDir, outputDir);
+    const manifestWrite = this.buildWorkflowReleaseManifestToFilesystem(workflowRunDir, outputDir);
+
+    const resolvedOutputDir = path.resolve(outputDir);
+    const bundleDir = path.join(resolvedOutputDir, "openpra_quantum_release_bundle_v1");
+    fs.mkdirSync(bundleDir, { recursive: true });
+
+    const releaseSummaryPath = path.join(bundleDir, "openpra_quantum_workflow_release_summary_v1.json");
+    const releaseManifestPath = path.join(bundleDir, "openpra_quantum_workflow_release_manifest_v1.json");
+
+    fs.copyFileSync(summaryWrite.workflowReleaseSummaryPath, releaseSummaryPath);
+    fs.copyFileSync(manifestWrite.workflowReleaseManifestPath, releaseManifestPath);
+
+    let manifestCopyPath: string | null = null;
+
+    if (inspection.manifestPath) {
+      manifestCopyPath = path.join(bundleDir, "openpra_quantum_workflow_run_manifest_v1.json");
+      fs.copyFileSync(inspection.manifestPath, manifestCopyPath);
+    }
+
+    return {
+      outputDir: resolvedOutputDir,
+      bundleDir,
+      summaryPath: summaryWrite.workflowReleaseSummaryPath,
+      manifestCopyPath,
+      releaseSummaryPath,
+      releaseManifestPath,
     };
   }
 

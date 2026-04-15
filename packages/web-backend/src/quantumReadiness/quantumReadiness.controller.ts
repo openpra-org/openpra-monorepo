@@ -49,6 +49,7 @@ import {
   type QuantumWorkflowReleaseSummaryWriteResult,
   type QuantumWorkflowReleaseManifestResult,
   type QuantumWorkflowReleaseManifestWriteResult,
+  type QuantumWorkflowReleaseBundleWriteResult,
   type QuantumWorkflowRunInspectionResult,
   type QuantumWorkflowRunListingResult,
 } from "./quantumReadiness.service";
@@ -236,9 +237,26 @@ export interface QuantumWorkflowReleaseManifestWriteRequest {
   outputDir: string;
 }
 
+export interface QuantumWorkflowReleaseBundleWriteRequest {
+  workflowRunDir: string;
+  outputDir: string;
+}
+
 @Controller()
 export class QuantumReadinessController {
   constructor(private readonly quantumReadinessService: QuantumReadinessService) {}
+
+  @Post("/release/workflow-bundle/write")
+  @HttpCode(HttpStatus.OK)
+  buildWorkflowReleaseBundleToFilesystem(
+    @Body() body: QuantumWorkflowReleaseBundleWriteRequest,
+  ): QuantumWorkflowReleaseBundleWriteResult {
+    try {
+      return this.quantumReadinessService.buildWorkflowReleaseBundleToFilesystem(body.workflowRunDir, body.outputDir);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
 
   @Post("/release/workflow-manifest")
   @HttpCode(HttpStatus.OK)

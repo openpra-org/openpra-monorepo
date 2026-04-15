@@ -1,47 +1,22 @@
-/// Zero-Suppressed Binary Decision Diagram (ZBDD)
-///
-/// Implements the SCRAM ZBDD algorithm:
-///   1. Direct construction from a fault tree (AND/OR/ATLEAST gates).
-///   2. BDD→ZBDD conversion: given a BDD root produced by `Bdd::from_fault_tree`,
-///      convert it to a ZBDD that encodes the family of all prime implicants /
-///      minimal cut sets via the standard algebraic identity
-///        ZBDD(x·f₁ + f₀) = ({x}·ZBDD(f₁)) ∪ ZBDD(f₀)
-///      followed by `minimize` (subsumption pruning) at every step.
-///   3. `minimize` / `subsume` – in-construction subsumption to guarantee that the
-///      resulting ZBDD encodes *only* minimal sets (matching SCRAM's Minimize +
-///      Subsume pair).
-///
-/// Variable ordering convention (same as BDD):
-///   lower variable index → higher priority (closer to root).
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
-use crate::algorithms::bdd::{Bdd, NodeIndex as BddNodeIndex};
 use crate::algorithms::mocus::CutSet;
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::Formula;
 use crate::error::{PraxisError, Result};
 
-// ─── Terminal sentinels ────────────────────────────────────────────────────────
-/// The ∅ terminal: represents the empty family of sets (no cut sets).
 pub const EMPTY: NodeIndex = 0;
-/// The {∅} terminal: represents the family containing only the empty set.
 pub const BASE: NodeIndex = 1;
-
 pub type NodeIndex = usize;
 
-// ─── ZBDD node ─────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone)]
 pub struct ZbddNode {
-    /// Variable label (same index space as BDD variables).
     pub variable: usize,
-    /// High child: sets in this family that *contain* `variable`.
     pub high: NodeIndex,
-    /// Low child: sets in this family that do *not* contain `variable`.
     pub low: NodeIndex,
-    /// True when this subtree encodes only minimal sets.
     pub minimal: bool,
-    /// Maximum set order reachable from this node (used for order-limit pruning).
     pub max_set_order: usize,
 }
 
@@ -75,7 +50,6 @@ impl PartialEq for ZbddNode {
 
 impl Eq for ZbddNode {}
 
-// ─── Stats ─────────────────────────────────────────────────────────────────────
 #[derive(Debug, Clone)]
 pub struct ZbddStats {
     pub num_nodes: usize,
@@ -84,22 +58,14 @@ pub struct ZbddStats {
     pub max_product_size: usize,
 }
 
-// ─── ZBDD ──────────────────────────────────────────────────────────────────────
 pub struct Zbdd {
     nodes: Vec<ZbddNode>,
-    /// Unique table: (variable, high, low) → NodeIndex.
     unique_table: HashMap<(usize, NodeIndex, NodeIndex), NodeIndex>,
-    /// Memoization for union.
     union_cache: HashMap<(NodeIndex, NodeIndex), NodeIndex>,
-    /// Memoization for product (AND of two set families).
     product_cache: HashMap<(NodeIndex, NodeIndex), NodeIndex>,
-    /// Memoization for minimize.
     minimize_cache: HashMap<NodeIndex, NodeIndex>,
-    /// Memoization for subsume.
     subsume_cache: HashMap<(NodeIndex, NodeIndex), NodeIndex>,
-    /// Maps praxis variable index → event id string.
     pub variable_names: HashMap<usize, String>,
-    /// Maps event id string → variable index.
     variable_index: HashMap<String, usize>,
 }
 
@@ -115,36 +81,27 @@ impl Zbdd {
             variable_names: HashMap::new(),
             variable_index: HashMap::new(),
         };
-        // Index 0 = EMPTY terminal, index 1 = BASE terminal.
-        // We use sentinel ZbddNodes with variable=usize::MAX so ordering comparisons
-        // never treat them as real variables.
-        zbdd.nodes.push(ZbddNode::new(usize::MAX, EMPTY, EMPTY)); // 0 = EMPTY
-        zbdd.nodes.push(ZbddNode::new(usize::MAX, BASE, BASE));   // 1 = BASE
+
+        zbdd.nodes.push(ZbddNode::new(usize::MAX, EMPTY, EMPTY));
+        zbdd.nodes.push(ZbddNode::new(usize::MAX, BASE, BASE));
         zbdd
     }
 
-    // ── Unique-table node construction ─────────────────────────────────────────
-
-    /// Zero-suppression reduction: if `high == EMPTY` the node is suppressed and
-    /// we return `low` directly.  Also handles `high == low` identity reduction.
     pub fn make_node(&mut self, var: usize, high: NodeIndex, low: NodeIndex) -> NodeIndex {
-        // Zero-suppression rule: discard nodes whose high child is EMPTY.
         if high == EMPTY {
             return low;
         }
-        // Identity reduction: both children equal → return either.
-        if high == low {
-            return low;
-        }
+
         let key = (var, high, low);
         if let Some(&existing) = self.unique_table.get(&key) {
             return existing;
         }
+
         let index = self.nodes.len();
         let mut node = ZbddNode::new(var, high, low);
-        // Compute max_set_order.
         let high_order = self.max_order(high) + 1;
         let low_order = self.max_order(low);
+
         node.max_set_order = high_order.max(low_order);
         self.nodes.push(node);
         self.unique_table.insert(key, index);
@@ -159,24 +116,17 @@ impl Zbdd {
         }
     }
 
-    // ── ZBDD operations ────────────────────────────────────────────────────────
-
-    /// OR of two set families (union).
-    ///
-    /// Matches SCRAM `Apply<kOr>`.
     pub fn union(&mut self, f: NodeIndex, g: NodeIndex) -> NodeIndex {
         if f == EMPTY { return g; }
         if g == EMPTY { return f; }
         if f == g    { return f; }
         if f == BASE && g == BASE { return BASE; }
 
-        // Canonical key (commutative).
         let key = if f < g { (f, g) } else { (g, f) };
         if let Some(&cached) = self.union_cache.get(&key) {
             return cached;
         }
 
-        // Extract node data before recursive calls.
         let (f_var, f_high, f_low) = self.node_data(f);
         let (g_var, g_high, g_low) = self.node_data(g);
 
@@ -185,11 +135,9 @@ impl Zbdd {
             let low  = self.union(f_low,  g_low);
             self.make_node(f_var, high, low)
         } else if f_var < g_var {
-            // f's variable has higher priority.
             let low = self.union(f_low, g);
             self.make_node(f_var, f_high, low)
         } else {
-            // g's variable has higher priority.
             let low = self.union(f, g_low);
             self.make_node(g_var, g_high, low)
         };
@@ -198,11 +146,6 @@ impl Zbdd {
         result
     }
 
-    /// AND (Cartesian product) of two set families.
-    ///
-    /// Matches SCRAM `Apply<kAnd>` for ZBDD set nodes:
-    ///   (x·f₁ + f₀) ∧ (x·g₁ + g₀) = x·(f₁∧(g₁∨g₀) ∨ f₀∧g₁) + f₀∧g₀   [same var]
-    ///   (x·f₁ + f₀) ∧ g              = x·(f₁∧g) + f₀∧g                    [f has higher priority]
     pub fn product(&mut self, f: NodeIndex, g: NodeIndex) -> NodeIndex {
         if f == EMPTY || g == EMPTY { return EMPTY; }
         if f == BASE  { return g; }
@@ -218,7 +161,6 @@ impl Zbdd {
         let (g_var, g_high, g_low) = self.node_data(g);
 
         let result = if f_var == g_var {
-            // (x·f₁ + f₀) ∧ (x·g₁ + g₀) = x·(f₁∧(g₁∨g₀) ∨ f₀∧g₁) + f₀∧g₀
             let g_union = self.union(g_high, g_low);
             let left    = self.product(f_high, g_union);
             let right   = self.product(f_low,  g_high);
@@ -227,13 +169,11 @@ impl Zbdd {
             let node    = self.make_node(f_var, high, low);
             self.minimize(node)
         } else if f_var < g_var {
-            // f has higher priority variable.
             let high = self.product(f_high, g);
             let low  = self.product(f_low,  g);
             let node = self.make_node(f_var, high, low);
             self.minimize(node)
         } else {
-            // g has higher priority variable – swap roles.
             let high = self.product(f, g_high);
             let low  = self.product(f, g_low);
             let node = self.make_node(g_var, high, low);
@@ -244,13 +184,8 @@ impl Zbdd {
         result
     }
 
-    // ── Minimization (subsumption pruning) ────────────────────────────────────
-
-    /// Minimizes a ZBDD so it contains only minimal sets.
-    ///
-    /// Matches SCRAM `Zbdd::Minimize`.
     pub fn minimize(&mut self, root: NodeIndex) -> NodeIndex {
-        if root < 2 { return root; } // terminals are already trivially minimal
+        if root < 2 { return root; }
         if self.nodes[root].minimal { return root; }
 
         if let Some(&cached) = self.minimize_cache.get(&root) {
@@ -262,7 +197,6 @@ impl Zbdd {
         let min_high = self.minimize(high);
         let min_low  = self.minimize(low);
 
-        // Remove from high_branch any set that is a superset of a set in low_branch.
         let sub_high = self.subsume(min_high, min_low);
 
         let result = if sub_high == EMPTY {
@@ -277,16 +211,11 @@ impl Zbdd {
         result
     }
 
-    /// `subsume(high, low)` – removes from the set family `high` any set S such
-    /// that some set T ∈ `low` satisfies T ⊆ S.
-    ///
-    /// Matches SCRAM `Zbdd::Subsume`.
     fn subsume(&mut self, high: NodeIndex, low: NodeIndex) -> NodeIndex {
-        // BASE in low means ∅ ∈ low → every set in high has ∅ as subset → remove all.
         if low == BASE  { return EMPTY; }
         if low == EMPTY { return high; }
         if high == EMPTY || high == BASE { return high; }
-        if high == low  { return high; }
+        if high == low  { return EMPTY; }
 
         let key = (high, low);
         if let Some(&cached) = self.subsume_cache.get(&key) {
@@ -297,21 +226,10 @@ impl Zbdd {
         let (l_var, l_high, l_low) = self.node_data(low);
 
         let result = if h_var > l_var {
-            // high's top variable has lower priority than low's.
-            // Sets in high don't contain l_var; check against l_low (sets in low
-            // that also don't contain l_var).
             self.subsume(high, l_low)
         } else if h_var == l_var {
-            // Same top variable x.
-            // For sets in high *containing* x:
-            //   they are subsumed by any T in low (with or without x) that is ⊆.
-            //   T may come from l_high ∪ l_low.
-            let l_union  = self.union(l_high, l_low);
-            let sub_high = self.subsume(h_high, l_union);
-            // Further subsume against sets in low *without* x.
+            let sub_high = self.subsume(h_high, l_high);
             let sub_high = self.subsume(sub_high, l_low);
-            // For sets in high *not containing* x:
-            //   they can only be subsumed by sets in low *not containing* x → l_low.
             let sub_low  = self.subsume(h_low, l_low);
             if sub_high == EMPTY {
                 sub_low
@@ -319,9 +237,6 @@ impl Zbdd {
                 self.make_node(h_var, sub_high, sub_low)
             }
         } else {
-            // h_var < l_var: high's variable has higher priority.
-            // low's structure doesn't mention h_var, so both high-branch and
-            // low-branch of high are checked against the full `low`.
             let sub_high = self.subsume(h_high, low);
             let sub_low  = self.subsume(h_low,  low);
             if sub_high == EMPTY {
@@ -335,79 +250,9 @@ impl Zbdd {
         result
     }
 
-    // ── BDD → ZBDD conversion ─────────────────────────────────────────────────
-
-    /// Convert a BDD rooted at `bdd_root` to a ZBDD encoding its minimal
-    /// prime implicants (minimal cut sets for coherent fault trees).
-    ///
-    /// Implements the standard conversion:
-    ///   ZBDD(x·f₁ + f₀) = ({x} ∧ ZBDD(f₁)) ∨ ZBDD(f₀)   then minimize.
-    ///
-    /// `variable_names` must map BDD variable index → event id string (same
-    /// mapping that was used when building the BDD).
-    pub fn from_bdd(
-        bdd: &Bdd,
-        bdd_root: BddNodeIndex,
-        variable_names: &HashMap<usize, String>,
-    ) -> (Zbdd, NodeIndex) {
-        let mut zbdd = Zbdd::new();
-        // Copy variable name / index mappings.
-        for (&var, name) in variable_names {
-            zbdd.variable_names.insert(var, name.clone());
-            zbdd.variable_index.insert(name.clone(), var);
-        }
-
-        let mut bdd_to_zbdd: HashMap<usize, NodeIndex> = HashMap::new();
-        let root = zbdd.convert_bdd_node(bdd, bdd_root, &mut bdd_to_zbdd);
-        let root = zbdd.minimize(root);
-        zbdd.clear_op_caches();
-        (zbdd, root)
-    }
-
-    fn convert_bdd_node(
-        &mut self,
-        bdd: &Bdd,
-        bdd_idx: BddNodeIndex,
-        cache: &mut HashMap<usize, NodeIndex>,
-    ) -> NodeIndex {
-        if bdd_idx == BddNodeIndex::TRUE  { return BASE;  }
-        if bdd_idx == BddNodeIndex::FALSE { return EMPTY; }
-
-        let raw = bdd_idx.raw();
-        if let Some(&cached) = cache.get(&raw) {
-            return cached;
-        }
-
-        // Extract BDD node data (variable, low child, high child).
-        let (var, bdd_low, bdd_high) = bdd
-            .node_data(bdd_idx)
-            .expect("BDD node index out of range in convert_bdd_node");
-
-        // Recursively convert children.
-        let high_zbdd = self.convert_bdd_node(bdd, bdd_high, cache);
-        let low_zbdd  = self.convert_bdd_node(bdd, bdd_low,  cache);
-
-        // Singleton {x} in ZBDD.
-        let singleton = self.make_node(var, BASE, EMPTY);
-
-        // ZBDD(x·f₁ + f₀) = ({x} ∧ ZBDD(f₁)) ∨ ZBDD(f₀)
-        let with_x  = self.product(singleton, high_zbdd);
-        let result  = self.union(with_x, low_zbdd);
-        let result  = self.minimize(result);
-
-        cache.insert(raw, result);
-        result
-    }
-
-    // ── Direct construction from fault tree ───────────────────────────────────
-
-    /// Build a ZBDD directly from a fault tree.
-    /// Variable indices are assigned in sorted-by-event-id order for determinism.
-    /// Returns `(zbdd, root_node_index)`.
     pub fn from_fault_tree(fault_tree: &FaultTree) -> Result<(Zbdd, NodeIndex)> {
         let mut zbdd = Zbdd::new();
 
-        // Assign variable indices in deterministic order (sorted event id).
         let mut sorted_events: Vec<&str> = fault_tree
             .basic_events()
             .keys()
@@ -441,14 +286,12 @@ impl Zbdd {
             return Ok(cached);
         }
 
-        // Is it a basic event?
         if let Some(&var_idx) = self.variable_index.get(element_id) {
             let node = self.make_node(var_idx, BASE, EMPTY);
             cache.insert(element_id.to_string(), node);
             return Ok(node);
         }
 
-        // Is it a house event?
         if let Some(house) = fault_tree.get_house_event(element_id) {
             let node = if house.state() { BASE } else { EMPTY };
             cache.insert(element_id.to_string(), node);
@@ -484,7 +327,7 @@ impl Zbdd {
                 let n = operands.len();
                 if k == 0 { return Ok(BASE); }
                 if k > n  { return Ok(EMPTY); }
-                // Enumerate all C(n,k) combinations and union them.
+
                 let mut op_nodes: Vec<NodeIndex> = Vec::with_capacity(n);
                 for op_id in &operands {
                     op_nodes.push(self.convert_gate(fault_tree, op_id, cache)?);
@@ -512,7 +355,6 @@ impl Zbdd {
         Ok(result)
     }
 
-    /// Generate all combinations of `k` elements from `items`.
     fn combinations<T: Copy>(items: &[T], k: usize) -> Vec<Vec<T>> {
         if k == 0 { return vec![vec![]]; }
         if k > items.len() { return vec![]; }
@@ -540,9 +382,6 @@ impl Zbdd {
         }
     }
 
-    // ── Product extraction ─────────────────────────────────────────────────────
-
-    /// Enumerate all minimal cut sets from the ZBDD.
     pub fn get_cut_sets(&self, root: NodeIndex, max_order: Option<usize>) -> Vec<CutSet> {
         let mut products: Vec<Vec<usize>> = Vec::new();
         let mut path: Vec<usize> = Vec::new();
@@ -580,21 +419,15 @@ impl Zbdd {
         let high = self.nodes[node].high;
         let low  = self.nodes[node].low;
 
-        // High branch: sets containing `var`.
         if max_order.map_or(true, |m| path.len() < m) {
             path.push(var);
             self.collect_products(high, path, max_order, out);
             path.pop();
         }
 
-        // Low branch: sets not containing `var`.
         self.collect_products(low, path, max_order, out);
     }
 
-    // ── Cache management ───────────────────────────────────────────────────────
-
-    /// Clear operation caches (union, product, minimize, subsume) to free memory
-    /// after analysis is complete.  Does not clear the unique table or variable maps.
     pub fn clear_op_caches(&mut self) {
         self.union_cache.clear();
         self.product_cache.clear();
@@ -602,10 +435,6 @@ impl Zbdd {
         self.subsume_cache.clear();
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
-
-    /// Returns (variable, low, high) for non-terminal node.
-    /// Panics on terminal indices – callers must guard with `idx < 2`.
     #[inline]
     fn node_data(&self, idx: NodeIndex) -> (usize, NodeIndex, NodeIndex) {
         let n = &self.nodes[idx];
@@ -651,13 +480,13 @@ impl Default for Zbdd {
     fn default() -> Self { Self::new() }
 }
 
-// ─── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::event::BasicEvent;
     use crate::core::fault_tree::FaultTree;
     use crate::core::gate::{Formula, Gate};
+    use crate::io::parser::parse_fault_tree;
 
     fn make_ft(top: &str, formula: Formula, operands: &[&str], probs: &[(&str, f64)]) -> FaultTree {
         let mut ft = FaultTree::new("FT", top).unwrap();
@@ -694,7 +523,6 @@ mod tests {
 
     #[test]
     fn test_complex_tree() {
-        // TOP = OR(AND(E1,E2), E3)  →  {{E1,E2}, {E3}}
         let mut ft = FaultTree::new("FT", "TOP").unwrap();
         let mut top = Gate::new("TOP".into(), Formula::Or).unwrap();
         top.add_operand("G1".into()); top.add_operand("E3".into());
@@ -714,7 +542,6 @@ mod tests {
 
     #[test]
     fn test_atleast_gate() {
-        // TOP = AtLeast{2}(E1,E2,E3)  →  {{E1,E2},{E1,E3},{E2,E3}}
         let ft = make_ft("TOP", Formula::AtLeast { min: 2 }, &["E1","E2","E3"],
                          &[("E1",0.1),("E2",0.2),("E3",0.3)]);
         let (zbdd, root) = Zbdd::from_fault_tree(&ft).unwrap();
@@ -724,55 +551,57 @@ mod tests {
     }
 
     #[test]
+    fn test_shared_event_and_of_ors() {
+        let mut zbdd = Zbdd::new();
+        for (i, name) in ["A","B","C"].iter().enumerate() {
+            zbdd.variable_names.insert(i, name.to_string());
+            zbdd.variable_index.insert(name.to_string(), i);
+        }
+        let a = zbdd.make_node(0, BASE, EMPTY);
+        let b = zbdd.make_node(1, BASE, EMPTY);
+        let c = zbdd.make_node(2, BASE, EMPTY);
+        let g1 = {
+            let u = zbdd.union(a, b);
+            zbdd.minimize(u)
+        };
+        let g2 = {
+            let u = zbdd.union(a, c);
+            zbdd.minimize(u)
+        };
+        let result = zbdd.product(g1, g2);
+        let cs = zbdd.get_cut_sets(result, None);
+        assert_eq!(cs.len(), 2, "Expected MCS: {{A}}, {{B,C}} but got {}", cs.len());
+    }
+
+    #[test]
+    fn test_chinese_benchmark_392_mcs() {
+        let xml = include_str!("../../tests/fixtures/benchmarks/Aralia/chinese.xml");
+        let ft = parse_fault_tree(xml).expect("parse chinese.xml");
+        let (zbdd, root) = Zbdd::from_fault_tree(&ft).unwrap();
+        let cs = zbdd.get_cut_sets(root, None);
+        assert_eq!(cs.len(), 392, "chinese.xml must produce exactly 392 minimal cut sets, got {}", cs.len());
+    }
+
+    #[test]
     fn test_minimize_removes_supersets() {
-        // If we OR together {E1} and {E1,E2}, minimization should keep only {E1}.
         let mut zbdd = Zbdd::new();
         zbdd.variable_names.insert(0, "E1".into());
         zbdd.variable_names.insert(1, "E2".into());
         zbdd.variable_index.insert("E1".into(), 0);
         zbdd.variable_index.insert("E2".into(), 1);
 
-        // {E1} → node(0, BASE, EMPTY)
         let e1 = zbdd.make_node(0, BASE, EMPTY);
-        // {E2} → node(1, BASE, EMPTY)
         let e2 = zbdd.make_node(1, BASE, EMPTY);
-        // {E1,E2} → product(e1, e2)
         let e1_e2 = zbdd.product(e1, e2);
-        // union({E1}, {E1,E2}) before minimize should have 2 products
         let u = {
-            // Temporarily add without minimize to test
             let raw = zbdd.union(e1, e1_e2);
             raw
         };
-        // After minimize, {E1,E2} is superseded by {E1}
+        
         let m = zbdd.minimize(u);
         let cs = zbdd.get_cut_sets(m, None);
         assert_eq!(cs.len(), 1, "Minimize must remove the superset {{E1,E2}}");
         assert!(cs[0].events.contains("E1"));
     }
 
-    #[test]
-    fn test_from_bdd_or_gate() {
-        let ft = make_ft("TOP", Formula::Or, &["E1","E2"],
-                         &[("E1", 0.1), ("E2", 0.2)]);
-        let mut bdd = crate::algorithms::bdd::Bdd::new();
-        let bdd_root = bdd.from_fault_tree(&ft).unwrap();
-        let var_names = bdd.variable_names().clone();
-        let (zbdd, root) = Zbdd::from_bdd(&bdd, bdd_root, &var_names);
-        let cs = zbdd.get_cut_sets(root, None);
-        assert_eq!(cs.len(), 2);
-    }
-
-    #[test]
-    fn test_from_bdd_and_gate() {
-        let ft = make_ft("TOP", Formula::And, &["E1","E2"],
-                         &[("E1", 0.1), ("E2", 0.2)]);
-        let mut bdd = crate::algorithms::bdd::Bdd::new();
-        let bdd_root = bdd.from_fault_tree(&ft).unwrap();
-        let var_names = bdd.variable_names().clone();
-        let (zbdd, root) = Zbdd::from_bdd(&bdd, bdd_root, &var_names);
-        let cs = zbdd.get_cut_sets(root, None);
-        assert_eq!(cs.len(), 1);
-        assert_eq!(cs[0].order(), 2);
-    }
 }

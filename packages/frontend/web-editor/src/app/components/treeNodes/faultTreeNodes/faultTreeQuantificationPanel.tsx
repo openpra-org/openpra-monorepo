@@ -41,6 +41,7 @@ import type {
   FaultTreeAlgorithm,
   FaultTreeApproximation,
   FaultTreeQuantificationResult,
+  ZbddDiagnostics,
 } from "shared-types/src/lib/types/faultTreeQuantification";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -263,6 +264,8 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
               )}
             </EuiFlexGroup>
 
+            {result.zbddDiagnostics && <ZbddDiagnosticsPanel diagnostics={result.zbddDiagnostics} />}
+
             {result.cutSets.length > 0 && (
               <>
                 <EuiSpacer size="m" />
@@ -286,6 +289,38 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
           onClose={() => setIsModalOpen(false)}
         />
       )}
+    </>
+  );
+}
+
+// ─── ZBDD Diagnostics panel ───────────────────────────────────────────────────
+
+function ZbddDiagnosticsPanel({ diagnostics }: { diagnostics: ZbddDiagnostics }): JSX.Element {
+  return (
+    <>
+      <EuiSpacer size="s" />
+      <EuiFlexGroup
+        gutterSize="xs"
+        wrap
+        responsive={false}
+      >
+        <EuiFlexItem grow={false}>
+          <EuiBadge
+            color="hollow"
+            title="ZBDD nodes"
+          >
+            {diagnostics.numNodes} nodes
+          </EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiBadge
+            color="hollow"
+            title="Max cut-set order"
+          >
+            order ≤ {diagnostics.maxProductSize}
+          </EuiBadge>
+        </EuiFlexItem>
+      </EuiFlexGroup>
     </>
   );
 }

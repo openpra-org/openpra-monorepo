@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::algorithms::bdd::Bdd;
 use crate::algorithms::mocus::{CutSet, Mocus};
-use crate::algorithms::zbdd::Zbdd;
+use crate::algorithms::zbdd::{Zbdd, ZbddStats};
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -163,11 +163,33 @@ pub enum ApproximationKind {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ZbddDiagnostics {
+    pub num_nodes: usize,
+    pub num_variables: usize,
+    pub num_products: usize,
+    pub max_product_size: usize,
+}
+
+impl From<ZbddStats> for ZbddDiagnostics {
+    fn from(s: ZbddStats) -> Self {
+        ZbddDiagnostics {
+            num_nodes: s.num_nodes,
+            num_variables: s.num_variables,
+            num_products: s.num_products,
+            max_product_size: s.max_product_size,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct QuantificationResult {
     pub algorithm: String,
     pub approximation: Option<String>,
     pub top_event_probability: f64,
     pub cut_sets: Vec<CutSetResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub zbdd_diagnostics: Option<ZbddDiagnostics>,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,6 +264,7 @@ fn quantify_bdd(fault_tree: &FaultTree) -> Result<QuantificationResult> {
         approximation: None,
         top_event_probability: top_prob,
         cut_sets: vec![],
+        zbdd_diagnostics: None,
     })
 }
 
@@ -254,9 +277,10 @@ fn quantify_zbdd(
     prob_by_uuid: &HashMap<String, f64>,
 ) -> Result<QuantificationResult> {
     let (zbdd, root) = Zbdd::from_fault_tree(fault_tree)?;
+    let diagnostics = ZbddDiagnostics::from(zbdd.stats(root));
     let raw_cut_sets = zbdd.get_cut_sets(root, max_order);
 
-    finish_with_cut_sets(raw_cut_sets, approx, "zbdd", uuid_to_name, prob_by_uuid)
+    finish_with_cut_sets(raw_cut_sets, approx, "zbdd", uuid_to_name, prob_by_uuid, Some(diagnostics))
 }
 
 /// MOCUS: cut-set enumeration via MOCUS algorithm + approximation.
@@ -273,7 +297,7 @@ fn quantify_mocus(
     }
     let cut_sets = analyzer.analyze()?.to_vec();
 
-    finish_with_cut_sets(cut_sets, approx, "mocus", uuid_to_name, prob_by_uuid)
+    finish_with_cut_sets(cut_sets, approx, "mocus", uuid_to_name, prob_by_uuid, None)
 }
 
 /// Shared post-processing: compute probabilities, apply approximation, sort.
@@ -283,6 +307,7 @@ fn finish_with_cut_sets(
     algorithm_label: &str,
     uuid_to_name: &HashMap<String, String>,
     prob_by_uuid: &HashMap<String, f64>,
+    zbdd_diagnostics: Option<ZbddDiagnostics>,
 ) -> Result<QuantificationResult> {
     // Compute per-cut-set probabilities.
     let mut cut_set_probs: Vec<(CutSet, f64)> = raw_cut_sets
@@ -325,6 +350,7 @@ fn finish_with_cut_sets(
         approximation: Some(approx_label(approx).into()),
         top_event_probability: top_prob,
         cut_sets,
+        zbdd_diagnostics,
     })
 }
 

@@ -15,7 +15,7 @@ impl NodeIndex {
     pub fn is_terminal(self) -> bool {
         self.0 <= 1
     }
-    /// Returns the raw `usize` index value.
+
     pub fn raw(self) -> usize {
         self.0
     }
@@ -365,7 +365,6 @@ impl Bdd {
     pub fn from_gate(
         &mut self,
         gate: &Gate,
-        _var_map: &HashMap<String, usize>,
         gate_cache: &mut HashMap<String, NodeIndex>,
     ) -> NodeIndex {
         if let Some(&cached) = gate_cache.get(gate.element().id()) {
@@ -442,74 +441,112 @@ impl Bdd {
     }
 
     pub fn from_fault_tree(&mut self, fault_tree: &FaultTree) -> Result<NodeIndex> {
-        let mut var_map: HashMap<String, usize> = HashMap::new();
+        let topo = Self::topological_order(fault_tree);
+
+        let var_order = Self::order_variables(fault_tree, &topo);
+
         let mut gate_cache: HashMap<String, NodeIndex> = HashMap::new();
 
-        for (var_idx, (event_id, event)) in fault_tree.basic_events().iter().enumerate() {
-            let prob = event.probability();
-            let node = self.variable(var_idx, prob);
-
-            var_map.insert(event_id.clone(), var_idx);
-            self.variable_names.insert(var_idx, event_id.clone());
+        for (event_id, var_idx) in &var_order {
+            let event = fault_tree.basic_events().get(event_id).unwrap();
+            let node = self.variable(*var_idx, event.probability());
+            self.variable_names.insert(*var_idx, event_id.clone());
             gate_cache.insert(event_id.clone(), node);
         }
 
         for (event_id, event) in fault_tree.house_events() {
-            let node = if event.state() {
-                NodeIndex::TRUE
-            } else {
-                NodeIndex::FALSE
-            };
+            let node = if event.state() { NodeIndex::TRUE } else { NodeIndex::FALSE };
             gate_cache.insert(event_id.clone(), node);
         }
 
-        let max_passes = fault_tree.gates().len() + 1;
-        for _ in 0..max_passes {
-            let mut progress = false;
-
-            for (gate_id, gate) in fault_tree.gates() {
-                if gate_cache.contains_key(gate_id) {
-                    continue;
-                }
-
-                let all_operands_ready = gate
-                    .operands()
-                    .iter()
-                    .all(|op_id| gate_cache.contains_key(op_id));
-
-                if all_operands_ready {
-                    self.from_gate(gate, &var_map, &mut gate_cache);
-                    progress = true;
-                }
-            }
-
-            if !progress {
-                break;
-            }
+        for gate_id in &topo {
+            let gate = match fault_tree.gates().get(gate_id) {
+                Some(g) => g,
+                None => continue,
+            };
+            self.from_gate(gate, &mut gate_cache);
+            self.ite_cache.clear();
         }
 
         let top_gate_id = fault_tree.top_event();
         if top_gate_id.is_empty() {
-            Err(crate::error::PraxisError::Logic(
-                "Fault tree has no top event".to_string(),
-            ))
-        } else {
-            gate_cache.get(top_gate_id).copied().ok_or_else(|| {
-                crate::error::PraxisError::Logic(format!(
-                    "Failed to convert top event '{}' to BDD",
-                    top_gate_id
-                ))
-            })
+            return Err(crate::error::PraxisError::Logic("Fault tree has no top event".into()));
         }
+        gate_cache.get(top_gate_id).copied().ok_or_else(|| {
+            crate::error::PraxisError::Logic(format!("Failed to convert top event '{}'", top_gate_id))
+        })
     }
 
-    /// Returns `(variable, low_child, high_child)` for a non-terminal BDD node.
-    /// Returns `None` for terminal indices (FALSE=0, TRUE=1).
+    fn topological_order(fault_tree: &FaultTree) -> Vec<String> {
+        let gates = fault_tree.gates();
+        let mut order: Vec<String> = Vec::with_capacity(gates.len());
+        let mut visited: HashMap<&str, bool> = HashMap::new();
+
+        fn visit<'a>(
+            id: &'a str,
+            gates: &'a HashMap<String, Gate>,
+            visited: &mut HashMap<&'a str, bool>,
+            order: &mut Vec<String>,
+        ) {
+            if visited.contains_key(id) {
+                return;
+            }
+            visited.insert(id, true);
+            if let Some(gate) = gates.get(id) {
+                for op in gate.operands() {
+                    visit(op.as_str(), gates, visited, order);
+                }
+            }
+            if gates.contains_key(id) {
+                order.push(id.to_string());
+            }
+        }
+
+        let top = fault_tree.top_event().to_string();
+        visit(&top, gates, &mut visited, &mut order);
+
+        for gate_id in gates.keys() {
+            visit(gate_id.as_str(), gates, &mut visited, &mut order);
+        }
+
+        order
+    }
+
+    fn order_variables(fault_tree: &FaultTree, topo: &[String]) -> Vec<(String, usize)> {
+        let mut ref_count: HashMap<&str, usize> = HashMap::new();
+        for gate in fault_tree.gates().values() {
+            for op in gate.operands() {
+                if fault_tree.basic_events().contains_key(op.as_str()) {
+                    *ref_count.entry(op.as_str()).or_default() += 1;
+                }
+            }
+        }
+
+        let mut events_by_depth: Vec<(&str, usize)> = fault_tree
+            .basic_events()
+            .keys()
+            .map(|id| {
+                let depth = topo.iter().position(|g| {
+                    fault_tree.gates().get(g).map_or(false, |gate| gate.operands().contains(id))
+                }).unwrap_or(usize::MAX);
+                let refs = ref_count.get(id.as_str()).copied().unwrap_or(0);
+                (id.as_str(), depth.wrapping_mul(1000).wrapping_sub(refs))
+            })
+            .collect();
+
+        events_by_depth.sort_by_key(|&(_, score)| score);
+
+        events_by_depth
+            .into_iter()
+            .enumerate()
+            .map(|(idx, (id, _))| (id.to_string(), idx))
+            .collect()
+    }
+
     pub fn node_data(&self, idx: NodeIndex) -> Option<(usize, NodeIndex, NodeIndex)> {
         self.get_node(idx).map(|n| (n.variable, n.low, n.high))
     }
 
-    /// Returns the variable index → event id name mapping.
     pub fn variable_names(&self) -> &HashMap<usize, String> {
         &self.variable_names
     }
@@ -884,5 +921,33 @@ mod tests {
 
         assert_eq!(prime_implicants.len(), 3);
         assert!(prime_implicants.iter().all(|pi| pi.order() == 2));
+    }
+
+    #[test]
+    fn test_bdd_baobab1_faster_than_zbdd() {
+        use crate::algorithms::zbdd::Zbdd;
+        use crate::io::parser::parse_fault_tree;
+        use std::time::Instant;
+
+        let xml = include_str!("../../tests/fixtures/benchmarks/Aralia/baobab1.xml");
+        let ft = parse_fault_tree(xml).expect("parse baobab1.xml");
+
+        let t0 = Instant::now();
+        let mut bdd = Bdd::new();
+        let root = bdd.from_fault_tree(&ft).unwrap();
+        let _prob = bdd.probability(root);
+        let bdd_time = t0.elapsed();
+
+        let t1 = Instant::now();
+        let (zbdd, zroot) = Zbdd::from_fault_tree(&ft).unwrap();
+        let _mcs = zbdd.get_cut_sets(zroot, None);
+        let zbdd_time = t1.elapsed();
+
+        assert!(
+            bdd_time < zbdd_time,
+            "BDD ({:?}) should be faster than ZBDD ({:?}) for baobab1 probability-only query",
+            bdd_time,
+            zbdd_time,
+        );
     }
 }

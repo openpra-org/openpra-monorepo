@@ -9,8 +9,8 @@ export type FaultTreeNodeProps =
   | {
       isGrayed?: boolean | undefined;
       branchId?: string | undefined;
-      /** Quantification / properties for this node */
       quantification?: FaultTreeNodeQuantification;
+      canonicalId?: string;
     }
   | undefined;
 

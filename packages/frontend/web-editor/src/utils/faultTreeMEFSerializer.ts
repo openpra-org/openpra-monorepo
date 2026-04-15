@@ -151,12 +151,14 @@ function parseMEFDistribution(dist: FaultTreeDistribution): {
   }
 }
 
+// ─── Clone ID helpers ─────────────────────────────────────────────────────────
+
+function cloneDisplayId(parentDisplayId: string, childCanonicalId: string): string {
+  return `${parentDisplayId.toLowerCase()}${childCanonicalId.toLowerCase()}`;
+}
+
 // ─── Derive top-event id ──────────────────────────────────────────────────────
 
-/**
- * Returns the uuid of the root node (the node that is not a target of any edge).
- * Falls back to the first node's id if every node has an incoming edge (shouldn't happen in a valid tree).
- */
 function deriveTopEventId(nodes: Node[], edges: Edge[]): string {
   const targets = new Set(edges.map((e) => e.target));
   const root = nodes.find((n) => !targets.has(n.id));
@@ -168,26 +170,47 @@ function deriveTopEventId(nodes: Node[], edges: Edge[]): string {
 /**
  * Convert the current ReactFlow graph state to a MEF node map.
  *
- * @param nodes  - ReactFlow nodes
- * @param edges  - ReactFlow edges
- * @returns MEF node record keyed by node uuid, plus the derived topEventId
+ * Collapses display-clone IDs back to canonical MEF UUIDs on both the source
+ * and target side of every edge, then deduplicates, so the solver always sees
+ * a proper DAG with shared nodes referenced by their original UUID.
  */
 export function reactFlowToMEF(
   nodes: Node<FaultTreeNodeProps>[],
   edges: Edge[],
 ): { topEventId: string; nodes: Record<string, FaultTreeNode> } {
-  const topEventId = deriveTopEventId(nodes, edges);
+  const displayToCanonical = new Map<string, string>();
+  for (const node of nodes) {
+    displayToCanonical.set(node.id, node.data?.canonicalId ?? node.id);
+  }
+
+  const collapsedEdges: Edge[] = edges.map((e) => {
+    const src = displayToCanonical.get(e.source) ?? e.source;
+    const tgt = displayToCanonical.get(e.target) ?? e.target;
+    return { ...e, source: src, target: tgt, id: `${src}=>${tgt}` };
+  });
+
+  const seenEdgeIds = new Set<string>();
+  const dedupedEdges = collapsedEdges.filter((e) => {
+    if (seenEdgeIds.has(e.id)) return false;
+    seenEdgeIds.add(e.id);
+    return true;
+  });
+
+  const canonicalNodes = nodes.map((n) => ({ ...n, id: displayToCanonical.get(n.id) ?? n.id }));
+  const topEventId = deriveTopEventId(canonicalNodes, dedupedEdges);
+
   const mefNodes: Record<string, FaultTreeNode> = {};
 
   for (const node of nodes) {
+    const cid = displayToCanonical.get(node.id) ?? node.id;
+    if (mefNodes[cid]) continue;
+
     const q = node.data?.quantification;
     const nodeType: FaultTreeNodeType = RF_TO_MEF_TYPE[node.type ?? ""] ?? FaultTreeNodeType.BASIC_EVENT;
-
-    // Connectivity: children are all edges where this node is the source
-    const inputs = edges.filter((e) => e.source === node.id).map((e) => e.target);
+    const inputs = dedupedEdges.filter((e) => e.source === cid).map((e) => e.target);
 
     const mefNode: FaultTreeNode = {
-      uuid: node.id,
+      uuid: cid,
       nodeType,
       name: q?.name ?? "",
       ...(q?.description ? { description: q.description } : {}),
@@ -196,58 +219,136 @@ export function reactFlowToMEF(
     };
 
     if (q) {
-      // Probability type
       if (q.probabilityType) {
         mefNode.probabilityType = q.probabilityType as FaultTreeNodeProbabilityType;
       }
-
-      // Constant probability
       if (q.probabilityType === "constant" && q.constantValue !== undefined) {
         mefNode.probability = q.constantValue;
       }
-
-      // Distribution
       if (q.probabilityType === "distribution") {
         mefNode.eventType = q.eventType;
         const dist = buildMEFDistribution(q);
         if (dist) mefNode.probabilityDistribution = dist;
       }
-
-      // Bayesian network link
       if (q.probabilityType === "bayesian_network_link" && q.bayesianNetworkId !== undefined) {
         mefNode.bayesianNetworkRef = {
           networkId: q.bayesianNetworkId,
           ...(q.bayesianNetworkNodeId ? { nodeId: q.bayesianNetworkNodeId } : {}),
         };
       }
-
-      // House event
       if (q.houseEventState !== undefined) {
         mefNode.houseEventValue = q.houseEventState === "true";
       }
-
-      // Transfer gate target
       if (q.targetFaultTreeId) {
         mefNode.transferTreeId = q.targetFaultTreeId;
       }
-
-      // ATLEAST gate K value
       if (q.kValue !== undefined) {
         mefNode.kValue = q.kValue;
       }
     }
 
-    mefNodes[node.id] = mefNode;
+    mefNodes[cid] = mefNode;
   }
 
   return { topEventId, nodes: mefNodes };
 }
 
+// ─── mefToReactFlow helpers ───────────────────────────────────────────────────
+
+function buildQuantification(mefNode: FaultTreeNode): FaultTreeNodeQuantification {
+  const q: FaultTreeNodeQuantification = {
+    name: mefNode.name,
+    description: mefNode.description ?? "",
+    probabilityType: (mefNode.probabilityType as FaultTreeNodeQuantification["probabilityType"]) ?? "constant",
+  };
+
+  if (mefNode.probability !== undefined) q.constantValue = mefNode.probability;
+
+  if (mefNode.probabilityDistribution) {
+    const { distributionType, distributionParams, eventType } = parseMEFDistribution(mefNode.probabilityDistribution);
+    q.distributionType = distributionType;
+    q.distributionParams = distributionParams;
+    q.eventType = mefNode.eventType ?? eventType;
+  } else if (mefNode.eventType) {
+    q.eventType = mefNode.eventType;
+  }
+
+  if (mefNode.bayesianNetworkRef) {
+    q.bayesianNetworkId = mefNode.bayesianNetworkRef.networkId;
+    q.bayesianNetworkNodeId = mefNode.bayesianNetworkRef.nodeId;
+  }
+  if (mefNode.houseEventValue !== undefined) {
+    q.houseEventState = mefNode.houseEventValue ? "true" : "false";
+  }
+  if (mefNode.transferTreeId) q.targetFaultTreeId = mefNode.transferTreeId;
+  if (mefNode.kValue !== undefined) q.kValue = mefNode.kValue;
+
+  return q;
+}
+
+/**
+ * DFS from `canonicalUuid`, emitting one ReactFlow node + edges per visit.
+ *
+ * When a node is reached for the first time its display ID equals its canonical
+ * UUID.  Every subsequent visit (shared node) gets a fresh display ID:
+ *   `{canonicalUuid}@@{parentDisplayId}`
+ * The recursion continues into the subtree with the new display ID as context,
+ * so every descendant of a shared subtree also gets a unique display ID scoped
+ * to this branch.
+ *
+ * `visitedUnder` maps canonical UUID → display ID of the first visit.
+ * On the first visit we use that display ID; on later visits we generate a clone.
+ */
+function expandNode(
+  canonicalUuid: string,
+  parentDisplayId: string | null,
+  mefNodes: Record<string, FaultTreeNode>,
+  visitedUnder: Map<string, string>,
+  rfNodes: Node<FaultTreeNodeProps>[],
+  rfEdges: Edge[],
+): string {
+  const mefNode = mefNodes[canonicalUuid];
+  if (!mefNode) return canonicalUuid;
+
+  const firstVisitDisplayId = visitedUnder.get(canonicalUuid);
+  const isFirstVisit = firstVisitDisplayId === undefined;
+
+  const displayId = isFirstVisit ? canonicalUuid : cloneDisplayId(parentDisplayId ?? canonicalUuid, canonicalUuid);
+
+  if (isFirstVisit) visitedUnder.set(canonicalUuid, displayId);
+
+  rfNodes.push({
+    id: displayId,
+    type: MEF_TO_RF_TYPE[mefNode.nodeType] ?? BASIC_EVENT,
+    position: mefNode.position ?? { x: 0, y: 0 },
+    data: { quantification: buildQuantification(mefNode), canonicalId: canonicalUuid },
+  });
+
+  for (const childCanonicalId of mefNode.inputs ?? []) {
+    const childDisplayId = expandNode(childCanonicalId, displayId, mefNodes, visitedUnder, rfNodes, rfEdges);
+    rfEdges.push({
+      id: `${displayId}=>${childDisplayId}`,
+      source: displayId,
+      target: childDisplayId,
+      type: WORKFLOW,
+      animated: false,
+      data: {},
+    });
+  }
+
+  return displayId;
+}
+
 /**
  * Convert a MEF node map to ReactFlow nodes and edges.
  *
- * @param mefNodes - MEF node record as returned by the API
- * @returns ReactFlow `nodes` array and `edges` array ready for the store
+ * Any node (gate or leaf) referenced by more than one parent is expanded into
+ * one display clone per reference.  Each clone gets a synthetic display ID of
+ * the form `{canonicalUuid}@@{parentDisplayId}`.  The entire subtree beneath a
+ * shared gate is also cloned recursively so every branch forms a strict tree.
+ *
+ * `reactFlowToMEF` collapses all clone IDs back to canonical UUIDs on the
+ * return trip, so the solver always sees the correct shared-event DAG.
  */
 export function mefToReactFlow(mefNodes: Record<string, FaultTreeNode>): {
   nodes: Node<FaultTreeNodeProps>[];
@@ -256,68 +357,17 @@ export function mefToReactFlow(mefNodes: Record<string, FaultTreeNode>): {
   const rfNodes: Node<FaultTreeNodeProps>[] = [];
   const rfEdges: Edge[] = [];
 
-  for (const [id, mefNode] of Object.entries(mefNodes)) {
-    const q: FaultTreeNodeQuantification = {
-      name: mefNode.name,
-      description: mefNode.description ?? "",
-      probabilityType: (mefNode.probabilityType as FaultTreeNodeQuantification["probabilityType"]) ?? "constant",
-    };
-
-    // Constant probability
-    if (mefNode.probability !== undefined) {
-      q.constantValue = mefNode.probability;
-    }
-
-    // Distribution
-    if (mefNode.probabilityDistribution) {
-      const { distributionType, distributionParams, eventType } = parseMEFDistribution(mefNode.probabilityDistribution);
-      q.distributionType = distributionType;
-      q.distributionParams = distributionParams;
-      q.eventType = mefNode.eventType ?? eventType;
-    } else if (mefNode.eventType) {
-      q.eventType = mefNode.eventType;
-    }
-
-    // Bayesian network link
-    if (mefNode.bayesianNetworkRef) {
-      q.bayesianNetworkId = mefNode.bayesianNetworkRef.networkId;
-      q.bayesianNetworkNodeId = mefNode.bayesianNetworkRef.nodeId;
-    }
-
-    // House event
-    if (mefNode.houseEventValue !== undefined) {
-      q.houseEventState = mefNode.houseEventValue ? "true" : "false";
-    }
-
-    // Transfer gate
-    if (mefNode.transferTreeId) {
-      q.targetFaultTreeId = mefNode.transferTreeId;
-    }
-
-    // ATLEAST gate
-    if (mefNode.kValue !== undefined) {
-      q.kValue = mefNode.kValue;
-    }
-
-    rfNodes.push({
-      id,
-      type: MEF_TO_RF_TYPE[mefNode.nodeType] ?? BASIC_EVENT,
-      position: mefNode.position ?? { x: 0, y: 0 },
-      data: { quantification: q },
-    });
-
-    // Edges: gate node → each child
-    for (const inputId of mefNode.inputs ?? []) {
-      rfEdges.push({
-        id: `${id}=>${inputId}`,
-        source: id,
-        target: inputId,
-        type: WORKFLOW,
-        animated: false,
-        data: {},
-      });
-    }
+  // Find the top event: the node whose canonical UUID is not in any inputs list.
+  const allInputs = new Set<string>();
+  for (const n of Object.values(mefNodes)) {
+    for (const i of n.inputs ?? []) allInputs.add(i);
   }
+  const topId = Object.keys(mefNodes).find((id) => !allInputs.has(id));
+  if (!topId) return { nodes: rfNodes, edges: rfEdges };
+
+  // DFS from the top event, cloning any node encountered more than once.
+  const visitedUnder = new Map<string, string>();
+  expandNode(topId, null, mefNodes, visitedUnder, rfNodes, rfEdges);
 
   return { nodes: rfNodes, edges: rfEdges };
 }

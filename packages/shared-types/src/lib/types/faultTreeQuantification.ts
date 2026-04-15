@@ -53,6 +53,18 @@ export interface CutSetResult {
   contribution: number;
 }
 
+/** ZBDD graph diagnostics returned alongside cut-set results. */
+export interface ZbddDiagnostics {
+  /** Number of live ZBDD nodes in the diagram. */
+  numNodes: number;
+  /** Number of distinct basic-event variables. */
+  numVariables: number;
+  /** Total number of minimal cut sets (products) in the ZBDD. */
+  numProducts: number;
+  /** Maximum cut-set order present in the ZBDD. */
+  maxProductSize: number;
+}
+
 /** Returned by `POST /fault-tree/:id/quantify`. */
 export interface FaultTreeQuantificationResult {
   /** Algorithm that was used. */
@@ -66,4 +78,9 @@ export interface FaultTreeQuantificationResult {
    * Empty when `algorithm === "bdd"`.
    */
   cutSets: CutSetResult[];
+  /**
+   * ZBDD graph diagnostics.
+   * Only present when `algorithm === "zbdd"`.
+   */
+  zbddDiagnostics?: ZbddDiagnostics;
 }

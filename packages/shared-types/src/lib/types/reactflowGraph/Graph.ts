@@ -2,6 +2,7 @@ import { GraphNode } from "./GraphNode";
 import { GraphEdge } from "./GraphEdge";
 import { EventTreeData } from "./graphData/EventTreeData";
 import type { FaultTreeNode } from "mef-types/lib/systems-analysis/systems-analysis";
+import type { FunctionalEvent, EventTreeSequence } from "mef-types/lib/event-sequence-analysis/event-sequence-analysis";
 
 /**
  * Graph type with list of GraphNodes and GraphEdges
@@ -35,9 +36,19 @@ export interface FaultTreeGraph {
 /**
  * Event Tree Graph, extending Graph type with event tree id
  */
-export type EventTreeGraph = {
+export interface EventTreeGraph {
+  /** Links this graph document to the NestedModel event tree record */
   eventTreeId: string;
-} & {
+
+  /** Flattened MEF structure: Functional Events as columns */
+  functionalEvents?: Record<string, FunctionalEvent>;
+
+  /** Flattened MEF structure: Sequences as rows/paths */
+  sequences?: Record<string, EventTreeSequence>;
+
+  /** Visual metadata: ReactFlow nodes */
   nodes: GraphNode<EventTreeData>[];
+
+  /** Visual metadata: ReactFlow edges */
   edges: GraphEdge<EventTreeData>[];
-};
+}

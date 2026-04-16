@@ -20,6 +20,7 @@ export * from "./types/fmea/Row";
 export * from "./types/fmea/Fmea";
 export * from "./types/reactflowGraph/Graph";
 export * from "./types/faultTreeQuantification";
+export * from "./types/eventTreeQuantification";
 export * from "./types/reactflowGraph/GraphNode";
 export * from "./types/reactflowGraph/GraphEdge";
 export * from "./types/reactflowGraph/graphData/EventTreeData";

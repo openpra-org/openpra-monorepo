@@ -3,6 +3,7 @@ import mongoose, { Document } from "mongoose";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphData/EventTreeData";
+import type { FunctionalEvent, EventTreeSequence } from "mef-types/lib/event-sequence-analysis/event-sequence-analysis";
 
 /**
  * Graph persistence model for Event Tree diagrams.
@@ -24,6 +25,12 @@ export class EventTreeGraph {
 
   @Prop({ type: String, unique: true, required: true })
   eventTreeId: string;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  functionalEvents?: Record<string, FunctionalEvent>;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  sequences?: Record<string, EventTreeSequence>;
 }
 /**
  * Mongoose document type for EventTreeGraph.

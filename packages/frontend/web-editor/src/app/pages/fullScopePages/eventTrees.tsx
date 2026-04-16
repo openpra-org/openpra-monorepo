@@ -1,7 +1,17 @@
 import { Route, Routes, useParams } from "react-router-dom";
 import React, { ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider, useReactFlow } from "reactflow";
-import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
+import ReactFlow, {
+  Background,
+  Controls,
+  Edge,
+  Node,
+  ProOptions,
+  ReactFlowProvider,
+  useReactFlow,
+  Panel,
+  NodeMouseHandler,
+} from "reactflow";
+import { EuiPopover, useGeneratedHtmlId, EuiPanel, EuiFlexGroup, EuiFlexItem, EuiButtonIcon } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useTreeData } from "../../hooks/eventTree/useTreeData";
@@ -12,6 +22,8 @@ import "reactflow/dist/style.css";
 
 import { nodeTypes } from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
+import { EventTreePropertiesPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel";
+import { EventTreeQuantificationPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel";
 
 import useLayout from "../../hooks/eventTree/useLayout";
 import EventTreeNodeContextMenu, { TreeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
@@ -27,6 +39,8 @@ const fitViewOptions = {
   minZoom: 0.5,
   maxZoom: 2,
 };
+
+const PANEL_WIDTH = 300;
 
 // Component to handle proper fitting of the viewport
 const FitViewHandler: React.FC = (): null => {
@@ -74,6 +88,8 @@ interface CustomNodeData {
   output: boolean;
   inputDepth?: number;
   outputDepth?: number;
+  faultTreeId?: string;
+  allowAdd?: boolean;
 }
 const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
@@ -89,6 +105,9 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   const [loading, setLoading] = useState(true);
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
+
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
 
   useEffect((): void => {
     const loadGraph = async (): Promise<void> => {
@@ -117,67 +136,132 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     });
   }, []);
 
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    setSelectedNode(node);
+  }, []);
+
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback((): void => {
     setMenu(null);
     setIsOpen(false);
+    setSelectedNode(null);
   }, []);
 
-  return loading ? (
-    <LoadingCard />
-  ) : (
-    <div
-      className="react-flow-wrapper"
-      style={{ width: "100%", height: "100%", overflow: "hidden" }}
-    >
-      <ReactFlow
-        ref={ref}
-        defaultNodes={nodes}
-        defaultEdges={edges}
-        proOptions={proOptions}
-        fitView={false} // Disable automatic fit view - we'll handle it ourselves
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onPaneClick={onPaneClick}
-        onNodeContextMenu={onNodeContextMenu}
-        minZoom={0.4}
-        maxZoom={2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        zoomOnDoubleClick={false}
-        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-        deleteKeyCode={null}
-        className="react-flow-instance"
-        style={{ width: "100%", height: "100%" }}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
-      >
-        <Background />
-        <Controls showInteractive={false} />
-        <FitViewHandler />
-        <EuiPopover
-          id={headerAppPopoverId}
-          button={<span />}
-          isOpen={isOpen}
-          anchorPosition="downRight"
-          style={{
-            top: typeof menu?.top === "number" ? menu.top : undefined,
-            left: typeof menu?.left === "number" ? menu.left : undefined,
-            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-            right: typeof menu?.right === "number" ? menu.right : undefined,
-          }}
-          closePopover={onPaneClick}
+  return loading ?
+      <LoadingCard />
+    : <div style={{ position: "absolute", inset: 0, display: "flex", width: "100%", height: "100%" }}>
+        <div
+          className="react-flow-wrapper"
+          style={{ flex: 1, minWidth: 0, position: "relative", overflow: "hidden" }}
         >
-          {menu && (
-            <EventTreeNodeContextMenu
-              onClick={onPaneClick}
-              {...menu}
+          <ReactFlow
+            ref={ref}
+            defaultNodes={nodes}
+            defaultEdges={edges}
+            proOptions={proOptions}
+            fitView={false} // Disable automatic fit view - we'll handle it ourselves
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onPaneClick={onPaneClick}
+            onNodeClick={onNodeClick}
+            onNodeContextMenu={onNodeContextMenu}
+            minZoom={0.4}
+            maxZoom={2}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            zoomOnDoubleClick={false}
+            // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+            // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+            deleteKeyCode={null}
+            className="react-flow-instance"
+            style={{ width: "100%", height: "100%" }}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
+          >
+            <Background />
+            <Controls showInteractive={false} />
+            <Panel position="bottom-left">
+              <EuiFlexGroup
+                responsive={false}
+                gutterSize="s"
+                alignItems="center"
+              >
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
+                    iconType="compute"
+                    display={isQuantifyOpen ? "fill" : "base"}
+                    aria-label="quantify event tree"
+                    onClick={() => setIsQuantifyOpen((v) => !v)}
+                    title="Quantify"
+                  />
+                </EuiFlexItem>
+              </EuiFlexGroup>
+            </Panel>
+            <FitViewHandler />
+            <EuiPopover
+              id={headerAppPopoverId}
+              button={<span />}
+              isOpen={isOpen}
+              anchorPosition="downRight"
+              style={{
+                top: typeof menu?.top === "number" ? menu.top : undefined,
+                left: typeof menu?.left === "number" ? menu.left : undefined,
+                bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+                right: typeof menu?.right === "number" ? menu.right : undefined,
+              }}
+              closePopover={onPaneClick}
+            >
+              {menu && (
+                <EventTreeNodeContextMenu
+                  onClick={onPaneClick}
+                  {...menu}
+                />
+              )}
+            </EuiPopover>
+          </ReactFlow>
+        </div>
+        {/* ── Properties panel (node selected) ── */}
+        {selectedNode && eventTreeId && (
+          <EuiPanel
+            paddingSize="none"
+            style={{
+              width: PANEL_WIDTH,
+              minWidth: PANEL_WIDTH,
+              maxWidth: PANEL_WIDTH,
+              height: "100%",
+              minHeight: 0,
+              overflowY: "auto",
+              borderLeft: "1px solid #d3dae6",
+              flexShrink: 0,
+              borderRadius: 0,
+            }}
+          >
+            <EventTreePropertiesPanel
+              node={selectedNode}
+              eventTreeId={eventTreeId}
             />
-          )}
-        </EuiPopover>
-      </ReactFlow>
-    </div>
-  );
+          </EuiPanel>
+        )}
+
+        {/* ── Quantification panel ── */}
+        {isQuantifyOpen && eventTreeId && (
+          <EuiPanel
+            paddingSize="none"
+            style={{
+              width: PANEL_WIDTH,
+              minWidth: PANEL_WIDTH,
+              maxWidth: PANEL_WIDTH,
+              height: "100%",
+              minHeight: 0,
+              overflowY: "auto",
+              borderLeft: "1px solid #d3dae6",
+              flexShrink: 0,
+              borderRadius: 0,
+            }}
+          >
+            <EventTreeQuantificationPanel eventTreeId={eventTreeId!} />
+          </EuiPanel>
+        )}
+      </div>;
 };
 
 /**
@@ -214,7 +298,7 @@ export const EventTreeEditor = (): ReactElement => {
   }, []);
 
   return (
-    <div style={{ width: "100%", height: "calc(100vh - 60px)", overflow: "hidden" }}>
+    <div style={{ position: "relative", width: "100%", height: "calc(100vh - 60px)", overflow: "hidden" }}>
       <ReactFlowProvider>
         <ReactFlowPro
           nodeData={nodes}

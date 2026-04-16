@@ -100,6 +100,19 @@ export class GraphApiManager {
     return res.json() as Promise<FaultTreeQuantificationResult>;
   }
 
+  static async quantifyEventTree(
+    eventTreeId: string,
+    options: Omit<EventTreeQuantificationRequest, "graph">,
+  ): Promise<EventTreeQuantificationResult> {
+    const url = `${EventTreeGraphEndpoint}/quantify?eventTreeId=${encodeURIComponent(eventTreeId)}`;
+    const res = await fetch(url, this.getRequestInfo("POST", JSON.stringify(options)));
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(msg);
+    }
+    return res.json() as Promise<EventTreeQuantificationResult>;
+  }
+
   private static post(url: string, data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }

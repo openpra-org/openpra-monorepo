@@ -1325,6 +1325,9 @@ export interface FunctionalEvent extends Unique, Named {
 
   /** Human action reference if this functional event involves operator action */
   humanActionReference?: HumanActionReference;
+
+  /** Reference to the fault tree linked to this functional event */
+  faultTreeId?: string;
 }
 
 /**

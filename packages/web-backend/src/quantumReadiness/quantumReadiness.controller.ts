@@ -16,6 +16,8 @@ import type {
 
 import {
   QuantumExecutionArtifactRawCountsRequest,
+  type QuantumExecutionArtifactSimulatorRequest,
+  type QuantumExecutionWorkflowRequest,
   QuantumReadinessService,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
@@ -101,9 +103,27 @@ export interface QuantumExecutionArtifactRawCountsWriteRequest extends QuantumEx
   outputDir: string;
 }
 
-export interface QuantumExecutionWorkflowRunRequest extends QuantumExecutionArtifactRawCountsRequest {
+export interface QuantumExecutionRawCountsRequestBody extends QuantumExecutionArtifactRawCountsRequest {
+  inputMode?: "raw_counts";
+}
+
+export interface QuantumExecutionSimulatorRequestBody extends QuantumExecutionArtifactSimulatorRequest {
+  inputMode: "simulator_local";
+}
+
+export type QuantumExecutionRequestBody = QuantumExecutionRawCountsRequestBody | QuantumExecutionSimulatorRequestBody;
+
+export interface QuantumExecutionWorkflowRunRawCountsRequest extends QuantumExecutionRawCountsRequestBody {
   rootDir: string;
 }
+
+export interface QuantumExecutionWorkflowRunSimulatorRequest extends QuantumExecutionSimulatorRequestBody {
+  rootDir: string;
+}
+
+export type QuantumExecutionWorkflowRunRequest =
+  | QuantumExecutionWorkflowRunRawCountsRequest
+  | QuantumExecutionWorkflowRunSimulatorRequest;
 
 export interface QuantumRecoveryWorkflowRunRequest {
   rootDir: string;
@@ -130,7 +150,7 @@ export interface QuantumFullPipelineWorkflowRunRequest {
   options?: OpenPraFaultTreeReadinessOptions;
   heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
-  executionRequest?: QuantumExecutionArtifactRawCountsRequest;
+  executionRequest?: QuantumExecutionRequestBody;
   recoveryCandidateDir?: string;
   recoveryBatch?: QuantumRecoveryBatchRunInput;
 }
@@ -143,7 +163,7 @@ export interface QuantumFullPipelineWorkflowByIdRequest {
   options?: OpenPraFaultTreeReadinessOptions;
   heuristics?: OpenPraFaultTreeReadinessOptions["heuristics"];
   analysis?: OpenPraFaultTreeReadinessOptions["analysis"];
-  executionRequest?: QuantumExecutionArtifactRawCountsRequest;
+  executionRequest?: QuantumExecutionRequestBody;
   recoveryCandidateDir?: string;
   recoveryBatch?: QuantumRecoveryBatchRunInput;
 }
@@ -632,20 +652,10 @@ export class QuantumReadinessController {
   @HttpCode(HttpStatus.OK)
   createExecutionWorkflowRun(@Body() body: QuantumExecutionWorkflowRunRequest): QuantumExecutionWorkflowRunResult {
     try {
-      return this.quantumReadinessService.createExecutionWorkflowRun(body.rootDir, {
-        modelId: body.modelId,
-        subtreeId: body.subtreeId,
-        sourcePreparationArtifactId: body.sourcePreparationArtifactId,
-        providerType: body.providerType,
-        providerName: body.providerName,
-        backendName: body.backendName,
-        executionMode: body.executionMode,
-        shots: body.shots,
-        rawCounts: body.rawCounts,
-        ...(body.jobIdOrRunId ? { jobIdOrRunId: body.jobIdOrRunId } : {}),
-        ...(body.status ? { status: body.status } : {}),
-        ...(body.metadata ? { metadata: body.metadata } : {}),
-      });
+      return this.quantumReadinessService.createExecutionWorkflowRun(
+        body.rootDir,
+        this.resolveExecutionRequestBody(body),
+      );
     } catch (error) {
       throw this.toHttpException(error);
     }
@@ -698,7 +708,7 @@ export class QuantumReadinessController {
         body.graph,
         body.modelName,
         this.resolveOptions(body),
-        body.executionRequest,
+        this.resolveOptionalExecutionRequestBody(body.executionRequest),
         body.recoveryCandidateDir,
         body.recoveryBatch,
       );
@@ -719,7 +729,7 @@ export class QuantumReadinessController {
         body.subtreeId,
         body.modelName,
         this.resolveOptions(body),
-        body.executionRequest,
+        this.resolveOptionalExecutionRequestBody(body.executionRequest),
         body.recoveryCandidateDir,
         body.recoveryBatch,
       );
@@ -939,6 +949,56 @@ export class QuantumReadinessController {
       ...(body.options ?? {}),
       ...(body.heuristics !== undefined ? { heuristics: body.heuristics } : {}),
       ...(body.analysis !== undefined ? { analysis: body.analysis } : {}),
+    };
+  }
+
+  private resolveOptionalExecutionRequestBody(
+    body?: QuantumExecutionRequestBody,
+  ): QuantumExecutionWorkflowRequest | undefined {
+    if (!body) {
+      return undefined;
+    }
+
+    return this.resolveExecutionRequestBody(body);
+  }
+
+  private resolveExecutionRequestBody(body: QuantumExecutionRequestBody): QuantumExecutionWorkflowRequest {
+    if (body.inputMode === "simulator_local") {
+      return {
+        modelId: body.modelId,
+        subtreeId: body.subtreeId,
+        ...(body.sourcePreparationArtifactId ? { sourcePreparationArtifactId: body.sourcePreparationArtifactId } : {}),
+        ...(body.preparationArtifactPath ? { preparationArtifactPath: body.preparationArtifactPath } : {}),
+        ...(body.preparationArtifact ? { preparationArtifact: body.preparationArtifact } : {}),
+        shots: body.shots,
+        ...(body.samplingMode ? { samplingMode: body.samplingMode } : {}),
+        ...(body.providerName ? { providerName: body.providerName } : {}),
+        ...(body.backendName ? { backendName: body.backendName } : {}),
+        ...(body.executionMode ? { executionMode: body.executionMode } : {}),
+        ...(body.jobIdOrRunId ? { jobIdOrRunId: body.jobIdOrRunId } : {}),
+        ...(body.status ? { status: body.status } : {}),
+        ...(body.parameterSource ? { parameterSource: body.parameterSource } : {}),
+        ...(body.beta !== undefined ? { beta: body.beta } : {}),
+        ...(body.gamma !== undefined ? { gamma: body.gamma } : {}),
+        ...(body.seed !== undefined ? { seed: body.seed } : {}),
+        ...(body.metadata ? { metadata: body.metadata } : {}),
+        ...(body.notes ? { notes: body.notes } : {}),
+      };
+    }
+
+    return {
+      modelId: body.modelId,
+      subtreeId: body.subtreeId,
+      sourcePreparationArtifactId: body.sourcePreparationArtifactId,
+      providerType: body.providerType,
+      providerName: body.providerName,
+      backendName: body.backendName,
+      executionMode: body.executionMode,
+      shots: body.shots,
+      rawCounts: body.rawCounts,
+      ...(body.jobIdOrRunId ? { jobIdOrRunId: body.jobIdOrRunId } : {}),
+      ...(body.status ? { status: body.status } : {}),
+      ...(body.metadata ? { metadata: body.metadata } : {}),
     };
   }
 

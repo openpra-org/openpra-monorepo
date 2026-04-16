@@ -5,6 +5,7 @@ import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
+  buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
   buildOpenpraQuantumRecoveryBatchRollupFromBatchRoot,
   buildOpenpraQuantumRecoveryFromCandidateDir,
@@ -18,6 +19,9 @@ import {
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
+  type OpenpraQuantumLocalSimulatorParameterSource,
+  type OpenpraQuantumLocalSimulatorSamplingMode,
+  type OpenpraQuantumPreparationArtifact,
   type OpenpraQuantumPreparationArtifactBundle,
   type OpenpraQuantumPreparationArtifactFilesystemWriteResult,
   type OpenpraQuantumRecoveryBatchRollup,
@@ -45,6 +49,31 @@ export interface QuantumExecutionArtifactRawCountsRequest {
   status?: string;
   metadata?: Record<string, unknown>;
 }
+
+export interface QuantumExecutionArtifactSimulatorRequest {
+  modelId: string;
+  subtreeId: string;
+  sourcePreparationArtifactId?: string;
+  preparationArtifactPath?: string;
+  preparationArtifact?: OpenpraQuantumPreparationArtifact;
+  shots: number;
+  samplingMode?: OpenpraQuantumLocalSimulatorSamplingMode;
+  providerName?: string;
+  backendName?: string;
+  executionMode?: string;
+  jobIdOrRunId?: string;
+  status?: string;
+  parameterSource?: OpenpraQuantumLocalSimulatorParameterSource;
+  beta?: number;
+  gamma?: number;
+  seed?: number;
+  metadata?: Record<string, unknown>;
+  notes?: string[];
+}
+
+export type QuantumExecutionWorkflowRequest =
+  | QuantumExecutionArtifactRawCountsRequest
+  | QuantumExecutionArtifactSimulatorRequest;
 
 export interface QuantumRecoveryBatchRunInput {
   batchRoot: string;
@@ -463,7 +492,7 @@ export class QuantumReadinessService {
 
   createExecutionWorkflowRun(
     rootDir: string,
-    request: QuantumExecutionArtifactRawCountsRequest,
+    request: QuantumExecutionWorkflowRequest,
   ): QuantumExecutionWorkflowRunResult {
     const workflowRun = this.createWorkflowRunScaffold({
       rootDir,
@@ -473,7 +502,7 @@ export class QuantumReadinessService {
       requestedBy: "web-backend:quantumReadiness.service",
     });
 
-    const executionWrite = this.buildExecutionArtifactsFromRawCountsToFilesystem(
+    const executionWrite = this.buildExecutionArtifactsFromWorkflowRequestToFilesystem(
       request,
       workflowRun.directories.execution,
     );
@@ -542,7 +571,7 @@ export class QuantumReadinessService {
     graph?: FaultTreeGraph | Record<string, unknown>,
     modelName?: string,
     options: OpenPraFaultTreeReadinessOptions = {},
-    executionRequest?: QuantumExecutionArtifactRawCountsRequest,
+    executionRequest?: QuantumExecutionWorkflowRequest,
     recoveryCandidateDir?: string,
     recoveryBatch?: QuantumRecoveryBatchRunInput,
   ): QuantumFullPipelineWorkflowRunResult {
@@ -568,7 +597,7 @@ export class QuantumReadinessService {
     }
 
     if (executionRequest) {
-      result.executionWrite = this.buildExecutionArtifactsFromRawCountsToFilesystem(
+      result.executionWrite = this.buildExecutionArtifactsFromWorkflowRequestToFilesystem(
         executionRequest,
         workflowRun.directories.execution,
       );
@@ -599,7 +628,7 @@ export class QuantumReadinessService {
     subtreeId: string,
     modelName?: string,
     options: OpenPraFaultTreeReadinessOptions = {},
-    executionRequest?: QuantumExecutionArtifactRawCountsRequest,
+    executionRequest?: QuantumExecutionWorkflowRequest,
     recoveryCandidateDir?: string,
     recoveryBatch?: QuantumRecoveryBatchRunInput,
   ): Promise<QuantumFullPipelineWorkflowRunResult> {
@@ -1527,6 +1556,93 @@ export class QuantumReadinessService {
     return writeOpenpraQuantumExecutionArtifactBundleToFilesystem(bundle, outputDir);
   }
 
+  buildExecutionArtifactsFromSimulator(
+    request: QuantumExecutionArtifactSimulatorRequest,
+  ): OpenpraQuantumExecutionArtifactBundle {
+    const preparationArtifact = this.resolvePreparationArtifactForSimulator(request);
+
+    const simulatorResult = buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator({
+      preparationArtifact,
+      shots: request.shots,
+      ...(request.samplingMode ? { samplingMode: request.samplingMode } : {}),
+      ...(request.providerName ? { providerName: request.providerName } : {}),
+      ...(request.backendName ? { backendName: request.backendName } : {}),
+      ...(request.executionMode ? { executionMode: request.executionMode } : {}),
+      ...(request.jobIdOrRunId ? { jobIdOrRunId: request.jobIdOrRunId } : {}),
+      ...(request.status ? { status: request.status } : {}),
+      ...(request.parameterSource ? { parameterSource: request.parameterSource } : {}),
+      ...(request.beta !== undefined ? { beta: request.beta } : {}),
+      ...(request.gamma !== undefined ? { gamma: request.gamma } : {}),
+      ...(request.seed !== undefined ? { seed: request.seed } : {}),
+      ...(request.metadata ? { metadata: request.metadata } : {}),
+      ...(request.notes ? { notes: request.notes } : {}),
+    });
+
+    return this.buildExecutionArtifactsFromRawCounts(simulatorResult.executionInput);
+  }
+
+  buildExecutionArtifactsFromSimulatorToFilesystem(
+    request: QuantumExecutionArtifactSimulatorRequest,
+    outputDir: string,
+  ): OpenpraQuantumExecutionArtifactFilesystemWriteResult {
+    const bundle = this.buildExecutionArtifactsFromSimulator(request);
+
+    return writeOpenpraQuantumExecutionArtifactBundleToFilesystem(bundle, outputDir);
+  }
+
+  buildExecutionArtifactsFromWorkflowRequest(
+    request: QuantumExecutionWorkflowRequest,
+  ): OpenpraQuantumExecutionArtifactBundle {
+    return isQuantumExecutionArtifactRawCountsRequest(request) ?
+        this.buildExecutionArtifactsFromRawCounts(request)
+      : this.buildExecutionArtifactsFromSimulator(request);
+  }
+
+  buildExecutionArtifactsFromWorkflowRequestToFilesystem(
+    request: QuantumExecutionWorkflowRequest,
+    outputDir: string,
+  ): OpenpraQuantumExecutionArtifactFilesystemWriteResult {
+    return isQuantumExecutionArtifactRawCountsRequest(request) ?
+        this.buildExecutionArtifactsFromRawCountsToFilesystem(request, outputDir)
+      : this.buildExecutionArtifactsFromSimulatorToFilesystem(request, outputDir);
+  }
+
+  private resolvePreparationArtifactForSimulator(
+    request: QuantumExecutionArtifactSimulatorRequest,
+  ): OpenpraQuantumPreparationArtifact {
+    if (request.preparationArtifact) {
+      assertPreparationArtifactMatchesExecutionTarget(
+        request.preparationArtifact,
+        request.modelId,
+        request.subtreeId,
+        request.sourcePreparationArtifactId,
+      );
+
+      return request.preparationArtifact;
+    }
+
+    if (!request.preparationArtifactPath || request.preparationArtifactPath.trim().length === 0) {
+      throw new Error("Simulator execution request requires preparationArtifact or preparationArtifactPath.");
+    }
+
+    const resolvedArtifactPath = path.resolve(request.preparationArtifactPath);
+
+    if (!fs.existsSync(resolvedArtifactPath)) {
+      throw new Error(`preparationArtifactPath does not exist: ${resolvedArtifactPath}`);
+    }
+
+    const parsed = JSON.parse(fs.readFileSync(resolvedArtifactPath, "utf8")) as OpenpraQuantumPreparationArtifact;
+
+    assertPreparationArtifactMatchesExecutionTarget(
+      parsed,
+      request.modelId,
+      request.subtreeId,
+      request.sourcePreparationArtifactId,
+    );
+
+    return parsed;
+  }
+
   analyzeRecoveryCandidateDir(candidateDir: string): QuantumRecoveryLadderResult {
     return buildOpenpraQuantumRecoveryFromCandidateDir(candidateDir);
   }
@@ -1570,6 +1686,41 @@ export class QuantumReadinessService {
       outputDir: resolvedOutputDir,
       recoveryBatchRollupPath,
     };
+  }
+}
+
+function isQuantumExecutionArtifactRawCountsRequest(
+  request: QuantumExecutionWorkflowRequest,
+): request is QuantumExecutionArtifactRawCountsRequest {
+  return Object.prototype.hasOwnProperty.call(request, "rawCounts");
+}
+
+function assertPreparationArtifactMatchesExecutionTarget(
+  preparationArtifact: OpenpraQuantumPreparationArtifact,
+  modelId: string,
+  subtreeId: string,
+  sourcePreparationArtifactId?: string,
+): void {
+  if (!preparationArtifact || preparationArtifact.artifactType !== "preparation") {
+    throw new Error("Simulator execution request requires a preparation artifact.");
+  }
+
+  if (preparationArtifact.modelId !== modelId) {
+    throw new Error(
+      `Preparation artifact modelId ${preparationArtifact.modelId} does not match execution request modelId ${modelId}.`,
+    );
+  }
+
+  if (preparationArtifact.subtreeId !== subtreeId) {
+    throw new Error(
+      `Preparation artifact subtreeId ${preparationArtifact.subtreeId} does not match execution request subtreeId ${subtreeId}.`,
+    );
+  }
+
+  if (sourcePreparationArtifactId && preparationArtifact.artifactId !== sourcePreparationArtifactId) {
+    throw new Error(
+      `Preparation artifact artifactId ${preparationArtifact.artifactId} does not match sourcePreparationArtifactId ${sourcePreparationArtifactId}.`,
+    );
   }
 }
 

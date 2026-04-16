@@ -1,4 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { FaultTreeGraph } from "shared-types";
 
 import { GraphModelService } from "../graphModels/graphModel.service";
@@ -423,6 +426,80 @@ describe("QuantumReadinessController", () => {
     expect(graphModelServiceMock.getFaultTreeGraph).toHaveBeenCalledWith("stored_ft_1");
     expect(result.normalizedFaultTree.id).toBe("stored_ft_1");
     expect(result.report.summary.totalCandidateSubtrees).toBe(1);
+  });
+
+  it("runs execution workflow through simulator_local mode", () => {
+    const graph: FaultTreeGraph = {
+      faultTreeId: "controller_ft_sim_1",
+      nodes: [
+        {
+          id: "TOP",
+          type: "gate",
+          position: { x: 0, y: 0 },
+          data: {
+            label: { name: "Top Gate" },
+            gateType: "OR",
+            isTop: true,
+          },
+        },
+        {
+          id: "A",
+          type: "basicEvent",
+          position: { x: -100, y: 100 },
+          data: {
+            label: { name: "Basic Event A" },
+          },
+        },
+        {
+          id: "B",
+          type: "basicEvent",
+          position: { x: 100, y: 100 },
+          data: {
+            label: { name: "Basic Event B" },
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "e1",
+          source: "TOP",
+          target: "A",
+          type: "default",
+          data: {},
+          animated: false,
+        },
+        {
+          id: "e2",
+          source: "TOP",
+          target: "B",
+          type: "default",
+          data: {},
+          animated: false,
+        },
+      ],
+    };
+
+    const preparationBundle = controller.analyzeFaultTreeGraphPreparationArtifacts({
+      graph,
+      modelName: "Controller Simulator Graph",
+    });
+    const preparationArtifact = preparationBundle.preparationArtifacts[0];
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpra-sim-controller-"));
+
+    const result = controller.createExecutionWorkflowRun({
+      rootDir,
+      inputMode: "simulator_local",
+      modelId: "controller_ft_sim_1",
+      subtreeId: "TOP",
+      sourcePreparationArtifactId: preparationArtifact.artifactId,
+      preparationArtifact,
+      shots: 7,
+      samplingMode: "synthetic_exact_mcs",
+    });
+
+    expect(JSON.parse(fs.readFileSync(result.workflowRun.manifestPath, "utf8")).workflowKind).toBe("execution");
+    expect(fs.existsSync(result.executionWrite.executionArtifactPath)).toBe(true);
+    expect(fs.existsSync(result.executionWrite.provenanceManifestPath)).toBe(true);
   });
 
   it("exports preparation payloads by id", async () => {

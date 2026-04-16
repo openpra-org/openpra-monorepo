@@ -16,3 +16,4 @@ export * from "./openpra-quantum-recovery-filesystem";
 export * from "./openpra-fault-tree-graph-adapter";
 export * from "./openpra-fault-tree-graph-heuristics";
 export * from "./openpra-fault-tree-readiness";
+export * from "./openpra-quantum-simulator-provider";

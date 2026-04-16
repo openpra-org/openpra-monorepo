@@ -3,6 +3,7 @@ import React, { ReactElement, useCallback, useEffect, useRef, useState } from "r
 import ReactFlow, {
   Background,
   Controls,
+  ControlButton,
   Edge,
   Node,
   ProOptions,
@@ -11,7 +12,15 @@ import ReactFlow, {
   Panel,
   NodeMouseHandler,
 } from "reactflow";
-import { EuiPopover, useGeneratedHtmlId, EuiPanel, EuiFlexGroup, EuiFlexItem, EuiButtonIcon } from "@elastic/eui";
+import {
+  EuiPopover,
+  useGeneratedHtmlId,
+  EuiPanel,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiButtonIcon,
+  EuiIcon,
+} from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useTreeData } from "../../hooks/eventTree/useTreeData";
@@ -22,7 +31,6 @@ import "reactflow/dist/style.css";
 
 import { nodeTypes } from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
-import { EventTreePropertiesPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel";
 import { EventTreeQuantificationPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel";
 
 import useLayout from "../../hooks/eventTree/useLayout";
@@ -106,7 +114,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
 
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
 
   useEffect((): void => {
@@ -136,15 +143,9 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     });
   }, []);
 
-  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
-    setSelectedNode(node);
-  }, []);
-
-  // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback((): void => {
     setMenu(null);
     setIsOpen(false);
-    setSelectedNode(null);
   }, []);
 
   return loading ?
@@ -163,7 +164,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onPaneClick={onPaneClick}
-            onNodeClick={onNodeClick}
             onNodeContextMenu={onNodeContextMenu}
             minZoom={0.4}
             maxZoom={2}
@@ -219,28 +219,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             </EuiPopover>
           </ReactFlow>
         </div>
-        {/* ── Properties panel (node selected) ── */}
-        {selectedNode && eventTreeId && (
-          <EuiPanel
-            paddingSize="none"
-            style={{
-              width: PANEL_WIDTH,
-              minWidth: PANEL_WIDTH,
-              maxWidth: PANEL_WIDTH,
-              height: "100%",
-              minHeight: 0,
-              overflowY: "auto",
-              borderLeft: "1px solid #d3dae6",
-              flexShrink: 0,
-              borderRadius: 0,
-            }}
-          >
-            <EventTreePropertiesPanel
-              node={selectedNode}
-              eventTreeId={eventTreeId}
-            />
-          </EuiPanel>
-        )}
 
         {/* ── Quantification panel ── */}
         {isQuantifyOpen && eventTreeId && (

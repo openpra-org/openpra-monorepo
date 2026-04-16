@@ -3,6 +3,10 @@ import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
+import type {
+  EventTreeQuantificationRequest,
+  EventTreeQuantificationResult,
+} from "shared-types/src/lib/types/eventTreeQuantification";
 import { AuthService } from "./AuthService";
 
 const ApiEndpoint = "/api";

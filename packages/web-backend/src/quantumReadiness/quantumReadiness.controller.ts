@@ -18,6 +18,8 @@ import type {
   OpenPraQuantumCanonicalBoundedReportResult,
   OpenPraQuantumWs6CanonicalExecutionReportLoadResult,
   OpenPraQuantumWs6CanonicalExecutionReportResult,
+  OpenPraQuantumCanonicalProgramReportLoadResult,
+  OpenPraQuantumCanonicalProgramReportResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -48,6 +50,8 @@ import {
   type QuantumLoadLatestCanonicalBoundedReportRequest,
   type QuantumWs6CanonicalExecutionReportRequest,
   type QuantumLoadLatestWs6CanonicalExecutionReportRequest,
+  type QuantumCanonicalProgramReportRequest,
+  type QuantumLoadLatestCanonicalProgramReportRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -250,6 +254,11 @@ export interface QuantumWs6CanonicalExecutionReportRequestBody extends QuantumWs
 
 export interface QuantumLoadLatestWs6CanonicalExecutionReportRequestBody
   extends QuantumLoadLatestWs6CanonicalExecutionReportRequest {}
+
+export interface QuantumCanonicalProgramReportRequestBody extends QuantumCanonicalProgramReportRequest {}
+
+export interface QuantumLoadLatestCanonicalProgramReportRequestBody
+  extends QuantumLoadLatestCanonicalProgramReportRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -706,6 +715,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumWs6CanonicalExecutionReportLoadResult {
     try {
       return this.quantumReadinessService.loadLatestWs6CanonicalExecutionReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/canonical-program-report")
+  @HttpCode(HttpStatus.OK)
+  buildCanonicalProgramReport(
+    @Body() body: QuantumCanonicalProgramReportRequestBody,
+  ): OpenPraQuantumCanonicalProgramReportResult {
+    try {
+      return this.quantumReadinessService.buildCanonicalProgramReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/canonical-program-report/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestCanonicalProgramReport(
+    @Body() body: QuantumLoadLatestCanonicalProgramReportRequestBody,
+  ): OpenPraQuantumCanonicalProgramReportLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestCanonicalProgramReport(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

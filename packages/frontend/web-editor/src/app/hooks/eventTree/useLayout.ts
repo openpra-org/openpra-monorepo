@@ -9,7 +9,6 @@ interface EventTreeNodeData {
   depth: number;
   label: string;
   isSequenceId?: boolean;
-  isFrequencyNode?: boolean;
 }
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
@@ -73,27 +72,16 @@ function layoutNodes(
     }
   });
 
-  // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
   const regularCols = cols.filter((col) => col.type === "columnNode");
 
-  // First, align all output nodes to their correct columns
   nodes.forEach((node) => {
     if (node.type === "outputNode") {
-      // Find which output node this is by checking properties
       if (node.data.isSequenceId) {
-        // Sequence ID - should align with the sequence ID column
         const seqIdCol = regularCols.find((col) => col.data.label === "Sequence ID");
         if (seqIdCol) {
           node.position.x = seqIdCol.position.x;
         }
-      } else if (node.data.isFrequencyNode) {
-        // Frequency node - should align with the Frequency column
-        const freqCol = regularCols.find((col) => col.data.label === "Frequency");
-        if (freqCol) {
-          node.position.x = freqCol.position.x;
-        }
       } else if (node.data.label.includes("Category")) {
-        // Release Category node - should align with the Release Category column
         const catCol = regularCols.find((col) => col.data.label === "Release Category");
         if (catCol) {
           node.position.x = catCol.position.x;

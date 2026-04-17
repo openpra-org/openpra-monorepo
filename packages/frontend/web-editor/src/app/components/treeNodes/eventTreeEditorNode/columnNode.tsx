@@ -1,19 +1,10 @@
-import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
-import React, { memo, useState } from "react";
-import { EuiTextArea } from "@elastic/eui";
+import { NodeProps, Position, Handle } from "reactflow";
+import { memo } from "react";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
-import { setFirstColumnLabel } from "./outputNode";
+import { EuiTextArea } from "@elastic/eui";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
-
-const getInitials = (str: string): string => {
-  return str
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-};
 
 export interface ColumnNodeData {
   label: string;
@@ -25,65 +16,16 @@ export interface ColumnNodeData {
   hideText?: boolean;
   isSequenceId?: boolean;
   faultTreeId?: string;
+  faultTreeLabel?: string;
+  frequency?: number;
 }
 
 function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
   const onClickAddColumn = useCreateColClick(id);
   const onClickDeleteColumn = useDeleteColClick(id);
   const { allowAdd } = data;
-  const [textareaValue, setTextareaValue] = useState<string>(data.label);
-  const { setNodes } = useReactFlow<ColumnNodeData, unknown>();
-
-  const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>): void => {
-    const newValue = event.target.value;
-    setTextareaValue(newValue);
-
-    // If this is the first column (depth === 1), update all sequence IDs
-    if (data.depth === 1) {
-      const newInitials = getInitials(newValue);
-      setFirstColumnLabel(newValue);
-
-      // Update all sequence IDs with new initials
-      setNodes((nodes: Node<ColumnNodeData>[]) =>
-        nodes.map((node) => {
-          if (node.type === "outputNode" && node.data.isSequenceId) {
-            // Extract the trailing number from the existing sequence ID
-            const match = node.data.label.match(/-(\d+)$/);
-            const currentNum = match ? Number.parseInt(match[1], 10) : 1;
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                label: `${newInitials}-${String(currentNum)}`,
-              },
-            };
-          }
-          return node;
-        }),
-      );
-    }
-
-    setNodes((nodes: Node<ColumnNodeData>[]) =>
-      nodes.map((node) =>
-        node.id === id ?
-          {
-            ...node,
-            data: {
-              ...node.data,
-              label: newValue,
-            },
-          }
-        : node,
-      ),
-    );
-  };
-
-  // useEffect(() => {
-  //   updateNodeInternals(id);
-  // }, [textareaValue, updateNodeInternals, id]);
 
   const canShowDeleteButton = (): boolean => {
-    // Updated condition: Allow deletion for functional events (including the first one)
     return !data.output && data.depth !== 1 && Boolean(data.allowDelete);
   };
 
@@ -95,15 +37,11 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
         type="target"
         position={Position.Left}
         id="a"
-        style={{
-          position: "absolute",
-          top: "100%",
-          left: "1%",
-          visibility: "hidden",
-        }}
+        style={{ position: "absolute", top: "100%", left: "1%", visibility: "hidden" }}
       />
 
       <div
+        className={!data.output ? css.clickableColumn : undefined}
         style={{
           visibility: data.hideText ? "hidden" : "visible",
           borderColor: "white",
@@ -116,106 +54,100 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
           minHeight: 30,
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
           position: "relative",
           left: "50%",
           transform: "translateX(-50%)",
         }}
       >
-        <div
+        <EuiTextArea
+          readOnly
+          value={data.label}
           style={{
-            display: "flex",
+            fontSize: "0.6rem",
+            background: "transparent",
+            border: "none",
+            padding: "4px",
             width: "100%",
-            position: "relative",
+            maxWidth: "100px",
+            outline: "none",
+            textAlign: "center",
+            cursor: data.output ? "default" : "pointer",
           }}
-        >
+          compressed={true}
+          resize="none"
+          rows={1}
+          cols={1}
+        />
+
+        {data.allowAdd && !data.output && (
           <div
             style={{
+              fontSize: "0.55rem",
+              color: data.faultTreeId ? "#006BB4" : "#98a2b3",
+              textAlign: "center",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: "100px",
+              padding: "2px 4px",
+              borderTop: "1px solid #e9edf2",
               width: "100%",
+              fontStyle: data.faultTreeId ? "normal" : "italic",
+            }}
+            title={data.faultTreeId ? (data.faultTreeLabel ?? data.faultTreeId) : "No fault tree linked"}
+          >
+            {data.faultTreeId ? (data.faultTreeLabel ?? data.faultTreeId) : "—"}
+          </div>
+        )}
+
+        {hasButtons && (
+          <div
+            className={css.columnButtons}
+            style={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: "row",
+              gap: "6px",
               alignItems: "center",
               justifyContent: "center",
-              position: "relative",
-              left:
-                allowAdd && canShowDeleteButton() ? "-10px"
-                : allowAdd ? "-5px"
-                : "0",
+              marginTop: "2px",
             }}
           >
-            <EuiTextArea
-              onChange={handleTextareaChange}
-              value={textareaValue}
-              style={{
-                fontSize: "0.6rem",
-                background: "transparent",
-                border: "none",
-                padding: "4px",
-                width: "100%",
-                maxWidth: "100px",
-                outline: "none",
-                textAlign: "center",
-              }}
-              compressed={true}
-              resize="none"
-              rows={1}
-              cols={1}
-            />
+            {allowAdd && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClickAddColumn();
+                }}
+                className={css.addNodeButtonText}
+                role="button"
+                style={{ padding: "0 2px", cursor: "pointer" }}
+              >
+                +
+              </span>
+            )}
+            {canShowDeleteButton() && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClickDeleteColumn();
+                }}
+                className={css.deleteNodeButtonText}
+                role="button"
+                style={{ padding: "0 2px", cursor: "pointer", marginLeft: 0 }}
+              >
+                −
+              </span>
+            )}
           </div>
-
-          {hasButtons && (
-            <div
-              className={css.columnButtons}
-              style={{
-                position: "absolute",
-                right: "2px", // Adjusted right position
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
-                gap: "1px", // Reduced gap between buttons
-                alignItems: "center",
-              }}
-            >
-              {allowAdd && (
-                <span
-                  onClick={onClickAddColumn}
-                  className={css.addNodeButtonText}
-                  role="button"
-                  style={{
-                    padding: "0 2px",
-                    cursor: "pointer",
-                  }}
-                >
-                  +
-                </span>
-              )}
-              {canShowDeleteButton() && (
-                <span
-                  onClick={onClickDeleteColumn}
-                  className={css.deleteNodeButtonText}
-                  role="button"
-                  style={{
-                    padding: "0 2px",
-                    cursor: "pointer",
-                  }}
-                >
-                  −
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       <Handle
         type="source"
         position={Position.Right}
         id="b"
-        style={{
-          position: "absolute",
-          top: "100%",
-          right: "-1%",
-          visibility: "hidden",
-        }}
+        style={{ position: "absolute", top: "100%", right: "-1%", visibility: "hidden" }}
       />
     </>
   );

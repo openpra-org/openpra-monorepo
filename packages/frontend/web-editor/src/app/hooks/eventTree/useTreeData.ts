@@ -1,7 +1,5 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { ScientificNotation } from "../../../utils/scientificNotation";
-import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
@@ -34,12 +32,10 @@ export const createEndStates = (
   leafNode: Node,
   nodeWidth: number,
   pos: { x: number; y: number },
-  isDefaultNode = false, // Add new parameter to identify default nodes
 ): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
-  // Sequence ID Node
   const sequenceIdNode = GenerateUUID();
   nodes.push({
     id: sequenceIdNode,
@@ -55,33 +51,6 @@ export const createEndStates = (
     animated: false,
   });
 
-  // Frequency Node
-  const frequencyNode = GenerateUUID();
-  const frequencyValue = isDefaultNode ? 0.5 : 0.0;
-  nodes.push({
-    id: frequencyNode,
-    type: "outputNode",
-    data: {
-      label: ScientificNotation.toScientific(frequencyValue),
-      frequency: frequencyValue,
-      width: nodeWidth,
-      isFrequencyNode: true,
-      isDefaultNode: isDefaultNode,
-    },
-    position: pos,
-  });
-  edges.push({
-    id: `${sequenceIdNode}-${frequencyNode}`,
-    source: sequenceIdNode,
-    target: frequencyNode,
-    type: "custom",
-    animated: false,
-    data: {
-      hidden: true,
-    },
-  });
-
-  // Release Category Node
   const releaseCategoryNode = GenerateUUID();
   nodes.push({
     id: releaseCategoryNode,
@@ -90,8 +59,8 @@ export const createEndStates = (
     position: pos,
   });
   edges.push({
-    id: `${frequencyNode}-${releaseCategoryNode}`,
-    source: frequencyNode,
+    id: `${sequenceIdNode}-${releaseCategoryNode}`,
+    source: sequenceIdNode,
     target: releaseCategoryNode,
     type: "custom",
     animated: false,
@@ -165,8 +134,6 @@ const useTreeData = (
           id: leftChildId,
           type: "visibleNode",
           data: {
-            label: `Success`,
-            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -181,8 +148,6 @@ const useTreeData = (
           id: rightChildId,
           type: "visibleNode",
           data: {
-            label: `Failure`,
-            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -199,6 +164,7 @@ const useTreeData = (
           target: leftChildId,
           type: "custom",
           animated: false,
+          data: { branchState: "bypass" },
         };
         const edgeRight: Edge = {
           id: `${parent.id}-${rightChildId}`,
@@ -206,6 +172,7 @@ const useTreeData = (
           target: rightChildId,
           type: "custom",
           animated: false,
+          data: { branchState: "bypass" },
         };
         edges.push(edgeLeft);
         edges.push(edgeRight);
@@ -216,22 +183,15 @@ const useTreeData = (
 
     // Add end states for each leaf node
     prevNodes.forEach((leafNode) => {
-      const { nodes: endNodes, edges: endEdges } = createEndStates(
-        leafNode,
-        nodeWidth,
-        {
-          x: leafNode.position.x,
-          y: leafNode.position.y, // Automatically aligned relative to leaf node
-        },
-        true,
-      );
+      const { nodes: endNodes, edges: endEdges } = createEndStates(leafNode, nodeWidth, {
+        x: leafNode.position.x,
+        y: leafNode.position.y,
+      });
       nodes.push(...endNodes);
       edges.push(...endEdges);
     });
 
-    // Apply frequency calculation to all nodes
-    const calculatedNodes = recalculateFrequencies(nodes, edges);
-    return { nodes: calculatedNodes, edges };
+    return { nodes, edges };
   };
 
   // Function to generate column nodes and edges
@@ -264,14 +224,11 @@ const useTreeData = (
       const nodeId = GenerateUUID();
       let nodeLabel = "";
 
-      // Determine the label for each column
       if (column <= inputLevels) {
         nodeLabel = `Functional Event`;
       } else {
-        if (column === verticalLevels - 2) {
+        if (column === verticalLevels - 1) {
           nodeLabel = `Sequence ID`;
-        } else if (column === verticalLevels - 1) {
-          nodeLabel = `Frequency`;
         } else if (column === verticalLevels) {
           nodeLabel = `Release Category`;
         }
@@ -314,14 +271,32 @@ const useTreeData = (
     return { nodes, edges };
   };
 
-  // Generate tree nodes and edges
   const { nodes: generatedTreeNodes, edges: treeEdges } = generateTreeNodesAndEdges();
-
-  // Generate column nodes and edges
   const { nodes: generatedColNodes, edges: colEdges } = generateColNodesAndEdges();
 
+  const depthToColId: Record<number, string> = {};
+  generatedColNodes.forEach((col) => {
+    const d = (col.data as Record<string, unknown>).depth as number | undefined;
+    const allowAdd = (col.data as Record<string, unknown>).allowAdd as boolean | undefined;
+    const output = (col.data as Record<string, unknown>).output as boolean | undefined;
+    if (d && allowAdd && !output) depthToColId[d] = col.id;
+  });
+
+  const nodeDepthMap: Record<string, number> = {};
+  generatedTreeNodes.forEach((n) => {
+    const d = (n.data as Record<string, unknown>).depth as number | undefined;
+    if (d) nodeDepthMap[n.id] = d;
+  });
+
+  const patchedTreeEdges = treeEdges.map((edge) => {
+    const targetDepth = nodeDepthMap[edge.target];
+    const feId = targetDepth ? depthToColId[targetDepth] : undefined;
+    if (!feId) return edge;
+    return { ...edge, data: { ...(edge.data as object), feId } };
+  });
+
   const nodes = [...generatedTreeNodes, ...generatedColNodes];
-  const edges = [...treeEdges, ...colEdges];
+  const edges = [...patchedTreeEdges, ...colEdges];
 
   return { nodes, edges };
 };

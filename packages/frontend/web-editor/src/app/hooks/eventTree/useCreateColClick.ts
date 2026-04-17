@@ -1,14 +1,14 @@
-//
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 // Minimal data shape used by Event Tree nodes in this hook
 interface EventTreeNodeData {
-  label: string;
+  label?: string;
   depth: number;
   width: number;
   output?: boolean;
@@ -16,6 +16,7 @@ interface EventTreeNodeData {
   allowDelete?: boolean;
   inputDepth?: number;
   outputDepth?: number;
+  isSequenceId?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
+  const functionalEvents = useEventTreeStore((s) => s.functionalEvents);
 
   const addCol: () => void = () => {
     // Get current nodes and edges
@@ -84,6 +86,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
     const clickedNodeEdge = edges.find((edge) => edge.source === clickedNodeId);
 
     const clickedDepth = clickedNode.data.depth;
+    const newColNodeId = GenerateUUID();
 
     // Determine the last index of the nodes with the previous depth
     nodes.forEach((node, index) => {
@@ -91,6 +94,9 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
         lastIndexOfPrevDepth = index;
       } else if (node.data.depth > clickedDepth) {
         node.data.depth = node.data.depth + 1;
+        if (node.type === "visibleNode" && node.data.isSequenceId) {
+          node.data.isSequenceId = false;
+        }
       }
     });
 
@@ -102,7 +108,6 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
           id: newNodeId,
           type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
-            label: "New Node",
             depth: clickedDepth + 1,
             width: node.data.width,
           },
@@ -119,12 +124,14 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
 
         edges.forEach((edge) => {
           if (edge.source === node.id) {
+            const oldData = edge.data as { branchState?: string; feId?: string } | undefined;
             newEdges.push({
               id: `${newNodeId}-${edge.target}`,
               source: newNodeId,
               target: edge.target,
               type: "custom",
               animated: false,
+              data: { branchState: oldData?.branchState ?? "bypass", feId: oldData?.feId },
             });
           }
         });
@@ -134,14 +141,12 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
           target: newNodeId,
           type: "custom",
           animated: false,
+          data: { branchState: "bypass", feId: newColNodeId },
         });
 
         edges = edges.filter((e) => e.source !== node.id);
       }
     });
-
-    // Create a new "columnNode" and determine its insertion point
-    const newColNodeId = GenerateUUID();
 
     const newColNode: Node<EventTreeNodeData> = {
       id: newColNodeId,
@@ -218,6 +223,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
       eventTreeId: eventTreeId,
       nodes: updatedNodes,
       edges: edges,
+      functionalEvents,
     });
 
     void GraphApiManager.storeEventTree(eventTreeCurrentState).then(() => {

@@ -1,4 +1,5 @@
 import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import type { FunctionalEvent, EventTreeSequence } from "mef-types/lib/event-sequence-analysis/event-sequence-analysis";
 import { reactFlowToMEF } from "./faultTreeMEFSerializer";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
@@ -14,6 +15,10 @@ import {
 import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { FaultTreeNodeProps } from "../app/components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { BASIC_EVENT, WORKFLOW } from "./constants";
+import type { ColumnNodeData } from "../app/components/treeNodes/eventTreeEditorNode/columnNode";
+import type { VisibleNodeData } from "../app/components/treeNodes/eventTreeEditorNode/visibleNode";
+import type { OutputNodeData } from "../app/components/treeNodes/eventTreeEditorNode/outputNode";
+import type { EventTreeEdgeData } from "../app/components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 /**
  * Function to generate a new & random UUID
@@ -39,6 +44,7 @@ export type FaultTreeStateType = {
  */
 export type EventTreeStateType = {
   eventTreeId: string;
+  functionalEvents?: Record<string, FunctionalEvent>;
 } & BaseGraphState;
 
 /**
@@ -98,11 +104,167 @@ export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType
  * @param state - Object containing eventTreeId, nodes, and edges.
  * @returns A normalized EventTreeGraph snapshot.
  */
-export const EventTreeState = ({ eventTreeId, nodes, edges }: EventTreeStateType): EventTreeGraph => ({
-  eventTreeId: eventTreeId,
-  nodes: getNodes(nodes),
-  edges: getEdges(edges),
-});
+export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: EventTreeStateType): EventTreeGraph => {
+  const recomputedEdges = recomputeBranchStates(nodes, edges);
+  const sanitizedNodes = nodes.map((n) => {
+    if (n.type !== "outputNode") return n;
+    const { sequenceId: _sq, ...rest } = n.data as VisibleNodeData & { sequenceId?: string };
+    return { ...n, data: rest };
+  });
+
+  const derivedFunctionalEvents: Record<string, FunctionalEvent> = {};
+  nodes.forEach((n) => {
+    if (n.type !== "columnNode") return;
+    const d = n.data as ColumnNodeData;
+    if (!d.allowAdd || d.output) return;
+    derivedFunctionalEvents[n.id] = {
+      uuid: n.id,
+      name: d.label ?? n.id,
+      order: d.depth,
+      ...(d.faultTreeId ? { faultTreeId: d.faultTreeId } : {}),
+      ...(functionalEvents?.[n.id] ? functionalEvents[n.id] : {}),
+    };
+  });
+
+  let initiatingEventId: string | undefined;
+  nodes.forEach((n) => {
+    if (n.type !== "columnNode") return;
+    const d = n.data as ColumnNodeData;
+    if (d.depth === 1 && !d.allowAdd) initiatingEventId = n.id;
+  });
+
+  const sequences = enumerateMefSequences(nodes, recomputedEdges);
+
+  return {
+    eventTreeId,
+    ...(initiatingEventId ? { initiatingEventId } : {}),
+    nodes: getNodes(sanitizedNodes),
+    edges: getEdges(recomputedEdges),
+    ...(Object.keys(derivedFunctionalEvents).length > 0 ? { functionalEvents: derivedFunctionalEvents } : {}),
+    ...(Object.keys(sequences).length > 0 ? { sequences } : {}),
+  };
+};
+
+function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
+  const depthToCol: Record<number, { id: string; ftLinked: boolean }> = {};
+  nodes.forEach((n) => {
+    if (n.type !== "columnNode") return;
+    const d = n.data as ColumnNodeData;
+    if (d.depth && d.allowAdd && !d.output) depthToCol[d.depth] = { id: n.id, ftLinked: Boolean(d.faultTreeId) };
+  });
+
+  const nodeInfo: Record<string, { depth: number; y: number }> = {};
+  nodes.forEach((n) => {
+    if (n.type === "columnNode") return;
+    const depth = (n.data as VisibleNodeData).depth;
+    if (depth) nodeInfo[n.id] = { depth, y: n.position.y };
+  });
+
+  const groups: Record<string, { edgeId: string; targetY: number }[]> = {};
+  edges.forEach((e) => {
+    const tgt = nodeInfo[e.target];
+    if (!nodeInfo[e.source] || !tgt) return;
+    const key = `${e.source}:${tgt.depth}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ edgeId: e.id, targetY: tgt.y });
+  });
+
+  const updates: Record<string, { branchState: string; feId?: string }> = {};
+  Object.entries(groups).forEach(([key, list]) => {
+    const targetDepth = Number(key.split(":")[1]);
+    const col = depthToCol[targetDepth];
+    const sorted = [...list].sort((a, b) => a.targetY - b.targetY);
+    sorted.forEach(({ edgeId }, idx) => {
+      updates[edgeId] = {
+        branchState:
+          !col?.ftLinked ? "bypass"
+          : idx === 0 ? "success"
+          : "failure",
+        ...(col ? { feId: col.id } : {}),
+      };
+    });
+  });
+
+  const bypassLeafEdges = new Set<string>();
+  edges.forEach((e) => {
+    if (nodeInfo[e.source] && !nodeInfo[e.target] && !updates[e.id]) {
+      bypassLeafEdges.add(e.id);
+    }
+  });
+
+  return edges.map((e) => {
+    const u = updates[e.id];
+    if (u) return { ...e, data: { ...(e.data as object), ...u } };
+    if (bypassLeafEdges.has(e.id)) return { ...e, data: { branchState: "bypass" } };
+    return e;
+  });
+}
+
+function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, EventTreeSequence> {
+  const nodeMap: Record<string, Node> = {};
+  nodes.forEach((n) => {
+    nodeMap[n.id] = n;
+  });
+
+  type AdjEntry = { targetId: string; branchState?: string; feId?: string; hidden?: boolean };
+  const adjacency: Record<string, AdjEntry[]> = {};
+  edges.forEach((e) => {
+    if (!adjacency[e.source]) adjacency[e.source] = [];
+    const d: EventTreeEdgeData = (e.data as EventTreeEdgeData) ?? {};
+    adjacency[e.source].push({
+      targetId: e.target,
+      branchState: d.branchState as string | undefined,
+      feId: d.feId as string | undefined,
+      hidden: d.hidden as boolean | undefined,
+    });
+  });
+
+  const root = nodes.find(
+    (n) => (n.type === "visibleNode" || n.type === "invisibleNode") && (n.data as VisibleNodeData).depth === 1,
+  );
+  if (!root) return {};
+
+  const sequences: Record<string, EventTreeSequence> = {};
+
+  function dfs(nodeId: string, fes: Record<string, "SUCCESS" | "FAILURE">): void {
+    for (const child of adjacency[nodeId] ?? []) {
+      if (child.hidden) continue;
+      const target = nodeMap[child.targetId];
+      if (!target) continue;
+
+      if (target.type === "outputNode") {
+        const td = target.data as OutputNodeData;
+        if (td.isSequenceId) {
+          let endState = "SUCCESSFUL_MITIGATION";
+          for (const next of adjacency[child.targetId] ?? []) {
+            const nextNode = nodeMap[next.targetId];
+            if (nextNode && next.hidden) {
+              const label = (nextNode.data as OutputNodeData).label;
+              if (label) endState = String(label);
+              break;
+            }
+          }
+          sequences[child.targetId] = {
+            uuid: child.targetId,
+            name: String((td.label as string) ?? child.targetId),
+            functionalEventStates: { ...fes },
+            endState,
+          };
+        }
+        continue;
+      }
+
+      const nextFes = { ...fes };
+      if (child.feId && (child.branchState === "success" || child.branchState === "failure")) {
+        nextFes[child.feId] = child.branchState === "success" ? "SUCCESS" : "FAILURE";
+      }
+      dfs(child.targetId, nextFes);
+    }
+  }
+
+  dfs(root.id, {});
+  return sequences;
+}
 
 /**
  * Map Node[] to GraphNode[]

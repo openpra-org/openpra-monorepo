@@ -3,6 +3,7 @@ import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 interface EventTreeNodeData {
   depth?: number;
@@ -24,6 +25,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
+  const functionalEvents = useEventTreeStore((s) => s.functionalEvents);
 
   const deleteNode: () => void = () => {
     const nodes = getNodes() as Node<EventTreeNodeData>[];
@@ -147,6 +149,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]): () => void {
         eventTreeId,
         nodes: getNodes(),
         edges: getEdges(),
+        functionalEvents,
       }),
     );
   };

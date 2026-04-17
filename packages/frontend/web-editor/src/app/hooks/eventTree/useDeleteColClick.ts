@@ -4,6 +4,7 @@ import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { EventTreeState } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
  * Delete an empty functional-event column and rewire connections in the Event Tree.
@@ -19,6 +20,7 @@ function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
+  const functionalEvents = useEventTreeStore((s) => s.functionalEvents);
 
   interface EventTreeNodeData {
     depth: number;
@@ -122,6 +124,7 @@ function useDeleteColClick(clickedColumnId: string): () => void {
         eventTreeId,
         nodes: currentNodes,
         edges: currentEdges,
+        functionalEvents,
       }),
     );
   };

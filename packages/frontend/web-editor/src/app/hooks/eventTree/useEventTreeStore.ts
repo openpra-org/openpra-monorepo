@@ -1,23 +1,24 @@
 import { create } from "zustand";
 import { Node, Edge } from "reactflow";
 import { getInitials } from "./useTreeData";
+import type { FunctionalEvent } from "mef-types/lib/event-sequence-analysis/event-sequence-analysis";
 
 interface EventTreeNodeData {
   label: string;
   isSequenceId?: boolean;
 }
 
-// Define store type
 interface EventTreeState {
   nodes: Node<EventTreeNodeData>[];
   edges: Edge[];
   firstColumnLabel: string;
   setFirstColumnLabel: (label: string, final?: boolean) => void;
-  probability: number;
-  frequency: number;
+  functionalEvents: Record<string, FunctionalEvent>;
   setNodes: (nodes: Node<EventTreeNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
   updateNode: (id: string, newData: Partial<Node<EventTreeNodeData>["data"]>) => void;
+  setFunctionalEvent: (nodeId: string, fe: FunctionalEvent) => void;
+  setFunctionalEvents: (fes: Record<string, FunctionalEvent>) => void;
 }
 
 /**
@@ -31,8 +32,7 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
   nodes: [],
   edges: [],
   firstColumnLabel: "Initiating Event",
-  probability: 1.0,
-  frequency: 0.0,
+  functionalEvents: {},
 
   setFirstColumnLabel: (label: string, final = false): void => {
     set((state: EventTreeState): Partial<EventTreeState> => {
@@ -79,14 +79,13 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
 
   updateNode: (id: string, _newData: Partial<Node<EventTreeNodeData>["data"]>): void => {
     set((state: EventTreeState): Partial<EventTreeState> => {
-      const initials = getInitials(state.firstColumnLabel); // Always use the latest column name
+      const initials = getInitials(state.firstColumnLabel);
 
-      // Get all sequence nodes sorted to maintain correct numbering
       const sequenceNodes = state.nodes
         .filter((node) => node.data.isSequenceId)
         .sort((a, b) => a.position.y - b.position.y);
 
-      const maxIndex = sequenceNodes.length; // The next available index
+      const maxIndex = sequenceNodes.length;
 
       const updatedNodes = state.nodes.map((node) => {
         if (node.id === id) {
@@ -94,7 +93,7 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
             ...node,
             data: {
               ...node.data,
-              label: `${initials}-${String(maxIndex + 1)}`, // Assign new node correctly
+              label: `${initials}-${String(maxIndex + 1)}`,
             },
           };
         }
@@ -103,5 +102,17 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
 
       return { nodes: updatedNodes };
     });
+  },
+
+  setFunctionalEvent: (nodeId: string, fe: FunctionalEvent): void => {
+    set(
+      (state: EventTreeState): Partial<EventTreeState> => ({
+        functionalEvents: { ...state.functionalEvents, [nodeId]: fe },
+      }),
+    );
+  },
+
+  setFunctionalEvents: (fes: Record<string, FunctionalEvent>): void => {
+    set({ functionalEvents: fes });
   },
 }));

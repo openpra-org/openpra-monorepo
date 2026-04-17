@@ -3,17 +3,15 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
-import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { createEndStates } from "./useTreeData";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 // Minimal data shape used in Event Tree reactflow nodes within this hook
 interface EventTreeNodeData {
-  label: string;
   depth: number;
   width: number;
   output?: boolean;
   isSequenceId?: boolean;
-  sequenceId?: string | null;
   inputDepth?: number;
   outputDepth?: number;
 }
@@ -32,6 +30,7 @@ interface EventTreeNodeData {
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
+  const functionalEvents = useEventTreeStore((s) => s.functionalEvents);
 
   const addNode: () => void = () => {
     // Get current nodes and edges
@@ -102,12 +101,10 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: "New Node",
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: false,
           isSequenceId: level >= inputLevels - clickedNodeDepth,
-          sequenceId: level >= inputLevels - clickedNodeDepth ? "" : null, // Set to null if its not a sequence
         },
         position: {
           x: clickedNode?.position.x ?? 0,
@@ -125,13 +122,17 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
       const sourceNodeId = lastNodeId;
       lastNodeId = newNodeId;
 
-      // Create and add the new edge
+      const targetDepth = level + clickedNodeDepth;
+      const feColNode = nodes.find(
+        (n) => n.type === "columnNode" && n.data.depth === targetDepth && n.data.output !== true,
+      );
       const newEdge: Edge = {
         id: GenerateUUID(),
         source: sourceNodeId,
         target: newNodeId,
         type: "custom",
         animated: false,
+        data: { branchState: "bypass", ...(feColNode ? { feId: feColNode.id } : {}) },
       };
 
       newEdges.push(newEdge);
@@ -171,19 +172,15 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
       }
     });
 
-    // Set nodes and edges with the updated and new elements
     const updatedEdges = edges.concat(newEdges);
     setNodes(nodes);
     setEdges(updatedEdges);
 
-    // Then recalculate frequencies and update nodes
-    const recalculatedNodes = recalculateFrequencies(nodes as unknown as Node[], updatedEdges);
-    setNodes(recalculatedNodes);
-
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
       eventTreeId: eventTreeId,
-      nodes: recalculatedNodes,
+      nodes,
       edges: updatedEdges,
+      functionalEvents,
     });
 
     void GraphApiManager.storeEventTree(eventTreeCurrentState).then(() => {

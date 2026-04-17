@@ -1,18 +1,14 @@
 import { Handle, Node, NodeProps, Position } from "reactflow";
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { EuiText, EuiIcon, EuiButton, EuiSuperSelect, EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
 import { useStore } from "reactflow";
 import { getInitials } from "../../../hooks/eventTree/useTreeData";
-import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
-import Tooltip from "../../tooltips/customTooltip";
 import { GenericModal } from "../../modals/genericModal";
 
-interface OutputNodeData {
+export interface OutputNodeData {
   label: string;
   isSequenceId?: boolean;
-  isFrequencyNode?: boolean;
-  frequency?: number;
   width?: number;
 }
 
@@ -92,7 +88,6 @@ const ManageCategoriesForm = ({
   );
 };
 
-// Store first column label
 let firstColumnLabel = "Initiating Event";
 
 export const setFirstColumnLabel = (label: string): void => {
@@ -107,7 +102,6 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
   const [sequenceId, setSequenceId] = useState<string | null>(null);
   const nodes = useStore((store) => store.getNodes() as Node<OutputNodeData>[]);
 
-  // Transform categories to work with EuiSuperSelect - keep display simple
   const superSelectOptions = categories.map((category) => ({
     value: category.value,
     inputDisplay: category.text || category.value,
@@ -134,12 +128,8 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
   }, [data.isSequenceId, nodes, id, sequenceId]);
 
   useEffect(() => {
-    if (data.isFrequencyNode && typeof data.frequency === "number") {
-      setDisplayLabel(ScientificNotation.toScientific(data.frequency, 2));
-    } else {
-      setDisplayLabel(data.label);
-    }
-  }, [data.label, data.frequency, data.isFrequencyNode]);
+    setDisplayLabel(data.label);
+  }, [data.label]);
 
   useEffect(() => {
     updateSequenceId();
@@ -179,7 +169,7 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
           boxSizing: "border-box",
         }}
       >
-        {data.label === "Category A" || data.label === "Category B" ? (
+        {data.label === "Category A" || data.label === "Category B" ?
           <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
             <div style={{ flex: 1 }}>
               <EuiSuperSelect
@@ -209,13 +199,7 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
               />
             </div>
           </div>
-        ) : data.isFrequencyNode ? (
-          <Tooltip content={ScientificNotation.toScientific(data.frequency ?? 0, 8)}>
-            <EuiText style={{ fontSize: "0.7rem" }}>{ScientificNotation.toScientific(data.frequency ?? 0, 3)}</EuiText>
-          </Tooltip>
-        ) : (
-          <EuiText style={{ fontSize: "0.7rem" }}>{displayLabel}</EuiText>
-        )}
+        : <EuiText style={{ fontSize: "0.7rem" }}>{displayLabel}</EuiText>}
       </div>
       <Handle
         type="source"

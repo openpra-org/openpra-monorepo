@@ -32,7 +32,7 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
     <GenericListItem
       itemName={modelItem.label.name}
       id={modelItem.id}
-      key={modelItem._id}
+      key={modelItem._id ?? String(modelItem.id)}
       label={{
         name: modelItem.label.name,
         description: modelItem.label.description,

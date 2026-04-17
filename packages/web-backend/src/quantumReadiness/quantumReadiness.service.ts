@@ -16,6 +16,8 @@ import {
   completeOpenPraQuantumProviderBridgeSubmission,
   loadLatestOpenPraQuantumCanonicalCaseMaterializationSummary,
   materializeOpenPraQuantumCanonicalCasePackArtifacts,
+  buildOpenPraQuantumCanonicalBoundedReport,
+  loadLatestOpenPraQuantumCanonicalBoundedReport,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -45,6 +47,9 @@ import {
   type OpenPraQuantumCanonicalCaseMaterializationLoadResult,
   type OpenPraQuantumCanonicalCaseMaterializationRequest,
   type OpenPraQuantumCanonicalCaseMaterializationResult,
+  type OpenPraQuantumCanonicalBoundedReportLoadResult,
+  type OpenPraQuantumCanonicalBoundedReportRequest,
+  type OpenPraQuantumCanonicalBoundedReportResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -240,6 +245,12 @@ export interface QuantumLoadLatestCanonicalCaseMaterializationRequest {
 export type QuantumProviderBridgeSubmissionServiceRequest = OpenPraQuantumProviderBridgeSubmissionRequest;
 
 export type QuantumProviderBridgeCompletionServiceRequest = OpenPraQuantumProviderBridgeCompletionRequest;
+
+export type QuantumCanonicalBoundedReportRequest = OpenPraQuantumCanonicalBoundedReportRequest;
+
+export interface QuantumLoadLatestCanonicalBoundedReportRequest {
+  rootDirectoryPath: string;
+}
 
 export interface QuantumImportanceComparisonRequest {
   modelId: string;
@@ -924,6 +935,18 @@ export class QuantumReadinessService {
     request: QuantumProviderBridgeCompletionServiceRequest,
   ): OpenPraQuantumProviderBridgeCompletionResult {
     return completeOpenPraQuantumProviderBridgeSubmission(request);
+  }
+
+  buildCanonicalBoundedReport(
+    request: QuantumCanonicalBoundedReportRequest,
+  ): OpenPraQuantumCanonicalBoundedReportResult {
+    return buildOpenPraQuantumCanonicalBoundedReport(request);
+  }
+
+  loadLatestCanonicalBoundedReport(
+    request: QuantumLoadLatestCanonicalBoundedReportRequest,
+  ): OpenPraQuantumCanonicalBoundedReportLoadResult {
+    return loadLatestOpenPraQuantumCanonicalBoundedReport(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

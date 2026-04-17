@@ -14,6 +14,8 @@ import type {
   OpenPraQuantumProviderBridgeCompletionResult,
   OpenPraQuantumCanonicalCaseMaterializationLoadResult,
   OpenPraQuantumCanonicalCaseMaterializationResult,
+  OpenPraQuantumCanonicalBoundedReportLoadResult,
+  OpenPraQuantumCanonicalBoundedReportResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -40,6 +42,8 @@ import {
   type QuantumProviderBridgeCompletionServiceRequest,
   type QuantumCanonicalCaseMaterializationRequest,
   type QuantumLoadLatestCanonicalCaseMaterializationRequest,
+  type QuantumCanonicalBoundedReportRequest,
+  type QuantumLoadLatestCanonicalBoundedReportRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -232,6 +236,11 @@ export interface QuantumLoadLatestCanonicalCaseMaterializationRequestBody
 export interface QuantumProviderBridgeSubmissionRequestBody extends QuantumProviderBridgeSubmissionServiceRequest {}
 
 export interface QuantumProviderBridgeCompletionRequestBody extends QuantumProviderBridgeCompletionServiceRequest {}
+
+export interface QuantumCanonicalBoundedReportRequestBody extends QuantumCanonicalBoundedReportRequest {}
+
+export interface QuantumLoadLatestCanonicalBoundedReportRequestBody
+  extends QuantumLoadLatestCanonicalBoundedReportRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -640,6 +649,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumProviderBridgeCompletionResult {
     try {
       return this.quantumReadinessService.completeProviderBridgeSubmission(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/bounded/canonical-report")
+  @HttpCode(HttpStatus.OK)
+  buildCanonicalBoundedReport(
+    @Body() body: QuantumCanonicalBoundedReportRequestBody,
+  ): OpenPraQuantumCanonicalBoundedReportResult {
+    try {
+      return this.quantumReadinessService.buildCanonicalBoundedReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/bounded/canonical-report/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestCanonicalBoundedReport(
+    @Body() body: QuantumLoadLatestCanonicalBoundedReportRequestBody,
+  ): OpenPraQuantumCanonicalBoundedReportLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestCanonicalBoundedReport(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

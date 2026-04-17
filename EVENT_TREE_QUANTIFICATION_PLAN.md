@@ -37,7 +37,7 @@ This document lists every concrete implementation task needed to fully wire up e
   - `iconType="expand"` / `aria-label="fit view"` / `onClick={() => void fitView({ duration: 300, padding: 0.15 })` / `title="Fit to screen"` — this is the **fit-to-view button**
 - These three buttons must be placed **between** the Quantify button and the (future) Quantify panel toggle, exactly as in `faultTrees.tsx` lines 388–414.
 
-- [ ] Task 1.3 — Rewrite `EventTreeQuantificationPanel` Settings to Match Fault Tree Panel
+- [x] Task 1.3 — Rewrite `EventTreeQuantificationPanel` Settings to Match Fault Tree Panel
 
 **File:** `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel.tsx`
 
@@ -65,31 +65,37 @@ const res = await GraphApiManager.quantifyEventTree(eventTreeId, {
 });
 ```
 
-- [ ] Task 1.4 — Add Event Tree Properties Panel for Column Node Fault Tree Linking
+- [x] Task 1.4 — Fix Properties Panel: Read-Only Label, Reactive FT Selection, and MEF Compliance
 
-**File (new):** `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`
+**Files:**
 
-**File:** `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/columnNode.tsx`
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`
+- `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`
 
-**Problem:** The fault tree assignment for functional events (column nodes) is embedded inside the tiny column node cell. It needs to be in a proper side panel that appears when a column node is selected, mirroring how `faultTreePropertiesPanel.tsx` works for fault trees.
+**Sub-issue A — Column node label is directly editable on hover (must be read-only):**
 
-**Fix — Create `eventTreePropertiesPanel.tsx`:**
+In `columnNode.tsx`, the `EuiTextArea` at line 145 has `onChange={handleTextareaChange}`. This makes the label editable directly in the node on hover, which is wrong. The label must only be editable via the side properties panel.
 
-- Props: `selectedNodeId: string | null`, `nodes: Node<ColumnNodeData>[]`, `eventTreeId: string`
-- Shows a panel with `EuiTitle` "Functional Event Properties".
-- When `selectedNodeId` is a column node (type `"columnNode"`), shows:
-  - A read-only label field showing the functional event's current label.
-  - A `EuiSelect` labeled "Linked Fault Tree" populated by calling `GetFaultTrees(modelId)`. The selected value is `data.faultTreeId ?? ""`. On change it calls `setNodes` to update `data.faultTreeId` for that node.
-- When nothing is selected or the selected node is not a `columnNode`, shows a placeholder ("Select a functional event to edit its properties").
+**Fix:** Add `readOnly` prop to `EuiTextArea` in `columnNode.tsx`. Remove the `handleTextareaChange` and `textareaValue` state from `ColumnNode` since editing is now only via the properties panel. Keep the displayed value as `data.label` directly.
 
-**Fix — Wire panel into `eventTrees.tsx`:**
+**Sub-issue B — Properties panel fault tree selection not persisting (stale `nodes` prop):**
 
-- Add state: `const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)`.
-- Add `onNodeClick` handler: `(_, node) => setSelectedNodeId(node.id)`.
-- Add `onPaneClick` to also call `setSelectedNodeId(null)`.
-- Mount `<EventTreePropertiesPanel>` as a side panel (same pattern as `isQuantifyOpen` panel), always visible or toggled by a separate icon.
+`EventTreePropertiesPanel` receives `nodes` as a prop from the parent's `useState<Node<CustomNodeData>[]>`. When `setNodes` is called via `useReactFlow()` inside the panel, it updates ReactFlow's internal state but does NOT update the parent's `useState`. On re-render, `selectedNode` is found from the stale `nodes` prop, so `data.faultTreeId` still shows the old value.
 
-- [ ] Task 1.5 — Rewrite Event Tree Results Modal to Match Fault Tree Results
+**Fix:** Remove the `nodes` prop from `EventTreePropertiesPanel`. Instead, use `useNodes()` from reactflow inside the panel, which always reads from ReactFlow's live internal state. Update `eventTreePropertiesPanel.tsx` accordingly. Update the parent `eventTrees.tsx` to stop passing `nodes` to the panel.
+
+**Sub-issue C — Label editing in properties panel must update ReactFlow nodes:**
+
+The properties panel's `handleLabelChange` already calls `setNodes` correctly. But since we're removing the `onChange` from the node's `EuiTextArea`, the label edit path is now exclusively through the panel. This is correct.
+
+**Sub-issue D — MEF compliance for faultTreeId storage:**
+
+The MEF `FunctionalEvent` interface already has `faultTreeId?: string`. The `EventTreeGraph` already has `functionalEvents?: Record<string, FunctionalEvent>`. The `faultTreeId` on `node.data` is the visual-layer copy; the authoritative MEF copy must be in `functionalEvents`. When a user selects a fault tree in the properties panel, we must also update the `functionalEvents` map in the ReactFlow instance data. However, `functionalEvents` is not part of the ReactFlow nodes/edges — it's a top-level field on `EventTreeGraph`. This requires a different approach: store it via a ref or context.
+
+**Deferred:** Full MEF `functionalEvents` map sync from the properties panel is tracked as Task 9.1 (see Group 9). For now, ensure `node.data.faultTreeId` is correctly reactive (fixes the visible bug), and document the `functionalEvents` sync as a follow-up.
+
+- [x] Task 1.5 — Rewrite Event Tree Results Modal to Match Fault Tree Results
 
 **File:** `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel.tsx`
 
@@ -129,7 +135,7 @@ Replace the existing `ResultsModal` with a richer layout mirroring `CutSetAnalys
 
 ## Group 2 — Shared Types: Extend `EventTreeQuantificationRequest`
 
-- [ ] Task 2.1 — Add Missing Fields to `EventTreeQuantificationRequest`
+- [x] Task 2.1 — Add Missing Fields to `EventTreeQuantificationRequest`
 
 **File:** `packages/shared-types/src/lib/types/eventTreeQuantification.ts`
 
@@ -185,7 +191,7 @@ export interface EventTreeQuantificationResult {
 }
 ```
 
-- [ ] Task 2.2 — Update `GraphApiManager.quantifyEventTree` Signature
+- [x] Task 2.2 — Update `GraphApiManager.quantifyEventTree` Signature
 
 **File:** `packages/shared-sdk/src/lib/api/GraphApiManager.ts`
 
@@ -197,7 +203,7 @@ export interface EventTreeQuantificationResult {
 
 ## Group 3 — Backend: Event Tree Quantification Endpoint
 
-- [ ] Task 3.1 — Add `quantifyEventTree` Method to `GraphModelService`
+- [x] Task 3.1 — Add `quantifyEventTree` Method to `GraphModelService`
 
 **File:** `packages/web-backend/src/graphModels/graphModel.service.ts`
 
@@ -236,7 +242,7 @@ async quantifyEventTree(
 
 - `EventTreeQuantificationRequest` and `EventTreeQuantificationResult` from `shared-types/src/lib/types/eventTreeQuantification`.
 
-- [ ] Task 3.2 — Add `POST /event-tree-graph/quantify` Endpoint to `GraphModelController`
+- [x] Task 3.2 — Add `POST /event-tree-graph/quantify` Endpoint to `GraphModelController`
 
 **File:** `packages/web-backend/src/graphModels/graphModel.controller.ts`
 
@@ -267,7 +273,7 @@ async quantifyEventTree(
 
 ## Group 4 — PRAXIS Engine: New Event Tree Quantification Contract
 
-- [ ] Task 4.1 — Create `event_tree_quantification.rs` in PRAXIS
+- [x] Task 4.1 — Create `event_tree_quantification.rs` in PRAXIS
 
 **File (new):** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
 
@@ -353,7 +359,7 @@ This function must:
 4. For `monte_carlo`: call `quantify_event_tree_monte_carlo()`.
 5. Serialize and return `EtQuantificationResult`.
 
-- [ ] Task 4.2 — Build MEF ReactFlow Graph → PRAXIS `EventTree` Converter
+- [x] Task 4.2 — Build MEF ReactFlow Graph → PRAXIS `EventTree` Converter
 
 **File:** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
 
@@ -376,7 +382,7 @@ fn mef_graph_to_event_tree(graph: &MefEventTreeGraph) -> Result<(InitiatingEvent
 
 **If `functionalEvents` map is present** in the graph (when saved with MEF data): use that directly instead of inferring from nodes. Each entry in `functionalEvents` maps to a `FunctionalEvent`, with `fault_tree_id` taken from the map entry's `faultTreeId` field.
 
-- [ ] Task 4.3 — Implement Deterministic Event Tree Quantification (BDD/ZBDD/MOCUS per sequence)
+- [x] Task 4.3 — Implement Deterministic Event Tree Quantification (BDD/ZBDD/MOCUS per sequence)
 
 **File:** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
 
@@ -411,7 +417,7 @@ fn quantify_event_tree_deterministic(
 
 **Note on cut sets for sequences:** The cut sets of a sequence are the MCS of the conjunction of all fault trees whose functional events are in the FAILURE state along that sequence's path. For sequences where all functional events succeed, the cut sets are empty (success path).
 
-- [ ] Task 4.4 — Implement Monte Carlo Event Tree Quantification
+- [x] Task 4.4 — Implement Monte Carlo Event Tree Quantification
 
 **File:** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
 
@@ -445,13 +451,13 @@ fn quantify_event_tree_monte_carlo(
    - `cut_sets = []` (MC doesn't enumerate cut sets)
 5. Return `EtQuantificationResult` with `num_samples = Some(num_samples)` and `total_cdf = sum of frequencies`.
 
-- [ ] Task 4.5 — Register `event_tree_quantification` Module in `openpra_mef/mod.rs`
+- [x] Task 4.5 — Register `event_tree_quantification` Module in `openpra_mef/mod.rs`
 
 **File:** `packages/engine/praxis/src/openpra_mef/mod.rs`
 
 **Fix:** Add `pub mod event_tree_quantification;` to the module declarations.
 
-- [ ] Task 4.6 — Add `quantify_event_tree` NAPI Binding
+- [x] Task 4.6 — Add `quantify_event_tree` NAPI Binding
 
 **File:** `packages/engine/praxis/src/openpra_mef/napi.rs`
 
@@ -473,7 +479,7 @@ pub fn quantify_event_tree(request_json: String) -> napi::Result<String> {
 
 ## Group 5 — PRAXIS Engine: Extend BDD/ZBDD/MOCUS for Event Tree Per-Sequence Cut Sets
 
-- [ ] Task 5.1 — Make `mef_graph_to_fault_tree` Public and Reusable
+- [x] Task 5.1 — Make `mef_graph_to_fault_tree` Public and Reusable
 
 **File:** `packages/engine/praxis/src/openpra_mef/fault_tree_quantification.rs`
 
@@ -483,7 +489,7 @@ pub fn quantify_event_tree(request_json: String) -> napi::Result<String> {
 
 Also make `inline_transfer_trees()` (line 316), `is_basic_event_type()` (line 512), `extract_probability()` (line 519), `finish_with_cut_sets()` (line 254), and `CutSetResult` (line 159) `pub` so they can be reused.
 
-- [ ] Task 5.2 — Build Per-Sequence Compound Fault Tree for Cut Set Extraction
+- [x] Task 5.2 — Build Per-Sequence Compound Fault Tree for Cut Set Extraction
 
 **File:** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
 
@@ -508,7 +514,7 @@ fn build_sequence_fault_tree(
 4. If there are multiple failure FEs each with fault trees, build a synthetic AND-gate fault tree whose inputs are the top-event gates of each constituent fault tree's nodes.
 5. If no failure FEs have fault trees, return `None` (no cut sets computable, or use direct probability).
 
-- [ ] Task 5.3 — Add Unit Tests for Event Tree Quantification in PRAXIS
+- [x] Task 5.3 — Add Unit Tests for Event Tree Quantification in PRAXIS
 
 **File (new):** `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs` (in `#[cfg(test)] mod tests`)
 
@@ -525,7 +531,7 @@ fn build_sequence_fault_tree(
 
 ## Group 6 — Backend: Wire Fault Trees into the Event Tree Quantification Request
 
-- [ ] Task 6.1 — Fetch and Attach Linked Fault Trees in `GraphModelService.quantifyEventTree`
+- [x] Task 6.1 — Fetch and Attach Linked Fault Trees in `GraphModelService.quantifyEventTree`
 
 **File:** `packages/web-backend/src/graphModels/graphModel.service.ts`
 
@@ -563,7 +569,7 @@ const request: EventTreeQuantificationRequest & { faultTrees?: Record<string, ob
 
 ## Group 7 — Frontend: Save `faultTreeId` Data to Backend on Graph Save
 
-- [ ] Task 7.1 — Ensure `faultTreeId` from Column Nodes is Persisted in the Event Tree Graph Save
+- [x] Task 7.1 — Ensure `faultTreeId` from Column Nodes is Persisted in the Event Tree Graph Save
 
 **File:** `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`
 
@@ -577,7 +583,7 @@ const request: EventTreeQuantificationRequest & { faultTrees?: Record<string, ob
 
 ## Group 8 — Frontend: Update Type Imports After Type Changes
 
-- [ ] Task 8.1 — Update Import of `EventTreeQuantificationRequest` in `eventTreeQuantificationPanel.tsx`
+- [x] Task 8.1 — Update Import of `EventTreeQuantificationRequest` in `eventTreeQuantificationPanel.tsx`
 
 **File:** `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel.tsx`
 
@@ -586,11 +592,73 @@ After Task 2.1 adds `EventTreeApproximation` to `shared-types`, import and use i
 - Add `EventTreeApproximation` to the import line (line 24).
 - Replace the inline string literal for approximation state type with `EventTreeApproximation`.
 
-- [ ] Task 8.2 — Update Import in `GraphApiManager.ts` if Needed
+- [x] Task 8.2 — Update Import in `GraphApiManager.ts` if Needed
 
 **File:** `packages/shared-sdk/src/lib/api/GraphApiManager.ts`
 
 - Confirm `EventTreeQuantificationRequest` import (around line 107) picks up the new fields. No change needed if the import is from the same file — TypeScript will pick up the extended type automatically.
+
+---
+
+## Group 10 — Frontend: Remove Manual Probability/Frequency from Editor Canvas
+
+- [x] Task 10.1 — Strip All Manual Probability and Frequency UI from Event Tree Editor
+
+**Problem:** The event tree editor canvas had manual probability entry on branch nodes (`visibleNode`) and a computed frequency column (`outputNode` with `isFrequencyNode`). These are wrong: probabilities come from linked fault tree top-event quantification, and sequence frequencies are output of PRAXIS quantification shown in the results panel only — never on the canvas.
+
+**Files changed:**
+
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/visibleNode.tsx` — removed probability display, `isEditingFreq` state, `updateNodeProbability`, `getDefaultProbability`, `recalculateFrequencies` import, `ScientificNotation` import, `UseToastContext` import, `probability` from `VisibleNodeData`. Branch nodes now show only their label.
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/outputNode.tsx` — removed `isFrequencyNode`, `frequency` fields from `OutputNodeData`; removed frequency display branch; removed `ScientificNotation` and `Tooltip` imports.
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useTreeData.ts` — removed frequency `outputNode` column (Frequency); reduced `outputLevels` from 3 to 2 (Sequence ID + Release Category only); removed `probability: 0.5` from `visibleNode` branch nodes; removed `recalculateFrequencies` call; removed `ScientificNotation` import.
+- `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx` — changed `output = 3` to `output = 2`.
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useCreateNodeClick.ts` — removed `recalculateFrequencies` import and call; simplified post-add save path.
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useEventTreeStore.ts` — removed `probability: number` and `frequency: number` fields from store interface and initializer.
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useLayout.ts` — removed `isFrequencyNode` from `EventTreeNodeData` interface; removed frequency-node column alignment branch.
+- `packages/frontend/web-editor/src/utils/recalculateFrequencies.ts` — **deleted entirely**.
+
+---
+
+## Group 9 — Frontend: Visual FT Linkage Row and MEF functionalEvents Sync
+
+- [x] Task 9.1 — Add Visual FT Linkage Row Below Functional Event Headers on Canvas
+
+**Files:**
+
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/columnNode.tsx`
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`
+
+**Problem:** There is no visual indication on the event tree canvas of which fault tree is linked to each functional event (column node). The user must select a node and open the panel to see the linkage. There should be a second row directly below the functional event header row showing the linked fault tree name (or "—" if none) and the initiating event name for the first column.
+
+**Fix — Extend `ColumnNode` to show the linked FT name:**
+
+In `columnNode.tsx`, below the existing `EuiTextArea` block, add a second `div` that displays `data.faultTreeId ? data.faultTreeId : "—"`. This is a visual-only display row; the actual fault tree name lookup would require a prop or context that has the FT list. For now, show the `faultTreeId` string (abbreviated) or "—".
+
+**Longer term:** Pass fault tree display names into `ColumnNodeData` as `faultTreeLabel?: string` so the column node can show a human-readable name without querying the API. The properties panel, when setting `faultTreeId`, also sets `faultTreeLabel` on the node data.
+
+**Implementation steps:**
+
+1. Add `faultTreeLabel?: string` to `ColumnNodeData` interface.
+2. In `columnNode.tsx`, add a second display row below the label textarea showing `data.faultTreeLabel ?? data.faultTreeId ?? "—"` in a small, subdued font.
+3. In `eventTreePropertiesPanel.tsx`, when `handleFaultTreeChange` is called, also update `faultTreeLabel` on the node: find the selected fault tree from the loaded `faultTrees` list and set `faultTreeLabel: selectedFt?.label?.name ?? selectedFtId`.
+4. For the first column (IE column, `data.depth === 1`), show the IE name (the column label) in this row instead of a fault tree name.
+
+- [x] Task 9.2 — Sync `functionalEvents` MEF Map When FT is Linked in Properties Panel
+
+**Files:**
+
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`
+- `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`
+
+**Problem:** When a fault tree is linked to a functional event via the properties panel, only `node.data.faultTreeId` is updated. The authoritative MEF store for this information is `EventTreeGraph.functionalEvents` — a `Record<string, FunctionalEvent>` map where each `FunctionalEvent` has `faultTreeId?: string`, `name`, `order`, etc. This map is what the PRAXIS engine and any downstream analysis reads. If it is not updated, the quantification may fall back to inferring FT links from node data, which is less reliable.
+
+**Fix:**
+
+1. In `eventTrees.tsx`, add a `functionalEventsRef = useRef<Record<string, FunctionalEvent>>({})` to hold the MEF functional events map in memory alongside the ReactFlow state.
+2. Pass a `onFunctionalEventUpdate` callback prop to `EventTreePropertiesPanel` that the panel calls whenever a functional event's `faultTreeId` changes.
+3. In the callback, update `functionalEventsRef.current[nodeId] = { id: nodeId, name: nodeLabel, order: nodeDepth, faultTreeId: newFtId }`.
+4. When the event tree is saved (on the existing save trigger), include `functionalEvents: functionalEventsRef.current` in the saved payload alongside the nodes/edges.
+5. This ensures the `EventTreeGraph` document in MongoDB has an up-to-date `functionalEvents` map that satisfies the MEF `FunctionalEvent` interface.
 
 ---
 
@@ -617,7 +685,39 @@ Group 6 (backend fetches fault trees)
 
 Group 7 (frontend persists faultTreeId)
   → Group 6 (backend can read it from saved nodes)
+
+Group 9.1 (visual FT linkage row)
+  → Group 1.4 (panel sets faultTreeLabel on node data)
+
+Group 9.2 (MEF functionalEvents sync)
+  → Group 9.1 (label sync done first)
+  → Group 7 (save includes functionalEvents map)
 ```
+
+---
+
+## Group 11 — Branch State and feId on Edges (OpenPRA MEF Schema)
+
+- [x] Task 11.1 — Stamp `branchState` and `feId` on Every Branch Edge
+
+**Problem:** Edges had no semantic metadata. PRAXIS inferred which functional event an edge belonged to via a fragile depth→columnId lookup. Branch success/failure/bypass state was not persisted on the graph.
+
+**Fix:**
+
+- Added `branchState: "success" | "failure" | "bypass"` and `feId: string` to every branch edge (edges between non-column tree nodes).
+- `branchState` = `"bypass"` for unlinked FE columns, `"success"` for upper branch and `"failure"` for lower branch when a fault tree is linked.
+- `feId` = the ID of the `columnNode` that owns this branch decision (the target node's column).
+- `feId` is stamped at edge-creation time in `useTreeData.ts` (post-process), `useCreateNodeClick.ts`, and `useCreateColClick.ts`.
+- When a fault tree is linked/unlinked in `eventTreePropertiesPanel.tsx`, `handleFaultTreeChange` now finds all edges whose target is at the column's depth, sorts them by target y-position, and assigns `success`/`failure`/`bypass` plus stamps `feId = selectedNode.id`. Also persists via `GraphApiManager.storeEventTree`.
+- PRAXIS `MefEtEdgeData` gains `fe_id: Option<String>`. `enumerate_sequences` reads `edge.data.fe_id` directly (with depth-lookup fallback for old graphs). `deterministic_sequence` and Monte Carlo now handle `"bypass"` state by contributing `1.0` to sequence probability.
+
+**Files changed:**
+
+- `packages/engine/praxis/src/openpra_mef/event_tree_quantification.rs`
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useTreeData.ts`
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useCreateNodeClick.ts`
+- `packages/frontend/web-editor/src/app/hooks/eventTree/useCreateColClick.ts`
+- `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`
 
 ---
 
@@ -625,10 +725,10 @@ Group 7 (frontend persists faultTreeId)
 
 | File                                                                                                             | Action                                                                | Task              |
 | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------- |
-| `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/columnNode.tsx`                   | Remove inline `EuiSelect`, keep `faultTreeId` in data                 | 1.1               |
-| `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`                                       | Add zoom in/out/fit buttons, wire properties panel                    | 1.2, 1.4          |
+| `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/columnNode.tsx`                   | Remove inline `EuiSelect`, make label read-only, add FT linkage row   | 1.1, 1.4A, 9.1    |
+| `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`                                       | Add zoom in/out/fit buttons, wire properties panel, MEF FE sync       | 1.2, 1.4, 9.2     |
 | `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel.tsx` | Add approximation/maxOrder/numSamples controls, rewrite results modal | 1.3, 1.5          |
-| `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`     | **New file** — properties panel for column node FT linking            | 1.4               |
+| `packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel.tsx`     | Fix stale nodes (use useNodes()), set faultTreeLabel, MEF FE callback | 1.4B, 9.1, 9.2    |
 | `packages/shared-types/src/lib/types/eventTreeQuantification.ts`                                                 | Add approximation, maxOrder, numSamples, path, totalCdf fields        | 2.1               |
 | `packages/shared-sdk/src/lib/api/GraphApiManager.ts`                                                             | Verify types, no change expected                                      | 2.2               |
 | `packages/web-backend/src/graphModels/graphModel.service.ts`                                                     | Add `quantifyEventTree()` method with fault tree fetching             | 3.1, 6.1          |

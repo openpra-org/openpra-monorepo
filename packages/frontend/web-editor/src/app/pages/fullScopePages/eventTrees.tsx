@@ -2,8 +2,6 @@ import { Route, Routes, useParams } from "react-router-dom";
 import React, { ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
-  Controls,
-  ControlButton,
   Edge,
   Node,
   ProOptions,
@@ -100,9 +98,9 @@ interface CustomNodeData {
   allowAdd?: boolean;
 }
 const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
-  // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
 
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
@@ -178,7 +176,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
           >
             <Background />
-            <Controls showInteractive={false} />
             <Panel position="bottom-left">
               <EuiFlexGroup
                 responsive={false}
@@ -192,6 +189,33 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
                     aria-label="quantify event tree"
                     onClick={() => setIsQuantifyOpen((v) => !v)}
                     title="Quantify"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
+                    iconType="plusInCircle"
+                    display="base"
+                    aria-label="zoom in"
+                    onClick={() => void zoomIn({ duration: 200 })}
+                    title="Zoom in"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
+                    iconType="minusInCircle"
+                    display="base"
+                    aria-label="zoom out"
+                    onClick={() => void zoomOut({ duration: 200 })}
+                    title="Zoom out"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
+                    iconType="expand"
+                    display="base"
+                    aria-label="fit view"
+                    onClick={() => void fitView({ duration: 300, padding: 0.15 })}
+                    title="Fit to screen"
                   />
                 </EuiFlexItem>
               </EuiFlexGroup>

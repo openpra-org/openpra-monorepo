@@ -21,7 +21,7 @@ This document lists every concrete implementation task needed to fully wire up e
 - `ColumnNodeData` interface (line 22): keep `faultTreeId?: string` field, it is still needed for data — only the render location changes.
 - The `handleFaultTreeChange` function (line 56) and `GetFaultTrees` useEffect (lines 44–49) should be removed from `ColumnNode` and relocated to the properties panel component (Task 1.4).
 
-- [ ] Task 1.2 — Add Zoom In / Zoom Out / Fit-to-View Buttons to Event Tree Toolbar
+- [x] Task 1.2 — Add Zoom In / Zoom Out / Fit-to-View Buttons to Event Tree Toolbar
 
 **File:** `packages/frontend/web-editor/src/app/pages/fullScopePages/eventTrees.tsx`
 

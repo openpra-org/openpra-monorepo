@@ -5,6 +5,8 @@ import type {
   OpenPraFaultTreeReadinessResult,
   OpenPraQuantumBoundedImportanceServiceFacadeResult,
   OpenPraQuantumExecutionRecordServiceStubResult,
+  OpenPraQuantumBoundedImportanceArtifactLoadResult,
+  OpenPraQuantumExecutionArtifactLoadResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -23,6 +25,8 @@ import {
   QuantumReadinessService,
   type QuantumBoundedImportanceServiceRequest,
   type QuantumExecutionRecordServiceStubRequest,
+  type QuantumLoadLatestBoundedImportanceRequest,
+  type QuantumLoadLatestExecutionArtifactsRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -198,6 +202,10 @@ export interface QuantumLatestWorkflowRunByTargetRequest {
 export interface QuantumBoundedImportanceServiceRequestBody extends QuantumBoundedImportanceServiceRequest {}
 
 export interface QuantumExecutionRecordServiceStubRequestBody extends QuantumExecutionRecordServiceStubRequest {}
+
+export interface QuantumLoadLatestBoundedImportanceRequestBody extends QuantumLoadLatestBoundedImportanceRequest {}
+
+export interface QuantumLoadLatestExecutionArtifactsRequestBody extends QuantumLoadLatestExecutionArtifactsRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -500,6 +508,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumExecutionRecordServiceStubResult {
     try {
       return this.quantumReadinessService.buildExecutionRecordServiceStub(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/bounded/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestBoundedImportanceArtifacts(
+    @Body() body: QuantumLoadLatestBoundedImportanceRequestBody,
+  ): OpenPraQuantumBoundedImportanceArtifactLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestBoundedImportanceArtifacts(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/record-stub/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestExecutionArtifacts(
+    @Body() body: QuantumLoadLatestExecutionArtifactsRequestBody,
+  ): OpenPraQuantumExecutionArtifactLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestExecutionArtifacts(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

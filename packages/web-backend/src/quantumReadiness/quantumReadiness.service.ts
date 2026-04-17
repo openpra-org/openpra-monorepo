@@ -6,6 +6,8 @@ import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
   buildOpenPraQuantumBoundedImportanceServiceFacade,
   buildOpenPraQuantumExecutionRecordServiceStub,
+  loadLatestOpenPraQuantumBoundedImportanceArtifacts,
+  loadLatestOpenPraQuantumExecutionArtifacts,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -22,6 +24,8 @@ import {
   type OpenPraFaultTreeReadinessResult,
   type OpenPraQuantumBoundedImportanceServiceFacadeResult,
   type OpenPraQuantumExecutionRecordServiceStubResult,
+  type OpenPraQuantumBoundedImportanceArtifactLoadResult,
+  type OpenPraQuantumExecutionArtifactLoadResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -185,6 +189,16 @@ export interface QuantumLatestWorkflowRunByTargetResult {
 export type QuantumBoundedImportanceServiceRequest = BuildOpenPraQuantumBoundedImportanceServiceFacadeParams;
 
 export type QuantumExecutionRecordServiceStubRequest = BuildOpenPraQuantumExecutionRecordServiceStubParams;
+
+export interface QuantumLoadLatestBoundedImportanceRequest {
+  rootDirectoryPath: string;
+  caseLabel?: string;
+}
+
+export interface QuantumLoadLatestExecutionArtifactsRequest {
+  rootDirectoryPath: string;
+  caseLabel?: string;
+}
 
 export interface QuantumImportanceComparisonRequest {
   modelId: string;
@@ -810,6 +824,18 @@ export class QuantumReadinessService {
     request: QuantumExecutionRecordServiceStubRequest,
   ): OpenPraQuantumExecutionRecordServiceStubResult {
     return buildOpenPraQuantumExecutionRecordServiceStub(request);
+  }
+
+  loadLatestBoundedImportanceArtifacts(
+    request: QuantumLoadLatestBoundedImportanceRequest,
+  ): OpenPraQuantumBoundedImportanceArtifactLoadResult {
+    return loadLatestOpenPraQuantumBoundedImportanceArtifacts(request);
+  }
+
+  loadLatestExecutionArtifacts(
+    request: QuantumLoadLatestExecutionArtifactsRequest,
+  ): OpenPraQuantumExecutionArtifactLoadResult {
+    return loadLatestOpenPraQuantumExecutionArtifacts(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

@@ -30,6 +30,8 @@ import {
   loadLatestOpenPraQuantumFrontendSeedState,
   buildOpenPraQuantumFrontendBootstrapPacket,
   loadLatestOpenPraQuantumFrontendBootstrapPacket,
+  buildOpenPraQuantumFrontendDashboardPayload,
+  loadLatestOpenPraQuantumFrontendDashboardPayload,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -80,6 +82,9 @@ import {
   type OpenPraQuantumFrontendBootstrapPacketLoadResult,
   type OpenPraQuantumFrontendBootstrapPacketRequest,
   type OpenPraQuantumFrontendBootstrapPacketResult,
+  type OpenPraQuantumFrontendDashboardPayloadLoadResult,
+  type OpenPraQuantumFrontendDashboardPayloadRequest,
+  type OpenPraQuantumFrontendDashboardPayloadResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -315,6 +320,12 @@ export interface QuantumLoadLatestFrontendSeedStateRequest {
 export type QuantumFrontendBootstrapPacketRequest = OpenPraQuantumFrontendBootstrapPacketRequest;
 
 export interface QuantumLoadLatestFrontendBootstrapPacketRequest {
+  rootDirectoryPath: string;
+}
+
+export type QuantumFrontendDashboardPayloadRequest = OpenPraQuantumFrontendDashboardPayloadRequest;
+
+export interface QuantumLoadLatestFrontendDashboardPayloadRequest {
   rootDirectoryPath: string;
 }
 
@@ -1079,6 +1090,18 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestFrontendBootstrapPacketRequest,
   ): OpenPraQuantumFrontendBootstrapPacketLoadResult {
     return loadLatestOpenPraQuantumFrontendBootstrapPacket(request);
+  }
+
+  buildFrontendDashboardPayload(
+    request: QuantumFrontendDashboardPayloadRequest,
+  ): OpenPraQuantumFrontendDashboardPayloadResult {
+    return buildOpenPraQuantumFrontendDashboardPayload(request);
+  }
+
+  loadLatestFrontendDashboardPayload(
+    request: QuantumLoadLatestFrontendDashboardPayloadRequest,
+  ): OpenPraQuantumFrontendDashboardPayloadLoadResult {
+    return loadLatestOpenPraQuantumFrontendDashboardPayload(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

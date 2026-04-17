@@ -28,6 +28,8 @@ import type {
   OpenPraQuantumFrontendSeedStateResult,
   OpenPraQuantumFrontendBootstrapPacketLoadResult,
   OpenPraQuantumFrontendBootstrapPacketResult,
+  OpenPraQuantumFrontendDashboardPayloadLoadResult,
+  OpenPraQuantumFrontendDashboardPayloadResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -68,6 +70,8 @@ import {
   type QuantumLoadLatestFrontendSeedStateRequest,
   type QuantumFrontendBootstrapPacketRequest,
   type QuantumLoadLatestFrontendBootstrapPacketRequest,
+  type QuantumFrontendDashboardPayloadRequest,
+  type QuantumLoadLatestFrontendDashboardPayloadRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -293,6 +297,11 @@ export interface QuantumFrontendBootstrapPacketRequestBody extends QuantumFronte
 
 export interface QuantumLoadLatestFrontendBootstrapPacketRequestBody
   extends QuantumLoadLatestFrontendBootstrapPacketRequest {}
+
+export interface QuantumFrontendDashboardPayloadRequestBody extends QuantumFrontendDashboardPayloadRequest {}
+
+export interface QuantumLoadLatestFrontendDashboardPayloadRequestBody
+  extends QuantumLoadLatestFrontendDashboardPayloadRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -865,6 +874,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumFrontendBootstrapPacketLoadResult {
     try {
       return this.quantumReadinessService.loadLatestFrontendBootstrapPacket(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-dashboard-payload")
+  @HttpCode(HttpStatus.OK)
+  buildFrontendDashboardPayload(
+    @Body() body: QuantumFrontendDashboardPayloadRequestBody,
+  ): OpenPraQuantumFrontendDashboardPayloadResult {
+    try {
+      return this.quantumReadinessService.buildFrontendDashboardPayload(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-dashboard-payload/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestFrontendDashboardPayload(
+    @Body() body: QuantumLoadLatestFrontendDashboardPayloadRequestBody,
+  ): OpenPraQuantumFrontendDashboardPayloadLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestFrontendDashboardPayload(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

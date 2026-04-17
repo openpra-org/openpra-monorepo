@@ -22,6 +22,8 @@ import type {
   OpenPraQuantumCanonicalProgramReportResult,
   OpenPraQuantumFrontendSummaryLoadResult,
   OpenPraQuantumFrontendSummaryResult,
+  OpenPraQuantumFrontendWorkspaceSnapshotLoadResult,
+  OpenPraQuantumFrontendWorkspaceSnapshotResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -56,6 +58,8 @@ import {
   type QuantumLoadLatestCanonicalProgramReportRequest,
   type QuantumFrontendSummaryRequest,
   type QuantumLoadLatestFrontendSummaryRequest,
+  type QuantumFrontendWorkspaceSnapshotRequest,
+  type QuantumLoadLatestFrontendWorkspaceSnapshotRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -267,6 +271,11 @@ export interface QuantumLoadLatestCanonicalProgramReportRequestBody
 export interface QuantumFrontendSummaryRequestBody extends QuantumFrontendSummaryRequest {}
 
 export interface QuantumLoadLatestFrontendSummaryRequestBody extends QuantumLoadLatestFrontendSummaryRequest {}
+
+export interface QuantumFrontendWorkspaceSnapshotRequestBody extends QuantumFrontendWorkspaceSnapshotRequest {}
+
+export interface QuantumLoadLatestFrontendWorkspaceSnapshotRequestBody
+  extends QuantumLoadLatestFrontendWorkspaceSnapshotRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -769,6 +778,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumFrontendSummaryLoadResult {
     try {
       return this.quantumReadinessService.loadLatestFrontendSummary(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-workspace-snapshot")
+  @HttpCode(HttpStatus.OK)
+  buildFrontendWorkspaceSnapshot(
+    @Body() body: QuantumFrontendWorkspaceSnapshotRequestBody,
+  ): OpenPraQuantumFrontendWorkspaceSnapshotResult {
+    try {
+      return this.quantumReadinessService.buildFrontendWorkspaceSnapshot(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-workspace-snapshot/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestFrontendWorkspaceSnapshot(
+    @Body() body: QuantumLoadLatestFrontendWorkspaceSnapshotRequestBody,
+  ): OpenPraQuantumFrontendWorkspaceSnapshotLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestFrontendWorkspaceSnapshot(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

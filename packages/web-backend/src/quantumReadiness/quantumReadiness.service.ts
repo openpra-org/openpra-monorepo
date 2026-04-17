@@ -24,6 +24,8 @@ import {
   loadLatestOpenPraQuantumCanonicalProgramReport,
   buildOpenPraQuantumFrontendSummary,
   loadLatestOpenPraQuantumFrontendSummary,
+  buildOpenPraQuantumFrontendWorkspaceSnapshot,
+  loadLatestOpenPraQuantumFrontendWorkspaceSnapshot,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -65,6 +67,9 @@ import {
   type OpenPraQuantumFrontendSummaryLoadResult,
   type OpenPraQuantumFrontendSummaryRequest,
   type OpenPraQuantumFrontendSummaryResult,
+  type OpenPraQuantumFrontendWorkspaceSnapshotLoadResult,
+  type OpenPraQuantumFrontendWorkspaceSnapshotRequest,
+  type OpenPraQuantumFrontendWorkspaceSnapshotResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -282,6 +287,12 @@ export interface QuantumLoadLatestCanonicalProgramReportRequest {
 export type QuantumFrontendSummaryRequest = OpenPraQuantumFrontendSummaryRequest;
 
 export interface QuantumLoadLatestFrontendSummaryRequest {
+  rootDirectoryPath: string;
+}
+
+export type QuantumFrontendWorkspaceSnapshotRequest = OpenPraQuantumFrontendWorkspaceSnapshotRequest;
+
+export interface QuantumLoadLatestFrontendWorkspaceSnapshotRequest {
   rootDirectoryPath: string;
 }
 
@@ -1012,6 +1023,18 @@ export class QuantumReadinessService {
 
   loadLatestFrontendSummary(request: QuantumLoadLatestFrontendSummaryRequest): OpenPraQuantumFrontendSummaryLoadResult {
     return loadLatestOpenPraQuantumFrontendSummary(request);
+  }
+
+  buildFrontendWorkspaceSnapshot(
+    request: QuantumFrontendWorkspaceSnapshotRequest,
+  ): OpenPraQuantumFrontendWorkspaceSnapshotResult {
+    return buildOpenPraQuantumFrontendWorkspaceSnapshot(request);
+  }
+
+  loadLatestFrontendWorkspaceSnapshot(
+    request: QuantumLoadLatestFrontendWorkspaceSnapshotRequest,
+  ): OpenPraQuantumFrontendWorkspaceSnapshotLoadResult {
+    return loadLatestOpenPraQuantumFrontendWorkspaceSnapshot(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

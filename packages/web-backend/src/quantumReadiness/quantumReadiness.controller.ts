@@ -20,6 +20,8 @@ import type {
   OpenPraQuantumWs6CanonicalExecutionReportResult,
   OpenPraQuantumCanonicalProgramReportLoadResult,
   OpenPraQuantumCanonicalProgramReportResult,
+  OpenPraQuantumFrontendSummaryLoadResult,
+  OpenPraQuantumFrontendSummaryResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -52,6 +54,8 @@ import {
   type QuantumLoadLatestWs6CanonicalExecutionReportRequest,
   type QuantumCanonicalProgramReportRequest,
   type QuantumLoadLatestCanonicalProgramReportRequest,
+  type QuantumFrontendSummaryRequest,
+  type QuantumLoadLatestFrontendSummaryRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -259,6 +263,10 @@ export interface QuantumCanonicalProgramReportRequestBody extends QuantumCanonic
 
 export interface QuantumLoadLatestCanonicalProgramReportRequestBody
   extends QuantumLoadLatestCanonicalProgramReportRequest {}
+
+export interface QuantumFrontendSummaryRequestBody extends QuantumFrontendSummaryRequest {}
+
+export interface QuantumLoadLatestFrontendSummaryRequestBody extends QuantumLoadLatestFrontendSummaryRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -739,6 +747,28 @@ export class QuantumReadinessController {
   ): OpenPraQuantumCanonicalProgramReportLoadResult {
     try {
       return this.quantumReadinessService.loadLatestCanonicalProgramReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-summary")
+  @HttpCode(HttpStatus.OK)
+  buildFrontendSummary(@Body() body: QuantumFrontendSummaryRequestBody): OpenPraQuantumFrontendSummaryResult {
+    try {
+      return this.quantumReadinessService.buildFrontendSummary(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-summary/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestFrontendSummary(
+    @Body() body: QuantumLoadLatestFrontendSummaryRequestBody,
+  ): OpenPraQuantumFrontendSummaryLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestFrontendSummary(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

@@ -22,6 +22,8 @@ import {
   loadLatestOpenPraQuantumWs6CanonicalExecutionReport,
   buildOpenPraQuantumCanonicalProgramReport,
   loadLatestOpenPraQuantumCanonicalProgramReport,
+  buildOpenPraQuantumFrontendSummary,
+  loadLatestOpenPraQuantumFrontendSummary,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -60,6 +62,9 @@ import {
   type OpenPraQuantumCanonicalProgramReportLoadResult,
   type OpenPraQuantumCanonicalProgramReportRequest,
   type OpenPraQuantumCanonicalProgramReportResult,
+  type OpenPraQuantumFrontendSummaryLoadResult,
+  type OpenPraQuantumFrontendSummaryRequest,
+  type OpenPraQuantumFrontendSummaryResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -271,6 +276,12 @@ export interface QuantumLoadLatestWs6CanonicalExecutionReportRequest {
 export type QuantumCanonicalProgramReportRequest = OpenPraQuantumCanonicalProgramReportRequest;
 
 export interface QuantumLoadLatestCanonicalProgramReportRequest {
+  rootDirectoryPath: string;
+}
+
+export type QuantumFrontendSummaryRequest = OpenPraQuantumFrontendSummaryRequest;
+
+export interface QuantumLoadLatestFrontendSummaryRequest {
   rootDirectoryPath: string;
 }
 
@@ -993,6 +1004,14 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestCanonicalProgramReportRequest,
   ): OpenPraQuantumCanonicalProgramReportLoadResult {
     return loadLatestOpenPraQuantumCanonicalProgramReport(request);
+  }
+
+  buildFrontendSummary(request: QuantumFrontendSummaryRequest): OpenPraQuantumFrontendSummaryResult {
+    return buildOpenPraQuantumFrontendSummary(request);
+  }
+
+  loadLatestFrontendSummary(request: QuantumLoadLatestFrontendSummaryRequest): OpenPraQuantumFrontendSummaryLoadResult {
+    return loadLatestOpenPraQuantumFrontendSummary(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

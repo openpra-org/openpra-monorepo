@@ -16,6 +16,8 @@ import type {
   OpenPraQuantumCanonicalCaseMaterializationResult,
   OpenPraQuantumCanonicalBoundedReportLoadResult,
   OpenPraQuantumCanonicalBoundedReportResult,
+  OpenPraQuantumWs6CanonicalExecutionReportLoadResult,
+  OpenPraQuantumWs6CanonicalExecutionReportResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -44,6 +46,8 @@ import {
   type QuantumLoadLatestCanonicalCaseMaterializationRequest,
   type QuantumCanonicalBoundedReportRequest,
   type QuantumLoadLatestCanonicalBoundedReportRequest,
+  type QuantumWs6CanonicalExecutionReportRequest,
+  type QuantumLoadLatestWs6CanonicalExecutionReportRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -241,6 +245,11 @@ export interface QuantumCanonicalBoundedReportRequestBody extends QuantumCanonic
 
 export interface QuantumLoadLatestCanonicalBoundedReportRequestBody
   extends QuantumLoadLatestCanonicalBoundedReportRequest {}
+
+export interface QuantumWs6CanonicalExecutionReportRequestBody extends QuantumWs6CanonicalExecutionReportRequest {}
+
+export interface QuantumLoadLatestWs6CanonicalExecutionReportRequestBody
+  extends QuantumLoadLatestWs6CanonicalExecutionReportRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -673,6 +682,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumCanonicalBoundedReportLoadResult {
     try {
       return this.quantumReadinessService.loadLatestCanonicalBoundedReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/provider-bridge/canonical-report")
+  @HttpCode(HttpStatus.OK)
+  buildWs6CanonicalExecutionReport(
+    @Body() body: QuantumWs6CanonicalExecutionReportRequestBody,
+  ): OpenPraQuantumWs6CanonicalExecutionReportResult {
+    try {
+      return this.quantumReadinessService.buildWs6CanonicalExecutionReport(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/provider-bridge/canonical-report/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestWs6CanonicalExecutionReport(
+    @Body() body: QuantumLoadLatestWs6CanonicalExecutionReportRequestBody,
+  ): OpenPraQuantumWs6CanonicalExecutionReportLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestWs6CanonicalExecutionReport(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

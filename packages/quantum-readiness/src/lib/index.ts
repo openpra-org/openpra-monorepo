@@ -34,4 +34,5 @@ export * from "./openpra-quantum-canonical-case-materialization-loader";
 export * from "./openpra-quantum-provider-bridge-scaffold";
 export * from "./openpra-quantum-provider-bridge-completion";
 export * from "./openpra-quantum-canonical-bounded-report";
+export * from "./openpra-quantum-ws6-canonical-execution-report";
 export * from "./openpra-quantum-execution-record-service-stub";

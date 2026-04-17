@@ -18,6 +18,8 @@ import {
   materializeOpenPraQuantumCanonicalCasePackArtifacts,
   buildOpenPraQuantumCanonicalBoundedReport,
   loadLatestOpenPraQuantumCanonicalBoundedReport,
+  buildOpenPraQuantumWs6CanonicalExecutionReport,
+  loadLatestOpenPraQuantumWs6CanonicalExecutionReport,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -50,6 +52,9 @@ import {
   type OpenPraQuantumCanonicalBoundedReportLoadResult,
   type OpenPraQuantumCanonicalBoundedReportRequest,
   type OpenPraQuantumCanonicalBoundedReportResult,
+  type OpenPraQuantumWs6CanonicalExecutionReportLoadResult,
+  type OpenPraQuantumWs6CanonicalExecutionReportRequest,
+  type OpenPraQuantumWs6CanonicalExecutionReportResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -249,6 +254,12 @@ export type QuantumProviderBridgeCompletionServiceRequest = OpenPraQuantumProvid
 export type QuantumCanonicalBoundedReportRequest = OpenPraQuantumCanonicalBoundedReportRequest;
 
 export interface QuantumLoadLatestCanonicalBoundedReportRequest {
+  rootDirectoryPath: string;
+}
+
+export type QuantumWs6CanonicalExecutionReportRequest = OpenPraQuantumWs6CanonicalExecutionReportRequest;
+
+export interface QuantumLoadLatestWs6CanonicalExecutionReportRequest {
   rootDirectoryPath: string;
 }
 
@@ -947,6 +958,18 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestCanonicalBoundedReportRequest,
   ): OpenPraQuantumCanonicalBoundedReportLoadResult {
     return loadLatestOpenPraQuantumCanonicalBoundedReport(request);
+  }
+
+  buildWs6CanonicalExecutionReport(
+    request: QuantumWs6CanonicalExecutionReportRequest,
+  ): OpenPraQuantumWs6CanonicalExecutionReportResult {
+    return buildOpenPraQuantumWs6CanonicalExecutionReport(request);
+  }
+
+  loadLatestWs6CanonicalExecutionReport(
+    request: QuantumLoadLatestWs6CanonicalExecutionReportRequest,
+  ): OpenPraQuantumWs6CanonicalExecutionReportLoadResult {
+    return loadLatestOpenPraQuantumWs6CanonicalExecutionReport(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

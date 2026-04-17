@@ -38,4 +38,5 @@ export * from "./openpra-quantum-ws6-canonical-execution-report";
 export * from "./openpra-quantum-canonical-program-report";
 export * from "./openpra-quantum-frontend-summary";
 export * from "./openpra-quantum-frontend-workspace-snapshot";
+export * from "./openpra-quantum-frontend-seed-state";
 export * from "./openpra-quantum-execution-record-service-stub";

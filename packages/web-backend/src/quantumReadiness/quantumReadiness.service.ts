@@ -26,6 +26,8 @@ import {
   loadLatestOpenPraQuantumFrontendSummary,
   buildOpenPraQuantumFrontendWorkspaceSnapshot,
   loadLatestOpenPraQuantumFrontendWorkspaceSnapshot,
+  buildOpenPraQuantumFrontendSeedState,
+  loadLatestOpenPraQuantumFrontendSeedState,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -70,6 +72,9 @@ import {
   type OpenPraQuantumFrontendWorkspaceSnapshotLoadResult,
   type OpenPraQuantumFrontendWorkspaceSnapshotRequest,
   type OpenPraQuantumFrontendWorkspaceSnapshotResult,
+  type OpenPraQuantumFrontendSeedStateLoadResult,
+  type OpenPraQuantumFrontendSeedStateRequest,
+  type OpenPraQuantumFrontendSeedStateResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -293,6 +298,12 @@ export interface QuantumLoadLatestFrontendSummaryRequest {
 export type QuantumFrontendWorkspaceSnapshotRequest = OpenPraQuantumFrontendWorkspaceSnapshotRequest;
 
 export interface QuantumLoadLatestFrontendWorkspaceSnapshotRequest {
+  rootDirectoryPath: string;
+}
+
+export type QuantumFrontendSeedStateRequest = OpenPraQuantumFrontendSeedStateRequest;
+
+export interface QuantumLoadLatestFrontendSeedStateRequest {
   rootDirectoryPath: string;
 }
 
@@ -1035,6 +1046,16 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestFrontendWorkspaceSnapshotRequest,
   ): OpenPraQuantumFrontendWorkspaceSnapshotLoadResult {
     return loadLatestOpenPraQuantumFrontendWorkspaceSnapshot(request);
+  }
+
+  buildFrontendSeedState(request: QuantumFrontendSeedStateRequest): OpenPraQuantumFrontendSeedStateResult {
+    return buildOpenPraQuantumFrontendSeedState(request);
+  }
+
+  loadLatestFrontendSeedState(
+    request: QuantumLoadLatestFrontendSeedStateRequest,
+  ): OpenPraQuantumFrontendSeedStateLoadResult {
+    return loadLatestOpenPraQuantumFrontendSeedState(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

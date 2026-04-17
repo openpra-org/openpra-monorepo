@@ -24,6 +24,8 @@ import type {
   OpenPraQuantumFrontendSummaryResult,
   OpenPraQuantumFrontendWorkspaceSnapshotLoadResult,
   OpenPraQuantumFrontendWorkspaceSnapshotResult,
+  OpenPraQuantumFrontendSeedStateLoadResult,
+  OpenPraQuantumFrontendSeedStateResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -60,6 +62,8 @@ import {
   type QuantumLoadLatestFrontendSummaryRequest,
   type QuantumFrontendWorkspaceSnapshotRequest,
   type QuantumLoadLatestFrontendWorkspaceSnapshotRequest,
+  type QuantumFrontendSeedStateRequest,
+  type QuantumLoadLatestFrontendSeedStateRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -276,6 +280,10 @@ export interface QuantumFrontendWorkspaceSnapshotRequestBody extends QuantumFron
 
 export interface QuantumLoadLatestFrontendWorkspaceSnapshotRequestBody
   extends QuantumLoadLatestFrontendWorkspaceSnapshotRequest {}
+
+export interface QuantumFrontendSeedStateRequestBody extends QuantumFrontendSeedStateRequest {}
+
+export interface QuantumLoadLatestFrontendSeedStateRequestBody extends QuantumLoadLatestFrontendSeedStateRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -802,6 +810,28 @@ export class QuantumReadinessController {
   ): OpenPraQuantumFrontendWorkspaceSnapshotLoadResult {
     try {
       return this.quantumReadinessService.loadLatestFrontendWorkspaceSnapshot(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-seed-state")
+  @HttpCode(HttpStatus.OK)
+  buildFrontendSeedState(@Body() body: QuantumFrontendSeedStateRequestBody): OpenPraQuantumFrontendSeedStateResult {
+    try {
+      return this.quantumReadinessService.buildFrontendSeedState(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/frontend-seed-state/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestFrontendSeedState(
+    @Body() body: QuantumLoadLatestFrontendSeedStateRequestBody,
+  ): OpenPraQuantumFrontendSeedStateLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestFrontendSeedState(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

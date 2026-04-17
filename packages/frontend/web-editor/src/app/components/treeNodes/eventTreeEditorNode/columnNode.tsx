@@ -1,16 +1,12 @@
 import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
-import React, { memo, useState, useEffect } from "react";
-import { EuiTextArea, EuiSelect } from "@elastic/eui";
-import { useParams } from "react-router-dom";
+import React, { memo, useState } from "react";
+import { EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import { setFirstColumnLabel } from "./outputNode";
-import { GetFaultTrees } from "shared-sdk/lib/api/NestedModelsAPI/FaultTreesApiManager";
-import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
 
-// Helper function to get initials
 const getInitials = (str: string): string => {
   return str
     .split(" ")
@@ -19,7 +15,7 @@ const getInitials = (str: string): string => {
     .toUpperCase();
 };
 
-interface ColumnNodeData {
+export interface ColumnNodeData {
   label: string;
   width: number;
   depth: number;
@@ -37,38 +33,6 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
   const { allowAdd } = data;
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const { setNodes } = useReactFlow<ColumnNodeData, unknown>();
-  const { modelId } = useParams<{ modelId: string }>();
-
-  // Fetch fault trees for linking
-  const [faultTrees, setFaultTrees] = useState<NestedModelType[]>([]);
-  useEffect(() => {
-    if (data.hideText || !modelId || !allowAdd) return;
-    void GetFaultTrees(modelId)
-      .then(setFaultTrees)
-      .catch(() => {});
-  }, [modelId, allowAdd, data.hideText]);
-
-  const ftOptions = [
-    { value: "", text: "— select fault tree —" },
-    ...faultTrees.map((ft) => ({ value: String(ft.id), text: ft.label?.name ?? String(ft.id) })),
-  ];
-
-  const handleFaultTreeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value;
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id ?
-          {
-            ...node,
-            data: {
-              ...node.data,
-              faultTreeId: val || undefined,
-            },
-          }
-        : node,
-      ),
-    );
-  };
 
   const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>): void => {
     const newValue = event.target.value;
@@ -196,22 +160,6 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
               rows={1}
               cols={1}
             />
-            {allowAdd && (
-              <EuiSelect
-                options={ftOptions}
-                value={data.faultTreeId || ""}
-                onChange={handleFaultTreeChange as any}
-                compressed
-                style={{
-                  fontSize: "0.55rem",
-                  padding: "0 2px",
-                  height: "20px",
-                  marginTop: "2px",
-                  width: "100%",
-                  maxWidth: "100px",
-                }}
-              />
-            )}
           </div>
 
           {hasButtons && (

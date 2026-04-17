@@ -13,6 +13,7 @@ import {
   loadLatestOpenPraQuantumProviderExecutionRequest,
   persistOpenPraQuantumProviderExecutionRequest,
   submitOpenPraQuantumProviderBridgeRequest,
+  completeOpenPraQuantumProviderBridgeSubmission,
   loadLatestOpenPraQuantumCanonicalCaseMaterializationSummary,
   materializeOpenPraQuantumCanonicalCasePackArtifacts,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
@@ -38,6 +39,8 @@ import {
   type OpenPraQuantumProviderExecutionRequestStoreResult,
   type OpenPraQuantumProviderBridgeSubmissionRequest,
   type OpenPraQuantumProviderBridgeSubmissionResult,
+  type OpenPraQuantumProviderBridgeCompletionRequest,
+  type OpenPraQuantumProviderBridgeCompletionResult,
   type CreateOpenPraQuantumProviderExecutionRequestParams,
   type OpenPraQuantumCanonicalCaseMaterializationLoadResult,
   type OpenPraQuantumCanonicalCaseMaterializationRequest,
@@ -235,6 +238,8 @@ export interface QuantumLoadLatestCanonicalCaseMaterializationRequest {
 }
 
 export type QuantumProviderBridgeSubmissionServiceRequest = OpenPraQuantumProviderBridgeSubmissionRequest;
+
+export type QuantumProviderBridgeCompletionServiceRequest = OpenPraQuantumProviderBridgeCompletionRequest;
 
 export interface QuantumImportanceComparisonRequest {
   modelId: string;
@@ -913,6 +918,12 @@ export class QuantumReadinessService {
     request: QuantumProviderBridgeSubmissionServiceRequest,
   ): OpenPraQuantumProviderBridgeSubmissionResult {
     return submitOpenPraQuantumProviderBridgeRequest(request);
+  }
+
+  completeProviderBridgeSubmission(
+    request: QuantumProviderBridgeCompletionServiceRequest,
+  ): OpenPraQuantumProviderBridgeCompletionResult {
+    return completeOpenPraQuantumProviderBridgeSubmission(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

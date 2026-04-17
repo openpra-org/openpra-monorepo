@@ -3,6 +3,8 @@ import type { FaultTreeGraph } from "shared-types";
 import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
+  OpenPraQuantumBoundedImportanceServiceFacadeResult,
+  OpenPraQuantumExecutionRecordServiceStubResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -19,6 +21,8 @@ import {
   type QuantumExecutionArtifactSimulatorRequest,
   type QuantumExecutionWorkflowRequest,
   QuantumReadinessService,
+  type QuantumBoundedImportanceServiceRequest,
+  type QuantumExecutionRecordServiceStubRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -190,6 +194,10 @@ export interface QuantumLatestWorkflowRunByTargetRequest {
   modelId: string;
   subtreeId: string;
 }
+
+export interface QuantumBoundedImportanceServiceRequestBody extends QuantumBoundedImportanceServiceRequest {}
+
+export interface QuantumExecutionRecordServiceStubRequestBody extends QuantumExecutionRecordServiceStubRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -468,6 +476,30 @@ export class QuantumReadinessController {
   ): QuantumLatestWorkflowRunByTargetResult {
     try {
       return this.quantumReadinessService.getLatestWorkflowRunByTarget(body.rootDir, body.modelId, body.subtreeId);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/importance/bounded")
+  @HttpCode(HttpStatus.OK)
+  buildBoundedImportanceServiceFacade(
+    @Body() body: QuantumBoundedImportanceServiceRequestBody,
+  ): OpenPraQuantumBoundedImportanceServiceFacadeResult {
+    try {
+      return this.quantumReadinessService.buildBoundedImportanceServiceFacade(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/record-stub")
+  @HttpCode(HttpStatus.OK)
+  buildExecutionRecordServiceStub(
+    @Body() body: QuantumExecutionRecordServiceStubRequestBody,
+  ): OpenPraQuantumExecutionRecordServiceStubResult {
+    try {
+      return this.quantumReadinessService.buildExecutionRecordServiceStub(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

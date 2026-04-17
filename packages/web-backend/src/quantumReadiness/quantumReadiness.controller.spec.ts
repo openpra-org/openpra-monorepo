@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { FaultTreeGraph } from "shared-types";
+import { SCREENING_LEVEL_BOUNDEDNESS_STATEMENT } from "quantum-readiness";
 
 import { GraphModelService } from "../graphModels/graphModel.service";
 import { QuantumReadinessController } from "./quantumReadiness.controller";
@@ -564,5 +565,103 @@ describe("QuantumReadinessController", () => {
     expect(result.preparationCandidates).toHaveLength(1);
     expect(result.preparationCandidates[0]?.candidateRootNodeId).toBe("TOP");
     expect(result.preparationCandidates[0]?.orderedBasicEventIds).toEqual(["A", "B"]);
+  });
+  it("builds bounded importance service facade outputs through the controller", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpra-ws5-controller-"));
+    const generatedAtUtc = "2026-04-17T17:03:17.743Z";
+
+    const expectedResponse = {
+      subtreeId: "G:G348",
+      topologyClass: "A",
+      recoveryMode: "exact_hardware_recovery",
+      operatorAttentionRequired: false,
+      boundednessStatement: SCREENING_LEVEL_BOUNDEDNESS_STATEMENT,
+      quantumImportance: [
+        {
+          basicEventId: "BE_A",
+          fussellVesely: 0.5,
+          riskAchievementWorth: 2.0,
+          birnbaum: 0.1,
+        },
+      ],
+      classicalBaseline: [
+        {
+          basicEventId: "BE_A",
+          fussellVesely: 0.5,
+          riskAchievementWorth: 2.0,
+          birnbaum: 0.1,
+        },
+      ],
+      comparisonStatistics: {
+        sharedBasicEventCount: 1,
+        fvCorrelation: 1,
+        rawCorrelation: 1,
+        birnbaumCorrelation: 1,
+        fvMaxAbsoluteDeviation: 0,
+        rawMaxAbsoluteDeviation: 0,
+        birnbaumMaxAbsoluteDeviation: 0,
+        disagreementCount: 0,
+      },
+      provenanceManifestPath: "/provenance/ws5/phase2b_row_0698__G_G348.json",
+      sourceRecoveryArtifactPath: "/recovery/phase2b_row_0698__G_G348.json",
+      generatedAtUtc,
+      caseLabel: "phase2b_row_0698__G_G348",
+    };
+
+    const result = controller.buildBoundedImportanceServiceFacade({
+      rootDirectoryPath: tempDir,
+      subtreeId: expectedResponse.subtreeId,
+      topologyClass: expectedResponse.topologyClass,
+      recoveryMode: expectedResponse.recoveryMode,
+      operatorAttentionRequired: expectedResponse.operatorAttentionRequired,
+      quantumImportance: expectedResponse.quantumImportance,
+      classicalBaseline: expectedResponse.classicalBaseline,
+      comparisonStatistics: expectedResponse.comparisonStatistics,
+      provenanceManifestPath: expectedResponse.provenanceManifestPath,
+      sourceRecoveryArtifactPath: expectedResponse.sourceRecoveryArtifactPath,
+      generatedAtUtc: expectedResponse.generatedAtUtc,
+      caseLabel: expectedResponse.caseLabel,
+      expectedResponse,
+    });
+
+    expect(result.stubResult.parityAgainstExpected?.allChecksPass).toBe(true);
+    expect(fs.existsSync(result.persistedArtifacts.responsePath)).toBe(true);
+    expect(fs.existsSync(result.persistedArtifacts.provenanceManifestPath)).toBe(true);
+  });
+
+  it("builds execution record service stub outputs through the controller", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "openpra-ws6-controller-"));
+
+    const result = controller.buildExecutionRecordServiceStub({
+      rootDirectoryPath: tempDir,
+      executionRecord: {
+        subtreeId: "G:G348",
+        providerName: "ibm_runtime",
+        backendName: "ibm_torino",
+        jobId: "job-0698",
+        shots: 8192,
+        resilienceLevel: 0,
+        status: "submitted",
+        provenanceManifestPath: "/provenance/ws6/job-0698.json",
+        submittedAtUtc: "2026-04-17T17:03:17.743Z",
+        caseLabel: "phase2b_row_0698__G_G348",
+      },
+      executionResult: {
+        jobId: "job-0698",
+        status: "completed",
+        rawCountsArtifactPath: "/raw-counts/phase2b_row_0698__G_G348.json",
+        recoveryArtifactPath: "/recovery/phase2b_row_0698__G_G348.json",
+        provenanceManifestPath: "/provenance/ws6/job-0698.json",
+        completedAtUtc: "2026-04-17T17:05:00.000Z",
+        failureReason: null,
+      },
+      inputArtifactPaths: [],
+      scriptVersion: "quantumReadiness.controller.spec",
+    });
+
+    expect(result.executionRecord.jobId).toBe("job-0698");
+    expect(result.executionResult?.status).toBe("completed");
+    expect(fs.existsSync(result.persistedArtifacts.recordPath)).toBe(true);
+    expect(fs.existsSync(result.persistedArtifacts.provenanceManifestPath)).toBe(true);
   });
 });

@@ -4,6 +4,8 @@ import { Injectable } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
 import {
   analyzeLikelyOpenPraFaultTreeGraphReadiness,
+  buildOpenPraQuantumBoundedImportanceServiceFacade,
+  buildOpenPraQuantumExecutionRecordServiceStub,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -14,8 +16,12 @@ import {
   buildQuantumPreparationExport,
   writeOpenpraQuantumExecutionArtifactBundleToFilesystem,
   writeOpenpraQuantumPreparationArtifactBundleToFilesystem,
+  type BuildOpenPraQuantumBoundedImportanceServiceFacadeParams,
+  type BuildOpenPraQuantumExecutionRecordServiceStubParams,
   type OpenPraFaultTreeReadinessOptions,
   type OpenPraFaultTreeReadinessResult,
+  type OpenPraQuantumBoundedImportanceServiceFacadeResult,
+  type OpenPraQuantumExecutionRecordServiceStubResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -175,6 +181,10 @@ export interface QuantumLatestWorkflowRunByTargetResult {
   latest: QuantumWorkflowRunListingEntry | null;
   inspection: QuantumWorkflowRunInspectionResult | null;
 }
+
+export type QuantumBoundedImportanceServiceRequest = BuildOpenPraQuantumBoundedImportanceServiceFacadeParams;
+
+export type QuantumExecutionRecordServiceStubRequest = BuildOpenPraQuantumExecutionRecordServiceStubParams;
 
 export interface QuantumImportanceComparisonRequest {
   modelId: string;
@@ -788,6 +798,18 @@ export class QuantumReadinessService {
       latest,
       inspection: latest ? this.inspectWorkflowRun(latest.workflowRunDir) : null,
     };
+  }
+
+  buildBoundedImportanceServiceFacade(
+    request: QuantumBoundedImportanceServiceRequest,
+  ): OpenPraQuantumBoundedImportanceServiceFacadeResult {
+    return buildOpenPraQuantumBoundedImportanceServiceFacade(request);
+  }
+
+  buildExecutionRecordServiceStub(
+    request: QuantumExecutionRecordServiceStubRequest,
+  ): OpenPraQuantumExecutionRecordServiceStubResult {
+    return buildOpenPraQuantumExecutionRecordServiceStub(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

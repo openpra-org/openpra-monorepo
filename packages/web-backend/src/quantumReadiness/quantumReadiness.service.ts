@@ -12,6 +12,8 @@ import {
   getOpenPraQuantumCanonicalCasePackSummary,
   loadLatestOpenPraQuantumProviderExecutionRequest,
   persistOpenPraQuantumProviderExecutionRequest,
+  loadLatestOpenPraQuantumCanonicalCaseMaterializationSummary,
+  materializeOpenPraQuantumCanonicalCasePackArtifacts,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -34,6 +36,9 @@ import {
   type OpenPraQuantumProviderExecutionRequestLoadResult,
   type OpenPraQuantumProviderExecutionRequestStoreResult,
   type CreateOpenPraQuantumProviderExecutionRequestParams,
+  type OpenPraQuantumCanonicalCaseMaterializationLoadResult,
+  type OpenPraQuantumCanonicalCaseMaterializationRequest,
+  type OpenPraQuantumCanonicalCaseMaterializationResult,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -218,6 +223,12 @@ export interface QuantumBuildProviderExecutionRequest {
 export interface QuantumLoadLatestProviderExecutionRequest {
   rootDirectoryPath: string;
   caseLabel?: string;
+}
+
+export type QuantumCanonicalCaseMaterializationRequest = OpenPraQuantumCanonicalCaseMaterializationRequest;
+
+export interface QuantumLoadLatestCanonicalCaseMaterializationRequest {
+  rootDirectoryPath: string;
 }
 
 export interface QuantumImportanceComparisonRequest {
@@ -879,6 +890,18 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestProviderExecutionRequest,
   ): OpenPraQuantumProviderExecutionRequestLoadResult {
     return loadLatestOpenPraQuantumProviderExecutionRequest(request);
+  }
+
+  materializeCanonicalCasePackArtifacts(
+    request: QuantumCanonicalCaseMaterializationRequest,
+  ): OpenPraQuantumCanonicalCaseMaterializationResult {
+    return materializeOpenPraQuantumCanonicalCasePackArtifacts(request);
+  }
+
+  loadLatestCanonicalCaseMaterializationSummary(
+    request: QuantumLoadLatestCanonicalCaseMaterializationRequest,
+  ): OpenPraQuantumCanonicalCaseMaterializationLoadResult {
+    return loadLatestOpenPraQuantumCanonicalCaseMaterializationSummary(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

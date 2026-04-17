@@ -10,6 +10,8 @@ import type {
   OpenPraQuantumCanonicalCasePackSummary,
   OpenPraQuantumProviderExecutionRequestLoadResult,
   OpenPraQuantumProviderExecutionRequestStoreResult,
+  OpenPraQuantumCanonicalCaseMaterializationLoadResult,
+  OpenPraQuantumCanonicalCaseMaterializationResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -32,6 +34,8 @@ import {
   type QuantumLoadLatestExecutionArtifactsRequest,
   type QuantumBuildProviderExecutionRequest,
   type QuantumLoadLatestProviderExecutionRequest,
+  type QuantumCanonicalCaseMaterializationRequest,
+  type QuantumLoadLatestCanonicalCaseMaterializationRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -215,6 +219,11 @@ export interface QuantumLoadLatestExecutionArtifactsRequestBody extends QuantumL
 export interface QuantumBuildProviderExecutionRequestBody extends QuantumBuildProviderExecutionRequest {}
 
 export interface QuantumLoadLatestProviderExecutionRequestBody extends QuantumLoadLatestProviderExecutionRequest {}
+
+export interface QuantumCanonicalCaseMaterializationRequestBody extends QuantumCanonicalCaseMaterializationRequest {}
+
+export interface QuantumLoadLatestCanonicalCaseMaterializationRequestBody
+  extends QuantumLoadLatestCanonicalCaseMaterializationRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -575,6 +584,30 @@ export class QuantumReadinessController {
   ): OpenPraQuantumProviderExecutionRequestLoadResult {
     try {
       return this.quantumReadinessService.loadLatestProviderExecutionRequest(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/canonical-case-pack/materialize")
+  @HttpCode(HttpStatus.OK)
+  materializeCanonicalCasePackArtifacts(
+    @Body() body: QuantumCanonicalCaseMaterializationRequestBody,
+  ): OpenPraQuantumCanonicalCaseMaterializationResult {
+    try {
+      return this.quantumReadinessService.materializeCanonicalCasePackArtifacts(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/canonical-case-pack/materialize/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestCanonicalCaseMaterializationSummary(
+    @Body() body: QuantumLoadLatestCanonicalCaseMaterializationRequestBody,
+  ): OpenPraQuantumCanonicalCaseMaterializationLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestCanonicalCaseMaterializationSummary(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

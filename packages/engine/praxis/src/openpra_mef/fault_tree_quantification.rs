@@ -23,7 +23,7 @@ pub struct QuantificationRequest {
     pub transfer_trees: HashMap<String, MefFaultTreeGraph>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MefFaultTreeGraph {
     pub fault_tree_id: String,
@@ -31,7 +31,7 @@ pub struct MefFaultTreeGraph {
     pub nodes: HashMap<String, MefFaultTreeNode>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MefFaultTreeNode {
     #[serde(default)]
@@ -55,7 +55,7 @@ pub struct MefFaultTreeNode {
     pub transfer_tree_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MefDistribution {
     #[serde(rename = "lognormal")]
@@ -464,6 +464,13 @@ fn add_node_to_fault_tree(ft: &mut FaultTree, uuid: &str, node: &MefFaultTreeNod
             }
             ft.add_gate(gate)?;
         }
+        "NOT_GATE" => {
+            let mut gate = Gate::new(uuid.to_string(), Formula::Not)?;
+            if let Some(child) = node.inputs.first() {
+                gate.add_operand(child.clone());
+            }
+            ft.add_gate(gate)?;
+        }
         "ATLEAST_GATE" => {
             let k = node.k_value.unwrap_or(2);
             let mut gate = Gate::new(uuid.to_string(), Formula::AtLeast { min: k })?;
@@ -505,7 +512,7 @@ fn add_node_to_fault_tree(ft: &mut FaultTree, uuid: &str, node: &MefFaultTreeNod
 fn is_gate_type(node_type: &str) -> bool {
     matches!(
         node_type,
-        "AND_GATE" | "OR_GATE" | "ATLEAST_GATE" | "INHIBIT_GATE"
+        "AND_GATE" | "OR_GATE" | "ATLEAST_GATE" | "INHIBIT_GATE" | "NOT_GATE"
     )
 }
 

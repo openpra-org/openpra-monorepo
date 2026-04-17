@@ -8,6 +8,10 @@ import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
+import type {
+  EventTreeQuantificationRequest,
+  EventTreeQuantificationResult,
+} from "shared-types/src/lib/types/eventTreeQuantification";
 
 /**
  * Controller for graph model operations and updates.
@@ -144,6 +148,19 @@ export class GraphModelController {
   ): Promise<FaultTreeQuantificationResult> {
     try {
       return await this.graphModelService.quantifyFaultTree(faultTreeId, body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Quantification failed";
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post("/event-tree-graph/quantify")
+  async quantifyEventTree(
+    @Query("eventTreeId") eventTreeId: string,
+    @Body() body: Omit<EventTreeQuantificationRequest, "graph">,
+  ): Promise<EventTreeQuantificationResult> {
+    try {
+      return await this.graphModelService.quantifyEventTree(eventTreeId, body);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Quantification failed";
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);

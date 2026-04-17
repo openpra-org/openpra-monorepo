@@ -8,4 +8,11 @@ export interface EventTreeData {
   output: boolean;
   inputDepth?: number;
   outputDepth?: number;
+  faultTreeId?: string;
+  isSequenceId?: boolean;
+  allowAdd?: boolean;
+  allowDelete?: boolean;
+  hideText?: boolean;
+  successProbability?: number;
+  frequency?: number;
 }

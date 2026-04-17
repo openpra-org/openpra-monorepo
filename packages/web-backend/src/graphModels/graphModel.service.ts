@@ -1,5 +1,5 @@
 import * as mongoose from "mongoose";
-import { HydratedDocument, Model } from "mongoose";
+import { Model } from "mongoose";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
@@ -8,24 +8,21 @@ import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
+import type {
+  EventTreeQuantificationRequest,
+  EventTreeQuantificationResult,
+} from "shared-types/src/lib/types/eventTreeQuantification";
 import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphDocument,
 } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-tree-graph.schema";
-import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
 
 interface FaultTreeMEFPayload {
   faultTreeId: string;
   topEventId?: string;
   nodes?: Record<string, object>;
-}
-
-enum GraphTypes {
-  EventSequence = "event-sequence",
-  FaultTree = "fault-tree",
-  EventTree = "event-tree",
 }
 
 @Injectable()
@@ -107,10 +104,21 @@ export class GraphModelService {
 
   async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
     try {
-      const existingGraph = await this.eventTreeGraphModel.findOne({
-        eventTreeId: body.eventTreeId,
-      });
-      return this.saveGraph(existingGraph, body, GraphTypes.EventTree);
+      const existing = await this.eventTreeGraphModel.findOne({ eventTreeId: body.eventTreeId });
+      if (existing !== null) {
+        if (body.nodes !== undefined) existing.nodes = body.nodes;
+        if (body.edges !== undefined) existing.edges = body.edges;
+        if (body.initiatingEventId !== undefined) existing.initiatingEventId = body.initiatingEventId;
+        if (body.functionalEvents !== undefined) existing.functionalEvents = body.functionalEvents;
+        if (body.sequences !== undefined) existing.sequences = body.sequences;
+        await existing.save();
+      } else {
+        const newGraph = new this.eventTreeGraphModel(body);
+        newGraph.id = this.generateUUID();
+        newGraph._id = new mongoose.Types.ObjectId();
+        await newGraph.save();
+      }
+      return true;
     } catch (exception) {
       const error = exception as Error;
       this.logger.error(error.message, error.stack);
@@ -181,36 +189,6 @@ export class GraphModelService {
       const error = exception as Error;
       this.logger.error(error.message, error.stack);
       throw new Error();
-    }
-  }
-
-  private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
-    type AnyGraphDocument = EventSequenceDiagramGraphDocument | EventTreeGraphDocument;
-    const doc = graph as AnyGraphDocument | null;
-    if (doc !== null) {
-      if (body.nodes !== undefined) (doc as any).nodes = body.nodes as any;
-      if (body.edges !== undefined) (doc as any).edges = body.edges as any;
-      await (doc as any).save();
-    } else {
-      const newGraph = this.getModel(modelType, body);
-      (newGraph as any).id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-      (newGraph as any)._id = new mongoose.Types.ObjectId();
-      await (newGraph as any).save();
-    }
-    return true;
-  }
-
-  private getModel(
-    modelType: GraphTypes,
-    body: Partial<BaseGraph>,
-  ): HydratedDocument<EventSequenceDiagramGraphDocument | EventTreeGraphDocument> {
-    switch (modelType) {
-      case GraphTypes.EventSequence:
-        return new this.eventSequenceDiagramGraphModel(body);
-      case GraphTypes.EventTree:
-        return new this.eventTreeGraphModel(body);
-      default:
-        throw new Error("model type not found");
     }
   }
 
@@ -318,6 +296,49 @@ export class GraphModelService {
 
     const resultJson = praxis.quantifyFaultTree(JSON.stringify(request));
     return JSON.parse(resultJson) as FaultTreeQuantificationResult;
+  }
+
+  async quantifyEventTree(
+    eventTreeId: string,
+    options: Omit<EventTreeQuantificationRequest, "graph">,
+  ): Promise<EventTreeQuantificationResult> {
+    const graph = await this.getEventTreeGraph(eventTreeId);
+
+    const faultTreeIds = new Set<string>();
+    for (const node of graph.nodes) {
+      if ((node.data as { faultTreeId?: string })?.faultTreeId) {
+        faultTreeIds.add((node.data as { faultTreeId: string }).faultTreeId);
+      }
+    }
+    if (graph.functionalEvents) {
+      for (const fe of Object.values(graph.functionalEvents)) {
+        if (fe.faultTreeId) faultTreeIds.add(fe.faultTreeId);
+      }
+    }
+    const faultTrees: Record<string, object> = {};
+    for (const ftId of faultTreeIds) {
+      faultTrees[ftId] = await this.getFaultTreeGraph(ftId);
+    }
+
+    const request = {
+      graph: graph as unknown as EventTreeQuantificationRequest["graph"],
+      faultTrees,
+      ...options,
+    };
+
+    let praxis: { quantifyEventTree: (json: string) => string };
+    try {
+      praxis = require("praxis-node") as typeof praxis;
+    } catch {
+      const hint =
+        "The praxis-node native addon is not built. " +
+        "Run: cd packages/engine/praxis && cargo build --features napi-rs --release " +
+        "&& cp target/release/libpraxis.so praxis.node";
+      throw new Error(`praxis-node not available: ${hint}`);
+    }
+
+    const resultJson = praxis.quantifyEventTree(JSON.stringify(request));
+    return JSON.parse(resultJson) as EventTreeQuantificationResult;
   }
 
   private async collectTransferTrees(

@@ -40,15 +40,18 @@ export interface EventTreeGraph {
   /** Links this graph document to the NestedModel event tree record */
   eventTreeId: string;
 
-  /** Flattened MEF structure: Functional Events as columns */
+  /** MEF: ID of the initiating event column node */
+  initiatingEventId?: string;
+
+  /** MEF: Functional Events keyed by column-node ID */
   functionalEvents?: Record<string, FunctionalEvent>;
 
-  /** Flattened MEF structure: Sequences as rows/paths */
+  /** MEF: Enumerated sequences keyed by sequence-output-node ID */
   sequences?: Record<string, EventTreeSequence>;
 
-  /** Visual metadata: ReactFlow nodes */
+  /** Visual layout: ReactFlow nodes */
   nodes: GraphNode<EventTreeData>[];
 
-  /** Visual metadata: ReactFlow edges */
+  /** Visual layout: ReactFlow edges */
   edges: GraphEdge<EventTreeData>[];
 }

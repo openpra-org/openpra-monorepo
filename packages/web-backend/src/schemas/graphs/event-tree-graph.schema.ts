@@ -26,6 +26,9 @@ export class EventTreeGraph {
   @Prop({ type: String, unique: true, required: true })
   eventTreeId: string;
 
+  @Prop({ type: String })
+  initiatingEventId?: string;
+
   @Prop({ type: mongoose.Schema.Types.Mixed })
   functionalEvents?: Record<string, FunctionalEvent>;
 

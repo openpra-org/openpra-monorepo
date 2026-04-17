@@ -2353,6 +2353,12 @@ mod node_bindings {
     }
 
     #[napi]
+    pub fn quantify_event_tree(request_json: String) -> napi::Result<String> {
+        crate::openpra_mef::event_tree_quantification::quantify_event_tree_contract(&request_json)
+            .map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
     pub fn quantify_openpra_json(input: String, strict: Option<bool>) -> napi::Result<String> {
         let mode = if strict.unwrap_or(false) {
             ResolveMode::Strict

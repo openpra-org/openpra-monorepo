@@ -10,6 +10,7 @@ import type {
   OpenPraQuantumCanonicalCasePackSummary,
   OpenPraQuantumProviderExecutionRequestLoadResult,
   OpenPraQuantumProviderExecutionRequestStoreResult,
+  OpenPraQuantumProviderBridgeSubmissionResult,
   OpenPraQuantumCanonicalCaseMaterializationLoadResult,
   OpenPraQuantumCanonicalCaseMaterializationResult,
   OpenpraQuantumExecutionArtifactBundle,
@@ -34,6 +35,7 @@ import {
   type QuantumLoadLatestExecutionArtifactsRequest,
   type QuantumBuildProviderExecutionRequest,
   type QuantumLoadLatestProviderExecutionRequest,
+  type QuantumProviderBridgeSubmissionServiceRequest,
   type QuantumCanonicalCaseMaterializationRequest,
   type QuantumLoadLatestCanonicalCaseMaterializationRequest,
   type QuantumExecutionWorkflowRunResult,
@@ -224,6 +226,8 @@ export interface QuantumCanonicalCaseMaterializationRequestBody extends QuantumC
 
 export interface QuantumLoadLatestCanonicalCaseMaterializationRequestBody
   extends QuantumLoadLatestCanonicalCaseMaterializationRequest {}
+
+export interface QuantumProviderBridgeSubmissionRequestBody extends QuantumProviderBridgeSubmissionServiceRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -608,6 +612,18 @@ export class QuantumReadinessController {
   ): OpenPraQuantumCanonicalCaseMaterializationLoadResult {
     try {
       return this.quantumReadinessService.loadLatestCanonicalCaseMaterializationSummary(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/provider-bridge/submit")
+  @HttpCode(HttpStatus.OK)
+  submitProviderBridgeRequest(
+    @Body() body: QuantumProviderBridgeSubmissionRequestBody,
+  ): OpenPraQuantumProviderBridgeSubmissionResult {
+    try {
+      return this.quantumReadinessService.submitProviderBridgeRequest(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

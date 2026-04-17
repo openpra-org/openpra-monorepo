@@ -31,4 +31,5 @@ export * from "./openpra-quantum-provider-request-contract";
 export * from "./openpra-quantum-provider-request-store";
 export * from "./openpra-quantum-canonical-case-materializer";
 export * from "./openpra-quantum-canonical-case-materialization-loader";
+export * from "./openpra-quantum-provider-bridge-scaffold";
 export * from "./openpra-quantum-execution-record-service-stub";

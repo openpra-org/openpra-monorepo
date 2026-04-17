@@ -7,6 +7,9 @@ import type {
   OpenPraQuantumExecutionRecordServiceStubResult,
   OpenPraQuantumBoundedImportanceArtifactLoadResult,
   OpenPraQuantumExecutionArtifactLoadResult,
+  OpenPraQuantumCanonicalCasePackSummary,
+  OpenPraQuantumProviderExecutionRequestLoadResult,
+  OpenPraQuantumProviderExecutionRequestStoreResult,
   OpenpraQuantumExecutionArtifactBundle,
   OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   OpenpraQuantumPreparationArtifactBundle,
@@ -27,6 +30,8 @@ import {
   type QuantumExecutionRecordServiceStubRequest,
   type QuantumLoadLatestBoundedImportanceRequest,
   type QuantumLoadLatestExecutionArtifactsRequest,
+  type QuantumBuildProviderExecutionRequest,
+  type QuantumLoadLatestProviderExecutionRequest,
   type QuantumExecutionWorkflowRunResult,
   type QuantumFullPipelineWorkflowRunResult,
   type QuantumImportanceComparisonReportResult,
@@ -206,6 +211,10 @@ export interface QuantumExecutionRecordServiceStubRequestBody extends QuantumExe
 export interface QuantumLoadLatestBoundedImportanceRequestBody extends QuantumLoadLatestBoundedImportanceRequest {}
 
 export interface QuantumLoadLatestExecutionArtifactsRequestBody extends QuantumLoadLatestExecutionArtifactsRequest {}
+
+export interface QuantumBuildProviderExecutionRequestBody extends QuantumBuildProviderExecutionRequest {}
+
+export interface QuantumLoadLatestProviderExecutionRequestBody extends QuantumLoadLatestProviderExecutionRequest {}
 
 export interface QuantumRecoveryCandidateDirRequest {
   candidateDir: string;
@@ -532,6 +541,40 @@ export class QuantumReadinessController {
   ): OpenPraQuantumExecutionArtifactLoadResult {
     try {
       return this.quantumReadinessService.loadLatestExecutionArtifacts(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/canonical-case-pack/summary")
+  @HttpCode(HttpStatus.OK)
+  getCanonicalCasePackSummary(): OpenPraQuantumCanonicalCasePackSummary {
+    try {
+      return this.quantumReadinessService.getCanonicalCasePackSummary();
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/provider-request")
+  @HttpCode(HttpStatus.OK)
+  buildProviderExecutionRequest(
+    @Body() body: QuantumBuildProviderExecutionRequestBody,
+  ): OpenPraQuantumProviderExecutionRequestStoreResult {
+    try {
+      return this.quantumReadinessService.buildProviderExecutionRequest(body);
+    } catch (error) {
+      throw this.toHttpException(error);
+    }
+  }
+
+  @Post("/execution/provider-request/load-latest")
+  @HttpCode(HttpStatus.OK)
+  loadLatestProviderExecutionRequest(
+    @Body() body: QuantumLoadLatestProviderExecutionRequestBody,
+  ): OpenPraQuantumProviderExecutionRequestLoadResult {
+    try {
+      return this.quantumReadinessService.loadLatestProviderExecutionRequest(body);
     } catch (error) {
       throw this.toHttpException(error);
     }

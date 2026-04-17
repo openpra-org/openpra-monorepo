@@ -8,6 +8,10 @@ import {
   buildOpenPraQuantumExecutionRecordServiceStub,
   loadLatestOpenPraQuantumBoundedImportanceArtifacts,
   loadLatestOpenPraQuantumExecutionArtifacts,
+  createOpenPraQuantumProviderExecutionRequest,
+  getOpenPraQuantumCanonicalCasePackSummary,
+  loadLatestOpenPraQuantumProviderExecutionRequest,
+  persistOpenPraQuantumProviderExecutionRequest,
   buildOpenpraQuantumExecutionArtifactBundleFromRawCounts,
   buildOpenpraQuantumExecutionInputFromPreparationArtifactWithLocalSimulator,
   buildOpenpraQuantumPreparationArtifactBundleFromClQuboExport,
@@ -26,6 +30,10 @@ import {
   type OpenPraQuantumExecutionRecordServiceStubResult,
   type OpenPraQuantumBoundedImportanceArtifactLoadResult,
   type OpenPraQuantumExecutionArtifactLoadResult,
+  type OpenPraQuantumCanonicalCasePackSummary,
+  type OpenPraQuantumProviderExecutionRequestLoadResult,
+  type OpenPraQuantumProviderExecutionRequestStoreResult,
+  type CreateOpenPraQuantumProviderExecutionRequestParams,
   type OpenpraQuantumExecutionArtifactBundle,
   type OpenpraQuantumExecutionArtifactFilesystemWriteResult,
   type OpenpraQuantumExecutionProviderType,
@@ -196,6 +204,18 @@ export interface QuantumLoadLatestBoundedImportanceRequest {
 }
 
 export interface QuantumLoadLatestExecutionArtifactsRequest {
+  rootDirectoryPath: string;
+  caseLabel?: string;
+}
+
+export interface QuantumBuildProviderExecutionRequest {
+  rootDirectoryPath: string;
+  executionRequest: CreateOpenPraQuantumProviderExecutionRequestParams;
+  inputArtifactPaths?: string[];
+  scriptVersion?: string;
+}
+
+export interface QuantumLoadLatestProviderExecutionRequest {
   rootDirectoryPath: string;
   caseLabel?: string;
 }
@@ -836,6 +856,29 @@ export class QuantumReadinessService {
     request: QuantumLoadLatestExecutionArtifactsRequest,
   ): OpenPraQuantumExecutionArtifactLoadResult {
     return loadLatestOpenPraQuantumExecutionArtifacts(request);
+  }
+
+  getCanonicalCasePackSummary(): OpenPraQuantumCanonicalCasePackSummary {
+    return getOpenPraQuantumCanonicalCasePackSummary();
+  }
+
+  buildProviderExecutionRequest(
+    request: QuantumBuildProviderExecutionRequest,
+  ): OpenPraQuantumProviderExecutionRequestStoreResult {
+    const executionRequest = createOpenPraQuantumProviderExecutionRequest(request.executionRequest);
+
+    return persistOpenPraQuantumProviderExecutionRequest({
+      rootDirectoryPath: request.rootDirectoryPath,
+      request: executionRequest,
+      inputArtifactPaths: request.inputArtifactPaths ?? [],
+      scriptVersion: request.scriptVersion ?? "quantum-readiness.service.buildProviderExecutionRequest",
+    });
+  }
+
+  loadLatestProviderExecutionRequest(
+    request: QuantumLoadLatestProviderExecutionRequest,
+  ): OpenPraQuantumProviderExecutionRequestLoadResult {
+    return loadLatestOpenPraQuantumProviderExecutionRequest(request);
   }
 
   compareImportanceMeasures(request: QuantumImportanceComparisonRequest): QuantumImportanceComparisonResult {

@@ -26,4 +26,7 @@ export * from "./openpra-quantum-bounded-importance-service-facade";
 export * from "./openpra-quantum-execution-bridge-contract";
 export * from "./openpra-quantum-execution-artifact-store";
 export * from "./openpra-quantum-execution-artifact-loader";
+export * from "./openpra-quantum-canonical-case-pack";
+export * from "./openpra-quantum-provider-request-contract";
+export * from "./openpra-quantum-provider-request-store";
 export * from "./openpra-quantum-execution-record-service-stub";

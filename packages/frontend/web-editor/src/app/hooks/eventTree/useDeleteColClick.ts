@@ -89,9 +89,12 @@ function useDeleteColClick(clickedColumnId: string): () => void {
       (node) => node.type === "columnNode" && node.data.depth === columnDepth - 1,
     );
 
-    const nextColumnNode = currentNodes.find(
-      (node) => node.type === "columnNode" && node.data.depth === columnDepth + 1,
+    const chainEdge = currentEdges.find(
+      (e) =>
+        e.source === clickedColumnId &&
+        currentNodes.find((n) => n.id === e.target && (n.type === "columnNode" || n.type === "columnActionsNode")),
     );
+    const nextColumnNode = chainEdge ? currentNodes.find((n) => n.id === chainEdge.target) : undefined;
 
     // 5. Connect adjacent columns with hidden edge
     if (prevColumnNode && nextColumnNode) {
@@ -101,12 +104,21 @@ function useDeleteColClick(clickedColumnId: string): () => void {
         target: nextColumnNode.id,
         type: "custom",
         animated: false,
-        hidden: true,
+        data: { hidden: true },
       });
     }
 
-    // 6. Remove column node
+    // 6. Remove column node and orphaned column edges
     currentNodes = currentNodes.filter((node) => node.data.depth !== columnDepth);
+    currentEdges = currentEdges.filter((edge) => edge.source !== clickedColumnId && edge.target !== clickedColumnId);
+
+    // 6b. Decrement depth of all nodes deeper than the removed column
+    currentNodes = currentNodes.map((node) => {
+      if (node.data.depth > columnDepth) {
+        return { ...node, data: { ...node.data, depth: node.data.depth - 1 } };
+      }
+      return node;
+    });
 
     // 7. Update root node counter
     const rootNode = currentNodes.find((node) => node.data.depth === 1);

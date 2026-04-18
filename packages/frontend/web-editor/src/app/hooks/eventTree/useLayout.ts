@@ -126,7 +126,7 @@ function useLayout(_depth: number): void {
     const cols: Node<EventTreeNodeData>[] = [];
 
     nodeData.forEach((node) => {
-      if (node.type === "columnNode") {
+      if (node.type === "columnNode" || node.type === "columnActionsNode") {
         cols.push(node);
       } else {
         nodes.push(node);
@@ -153,16 +153,18 @@ function useLayout(_depth: number): void {
     const t = timer((elapsed: number) => {
       const s = elapsed / options.duration;
 
-      const currNodes = transitions.map(({ node, from, to }) => ({
-        id: node.id,
-        position: {
-          // simple linear interpolation
-          x: from.x + (to.x - from.x) * s,
-          y: from.y + (to.y - from.y) * s,
-        },
-        data: { ...node.data },
-        type: node.type,
-      }));
+      const currNodes = transitions.map(({ node, from, to }) => {
+        const live = getNode(node.id);
+        return {
+          id: node.id,
+          position: {
+            x: from.x + (to.x - from.x) * s,
+            y: from.y + (to.y - from.y) * s,
+          },
+          data: live ? { ...live.data } : { ...node.data },
+          type: live?.type ?? node.type,
+        };
+      });
 
       setNodes(currNodes);
 
@@ -170,15 +172,18 @@ function useLayout(_depth: number): void {
       if (elapsed > options.duration) {
         // we are moving the nodes to their destination
         // this needs to happen to avoid glitches
-        const finalNodes = transitions.map(({ node, to }) => ({
-          id: node.id,
-          position: {
-            x: to.x,
-            y: to.y,
-          },
-          data: { ...node.data },
-          type: node.type,
-        }));
+        const finalNodes = transitions.map(({ node, to }) => {
+          const live = getNode(node.id);
+          return {
+            id: node.id,
+            position: {
+              x: to.x,
+              y: to.y,
+            },
+            data: live ? { ...live.data } : { ...node.data },
+            type: live?.type ?? node.type,
+          };
+        });
 
         setNodes(finalNodes);
 

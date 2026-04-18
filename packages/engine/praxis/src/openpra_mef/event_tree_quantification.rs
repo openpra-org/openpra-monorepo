@@ -367,6 +367,40 @@ fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
         .filter_map(|n| n.data.depth.map(|d| (n.id.clone(), d)))
         .collect();
 
+    let ie_initials = {
+        let ie_label = graph
+            .nodes
+            .iter()
+            .find(|n| {
+                n.node_type.as_deref() == Some("columnNode")
+                    && n.data.depth == Some(1)
+                    && n.data.output != Some(true)
+            })
+            .map(|n| n.data.label.as_str())
+            .unwrap_or("IE");
+        ie_label
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .map(|c| c.to_uppercase().to_string())
+            .collect::<String>()
+    };
+
+    let seq_id_map: HashMap<String, String> = {
+        let mut nodes: Vec<_> = graph
+            .nodes
+            .iter()
+            .filter(|n| {
+                n.node_type.as_deref() == Some("outputNode") && n.data.is_sequence_id == Some(true)
+            })
+            .collect();
+        nodes.sort_by(|a, b| a.position.y.partial_cmp(&b.position.y).unwrap_or(std::cmp::Ordering::Equal));
+        nodes
+            .iter()
+            .enumerate()
+            .map(|(idx, n)| (n.id.clone(), format!("{}-{}", ie_initials, idx + 1)))
+            .collect()
+    };
+
     let mut sequences: Vec<SequenceInfo> = Vec::new();
 
     let mut path_stack: Vec<(String, Vec<(String, String, Option<String>)>)> = Vec::new();
@@ -374,18 +408,32 @@ fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
 
     while let Some((current_id, current_path)) = path_stack.pop() {
         if output_ids.contains(&current_id) {
-            let seq_label = graph
+            let stored_label = graph
                 .nodes
                 .iter()
-                .find(|n| n.id == current_id && n.data.is_sequence_id == Some(true))
+                .find(|n| n.id == current_id)
                 .map(|n| n.data.label.clone())
-                .unwrap_or_else(|| current_id.clone());
-            if seq_label != current_id || graph.nodes.iter().any(|n| n.id == current_id && n.data.is_sequence_id == Some(true)) {
-                sequences.push(SequenceInfo {
-                    sequence_id: seq_label,
-                    path: current_path,
-                });
-            }
+                .unwrap_or_default();
+
+            let seq_label = if !stored_label.is_empty() && stored_label != current_id {
+                stored_label
+            } else if let Some(computed) = seq_id_map.get(&current_id) {
+                computed.clone()
+            } else if current_path.is_empty() {
+                "SEQ".to_string()
+            } else {
+                current_path
+                    .iter()
+                    .filter(|(_, state, _)| state != "bypass")
+                    .map(|(_, state, _)| if state == "success" { "S" } else { "F" })
+                    .collect::<Vec<_>>()
+                    .join("-")
+            };
+
+            sequences.push(SequenceInfo {
+                sequence_id: seq_label,
+                path: current_path,
+            });
             continue;
         }
 

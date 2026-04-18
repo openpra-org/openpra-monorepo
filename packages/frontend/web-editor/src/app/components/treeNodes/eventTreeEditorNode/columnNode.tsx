@@ -1,8 +1,5 @@
 import { NodeProps, Position, Handle } from "reactflow";
 import { memo } from "react";
-import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
-import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
-import { EuiTextArea } from "@elastic/eui";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
 
@@ -20,17 +17,7 @@ export interface ColumnNodeData {
   frequency?: number;
 }
 
-function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
-  const onClickAddColumn = useCreateColClick(id);
-  const onClickDeleteColumn = useDeleteColClick(id);
-  const { allowAdd } = data;
-
-  const canShowDeleteButton = (): boolean => {
-    return !data.output && data.depth !== 1 && Boolean(data.allowDelete);
-  };
-
-  const hasButtons = allowAdd || canShowDeleteButton();
-
+function ColumnNode({ data }: NodeProps<ColumnNodeData>): JSX.Element {
   return (
     <>
       <Handle
@@ -44,41 +31,34 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
         className={!data.output ? css.clickableColumn : undefined}
         style={{
           visibility: data.hideText ? "hidden" : "visible",
-          borderColor: "white",
           borderLeft: "1px solid white",
           borderRight: "1px solid white",
           borderBottom: "1px solid white",
-          padding: "4px",
           fontSize: "0.6rem",
           width: data.width,
           minHeight: 30,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
           position: "relative",
           left: "50%",
           transform: "translateX(-50%)",
+          boxSizing: "border-box",
         }}
       >
-        <EuiTextArea
-          readOnly
-          value={data.label}
+        <div
           style={{
             fontSize: "0.6rem",
-            background: "transparent",
-            border: "none",
+            textAlign: "center",
             padding: "4px",
             width: "100%",
-            maxWidth: "100px",
-            outline: "none",
-            textAlign: "center",
             cursor: data.output ? "default" : "pointer",
+            lineHeight: 1.3,
           }}
-          compressed={true}
-          resize="none"
-          rows={1}
-          cols={1}
-        />
+        >
+          {data.label}
+        </div>
 
         {data.allowAdd && !data.output && (
           <div
@@ -98,47 +78,6 @@ function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
             title={data.faultTreeId ? (data.faultTreeLabel ?? data.faultTreeId) : "No fault tree linked"}
           >
             {data.faultTreeId ? (data.faultTreeLabel ?? data.faultTreeId) : "—"}
-          </div>
-        )}
-
-        {hasButtons && (
-          <div
-            className={css.columnButtons}
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              gap: "6px",
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: "2px",
-            }}
-          >
-            {allowAdd && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClickAddColumn();
-                }}
-                className={css.addNodeButtonText}
-                role="button"
-                style={{ padding: "0 2px", cursor: "pointer" }}
-              >
-                +
-              </span>
-            )}
-            {canShowDeleteButton() && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClickDeleteColumn();
-                }}
-                className={css.deleteNodeButtonText}
-                role="button"
-                style={{ padding: "0 2px", cursor: "pointer", marginLeft: 0 }}
-              >
-                −
-              </span>
-            )}
           </div>
         )}
       </div>

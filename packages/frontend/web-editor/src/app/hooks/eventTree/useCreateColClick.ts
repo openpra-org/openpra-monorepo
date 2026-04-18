@@ -71,7 +71,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
     const cols: Node<EventTreeNodeData>[] = [];
 
     nodeData.forEach((node) => {
-      if (node.type === "columnNode") {
+      if (node.type === "columnNode" || node.type === "columnActionsNode") {
         cols.push(node);
       } else {
         nodes.push(node);

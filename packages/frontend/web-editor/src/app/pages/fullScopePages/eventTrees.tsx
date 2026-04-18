@@ -1,6 +1,6 @@
 import { Route, Routes, useParams } from "react-router-dom";
 import React, { ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, Edge, Node, ProOptions, ReactFlowProvider, useReactFlow, Panel } from "reactflow";
+import ReactFlow, { Edge, Node, ProOptions, ReactFlowProvider, useReactFlow, Panel } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId, EuiPanel, EuiFlexGroup, EuiFlexItem, EuiButtonIcon } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
@@ -133,7 +133,7 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   }, []);
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node): void => {
+    (_e: React.MouseEvent, node: Node): void => {
       if (node.type === "columnNode") {
         setSelectedNodeId(node.id);
       } else if (node.type === "visibleNode" && (node.data as CustomNodeData).depth === 1) {
@@ -185,7 +185,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             style={{ width: "100%", height: "100%" }}
             defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
           >
-            <Background />
             <Panel position="bottom-left">
               <EuiFlexGroup
                 responsive={false}
@@ -323,6 +322,20 @@ export const EventTreeEditor = (): ReactElement => {
       }
       .react-flow__viewport {
         transform-origin: 0 0 !important;
+      }
+      .react-flow__node-columnNode {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      .react-flow__node-columnActionsNode {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
       }
     `;
     document.head.appendChild(styleEl);

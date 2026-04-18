@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   EuiTitle,
   EuiSpacer,
@@ -290,7 +290,6 @@ interface SequenceRow {
   rank: number;
   sequenceId: string;
   frequency: number;
-  path: Array<{ functionalEventId: string; state: string }>;
   cutSets: EventTreeCutSet[];
 }
 
@@ -332,7 +331,6 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
     rank: idx + 1,
     sequenceId: seq.sequenceId,
     frequency: seq.frequency,
-    path: seq.path ?? [],
     cutSets: seq.cutSets ?? [],
   }));
 
@@ -388,21 +386,6 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
           {fmtFreq(f)}
         </span>
       ),
-    },
-    {
-      field: "path",
-      name: "Path",
-      render: (path: Array<{ functionalEventId: string; state: string }>) =>
-        path.length === 0 ?
-          <EuiText
-            size="xs"
-            color="subdued"
-          >
-            —
-          </EuiText>
-        : <span style={{ fontFamily: "monospace", fontSize: 11 }}>
-            {path.map((p) => `${p.functionalEventId}:${p.state.charAt(0).toUpperCase()}`).join(" | ")}
-          </span>,
     },
     {
       field: "cutSets",

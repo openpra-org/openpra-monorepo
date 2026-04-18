@@ -219,8 +219,27 @@ const useTreeData = (
     nodes.push(node);
     let prevNode = rootColNode;
 
-    // Use a for loop to generate columns dynamically
     for (let column = 2; column <= verticalLevels; column++) {
+      if (column === inputLevels + 1) {
+        const actionsNodeId = GenerateUUID();
+        const actionsNode: Node = {
+          id: actionsNodeId,
+          type: "columnActionsNode",
+          data: { width: nodeWidth, label: "" },
+          position: pos,
+        };
+        nodes.push(actionsNode);
+        edges.push({
+          id: `${prevNode}--${actionsNodeId}`,
+          source: prevNode,
+          target: actionsNodeId,
+          type: "custom",
+          animated: false,
+          data: { hidden: true },
+        });
+        prevNode = actionsNodeId;
+      }
+
       const nodeId = GenerateUUID();
       let nodeLabel = "";
 

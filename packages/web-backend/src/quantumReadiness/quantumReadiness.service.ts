@@ -103,6 +103,11 @@ import {
 
 import { GraphModelService } from "../graphModels/graphModel.service";
 import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
+import {
+  buildOpenPraQuantumFrontendSubtreeDetailPayload,
+  OpenPraQuantumFrontendSubtreeDetailPayloadRequest,
+  OpenPraQuantumFrontendSubtreeDetailPayloadResult,
+} from "../../../quantum-readiness/src/index";
 
 export interface QuantumExecutionArtifactRawCountsRequest {
   modelId: string;
@@ -1919,6 +1924,11 @@ export class QuantumReadinessService {
     return isQuantumExecutionArtifactRawCountsRequest(request) ?
         this.buildExecutionArtifactsFromRawCountsToFilesystem(request, outputDir)
       : this.buildExecutionArtifactsFromSimulatorToFilesystem(request, outputDir);
+  }
+  getFrontendSubtreeDetailPayload(
+    request: OpenPraQuantumFrontendSubtreeDetailPayloadRequest,
+  ): OpenPraQuantumFrontendSubtreeDetailPayloadResult {
+    return buildOpenPraQuantumFrontendSubtreeDetailPayload(request);
   }
 
   private resolvePreparationArtifactForSimulator(

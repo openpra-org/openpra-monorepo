@@ -42,3 +42,4 @@ export * from "./openpra-quantum-frontend-seed-state";
 export * from "./openpra-quantum-frontend-bootstrap-packet";
 export * from "./openpra-quantum-frontend-dashboard-payload";
 export * from "./openpra-quantum-execution-record-service-stub";
+export * from "./openpra-quantum-frontend-subtree-detail-payload";

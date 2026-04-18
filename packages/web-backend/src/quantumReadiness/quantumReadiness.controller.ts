@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpException, HttpStatus, Post } from "@nestjs/common";
 import type { FaultTreeGraph } from "shared-types";
+import { Get, Query } from "@nestjs/common";
 import type {
   OpenPraFaultTreeReadinessOptions,
   OpenPraFaultTreeReadinessResult,
@@ -1430,6 +1431,38 @@ export class QuantumReadinessController {
       ...(body.status ? { status: body.status } : {}),
       ...(body.metadata ? { metadata: body.metadata } : {}),
     };
+  }
+  getFrontendSubtreeDetailPayload(
+    @Query("rootDirectoryPath") rootDirectoryPath: string,
+    @Query("subtreeId") subtreeId?: string,
+    @Query("caseLabel") caseLabel?: string,
+    @Query("rootGateId") rootGateId?: string,
+  ) {
+    return this.quantumReadinessService.getFrontendSubtreeDetailPayload({
+      rootDirectoryPath,
+      subtreeId: subtreeId ?? null,
+      caseLabel: caseLabel ?? null,
+      rootGateId: rootGateId ?? null,
+      scriptVersion: "quantumReadiness.controller.frontendSubtreeDetailPayload",
+    });
+  }
+
+  @Get("frontend/subtree-detail-payload")
+  @Get("frontend/subtreeDetailPayload")
+  @Get("frontendSubtreeDetailPayload")
+  getFrontendSubtreeDetailPayloadHttp(
+    @Query("rootDirectoryPath") rootDirectoryPath: string,
+    @Query("subtreeId") subtreeId?: string,
+    @Query("caseLabel") caseLabel?: string,
+    @Query("rootGateId") rootGateId?: string,
+  ) {
+    return this.quantumReadinessService.getFrontendSubtreeDetailPayload({
+      rootDirectoryPath,
+      subtreeId: subtreeId ?? null,
+      caseLabel: caseLabel ?? null,
+      rootGateId: rootGateId ?? null,
+      scriptVersion: "quantumReadiness.controller.frontendSubtreeDetailPayload.http",
+    });
   }
 
   private toHttpException(error: unknown): HttpException {

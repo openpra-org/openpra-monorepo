@@ -46,3 +46,4 @@ export * from "./openpra-quantum-frontend-subtree-detail-payload";
 export * from "./openpra-quantum-frontend-execution-mode-selection-payload";
 export * from "./openpra-quantum-frontend-recovery-results-payload";
 export * from "./openpra-quantum-frontend-importance-comparison-payload";
+export * from "./openpra-quantum-frontend-provenance-export-payload";

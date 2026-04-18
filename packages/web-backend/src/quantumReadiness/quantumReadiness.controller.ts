@@ -1515,6 +1515,23 @@ export class QuantumReadinessController {
       scriptVersion: "quantumReadiness.controller.frontendImportanceComparisonPayload.http",
     });
   }
+  @Get("frontend/provenance-export-payload")
+  @Get("frontend/provenanceExportPayload")
+  @Get("frontendProvenanceExportPayload")
+  getFrontendProvenanceExportPayloadHttp(
+    @Query("rootDirectoryPath") rootDirectoryPath: string,
+    @Query("subtreeId") subtreeId?: string,
+    @Query("caseLabel") caseLabel?: string,
+    @Query("rootGateId") rootGateId?: string,
+  ) {
+    return this.quantumReadinessService.getFrontendProvenanceExportPayload({
+      rootDirectoryPath,
+      subtreeId: subtreeId ?? null,
+      caseLabel: caseLabel ?? null,
+      rootGateId: rootGateId ?? null,
+      scriptVersion: "quantumReadiness.controller.frontendProvenanceExportPayload.http",
+    });
+  }
 
   private toHttpException(error: unknown): HttpException {
     const message = error instanceof Error ? error.message : "Something went wrong";

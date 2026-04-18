@@ -104,6 +104,11 @@ import {
 import { GraphModelService } from "../graphModels/graphModel.service";
 import { adaptFaultTreeGraphInput } from "./openPraFaultTreeGraph.adapter";
 import {
+  buildOpenPraQuantumFrontendProvenanceExportPayload,
+  OpenPraQuantumFrontendProvenanceExportPayloadRequest,
+  OpenPraQuantumFrontendProvenanceExportPayloadResult,
+} from "../../../quantum-readiness/src/index";
+import {
   buildOpenPraQuantumFrontendImportanceComparisonPayload,
   OpenPraQuantumFrontendImportanceComparisonPayloadRequest,
   OpenPraQuantumFrontendImportanceComparisonPayloadResult,
@@ -1959,6 +1964,11 @@ export class QuantumReadinessService {
     request: OpenPraQuantumFrontendImportanceComparisonPayloadRequest,
   ): OpenPraQuantumFrontendImportanceComparisonPayloadResult {
     return buildOpenPraQuantumFrontendImportanceComparisonPayload(request);
+  }
+  getFrontendProvenanceExportPayload(
+    request: OpenPraQuantumFrontendProvenanceExportPayloadRequest,
+  ): OpenPraQuantumFrontendProvenanceExportPayloadResult {
+    return buildOpenPraQuantumFrontendProvenanceExportPayload(request);
   }
 
   private resolvePreparationArtifactForSimulator(

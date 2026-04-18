@@ -1498,6 +1498,23 @@ export class QuantumReadinessController {
       scriptVersion: "quantumReadiness.controller.frontendRecoveryResultsPayload.http",
     });
   }
+  @Get("frontend/importance-comparison-payload")
+  @Get("frontend/importanceComparisonPayload")
+  @Get("frontendImportanceComparisonPayload")
+  getFrontendImportanceComparisonPayloadHttp(
+    @Query("rootDirectoryPath") rootDirectoryPath: string,
+    @Query("subtreeId") subtreeId?: string,
+    @Query("caseLabel") caseLabel?: string,
+    @Query("rootGateId") rootGateId?: string,
+  ) {
+    return this.quantumReadinessService.getFrontendImportanceComparisonPayload({
+      rootDirectoryPath,
+      subtreeId: subtreeId ?? null,
+      caseLabel: caseLabel ?? null,
+      rootGateId: rootGateId ?? null,
+      scriptVersion: "quantumReadiness.controller.frontendImportanceComparisonPayload.http",
+    });
+  }
 
   private toHttpException(error: unknown): HttpException {
     const message = error instanceof Error ? error.message : "Something went wrong";

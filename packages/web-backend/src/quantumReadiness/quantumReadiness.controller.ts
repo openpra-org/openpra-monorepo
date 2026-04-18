@@ -1481,6 +1481,23 @@ export class QuantumReadinessController {
       scriptVersion: "quantumReadiness.controller.frontendExecutionModeSelectionPayload.http",
     });
   }
+  @Get("frontend/recovery-results-payload")
+  @Get("frontend/recoveryResultsPayload")
+  @Get("frontendRecoveryResultsPayload")
+  getFrontendRecoveryResultsPayloadHttp(
+    @Query("rootDirectoryPath") rootDirectoryPath: string,
+    @Query("subtreeId") subtreeId?: string,
+    @Query("caseLabel") caseLabel?: string,
+    @Query("rootGateId") rootGateId?: string,
+  ) {
+    return this.quantumReadinessService.getFrontendRecoveryResultsPayload({
+      rootDirectoryPath,
+      subtreeId: subtreeId ?? null,
+      caseLabel: caseLabel ?? null,
+      rootGateId: rootGateId ?? null,
+      scriptVersion: "quantumReadiness.controller.frontendRecoveryResultsPayload.http",
+    });
+  }
 
   private toHttpException(error: unknown): HttpException {
     const message = error instanceof Error ? error.message : "Something went wrong";

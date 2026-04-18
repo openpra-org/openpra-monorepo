@@ -44,3 +44,4 @@ export * from "./openpra-quantum-frontend-dashboard-payload";
 export * from "./openpra-quantum-execution-record-service-stub";
 export * from "./openpra-quantum-frontend-subtree-detail-payload";
 export * from "./openpra-quantum-frontend-execution-mode-selection-payload";
+export * from "./openpra-quantum-frontend-recovery-results-payload";

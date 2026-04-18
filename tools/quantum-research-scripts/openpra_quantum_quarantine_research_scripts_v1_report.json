@@ -1,0 +1,157 @@
+{
+  "artifact_name": "openpra_quantum_quarantine_research_scripts_v1",
+  "generated_at_utc": "2026-04-18T01:57:35.588661+00:00",
+  "repo_root": "/mnt/storage_array/projects/OPENPRA_DEV_v1/openpra-monorepo",
+  "moves": [
+    {
+      "source": "20260415_004659Z",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/20260415_004659Z",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/build_openpra_phase5_step1_composite_bundle_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/build_openpra_phase5_step1_composite_bundle_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/build_openpra_phase5_true_new_synthetic_package_and_batch_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/build_openpra_phase5_true_new_synthetic_package_and_batch_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/checkpoint_openpra_phase5_two_case_ready_state_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/checkpoint_openpra_phase5_two_case_ready_state_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/extract_openpra_phase5_missing_event_values_from_xml_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/extract_openpra_phase5_missing_event_values_from_xml_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/extract_openpra_phase5_true_new_target_candidates_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/extract_openpra_phase5_true_new_target_candidates_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/find_openpra_phase5_missing_probabilities_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/find_openpra_phase5_missing_probabilities_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/find_openpra_phase5_true_new_full_sources_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/find_openpra_phase5_true_new_full_sources_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/freeze_openpra_phase5_two_case_local_execution_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/freeze_openpra_phase5_two_case_local_execution_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/harvest_openpra_phase5_g303_probabilities_from_existing_batches_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/harvest_openpra_phase5_g303_probabilities_from_existing_batches_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/inspect_openpra_phase5_true_new_slice_shapes_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/inspect_openpra_phase5_true_new_slice_shapes_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/inventory_openpra_phase5_runtime_bundle_dirs_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/inventory_openpra_phase5_runtime_bundle_dirs_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/materialize_openpra_phase5_true_new_exports_and_package_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/materialize_openpra_phase5_true_new_exports_and_package_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/materialize_openpra_phase5_true_new_exports_by_full_model_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/materialize_openpra_phase5_true_new_exports_by_full_model_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/patch_openpra_phase5_missing_probabilities_from_xml_probe_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/patch_openpra_phase5_missing_probabilities_from_xml_probe_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/populate_openpra_phase5_counts_from_staged_qpy_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/populate_openpra_phase5_counts_from_staged_qpy_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/probe_openpra_phase5_runtime_bundle_sources_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/probe_openpra_phase5_runtime_bundle_sources_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/probe_openpra_phase5_upstream_probability_sources_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/probe_openpra_phase5_upstream_probability_sources_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/recover_openpra_phase5_true_new_packaging_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/recover_openpra_phase5_true_new_packaging_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/resume_openpra_phase5_true_new_probability_and_rawcounts_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/resume_openpra_phase5_true_new_probability_and_rawcounts_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/search_openpra_phase5_missing_probabilities_text_only_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/search_openpra_phase5_missing_probabilities_text_only_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/search_openpra_phase5_missing_probabilities_with_grep_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/search_openpra_phase5_missing_probabilities_with_grep_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "scripts/stage_openpra_phase5_exact_runtime_assets_v1.sh",
+      "destination": "tools/quantum-research-scripts/phase5_untracked_quarantine_v1/stage_openpra_phase5_exact_runtime_assets_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_build_step2_windows_transfer_bundle_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_build_step2_windows_transfer_bundle_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_build_total_mirror_bundle_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_build_total_mirror_bundle_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_create_handoff_bundle_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_create_handoff_bundle_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_importance_comparison_write_pass1_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_importance_comparison_write_pass1_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_workflow_handoff_audit_pass9_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_workflow_handoff_audit_pass9_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_workflow_release_bundle_pass7_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_workflow_release_bundle_pass7_v1.sh",
+      "status": "moved"
+    },
+    {
+      "source": "tools/quantum_integration/openpra_quantum_workflow_release_manifest_pass6_v1.sh",
+      "destination": "tools/quantum-research-scripts/misc_untracked_quarantine_v1/openpra_quantum_workflow_release_manifest_pass6_v1.sh",
+      "status": "moved"
+    }
+  ]
+}

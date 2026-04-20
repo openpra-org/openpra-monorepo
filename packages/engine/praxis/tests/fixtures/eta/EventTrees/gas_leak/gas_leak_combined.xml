@@ -2,9 +2,7 @@
 <!-- Andrews J.D. and Dunnet S.J. -->
 <!-- "Event tree analysis using Binary Decision Diagrams" -->
 <!-- doi: 10.1109/24.877343 -->
-<!-- Combined gas-leak model: root + reactive event tree in one MEF file.
-     This exists so the CLI does not need an `--event-tree-lib` mechanism.
--->
+<!-- Combined gas-leak model: root + reactive event tree in one MEF file., his exists so the CLI does not need an `event-tree-lib` mechanism. -->
 
 <opsa-mef>
   <define-initiating-event name="Gas-Leak" event-tree="Gas-Leak-Event-Tree"/>

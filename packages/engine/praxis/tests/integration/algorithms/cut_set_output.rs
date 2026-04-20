@@ -149,8 +149,7 @@ fn test_zbdd_cut_set_output_and_gate() {
     ft.add_gate(top_gate).unwrap();
 
     // Convert to ZBDD and get cut sets
-    let mut zbdd = Zbdd::new();
-    let top_node = zbdd.from_fault_tree(&ft).unwrap();
+    let (zbdd, top_node) = Zbdd::from_fault_tree(&ft).unwrap();
     let cut_sets = zbdd.get_cut_sets(top_node, None);
 
     // Should have exactly 1 cut set: {E1, E2}
@@ -176,8 +175,7 @@ fn test_zbdd_cut_set_output_or_gate() {
     ft.add_gate(top_gate).unwrap();
 
     // Convert to ZBDD and get cut sets
-    let mut zbdd = Zbdd::new();
-    let top_node = zbdd.from_fault_tree(&ft).unwrap();
+    let (zbdd, top_node) = Zbdd::from_fault_tree(&ft).unwrap();
     let cut_sets = zbdd.get_cut_sets(top_node, None);
 
     // Should have 2 cut sets: {E1}, {E2}
@@ -210,8 +208,7 @@ fn test_zbdd_cut_set_with_order_limit() {
     ft.add_gate(top_gate).unwrap();
 
     // Convert to ZBDD with order limit
-    let mut zbdd = Zbdd::new();
-    let top_node = zbdd.from_fault_tree(&ft).unwrap();
+    let (zbdd, top_node) = Zbdd::from_fault_tree(&ft).unwrap();
 
     // Without limit: should get both cut sets
     let all_cut_sets = zbdd.get_cut_sets(top_node, None);
@@ -538,8 +535,7 @@ fn test_xml_report_contains_zbdd_cut_sets() {
     ft.add_gate(top_gate).unwrap();
 
     // Generate cut sets with ZBDD
-    let mut zbdd = Zbdd::new();
-    let top_node = zbdd.from_fault_tree(&ft).unwrap();
+    let (zbdd, top_node) = Zbdd::from_fault_tree(&ft).unwrap();
     let cut_sets = zbdd.get_cut_sets(top_node, None);
 
     // Create report

@@ -23,14 +23,14 @@
         <path state="W">
           <collect-formula>
             <not>
-              <gate name="Isolation-valve-A.root"/>
+              <gate name="Isolation-valve-A.TOP_A"/>
             </not>
           </collect-formula>
           <fork functional-event="Isolation-valve-B-closes">
             <path state="W">
               <collect-formula>
                 <not>
-                  <gate name="Isolation-valve-B.root"/>
+                  <gate name="Isolation-valve-B.TOP_B"/>
                 </not>
               </collect-formula>
               <fork functional-event="Blowdown-valve-opens">
@@ -52,7 +52,7 @@
             </path>
             <path state="F">
               <collect-formula>
-                <gate name="Isolation-valve-B.root"/>
+                <gate name="Isolation-valve-B.TOP_B"/>
               </collect-formula>
               <fork functional-event="Blowdown-valve-opens">
                 <path state="W">

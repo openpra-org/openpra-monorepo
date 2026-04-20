@@ -95,6 +95,19 @@ fn run_pre_event_tree_impl(
         return Ok(FaultTreePreOutcome::ExitOk);
     }
 
+    let analysis_requires_cut_sets = matches!(
+        cli.analysis,
+        Analysis::CutsetsOnly | Analysis::CutsetsAndProbability
+    );
+    if analysis_requires_cut_sets && !matches!(cli.algorithm, Algorithm::Mocus | Algorithm::Zbdd) {
+        eprintln!(
+            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus' or '--algorithm zbdd' for fault tree analysis"
+        );
+        eprintln!();
+        eprintln!("For more information, try '--help'.");
+        std::process::exit(2);
+    }
+
     if verbose {
         eprintln!("Using algorithm: {:?}", cli.algorithm);
     }
@@ -131,6 +144,27 @@ fn run_pre_event_tree_impl(
             }
         }
         Algorithm::MonteCarlo | Algorithm::Mocus | Algorithm::Zbdd => {
+        }
+    }
+
+    if cli.visualize {
+        if !praxis::analysis::visualize::graphviz_available() {
+            eprintln!("Warning: Graphviz 'dot' not found in PATH. --visualize requires Graphviz. Skipping.");
+        } else {
+            if verbose {
+                eprintln!("Generating fault tree visualization...");
+            }
+            let dot_content = praxis::analysis::visualize::generate_dot_from_fault_tree(&fault_tree);
+            let out_dir = &cli.visualize_out_dir;
+            let out_path = out_dir.join(format!("{}.svg", fault_tree.element().id()));
+            if let Err(e) = praxis::analysis::visualize::save_svg(&dot_content, &out_path) {
+                eprintln!("Warning: Failed to save SVG visualization: {}", e);
+            } else if verbose {
+                eprintln!("Saved fault tree visualization to {}", out_path.display());
+            }
+            if cli.visualize_stdout {
+                println!("{}", dot_content);
+            }
         }
     }
 

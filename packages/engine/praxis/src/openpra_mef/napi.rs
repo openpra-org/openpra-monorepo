@@ -496,7 +496,7 @@ fn adaptive_cut_sets_for_sequence(
                     .clamp(0.0, 1.0)
             };
 
-            let p_false = (1.0 - p_true).clamp(0.0, 1.0);
+            let p_false = (1.0_f64 - p_true).clamp(0.0, 1.0);
             let pseudo_id = format!("__openpra_fe_false::{}", step.functional_event_id);
             prob_by_event_id.insert(pseudo_id.clone(), p_false);
             let requirement_sets = vec![crate::algorithms::mocus::CutSet::new(vec![pseudo_id])];
@@ -545,7 +545,7 @@ fn adaptive_cut_sets_for_sequence(
         retained_i32.push(cs_i32);
 
         running_prod_mcub *= 1.0 - p_cs;
-        let p_mcub_partial = (1.0 - running_prod_mcub).clamp(0.0, 1.0);
+        let p_mcub_partial = (1.0_f64 - running_prod_mcub).clamp(0.0, 1.0);
 
         if p_hat_mc.is_finite() && p_hat_mc > 0.0 && target.is_finite() {
             let rel_err = ((p_mcub_partial - p_hat_mc).abs()) / p_hat_mc;
@@ -2325,6 +2325,7 @@ fn merge_additional_fields(
 }
 
 #[cfg(feature = "napi-rs")]
+#[allow(dead_code)]
 mod node_bindings {
     use super::*;
     use napi::Error;

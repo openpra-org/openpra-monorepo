@@ -39,6 +39,9 @@ pub struct Args {
     #[arg(long = "limit-order")]
     pub limit_order: Option<u32>,
 
+    #[arg(long = "ie-frequency")]
+    pub ie_frequency: Option<f64>,
+
     #[arg(long = "cut-off")]
     pub cut_off: Option<f64>,
 
@@ -65,6 +68,18 @@ pub struct Args {
 
     #[arg(long = "watch")]
     pub watch: bool,
+
+    #[arg(long = "visualize", help = "Generate and save Graphviz (.dot) and SVG graphs of the PDAGs")]
+    pub visualize: bool,
+
+    #[arg(long = "visualize-out-dir", value_name = "DIR", default_value = "./viz_output", help = "Directory to save generated .dot and .svg files")]
+    pub visualize_out_dir: PathBuf,
+
+    #[arg(long = "visualize-sequence", value_name = "SEQ_ID", help = "Specific sequence ID to output to stdout for event trees")]
+    pub visualize_sequence: Option<String>,
+
+    #[arg(long = "visualize-stdout", help = "Print raw DOT source to stdout (in addition to saving files)")]
+    pub visualize_stdout: bool,
 
     #[arg(long = "optimize")]
     pub optimize: bool,

@@ -1,15 +1,24 @@
-use crate::cli::args::{Args, Backend};
+use crate::cli::args::{Algorithm, Args, Backend};
 use crate::cli::optimize::{
     estimate_model_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use crate::cli::output::{writer_stdout, writer_vec};
-use praxis::core::event_tree::InitiatingEvent;
+use praxis::core::event_tree::{Branch, BranchTarget, InitiatingEvent};
 use praxis::core::fault_tree::FaultTree;
+use praxis::core::gate::Formula;
 use praxis::io::event_tree_parser::EventTreeModel;
 use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::mc::core::ConvergenceSettings;
 use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
 use praxis::mc::DpEventTreeMonteCarloAnalysis;
+use praxis::openpra_mef::event_tree_quantification::{
+    quantify_event_tree, EtAlgorithmKind, EtQuantificationRequest, MefEtEdge, MefEtEdgeData,
+    MefEtNode, MefEtNodeData, MefEventTreeGraph,
+};
+use praxis::openpra_mef::fault_tree_quantification::{
+    ApproximationKind, MefFaultTreeGraph, MefFaultTreeNode,
+};
+use praxis::io::serializer::write_event_tree_results;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
@@ -43,6 +52,303 @@ fn parse_model_with_libs_from_parsed(
     }
 
     Ok((model, initiating_events, event_trees, event_tree_library))
+}
+
+fn run_deterministic_event_tree_impl(
+    cli: &Args,
+    model: praxis::core::model::Model,
+    initiating_events: Vec<InitiatingEvent>,
+    event_trees: Vec<praxis::core::event_tree::EventTree>,
+    _event_tree_library: HashMap<String, praxis::core::event_tree::EventTree>,
+    verbose: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let alg = match cli.algorithm {
+        Algorithm::Bdd => EtAlgorithmKind::Bdd,
+        Algorithm::Zbdd => EtAlgorithmKind::Zbdd,
+        Algorithm::Mocus => EtAlgorithmKind::Mocus,
+        _ => return Err("Unsupported deterministic algorithm for event trees".into()),
+    };
+
+    let approx = match cli.approximation {
+        Some(crate::cli::args::Approximation::RareEvent) => Some(ApproximationKind::RareEvent),
+        Some(crate::cli::args::Approximation::Mcub) => Some(ApproximationKind::Mcub),
+        None => None,
+    };
+
+    let mut fault_trees: HashMap<String, MefFaultTreeGraph> = HashMap::new();
+    for (id, ft) in model.fault_trees() {
+        let mut nodes = HashMap::new();
+        for (gid, gate) in ft.gates() {
+            nodes.insert(
+                gid.clone(),
+                MefFaultTreeNode {
+                    uuid: gid.clone(),
+                    node_type: match gate.formula() {
+                        Formula::And => "AND_GATE".into(),
+                        Formula::Or => "OR_GATE".into(),
+                        Formula::Not => "NOT_GATE".into(),
+                        Formula::AtLeast { .. } => "ATLEAST_GATE".into(),
+                        _ => "OR_GATE".into(),
+                    },
+                    name: gate.element().name().unwrap_or(gid).to_string(),
+                    inputs: gate.operands().to_vec(),
+                    probability: None,
+                    probability_type: None,
+                    probability_distribution: None,
+                    k_value: if let Formula::AtLeast { min } = gate.formula() {
+                        Some(*min)
+                    } else {
+                        None
+                    },
+                    house_event_value: None,
+                    transfer_tree_id: None,
+                },
+            );
+        }
+        for (bid, be) in ft.basic_events() {
+            nodes.insert(
+                bid.clone(),
+                MefFaultTreeNode {
+                    uuid: bid.clone(),
+                    node_type: "BASIC_EVENT".into(),
+                    name: be.element().name().unwrap_or(bid).to_string(),
+                    inputs: vec![],
+                    probability: Some(be.probability()),
+                    probability_type: Some("constant".into()),
+                    probability_distribution: None,
+                    k_value: None,
+                    house_event_value: None,
+                    transfer_tree_id: None,
+                },
+            );
+        }
+        for (hid, he) in ft.house_events() {
+            nodes.insert(
+                hid.clone(),
+                MefFaultTreeNode {
+                    uuid: hid.clone(),
+                    node_type: "HOUSE_EVENT".into(),
+                    name: he.element().name().unwrap_or(hid).to_string(),
+                    inputs: vec![],
+                    probability: None,
+                    probability_type: None,
+                    probability_distribution: None,
+                    k_value: None,
+                    house_event_value: Some(he.state()),
+                    transfer_tree_id: None,
+                },
+            );
+        }
+
+        fault_trees.insert(
+            id.clone(),
+            MefFaultTreeGraph {
+                fault_tree_id: id.clone(),
+                top_event_id: ft.top_event().to_string(),
+                nodes,
+            },
+        );
+    }
+
+    for ie in &initiating_events {
+        let et_id = ie.event_tree_id.as_ref().ok_or("IE missing event tree ref")?;
+        let et = event_trees
+            .iter()
+            .find(|t| &t.id == et_id)
+            .ok_or("Event tree not found")?;
+
+        let mut graph_nodes = Vec::new();
+        let mut graph_edges = Vec::new();
+
+        fn build_mef_graph(
+            branch: &Branch,
+            nodes: &mut Vec<MefEtNode>,
+            edges: &mut Vec<MefEtEdge>,
+            depth: i64,
+            parent_id: Option<String>,
+            edge_label: Option<String>,
+            edge_fe_id: Option<String>,
+            et: &praxis::core::event_tree::EventTree,
+        ) {
+            let node_id = uuid::Uuid::new_v4().to_string();
+
+            match &branch.target {
+                BranchTarget::Sequence(seq_id) => {
+                    nodes.push(MefEtNode {
+                        id: node_id.clone(),
+                        node_type: Some("outputNode".into()),
+                        data: MefEtNodeData {
+                            label: seq_id.clone(),
+                            depth: Some(depth),
+                            is_sequence_id: Some(true),
+                            ..Default::default()
+                        },
+                        position: Default::default(),
+                    });
+                }
+                BranchTarget::Fork(fork) => {
+                    let fe_id = fork.functional_event_id.clone();
+                    nodes.push(MefEtNode {
+                        id: node_id.clone(),
+                        node_type: Some("visibleNode".into()),
+                        data: MefEtNodeData {
+                            label: fe_id.clone(),
+                            depth: Some(depth),
+                            ..Default::default()
+                        },
+                        position: Default::default(),
+                    });
+
+                    for path in &fork.paths {
+                        build_mef_graph(
+                            &path.branch,
+                            nodes,
+                            edges,
+                            depth + 1,
+                            Some(node_id.clone()),
+                            Some(path.state.clone()),
+                            Some(fe_id.clone()),
+                            et,
+                        );
+                    }
+                }
+                _ => {}
+            }
+
+            if let Some(pid) = parent_id {
+                let branch_state = edge_label.as_deref().map(|s| {
+                    let lower = s.to_lowercase();
+                    match lower.as_str() {
+                        "yes" | "s" | "w" | "success" => "success".to_string(),
+                        "no" | "f" | "failure" => "failure".to_string(),
+                        _ => lower,
+                    }
+                });
+                edges.push(MefEtEdge {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    source: pid,
+                    target: node_id,
+                    data: MefEtEdgeData {
+                        label: edge_label,
+                        branch_state,
+                        fe_id: edge_fe_id,
+                        ..Default::default()
+                    },
+                });
+            }
+        }
+
+        if cli.visualize {
+            if !praxis::analysis::visualize::graphviz_available() {
+                eprintln!("Warning: Graphviz 'dot' not found in PATH. --visualize requires Graphviz. Skipping.");
+            } else {
+                let et_dot = praxis::analysis::visualize::generate_event_tree_dot(et, &ie.id);
+                let tree_path = cli.visualize_out_dir.join(format!("{}_tree.svg", et.id));
+                if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
+                    eprintln!("Warning: Failed to save event tree diagram: {}", e);
+                } else if verbose {
+                    eprintln!("Saved event tree diagram to {}", tree_path.display());
+                }
+                if cli.visualize_stdout {
+                    println!("{}", et_dot);
+                }
+            }
+        }
+
+        build_mef_graph(&et.initial_state, &mut graph_nodes, &mut graph_edges, 1, None, None, None, et);
+
+        let ie_frequency = cli.ie_frequency.or(ie.frequency);
+        let ie_col = MefEtNode {
+            id: "ie_col".into(),
+            node_type: Some("columnNode".into()),
+            data: MefEtNodeData {
+                label: ie.id.clone(),
+                depth: Some(1),
+                frequency: ie_frequency,
+                fault_tree_id: ie.fault_tree_id.clone(),
+                ..Default::default()
+            },
+            position: Default::default(),
+        };
+        graph_nodes.push(ie_col);
+
+        let mut mef_functional_events = HashMap::new();
+        for (fe_id, fe) in &et.functional_events {
+            mef_functional_events.insert(
+                fe_id.clone(),
+                praxis::openpra_mef::event_tree_quantification::MefFunctionalEvent {
+                    id: fe_id.clone(),
+                    name: fe.name.clone(),
+                    fault_tree_id: fe.fault_tree_id.clone(),
+                    collected_gate: fe.collected_gate.clone(),
+                    success_is_complement: fe.success_is_complement,
+                    success_probability: fe.success_probability,
+                    order: Some(fe.order),
+                },
+            );
+        }
+
+        let request = EtQuantificationRequest {
+            graph: MefEventTreeGraph {
+                event_tree_id: et.id.clone(),
+                nodes: graph_nodes,
+                edges: graph_edges,
+                functional_events: Some(mef_functional_events),
+            },
+            algorithm: alg,
+            approximation: approx,
+            max_order: cli.limit_order.map(|o| o as usize),
+            num_samples: None,
+            fault_trees: fault_trees.clone(),
+            visualize: cli.visualize,
+            visualize_out_dir: Some(cli.visualize_out_dir.to_str().unwrap().to_string()),
+            visualize_sequence: cli.visualize_sequence.clone(),
+        };
+
+        if verbose {
+            eprintln!("Quantifying event tree {}...", et.id);
+        }
+
+        let result = quantify_event_tree(&request)?;
+
+        if let Some(ref output_path) = cli.output_file {
+            let mut buf = writer_vec();
+            write_event_tree_results(&mut buf, &et.id, &ie.id, &result)?;
+            let xml_bytes = buf.into_inner();
+            fs::write(output_path, &xml_bytes)
+                .map_err(|e| format!("Failed to write output file: {e}"))?;
+        }
+
+        if cli.print || verbose {
+            println!("\n=== Event Tree Quantification Results ===");
+            println!("Event Tree: {}", et.id);
+            println!("Initiating Event: {}", ie.id);
+            println!("Algorithm: {}", result.algorithm);
+            if let Some(ref approx) = result.approximation {
+                println!("Approximation: {}", approx);
+            }
+            println!("Total CDF: {:.6e}", result.total_cdf);
+            println!("Calculation Time: {:.3} ms", result.elapsed_ms);
+            println!("\nSequences:");
+            println!(
+                "{:<20} {:<15} {:<15} {:<10} {:<12}",
+                "Sequence ID", "Probability", "Frequency", "Cut Sets", "Time (ms)"
+            );
+            println!("{}", "-".repeat(72));
+            for seq in &result.sequences {
+                println!(
+                    "{:<20} {:<15.6e} {:<15.6e} {:<10} {:<12.3}",
+                    seq.sequence_id,
+                    seq.probability.unwrap_or(0.0),
+                    seq.frequency,
+                    seq.cut_sets.len(),
+                    seq.elapsed_ms,
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn run_monte_carlo_impl(
@@ -81,6 +387,25 @@ fn run_monte_carlo_impl(
     };
 
     let pairs = select_event_trees_to_run(&initiating_events, &event_trees)?;
+    if cli.visualize {
+        if !praxis::analysis::visualize::graphviz_available() {
+            eprintln!("Warning: Graphviz 'dot' not found in PATH. --visualize requires Graphviz. Skipping.");
+        } else {
+            for (ie, event_tree) in &pairs {
+                let et_dot = praxis::analysis::visualize::generate_event_tree_dot(event_tree, &ie.id);
+                let tree_path = cli.visualize_out_dir.join(format!("{}_tree.svg", event_tree.id));
+                if let Err(e) = praxis::analysis::visualize::save_svg(&et_dot, &tree_path) {
+                    eprintln!("Warning: Failed to save event tree diagram: {}", e);
+                } else if verbose {
+                    eprintln!("Saved event tree diagram to {}", tree_path.display());
+                }
+                if cli.visualize_stdout {
+                    println!("{}", et_dot);
+                }
+            }
+        }
+    }
+
     for (ie, event_tree) in pairs {
         let backend = cli.backend.unwrap_or(Backend::Cpu);
         let explicit_params: Option<RunParams> = if cli.optimize || auto_cuda_num_trials {
@@ -374,6 +699,23 @@ fn run_monte_carlo_impl(
     }
 
     Ok(())
+}
+
+pub fn run_deterministic_from_parsed(
+    cli: &Args,
+    parsed: &EventTreeModel,
+    verbose: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (model, initiating_events, event_trees, event_tree_library) =
+        parse_model_with_libs_from_parsed(parsed)?;
+    run_deterministic_event_tree_impl(
+        cli,
+        model,
+        initiating_events,
+        event_trees,
+        event_tree_library,
+        verbose,
+    )
 }
 
 pub fn run_monte_carlo_from_parsed(

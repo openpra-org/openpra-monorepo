@@ -7,6 +7,7 @@ use crate::core::event::BasicEvent;
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
 use crate::mc::core::{MonteCarloResult, MonteCarloRunConfig};
+use crate::openpra_mef::event_tree_quantification::EtQuantificationResult;
 use crate::Result;
 
 pub fn write_element<W: Write>(writer: &mut Writer<W>, event: &BasicEvent) -> Result<()> {
@@ -100,6 +101,84 @@ pub fn write_results<W: Write>(
     writer.write_event(Event::End(BytesEnd::new("statistics")))?;
     writer.write_event(Event::End(BytesEnd::new("probability")))?;
     writer.write_event(Event::End(BytesEnd::new("fault-tree-analysis")))?;
+    writer.write_event(Event::End(BytesEnd::new("analysis-results")))?;
+    writer.write_event(Event::End(BytesEnd::new("opsa-mef")))?;
+
+    Ok(())
+}
+
+pub fn write_event_tree_results<W: Write>(
+    writer: &mut Writer<W>,
+    et_id: &str,
+    ie_id: &str,
+    result: &EtQuantificationResult,
+) -> Result<()> {
+    writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("utf-8"), None)))?;
+    writer.write_event(Event::Start(BytesStart::new("opsa-mef")))?;
+    writer.write_event(Event::Start(BytesStart::new("analysis-results")))?;
+
+    let mut eta_elem = BytesStart::new("event-tree-analysis");
+    eta_elem.push_attribute(("name", et_id));
+    writer.write_event(Event::Start(eta_elem))?;
+
+    let mut ie_elem = BytesStart::new("initiating-event");
+    ie_elem.push_attribute(("name", ie_id));
+    writer.write_event(Event::Empty(ie_elem))?;
+
+    writer.write_event(Event::Start(BytesStart::new("algorithm")))?;
+    writer.write_event(Event::Text(BytesText::new(&result.algorithm)))?;
+    writer.write_event(Event::End(BytesEnd::new("algorithm")))?;
+
+    writer.write_event(Event::Start(BytesStart::new("total-cdf")))?;
+    writer.write_event(Event::Text(BytesText::new(&format!("{:.6e}", result.total_cdf))))?;
+    writer.write_event(Event::End(BytesEnd::new("total-cdf")))?;
+
+    writer.write_event(Event::Start(BytesStart::new("calculation-time")))?;
+    writer.write_event(Event::Text(BytesText::new(&format!("{:.3}", result.elapsed_ms))))?;
+    writer.write_event(Event::End(BytesEnd::new("calculation-time")))?;
+
+    writer.write_event(Event::Start(BytesStart::new("sequences")))?;
+    for seq in &result.sequences {
+        let mut seq_elem = BytesStart::new("sequence");
+        seq_elem.push_attribute(("name", seq.sequence_id.as_str()));
+        writer.write_event(Event::Start(seq_elem))?;
+
+        writer.write_event(Event::Start(BytesStart::new("probability")))?;
+        writer.write_event(Event::Text(BytesText::new(&format!(
+            "{:.6e}",
+            seq.probability.unwrap_or(0.0)
+        ))))?;
+        writer.write_event(Event::End(BytesEnd::new("probability")))?;
+
+        writer.write_event(Event::Start(BytesStart::new("frequency")))?;
+        writer.write_event(Event::Text(BytesText::new(&format!("{:.6e}", seq.frequency))))?;
+        writer.write_event(Event::End(BytesEnd::new("frequency")))?;
+
+        writer.write_event(Event::Start(BytesStart::new("sequence-time-ms")))?;
+        writer.write_event(Event::Text(BytesText::new(&format!("{:.3}", seq.elapsed_ms))))?;
+        writer.write_event(Event::End(BytesEnd::new("sequence-time-ms")))?;
+
+        if !seq.cut_sets.is_empty() {
+            writer.write_event(Event::Start(BytesStart::new("cut-sets")))?;
+            for cs in &seq.cut_sets {
+                let mut cs_elem = BytesStart::new("cut-set");
+                cs_elem.push_attribute(("probability", format!("{:.6e}", cs.probability).as_str()));
+                writer.write_event(Event::Start(cs_elem))?;
+                for event in &cs.events {
+                    let mut be_elem = BytesStart::new("basic-event");
+                    be_elem.push_attribute(("name", event.as_str()));
+                    writer.write_event(Event::Empty(be_elem))?;
+                }
+                writer.write_event(Event::End(BytesEnd::new("cut-set")))?;
+            }
+            writer.write_event(Event::End(BytesEnd::new("cut-sets")))?;
+        }
+
+        writer.write_event(Event::End(BytesEnd::new("sequence")))?;
+    }
+    writer.write_event(Event::End(BytesEnd::new("sequences")))?;
+
+    writer.write_event(Event::End(BytesEnd::new("event-tree-analysis")))?;
     writer.write_event(Event::End(BytesEnd::new("analysis-results")))?;
     writer.write_event(Event::End(BytesEnd::new("opsa-mef")))?;
 

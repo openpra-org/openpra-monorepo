@@ -4,6 +4,8 @@ mod bdd_integration;
 mod cut_set_output;
 #[path = "integration/algorithms/cut_set_xml_output.rs"]
 mod cut_set_xml_output;
+#[path = "integration/algorithms/event_tree_conditioning.rs"]
+mod event_tree_conditioning;
 #[path = "integration/algorithms/pdag_integration.rs"]
 mod pdag_integration;
 #[path = "integration/algorithms/preprocessor_integration.rs"]

@@ -209,19 +209,6 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(2);
     }
 
-    let analysis_requires_cut_sets = matches!(
-        cli.analysis,
-        crate::cli::args::Analysis::CutsetsOnly | crate::cli::args::Analysis::CutsetsAndProbability
-    );
-    if analysis_requires_cut_sets && !matches!(cli.algorithm, Algorithm::Mocus | Algorithm::Zbdd) {
-        eprintln!(
-            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus' or '--algorithm zbdd'"
-        );
-        eprintln!();
-        eprintln!("For more information, try '--help'.");
-        std::process::exit(2);
-    }
-
     if cli.input_file.is_none() {
         eprintln!("Error: No input file specified");
         eprintln!("Usage: praxis <FILE> [OPTIONS]");
@@ -281,16 +268,11 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let fault_tree_model = match parsed_input {
         ParsedInput::EventTreeModel(event_tree_model) => {
-            if cli.algorithm != Algorithm::MonteCarlo && !cli.validate {
-                eprintln!(
-                    "error: event-tree inputs currently require '--algorithm monte-carlo' (or use '--validate' only)"
-                );
-                eprintln!();
-                eprintln!("For more information, try '--help'.");
-                std::process::exit(2);
+            if cli.algorithm == Algorithm::MonteCarlo {
+                event_tree::run_monte_carlo_from_parsed(&cli, &event_tree_model, verbose)?;
+            } else {
+                event_tree::run_deterministic_from_parsed(&cli, &event_tree_model, verbose)?;
             }
-
-            event_tree::run_monte_carlo_from_parsed(&cli, &event_tree_model, verbose)?;
             return Ok(());
         }
         ParsedInput::FaultTree(fault_tree_model) => fault_tree_model,

@@ -563,8 +563,9 @@ fn parse_initiating_event_empty(start: &BytesStart) -> Result<InitiatingEvent> {
 
 fn parse_collect_formula_for_ft_link<R: BufRead>(
     reader: &mut Reader<R>,
-) -> Result<Option<(String, bool)>> {
+) -> Result<Option<(String, String, bool)>> {
     let mut found_ft: Option<String> = None;
+    let mut found_gate: Option<String> = None;
     let mut found_negated: bool = false;
     let mut not_depth: usize = 0;
 
@@ -579,16 +580,18 @@ fn parse_collect_formula_for_ft_link<R: BufRead>(
             }
             Ok(Event::Empty(e)) if e.name().as_ref() == b"gate" => {
                 if let Some(name) = attr_value(&e, b"name")? {
-                    if let Some((ft, _rest)) = name.split_once('.') {
+                    if let Some((ft, gate)) = name.split_once('.') {
                         found_ft = Some(ft.to_string());
+                        found_gate = Some(gate.to_string());
                         found_negated = not_depth > 0;
                     }
                 }
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"gate" => {
                 if let Some(name) = attr_value(&e, b"name")? {
-                    if let Some((ft, _rest)) = name.split_once('.') {
+                    if let Some((ft, gate)) = name.split_once('.') {
                         found_ft = Some(ft.to_string());
+                        found_gate = Some(gate.to_string());
                         found_negated = not_depth > 0;
                     }
                 }
@@ -607,14 +610,18 @@ fn parse_collect_formula_for_ft_link<R: BufRead>(
         buf.clear();
     }
 
-    Ok(found_ft.map(|ft| (ft, found_negated)))
+    Ok(found_ft.and_then(|ft| found_gate.map(|gate| (ft, gate, found_negated))))
+}
+
+fn is_success_state(s: &str) -> bool {
+    matches!(s.to_lowercase().as_str(), "success" | "yes" | "s" | "w")
 }
 
 fn parse_path_from_reader<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
     fork_fe_id: &str,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, (String, String, Option<bool>, Option<bool>)>,
     parameters: &Parameters,
 ) -> Result<Path> {
     let state = required_attr(start, b"state", "path")?;
@@ -633,8 +640,17 @@ fn parse_path_from_reader<R: BufRead>(
                     house_event_assignments.push((id, state));
                 }
                 b"collect-formula" => {
-                    if let Some((ft_id, negated)) = parse_collect_formula_for_ft_link(reader)? {
-                        fe_links.entry(fork_fe_id.to_string()).or_insert(ft_id);
+                    if let Some((ft_id, gate_name, negated)) = parse_collect_formula_for_ft_link(reader)? {
+                        let entry = fe_links
+                            .entry(fork_fe_id.to_string())
+                            .or_insert((ft_id.clone(), gate_name.clone(), None, None));
+                        entry.0 = ft_id;
+                        entry.1 = gate_name;
+                        if is_success_state(&state) {
+                            entry.2 = Some(negated);
+                        } else {
+                            entry.3 = Some(negated);
+                        }
                         collect_formula_negated = Some(negated);
                     }
                 }
@@ -709,7 +725,7 @@ fn parse_path_from_reader<R: BufRead>(
 fn parse_fork<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, (String, String, Option<bool>, Option<bool>)>,
     parameters: &Parameters,
 ) -> Result<Fork> {
     let fe_id = required_attr(start, b"functional-event", "fork")?;
@@ -739,7 +755,7 @@ fn parse_fork<R: BufRead>(
 
 fn parse_initial_state<R: BufRead>(
     reader: &mut Reader<R>,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, (String, String, Option<bool>, Option<bool>)>,
     parameters: &Parameters,
 ) -> Result<Branch> {
     let mut initial_house_events: Vec<(String, bool)> = Vec::new();
@@ -808,7 +824,7 @@ fn parse_initial_state<R: BufRead>(
 fn parse_named_branch_from_reader<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, (String, String, Option<bool>, Option<bool>)>,
     parameters: &Parameters,
 ) -> Result<NamedBranch> {
     let id = required_attr(start, b"name", "define-branch")?;
@@ -885,7 +901,7 @@ fn parse_event_tree_from_reader<R: BufRead>(
     let mut functional_events: Vec<FunctionalEvent> = Vec::new();
     let mut named_branches: Vec<NamedBranch> = Vec::new();
     let mut initial_state: Option<Branch> = None;
-    let mut fe_links: HashMap<String, String> = HashMap::new();
+    let mut fe_links: HashMap<String, (String, String, Option<bool>, Option<bool>)> = HashMap::new();
 
     let mut buf = Vec::new();
     loop {
@@ -973,8 +989,11 @@ fn parse_event_tree_from_reader<R: BufRead>(
         et.add_sequence(seq)?;
     }
     for fe in functional_events {
-        let fe = if let Some(ft_id) = fe_links.get(&fe.id) {
+        let fe = if let Some((ft_id, gate_name, success_neg, failure_neg)) = fe_links.get(&fe.id) {
+            let success_is_complement = success_neg.or_else(|| failure_neg.map(|f| !f));
             fe.with_fault_tree(ft_id.clone())
+                .with_collected_gate(gate_name.clone())
+                .with_success_is_complement(success_is_complement)
         } else {
             fe
         };

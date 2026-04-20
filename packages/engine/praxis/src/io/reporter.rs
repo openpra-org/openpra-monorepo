@@ -362,13 +362,16 @@ fn write_prime_implicants_section<W: Write>(
 
     for (i, implicant) in prime_implicants.implicants().iter().enumerate() {
         let mut impl_elem = BytesStart::new("implicant");
-        impl_elem.push_attribute(("id", (i + 1).to_string().as_str()));
-        impl_elem.push_attribute(("order", implicant.order().to_string().as_str()));
+        let id_str = (i + 1).to_string();
+        let order_str = implicant.order().to_string();
+        impl_elem.push_attribute(("id", id_str.as_str()));
+        impl_elem.push_attribute(("order", order_str.as_str()));
         writer.write_event(Event::Start(impl_elem))?;
 
         for event_idx in &implicant.events {
+            let evt_str = event_idx.to_string();
             writer.write_event(Event::Start(BytesStart::new("basic-event")))?;
-            writer.write_event(Event::Text(BytesText::new(&event_idx.to_string())))?;
+            writer.write_event(Event::Text(BytesText::new(&evt_str)))?;
             writer.write_event(Event::End(BytesEnd::new("basic-event")))?;
         }
 
@@ -443,9 +446,11 @@ fn write_uncertainty_section<W: Write>(
     let quantile_levels = [0.05, 0.25, 0.50, 0.75, 0.95];
     for (level, value) in quantile_levels.iter().zip(uncertainty.quantiles().iter()) {
         let mut q_elem = BytesStart::new("quantile");
-        q_elem.push_attribute(("level", level.to_string().as_str()));
+        let level_str = level.to_string();
+        q_elem.push_attribute(("level", level_str.as_str()));
         writer.write_event(Event::Start(q_elem))?;
-        writer.write_event(Event::Text(BytesText::new(&value.to_string())))?;
+        let val_str = value.to_string();
+        writer.write_event(Event::Text(BytesText::new(&val_str)))?;
         writer.write_event(Event::End(BytesEnd::new("quantile")))?;
     }
     writer.write_event(Event::End(BytesEnd::new("quantiles")))?;

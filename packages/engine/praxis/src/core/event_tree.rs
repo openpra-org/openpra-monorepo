@@ -153,14 +153,15 @@ pub struct FunctionalEvent {
     /// Order of the functional event in the event tree (0 = unassigned)
     pub order: i32,
     /// Optional reference to a fault tree that models this functional event
-    ///
-    /// When specified, the fault tree's top event probability is used
-    /// to calculate the failure probability of this functional event.
     pub fault_tree_id: Option<String>,
+    /// The specific gate within the fault tree referenced by collect-formula.
+    /// If None, the fault tree's top event is used.
+    pub collected_gate: Option<String>,
+    /// True if the success path's collect-formula wraps the gate in <not>.
+    /// Standard convention: true (success = NOT(top), failure = top).
+    /// If None, inferred from path state.
+    pub success_is_complement: Option<bool>,
     /// Optional success probability for this functional event
-    ///
-    /// If specified, this value is used directly instead of computing
-    /// from a linked fault tree. Range: [0.0, 1.0]
     pub success_probability: Option<f64>,
 }
 
@@ -184,6 +185,8 @@ impl FunctionalEvent {
             name: None,
             order: 0,
             fault_tree_id: None,
+            collected_gate: None,
+            success_is_complement: None,
             success_probability: None,
         }
     }
@@ -200,24 +203,18 @@ impl FunctionalEvent {
         self
     }
 
-    /// Links this functional event to a fault tree for quantitative analysis.
-    ///
-    /// The linked fault tree's top event probability will be used to compute
-    /// the failure probability of this functional event.
-    ///
-    /// # Arguments
-    /// * `fault_tree_id` - ID of the fault tree to link
-    ///
-    /// # Example
-    /// ```
-    /// use praxis::core::event_tree::FunctionalEvent;
-    ///
-    /// let fe = FunctionalEvent::new("FE-COOLANT".to_string())
-    ///     .with_fault_tree("FT-COOLANT-FAILURE".to_string());
-    /// assert_eq!(fe.fault_tree_id, Some("FT-COOLANT-FAILURE".to_string()));
-    /// ```
     pub fn with_fault_tree(mut self, fault_tree_id: String) -> Self {
         self.fault_tree_id = Some(fault_tree_id);
+        self
+    }
+
+    pub fn with_collected_gate(mut self, gate: String) -> Self {
+        self.collected_gate = Some(gate);
+        self
+    }
+
+    pub fn with_success_is_complement(mut self, value: Option<bool>) -> Self {
+        self.success_is_complement = value;
         self
     }
 

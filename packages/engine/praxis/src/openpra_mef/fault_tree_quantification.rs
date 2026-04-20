@@ -21,9 +21,13 @@ pub struct QuantificationRequest {
     pub max_order: Option<usize>,
     #[serde(default)]
     pub transfer_trees: HashMap<String, MefFaultTreeGraph>,
+    #[serde(default)]
+    pub visualize: bool,
+    #[serde(default)]
+    pub visualize_out_dir: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MefFaultTreeGraph {
     pub fault_tree_id: String,
@@ -154,6 +158,8 @@ pub struct QuantificationResult {
     pub cut_sets: Vec<CutSetResult>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zbdd_diagnostics: Option<ZbddDiagnostics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visualize_dot: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -192,19 +198,57 @@ fn quantify(request: &QuantificationRequest) -> Result<QuantificationResult> {
         }
     }
 
-    let fault_tree = mef_graph_to_fault_tree(&merged)?;
+    let use_dm_expansion = matches!(request.algorithm, AlgorithmKind::Zbdd) && has_not_gates(&merged);
+    let expanded = if use_dm_expansion {
+        let g = expand_not_gates_de_morgan(&merged);
+        for (uuid, node) in &g.nodes {
+            if node.node_type == "BASIC_EVENT" {
+                let display_name = if node.name.is_empty() { uuid.clone() } else { node.name.clone() };
+                uuid_to_name.entry(uuid.clone()).or_insert(display_name);
+                if let Some(p) = node.probability {
+                    prob_by_uuid.entry(uuid.clone()).or_insert(p);
+                }
+            }
+        }
+        g
+    } else {
+        merged
+    };
 
-    match request.algorithm {
-        AlgorithmKind::Bdd => quantify_bdd(&fault_tree),
+    let fault_tree = mef_graph_to_fault_tree(&expanded)?;
+
+    let mut dot_str = None;
+    if request.visualize {
+        let dot = crate::analysis::visualize::generate_dot_from_fault_tree(&fault_tree);
+        if let Some(out_dir) = &request.visualize_out_dir {
+            let path = std::path::Path::new(out_dir).join(format!("{}.svg", fault_tree.element().id()));
+            crate::analysis::visualize::save_svg(&dot, &path)?;
+        }
+        dot_str = Some(dot);
+    }
+
+    let mut result = match request.algorithm {
+        AlgorithmKind::Bdd => quantify_bdd(&fault_tree)?,
         AlgorithmKind::Zbdd => {
             let approx = request.approximation.unwrap_or(ApproximationKind::RareEvent);
-            quantify_zbdd(&fault_tree, approx, request.max_order, &uuid_to_name, &prob_by_uuid)
+            let mut res = quantify_zbdd(&fault_tree, approx, request.max_order, &uuid_to_name, &prob_by_uuid)?;
+            if use_dm_expansion {
+                res.cut_sets = filter_and_strip_compl_cut_sets(res.cut_sets);
+            }
+            res
         }
         AlgorithmKind::Mocus => {
             let approx = request.approximation.unwrap_or(ApproximationKind::RareEvent);
-            quantify_mocus(&fault_tree, approx, request.max_order, &uuid_to_name, &prob_by_uuid)
+            quantify_mocus(&fault_tree, approx, request.max_order, &uuid_to_name, &prob_by_uuid)?
         }
+    };
+    
+    if let Some(ref dot) = dot_str {
+        println!("{}", dot);
     }
+    
+    result.visualize_dot = dot_str;
+    Ok(result)
 }
 
 fn quantify_bdd(fault_tree: &FaultTree) -> Result<QuantificationResult> {
@@ -218,6 +262,7 @@ fn quantify_bdd(fault_tree: &FaultTree) -> Result<QuantificationResult> {
         top_event_probability: top_prob,
         cut_sets: vec![],
         zbdd_diagnostics: None,
+        visualize_dot: None,
     })
 }
 
@@ -297,6 +342,7 @@ fn finish_with_cut_sets(
         top_event_probability: top_prob,
         cut_sets,
         zbdd_diagnostics,
+        visualize_dot: None,
     })
 }
 
@@ -311,6 +357,162 @@ fn cut_set_probability(cs: &CutSet, prob_by_uuid: &HashMap<String, f64>) -> f64 
     cs.events.iter().fold(1.0, |acc, uuid| {
         acc * prob_by_uuid.get(uuid).copied().unwrap_or(0.0)
     })
+}
+
+fn has_not_gates(graph: &MefFaultTreeGraph) -> bool {
+    graph.nodes.values().any(|n| n.node_type == "NOT_GATE")
+}
+
+fn expand_not_gates_de_morgan(graph: &MefFaultTreeGraph) -> MefFaultTreeGraph {
+    let mut nodes = graph.nodes.clone();
+    let mut counter = 0u32;
+    let top = graph.top_event_id.clone();
+    expand_dm_node(&top, &mut nodes, &mut counter);
+    MefFaultTreeGraph {
+        fault_tree_id: graph.fault_tree_id.clone(),
+        top_event_id: graph.top_event_id.clone(),
+        nodes,
+    }
+}
+
+fn expand_dm_node(id: &str, nodes: &mut HashMap<String, MefFaultTreeNode>, counter: &mut u32) {
+    let inputs = nodes.get(id).map(|n| n.inputs.clone()).unwrap_or_default();
+    let node_type = nodes.get(id).map(|n| n.node_type.clone()).unwrap_or_default();
+
+    if node_type != "NOT_GATE" {
+        for inp in inputs {
+            expand_dm_node(&inp, nodes, counter);
+        }
+        return;
+    }
+
+    let child_id = match inputs.first() {
+        Some(c) => c.clone(),
+        None => return,
+    };
+
+    expand_dm_node(&child_id, nodes, counter);
+
+    let child_type = nodes.get(&child_id).map(|n| n.node_type.clone()).unwrap_or_default();
+    let child_inputs = nodes.get(&child_id).map(|n| n.inputs.clone()).unwrap_or_default();
+
+    match child_type.as_str() {
+        "BASIC_EVENT" | "HOUSE_EVENT" => {
+            let p = nodes.get(&child_id).and_then(|n| n.probability).unwrap_or(0.0);
+            let compl_id = format!("COMPL__{}", child_id);
+            nodes.entry(compl_id.clone()).or_insert_with(|| MefFaultTreeNode {
+                uuid: compl_id.clone(),
+                node_type: "BASIC_EVENT".to_string(),
+                name: compl_id.clone(),
+                inputs: vec![],
+                probability: Some(1.0 - p),
+                probability_type: None,
+                probability_distribution: None,
+                k_value: None,
+                house_event_value: None,
+                transfer_tree_id: None,
+            });
+            let node = nodes.get_mut(id).unwrap();
+            node.node_type = "OR_GATE".to_string();
+            node.inputs = vec![compl_id];
+        }
+        "NOT_GATE" => {
+            let grandchild = child_inputs.into_iter().next().unwrap_or_default();
+            let node = nodes.get_mut(id).unwrap();
+            node.node_type = "OR_GATE".to_string();
+            node.inputs = vec![grandchild.clone()];
+            expand_dm_node(&grandchild, nodes, counter);
+        }
+        "AND_GATE" => {
+            let new_children: Vec<String> = child_inputs.iter().map(|inp| {
+                let not_id = format!("dm_not_{}__{}", inp, counter);
+                *counter += 1;
+                nodes.insert(not_id.clone(), MefFaultTreeNode {
+                    uuid: not_id.clone(),
+                    node_type: "NOT_GATE".to_string(),
+                    name: not_id.clone(),
+                    inputs: vec![inp.clone()],
+                    probability: None,
+                    probability_type: None,
+                    probability_distribution: None,
+                    k_value: None,
+                    house_event_value: None,
+                    transfer_tree_id: None,
+                });
+                not_id
+            }).collect();
+            let node = nodes.get_mut(id).unwrap();
+            node.node_type = "OR_GATE".to_string();
+            node.inputs = new_children.clone();
+            for ch in new_children {
+                expand_dm_node(&ch, nodes, counter);
+            }
+        }
+        "OR_GATE" => {
+            let new_children: Vec<String> = child_inputs.iter().map(|inp| {
+                let not_id = format!("dm_not_{}__{}", inp, counter);
+                *counter += 1;
+                nodes.insert(not_id.clone(), MefFaultTreeNode {
+                    uuid: not_id.clone(),
+                    node_type: "NOT_GATE".to_string(),
+                    name: not_id.clone(),
+                    inputs: vec![inp.clone()],
+                    probability: None,
+                    probability_type: None,
+                    probability_distribution: None,
+                    k_value: None,
+                    house_event_value: None,
+                    transfer_tree_id: None,
+                });
+                not_id
+            }).collect();
+            let node = nodes.get_mut(id).unwrap();
+            node.node_type = "AND_GATE".to_string();
+            node.inputs = new_children.clone();
+            for ch in new_children {
+                expand_dm_node(&ch, nodes, counter);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn filter_and_strip_compl_cut_sets(cut_sets: Vec<CutSetResult>) -> Vec<CutSetResult> {
+    let mut seen: std::collections::HashSet<Vec<String>> = std::collections::HashSet::new();
+    let mut result: Vec<CutSetResult> = Vec::new();
+
+    for cs in cut_sets {
+        let event_set: std::collections::HashSet<&str> = cs.events.iter().map(|e| e.as_str()).collect();
+
+        let contradiction = cs.events.iter().any(|e| {
+            if let Some(base) = e.strip_prefix("COMPL__") {
+                event_set.contains(base)
+            } else {
+                event_set.contains(format!("COMPL__{}", e).as_str())
+            }
+        });
+        if contradiction {
+            continue;
+        }
+
+        let mut stripped: Vec<String> = cs.events.into_iter()
+            .filter(|e| !e.starts_with("COMPL__"))
+            .collect();
+        stripped.sort();
+        stripped.dedup();
+
+        if stripped.is_empty() || seen.contains(&stripped) {
+            continue;
+        }
+        seen.insert(stripped.clone());
+        result.push(CutSetResult {
+            events: stripped,
+            probability: cs.probability,
+            contribution: cs.contribution,
+        });
+    }
+
+    result
 }
 
 fn inline_transfer_trees<'a>(

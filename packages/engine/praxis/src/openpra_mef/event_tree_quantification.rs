@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +21,12 @@ pub struct EtQuantificationRequest {
     pub num_samples: Option<usize>,
     #[serde(default)]
     pub fault_trees: HashMap<String, MefFaultTreeGraph>,
+    #[serde(default)]
+    pub visualize: bool,
+    #[serde(default)]
+    pub visualize_out_dir: Option<String>,
+    #[serde(default)]
+    pub visualize_sequence: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -109,6 +116,10 @@ pub struct MefFunctionalEvent {
     #[serde(default)]
     pub fault_tree_id: Option<String>,
     #[serde(default)]
+    pub collected_gate: Option<String>,
+    #[serde(default)]
+    pub success_is_complement: Option<bool>,
+    #[serde(default)]
     pub success_probability: Option<f64>,
     #[serde(default)]
     pub order: Option<i32>,
@@ -130,8 +141,11 @@ pub struct EtQuantificationResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approximation: Option<String>,
     pub total_cdf: f64,
+    pub elapsed_ms: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num_samples: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visualize_dot: Option<String>,
     pub sequences: Vec<EtSequenceResult>,
 }
 
@@ -140,6 +154,7 @@ pub struct EtQuantificationResult {
 pub struct EtSequenceResult {
     pub sequence_id: String,
     pub frequency: f64,
+    pub elapsed_ms: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub probability: Option<f64>,
     pub path: Vec<EtPathStep>,
@@ -153,9 +168,9 @@ pub struct EtPathStep {
     pub state: String,
 }
 
-struct SequenceInfo {
-    sequence_id: String,
-    path: Vec<(String, String, Option<String>)>,
+pub struct SequenceInfo {
+    pub sequence_id: String,
+    pub path: Vec<(String, String, Option<String>)>,
 }
 
 
@@ -171,7 +186,9 @@ pub fn quantify_event_tree_contract(request_json: &str) -> Result<String> {
         .map_err(|e| PraxisError::Logic(format!("Failed to serialize event tree result: {e}")))
 }
 
-fn quantify_event_tree(request: &EtQuantificationRequest) -> Result<EtQuantificationResult> {
+pub fn quantify_event_tree(request: &EtQuantificationRequest) -> Result<EtQuantificationResult> {
+    let total_start = Instant::now();
+
     let fe_map = build_functional_event_map(request);
     let sequences = enumerate_sequences(&request.graph)?;
 
@@ -200,17 +217,25 @@ fn quantify_event_tree(request: &EtQuantificationRequest) -> Result<EtQuantifica
     };
 
     let mut seq_results: Vec<EtSequenceResult> = Vec::new();
+    let mut visualize_dot: Option<String> = None;
 
     for seq in &sequences {
-        let (seq_prob, cut_sets) = compute_sequence(
+        let seq_start = Instant::now();
+
+        let (seq_prob, cut_sets, dot_str) = compute_sequence(
             seq,
             &fe_map,
             &request.fault_trees,
-            request.algorithm,
+            request,
             approx,
-            request.max_order,
             num_samples,
         )?;
+
+        let seq_elapsed_ms = seq_start.elapsed().as_secs_f64() * 1000.0;
+
+        if visualize_dot.is_none() {
+            visualize_dot = dot_str;
+        }
 
         let path: Vec<EtPathStep> = seq
             .path
@@ -224,6 +249,7 @@ fn quantify_event_tree(request: &EtQuantificationRequest) -> Result<EtQuantifica
         seq_results.push(EtSequenceResult {
             sequence_id: seq.sequence_id.clone(),
             frequency: ie_frequency * seq_prob,
+            elapsed_ms: seq_elapsed_ms,
             probability: Some(seq_prob),
             path,
             cut_sets,
@@ -233,12 +259,15 @@ fn quantify_event_tree(request: &EtQuantificationRequest) -> Result<EtQuantifica
     seq_results.sort_by(|a, b| b.frequency.partial_cmp(&a.frequency).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_cdf: f64 = seq_results.iter().map(|s| s.frequency).sum();
+    let total_elapsed_ms = total_start.elapsed().as_secs_f64() * 1000.0;
 
     Ok(EtQuantificationResult {
         algorithm: algorithm_label.to_string(),
         approximation: approx_label.map(str::to_string),
         total_cdf,
+        elapsed_ms: total_elapsed_ms,
         num_samples,
+        visualize_dot,
         sequences: seq_results,
     })
 }
@@ -267,12 +296,14 @@ fn get_ie_frequency(request: &EtQuantificationRequest) -> f64 {
     1.0
 }
 
-struct FeInfo {
-    fault_tree_id: Option<String>,
-    success_probability: Option<f64>,
+pub struct FeInfo {
+    pub fault_tree_id: Option<String>,
+    pub collected_gate: Option<String>,
+    pub success_is_complement: Option<bool>,
+    pub success_probability: Option<f64>,
 }
 
-fn build_functional_event_map(request: &EtQuantificationRequest) -> HashMap<String, FeInfo> {
+pub fn build_functional_event_map(request: &EtQuantificationRequest) -> HashMap<String, FeInfo> {
     let mut map: HashMap<String, FeInfo> = HashMap::new();
 
     if let Some(fe_map) = &request.graph.functional_events {
@@ -281,6 +312,8 @@ fn build_functional_event_map(request: &EtQuantificationRequest) -> HashMap<Stri
                 id.clone(),
                 FeInfo {
                     fault_tree_id: fe.fault_tree_id.clone(),
+                    collected_gate: fe.collected_gate.clone(),
+                    success_is_complement: fe.success_is_complement,
                     success_probability: fe.success_probability,
                 },
             );
@@ -293,6 +326,8 @@ fn build_functional_event_map(request: &EtQuantificationRequest) -> HashMap<Stri
         {
             map.entry(node.id.clone()).or_insert_with(|| FeInfo {
                 fault_tree_id: node.data.fault_tree_id.clone(),
+                collected_gate: None,
+                success_is_complement: None,
                 success_probability: node.data.success_probability,
             });
         }
@@ -301,8 +336,7 @@ fn build_functional_event_map(request: &EtQuantificationRequest) -> HashMap<Stri
     map
 }
 
-
-fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
+pub fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
     let branch_node_ids: std::collections::HashSet<String> = graph
         .nodes
         .iter()
@@ -451,20 +485,24 @@ fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
             for (next_id, state, edge_fe_id) in nexts {
                 let mut new_path = current_path.clone();
                 let next_depth = node_depth.get(&next_id).copied().unwrap_or(current_depth + 1);
-                if next_depth > 1 && !output_ids.contains(&next_id) {
-                    let fe_id = edge_fe_id.unwrap_or_else(|| {
-                        depth_to_col_id
-                            .get(&next_depth)
-                            .cloned()
-                            .unwrap_or_else(|| next_id.clone())
-                    });
-                    let fe_label = graph
-                        .nodes
-                        .iter()
-                        .find(|n| n.id == fe_id && n.node_type.as_deref() == Some("columnNode"))
-                        .map(|n| n.data.label.clone())
-                        .filter(|l| !l.is_empty());
-                    new_path.push((fe_id, state, fe_label));
+                if next_depth > 1 {
+                    if !output_ids.contains(&next_id) {
+                        let fe_id = edge_fe_id.clone().unwrap_or_else(|| {
+                            depth_to_col_id
+                                .get(&next_depth)
+                                .cloned()
+                                .unwrap_or_else(|| next_id.clone())
+                        });
+                        let fe_label = graph
+                            .nodes
+                            .iter()
+                            .find(|n| n.id == fe_id && n.node_type.as_deref() == Some("columnNode"))
+                            .map(|n| n.data.label.clone())
+                            .filter(|l| !l.is_empty());
+                        new_path.push((fe_id, state, fe_label));
+                    } else if let Some(fe_id) = edge_fe_id {
+                        new_path.push((fe_id, state, None));
+                    }
                 }
                 let _ = current_depth;
                 path_stack.push((next_id, new_path));
@@ -482,19 +520,21 @@ fn enumerate_sequences(graph: &MefEventTreeGraph) -> Result<Vec<SequenceInfo>> {
     Ok(sequences)
 }
 
+fn normalize_branch_state(s: &str) -> String {
+    let lower = s.to_lowercase();
+    match lower.as_str() {
+        "yes" | "success" | "s" | "w" => "success".to_string(),
+        "no" | "failure" | "f" => "failure".to_string(),
+        _ => lower,
+    }
+}
+
 fn edge_state(edge: &MefEtEdge) -> String {
     if let Some(state) = &edge.data.branch_state {
-        return state.clone();
+        return normalize_branch_state(state);
     }
     if let Some(label) = &edge.data.label {
-        let lower = label.to_lowercase();
-        if lower == "yes" || lower == "success" || lower == "s" {
-            return "success".to_string();
-        }
-        if lower == "no" || lower == "failure" || lower == "f" {
-            return "failure".to_string();
-        }
-        return lower;
+        return normalize_branch_state(label);
     }
     if let Some(order) = edge.data.order {
         if order == 1 {
@@ -511,55 +551,100 @@ fn compute_sequence(
     seq: &SequenceInfo,
     fe_map: &HashMap<String, FeInfo>,
     fault_trees: &HashMap<String, MefFaultTreeGraph>,
-    algorithm: EtAlgorithmKind,
+    request: &EtQuantificationRequest,
     approx: ApproximationKind,
-    max_order: Option<usize>,
     num_samples: Option<usize>,
-) -> Result<(f64, Vec<CutSetResult>)> {
+) -> Result<(f64, Vec<CutSetResult>, Option<String>)> {
     if seq.path.is_empty() {
-        return Ok((1.0, vec![]));
+        return Ok((1.0, vec![], None));
     }
 
-    match algorithm {
+    match request.algorithm {
         EtAlgorithmKind::MonteCarlo => {
             let n = num_samples.unwrap_or(10_000);
             let prob = monte_carlo_sequence_probability(seq, fe_map, fault_trees, n);
-            Ok((prob, vec![]))
+            Ok((prob, vec![], None))
         }
         _ => {
-            deterministic_sequence(seq, fe_map, fault_trees, algorithm, approx, max_order)
+            deterministic_sequence(seq, fe_map, fault_trees, request, approx)
         }
     }
+}
+
+fn get_success_delete_terms(
+    success_ft_states: &[(&MefFaultTreeGraph, bool, Option<String>)],
+) -> Vec<HashSet<String>> {
+    let mut delete_terms: Vec<HashSet<String>> = Vec::new();
+    for &(ft, _, ref gate_override) in success_ft_states {
+        let single = [(ft, true, gate_override.clone())];
+        let projected = match build_pdag_compound_ft(&single) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let cut_sets = match quantify_ft_cut_sets(&projected, EtAlgorithmKind::Zbdd, ApproximationKind::RareEvent, None) {
+            Ok(cs) => cs,
+            Err(_) => continue,
+        };
+        for cs in cut_sets {
+            let set: HashSet<String> = cs.events.into_iter().collect();
+            if !set.is_empty() {
+                delete_terms.push(set);
+            }
+        }
+    }
+    delete_terms
+}
+
+fn condition_cut_sets_on_success(
+    failure_cut_sets: Vec<CutSetResult>,
+    delete_terms: &[HashSet<String>],
+) -> Vec<CutSetResult> {
+    if delete_terms.is_empty() {
+        return failure_cut_sets;
+    }
+    failure_cut_sets
+        .into_iter()
+        .filter(|cs| {
+            let cs_set: HashSet<&str> = cs.events.iter().map(String::as_str).collect();
+            !delete_terms.iter().any(|dt| dt.iter().all(|e| cs_set.contains(e.as_str())))
+        })
+        .collect()
 }
 
 fn deterministic_sequence(
     seq: &SequenceInfo,
     fe_map: &HashMap<String, FeInfo>,
     fault_trees: &HashMap<String, MefFaultTreeGraph>,
-    algorithm: EtAlgorithmKind,
+    request: &EtQuantificationRequest,
     approx: ApproximationKind,
-    max_order: Option<usize>,
-) -> Result<(f64, Vec<CutSetResult>)> {
+) -> Result<(f64, Vec<CutSetResult>, Option<String>)> {
     if seq.path.is_empty() {
-        return Ok((1.0, vec![]));
+        return Ok((1.0, vec![], None));
     }
 
-    let mut ft_states: Vec<(&MefFaultTreeGraph, bool)> = Vec::new();
+    let mut ft_states: Vec<(&MefFaultTreeGraph, bool, Option<String>)> = Vec::new();
     let mut direct_prob = 1.0_f64;
 
     for (fe_id, state, _) in &seq.path {
         if state == "bypass" {
             continue;
         }
-        let is_failure = state != "success";
         let fe_info = fe_map.get(fe_id);
+
+        let is_failure = match fe_info.and_then(|f| f.success_is_complement) {
+            Some(success_is_complement) => {
+                if state == "success" { !success_is_complement } else { success_is_complement }
+            }
+            None => state != "success",
+        };
 
         let ft = fe_info
             .and_then(|f| f.fault_tree_id.as_ref())
             .and_then(|id| fault_trees.get(id));
 
         if let Some(ft) = ft {
-            ft_states.push((ft, is_failure));
+            let gate_override = fe_info.and_then(|f| f.collected_gate.clone());
+            ft_states.push((ft, is_failure, gate_override));
         } else {
             let p = fe_info
                 .and_then(|f| f.success_probability)
@@ -570,28 +655,70 @@ fn deterministic_sequence(
     }
 
     if ft_states.is_empty() {
-        return Ok((direct_prob, vec![]));
+        return Ok((direct_prob, vec![], None));
     }
 
     let compound = build_pdag_compound_ft(&ft_states)?;
+
+    let mut dot_str = None;
+    if request.visualize {
+        let dot = crate::analysis::visualize::generate_dot(&compound);
+        if let Some(out_dir) = &request.visualize_out_dir {
+            let path = std::path::Path::new(out_dir).join(format!("{}_{}.svg", request.graph.event_tree_id, seq.sequence_id));
+            crate::analysis::visualize::save_svg(&dot, &path)?;
+        }
+
+        if let Some(target_seq) = &request.visualize_sequence {
+            if target_seq == &seq.sequence_id {
+                dot_str = Some(dot);
+            }
+        } else {
+            dot_str = Some(dot);
+        }
+    }
+
     let pdag_prob = quantify_ft_top_event_bdd(&compound).unwrap_or(0.0);
 
-    let failure_only: Vec<(&MefFaultTreeGraph, bool)> = ft_states
+    let failure_only: Vec<(&MefFaultTreeGraph, bool, Option<String>)> = ft_states
         .iter()
-        .filter(|(_, is_failure)| *is_failure)
+        .filter(|(_, is_failure, _)| *is_failure)
         .cloned()
         .collect();
 
-    let cut_sets = if failure_only.is_empty() {
+    let success_only: Vec<(&MefFaultTreeGraph, bool, Option<String>)> = ft_states
+        .iter()
+        .filter(|(_, is_failure, _)| !*is_failure)
+        .cloned()
+        .collect();
+
+    let raw_cut_sets = if failure_only.is_empty() {
         vec![]
     } else if failure_only.len() == ft_states.len() {
-        quantify_ft_cut_sets(&compound, algorithm, approx, max_order).unwrap_or_default()
+        quantify_ft_cut_sets(&compound, request.algorithm, approx, request.max_order).unwrap_or_default()
     } else {
         let failure_compound = build_pdag_compound_ft(&failure_only)?;
-        quantify_ft_cut_sets(&failure_compound, algorithm, approx, max_order).unwrap_or_default()
+        quantify_ft_cut_sets(&failure_compound, request.algorithm, approx, request.max_order).unwrap_or_default()
     };
 
-    Ok((pdag_prob * direct_prob, cut_sets))
+    let cut_sets = if success_only.is_empty() {
+        raw_cut_sets
+    } else {
+        let delete_terms = get_success_delete_terms(&success_only);
+        condition_cut_sets_on_success(raw_cut_sets, &delete_terms)
+    };
+
+    let use_mcub = !matches!(request.algorithm, EtAlgorithmKind::Bdd | EtAlgorithmKind::MonteCarlo)
+        && matches!(approx, ApproximationKind::Mcub)
+        && !cut_sets.is_empty();
+
+    let seq_prob = if use_mcub {
+        let survival = cut_sets.iter().fold(1.0_f64, |acc, cs| acc * (1.0 - cs.probability));
+        (1.0 - survival) * direct_prob
+    } else {
+        pdag_prob * direct_prob
+    };
+
+    Ok((seq_prob, cut_sets, dot_str))
 }
 
 fn monte_carlo_sequence_probability(
@@ -731,17 +858,45 @@ fn quantify_ft_cut_sets(
     Ok(cut_sets)
 }
 
-fn build_pdag_compound_ft(ft_states: &[(&MefFaultTreeGraph, bool)]) -> Result<MefFaultTreeGraph> {
+fn build_pdag_compound_ft(ft_states: &[(&MefFaultTreeGraph, bool, Option<String>)]) -> Result<MefFaultTreeGraph> {
     let compound_id = "ET_COMPOUND".to_string();
     let top_gate_id = "ET_TOP_AND".to_string();
 
     let mut nodes: HashMap<String, MefFaultTreeNode> = HashMap::new();
     let mut top_inputs: Vec<String> = Vec::new();
 
-    for (ft, is_failure) in ft_states {
+    for (ft, is_failure, gate_override) in ft_states {
+        let gate_ids: HashSet<&str> = ft
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.node_type != "BASIC_EVENT" && n.node_type != "HOUSE_EVENT")
+            .map(|(id, _)| id.as_str())
+            .collect();
+
+        let ns = |id: &str| -> String {
+            if gate_ids.contains(id) {
+                format!("{}__{}", ft.fault_tree_id, id)
+            } else if let Some((other_ft, other_gate)) = id.split_once('.') {
+                format!("{}__{}", other_ft, other_gate)
+            } else {
+                id.to_string()
+            }
+        };
+
         for (uuid, node) in &ft.nodes {
-            nodes.entry(uuid.clone()).or_insert_with(|| node.clone());
+            let new_id = ns(uuid);
+            let new_inputs: Vec<String> = node.inputs.iter().map(|i| ns(i)).collect();
+            nodes.entry(new_id.clone()).or_insert_with(|| MefFaultTreeNode {
+                uuid: new_id.clone(),
+                inputs: new_inputs,
+                ..node.clone()
+            });
         }
+
+        let formula_root = match gate_override {
+            Some(ref gate) if gate_ids.contains(gate.as_str()) => ns(gate),
+            _ => ns(&ft.top_event_id),
+        };
 
         if *is_failure {
             let proxy_id = format!("proxy_{}", ft.fault_tree_id);
@@ -751,7 +906,7 @@ fn build_pdag_compound_ft(ft_states: &[(&MefFaultTreeGraph, bool)]) -> Result<Me
                     uuid: proxy_id.clone(),
                     node_type: "OR_GATE".to_string(),
                     name: proxy_id.clone(),
-                    inputs: vec![ft.top_event_id.clone()],
+                    inputs: vec![formula_root],
                     probability: None,
                     probability_type: None,
                     probability_distribution: None,
@@ -769,7 +924,7 @@ fn build_pdag_compound_ft(ft_states: &[(&MefFaultTreeGraph, bool)]) -> Result<Me
                     uuid: not_id.clone(),
                     node_type: "NOT_GATE".to_string(),
                     name: not_id.clone(),
-                    inputs: vec![ft.top_event_id.clone()],
+                    inputs: vec![formula_root],
                     probability: None,
                     probability_type: None,
                     probability_distribution: None,

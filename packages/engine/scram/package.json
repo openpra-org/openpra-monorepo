@@ -6,8 +6,6 @@
   "types": "./targets/scram-node/lib/index.d.ts",
   "private": true,
   "scripts": {
-    "postinstall": "bash scripts/postinstall.ci-safe.sh",
-    "install": "cmake-js -C --parallel 32 compile",
     "rebuild": "cmake-js -C --parallel 32 rebuild",
     "configure": "cmake-js -C --parallel 32 configure",
     "clean": "cmake-js clean",

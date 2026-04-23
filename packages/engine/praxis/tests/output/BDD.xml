@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+  <information>
+    <software name="praxis" version="0.1.0"/>
+    <model-features>
+      <gates>7775</gates>
+      <basic-events>641</basic-events>
+    </model-features>
+  </information>
+  <results>
+    <event-tree-analysis>
+      <event-tree id="CRW" algorithm="bdd">
+        <initiating-event id="CRW-IE">
+          <frequency>1</frequency>
+        </initiating-event>
+        <sequences>
+          <sequence id="S131">
+            <probability>0.000000001026888394890585</probability>
+            <frequency>0.000000001026888394890585</frequency>
+          </sequence>
+          <sequence id="S132">
+            <probability>0.0000000010095787539299295</probability>
+            <frequency>0.0000000010095787539299295</frequency>
+          </sequence>
+          <sequence id="S133">
+            <probability>0.000000002227351969530389</probability>
+            <frequency>0.000000002227351969530389</frequency>
+          </sequence>
+          <sequence id="S134">
+            <probability>0.0000001055723818366161</probability>
+            <frequency>0.0000001055723818366161</frequency>
+          </sequence>
+          <sequence id="S135">
+            <probability>0.000000027815940661923833</probability>
+            <frequency>0.000000027815940661923833</frequency>
+          </sequence>
+          <sequence id="S136">
+            <probability>0.009271952367701841</probability>
+            <frequency>0.009271952367701841</frequency>
+          </sequence>
+          <sequence id="S137">
+            <probability>0.02045405212580409</probability>
+            <frequency>0.02045405212580409</frequency>
+          </sequence>
+          <sequence id="S138">
+            <probability>0.9695127625867804</probability>
+            <frequency>0.9695127625867804</frequency>
+          </sequence>
+        </sequences>
+      </event-tree>
+    </event-tree-analysis>
+  </results>
+</report>

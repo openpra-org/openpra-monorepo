@@ -1,0 +1,9 @@
+edition = "2021"
+
+[formatter]
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+
+[lints]
+# Follow Rust 2021 edition idioms

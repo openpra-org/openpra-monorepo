@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+This is a scenario for benchmarking taken from OpenFTA.
+This tree represents a failure of an electrical supply to an operating
+theatre.
+
+M & (G | R)
+-->
+<opsa-mef>
+  <define-fault-tree name="depth1">
+    <define-gate name="and">
+      <and>
+        <basic-event name="A"/>
+        <basic-event name="B"/>
+      </and>
+    </define-gate>
+    <define-basic-event name="A">
+      <float value="0.5"/>
+    </define-basic-event>
+    <define-basic-event name="B">
+      <float value="0.25"/>
+    </define-basic-event>
+    <define-basic-event name="C">
+      <float value="0.3"/>
+    </define-basic-event>
+    <define-basic-event name="D">
+      <float value="0.4"/>
+    </define-basic-event>
+    <define-basic-event name="E">
+      <float value="0.5"/>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>

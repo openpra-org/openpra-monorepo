@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opsa-mef>
+  <define-fault-tree name="UncertaintyTest">
+    <define-gate name="TopEvent">
+      <or>
+        <event name="E1"/>
+        <event name="E2"/>
+      </or>
+    </define-gate>
+
+    <!-- Event with Normal distribution: mean=0.01, std=0.002 -->
+    <define-basic-event name="E1">
+      <float value="0.01"/>
+      <attributes>
+        <attribute name="distribution" value="normal"/>
+        <attribute name="mu" value="0.01"/>
+        <attribute name="sigma" value="0.002"/>
+      </attributes>
+    </define-basic-event>
+
+    <!-- Event with Uniform distribution: range [0.005, 0.015] -->
+    <define-basic-event name="E2">
+      <float value="0.01"/>
+      <attributes>
+        <attribute name="distribution" value="uniform"/>
+        <attribute name="a" value="0.005"/>
+        <attribute name="b" value="0.015"/>
+      </attributes>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>

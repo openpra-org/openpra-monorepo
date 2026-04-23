@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opsa-mef>
+  <define-fault-tree name="SimpleTest">
+    <define-gate name="TopEvent">
+      <or>
+        <event name="E1"/>
+        <event name="E2"/>
+      </or>
+    </define-gate>
+
+    <define-basic-event name="E1">
+      <float value="0.01"/>
+    </define-basic-event>
+
+    <define-basic-event name="E2">
+      <float value="0.02"/>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>

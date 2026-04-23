@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!--
+Minimal XOR fault tree fixture.
+
+Kept intentionally small so the MEF parser doesn't reject the document due to
+unsupported/extra gate types.
+-->
+<opsa-mef>
+  <define-fault-tree name="depth1">
+    <define-gate name="xor">
+      <xor>
+        <basic-event name="A"/>
+        <basic-event name="B"/>
+      </xor>
+    </define-gate>
+    <define-basic-event name="A">
+      <float value="0.1"/>
+    </define-basic-event>
+    <define-basic-event name="B">
+      <float value="0.2"/>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>

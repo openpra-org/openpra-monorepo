@@ -1,0 +1,31 @@
+# Developers can still use core.autocrlf locally.
+* text=auto
+
+# Source code / config / docs -> LF
+*.rs     text eol=lf
+*.toml   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.json   text eol=lf
+*.xml    text eol=lf
+*.txt    text eol=lf
+*.sh     text eol=lf
+
+# Windows scripts -> CRLF
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+*.ps1    text eol=crlf
+
+# Common binary assets
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.pdf    binary
+*.zip    binary
+*.gz     binary
+*.7z     binary
+*.exe    binary
+*.dll    binary
+*.pdb    binary

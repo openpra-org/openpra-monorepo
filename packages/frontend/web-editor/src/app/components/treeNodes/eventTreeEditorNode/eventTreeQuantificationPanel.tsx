@@ -19,6 +19,7 @@ import {
   EuiModalFooter,
   EuiButtonEmpty,
   EuiFieldNumber,
+  EuiFieldText,
   EuiHorizontalRule,
   EuiStat,
   EuiProgress,
@@ -46,21 +47,17 @@ export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantific
   const [algorithm, setAlgorithm] = useState<EventTreeAlgorithm>("zbdd");
   const [approximation, setApproximation] = useState<EventTreeApproximation>("rare_event");
   const [maxOrder, setMaxOrder] = useState<number | undefined>(undefined);
-  const [numSamples, setNumSamples] = useState<number>(10000);
+  const [truncation, setTruncation] = useState<number | undefined>(undefined);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<EventTreeQuantificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const needsApproximation = algorithm === "zbdd" || algorithm === "mocus";
-  const needsMaxOrder = algorithm === "zbdd" || algorithm === "mocus";
-  const isMonteCarlo = algorithm === "monte_carlo";
+  const needsApproximation = algorithm === "zbdd";
 
   const algorithmOptions = [
     { value: "zbdd", text: "ZBDD" },
-    { value: "mocus", text: "MOCUS" },
     { value: "bdd", text: "BDD" },
-    { value: "monte_carlo", text: "Monte Carlo" },
   ];
 
   const approximationOptions = [
@@ -76,8 +73,8 @@ export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantific
       const res = await GraphApiManager.quantifyEventTree(eventTreeId, {
         algorithm,
         ...(needsApproximation ? { approximation } : {}),
-        ...(needsMaxOrder && maxOrder !== undefined && maxOrder > 0 ? { maxOrder } : {}),
-        ...(isMonteCarlo ? { numSamples } : {}),
+        ...(maxOrder !== undefined && maxOrder > 0 ? { maxOrder } : {}),
+        ...(truncation !== undefined ? { truncation } : {}),
       });
       setResult(res);
       if (res.sequences.length > 0) setIsModalOpen(true);
@@ -138,45 +135,40 @@ export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantific
           </EuiFormRow>
         )}
 
-        {needsMaxOrder && (
-          <EuiFormRow
-            label="Max Cut-Set Order"
-            helpText="Leave empty to enumerate all orders"
+        <EuiFormRow
+          label="Order Limit"
+          helpText="Maximum cut-set order. Leave empty for unlimited."
+          fullWidth
+        >
+          <EuiFieldNumber
             fullWidth
-          >
-            <EuiFieldNumber
-              fullWidth
-              placeholder="Unlimited"
-              min={1}
-              max={20}
-              value={maxOrder ?? ""}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                setMaxOrder(isNaN(v) ? undefined : v);
-              }}
-            />
-          </EuiFormRow>
-        )}
+            placeholder="Unlimited"
+            min={1}
+            max={20}
+            value={maxOrder ?? ""}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              setMaxOrder(isNaN(v) ? undefined : v);
+            }}
+          />
+        </EuiFormRow>
 
-        {isMonteCarlo && (
-          <EuiFormRow
-            label="Number of Samples"
-            helpText="Min 1 000 — Max 1 000 000"
+        <EuiFormRow
+          label="Truncation Limit"
+          helpText="Sequences below this probability are excluded (e.g. 1e-9). Leave empty for none."
+          fullWidth
+        >
+          <EuiFieldText
             fullWidth
-          >
-            <EuiFieldNumber
-              fullWidth
-              min={1000}
-              max={1000000}
-              step={1000}
-              value={numSamples}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v)) setNumSamples(v);
-              }}
-            />
-          </EuiFormRow>
-        )}
+            placeholder="None"
+            value={truncation !== undefined ? truncation.toExponential() : ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              const parsed = parseFloat(raw);
+              setTruncation(raw === "" || isNaN(parsed) ? undefined : parsed);
+            }}
+          />
+        </EuiFormRow>
 
         <EuiSpacer size="m" />
 
@@ -253,11 +245,6 @@ export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantific
               <EuiFlexItem grow={false}>
                 <EuiBadge color="hollow">{result.sequences.length} sequences</EuiBadge>
               </EuiFlexItem>
-              {result.numSamples !== undefined && (
-                <EuiFlexItem grow={false}>
-                  <EuiBadge color="hollow">{result.numSamples.toLocaleString()} samples</EuiBadge>
-                </EuiFlexItem>
-              )}
             </EuiFlexGroup>
 
             {result.sequences.length > 0 && (
@@ -479,16 +466,6 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
               reverse
             />
           </EuiFlexItem>
-          {result.numSamples !== undefined && (
-            <EuiFlexItem grow={false}>
-              <EuiStat
-                title={result.numSamples.toLocaleString()}
-                description="Samples"
-                titleSize="m"
-                reverse
-              />
-            </EuiFlexItem>
-          )}
         </EuiFlexGroup>
 
         <EuiHorizontalRule margin="s" />

@@ -19,6 +19,7 @@ import {
   EuiButtonEmpty,
   EuiCallOut,
   EuiFieldNumber,
+  EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
   EuiFormRow,
@@ -74,6 +75,7 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
   const [algorithm, setAlgorithm] = useState<FaultTreeAlgorithm>("zbdd");
   const [approximation, setApproximation] = useState<FaultTreeApproximation>("rare_event");
   const [maxOrder, setMaxOrder] = useState<number | undefined>(undefined);
+  const [truncation, setTruncation] = useState<number | undefined>(undefined);
 
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<FaultTreeQuantificationResult | null>(null);
@@ -86,7 +88,6 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
 
   const algorithmOptions = [
     { value: "zbdd", text: "ZBDD" },
-    { value: "mocus", text: "MOCUS" },
     { value: "bdd", text: "BDD" },
   ];
 
@@ -104,6 +105,7 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
         algorithm,
         ...(needsApproximation ? { approximation } : {}),
         ...(maxOrder !== undefined && maxOrder > 0 ? { maxOrder } : {}),
+        ...(truncation !== undefined ? { truncation } : {}),
       });
       setResult(res);
       if (res.cutSets.length > 0) setIsModalOpen(true);
@@ -165,8 +167,8 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
         )}
 
         <EuiFormRow
-          label="Max Cut-Set Order"
-          helpText="Leave empty to enumerate all orders"
+          label="Order Limit"
+          helpText="Maximum cut-set order. Leave empty for unlimited."
           fullWidth
         >
           <EuiFieldNumber
@@ -178,6 +180,23 @@ export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantific
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
               setMaxOrder(isNaN(v) ? undefined : v);
+            }}
+          />
+        </EuiFormRow>
+
+        <EuiFormRow
+          label="Truncation Limit"
+          helpText="Cut sets below this probability are excluded (e.g. 1e-9). Leave empty for none."
+          fullWidth
+        >
+          <EuiFieldText
+            fullWidth
+            placeholder="None"
+            value={truncation !== undefined ? truncation.toExponential() : ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              const parsed = parseFloat(raw);
+              setTruncation(raw === "" || isNaN(parsed) ? undefined : parsed);
             }}
           />
         </EuiFormRow>

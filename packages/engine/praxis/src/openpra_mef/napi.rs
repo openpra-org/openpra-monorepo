@@ -1,3 +1,8 @@
+use crate::algorithms::mocus::Mocus;
+use crate::analysis::fault_tree::FaultTreeAnalysis;
+use crate::core::event::{BasicEvent, HouseEvent};
+use crate::core::fault_tree::FaultTree;
+use crate::core::gate::{Formula, Gate};
 use crate::openpra_mef::addon_json::{
     from_engine_outputs, parse_openpra_json, resolve_openpra_refs, to_engine_inputs,
     validate_openpra_json,
@@ -2386,6 +2391,303 @@ fn merge_additional_fields(
     }
 }
 
+fn add_gate_inputs_from_json(
+    gate: &mut Gate,
+    inputs: &serde_json::Value,
+    transfer_replacements: &HashMap<String, String>,
+) {
+    if let Some(arr) = inputs.as_array() {
+        for v in arr {
+            if let Some(id) = v.as_str() {
+                let effective = transfer_replacements
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_else(|| id.to_string());
+                if !effective.is_empty() {
+                    gate.add_operand(effective);
+                }
+            }
+        }
+    }
+}
+
+fn build_fault_tree_from_graph_value(
+    graph: &serde_json::Value,
+    all_transfer_trees: &HashMap<String, serde_json::Value>,
+) -> Result<FaultTree> {
+    let ft_id = graph["faultTreeId"].as_str().unwrap_or("ft");
+    let top_event_id = graph["topEventId"]
+        .as_str()
+        .ok_or_else(|| PraxisError::Logic("Missing topEventId in fault tree graph".into()))?;
+
+    let nodes_obj = graph["nodes"]
+        .as_object()
+        .ok_or_else(|| PraxisError::Logic("Missing nodes in fault tree graph".into()))?;
+
+    let mut ft = FaultTree::new(ft_id, top_event_id)?;
+
+    // Collect all nodes including those from transfer trees
+    let mut all_nodes: Vec<(String, serde_json::Value)> = nodes_obj
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    // Map TRANSFER_OUT node id -> replacement top event id of referenced tree
+    let mut transfer_replacements: HashMap<String, String> = HashMap::new();
+    for (node_id, node) in nodes_obj {
+        if node["nodeType"].as_str() == Some("TRANSFER_OUT") {
+            if let Some(ref_ft_id) = node["transferTreeId"].as_str() {
+                if let Some(ref_graph) = all_transfer_trees.get(ref_ft_id) {
+                    let ref_top = ref_graph["topEventId"].as_str().unwrap_or("").to_string();
+                    transfer_replacements.insert(node_id.clone(), ref_top);
+                    if let Some(ref_nodes) = ref_graph["nodes"].as_object() {
+                        for (k, v) in ref_nodes {
+                            all_nodes.push((k.clone(), v.clone()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Deduplicate (last entry wins — prefer main graph nodes)
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut deduped: Vec<(String, serde_json::Value)> = Vec::new();
+    for (id, node) in all_nodes.into_iter().rev() {
+        if seen.insert(id.clone()) {
+            deduped.push((id, node));
+        }
+    }
+
+    for (node_id, node) in &deduped {
+        let node_type = node["nodeType"].as_str().unwrap_or("");
+        match node_type {
+            "OR_GATE" => {
+                let mut g = Gate::new(node_id.clone(), Formula::Or)?;
+                add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
+                ft.add_gate(g)?;
+            }
+            "AND_GATE" | "INHIBIT_GATE" => {
+                let mut g = Gate::new(node_id.clone(), Formula::And)?;
+                add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
+                ft.add_gate(g)?;
+            }
+            "ATLEAST_GATE" => {
+                let min = node["kValue"].as_u64().unwrap_or(2) as usize;
+                let mut g = Gate::new(node_id.clone(), Formula::AtLeast { min })?;
+                add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
+                ft.add_gate(g)?;
+            }
+            "NOT_GATE" => {
+                let mut g = Gate::new(node_id.clone(), Formula::Not)?;
+                add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
+                ft.add_gate(g)?;
+            }
+            "BASIC_EVENT" | "UNDEVELOPED_EVENT" => {
+                let prob = node["probability"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0);
+                ft.add_basic_event(BasicEvent::new(node_id.clone(), prob)?)?;
+            }
+            "HOUSE_EVENT" => {
+                let state = node["houseEventValue"].as_bool().unwrap_or(false);
+                ft.add_house_event(HouseEvent::new(node_id.clone(), state)?)?;
+            }
+            "TRUE_EVENT" => {
+                ft.add_house_event(HouseEvent::new(node_id.clone(), true)?)?;
+            }
+            "FALSE_EVENT" => {
+                ft.add_house_event(HouseEvent::new(node_id.clone(), false)?)?;
+            }
+            "TRANSFER_OUT" | "TRANSFER_IN" => {
+                // Handled via transfer_replacements; skip adding as a standalone node
+            }
+            _ => {
+                // Unknown node type — skip silently
+            }
+        }
+    }
+
+    Ok(ft)
+}
+
+pub fn quantify_fault_tree_contract(input: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|e| PraxisError::Logic(format!("Invalid JSON: {e}")))?;
+
+    let graph = &value["graph"];
+    let algorithm = value["algorithm"].as_str().unwrap_or("bdd");
+    let max_order = value["maxOrder"].as_u64().map(|n| n as usize);
+    let truncation = value["truncation"].as_f64();
+
+    let mut transfer_trees: HashMap<String, serde_json::Value> = HashMap::new();
+    if let Some(tt) = value["transferTrees"].as_object() {
+        for (k, v) in tt {
+            transfer_trees.insert(k.clone(), v.clone());
+        }
+    }
+
+    let ft = build_fault_tree_from_graph_value(graph, &transfer_trees)?;
+
+    let event_probs: HashMap<String, f64> = ft
+        .basic_events()
+        .iter()
+        .map(|(id, be)| (id.clone(), be.probability()))
+        .collect();
+
+    let top_prob = FaultTreeAnalysis::new(&ft)
+        .and_then(|a| a.analyze())
+        .map(|r| r.top_event_probability)
+        .unwrap_or(0.0);
+
+    let cut_sets = {
+        let mut mocus = Mocus::new(&ft);
+        if let Some(mo) = max_order {
+            mocus = mocus.with_max_order(mo);
+        }
+        mocus.analyze().map(|cs| cs.to_vec()).unwrap_or_default()
+    };
+
+    let mut cut_set_results: Vec<serde_json::Value> = cut_sets
+        .iter()
+        .filter_map(|cs| {
+            let events: Vec<&str> = cs.events.iter().map(String::as_str).collect();
+            let prob: f64 = cs
+                .events
+                .iter()
+                .map(|id| event_probs.get(id).copied().unwrap_or(0.0))
+                .product();
+            if let Some(limit) = truncation {
+                if prob < limit {
+                    return None;
+                }
+            }
+            let contribution = if top_prob > 0.0 { prob / top_prob } else { 0.0 };
+            Some(json!({
+                "events": events,
+                "probability": prob,
+                "contribution": contribution,
+            }))
+        })
+        .collect();
+
+    cut_set_results.sort_by(|a, b| {
+        b["probability"]
+            .as_f64()
+            .unwrap_or(0.0)
+            .partial_cmp(&a["probability"].as_f64().unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let result = json!({
+        "algorithm": algorithm,
+        "topEventProbability": top_prob,
+        "cutSets": cut_set_results,
+    });
+
+    serde_json::to_string(&result)
+        .map_err(|e| PraxisError::Serialization(e.to_string()))
+}
+
+pub fn quantify_event_tree_contract(input: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|e| PraxisError::Logic(format!("Invalid JSON: {e}")))?;
+
+    let graph = &value["graph"];
+    let algorithm = value["algorithm"].as_str().unwrap_or("bdd");
+    let truncation = value["truncation"].as_f64();
+
+    // Collect linked fault trees sent by the caller
+    let mut ft_graphs: HashMap<String, serde_json::Value> = HashMap::new();
+    if let Some(fts) = value["faultTrees"].as_object() {
+        for (k, v) in fts {
+            ft_graphs.insert(k.clone(), v.clone());
+        }
+    }
+
+    // Compute failure probability for each functional event
+    let mut fe_failure_probs: HashMap<String, f64> = HashMap::new();
+    if let Some(fes) = graph["functionalEvents"].as_object() {
+        for (fe_node_id, fe) in fes {
+            let fe_id = fe["id"]
+                .as_str()
+                .or_else(|| fe["name"].as_str())
+                .unwrap_or(fe_node_id.as_str())
+                .to_string();
+
+            let failure_prob = if let Some(ft_id) = fe["faultTreeId"].as_str() {
+                if let Some(ft_graph) = ft_graphs.get(ft_id) {
+                    build_fault_tree_from_graph_value(ft_graph, &HashMap::new())
+                        .ok()
+                        .and_then(|ft| {
+                            FaultTreeAnalysis::new(&ft)
+                                .and_then(|a| a.analyze())
+                                .map(|r| r.top_event_probability)
+                                .ok()
+                        })
+                        .unwrap_or(0.5)
+                } else {
+                    0.5
+                }
+            } else {
+                0.5
+            };
+
+            fe_failure_probs.insert(fe_id, failure_prob);
+        }
+    }
+
+    // Enumerate sequences using their functionalEventStates
+    let mut sequence_results: Vec<serde_json::Value> = Vec::new();
+    if let Some(seqs) = graph["sequences"].as_object() {
+        for (seq_node_id, seq) in seqs {
+            let seq_id = seq["id"]
+                .as_str()
+                .or_else(|| seq["name"].as_str())
+                .unwrap_or(seq_node_id.as_str())
+                .to_string();
+
+            let mut seq_prob = 1.0f64;
+            let mut path_entries: Vec<serde_json::Value> = Vec::new();
+
+            if let Some(fe_states) = seq["functionalEventStates"].as_object() {
+                for (fe_id, state_val) in fe_states {
+                    let state_str = state_val.as_str().unwrap_or("FAILURE");
+                    let is_failure = state_str.to_ascii_uppercase() == "FAILURE";
+                    let fe_fail = fe_failure_probs.get(fe_id).copied().unwrap_or(0.5);
+                    seq_prob *= if is_failure { fe_fail } else { 1.0 - fe_fail };
+                    path_entries.push(json!({
+                        "functionalEventId": fe_id,
+                        "state": state_str,
+                    }));
+                }
+            }
+
+            if truncation.map_or(true, |limit| seq_prob >= limit) {
+                sequence_results.push(json!({
+                    "sequenceId": seq_id,
+                    "frequency": seq_prob,
+                    "probability": seq_prob,
+                    "path": path_entries,
+                    "cutSets": [],
+                }));
+            }
+        }
+    }
+
+    let total_cdf: f64 = sequence_results
+        .iter()
+        .filter_map(|s| s["frequency"].as_f64())
+        .sum();
+
+    let result = json!({
+        "algorithm": algorithm,
+        "totalCdf": total_cdf,
+        "sequences": sequence_results,
+    });
+
+    serde_json::to_string(&result)
+        .map_err(|e| PraxisError::Serialization(e.to_string()))
+}
+
 #[cfg(feature = "napi-rs")]
 mod node_bindings {
     use super::*;
@@ -2444,6 +2746,16 @@ mod node_bindings {
     pub fn convert_openpsa_xml_batch_to_openpra_json(input: String) -> napi::Result<String> {
         convert_openpsa_xml_batch_to_openpra_json_contract(&input)
             .map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn quantify_fault_tree(input: String) -> napi::Result<String> {
+        quantify_fault_tree_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn quantify_event_tree(input: String) -> napi::Result<String> {
+        quantify_event_tree_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
     }
 }
 

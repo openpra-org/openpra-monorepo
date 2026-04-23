@@ -1,6 +1,6 @@
 import type { EventTreeGraph } from "./reactflowGraph/Graph";
 
-export type EventTreeAlgorithm = "bdd" | "zbdd" | "mocus" | "monte_carlo";
+export type EventTreeAlgorithm = "bdd" | "zbdd";
 
 export type EventTreeApproximation = "rare_event" | "mcub";
 
@@ -8,8 +8,10 @@ export interface EventTreeQuantificationRequest {
   graph?: EventTreeGraph;
   algorithm: EventTreeAlgorithm;
   approximation?: EventTreeApproximation;
+  /** Maximum cut-set order (number of events). Omit to enumerate all orders. */
   maxOrder?: number;
-  numSamples?: number;
+  /** Probability truncation limit. Cut sets with probability below this value are excluded. */
+  truncation?: number;
 }
 
 export interface EventTreeCutSet {

@@ -4,7 +4,11 @@
       "Bash(xargs grep *)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")",
       "Bash(find \"c:/Users/hrashee/Desktop/openpra-monorepo/node_modules/.pnpm/@nx+react@\"* -name \"with-react.js\" -path \"*/src/with-react*\")",
-      "Bash(find \"c:/Users/hrashee/Desktop/openpra-monorepo/node_modules/.pnpm/@nx+webpack@22.0.1\"* -name \"*.js\")"
+      "Bash(find \"c:/Users/hrashee/Desktop/openpra-monorepo/node_modules/.pnpm/@nx+webpack@22.0.1\"* -name \"*.js\")",
+      "Bash(xargs cat *)",
+      "Bash(cargo check *)",
+      "Bash(cargo build *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

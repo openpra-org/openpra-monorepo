@@ -1,0 +1,18 @@
+{
+  "name": "praxis-node",
+  "version": "0.1.0",
+  "description": "Probabilistic Risk Assessment Toolset - Node.js native addon",
+  "license": "MIT",
+  "private": true,
+  "main": "./praxis.node",
+  "types": "./index.d.ts",
+  "nx": {
+    "tags": [
+      "scope:engine"
+    ]
+  },
+  "scripts": {
+    "build": "cargo build --features napi-rs --release && node scripts/copy-addon.js",
+    "build:debug": "cargo build --features napi-rs"
+  }
+}

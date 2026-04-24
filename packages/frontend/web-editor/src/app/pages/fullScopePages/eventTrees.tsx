@@ -4,9 +4,13 @@ import ReactFlow, { Edge, Node, ProOptions, ReactFlowProvider, useReactFlow, Pan
 import { EuiPopover, useGeneratedHtmlId, EuiPanel, EuiFlexGroup, EuiFlexItem, EuiButtonIcon } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
+import { PostFaultTree } from "shared-sdk/lib/api/NestedModelsAPI/FaultTreesApiManager";
+import { GetCurrentModelType } from "shared-sdk/lib/api/TypedModelApiManager";
 import { useTreeData } from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
+import { parseOpenPsaEventTreeXml, buildImportedEventTreeGraph } from "../../../utils/parseOpenPsaEventTreeXml";
+import { EventTreeState } from "../../../utils/treeUtils";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -99,6 +103,8 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
 
   const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const setFunctionalEvents = useEventTreeStore((s) => s.setFunctionalEvents);
 
@@ -155,6 +161,52 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     setSelectedNodeId(null);
   }, []);
 
+  const handleImportXml = useCallback(
+    async (file: File): Promise<void> => {
+      if (!eventTreeId || !modelId) return;
+      setIsImporting(true);
+      try {
+        const xml = await file.text();
+        const parsed = parseOpenPsaEventTreeXml(xml);
+
+        // Create NestedModel records + store graph for each referenced fault tree
+        const ftNameToId: Record<string, string> = {};
+        const typedModel = GetCurrentModelType();
+        for (const fe of parsed.eventTree.functionalEvents) {
+          if (!fe.faultTreeName || ftNameToId[fe.faultTreeName]) continue;
+          const ftData = parsed.faultTrees[fe.faultTreeName];
+          if (!ftData) continue;
+          const meta = await PostFaultTree(
+            { label: { name: fe.faultTreeName, description: "" }, parentIds: [modelId] },
+            typedModel,
+          );
+          await GraphApiManager.storeFaultTree({
+            faultTreeId: meta._id,
+            topEventId: ftData.topEventId,
+            nodes: ftData.nodes,
+          });
+          ftNameToId[fe.faultTreeName] = meta._id;
+        }
+
+        // Build and store the event tree graph
+        const { nodes: importedNodes, edges: importedEdges } = buildImportedEventTreeGraph(parsed, ftNameToId);
+        await GraphApiManager.storeEventTree(
+          EventTreeState({ eventTreeId, nodes: importedNodes, edges: importedEdges }),
+        );
+
+        // Reload editor
+        setLoading(true);
+      } catch (err) {
+        console.error("[ET Import]", err); // eslint-disable-line no-console
+        alert(`Import failed: ${err instanceof Error ? err.message : "unknown error"}`);
+      } finally {
+        setIsImporting(false);
+        if (importFileRef.current) importFileRef.current.value = "";
+      }
+    },
+    [eventTreeId, modelId, importFileRef],
+  );
+
   return loading ?
       <LoadingCard />
     : <div style={{ position: "absolute", inset: 0, display: "flex", width: "100%", height: "100%" }}>
@@ -202,6 +254,16 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
                 </EuiFlexItem>
                 <EuiFlexItem grow={false}>
                   <EuiButtonIcon
+                    iconType="importAction"
+                    display="base"
+                    aria-label="import OpenPSA XML"
+                    isLoading={isImporting}
+                    onClick={() => importFileRef.current?.click()}
+                    title="Import OpenPSA XML"
+                  />
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiButtonIcon
                     iconType="plusInCircle"
                     display="base"
                     aria-label="zoom in"
@@ -230,6 +292,16 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
               </EuiFlexGroup>
             </Panel>
             <FitViewHandler />
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".xml,application/xml,text/xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImportXml(file);
+              }}
+            />
             <EuiPopover
               id={headerAppPopoverId}
               button={<span />}

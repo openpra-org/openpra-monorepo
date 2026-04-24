@@ -7,10 +7,12 @@ import { GraphModelService } from "./graphModel.service";
 import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
+  FaultTreeMetadataResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
 import type {
   EventTreeQuantificationRequest,
   EventTreeQuantificationResult,
+  EventTreeMetadataResult,
 } from "shared-types/src/lib/types/eventTreeQuantification";
 
 /**
@@ -150,6 +152,33 @@ export class GraphModelController {
       return await this.graphModelService.quantifyFaultTree(faultTreeId, body);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Quantification failed";
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Phase 1 analysis: build BDD + full ZBDD and return exact top-event probability
+   * plus per-order MCS distribution. No cut sets are enumerated.
+   *
+   * @param faultTreeId - ID of the fault tree to analyze (query param)
+   * @returns Exact probability and order statistics
+   */
+  @Post("/fault-tree-graph/analyze")
+  async analyzeFaultTree(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeMetadataResult> {
+    try {
+      return await this.graphModelService.analyzeFaultTree(faultTreeId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Analysis failed";
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post("/event-tree-graph/analyze")
+  async analyzeEventTree(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeMetadataResult> {
+    try {
+      return await this.graphModelService.analyzeEventTree(eventTreeId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Analysis failed";
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

@@ -2,10 +2,12 @@ import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types
 import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
+  FaultTreeMetadataResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
 import type {
   EventTreeQuantificationRequest,
   EventTreeQuantificationResult,
+  EventTreeMetadataResult,
 } from "shared-types/src/lib/types/eventTreeQuantification";
 import { AuthService } from "./AuthService";
 
@@ -102,6 +104,26 @@ export class GraphApiManager {
       throw new Error(msg);
     }
     return res.json() as Promise<FaultTreeQuantificationResult>;
+  }
+
+  static async analyzeFaultTree(faultTreeId: string): Promise<FaultTreeMetadataResult> {
+    const url = `${FaultTreeGraphEndpoint}/analyze?faultTreeId=${encodeURIComponent(faultTreeId)}`;
+    const res = await fetch(url, this.getRequestInfo("POST"));
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(msg);
+    }
+    return res.json() as Promise<FaultTreeMetadataResult>;
+  }
+
+  static async analyzeEventTree(eventTreeId: string): Promise<EventTreeMetadataResult> {
+    const url = `${EventTreeGraphEndpoint}/analyze?eventTreeId=${encodeURIComponent(eventTreeId)}`;
+    const res = await fetch(url, this.getRequestInfo("POST"));
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText);
+      throw new Error(msg);
+    }
+    return res.json() as Promise<EventTreeMetadataResult>;
   }
 
   static async quantifyEventTree(

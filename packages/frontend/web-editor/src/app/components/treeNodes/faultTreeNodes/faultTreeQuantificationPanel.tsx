@@ -1,14 +1,10 @@
 /**
- * Fault Tree Quantification Panel
+ * Fault Tree Quantification Panel — thin wrapper around the shared QuantificationPanel.
  *
- * Side-panel: algorithm / approximation / max-order controls + Run button.
- * After a successful run it shows a compact probability summary and a
- * "View Cut Set Analysis" button.
- *
- * Results modal (center screen): full paginated EuiBasicTable with columns
- *   Cut Sets | Order | Probability | Contribution
- * Each row occupies exactly one line (truncation + tooltip for long event lists).
- * Pagination lets the user page through all cut sets without any row limit.
+ * This file contains only what is specific to fault trees:
+ *   - API wiring (analyzeFaultTree, quantifyFaultTree)
+ *   - Result summary (top-event probability, cut-set badges, diagnostics)
+ *   - Cut Set Analysis modal
  */
 import { useState } from "react";
 import type { Criteria, EuiBasicTableColumn } from "@elastic/eui";
@@ -17,302 +13,171 @@ import {
   EuiBasicTable,
   EuiButton,
   EuiButtonEmpty,
-  EuiCallOut,
-  EuiFieldNumber,
-  EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiFormRow,
   EuiHorizontalRule,
-  EuiLoadingSpinner,
   EuiModal,
   EuiModalBody,
   EuiModalFooter,
   EuiModalHeader,
   EuiModalHeaderTitle,
   EuiProgress,
-  EuiSelect,
   EuiSpacer,
   EuiStat,
   EuiText,
-  EuiTitle,
 } from "@elastic/eui";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import type {
-  FaultTreeAlgorithm,
-  FaultTreeApproximation,
+  FaultTreeMetadataResult,
   FaultTreeQuantificationResult,
+  OrderStats,
   ZbddDiagnostics,
 } from "shared-types/src/lib/types/faultTreeQuantification";
+import {
+  QuantificationPanel,
+  OrderStatsTable,
+  fmtNumber,
+  severityColor,
+  approxBadgeLabel,
+} from "../quantificationPanel";
+import type { QuantificationOptions, OrderStatsRow } from "../quantificationPanel";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── FT Phase 1 metadata display ─────────────────────────────────────────────
 
-function fmtProb(p: number): string {
-  if (p === 0) return "0";
-  if (p < 1e-3) return p.toExponential(3);
-  return p.toPrecision(4);
-}
-
-// ─── Table row shape ──────────────────────────────────────────────────────────
-
-interface CutSetRow {
-  /** 1-based global rank (rank 1 = smallest probability) */
-  rank: number;
-  events: string[];
-  /** number of events = order of the cut set */
-  order: number;
-  probability: number;
-  contribution: number;
-}
-
-// ─── Main panel ───────────────────────────────────────────────────────────────
-
-interface FaultTreeQuantificationPanelProps {
-  faultTreeId: string;
-}
-
-export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantificationPanelProps): JSX.Element {
-  const [algorithm, setAlgorithm] = useState<FaultTreeAlgorithm>("zbdd");
-  const [approximation, setApproximation] = useState<FaultTreeApproximation>("rare_event");
-  const [maxOrder, setMaxOrder] = useState<number | undefined>(undefined);
-  const [truncation, setTruncation] = useState<number | undefined>(undefined);
-
-  const [isRunning, setIsRunning] = useState(false);
-  const [result, setResult] = useState<FaultTreeQuantificationResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Modal is auto-opened after a successful run; can be re-opened via button.
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const needsApproximation = algorithm !== "bdd";
-
-  const algorithmOptions = [
-    { value: "zbdd", text: "ZBDD" },
-    { value: "bdd", text: "BDD" },
-  ];
-
-  const approximationOptions = [
-    { value: "rare_event", text: "Rare-Event Approximation" },
-    { value: "mcub", text: "Min-Cut Upper Bound (MCUB)" },
-  ];
-
-  const handleRun = async (): Promise<void> => {
-    setIsRunning(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await GraphApiManager.quantifyFaultTree(faultTreeId, {
-        algorithm,
-        ...(needsApproximation ? { approximation } : {}),
-        ...(maxOrder !== undefined && maxOrder > 0 ? { maxOrder } : {}),
-        ...(truncation !== undefined ? { truncation } : {}),
-      });
-      setResult(res);
-      if (res.cutSets.length > 0) setIsModalOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Quantification failed");
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const approxLabel =
-    result?.approximation === "rare_event" ? "Rare-Event"
-    : result?.approximation === "mcub" ? "MCUB"
-    : null;
-
-  const probColor: "danger" | "warning" | "success" =
-    !result ? "success"
-    : result.topEventProbability >= 0.01 ? "danger"
-    : result.topEventProbability >= 1e-4 ? "warning"
-    : "success";
+function FaultTreeMetadataDisplay({ metadata }: { metadata: FaultTreeMetadataResult }): JSX.Element {
+  const rows: OrderStatsRow[] = metadata.orderStats.map((s) => ({
+    order: s.order,
+    count: s.count,
+    min: s.minProbability,
+    max: s.maxProbability,
+  }));
 
   return (
     <>
-      {/* ── Side-panel controls ── */}
-      <div style={{ padding: "24px 16px 16px" }}>
-        <EuiTitle size="xs">
-          <h3>Quantification</h3>
-        </EuiTitle>
-        <EuiSpacer size="s" />
+      <EuiStat
+        title={fmtNumber(metadata.topEventProbability)}
+        description="Exact Top-Event Probability"
+        titleColor={severityColor(metadata.topEventProbability)}
+        titleSize="m"
+        reverse
+      />
+      <EuiSpacer size="s" />
+      <EuiText
+        size="xs"
+        color="subdued"
+      >
+        <strong>MCS Order Distribution</strong>
+      </EuiText>
+      <EuiSpacer size="xs" />
+      <OrderStatsTable
+        rows={rows}
+        minLabel="min prob"
+        maxLabel="max prob"
+      />
+    </>
+  );
+}
 
-        <EuiFormRow
-          label="Algorithm"
-          fullWidth
-        >
-          <EuiSelect
-            fullWidth
-            options={algorithmOptions}
-            value={algorithm}
-            onChange={(e) => {
-              setAlgorithm(e.target.value as FaultTreeAlgorithm);
-              setError(null);
-              setResult(null);
-            }}
-          />
-        </EuiFormRow>
+// ─── FT-specific result summary ───────────────────────────────────────────────
 
-        {needsApproximation && (
-          <EuiFormRow
-            label="Approximation"
-            fullWidth
+function FaultTreeResultSummary({
+  result,
+  onViewDetails,
+}: {
+  result: FaultTreeQuantificationResult;
+  onViewDetails: () => void;
+}): JSX.Element {
+  return (
+    <>
+      <EuiStat
+        title={fmtNumber(result.topEventProbability)}
+        description="Top Event Probability"
+        titleColor={severityColor(result.topEventProbability)}
+        titleSize="m"
+        reverse
+      />
+      <EuiSpacer size="xs" />
+      <EuiFlexGroup
+        gutterSize="xs"
+        wrap
+      >
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="hollow">{approxBadgeLabel(result.approximation)}</EuiBadge>
+        </EuiFlexItem>
+        {result.cutSets.length > 0 && (
+          <EuiFlexItem grow={false}>
+            <EuiBadge color="hollow">{result.cutSets.length} cut sets</EuiBadge>
+          </EuiFlexItem>
+        )}
+      </EuiFlexGroup>
+
+      {result.zbddDiagnostics && <ZbddDiagnosticsPanel diagnostics={result.zbddDiagnostics} />}
+
+      {result.orderStats && result.orderStats.length > 0 && (
+        <>
+          <EuiSpacer size="s" />
+          <EuiText
+            size="xs"
+            color="subdued"
           >
-            <EuiSelect
-              fullWidth
-              options={approximationOptions}
-              value={approximation}
-              onChange={(e) => setApproximation(e.target.value as FaultTreeApproximation)}
-            />
-          </EuiFormRow>
-        )}
+            <strong>MCS Order Distribution (filtered)</strong>
+          </EuiText>
+          <EuiSpacer size="xs" />
+          <OrderStatsBadges orderStats={result.orderStats} />
+        </>
+      )}
 
-        <EuiFormRow
-          label="Order Limit"
-          helpText="Maximum cut-set order. Leave empty for unlimited."
-          fullWidth
-        >
-          <EuiFieldNumber
+      {result.cutSets.length > 0 && (
+        <>
+          <EuiSpacer size="m" />
+          <EuiButton
             fullWidth
-            placeholder="Unlimited"
-            min={1}
-            max={20}
-            value={maxOrder ?? ""}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              setMaxOrder(isNaN(v) ? undefined : v);
-            }}
-          />
-        </EuiFormRow>
-
-        <EuiFormRow
-          label="Truncation Limit"
-          helpText="Cut sets below this probability are excluded (e.g. 1e-9). Leave empty for none."
-          fullWidth
-        >
-          <EuiFieldText
-            fullWidth
-            placeholder="None"
-            value={truncation !== undefined ? truncation.toExponential() : ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              const parsed = parseFloat(raw);
-              setTruncation(raw === "" || isNaN(parsed) ? undefined : parsed);
-            }}
-          />
-        </EuiFormRow>
-
-        <EuiSpacer size="m" />
-
-        <EuiButton
-          fullWidth
-          fill
-          iconType="play"
-          isLoading={isRunning}
-          onClick={(): void => void handleRun()}
-        >
-          {isRunning ? "Running…" : "Quantify"}
-        </EuiButton>
-
-        {/* Running indicator */}
-        {isRunning && (
-          <>
-            <EuiSpacer size="s" />
-            <EuiFlexGroup
-              justifyContent="center"
-              alignItems="center"
-              gutterSize="s"
-            >
-              <EuiFlexItem grow={false}>
-                <EuiLoadingSpinner size="m" />
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiText
-                  size="s"
-                  color="subdued"
-                >
-                  Running {algorithm.toUpperCase()}…
-                </EuiText>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </>
-        )}
-
-        {/* Error */}
-        {error && (
-          <>
-            <EuiSpacer size="s" />
-            <EuiCallOut
-              title="Quantification failed"
-              color="danger"
-              iconType="alert"
-              size="s"
-            >
-              <EuiText size="xs">{error}</EuiText>
-            </EuiCallOut>
-          </>
-        )}
-
-        {/* Compact result summary (replaces full results in the side panel) */}
-        {result && !isRunning && (
-          <>
-            <EuiHorizontalRule margin="m" />
-            <EuiStat
-              title={fmtProb(result.topEventProbability)}
-              description="Top Event Probability"
-              titleColor={probColor}
-              titleSize="m"
-              reverse
-            />
-            <EuiSpacer size="xs" />
-            <EuiFlexGroup
-              gutterSize="xs"
-              wrap
-            >
-              <EuiFlexItem grow={false}>
-                <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
-              </EuiFlexItem>
-              {approxLabel && (
-                <EuiFlexItem grow={false}>
-                  <EuiBadge color="hollow">{approxLabel}</EuiBadge>
-                </EuiFlexItem>
-              )}
-              {result.cutSets.length > 0 && (
-                <EuiFlexItem grow={false}>
-                  <EuiBadge color="hollow">{result.cutSets.length} cut sets</EuiBadge>
-                </EuiFlexItem>
-              )}
-            </EuiFlexGroup>
-
-            {result.zbddDiagnostics && <ZbddDiagnosticsPanel diagnostics={result.zbddDiagnostics} />}
-
-            {result.cutSets.length > 0 && (
-              <>
-                <EuiSpacer size="m" />
-                <EuiButton
-                  fullWidth
-                  iconType="tableDensityNormal"
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  View Cut Set Analysis
-                </EuiButton>
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ── Cut Set Analysis modal (center screen) ── */}
-      {result && isModalOpen && (
-        <CutSetAnalysisModal
-          result={result}
-          onClose={() => setIsModalOpen(false)}
-        />
+            iconType="tableDensityNormal"
+            onClick={onViewDetails}
+          >
+            View Cut Set Analysis
+          </EuiButton>
+        </>
       )}
     </>
   );
 }
 
-// ─── ZBDD Diagnostics panel ───────────────────────────────────────────────────
+// ─── Compact order stats (post-enumeration) ───────────────────────────────────
+
+function OrderStatsBadges({ orderStats }: { orderStats: OrderStats[] }): JSX.Element {
+  return (
+    <EuiFlexGroup
+      gutterSize="xs"
+      wrap
+    >
+      {[...orderStats]
+        .sort((a, b) => a.order - b.order)
+        .map((row) => (
+          <EuiFlexItem
+            key={row.order}
+            grow={false}
+          >
+            <EuiBadge
+              color={
+                row.order === 1 ? "danger"
+                : row.order <= 3 ?
+                  "warning"
+                : "hollow"
+              }
+            >
+              order {row.order}: {row.count}
+            </EuiBadge>
+          </EuiFlexItem>
+        ))}
+    </EuiFlexGroup>
+  );
+}
+
+// ─── ZBDD diagnostics ─────────────────────────────────────────────────────────
 
 function ZbddDiagnosticsPanel({ diagnostics }: { diagnostics: ZbddDiagnostics }): JSX.Element {
   return (
@@ -346,6 +211,14 @@ function ZbddDiagnosticsPanel({ diagnostics }: { diagnostics: ZbddDiagnostics })
 
 // ─── Cut Set Analysis modal ───────────────────────────────────────────────────
 
+interface CutSetRow {
+  rank: number;
+  events: string[];
+  order: number;
+  probability: number;
+  contribution: number;
+}
+
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -359,7 +232,6 @@ function CutSetAnalysisModal({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  // Flatten cut sets into table rows (already sorted by increasing probability by the engine)
   const allRows: CutSetRow[] = result.cutSets.map((cs, idx) => ({
     rank: idx + 1,
     events: cs.events,
@@ -367,7 +239,6 @@ function CutSetAnalysisModal({
     probability: cs.probability,
     contribution: cs.contribution,
   }));
-
   const pageRows = allRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
   const handleTableChange = ({ page }: Criteria<CutSetRow>): void => {
@@ -377,17 +248,8 @@ function CutSetAnalysisModal({
     }
   };
 
-  const approxLabel =
-    result.approximation === "rare_event" ? "Rare-Event"
-    : result.approximation === "mcub" ? "MCUB"
-    : null;
-
-  const probColor: "danger" | "warning" | "success" =
-    result.topEventProbability >= 0.01 ? "danger"
-    : result.topEventProbability >= 1e-4 ? "warning"
-    : "success";
-
-  // ── Column definitions ────────────────────────────────────────────────────
+  const topProb = result.topEventProbability;
+  const label = approxBadgeLabel(result.approximation);
 
   const columns: EuiBasicTableColumn<CutSetRow>[] = [
     {
@@ -440,7 +302,7 @@ function CutSetAnalysisModal({
       name: "Probability",
       width: "110px",
       align: "right" as const,
-      render: (p: number) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{fmtProb(p)}</span>,
+      render: (p: number) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{fmtNumber(p)}</span>,
     },
     {
       field: "contribution",
@@ -501,11 +363,9 @@ function CutSetAnalysisModal({
                 <EuiFlexItem grow={false}>
                   <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
                 </EuiFlexItem>
-                {approxLabel && (
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge color="hollow">{approxLabel}</EuiBadge>
-                  </EuiFlexItem>
-                )}
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="hollow">{label}</EuiBadge>
+                </EuiFlexItem>
               </EuiFlexGroup>
             </EuiFlexItem>
           </EuiFlexGroup>
@@ -513,7 +373,6 @@ function CutSetAnalysisModal({
       </EuiModalHeader>
 
       <EuiModalBody>
-        {/* Top-event summary row */}
         <EuiFlexGroup
           alignItems="center"
           gutterSize="xl"
@@ -521,9 +380,9 @@ function CutSetAnalysisModal({
         >
           <EuiFlexItem grow={false}>
             <EuiStat
-              title={fmtProb(result.topEventProbability)}
+              title={fmtNumber(topProb)}
               description="Top Event Probability"
-              titleColor={probColor}
+              titleColor={severityColor(topProb)}
               titleSize="m"
               reverse
             />
@@ -536,27 +395,30 @@ function CutSetAnalysisModal({
               reverse
             />
           </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiStat
-              title={String(Math.min(...result.cutSets.map((cs) => cs.events.length)))}
-              description="Min Order"
-              titleSize="m"
-              reverse
-            />
-          </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <EuiStat
-              title={String(Math.max(...result.cutSets.map((cs) => cs.events.length)))}
-              description="Max Order"
-              titleSize="m"
-              reverse
-            />
-          </EuiFlexItem>
+          {result.cutSets.length > 0 && (
+            <>
+              <EuiFlexItem grow={false}>
+                <EuiStat
+                  title={String(Math.min(...result.cutSets.map((cs) => cs.events.length)))}
+                  description="Min Order"
+                  titleSize="m"
+                  reverse
+                />
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiStat
+                  title={String(Math.max(...result.cutSets.map((cs) => cs.events.length)))}
+                  description="Max Order"
+                  titleSize="m"
+                  reverse
+                />
+              </EuiFlexItem>
+            </>
+          )}
         </EuiFlexGroup>
 
         <EuiHorizontalRule margin="s" />
 
-        {/* Paginated cut-set table */}
         <EuiBasicTable<CutSetRow>
           tableLayout="fixed"
           items={pageRows}
@@ -577,5 +439,35 @@ function CutSetAnalysisModal({
         <EuiButtonEmpty onClick={onClose}>Close</EuiButtonEmpty>
       </EuiModalFooter>
     </EuiModal>
+  );
+}
+
+// ─── Public component ─────────────────────────────────────────────────────────
+
+interface FaultTreeQuantificationPanelProps {
+  faultTreeId: string;
+}
+
+export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantificationPanelProps): JSX.Element {
+  return (
+    <QuantificationPanel<FaultTreeQuantificationResult>
+      subjectId={faultTreeId}
+      onAnalyze={(id) => GraphApiManager.analyzeFaultTree(id)}
+      renderMetadata={(meta) => <FaultTreeMetadataDisplay metadata={meta as FaultTreeMetadataResult} />}
+      onQuantify={(id, opts: QuantificationOptions) => GraphApiManager.quantifyFaultTree(id, opts)}
+      renderResult={(result, onViewDetails) => (
+        <FaultTreeResultSummary
+          result={result}
+          onViewDetails={onViewDetails}
+        />
+      )}
+      renderModal={(result, onClose) => (
+        <CutSetAnalysisModal
+          result={result}
+          onClose={onClose}
+        />
+      )}
+      hasDetails={(result) => result.cutSets.length > 0}
+    />
   );
 }

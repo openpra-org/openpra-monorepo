@@ -43,6 +43,9 @@ export interface EventTreeGraph {
   /** MEF: ID of the initiating event column node */
   initiatingEventId?: string;
 
+  /** Initiating event frequency (events per year). Required for quantification. */
+  initiatingEventFrequency?: number;
+
   /** MEF: Functional Events keyed by column-node ID */
   functionalEvents?: Record<string, FunctionalEvent>;
 

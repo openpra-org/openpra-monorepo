@@ -7,10 +7,12 @@ import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import type {
   FaultTreeQuantificationRequest,
   FaultTreeQuantificationResult,
+  FaultTreeMetadataResult,
 } from "shared-types/src/lib/types/faultTreeQuantification";
 import type {
   EventTreeQuantificationRequest,
   EventTreeQuantificationResult,
+  EventTreeMetadataResult,
 } from "shared-types/src/lib/types/eventTreeQuantification";
 import {
   EventSequenceDiagramGraph,
@@ -109,6 +111,8 @@ export class GraphModelService {
         if (body.nodes !== undefined) existing.nodes = body.nodes;
         if (body.edges !== undefined) existing.edges = body.edges;
         if (body.initiatingEventId !== undefined) existing.initiatingEventId = body.initiatingEventId;
+        if (body.initiatingEventFrequency !== undefined)
+          existing.initiatingEventFrequency = body.initiatingEventFrequency;
         if (body.functionalEvents !== undefined) existing.functionalEvents = body.functionalEvents;
         if (body.sequences !== undefined) existing.sequences = body.sequences;
         await existing.save();
@@ -267,6 +271,29 @@ export class GraphModelService {
     return { nodes: defaultNodes, edges: defaultEdges };
   }
 
+  async analyzeFaultTree(faultTreeId: string): Promise<FaultTreeMetadataResult> {
+    const graph = await this.getFaultTreeGraph(faultTreeId);
+    const transferTrees = await this.collectTransferTrees(
+      graph.nodes as unknown as Record<string, { nodeType: string; transferTreeId?: string }>,
+      new Set<string>([faultTreeId]),
+    );
+
+    const request = {
+      graph: graph as unknown as FaultTreeQuantificationRequest["graph"],
+      transferTrees: transferTrees as unknown as FaultTreeQuantificationRequest["transferTrees"],
+    };
+
+    let praxis: { getFaultTreeMetadata: (json: string) => string };
+    try {
+      praxis = require("praxis-node") as typeof praxis;
+    } catch {
+      throw new Error("praxis-node not available");
+    }
+
+    const resultJson = praxis.getFaultTreeMetadata(JSON.stringify(request));
+    return JSON.parse(resultJson) as FaultTreeMetadataResult;
+  }
+
   async quantifyFaultTree(
     faultTreeId: string,
     options: Omit<FaultTreeQuantificationRequest, "graph">,
@@ -339,6 +366,36 @@ export class GraphModelService {
 
     const resultJson = praxis.quantifyEventTree(JSON.stringify(request));
     return JSON.parse(resultJson) as EventTreeQuantificationResult;
+  }
+
+  async analyzeEventTree(eventTreeId: string): Promise<EventTreeMetadataResult> {
+    const graph = await this.getEventTreeGraph(eventTreeId);
+
+    const faultTreeIds = new Set<string>();
+    if (graph.functionalEvents) {
+      for (const fe of Object.values(graph.functionalEvents)) {
+        if (fe.faultTreeId) faultTreeIds.add(fe.faultTreeId);
+      }
+    }
+    const faultTrees: Record<string, object> = {};
+    for (const ftId of faultTreeIds) {
+      faultTrees[ftId] = await this.getFaultTreeGraph(ftId);
+    }
+
+    const request = {
+      graph: graph as unknown as EventTreeQuantificationRequest["graph"],
+      faultTrees,
+    };
+
+    let praxis: { getEventTreeMetadata: (json: string) => string };
+    try {
+      praxis = require("praxis-node") as typeof praxis;
+    } catch {
+      throw new Error("praxis-node not available");
+    }
+
+    const resultJson = praxis.getEventTreeMetadata(JSON.stringify(request));
+    return JSON.parse(resultJson) as EventTreeMetadataResult;
   }
 
   private async collectTransferTrees(

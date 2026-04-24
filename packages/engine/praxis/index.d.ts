@@ -64,32 +64,112 @@ export declare function convertOpensaXmlBatchToOpenpraJson(input: string): strin
 export declare function quantifyFaultTree(input: string): string;
 
 /**
- * Quantify a single event tree from a flat ReactFlow graph plus linked fault trees.
+ * Phase 1 (Analyze): build BDD + full ZBDD and return exact probability plus per-order
+ * MCS distribution. No cut sets are enumerated. Cheap relative to full quantification.
  *
- * Input JSON shape (superset of `EventTreeQuantificationRequest`):
+ * Input JSON shape (same graph/transferTrees fields as `quantifyFaultTree`, no algorithm/approximation/limits needed):
+ * ```json
+ * { "graph": { "faultTreeId": "…", "topEventId": "…", "nodes": { … } } }
+ * ```
+ *
+ * Output JSON shape (`FaultTreeMetadataResult`):
+ * ```json
+ * {
+ *   "topEventProbability": 0.00123,
+ *   "orderStats": [
+ *     { "order": 1, "count": 3,  "minProbability": 1e-4, "maxProbability": 1e-2 },
+ *     { "order": 2, "count": 12, "minProbability": 1e-8, "maxProbability": 1e-4 }
+ *   ]
+ * }
+ * ```
+ */
+export declare function getFaultTreeMetadata(input: string): string;
+
+/**
+ * Phase 1 (Analyze): build BDD + full ZBDD for every sequence in an event tree and
+ * return exact sequence frequencies plus per-order MCS distribution.
+ * No cut sets are enumerated. Cheap relative to full quantification.
+ *
+ * Input JSON shape (same as `quantifyEventTree`, no algorithm/approximation/limits needed):
  * ```json
  * {
  *   "graph": {
- *     "eventTreeId":        "…",
- *     "initiatingEventId":  "…",
- *     "functionalEvents":   { "<nodeId>": { "id": "…", "faultTreeId": "…" } },
- *     "sequences":          { "<nodeId>": { "id": "…", "functionalEventStates": { "<feId>": "SUCCESS"|"FAILURE" } } },
+ *     "eventTreeId": "…",
+ *     "initiatingEventFrequency": 1.2e-4,
+ *     "functionalEvents": { … },
+ *     "sequences": { … },
+ *     "nodes": […], "edges": […]
+ *   },
+ *   "faultTrees": { "<ftId>": { … } }
+ * }
+ * ```
+ *
+ * Output JSON shape (`EventTreeMetadataResult`):
+ * ```json
+ * {
+ *   "totalCdf": 1.23e-4,
+ *   "sequences": [
+ *     {
+ *       "sequenceId": "SEQ-1",
+ *       "frequency": 6.1e-5,
+ *       "orderStats": [
+ *         { "order": 1, "count": 3, "minFrequency": 1e-6, "maxFrequency": 3e-5 },
+ *         { "order": 2, "count": 8, "minFrequency": 1e-8, "maxFrequency": 1e-6 }
+ *       ]
+ *     }
+ *   ]
+ * }
+ * ```
+ */
+export declare function getEventTreeMetadata(input: string): string;
+
+/**
+ * Quantify a single event tree from a flat ReactFlow graph plus linked fault trees.
+ *
+ * Input JSON shape (`EventTreeQuantificationRequest`):
+ * ```json
+ * {
+ *   "graph": {
+ *     "eventTreeId":               "…",
+ *     "initiatingEventId":         "…",
+ *     "initiatingEventFrequency":  1.2e-4,
+ *     "functionalEvents":   { "<nodeId>": { "name": "…", "faultTreeId": "<ftId>" } },
+ *     "sequences":          { "<nodeId>": { "name": "…", "functionalEventStates": { "<feNodeId>": "SUCCESS"|"FAILURE" } } },
  *     "nodes": […],
  *     "edges": […]
  *   },
  *   "faultTrees": { "<ftId>": { "faultTreeId": "…", "topEventId": "…", "nodes": { … } } },
- *   "algorithm":     "bdd" | "zbdd" | "mocus" | "monte_carlo",
- *   "approximation": "rare_event" | "mcub",   // optional
- *   "maxOrder":      3                         // optional
+ *   "algorithm":     "bdd" | "zbdd",
+ *   "approximation": "rare_event" | "mcub",   // optional; only applied for "zbdd"
+ *   "maxOrder":      3,                        // optional; limits ZBDD cut-set order
+ *   "truncation":    1e-10                     // optional; limits ZBDD cut-set probability
  * }
  * ```
+ *
+ * Notes:
+ *   - `initiatingEventFrequency` is required. The request is rejected with an error if absent or ≤ 0.
+ *   - Every functional event must have a `faultTreeId` pointing to an entry in `faultTrees`.
+ *     Missing fault trees produce an error rather than a silent fallback.
+ *   - `frequency` in the output is the absolute sequence frequency (IE freq × conditional prob).
+ *   - `probability` in the output is the conditional probability (frequency / IE freq).
+ *   - `path` lists the FE states that define this sequence.
+ *   - For `algorithm = "bdd"`, `cutSets` is always empty.
+ *   - `approximation` and `maxOrder`/`truncation` only affect ZBDD cut-set enumeration.
  *
  * Output JSON shape (`EventTreeQuantificationResult`):
  * ```json
  * {
- *   "algorithm":  "bdd",
- *   "totalCdf":   0.00456,
- *   "sequences": [{ "sequenceId": "SEQ-1", "frequency": 0.002, "probability": 0.002, "path": […], "cutSets": [] }]
+ *   "algorithm":  "zbdd",
+ *   "totalCdf":   1.23e-4,
+ *   "sequences": [
+ *     {
+ *       "sequenceId":  "SEQ-1",
+ *       "frequency":   6.1e-5,
+ *       "probability": 0.51,
+ *       "path": [{ "functionalEventId": "<feNodeId>", "state": "FAILURE" }],
+ *       "cutSets": [{ "events": ["pump-A", "valve-B"], "probability": 3e-5, "contribution": 0.49 }]
+ *     }
+ *   ]
  * }
  * ```
  */

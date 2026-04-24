@@ -1170,6 +1170,7 @@ export enum FaultTreeNodeType {
   // Gates
   AND_GATE = "AND_GATE", // Output occurs if and only if all inputs occur
   OR_GATE = "OR_GATE", // Output occurs if one or more inputs occur
+  NOT_GATE = "NOT_GATE", // Output is the logical negation of its single input
   INHIBIT_GATE = "INHIBIT_GATE", // Output exists when input exists and condition is met
   ATLEAST_GATE = "ATLEAST_GATE", // K-of-N gate: output occurs if at least K of N inputs occur
 

@@ -127,10 +127,16 @@ export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: 
   });
 
   let initiatingEventId: string | undefined;
+  let initiatingEventFrequency: number | undefined;
   nodes.forEach((n) => {
     if (n.type !== "columnNode") return;
     const d = n.data as ColumnNodeData;
-    if (d.depth === 1 && !d.allowAdd) initiatingEventId = n.id;
+    if (d.depth === 1 && !d.allowAdd) {
+      initiatingEventId = n.id;
+      if (typeof d.frequency === "number" && isFinite(d.frequency) && d.frequency > 0) {
+        initiatingEventFrequency = d.frequency;
+      }
+    }
   });
 
   const sequences = enumerateMefSequences(nodes, recomputedEdges);
@@ -138,6 +144,7 @@ export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: 
   return {
     eventTreeId,
     ...(initiatingEventId ? { initiatingEventId } : {}),
+    ...(initiatingEventFrequency !== undefined ? { initiatingEventFrequency } : {}),
     nodes: getNodes(sanitizedNodes),
     edges: getEdges(recomputedEdges),
     ...(Object.keys(derivedFunctionalEvents).length > 0 ? { functionalEvents: derivedFunctionalEvents } : {}),
@@ -173,6 +180,10 @@ function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
   Object.entries(groups).forEach(([key, list]) => {
     const targetDepth = Number(key.split(":")[1]);
     const col = depthToCol[targetDepth];
+    // Only reorder by Y-position when there are exactly 2 siblings.
+    // A singleton group means an unbalanced branch — preserve the existing branchState
+    // set during import rather than incorrectly assigning it as "success".
+    if (list.length !== 2) return;
     const sorted = [...list].sort((a, b) => a.targetY - b.targetY);
     sorted.forEach(({ edgeId }, idx) => {
       updates[edgeId] = {
@@ -188,7 +199,12 @@ function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
   const bypassLeafEdges = new Set<string>();
   edges.forEach((e) => {
     if (nodeInfo[e.source] && !nodeInfo[e.target] && !updates[e.id]) {
-      bypassLeafEdges.add(e.id);
+      // Do not overwrite edges that already carry a real FE state.
+      // This preserves early-terminating branches in unbalanced event trees.
+      const existingBranch = (e.data as { branchState?: string } | undefined)?.branchState;
+      if (existingBranch !== "success" && existingBranch !== "failure") {
+        bypassLeafEdges.add(e.id);
+      }
     }
   });
 
@@ -235,6 +251,11 @@ function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, Eve
       if (target.type === "outputNode") {
         const td = target.data as OutputNodeData;
         if (td.isSequenceId) {
+          // The edge to the output node carries the last FE's state; include it before storing.
+          const finalFes = { ...fes };
+          if (child.feId && (child.branchState === "success" || child.branchState === "failure")) {
+            finalFes[child.feId] = child.branchState === "success" ? "SUCCESS" : "FAILURE";
+          }
           let endState = "SUCCESSFUL_MITIGATION";
           for (const next of adjacency[child.targetId] ?? []) {
             const nextNode = nodeMap[next.targetId];
@@ -247,7 +268,7 @@ function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, Eve
           sequences[child.targetId] = {
             uuid: child.targetId,
             name: String((td.label as string) ?? child.targetId),
-            functionalEventStates: { ...fes },
+            functionalEventStates: finalFes,
             endState,
           };
         }

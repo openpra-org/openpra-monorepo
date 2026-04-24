@@ -1,5 +1,6 @@
-use crate::algorithms::mocus::Mocus;
-use crate::analysis::fault_tree::FaultTreeAnalysis;
+use crate::algorithms::bdd_engine::Bdd as BddEngine;
+use crate::algorithms::bdd_pdag::{BddPdag, BddPdagNode};
+use crate::algorithms::zbdd_engine::ZbddEngine;
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -2399,10 +2400,11 @@ fn add_gate_inputs_from_json(
     if let Some(arr) = inputs.as_array() {
         for v in arr {
             if let Some(id) = v.as_str() {
+                let sanitized = sanitize_id(id);
                 let effective = transfer_replacements
-                    .get(id)
+                    .get(&sanitized)
                     .cloned()
-                    .unwrap_or_else(|| id.to_string());
+                    .unwrap_or(sanitized);
                 if !effective.is_empty() {
                     gate.add_operand(effective);
                 }
@@ -2424,7 +2426,8 @@ fn build_fault_tree_from_graph_value(
         .as_object()
         .ok_or_else(|| PraxisError::Logic("Missing nodes in fault tree graph".into()))?;
 
-    let mut ft = FaultTree::new(ft_id, top_event_id)?;
+    let top_event_id = sanitize_id(top_event_id);
+    let mut ft = FaultTree::new(ft_id, top_event_id.as_str())?;
 
     // Collect all nodes including those from transfer trees
     let mut all_nodes: Vec<(String, serde_json::Value)> = nodes_obj
@@ -2439,7 +2442,7 @@ fn build_fault_tree_from_graph_value(
             if let Some(ref_ft_id) = node["transferTreeId"].as_str() {
                 if let Some(ref_graph) = all_transfer_trees.get(ref_ft_id) {
                     let ref_top = ref_graph["topEventId"].as_str().unwrap_or("").to_string();
-                    transfer_replacements.insert(node_id.clone(), ref_top);
+                    transfer_replacements.insert(sanitize_id(node_id), sanitize_id(&ref_top));
                     if let Some(ref_nodes) = ref_graph["nodes"].as_object() {
                         for (k, v) in ref_nodes {
                             all_nodes.push((k.clone(), v.clone()));
@@ -2460,42 +2463,43 @@ fn build_fault_tree_from_graph_value(
     }
 
     for (node_id, node) in &deduped {
+        let node_id = sanitize_id(node_id);
         let node_type = node["nodeType"].as_str().unwrap_or("");
         match node_type {
             "OR_GATE" => {
-                let mut g = Gate::new(node_id.clone(), Formula::Or)?;
+                let mut g = Gate::new(node_id, Formula::Or)?;
                 add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
                 ft.add_gate(g)?;
             }
             "AND_GATE" | "INHIBIT_GATE" => {
-                let mut g = Gate::new(node_id.clone(), Formula::And)?;
+                let mut g = Gate::new(node_id, Formula::And)?;
                 add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
                 ft.add_gate(g)?;
             }
             "ATLEAST_GATE" => {
                 let min = node["kValue"].as_u64().unwrap_or(2) as usize;
-                let mut g = Gate::new(node_id.clone(), Formula::AtLeast { min })?;
+                let mut g = Gate::new(node_id, Formula::AtLeast { min })?;
                 add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
                 ft.add_gate(g)?;
             }
             "NOT_GATE" => {
-                let mut g = Gate::new(node_id.clone(), Formula::Not)?;
+                let mut g = Gate::new(node_id, Formula::Not)?;
                 add_gate_inputs_from_json(&mut g, &node["inputs"], &transfer_replacements);
                 ft.add_gate(g)?;
             }
             "BASIC_EVENT" | "UNDEVELOPED_EVENT" => {
                 let prob = node["probability"].as_f64().unwrap_or(0.0).clamp(0.0, 1.0);
-                ft.add_basic_event(BasicEvent::new(node_id.clone(), prob)?)?;
+                ft.add_basic_event(BasicEvent::new(node_id, prob)?)?;
             }
             "HOUSE_EVENT" => {
                 let state = node["houseEventValue"].as_bool().unwrap_or(false);
-                ft.add_house_event(HouseEvent::new(node_id.clone(), state)?)?;
+                ft.add_house_event(HouseEvent::new(node_id, state)?)?;
             }
             "TRUE_EVENT" => {
-                ft.add_house_event(HouseEvent::new(node_id.clone(), true)?)?;
+                ft.add_house_event(HouseEvent::new(node_id, true)?)?;
             }
             "FALSE_EVENT" => {
-                ft.add_house_event(HouseEvent::new(node_id.clone(), false)?)?;
+                ft.add_house_event(HouseEvent::new(node_id, false)?)?;
             }
             "TRANSFER_OUT" | "TRANSFER_IN" => {
                 // Handled via transfer_replacements; skip adding as a standalone node
@@ -2515,8 +2519,10 @@ pub fn quantify_fault_tree_contract(input: &str) -> Result<String> {
 
     let graph = &value["graph"];
     let algorithm = value["algorithm"].as_str().unwrap_or("bdd");
+    let approximation = value["approximation"].as_str(); // "rare_event" | "mcub" | absent
     let max_order = value["maxOrder"].as_u64().map(|n| n as usize);
     let truncation = value["truncation"].as_f64();
+    let has_limits = max_order.is_some() || truncation.is_some();
 
     let mut transfer_trees: HashMap<String, serde_json::Value> = HashMap::new();
     if let Some(tt) = value["transferTrees"].as_object() {
@@ -2525,50 +2531,106 @@ pub fn quantify_fault_tree_contract(input: &str) -> Result<String> {
         }
     }
 
+    // Build praxis FaultTree from the flat ReactFlow graph
     let ft = build_fault_tree_from_graph_value(graph, &transfer_trees)?;
 
-    let event_probs: HashMap<String, f64> = ft
-        .basic_events()
+    // Build PDAG and BDD (shared by all workflows)
+    let mut pdag = BddPdag::from_fault_tree(&ft)?;
+    pdag.compute_ordering_and_modules()?;
+
+    // variable_order()[bdd_pos] → NodeIdx → id string
+    let var_id_map: Vec<String> = pdag
+        .variable_order()
         .iter()
-        .map(|(id, be)| (id.clone(), be.probability()))
-        .collect();
-
-    let top_prob = FaultTreeAnalysis::new(&ft)
-        .and_then(|a| a.analyze())
-        .map(|r| r.top_event_probability)
-        .unwrap_or(0.0);
-
-    let cut_sets = {
-        let mut mocus = Mocus::new(&ft);
-        if let Some(mo) = max_order {
-            mocus = mocus.with_max_order(mo);
-        }
-        mocus.analyze().map(|cs| cs.to_vec()).unwrap_or_default()
-    };
-
-    let mut cut_set_results: Vec<serde_json::Value> = cut_sets
-        .iter()
-        .filter_map(|cs| {
-            let events: Vec<&str> = cs.events.iter().map(String::as_str).collect();
-            let prob: f64 = cs
-                .events
-                .iter()
-                .map(|id| event_probs.get(id).copied().unwrap_or(0.0))
-                .product();
-            if let Some(limit) = truncation {
-                if prob < limit {
-                    return None;
-                }
-            }
-            let contribution = if top_prob > 0.0 { prob / top_prob } else { 0.0 };
-            Some(json!({
-                "events": events,
-                "probability": prob,
-                "contribution": contribution,
-            }))
+        .map(|&idx| {
+            pdag.node(idx)
+                .and_then(|n| {
+                    if let BddPdagNode::Variable { id, .. } = n {
+                        Some(id.clone())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
         })
         .collect();
 
+    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)?;
+
+    // ── BDD workflows ──────────────────────────────────────────────────────────
+    // BDD gives exact probability only. Cut sets are never enumerated.
+    // Approximation flag is not applicable and is silently ignored.
+    if algorithm == "bdd" {
+        let top_prob = if has_limits {
+            bdd.probability_with_limits(bdd_root, max_order, truncation)
+        } else {
+            bdd.probability(bdd_root)
+        };
+
+        let result = json!({
+            "algorithm": "bdd",
+            "topEventProbability": top_prob,
+            "cutSets": [],
+        });
+        return serde_json::to_string(&result)
+            .map_err(|e| PraxisError::Serialization(e.to_string()));
+    }
+
+    // ── ZBDD workflows (Workflows 1–4) ─────────────────────────────────────────
+    let coherent = pdag.is_coherent();
+    let use_approximation = approximation.is_some();
+
+    // Workflows 1 & 3: no approximation → sweep BDD now for exact probability
+    let bdd_exact_prob: Option<f64> = if !use_approximation {
+        Some(bdd.probability(bdd_root))
+    } else {
+        None
+    };
+
+    // Build ZBDD. Limits upfront (Workflows 3 & 4) → on-the-fly pruning during
+    // construction. No limits (Workflows 1 & 2) → full build, then filter.
+    let (zbdd, zbdd_root) = if has_limits {
+        ZbddEngine::build_from_bdd_with_limits(&bdd, bdd_root, coherent, max_order, truncation)
+    } else {
+        ZbddEngine::build_from_bdd(&bdd, bdd_root, coherent)
+    };
+
+    // Probability:
+    //   No approximation  → exact from BDD cache (invariant: unchanged by limits)
+    //   Approximation     → derived from ZBDD (re-computed on pruned root)
+    let top_prob = match bdd_exact_prob {
+        Some(p) => p,
+        None => match approximation {
+            Some("mcub") => zbdd.min_cut_upper_bound_graph(zbdd_root),
+            _ => zbdd.rare_event_probability(zbdd_root),
+        },
+    };
+
+    // Enumerate cut sets (full materialization — last step per the workflow)
+    let raw_sets = zbdd.enumerate(zbdd_root);
+    let var_probs = bdd.var_probs();
+
+    let mut cut_set_results: Vec<serde_json::Value> = raw_sets
+        .iter()
+        .map(|set| {
+            let events: Vec<&str> = set
+                .iter()
+                .filter_map(|&pos| var_id_map.get(pos).map(String::as_str))
+                .collect();
+            let prob: f64 = set
+                .iter()
+                .map(|&pos| var_probs.get(pos).copied().unwrap_or(0.0))
+                .product();
+            let contribution = if top_prob > 0.0 { prob / top_prob } else { 0.0 };
+            json!({
+                "events": events,
+                "probability": prob,
+                "contribution": contribution,
+            })
+        })
+        .collect();
+
+    // Sort descending by cut-set probability
     cut_set_results.sort_by(|a, b| {
         b["probability"]
             .as_f64()
@@ -2577,10 +2639,394 @@ pub fn quantify_fault_tree_contract(input: &str) -> Result<String> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let result = json!({
-        "algorithm": algorithm,
+    let max_product_size = cut_set_results
+        .iter()
+        .filter_map(|cs| cs["events"].as_array().map(|a| a.len()))
+        .max()
+        .unwrap_or(0);
+
+    // Per-order distribution: count, min probability, max probability.
+    // Computed on zbdd_root (which is already filtered when limits were applied upfront).
+    let order_stats = zbdd_order_stats_json(&zbdd, zbdd_root);
+
+    let mut result = json!({
+        "algorithm": "zbdd",
         "topEventProbability": top_prob,
         "cutSets": cut_set_results,
+        "orderStats": order_stats,
+        "zbddDiagnostics": {
+            "numNodes": zbdd.node_count(),
+            "numVariables": var_id_map.len(),
+            "numProducts": raw_sets.len(),
+            "maxProductSize": max_product_size,
+        },
+    });
+
+    if let Some(approx) = approximation {
+        result["approximation"] = json!(approx);
+    }
+
+    serde_json::to_string(&result)
+        .map_err(|e| PraxisError::Serialization(e.to_string()))
+}
+
+/// Build the ZBDD order-statistics JSON array (Table 2 from WORKFLOW.md).
+/// Returns a sorted Vec of {order, count, minProbability, maxProbability}.
+fn zbdd_order_stats_json(zbdd: &ZbddEngine, root: crate::algorithms::zbdd_engine::ZbddRef) -> serde_json::Value {
+    let stats = zbdd.stats_by_order(root);
+    let mut rows: Vec<(usize, u64, f64, f64)> = stats
+        .into_iter()
+        .map(|(order, (count, min_p, max_p))| (order, count, min_p, max_p))
+        .collect();
+    rows.sort_by_key(|r| r.0);
+    let arr: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(order, count, min_p, max_p)| json!({
+            "order": order,
+            "count": count,
+            "minProbability": min_p,
+            "maxProbability": max_p,
+        }))
+        .collect();
+    json!(arr)
+}
+
+/// Phase 1 (Analyze): build BDD + full ZBDD, return exact probability and order distribution.
+/// No cut sets are enumerated. Used by the UI to show metadata before the user sets limits.
+pub fn get_fault_tree_metadata_contract(input: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|e| PraxisError::Logic(format!("Invalid JSON: {e}")))?;
+
+    let graph = &value["graph"];
+    let mut transfer_trees: HashMap<String, serde_json::Value> = HashMap::new();
+    if let Some(tt) = value["transferTrees"].as_object() {
+        for (k, v) in tt {
+            transfer_trees.insert(k.clone(), v.clone());
+        }
+    }
+
+    let ft = build_fault_tree_from_graph_value(graph, &transfer_trees)?;
+    let mut pdag = BddPdag::from_fault_tree(&ft)?;
+    pdag.compute_ordering_and_modules()?;
+
+    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)?;
+
+    // Exact probability always comes from the BDD sweep.
+    let top_event_probability = bdd.probability(bdd_root);
+
+    // Build the full ZBDD (no limits) to get order distribution.
+    let coherent = pdag.is_coherent();
+    let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, coherent);
+
+    let order_stats = zbdd_order_stats_json(&zbdd, zbdd_root);
+
+    let result = json!({
+        "topEventProbability": top_event_probability,
+        "orderStats": order_stats,
+    });
+
+    serde_json::to_string(&result)
+        .map_err(|e| PraxisError::Serialization(e.to_string()))
+}
+
+/// Replaces '.' with '_' in element identifiers.
+///
+/// `Element::new` rejects IDs that contain dots. Cross-tree gate references
+/// inlined by the TypeScript parser use dot notation (e.g. "FTA.gate1"), so
+/// every ID that originates from user-supplied graph JSON must be sanitized
+/// before it reaches `Gate::new` / `BasicEvent::new`.
+fn sanitize_id(id: &str) -> String {
+    id.replace('.', "_")
+}
+
+/// Strips the "ft_{ft_id}__" namespace prefix from node IDs so that cut-set
+/// event names match the original XML/graph names (e.g., "RC1" not "ft_abc__RC1").
+fn strip_ft_prefix(id: &str) -> String {
+    if let Some(pos) = id.find("__") {
+        id[pos + 2..].to_string()
+    } else {
+        id.to_string()
+    }
+}
+
+/// Builds a combined fault tree JSON graph for one ET sequence that encodes
+/// the full sequence boolean condition:
+///
+///   AND( FAILURE-FT tops...,  NOT(SUCCESS-FT tops)... )
+///
+/// Gates are namespaced "ft_{ft_id}__<id>" to prevent cross-FT collisions.
+/// Basic events keep their original IDs so shared events (e.g. RC1 present
+/// in multiple fault trees) map to a single BDD variable — no independence
+/// assumption is made by the caller.
+///
+/// SUCCESS-branch FTs are wrapped in a synthetic "not_seq{seq_id}__{ft_id}"
+/// NOT gate so that the BDD correctly computes P(sequence) including all
+/// correlations between failure and success branches.
+///
+/// Returns `None` only when `fe_state_list` is empty (no FEs at all).
+fn build_sequence_combined_graph(
+    seq_id: &str,
+    fe_state_list: &[(String, bool)],
+    functional_events: &serde_json::Value,
+    ft_graphs: &HashMap<String, serde_json::Value>,
+) -> Option<serde_json::Value> {
+    if fe_state_list.is_empty() {
+        return None;
+    }
+
+    let mut combined_nodes: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+    let mut root_inputs: Vec<serde_json::Value> = Vec::new();
+
+    for (fe_node_id, is_failure) in fe_state_list {
+        let fe = &functional_events[fe_node_id.as_str()];
+        let ft_id = match fe["faultTreeId"].as_str() {
+            Some(id) => id,
+            None => continue,
+        };
+        let ft_graph = match ft_graphs.get(ft_id) {
+            Some(g) => g,
+            None => continue,
+        };
+
+        let prefix = format!("ft_{ft_id}__");
+        let top_id = match ft_graph["topEventId"].as_str() {
+            Some(id) => id,
+            None => continue,
+        };
+        let prefixed_top = format!("{prefix}{top_id}");
+
+        if *is_failure {
+            // FAILURE branch: include FT top event directly.
+            root_inputs.push(json!(prefixed_top));
+        } else {
+            // SUCCESS branch: NOT(FT top event) — let the BDD handle the
+            // dependency with shared basic events; no scalar approximation.
+            let not_id = format!("not_seq{seq_id}__{ft_id}");
+            combined_nodes.insert(not_id.clone(), json!({
+                "nodeType": "NOT_GATE",
+                "inputs": [prefixed_top],
+            }));
+            root_inputs.push(json!(not_id));
+        }
+
+        if let Some(nodes) = ft_graph["nodes"].as_object() {
+            // Gates get a per-FT namespace prefix to prevent ID collisions;
+            // basic events keep their original ID so shared events merge into
+            // a single BDD variable (correct statistical dependence).
+            let gate_ids: std::collections::HashSet<&str> = nodes
+                .iter()
+                .filter(|(_, n)| {
+                    matches!(
+                        n["nodeType"].as_str(),
+                        Some("OR_GATE") | Some("AND_GATE") | Some("ATLEAST_GATE") | Some("NOT_GATE")
+                    )
+                })
+                .map(|(id, _)| id.as_str())
+                .collect();
+
+            for (node_id, node) in nodes {
+                let node_type = node["nodeType"].as_str().unwrap_or("");
+                let is_gate = matches!(
+                    node_type,
+                    "OR_GATE" | "AND_GATE" | "ATLEAST_GATE" | "NOT_GATE"
+                );
+                let mapped_id = if is_gate {
+                    format!("{prefix}{node_id}")
+                } else {
+                    node_id.clone()
+                };
+                if combined_nodes.contains_key(&mapped_id) {
+                    continue;
+                }
+                let mut new_node = node.clone();
+                if let Some(inputs) = node["inputs"].as_array() {
+                    let mapped: Vec<serde_json::Value> = inputs
+                        .iter()
+                        .filter_map(|i| i.as_str())
+                        .map(|s| {
+                            if gate_ids.contains(s) {
+                                json!(format!("{prefix}{s}"))
+                            } else {
+                                json!(s)
+                            }
+                        })
+                        .collect();
+                    new_node["inputs"] = json!(mapped);
+                }
+                combined_nodes.insert(mapped_id, new_node);
+            }
+        }
+    }
+
+    if root_inputs.is_empty() {
+        return None;
+    }
+
+    let root_id = if root_inputs.len() == 1 {
+        match root_inputs[0].as_str() {
+            Some(s) => s.to_string(),
+            None => return None,
+        }
+    } else {
+        let rid = format!("seqroot_{seq_id}");
+        combined_nodes.insert(rid.clone(), json!({
+            "nodeType": "AND_GATE",
+            "inputs": root_inputs,
+        }));
+        rid
+    };
+
+    Some(json!({
+        "faultTreeId": format!("combined_{seq_id}"),
+        "topEventId": root_id,
+        "nodes": combined_nodes,
+    }))
+}
+
+pub fn get_event_tree_metadata_contract(input: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(input)
+        .map_err(|e| PraxisError::Logic(format!("Invalid JSON: {e}")))?;
+
+    let graph = &value["graph"];
+
+    let ie_frequency = graph["initiatingEventFrequency"]
+        .as_f64()
+        .ok_or_else(|| PraxisError::Logic(
+            "Event tree graph is missing 'initiatingEventFrequency'. \
+             Assign an initiating event frequency before running quantification."
+            .to_string(),
+        ))?;
+    if !ie_frequency.is_finite() || ie_frequency <= 0.0 {
+        return Err(PraxisError::Logic(
+            "Initiating event frequency must be a positive finite value.".to_string(),
+        ));
+    }
+
+    let mut ft_graphs: HashMap<String, serde_json::Value> = HashMap::new();
+    if let Some(fts) = value["faultTrees"].as_object() {
+        for (k, v) in fts {
+            ft_graphs.insert(k.clone(), v.clone());
+        }
+    }
+
+    if let Some(fes) = graph["functionalEvents"].as_object() {
+        for (fe_node_id, fe) in fes {
+            let fe_name = fe["name"].as_str().unwrap_or(fe_node_id.as_str());
+            let ft_id = fe["faultTreeId"].as_str().ok_or_else(|| {
+                PraxisError::Logic(format!(
+                    "Functional event '{fe_name}' has no linked fault tree."
+                ))
+            })?;
+            if !ft_graphs.contains_key(ft_id) {
+                return Err(PraxisError::Logic(format!(
+                    "Fault tree '{ft_id}' linked to functional event '{fe_name}' \
+                     was not included in the request."
+                )));
+            }
+        }
+    }
+
+    let functional_events = &graph["functionalEvents"];
+
+    let mut sequence_results: Vec<serde_json::Value> = Vec::new();
+    if let Some(seqs) = graph["sequences"].as_object() {
+        for (seq_node_id, seq) in seqs {
+            let seq_id = seq["id"]
+                .as_str()
+                .or_else(|| seq["name"].as_str())
+                .unwrap_or(seq_node_id.as_str())
+                .to_string();
+
+            let mut fe_state_list: Vec<(String, bool)> = Vec::new();
+            if let Some(fe_states) = seq["functionalEventStates"].as_object() {
+                for (fe_id, state_val) in fe_states {
+                    let is_failure =
+                        state_val.as_str().unwrap_or("FAILURE").to_ascii_uppercase() == "FAILURE";
+                    fe_state_list.push((fe_id.clone(), is_failure));
+                }
+            }
+
+            let combined_opt = build_sequence_combined_graph(
+                &seq_id,
+                &fe_state_list,
+                functional_events,
+                &ft_graphs,
+            );
+
+            let (frequency, order_stats): (f64, serde_json::Value) = match combined_opt {
+                None => (ie_frequency, json!([])),
+                Some(combined) => {
+                    let ft = build_fault_tree_from_graph_value(&combined, &HashMap::new())
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "Failed to build combined tree for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    let mut pdag = BddPdag::from_fault_tree(&ft)
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD construction failed for sequence '{seq_id}': {e}"
+                        )))?;
+                    pdag.compute_ordering_and_modules()
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD ordering failed for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD engine failed for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    let cond_prob = bdd.probability(bdd_root);
+                    let freq = cond_prob * ie_frequency;
+
+                    // Build full ZBDD (no limits) — cheap stats walk only, no enumeration.
+                    let coherent = pdag.is_coherent();
+                    let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, coherent);
+
+                    let stats = zbdd_order_stats_json(&zbdd, zbdd_root);
+                    // Scale probability-domain stats to frequency domain.
+                    let freq_stats: Vec<serde_json::Value> = stats
+                        .as_array()
+                        .map(|arr| {
+                            arr.iter()
+                                .map(|row| json!({
+                                    "order":        row["order"],
+                                    "count":        row["count"],
+                                    "minFrequency": row["minProbability"].as_f64().unwrap_or(0.0) * ie_frequency,
+                                    "maxFrequency": row["maxProbability"].as_f64().unwrap_or(0.0) * ie_frequency,
+                                }))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    (freq, json!(freq_stats))
+                }
+            };
+
+            sequence_results.push(json!({
+                "sequenceId": seq_id,
+                "frequency":  frequency,
+                "orderStats": order_stats,
+            }));
+        }
+    }
+
+    // Sort sequences descending by frequency (highest-risk first).
+    sequence_results.sort_by(|a, b| {
+        b["frequency"]
+            .as_f64()
+            .unwrap_or(0.0)
+            .partial_cmp(&a["frequency"].as_f64().unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let total_cdf: f64 = sequence_results
+        .iter()
+        .filter_map(|s| s["frequency"].as_f64())
+        .sum();
+
+    let result = json!({
+        "totalCdf":  total_cdf,
+        "sequences": sequence_results,
     });
 
     serde_json::to_string(&result)
@@ -2593,9 +3039,26 @@ pub fn quantify_event_tree_contract(input: &str) -> Result<String> {
 
     let graph = &value["graph"];
     let algorithm = value["algorithm"].as_str().unwrap_or("bdd");
+    let approximation = value["approximation"].as_str();
+    let max_order = value["maxOrder"].as_u64().map(|n| n as usize);
     let truncation = value["truncation"].as_f64();
+    let has_limits = max_order.is_some() || truncation.is_some();
 
-    // Collect linked fault trees sent by the caller
+    // Require an initiating event frequency — no silent fallback.
+    let ie_frequency = graph["initiatingEventFrequency"]
+        .as_f64()
+        .ok_or_else(|| PraxisError::Logic(
+            "Event tree graph is missing 'initiatingEventFrequency'. \
+             Assign an initiating event frequency before running quantification."
+            .to_string(),
+        ))?;
+    if !ie_frequency.is_finite() || ie_frequency <= 0.0 {
+        return Err(PraxisError::Logic(
+            "Initiating event frequency must be a positive finite value.".to_string(),
+        ));
+    }
+
+    // Collect linked fault trees.
     let mut ft_graphs: HashMap<String, serde_json::Value> = HashMap::new();
     if let Some(fts) = value["faultTrees"].as_object() {
         for (k, v) in fts {
@@ -2603,39 +3066,28 @@ pub fn quantify_event_tree_contract(input: &str) -> Result<String> {
         }
     }
 
-    // Compute failure probability for each functional event
-    let mut fe_failure_probs: HashMap<String, f64> = HashMap::new();
+    // Validate upfront: every FE must have a faultTreeId pointing to a present FT.
     if let Some(fes) = graph["functionalEvents"].as_object() {
         for (fe_node_id, fe) in fes {
-            let fe_id = fe["id"]
-                .as_str()
-                .or_else(|| fe["name"].as_str())
-                .unwrap_or(fe_node_id.as_str())
-                .to_string();
-
-            let failure_prob = if let Some(ft_id) = fe["faultTreeId"].as_str() {
-                if let Some(ft_graph) = ft_graphs.get(ft_id) {
-                    build_fault_tree_from_graph_value(ft_graph, &HashMap::new())
-                        .ok()
-                        .and_then(|ft| {
-                            FaultTreeAnalysis::new(&ft)
-                                .and_then(|a| a.analyze())
-                                .map(|r| r.top_event_probability)
-                                .ok()
-                        })
-                        .unwrap_or(0.5)
-                } else {
-                    0.5
-                }
-            } else {
-                0.5
-            };
-
-            fe_failure_probs.insert(fe_id, failure_prob);
+            let fe_name = fe["name"].as_str().unwrap_or(fe_node_id.as_str());
+            let ft_id = fe["faultTreeId"].as_str().ok_or_else(|| {
+                PraxisError::Logic(format!(
+                    "Functional event '{fe_name}' has no linked fault tree. \
+                     Link a fault tree to every functional event before quantification."
+                ))
+            })?;
+            if !ft_graphs.contains_key(ft_id) {
+                return Err(PraxisError::Logic(format!(
+                    "Fault tree '{ft_id}' linked to functional event '{fe_name}' \
+                     was not included in the request. \
+                     Ensure the fault tree graph has been saved before quantification."
+                )));
+            }
         }
     }
 
-    // Enumerate sequences using their functionalEventStates
+    let functional_events = &graph["functionalEvents"];
+
     let mut sequence_results: Vec<serde_json::Value> = Vec::new();
     if let Some(seqs) = graph["sequences"].as_object() {
         for (seq_node_id, seq) in seqs {
@@ -2645,31 +3097,151 @@ pub fn quantify_event_tree_contract(input: &str) -> Result<String> {
                 .unwrap_or(seq_node_id.as_str())
                 .to_string();
 
-            let mut seq_prob = 1.0f64;
-            let mut path_entries: Vec<serde_json::Value> = Vec::new();
-
+            // Build the FE-state list for this sequence.
+            let mut fe_state_list: Vec<(String, bool)> = Vec::new();
             if let Some(fe_states) = seq["functionalEventStates"].as_object() {
                 for (fe_id, state_val) in fe_states {
-                    let state_str = state_val.as_str().unwrap_or("FAILURE");
-                    let is_failure = state_str.to_ascii_uppercase() == "FAILURE";
-                    let fe_fail = fe_failure_probs.get(fe_id).copied().unwrap_or(0.5);
-                    seq_prob *= if is_failure { fe_fail } else { 1.0 - fe_fail };
-                    path_entries.push(json!({
-                        "functionalEventId": fe_id,
-                        "state": state_str,
-                    }));
+                    let is_failure =
+                        state_val.as_str().unwrap_or("FAILURE").to_ascii_uppercase() == "FAILURE";
+                    fe_state_list.push((fe_id.clone(), is_failure));
                 }
             }
 
-            if truncation.map_or(true, |limit| seq_prob >= limit) {
-                sequence_results.push(json!({
-                    "sequenceId": seq_id,
-                    "frequency": seq_prob,
-                    "probability": seq_prob,
-                    "path": path_entries,
-                    "cutSets": [],
-                }));
-            }
+            // Build path array for display.
+            let path: Vec<serde_json::Value> = fe_state_list
+                .iter()
+                .map(|(fe_id, is_failure)| json!({
+                    "functionalEventId": fe_id,
+                    "state": if *is_failure { "FAILURE" } else { "SUCCESS" },
+                }))
+                .collect();
+
+            // Build the complete boolean condition for this sequence:
+            //   FAILURE FEs → include FT top event
+            //   SUCCESS FEs → include NOT(FT top event)
+            // Shared basic events (e.g. RC1 present in multiple FTs) map to a
+            // single BDD variable, so correlations are handled exactly by the
+            // BDD engine — no independence assumption is made here.
+            let combined_opt = build_sequence_combined_graph(
+                &seq_id,
+                &fe_state_list,
+                functional_events,
+                &ft_graphs,
+            );
+
+            let (conditional_prob, cut_sets): (f64, Vec<serde_json::Value>) = match combined_opt {
+                // No FEs — sequence occurs for every initiating event trial.
+                None => (1.0, Vec::new()),
+
+                Some(combined) => {
+                    let ft = build_fault_tree_from_graph_value(&combined, &HashMap::new())
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "Failed to build combined tree for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    let mut pdag = BddPdag::from_fault_tree(&ft)
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD construction failed for sequence '{seq_id}': {e}"
+                        )))?;
+                    pdag.compute_ordering_and_modules()
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD ordering failed for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
+                        .map_err(|e| PraxisError::Logic(format!(
+                            "BDD engine failed for sequence '{seq_id}': {e}"
+                        )))?;
+
+                    // Exact conditional probability — BDD handles all correlations.
+                    let cond_prob = bdd.probability(bdd_root);
+
+                    if algorithm != "zbdd" {
+                        (cond_prob, Vec::new())
+                    } else {
+                        let coherent = pdag.is_coherent();
+                        let (zbdd, zbdd_root) = if has_limits {
+                            ZbddEngine::build_from_bdd_with_limits(
+                                &bdd, bdd_root, coherent, max_order, truncation,
+                            )
+                        } else {
+                            ZbddEngine::build_from_bdd(&bdd, bdd_root, coherent)
+                        };
+
+                        // Reported probability: exact from BDD unless an
+                        // approximation was explicitly requested.
+                        let p_reported = match approximation {
+                            Some("rare_event") => zbdd.rare_event_probability(zbdd_root),
+                            Some("mcub") => zbdd.min_cut_upper_bound_graph(zbdd_root),
+                            _ => cond_prob,
+                        };
+
+                        let var_id_map: Vec<String> = pdag
+                            .variable_order()
+                            .iter()
+                            .map(|&idx| {
+                                pdag.node(idx)
+                                    .and_then(|n| {
+                                        if let BddPdagNode::Variable { id, .. } = n {
+                                            Some(id.clone())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .unwrap_or_default()
+                            })
+                            .collect();
+
+                        let var_probs = bdd.var_probs();
+                        let raw_sets = zbdd.enumerate(zbdd_root);
+
+                        let mut cs: Vec<serde_json::Value> = raw_sets
+                            .iter()
+                            .map(|set| {
+                                let events: Vec<String> = set
+                                    .iter()
+                                    .filter_map(|&pos| var_id_map.get(pos))
+                                    .map(|id| strip_ft_prefix(id))
+                                    .collect();
+                                let p_cs: f64 = set
+                                    .iter()
+                                    .map(|&pos| var_probs.get(pos).copied().unwrap_or(0.0))
+                                    .product();
+                                let contribution = if p_reported > 0.0 {
+                                    p_cs / p_reported
+                                } else {
+                                    0.0
+                                };
+                                json!({
+                                    "events": events,
+                                    "probability": p_cs,
+                                    "contribution": contribution,
+                                })
+                            })
+                            .collect();
+
+                        cs.sort_by(|a, b| {
+                            b["probability"]
+                                .as_f64()
+                                .unwrap_or(0.0)
+                                .partial_cmp(&a["probability"].as_f64().unwrap_or(0.0))
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        });
+
+                        (p_reported, cs)
+                    }
+                }
+            };
+
+            let seq_freq = conditional_prob * ie_frequency;
+
+            sequence_results.push(json!({
+                "sequenceId": seq_id,
+                "frequency": seq_freq,
+                "probability": conditional_prob,
+                "path": path,
+                "cutSets": cut_sets,
+            }));
         }
     }
 
@@ -2678,11 +3250,15 @@ pub fn quantify_event_tree_contract(input: &str) -> Result<String> {
         .filter_map(|s| s["frequency"].as_f64())
         .sum();
 
-    let result = json!({
+    let mut result = json!({
         "algorithm": algorithm,
         "totalCdf": total_cdf,
         "sequences": sequence_results,
     });
+
+    if let Some(approx) = approximation {
+        result["approximation"] = json!(approx);
+    }
 
     serde_json::to_string(&result)
         .map_err(|e| PraxisError::Serialization(e.to_string()))
@@ -2749,8 +3325,18 @@ mod node_bindings {
     }
 
     #[napi]
+    pub fn get_fault_tree_metadata(input: String) -> napi::Result<String> {
+        get_fault_tree_metadata_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
     pub fn quantify_fault_tree(input: String) -> napi::Result<String> {
         quantify_fault_tree_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
+    }
+
+    #[napi]
+    pub fn get_event_tree_metadata(input: String) -> napi::Result<String> {
+        get_event_tree_metadata_contract(&input).map_err(|e| Error::from_reason(e.to_string()))
     }
 
     #[napi]

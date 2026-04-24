@@ -1,277 +1,220 @@
+/**
+ * Event Tree Quantification Panel — thin wrapper around the shared QuantificationPanel.
+ *
+ * This file contains only what is specific to event trees:
+ *   - API wiring (quantifyEventTree — no analyze endpoint yet)
+ *   - Result summary (total CDF, sequence count, badges)
+ *   - Event Tree Results modal (sequences table with expandable cut sets)
+ */
 import { useState } from "react";
+import type { Criteria, EuiBasicTableColumn } from "@elastic/eui";
 import {
-  EuiTitle,
-  EuiSpacer,
-  EuiFormRow,
-  EuiSelect,
+  EuiBadge,
+  EuiBasicTable,
   EuiButton,
-  EuiLoadingSpinner,
-  EuiText,
-  EuiCallOut,
+  EuiButtonEmpty,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiBasicTable,
-  EuiBadge,
+  EuiHorizontalRule,
   EuiModal,
-  EuiModalHeader,
-  EuiModalHeaderTitle,
   EuiModalBody,
   EuiModalFooter,
-  EuiButtonEmpty,
-  EuiFieldNumber,
-  EuiFieldText,
-  EuiHorizontalRule,
-  EuiStat,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
   EuiProgress,
+  EuiSpacer,
+  EuiStat,
+  EuiText,
 } from "@elastic/eui";
-import type { Criteria, EuiBasicTableColumn } from "@elastic/eui";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import type {
-  EventTreeAlgorithm,
-  EventTreeApproximation,
-  EventTreeQuantificationResult,
   EventTreeCutSet,
+  EventTreeMetadataResult,
+  EventTreeOrderStat,
+  EventTreeQuantificationResult,
 } from "shared-types/src/lib/types/eventTreeQuantification";
+import {
+  QuantificationPanel,
+  OrderStatsTable,
+  fmtNumber,
+  severityColor,
+  approxBadgeLabel,
+} from "../quantificationPanel";
+import type { QuantificationOptions, OrderStatsRow } from "../quantificationPanel";
 
-interface EventTreeQuantificationPanelProps {
-  eventTreeId: string;
-}
+// ─── ET Phase 1 metadata display ─────────────────────────────────────────────
 
-function fmtFreq(f: number): string {
-  if (f === 0) return "0";
-  if (f < 1e-3) return f.toExponential(3);
-  return f.toPrecision(4);
-}
+function SequenceMetadataRow({
+  sequenceId,
+  frequency,
+  orderStats,
+}: {
+  sequenceId: string;
+  frequency: number;
+  orderStats?: EventTreeOrderStat[];
+}): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const freqColor =
+    severityColor(frequency, [1e-4, 1e-6]) === "danger" ? "#BD271E"
+    : severityColor(frequency, [1e-4, 1e-6]) === "warning" ? "#F5A700"
+    : undefined;
+  const hasStats = orderStats && orderStats.length > 0;
 
-export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantificationPanelProps): JSX.Element {
-  const [algorithm, setAlgorithm] = useState<EventTreeAlgorithm>("zbdd");
-  const [approximation, setApproximation] = useState<EventTreeApproximation>("rare_event");
-  const [maxOrder, setMaxOrder] = useState<number | undefined>(undefined);
-  const [truncation, setTruncation] = useState<number | undefined>(undefined);
-  const [isRunning, setIsRunning] = useState(false);
-  const [result, setResult] = useState<EventTreeQuantificationResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const rows: OrderStatsRow[] = (orderStats ?? []).map((s) => ({
+    order: s.order,
+    count: s.count,
+    min: s.minFrequency,
+    max: s.maxFrequency,
+  }));
 
-  const needsApproximation = algorithm === "zbdd";
-
-  const algorithmOptions = [
-    { value: "zbdd", text: "ZBDD" },
-    { value: "bdd", text: "BDD" },
-  ];
-
-  const approximationOptions = [
-    { value: "rare_event", text: "Rare-Event Approximation" },
-    { value: "mcub", text: "Min-Cut Upper Bound (MCUB)" },
-  ];
-
-  const handleRun = async (): Promise<void> => {
-    setIsRunning(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await GraphApiManager.quantifyEventTree(eventTreeId, {
-        algorithm,
-        ...(needsApproximation ? { approximation } : {}),
-        ...(maxOrder !== undefined && maxOrder > 0 ? { maxOrder } : {}),
-        ...(truncation !== undefined ? { truncation } : {}),
-      });
-      setResult(res);
-      if (res.sequences.length > 0) setIsModalOpen(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Quantification failed");
-    } finally {
-      setIsRunning(false);
-    }
+  const maxColor = (max: number): string | undefined => {
+    const frac = frequency > 0 ? max / frequency : 0;
+    return (
+      frac >= 0.5 ? "#BD271E"
+      : frac >= 0.1 ? "#F5A700"
+      : undefined
+    );
   };
 
-  const totalCdf = result?.totalCdf ?? result?.sequences.reduce((sum, s) => sum + s.frequency, 0) ?? 0;
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <EuiFlexGroup
+        gutterSize="xs"
+        alignItems="center"
+        justifyContent="spaceBetween"
+        responsive={false}
+      >
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="hollow">{sequenceId}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiFlexGroup
+            gutterSize="xs"
+            alignItems="center"
+            responsive={false}
+          >
+            <EuiFlexItem grow={false}>
+              <span style={{ fontFamily: "monospace", fontSize: 12, color: freqColor }}>{fmtNumber(frequency)}</span>
+            </EuiFlexItem>
+            {hasStats && (
+              <EuiFlexItem grow={false}>
+                <EuiButtonEmpty
+                  size="xs"
+                  iconType={expanded ? "arrowUp" : "arrowDown"}
+                  onClick={() => setExpanded((v) => !v)}
+                  style={{ minWidth: 0, padding: "0 4px", height: 20 }}
+                  aria-label={expanded ? "Collapse order stats" : "Expand order stats"}
+                />
+              </EuiFlexItem>
+            )}
+          </EuiFlexGroup>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      {expanded && hasStats && (
+        <div style={{ paddingTop: 4, paddingLeft: 4 }}>
+          <OrderStatsTable
+            rows={rows}
+            minLabel="min freq"
+            maxLabel="max freq"
+            maxColor={maxColor}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
-  const cdfColor: "danger" | "warning" | "success" =
-    totalCdf >= 1e-4 ? "danger"
-    : totalCdf >= 1e-6 ? "warning"
-    : "success";
-
-  const approxLabel =
-    result?.approximation === "rare_event" ? "Rare-Event"
-    : result?.approximation === "mcub" ? "MCUB"
-    : null;
+function EventTreeMetadataDisplay({ metadata }: { metadata: EventTreeMetadataResult }): JSX.Element {
+  const totalCdf = metadata.totalCdf;
+  const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
 
   return (
     <>
-      <div style={{ padding: "24px 16px 16px" }}>
-        <EuiTitle size="xs">
-          <h3>Quantification</h3>
-        </EuiTitle>
-        <EuiSpacer size="s" />
-
-        <EuiFormRow
-          label="Algorithm"
-          fullWidth
-        >
-          <EuiSelect
-            fullWidth
-            options={algorithmOptions}
-            value={algorithm}
-            onChange={(e) => {
-              setAlgorithm(e.target.value as EventTreeAlgorithm);
-              setError(null);
-              setResult(null);
-            }}
+      <EuiStat
+        title={fmtNumber(totalCdf)}
+        description="Exact Total CDF"
+        titleColor={cdfColor}
+        titleSize="m"
+        reverse
+      />
+      <EuiSpacer size="s" />
+      <EuiText
+        size="xs"
+        color="subdued"
+      >
+        <strong>Sequences</strong>
+        <span style={{ fontWeight: 400, marginLeft: 6 }}>— click ▼ for order distribution</span>
+      </EuiText>
+      <EuiSpacer size="xs" />
+      {[...metadata.sequences]
+        .sort((a, b) => a.sequenceId.localeCompare(b.sequenceId, undefined, { numeric: true }))
+        .map((seq) => (
+          <SequenceMetadataRow
+            key={seq.sequenceId}
+            sequenceId={seq.sequenceId}
+            frequency={seq.frequency}
+            orderStats={seq.orderStats}
           />
-        </EuiFormRow>
+        ))}
+    </>
+  );
+}
 
-        {needsApproximation && (
-          <EuiFormRow
-            label="Approximation"
+// ─── ET-specific result summary ───────────────────────────────────────────────
+
+function EventTreeResultSummary({
+  result,
+  onViewDetails,
+}: {
+  result: EventTreeQuantificationResult;
+  onViewDetails: () => void;
+}): JSX.Element {
+  const totalCdf = result.totalCdf ?? result.sequences.reduce((sum, s) => sum + s.frequency, 0);
+  // CDF thresholds differ from probability: 1e-4 danger, 1e-6 warning
+  const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
+
+  return (
+    <>
+      <EuiStat
+        title={fmtNumber(totalCdf)}
+        description="Total CDF"
+        titleColor={cdfColor}
+        titleSize="m"
+        reverse
+      />
+      <EuiSpacer size="xs" />
+      <EuiFlexGroup
+        gutterSize="xs"
+        wrap
+      >
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="hollow">{approxBadgeLabel(result.approximation)}</EuiBadge>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+          <EuiBadge color="hollow">{result.sequences.length} sequences</EuiBadge>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      {result.sequences.length > 0 && (
+        <>
+          <EuiSpacer size="m" />
+          <EuiButton
             fullWidth
+            iconType="tableDensityNormal"
+            onClick={onViewDetails}
           >
-            <EuiSelect
-              fullWidth
-              options={approximationOptions}
-              value={approximation}
-              onChange={(e) => setApproximation(e.target.value as EventTreeApproximation)}
-            />
-          </EuiFormRow>
-        )}
-
-        <EuiFormRow
-          label="Order Limit"
-          helpText="Maximum cut-set order. Leave empty for unlimited."
-          fullWidth
-        >
-          <EuiFieldNumber
-            fullWidth
-            placeholder="Unlimited"
-            min={1}
-            max={20}
-            value={maxOrder ?? ""}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              setMaxOrder(isNaN(v) ? undefined : v);
-            }}
-          />
-        </EuiFormRow>
-
-        <EuiFormRow
-          label="Truncation Limit"
-          helpText="Sequences below this probability are excluded (e.g. 1e-9). Leave empty for none."
-          fullWidth
-        >
-          <EuiFieldText
-            fullWidth
-            placeholder="None"
-            value={truncation !== undefined ? truncation.toExponential() : ""}
-            onChange={(e) => {
-              const raw = e.target.value.trim();
-              const parsed = parseFloat(raw);
-              setTruncation(raw === "" || isNaN(parsed) ? undefined : parsed);
-            }}
-          />
-        </EuiFormRow>
-
-        <EuiSpacer size="m" />
-
-        <EuiButton
-          fullWidth
-          fill
-          iconType="play"
-          isLoading={isRunning}
-          onClick={(): void => void handleRun()}
-        >
-          {isRunning ? "Running…" : "Quantify"}
-        </EuiButton>
-
-        {isRunning && (
-          <>
-            <EuiSpacer size="s" />
-            <EuiFlexGroup
-              justifyContent="center"
-              alignItems="center"
-              gutterSize="s"
-            >
-              <EuiFlexItem grow={false}>
-                <EuiLoadingSpinner size="m" />
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
-                <EuiText
-                  size="s"
-                  color="subdued"
-                >
-                  Running {algorithm.toUpperCase()}…
-                </EuiText>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-          </>
-        )}
-
-        {error && (
-          <>
-            <EuiSpacer size="s" />
-            <EuiCallOut
-              title="Quantification failed"
-              color="danger"
-              iconType="alert"
-              size="s"
-            >
-              <EuiText size="xs">{error}</EuiText>
-            </EuiCallOut>
-          </>
-        )}
-
-        {result && !isRunning && (
-          <>
-            <EuiHorizontalRule margin="m" />
-            <EuiStat
-              title={fmtFreq(totalCdf)}
-              description="Total CDF"
-              titleColor={cdfColor}
-              titleSize="m"
-              reverse
-            />
-            <EuiSpacer size="xs" />
-            <EuiFlexGroup
-              gutterSize="xs"
-              wrap
-            >
-              <EuiFlexItem grow={false}>
-                <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
-              </EuiFlexItem>
-              {approxLabel && (
-                <EuiFlexItem grow={false}>
-                  <EuiBadge color="hollow">{approxLabel}</EuiBadge>
-                </EuiFlexItem>
-              )}
-              <EuiFlexItem grow={false}>
-                <EuiBadge color="hollow">{result.sequences.length} sequences</EuiBadge>
-              </EuiFlexItem>
-            </EuiFlexGroup>
-
-            {result.sequences.length > 0 && (
-              <>
-                <EuiSpacer size="m" />
-                <EuiButton
-                  fullWidth
-                  iconType="tableDensityNormal"
-                  onClick={() => setIsModalOpen(true)}
-                >
-                  View Results
-                </EuiButton>
-              </>
-            )}
-          </>
-        )}
-      </div>
-
-      {result && isModalOpen && (
-        <ResultsModal
-          result={result}
-          onClose={() => setIsModalOpen(false)}
-        />
+            View Results
+          </EuiButton>
+        </>
       )}
     </>
   );
 }
+
+// ─── Results modal ────────────────────────────────────────────────────────────
 
 interface SequenceRow {
   rank: number;
@@ -291,36 +234,29 @@ interface CutSetRow {
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const DEFAULT_PAGE_SIZE = 20;
 
-function fmtProb(p: number): string {
-  if (p === 0) return "0";
-  if (p < 1e-3) return p.toExponential(3);
-  return p.toPrecision(4);
-}
-
-function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResult; onClose: () => void }) {
+function ResultsModal({
+  result,
+  onClose,
+}: {
+  result: EventTreeQuantificationResult;
+  onClose: () => void;
+}): JSX.Element {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const totalCdf = result.totalCdf ?? result.sequences.reduce((sum, s) => sum + s.frequency, 0);
+  const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
+  const label = approxBadgeLabel(result.approximation);
 
-  const cdfColor: "danger" | "warning" | "success" =
-    totalCdf >= 1e-4 ? "danger"
-    : totalCdf >= 1e-6 ? "warning"
-    : "success";
-
-  const approxLabel =
-    result.approximation === "rare_event" ? "Rare-Event"
-    : result.approximation === "mcub" ? "MCUB"
-    : null;
-
-  const allRows: SequenceRow[] = result.sequences.map((seq, idx) => ({
-    rank: idx + 1,
-    sequenceId: seq.sequenceId,
-    frequency: seq.frequency,
-    cutSets: seq.cutSets ?? [],
-  }));
-
+  const allRows: SequenceRow[] = [...result.sequences]
+    .sort((a, b) => a.sequenceId.localeCompare(b.sequenceId, undefined, { numeric: true }))
+    .map((seq, idx) => ({
+      rank: idx + 1,
+      sequenceId: seq.sequenceId,
+      frequency: seq.frequency,
+      cutSets: seq.cutSets ?? [],
+    }));
   const pageRows = allRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
   const handleTableChange = ({ page }: Criteria<SequenceRow>): void => {
@@ -370,7 +306,7 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
               : undefined,
           }}
         >
-          {fmtFreq(f)}
+          {fmtNumber(f)}
         </span>
       ),
     },
@@ -432,11 +368,9 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
                 <EuiFlexItem grow={false}>
                   <EuiBadge color="primary">{result.algorithm.toUpperCase()}</EuiBadge>
                 </EuiFlexItem>
-                {approxLabel && (
-                  <EuiFlexItem grow={false}>
-                    <EuiBadge color="hollow">{approxLabel}</EuiBadge>
-                  </EuiFlexItem>
-                )}
+                <EuiFlexItem grow={false}>
+                  <EuiBadge color="hollow">{label}</EuiBadge>
+                </EuiFlexItem>
               </EuiFlexGroup>
             </EuiFlexItem>
           </EuiFlexGroup>
@@ -451,7 +385,7 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
         >
           <EuiFlexItem grow={false}>
             <EuiStat
-              title={fmtFreq(totalCdf)}
+              title={fmtNumber(totalCdf)}
               description="Total CDF"
               titleColor={cdfColor}
               titleSize="m"
@@ -477,7 +411,9 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
           itemId="sequenceId"
           itemIdToExpandedRowMap={
             expandedId !== null && pageRows.some((r) => r.sequenceId === expandedId) ?
-              { [expandedId]: <CutSetSubTable cutSets={pageRows.find((r) => r.sequenceId === expandedId)!.cutSets} /> }
+              {
+                [expandedId]: <CutSetSubTable cutSets={pageRows.find((r) => r.sequenceId === expandedId)!.cutSets} />,
+              }
             : {}
           }
           pagination={{
@@ -499,7 +435,7 @@ function ResultsModal({ result, onClose }: { result: EventTreeQuantificationResu
   );
 }
 
-function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }) {
+function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }): JSX.Element {
   const rows: CutSetRow[] = cutSets.map((cs, idx) => ({
     rank: idx + 1,
     events: cs.events,
@@ -559,7 +495,7 @@ function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }) {
       name: "Probability",
       width: "110px",
       align: "right" as const,
-      render: (p: number) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{fmtProb(p)}</span>,
+      render: (p: number) => <span style={{ fontFamily: "monospace", fontSize: 12 }}>{fmtNumber(p)}</span>,
     },
     {
       field: "contribution",
@@ -607,5 +543,35 @@ function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }) {
         rowProps={{ style: { height: 36 } }}
       />
     </div>
+  );
+}
+
+// ─── Public component ─────────────────────────────────────────────────────────
+
+interface EventTreeQuantificationPanelProps {
+  eventTreeId: string;
+}
+
+export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantificationPanelProps): JSX.Element {
+  return (
+    <QuantificationPanel<EventTreeQuantificationResult>
+      subjectId={eventTreeId}
+      onAnalyze={(id) => GraphApiManager.analyzeEventTree(id)}
+      renderMetadata={(meta) => <EventTreeMetadataDisplay metadata={meta as EventTreeMetadataResult} />}
+      onQuantify={(id, opts: QuantificationOptions) => GraphApiManager.quantifyEventTree(id, opts)}
+      renderResult={(result, onViewDetails) => (
+        <EventTreeResultSummary
+          result={result}
+          onViewDetails={onViewDetails}
+        />
+      )}
+      renderModal={(result, onClose) => (
+        <ResultsModal
+          result={result}
+          onClose={onClose}
+        />
+      )}
+      hasDetails={(result) => result.sequences.length > 0}
+    />
   );
 }

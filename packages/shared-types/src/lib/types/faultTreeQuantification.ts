@@ -21,6 +21,14 @@ export interface CutSetResult {
   contribution: number;
 }
 
+/** Per-order row from Table 2 of the WORKFLOW.md metadata display. */
+export interface OrderStats {
+  order: number;
+  count: number;
+  minProbability: number;
+  maxProbability: number;
+}
+
 export interface ZbddDiagnostics {
   numNodes: number;
   numVariables: number;
@@ -33,5 +41,19 @@ export interface FaultTreeQuantificationResult {
   approximation?: FaultTreeApproximation;
   topEventProbability: number;
   cutSets: CutSetResult[];
+  /** Per-order MCS distribution (count, min/max probability). Present for ZBDD results. */
+  orderStats?: OrderStats[];
   zbddDiagnostics?: ZbddDiagnostics;
+}
+
+/**
+ * Result of Phase 1 (Analyze): exact probability from BDD sweep + ZBDD order distribution.
+ * No cut sets are enumerated. Used to show the user the shape of the result before they
+ * decide on order/truncation limits.
+ */
+export interface FaultTreeMetadataResult {
+  /** Exact top-event probability from BDD sweep. */
+  topEventProbability: number;
+  /** Per-order MCS count and probability range, derived from the full (unfiltered) ZBDD. */
+  orderStats: OrderStats[];
 }

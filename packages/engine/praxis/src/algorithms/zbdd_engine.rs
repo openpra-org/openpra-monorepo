@@ -345,28 +345,36 @@ impl ZbddEngine {
             (node.high, node.low)
         };
 
+        // Recursively compute prime implicants for each cofactor.
         let hi_z = self.convert_bdd_inner(bdd, cofactor_hi);
         let lo_z = self.convert_bdd_inner(bdd, cofactor_lo);
 
-        let with_var = self.multiply(var, hi_z);
+        // A product containing `var` is non-minimal if the same product without `var`
+        // is already in lo_z (i.e., it satisfies the function without needing `var`).
+        // nonsuperset removes such redundant products from hi_z before prepending `var`.
+        // This ensures the result is the ZBDD of prime implicants (minimal cut sets)
+        // even for fault trees where basic events appear under multiple gates (DAG structure).
+        let hi_pruned = self.nonsuperset(hi_z, lo_z);
+        let with_var = self.multiply(var, hi_pruned);
         let result = self.union(with_var, lo_z);
 
         self.convert_cache_insert(f, result);
         result
     }
 
-    pub fn build_from_bdd(bdd: &Bdd, root: BddRef, coherent: bool) -> (ZbddEngine, ZbddRef) {
+    pub fn build_from_bdd(bdd: &Bdd, root: BddRef, _coherent: bool) -> (ZbddEngine, ZbddRef) {
         let mut z = ZbddEngine::new();
         z.var_probs = bdd.var_probs().to_vec();
-        let raw = z.convert_bdd_inner(bdd, root);
-        let result = if coherent { raw } else { z.minimize(raw) };
+        // convert_bdd_inner now computes prime implicants directly via nonsuperset pruning,
+        // so no post-hoc minimize step is needed regardless of coherence.
+        let result = z.convert_bdd_inner(bdd, root);
         (z, result)
     }
 
     pub fn build_from_bdd_with_limits(
         bdd: &Bdd,
         root: BddRef,
-        coherent: bool,
+        _coherent: bool,
         limit_order: Option<usize>,
         cut_off: Option<f64>,
     ) -> (ZbddEngine, ZbddRef) {
@@ -375,7 +383,9 @@ impl ZbddEngine {
         let min_prob = cut_off.unwrap_or(0.0);
         let mut cache: HashMap<(BddRef, Option<usize>, u64), ZbddRef> = HashMap::new();
         let raw = z.convert_bdd_limited(bdd, root, limit_order, 1.0, min_prob, &mut cache);
-        let result = if coherent { raw } else { z.minimize(raw) };
+        // convert_bdd_limited uses probability/order pruning and does not apply nonsuperset
+        // during traversal, so we minimize afterwards to guarantee only prime implicants remain.
+        let result = z.minimize(raw);
         (z, result)
     }
 

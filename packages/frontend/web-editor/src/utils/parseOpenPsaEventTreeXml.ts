@@ -282,15 +282,16 @@ function parseAllFaultTrees(
 
 export interface ForkNode {
   feName: string;
-  successBranch: ForkNode | string; // string = sequence name leaf
-  failureBranch: ForkNode | string;
+  successBranch?: ForkNode | string; // string = sequence name leaf
+  failureBranch?: ForkNode | string;
+  bypassBranch?: ForkNode | string; // straight-through; can end at a leaf
 }
 
 function parseForkElement(forkEl: Element): ForkNode {
   const feName = forkEl.getAttribute("functional-event") ?? "";
   const paths = Array.from(forkEl.children).filter((c) => c.tagName.toLowerCase() === "path");
-  if (paths.length !== 2) {
-    throw new Error(`Fork for functional event "${feName}" must have exactly 2 paths, found ${String(paths.length)}`);
+  if (paths.length === 0) {
+    throw new Error(`Fork for functional event "${feName}" has no paths`);
   }
 
   const parseBranch = (pathEl: Element): ForkNode | string => {
@@ -301,11 +302,25 @@ function parseForkElement(forkEl: Element): ForkNode {
     throw new Error(`Path in fork "${feName}" has no <fork> or <sequence> child`);
   };
 
-  return {
-    feName,
-    successBranch: parseBranch(paths[0]),
-    failureBranch: parseBranch(paths[1]),
-  };
+  const result: ForkNode = { feName };
+
+  for (const path of paths) {
+    const state = (path.getAttribute("state") ?? "").trim().toLowerCase();
+    const branch = parseBranch(path);
+    if (state === "success" || state === "w") {
+      result.successBranch = branch;
+    } else if (state === "failure" || state === "f") {
+      result.failureBranch = branch;
+    } else if (state === "bypass") {
+      result.bypassBranch = branch;
+    } else {
+      // Unknown state: fill whichever standard slot is still empty.
+      if (result.successBranch === undefined) result.successBranch = branch;
+      else if (result.failureBranch === undefined) result.failureBranch = branch;
+    }
+  }
+
+  return result;
 }
 
 function extractFtNameFromFailurePath(pathEl: Element): string | undefined {
@@ -318,9 +333,14 @@ function extractFtNameFromFailurePath(pathEl: Element): string | undefined {
   return dotIdx >= 0 ? ref.slice(0, dotIdx) : undefined;
 }
 
-function collectSequences(fork: ForkNode | string): string[] {
+function collectSequences(fork: ForkNode | string | undefined): string[] {
+  if (fork === undefined) return [];
   if (typeof fork === "string") return [fork];
-  return [...collectSequences(fork.successBranch), ...collectSequences(fork.failureBranch)];
+  return [
+    ...collectSequences(fork.successBranch),
+    ...collectSequences(fork.failureBranch),
+    ...collectSequences(fork.bypassBranch),
+  ];
 }
 
 // ─── ReactFlow graph builder (supports unbalanced trees) ─────────────────────
@@ -338,15 +358,17 @@ const NODE_WIDTH = 140;
  * For leaf branches (string sequence names), an output node is created directly.
  */
 function buildVisibleSubtree(
-  branch: ForkNode | string,
+  branch: ForkNode | string | undefined,
   parentId: string,
-  edgeBranchState: "success" | "failure",
+  edgeBranchState: "success" | "failure" | "bypass",
   edgeFeColId: string | undefined,
   nodeDepth: number,
   feColIds: Map<string, string>,
   nodes: Node[],
   edges: Edge[],
 ): void {
+  if (branch === undefined) return;
+
   const addEdgeToParent = (targetId: string): void => {
     edges.push({
       id: `${parentId}-${targetId}`,
@@ -402,6 +424,8 @@ function buildVisibleSubtree(
 
   buildVisibleSubtree(branch.successBranch, nodeId, "success", childFeColId, childDepth, feColIds, nodes, edges);
   buildVisibleSubtree(branch.failureBranch, nodeId, "failure", childFeColId, childDepth, feColIds, nodes, edges);
+  // Bypass: straight-through edge from this node — no new visible fork created here.
+  buildVisibleSubtree(branch.bypassBranch, nodeId, "bypass", childFeColId, childDepth, feColIds, nodes, edges);
 }
 
 function buildEventTreeGraph(
@@ -506,6 +530,7 @@ function buildEventTreeGraph(
 
   buildVisibleSubtree(parsedFork.successBranch, rootId, "success", rootFeColId, childDepth, feColIds, nodes, edges);
   buildVisibleSubtree(parsedFork.failureBranch, rootId, "failure", rootFeColId, childDepth, feColIds, nodes, edges);
+  buildVisibleSubtree(parsedFork.bypassBranch, rootId, "bypass", rootFeColId, childDepth, feColIds, nodes, edges);
 
   void sequences; // sequences are embedded as output-node labels via the fork tree
 
@@ -565,8 +590,18 @@ export function parseOpenPsaEventTreeXml(xmlString: string): ParsedEventTreeResu
       if (tag === "fork") {
         const feName = child.getAttribute("functional-event") ?? "";
         const paths = Array.from(child.children).filter((c) => c.tagName.toLowerCase() === "path");
-        if (paths.length >= 2 && !feToFtName[feName]) {
-          const ftName = extractFtNameFromFailurePath(paths[1]) ?? extractFtNameFromFailurePath(paths[0]);
+        if (paths.length >= 1 && !feToFtName[feName]) {
+          // Prefer the explicit failure path; bypass paths have no collect-formula.
+          const failurePath =
+            paths.find((p) => {
+              const s = (p.getAttribute("state") ?? "").trim().toLowerCase();
+              return s === "failure" || s === "f";
+            }) ??
+            paths.find((p) => {
+              const s = (p.getAttribute("state") ?? "").trim().toLowerCase();
+              return s !== "bypass";
+            });
+          const ftName = failurePath ? extractFtNameFromFailurePath(failurePath) : undefined;
           if (ftName) feToFtName[feName] = ftName;
         }
         collectFtMappings(child);

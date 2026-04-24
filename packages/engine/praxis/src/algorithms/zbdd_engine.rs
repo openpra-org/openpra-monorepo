@@ -345,36 +345,28 @@ impl ZbddEngine {
             (node.high, node.low)
         };
 
-        // Recursively compute prime implicants for each cofactor.
         let hi_z = self.convert_bdd_inner(bdd, cofactor_hi);
         let lo_z = self.convert_bdd_inner(bdd, cofactor_lo);
 
-        // A product containing `var` is non-minimal if the same product without `var`
-        // is already in lo_z (i.e., it satisfies the function without needing `var`).
-        // nonsuperset removes such redundant products from hi_z before prepending `var`.
-        // This ensures the result is the ZBDD of prime implicants (minimal cut sets)
-        // even for fault trees where basic events appear under multiple gates (DAG structure).
-        let hi_pruned = self.nonsuperset(hi_z, lo_z);
-        let with_var = self.multiply(var, hi_pruned);
+        let with_var = self.multiply(var, hi_z);
         let result = self.union(with_var, lo_z);
 
         self.convert_cache_insert(f, result);
         result
     }
 
-    pub fn build_from_bdd(bdd: &Bdd, root: BddRef, _coherent: bool) -> (ZbddEngine, ZbddRef) {
+    pub fn build_from_bdd(bdd: &Bdd, root: BddRef, coherent: bool) -> (ZbddEngine, ZbddRef) {
         let mut z = ZbddEngine::new();
         z.var_probs = bdd.var_probs().to_vec();
-        // convert_bdd_inner now computes prime implicants directly via nonsuperset pruning,
-        // so no post-hoc minimize step is needed regardless of coherence.
-        let result = z.convert_bdd_inner(bdd, root);
+        let raw = z.convert_bdd_inner(bdd, root);
+        let result = if coherent { raw } else { z.minimize(raw) };
         (z, result)
     }
 
     pub fn build_from_bdd_with_limits(
         bdd: &Bdd,
         root: BddRef,
-        _coherent: bool,
+        coherent: bool,
         limit_order: Option<usize>,
         cut_off: Option<f64>,
     ) -> (ZbddEngine, ZbddRef) {
@@ -383,9 +375,7 @@ impl ZbddEngine {
         let min_prob = cut_off.unwrap_or(0.0);
         let mut cache: HashMap<(BddRef, Option<usize>, u64), ZbddRef> = HashMap::new();
         let raw = z.convert_bdd_limited(bdd, root, limit_order, 1.0, min_prob, &mut cache);
-        // convert_bdd_limited uses probability/order pruning and does not apply nonsuperset
-        // during traversal, so we minimize afterwards to guarantee only prime implicants remain.
-        let result = z.minimize(raw);
+        let result = if coherent { raw } else { z.minimize(raw) };
         (z, result)
     }
 
@@ -430,36 +420,48 @@ impl ZbddEngine {
     }
 
     pub fn stats_by_order(&self, root: ZbddRef) -> HashMap<usize, (u64, f64, f64)> {
-        let mut stats: HashMap<usize, (u64, f64, f64)> = HashMap::new();
-        self.stats_rec(root, 0, 1.0, &mut stats);
-        stats
+        let mut cache: HashMap<ZbddRef, HashMap<usize, (u64, f64, f64)>> = HashMap::new();
+        self.stats_by_order_rec(root, &mut cache)
     }
 
-    fn stats_rec(
+    fn stats_by_order_rec(
         &self,
         f: ZbddRef,
-        order: usize,
-        p_acc: f64,
-        stats: &mut HashMap<usize, (u64, f64, f64)>,
-    ) {
-        if f.is_empty() {
-            return;
+        cache: &mut HashMap<ZbddRef, HashMap<usize, (u64, f64, f64)>>,
+    ) -> HashMap<usize, (u64, f64, f64)> {
+        if let Some(cached) = cache.get(&f) {
+            return cached.clone();
         }
-        if f.is_base() {
-            let e = stats.entry(order).or_insert((0, f64::INFINITY, f64::NEG_INFINITY));
-            e.0 += 1;
-            if p_acc < e.1 {
-                e.1 = p_acc;
+        let result = if f.is_empty() {
+            HashMap::new()
+        } else if f.is_base() {
+            let mut m = HashMap::new();
+            m.insert(0usize, (1u64, 1.0f64, 1.0f64));
+            m
+        } else {
+            let node = self.node(f);
+            let p_var = self.var_probs[node.var];
+            let high_stats = self.stats_by_order_rec(node.high, cache);
+            let low_stats = self.stats_by_order_rec(node.low, cache);
+            let mut merged = low_stats;
+            for (order, (count, min_p, max_p)) in high_stats {
+                let e = merged
+                    .entry(order + 1)
+                    .or_insert((0, f64::INFINITY, f64::NEG_INFINITY));
+                e.0 += count;
+                let scaled_min = min_p * p_var;
+                let scaled_max = max_p * p_var;
+                if scaled_min < e.1 {
+                    e.1 = scaled_min;
+                }
+                if scaled_max > e.2 {
+                    e.2 = scaled_max;
+                }
             }
-            if p_acc > e.2 {
-                e.2 = p_acc;
-            }
-            return;
-        }
-        let node = self.node(f);
-        let p_var = self.var_probs[node.var];
-        self.stats_rec(node.high, order + 1, p_acc * p_var, stats);
-        self.stats_rec(node.low, order, p_acc, stats);
+            merged
+        };
+        cache.insert(f, result.clone());
+        result
     }
 
     pub fn rare_event_probability(&self, root: ZbddRef) -> f64 {

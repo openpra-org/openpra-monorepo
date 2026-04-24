@@ -171,6 +171,10 @@ function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
   edges.forEach((e) => {
     const tgt = nodeInfo[e.target];
     if (!nodeInfo[e.source] || !tgt) return;
+    // Bypass edges carry explicit structural state from the model — never re-classify them.
+    // Excluding them here prevents a bypass+failure sibling pair from being mistaken for a
+    // success/failure pair, which would corrupt the feId and branchState for both edges.
+    if ((e.data as { branchState?: string } | undefined)?.branchState === "bypass") return;
     const key = `${e.source}:${tgt.depth}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push({ edgeId: e.id, targetY: tgt.y });

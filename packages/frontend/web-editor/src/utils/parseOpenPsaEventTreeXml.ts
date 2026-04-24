@@ -364,6 +364,7 @@ function buildVisibleSubtree(
   edgeFeColId: string | undefined,
   nodeDepth: number,
   feColIds: Map<string, string>,
+  feDepthMap: Map<string, number>,
   nodes: Node[],
   edges: Edge[],
 ): void {
@@ -409,12 +410,15 @@ function buildVisibleSubtree(
     return;
   }
 
-  // Internal fork: create a visible node and recurse into both branches.
+  // Internal fork: create a visible node at the column depth of this FE.
+  // Using feDepthMap ensures nodes align under their declared column even when
+  // bypass branches skip intermediate functional events.
+  const actualDepth = feDepthMap.get(branch.feName) ?? nodeDepth;
   const nodeId = GenerateUUID();
   nodes.push({
     id: nodeId,
     type: "visibleNode",
-    data: { depth: nodeDepth, width: NODE_WIDTH, output: false },
+    data: { depth: actualDepth, width: NODE_WIDTH, output: false },
     position: { x: 0, y: 0 },
   });
   addEdgeToParent(nodeId);
@@ -422,10 +426,40 @@ function buildVisibleSubtree(
   const childFeColId = feColIds.get(branch.feName);
   const childDepth = nodeDepth + 1;
 
-  buildVisibleSubtree(branch.successBranch, nodeId, "success", childFeColId, childDepth, feColIds, nodes, edges);
-  buildVisibleSubtree(branch.failureBranch, nodeId, "failure", childFeColId, childDepth, feColIds, nodes, edges);
+  buildVisibleSubtree(
+    branch.successBranch,
+    nodeId,
+    "success",
+    childFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
+  buildVisibleSubtree(
+    branch.failureBranch,
+    nodeId,
+    "failure",
+    childFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
   // Bypass: straight-through edge from this node — no new visible fork created here.
-  buildVisibleSubtree(branch.bypassBranch, nodeId, "bypass", childFeColId, childDepth, feColIds, nodes, edges);
+  buildVisibleSubtree(
+    branch.bypassBranch,
+    nodeId,
+    "bypass",
+    childFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
 }
 
 function buildEventTreeGraph(
@@ -438,6 +472,7 @@ function buildEventTreeGraph(
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const feColIds = new Map<string, string>();
+  const feDepthMap = new Map<string, number>();
 
   const addColEdge = (fromId: string, toId: string): void => {
     edges.push({
@@ -464,6 +499,7 @@ function buildEventTreeGraph(
   functionalEvents.forEach((fe, idx) => {
     const feColId = GenerateUUID();
     feColIds.set(fe.name, feColId);
+    feDepthMap.set(fe.name, idx + 2);
     const ftId = fe.faultTreeName ? ftNameToId[fe.faultTreeName] : undefined;
     nodes.push({
       id: feColId,
@@ -528,9 +564,39 @@ function buildEventTreeGraph(
   const rootFeColId = feColIds.get(parsedFork.feName);
   const childDepth = 2;
 
-  buildVisibleSubtree(parsedFork.successBranch, rootId, "success", rootFeColId, childDepth, feColIds, nodes, edges);
-  buildVisibleSubtree(parsedFork.failureBranch, rootId, "failure", rootFeColId, childDepth, feColIds, nodes, edges);
-  buildVisibleSubtree(parsedFork.bypassBranch, rootId, "bypass", rootFeColId, childDepth, feColIds, nodes, edges);
+  buildVisibleSubtree(
+    parsedFork.successBranch,
+    rootId,
+    "success",
+    rootFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
+  buildVisibleSubtree(
+    parsedFork.failureBranch,
+    rootId,
+    "failure",
+    rootFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
+  buildVisibleSubtree(
+    parsedFork.bypassBranch,
+    rootId,
+    "bypass",
+    rootFeColId,
+    childDepth,
+    feColIds,
+    feDepthMap,
+    nodes,
+    edges,
+  );
 
   void sequences; // sequences are embedded as output-node labels via the fork tree
 

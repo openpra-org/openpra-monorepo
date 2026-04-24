@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { BaseEdge, EdgeProps, getSmoothStepPath } from "reactflow";
+import { BaseEdge, EdgeProps } from "reactflow";
 import { memo } from "react";
 
 interface CustomEdgeData {
@@ -9,28 +9,19 @@ interface CustomEdgeData {
   hidden?: boolean;
 }
 
-const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
-  ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data = {} }) => {
-    const [edgePath] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      sourcePosition,
-      targetX,
-      targetY,
-      targetPosition,
-      borderRadius: 0,
-    });
+const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(({ id, sourceX, sourceY, targetX, targetY, data = {} }) => {
+  // Drop vertically at source x to the target y, then travel horizontally.
+  const edgePath = `M ${sourceX} ${sourceY} L ${sourceX} ${targetY} L ${targetX} ${targetY}`;
 
-    return (
-      <BaseEdge
-        path={edgePath}
-        id={id}
-        style={{
-          opacity: data.hidden ? 0 : 1, // Hide visually but keep edge in DOM
-          pointerEvents: data.hidden ? "none" : "auto", // Prevent interaction with hidden edges
-        }}
-      />
-    );
-  },
-);
+  return (
+    <BaseEdge
+      path={edgePath}
+      id={id}
+      style={{
+        opacity: data.hidden ? 0 : 1,
+        pointerEvents: data.hidden ? "none" : "auto",
+      }}
+    />
+  );
+});
 export default CustomEdge;

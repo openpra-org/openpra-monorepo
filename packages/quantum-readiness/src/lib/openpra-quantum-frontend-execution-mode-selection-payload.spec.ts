@@ -2,7 +2,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { buildOpenPraQuantumFrontendExecutionModeSelectionPayload } from "./openpra-quantum-frontend-execution-mode-selection-payload";
+import {
+  buildOpenPraQuantumFrontendExecutionModeSelectionPayload,
+  OPENPRA_QUANTUM_FRONTEND_EXECUTION_MODE_SELECTION_BOUNDEDNESS_STATEMENT,
+} from "./openpra-quantum-frontend-execution-mode-selection-payload";
 
 function writeJson(rootDirectoryPath: string, relativePath: string, value: unknown): void {
   const targetPath = path.join(rootDirectoryPath, relativePath);
@@ -61,6 +64,9 @@ describe("buildOpenPraQuantumFrontendExecutionModeSelectionPayload", () => {
     expect(result.summary.currentMode).toBe("hardware");
     expect(result.summary.providerBackendName).toBe("ibm_marrakesh");
     expect(result.summary.statevectorVerified).toBe(true);
+    expect(result.summary.boundednessStatement).toBe(
+      OPENPRA_QUANTUM_FRONTEND_EXECUTION_MODE_SELECTION_BOUNDEDNESS_STATEMENT,
+    );
     expect(result.guardrails.eligibleBackendNames).toEqual(["ibm_marrakesh", "ibm_torino"]);
     expect(result.guardrails.requiresOperatorAttention).toBe(true);
     expect(result.guardrails.unionSensitivityObserved).toBe(true);

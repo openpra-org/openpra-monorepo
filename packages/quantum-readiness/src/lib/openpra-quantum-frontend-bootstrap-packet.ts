@@ -17,6 +17,9 @@ export interface OpenPraQuantumFrontendBootstrapPacketRequest {
   scriptVersion?: string;
 }
 
+export const OPENPRA_QUANTUM_FRONTEND_BOOTSTRAP_PACKET_BOUNDEDNESS_STATEMENT =
+  "Screening level bounded integration review only. This payload does not imply unrestricted production readiness, comparative benefit, or claims beyond the documented project scope.";
+
 export interface OpenPraQuantumFrontendBootstrapNavItem {
   id: string;
   label: string;
@@ -40,6 +43,7 @@ export interface OpenPraQuantumFrontendBootstrapPacketSummary {
   readyCaseCount: number;
   partialCaseCount: number;
   blockedCaseCount: number;
+  boundednessStatement: string;
 }
 
 export interface OpenPraQuantumFrontendBootstrapPacketResult {
@@ -119,6 +123,7 @@ export function buildOpenPraQuantumFrontendBootstrapPacket(
     readyCaseCount,
     partialCaseCount,
     blockedCaseCount,
+    boundednessStatement: OPENPRA_QUANTUM_FRONTEND_BOOTSTRAP_PACKET_BOUNDEDNESS_STATEMENT,
   };
 
   const summaryPath = path.join(request.rootDirectoryPath, "frontend_bootstrap_packet_summary_v1.json");
@@ -135,6 +140,7 @@ export function buildOpenPraQuantumFrontendBootstrapPacket(
     readinessStatus: summary.readinessStatus,
     widgetCount: summary.widgetCount,
     caseRowCount: summary.caseRowCount,
+    boundednessStatement: summary.boundednessStatement,
   });
 
   return {

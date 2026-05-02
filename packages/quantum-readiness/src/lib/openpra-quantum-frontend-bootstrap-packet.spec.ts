@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   buildOpenPraQuantumFrontendBootstrapPacket,
   loadLatestOpenPraQuantumFrontendBootstrapPacket,
+  OPENPRA_QUANTUM_FRONTEND_BOOTSTRAP_PACKET_BOUNDEDNESS_STATEMENT,
 } from "./openpra-quantum-frontend-bootstrap-packet";
 
 describe("openpra-quantum-frontend-bootstrap-packet", () => {
@@ -166,6 +167,7 @@ describe("openpra-quantum-frontend-bootstrap-packet", () => {
     expect(built.summary.caseRowCount).toBe(3);
     expect(built.summary.readyCaseCount).toBe(2);
     expect(built.summary.partialCaseCount).toBe(1);
+    expect(built.summary.boundednessStatement).toBe(OPENPRA_QUANTUM_FRONTEND_BOOTSTRAP_PACKET_BOUNDEDNESS_STATEMENT);
     expect(fs.existsSync(built.summaryPath)).toBe(true);
     expect(fs.existsSync(built.manifestPath)).toBe(true);
 
@@ -174,6 +176,7 @@ describe("openpra-quantum-frontend-bootstrap-packet", () => {
     });
 
     expect(loaded.summary.readinessStatus).toBe("ready");
+    expect(loaded.summary.boundednessStatement).toBe(OPENPRA_QUANTUM_FRONTEND_BOOTSTRAP_PACKET_BOUNDEDNESS_STATEMENT);
     expect(loaded.summary.nav).toHaveLength(3);
   });
 });

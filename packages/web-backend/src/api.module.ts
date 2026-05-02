@@ -1,3 +1,4 @@
+import { QuantumPraController } from "./quantumReadiness/quantumPra.controller";
 import * as fs from "fs";
 import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
@@ -94,7 +95,7 @@ import { RolesModule } from "./roles/roles.module";
       },
     ]),
   ],
-  controllers: [ApiController],
+  controllers: [QuantumPraController, ApiController],
   providers: [
     ApiService,
     {

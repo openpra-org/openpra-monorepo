@@ -11,6 +11,9 @@ export interface OpenPraQuantumFrontendExecutionModeSelectionPayloadRequest {
   scriptVersion?: string | null;
 }
 
+export const OPENPRA_QUANTUM_FRONTEND_EXECUTION_MODE_SELECTION_BOUNDEDNESS_STATEMENT =
+  "Screening level bounded integration review only. This payload does not imply unrestricted production readiness, comparative benefit, or claims beyond the documented project scope.";
+
 export interface OpenPraQuantumFrontendExecutionModeSelectionPayloadResult {
   target: {
     subtreeId: string | null;
@@ -29,6 +32,7 @@ export interface OpenPraQuantumFrontendExecutionModeSelectionPayloadResult {
     latestStatus: string | null;
     statevectorVerified: boolean | null;
     requiresOperatorAttention: boolean;
+    boundednessStatement: string;
   };
   selection: {
     recommendedMode: OpenPraQuantumExecutionMode;
@@ -253,6 +257,7 @@ export function buildOpenPraQuantumFrontendExecutionModeSelectionPayload(
       latestStatus,
       statevectorVerified,
       requiresOperatorAttention,
+      boundednessStatement: OPENPRA_QUANTUM_FRONTEND_EXECUTION_MODE_SELECTION_BOUNDEDNESS_STATEMENT,
     },
     selection: {
       recommendedMode,

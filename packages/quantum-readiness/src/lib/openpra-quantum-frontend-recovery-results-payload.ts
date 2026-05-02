@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { extractRecoveryMetricsFromMatchedArtifactPaths } from "./openpra-quantum-recovery-artifact-field-extractors";
 
 export interface OpenPraQuantumFrontendRecoveryResultsPayloadRequest {
   rootDirectoryPath: string;
@@ -8,6 +9,9 @@ export interface OpenPraQuantumFrontendRecoveryResultsPayloadRequest {
   rootGateId?: string | null;
   scriptVersion?: string | null;
 }
+
+export const OPENPRA_QUANTUM_FRONTEND_RECOVERY_RESULTS_BOUNDEDNESS_STATEMENT =
+  "Screening level bounded integration review only. This payload does not imply unrestricted production readiness, comparative benefit, or claims beyond the documented project scope.";
 
 export interface OpenPraQuantumFrontendRecoveryResultsPayloadResult {
   target: {
@@ -29,6 +33,7 @@ export interface OpenPraQuantumFrontendRecoveryResultsPayloadResult {
     unionRecoveredCount: number | null;
     unionAllRecovered: boolean | null;
     recoveryCoverageFraction: number | null;
+    boundednessStatement: string;
   };
   recovery: {
     primaryMode: string | null;
@@ -130,7 +135,10 @@ export function buildOpenPraQuantumFrontendRecoveryResultsPayload(
 
   const providerStatus = firstArtifactString(activeArtifacts, "status", "executionStatus");
 
-  const primaryMode = firstArtifactString(activeArtifacts, "primaryMode", "primary_mode");
+  const matchedArtifactPaths = buildMatchedArtifactPaths(activeArtifacts, 3);
+  const derivedRecoveryMetrics = extractRecoveryMetricsFromMatchedArtifactPaths(matchedArtifactPaths);
+  const primaryMode =
+    firstArtifactString(activeArtifacts, "primaryMode", "primary_mode") ?? derivedRecoveryMetrics.primaryMode;
 
   const requiresOperatorAttention =
     firstArtifactBoolean(activeArtifacts, "requiresOperatorAttention", "requires_operator_attention") ?? false;
@@ -142,31 +150,32 @@ export function buildOpenPraQuantumFrontendRecoveryResultsPayload(
     "referenceCutSetCount",
   );
 
-  const tier1RecoveredExactCutSetCount = firstArtifactNumber(
-    activeArtifacts,
-    "tier1RecoveredExactCutSetCount",
-    "tier1_recovered_exact_cut_set_count",
-  );
+  const tier1RecoveredExactCutSetCount =
+    firstArtifactNumber(activeArtifacts, "tier1RecoveredExactCutSetCount", "tier1_recovered_exact_cut_set_count") ??
+    derivedRecoveryMetrics.tier1RecoveredExactCutSetCount;
 
-  const unionRecoveredCount = firstArtifactNumber(activeArtifacts, "unionRecoveredCount", "union_recovered_count");
+  const unionRecoveredCount =
+    firstArtifactNumber(activeArtifacts, "unionRecoveredCount", "union_recovered_count") ??
+    derivedRecoveryMetrics.unionRecoveredCount;
 
-  const unionAllRecovered = firstArtifactBoolean(activeArtifacts, "unionAllRecovered", "union_all_recovered");
+  const unionAllRecovered =
+    firstArtifactBoolean(activeArtifacts, "unionAllRecovered", "union_all_recovered") ??
+    derivedRecoveryMetrics.unionAllRecovered ??
+    (exactReferenceCutSetCount !== null && unionRecoveredCount !== null ?
+      unionRecoveredCount === exactReferenceCutSetCount
+    : null);
 
-  const nearMissAdvisoryCount = firstArtifactNumber(
-    activeArtifacts,
-    "nearMissAdvisoryCount",
-    "near_miss_advisory_count",
-  );
+  const nearMissAdvisoryCount =
+    firstArtifactNumber(activeArtifacts, "nearMissAdvisoryCount", "near_miss_advisory_count") ??
+    derivedRecoveryMetrics.nearMissAdvisoryCount;
 
   const recoveryCoverageFraction =
     exactReferenceCutSetCount !== null && unionRecoveredCount !== null && exactReferenceCutSetCount > 0 ?
       unionRecoveredCount / exactReferenceCutSetCount
-    : null;
+    : derivedRecoveryMetrics.recoveryCoverageFraction;
 
   const unionSensitivityObserved = primaryMode === "union_sensitivity_recovery";
   const providerExecutionObserved = providerArtifact !== null;
-
-  const matchedArtifactPaths = buildMatchedArtifactPaths(activeArtifacts, 3);
 
   return {
     target: {
@@ -207,6 +216,7 @@ export function buildOpenPraQuantumFrontendRecoveryResultsPayload(
       unionRecoveredCount,
       unionAllRecovered,
       recoveryCoverageFraction,
+      boundednessStatement: OPENPRA_QUANTUM_FRONTEND_RECOVERY_RESULTS_BOUNDEDNESS_STATEMENT,
     },
     recovery:
       recoveryArtifact === null ? null : (
@@ -224,18 +234,20 @@ export function buildOpenPraQuantumFrontendRecoveryResultsPayload(
     ladder: {
       tier1RecoveredExactCutSetCount,
       unionRecoveredCount,
-      narrative: buildRecoveryNarrative({
-        primaryMode,
-        unionAllRecovered,
-        exactReferenceCutSetCount,
-        unionRecoveredCount,
-        tier1RecoveredExactCutSetCount,
-      }),
-      recommendation: buildRecoveryRecommendation({
-        requiresOperatorAttention,
-        unionAllRecovered,
-        unionRecoveredCount,
-      }),
+      narrative:
+        buildRecoveryNarrative({
+          primaryMode,
+          unionAllRecovered,
+          exactReferenceCutSetCount,
+          unionRecoveredCount,
+          tier1RecoveredExactCutSetCount,
+        }) ?? derivedRecoveryMetrics.ladderNarrative,
+      recommendation:
+        buildRecoveryRecommendation({
+          requiresOperatorAttention,
+          unionAllRecovered,
+          unionRecoveredCount,
+        }) ?? derivedRecoveryMetrics.ladderRecommendation,
     },
     guardrails: {
       requiresOperatorAttention,

@@ -2,7 +2,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { buildOpenPraQuantumFrontendRecoveryResultsPayload } from "./openpra-quantum-frontend-recovery-results-payload";
+import {
+  buildOpenPraQuantumFrontendRecoveryResultsPayload,
+  OPENPRA_QUANTUM_FRONTEND_RECOVERY_RESULTS_BOUNDEDNESS_STATEMENT,
+} from "./openpra-quantum-frontend-recovery-results-payload";
 
 function writeJson(rootDirectoryPath: string, relativePath: string, value: unknown): void {
   const targetPath = path.join(rootDirectoryPath, relativePath);
@@ -53,6 +56,7 @@ describe("buildOpenPraQuantumFrontendRecoveryResultsPayload", () => {
     expect(result.target.subtreeId).toBe("phase2b_row_0905");
     expect(result.summary.topologyClass).toBe("C");
     expect(result.summary.providerBackendName).toBe("ibm_marrakesh");
+    expect(result.summary.boundednessStatement).toBe(OPENPRA_QUANTUM_FRONTEND_RECOVERY_RESULTS_BOUNDEDNESS_STATEMENT);
     expect(result.summary.primaryMode).toBe("union_sensitivity_recovery");
     expect(result.summary.unionAllRecovered).toBe(true);
     expect(result.summary.recoveryCoverageFraction).toBe(1);

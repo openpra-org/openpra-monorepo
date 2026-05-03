@@ -1,3 +1,4 @@
+import { QuantumPraController } from "./quantumReadiness/quantumPra.controller";
 import * as fs from "fs";
 import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
@@ -13,6 +14,7 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InviteModule } from "./invite/invite.module";
 import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
+import { QuantumReadinessModule } from "./quantumReadiness/quantumReadiness.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
 
@@ -28,6 +30,7 @@ import { RolesModule } from "./roles/roles.module";
     InviteModule,
     NestedModelModule,
     QuantifyModule,
+    QuantumReadinessModule,
     TypedModelModule,
     RolesModule,
     ConfigModule.forRoot({
@@ -77,6 +80,10 @@ import { RolesModule } from "./roles/roles.module";
             module: QuantifyModule,
           },
           {
+            path: "quantum-readiness",
+            module: QuantumReadinessModule,
+          },
+          {
             path: "typed-models",
             module: TypedModelModule,
           },
@@ -88,7 +95,7 @@ import { RolesModule } from "./roles/roles.module";
       },
     ]),
   ],
-  controllers: [ApiController],
+  controllers: [QuantumPraController, ApiController],
   providers: [
     ApiService,
     {

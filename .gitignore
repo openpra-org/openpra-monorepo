@@ -92,3 +92,38 @@ lerna-debug.log*
 
 # Editor/cache artifacts
 .eslintcache
+
+# OpenPRA quantum readiness generated artifacts
+packages/quantum-readiness/node_modules/
+packages/quantum-readiness/tmp/
+AUTHORSHIP_MANIFESTS/
+RELEASES/
+REGISTRATION_PACKETS/
+
+# BEGIN OPENPRA QUANTUM INTEGRATION MANAGED BLOCK
+# Generated scratch and environment paths for OpenPRA quantum integration work
+.venv_phase4_qiskit/
+_work/
+artifacts/quantum_integration/
+# END OPENPRA QUANTUM INTEGRATION MANAGED BLOCK
+
+# OpenPRA quantum integration generated work artifacts
+/_work/openpra_quantum_ws1_acceptance_manifest_v1/
+/_work/openpra_quantum_frontend_subtree_detail_payload_checkpoint_v1/
+/_work/openpra_quantum_frontend_execution_mode_selection_payload_checkpoint_v1/
+/_work/openpra_quantum_frontend_recovery_results_payload_checkpoint_v1/
+/_work/openpra_quantum_frontend_importance_comparison_payload_checkpoint_v1/
+/_work/openpra_quantum_frontend_provenance_export_payload_checkpoint_v1/
+/_work/openpra_quantum_ws1_acceptance_closeout_v1/
+
+/_work/openpra_quantum_ws4_broader_cohort_validation_v1/
+/_work/openpra_quantum_ws4_candidate_source_inventory_v1/
+
+/_work/openpra_quantum_ws4_source_shortlist_v1/
+/_work/openpra_quantum_ws4_tier1_review_slate_v1/
+/_work/openpra_quantum_ws4_tier1_source_pack_v1/
+
+/_work/openpra_quantum_ws4_tier1_inspection_digest_v1/
+/_work/openpra_quantum_ws4_selection_seed_v1/
+
+/_work/openpra_quantum_ws4_manual_review_bundle_v1/

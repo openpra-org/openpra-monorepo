@@ -1,0 +1,24 @@
+{
+  "artifact_name": "WS4_PROTOTYPE_ARCHIVE_v1",
+  "generated_at_utc": "2026-04-18T16:47:41.054854+00:00",
+  "archive_dir": "tools/quantum_integration/_archive_ws4/WS4_PROTOTYPES_20260418_164741Z",
+  "moved_files": [
+    "openpra_quantum_build_ws4_best_effort_selection_v1.py",
+    "openpra_quantum_expand_ws4_source_universe_v1.py",
+    "openpra_quantum_finalize_ws4_universe_v2.py",
+    "openpra_quantum_freeze_ws4_all_available_cohort_v1.py",
+    "openpra_quantum_freeze_ws4_provisional_cohort_v1.py",
+    "openpra_quantum_repair_ws4_case_universe_v1.py"
+  ],
+  "missing_files": [],
+  "canonical_files_left_in_place": [
+    "openpra_quantum_build_ws4_review_clean_freeze_v1.py",
+    "openpra_quantum_fix_ws4_review_clean_holdouts_v1.py",
+    "openpra_quantum_refresh_ws4_review_clean_memo_v1.py",
+    "openpra_quantum_build_ws4_validation_control_v1.py",
+    "openpra_quantum_build_ws4_execution_package_v1.py",
+    "openpra_quantum_build_ws4_ops_bundle_v1.py",
+    "openpra_quantum_refresh_ws4_ops_views_v1.py",
+    "openpra_quantum_run_ws4_ops_refresh_v1.sh"
+  ]
+}

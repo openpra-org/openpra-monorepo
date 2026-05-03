@@ -14,7 +14,9 @@
       "shared-types/src/*": ["packages/shared-types/src/*"],
       "shared-types/src/lib/api/*": ["packages/shared-sdk/src/lib/api/*"],
       "shared-types/src/lib/data/*": ["packages/shared-sdk/src/lib/data/*"],
-      "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"]
+      "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"],
+      "quantum-readiness": ["packages/quantum-readiness/src/index.ts"],
+      "quantum-readiness/*": ["packages/quantum-readiness/src/*"]
     },
     "types": ["jest", "node", "@types/jest"],
     "plugins": [

@@ -15,8 +15,14 @@ import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
+import { QuantumReadinessReviewPage } from "./pages/quantumReadinessReviewPage";
 
 const routes: RouteObject[] = [
+  {
+    path: "/quantum-readiness-review",
+    element: <QuantumReadinessReviewPage />,
+    errorElement: <ErrorPage />,
+  },
   {
     path: "/",
     element: <RootContainer />,
@@ -76,7 +82,6 @@ const routes: RouteObject[] = [
 
 const router = createBrowserRouter(routes, {
   future: {
-    // Normalize `useNavigation()`/`useFetcher()` `formMethod` to uppercase
     v7_normalizeFormMethod: true,
   },
 });

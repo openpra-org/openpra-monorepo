@@ -1,0 +1,50 @@
+{
+  "name": "quantum-readiness",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:shared"],
+  "sourceRoot": "packages/quantum-readiness/src",
+  "projectType": "library",
+  "targets": {
+    "docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter quantum-readiness run docs",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/docs"]
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/quantum-readiness",
+        "main": "packages/quantum-readiness/src/index.ts",
+        "tsConfig": "packages/quantum-readiness/tsconfig.lib.json",
+        "assets": ["packages/quantum-readiness/*.md"],
+        "transformers": []
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/quantum-readiness/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts", "{projectRoot}/**/*.js", "!{projectRoot}/**/*.d.ts"]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter quantum-readiness run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/quantum-readiness/jest.config.ts"
+      }
+    }
+  }
+}

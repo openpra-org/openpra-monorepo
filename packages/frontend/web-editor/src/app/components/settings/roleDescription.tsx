@@ -19,10 +19,6 @@ import { Can } from "../../providers/abilityProvider";
 import { GenericModal } from "../modals/genericModal";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
-
-/**
- * Generate columns for table containing the roles of the users
- */
 function constructColumns(rolename: string): EuiBasicTableColumn<MemberResult>[] {
   return [
     {
@@ -37,15 +33,15 @@ function constructColumns(rolename: string): EuiBasicTableColumn<MemberResult>[]
     },
   ];
 }
-
 const RoleDescription = (): JSX.Element => {
-  const { roleName } = useParams<{ roleName: string | undefined }>();
+  const { roleName } = useParams<{
+    roleName: string | undefined;
+  }>();
   const [isLoading, setIsLoading] = useState(false);
   const [roleMembers, setRoleMembers] = useState<MemberResult[]>([]);
   const [members, setMembers] = useState<MemberResult[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currRole, setCurrRole] = useState<RoleSchemaDto>();
-
   const { addToast } = UseToastContext();
   useEffect(() => {
     async function fetchRole(): Promise<void> {
@@ -61,7 +57,6 @@ const RoleDescription = (): JSX.Element => {
         }
       }
     }
-
     async function fetchUsers(): Promise<void> {
       try {
         const roleMembers = await ApiManager.getUsersWithRole(roleName ?? "");
@@ -71,10 +66,9 @@ const RoleDescription = (): JSX.Element => {
       } catch {
         addToast(GetESToast("danger", "Failed to fetch users of this role"));
         setRoleMembers([]);
-        setMembers([]); 
+        setMembers([]);
       }
     }
-
     setIsLoading(true);
     Promise.all([fetchRole(), fetchUsers()])
       .then((_results) => {
@@ -84,22 +78,17 @@ const RoleDescription = (): JSX.Element => {
         setIsLoading(false);
       });
   }, [roleName, addToast]);
-
   let modal;
-
   const optionsStatic: EuiComboBoxOptionOption<string>[] = members
     .filter((member) => !member.roles.includes(String(roleName)))
     .map((member) => ({
       label: `${String(member.firstName)} ${String(member.lastName)}`,
       id: String(member.id),
     }));
-
   const [selectedOptions, setSelected] = useState<EuiComboBoxOptionOption<string>[]>([]);
-
   const onChange = (selectedOptions: EuiComboBoxOptionOption<string>[]): void => {
     setSelected(selectedOptions);
   };
-
   const handleSubmit = async (): Promise<void> => {
     const ids = selectedOptions.map((x) => x.id);
     const filteredMembers = members.filter((member) => ids.includes(String(member.id)));
@@ -113,7 +102,6 @@ const RoleDescription = (): JSX.Element => {
     setRoleMembers((prev) => [...prev, ...filteredMembers]);
     setSelected([]);
   };
-
   if (isModalVisible) {
     modal = (
       <GenericModal
@@ -190,5 +178,4 @@ const RoleDescription = (): JSX.Element => {
     </div>
   );
 };
-
 export { RoleDescription };

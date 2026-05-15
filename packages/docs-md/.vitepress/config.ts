@@ -2,77 +2,45 @@ import { defineConfig } from "vitepress";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-// Allow setting a custom base path for GitHub Pages deployments
-// Example: VITEPRESS_BASE="/openpra-monorepo/"
 const base = (() => {
   const b = process.env.VITEPRESS_BASE || "/";
   if (!b.startsWith("/")) return `/${b}`;
   return b.endsWith("/") ? b : `${b}/`;
 })();
-
-// Default-on explorer: allow disabling with DOCS_ENABLE_SRC_EXPLORER=0 or false
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore Node-style env at build time
 const explorerEnabled = !(
   process.env.DOCS_ENABLE_SRC_EXPLORER === "0" || process.env.DOCS_ENABLE_SRC_EXPLORER === "false"
 );
-
 export default defineConfig({
   base,
   title: "OpenPRA Documentation",
   description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
-  // Show "Last Updated" timestamps pulled from git commit times
   lastUpdated: true,
-  // Force automatic appearance (follow system preference, disable manual toggle)
   appearance: "force-auto",
-  // Use base-aware path so favicon works under non-root deployments too
   head: [["link", { rel: "icon", type: "image/png", href: `${base}openpra-logo.png` }]],
-  // Keep internal reports out of the published site
-  // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,
-  // but should not be emitted as public pages.
   srcExclude: [
     "api/ts/coverage.md",
     "api/ts/gaps-params.md",
     "api/cpp-doxybook2/coverage.md",
-    // Exclude legacy path now replaced by /stack/
     "stack-overview/**",
-    // Exclude deprecated MEF technical elements landing page
     "stack/mef-technical-elements.md",
   ],
   ignoreDeadLinks: true,
-  // Disable raw HTML in Markdown globally to prevent Vue from parsing
-  // generated C++ docs that may contain angle-bracket syntax that looks
-  // like HTML. Authored pages can still use Vue-in-Markdown (<script setup>)
-  // because that support is handled at the SFC compile stage, not via
-  // markdown-it raw HTML.
   markdown: {
     config: (md) => {
       md.set({ html: false });
     },
   },
-  // Enable Vue-in-Markdown features (e.g., <script setup>) for authored pages
   themeConfig: {
-    // Navbar logo
     logo: { src: "/openpra-logo.png", alt: "OpenPRA" },
-    // Social links (GitHub repo)
     socialLinks: [{ icon: "github", link: "https://github.com/openpra-org/openpra-monorepo" }],
-    // Footer
     footer: {
       message:
         'Released under the <a href="https://github.com/openpra-org/openpra-monorepo/blob/main/LICENSE">MIT License</a>.',
       copyright: 'Copyright © 2019-present <a href="https://openpra.org">OpenPRA ORG Inc.</a>',
     },
-    // Feature flags (build-time)
-    // Enable an additional "Explore source" section per TS package
-    // to navigate by top-level src/ folders.
-    // Set DOCS_ENABLE_SRC_EXPLORER=true to activate.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Node-style env at build time
     exploreEnabled: explorerEnabled,
-    // Built-in local search (no external services required)
     search: {
       provider: "local",
     },
@@ -106,9 +74,6 @@ export default defineConfig({
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
-          // Conditionally include MEF Schema nav entry if docs exist
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore Node env
           ...((
             fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md"))
           ) ?
@@ -118,7 +83,6 @@ export default defineConfig({
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Raptor (microservice)", link: "/api/ts/raptor/README.html" },
-          // Coverage and param-gap pages are no longer surfaced
         ],
       },
       {
@@ -127,7 +91,6 @@ export default defineConfig({
           { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
           { text: "Files", link: "/api/cpp-doxybook2/index_files.html" },
           { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
-          // Coverage page is no longer surfaced
         ],
       },
     ],
@@ -147,11 +110,13 @@ export default defineConfig({
         {
           text: "MEF Technical Elements",
           items: (() => {
-            // Build sidebar items in the requested order by scanning generated docs
             const __dirname = path.dirname(fileURLToPath(import.meta.url));
             const repoRoot = path.resolve(__dirname, "../../..");
             const mefRoot = path.resolve(repoRoot, "packages/docs-md/mef-elements");
-            const order: Array<{ slug: string; text: string }> = [
+            const order: Array<{
+              slug: string;
+              text: string;
+            }> = [
               { slug: "plant-operating-states-analysis", text: "Plant Operating States Analysis" },
               { slug: "initiating-event-analysis", text: "Initiating Event Analysis" },
               { slug: "event-sequence-analysis", text: "Event Sequence Analysis" },
@@ -164,15 +129,16 @@ export default defineConfig({
               { slug: "risk-integration", text: "Risk Integration" },
             ];
             const encodeSeg = (s: string) => encodeURIComponent(s);
-            const items: Array<{ text: string; link: string }> = [];
+            const items: Array<{
+              text: string;
+              link: string;
+            }> = [];
             for (const { slug, text } of order) {
               const dir = path.resolve(mefRoot, slug);
               if (!fs.existsSync(dir)) continue;
-              // Always link to the canonical per-element index.html we generate
               const link = `/mef-elements/${encodeSeg(slug)}/index.html`;
               items.push({ text, link });
             }
-            // Fallback: link to index if nothing found
             if (items.length === 0) {
               items.push({ text: "Index", link: "/mef-elements/index.html" });
             }
@@ -197,7 +163,6 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/web-editor/README.html" },
             { text: "Modules", link: "/api/ts/web-editor/modules.html" },
-            // @ts-ignore injected at runtime via env
             ...(explorerEnabled ?
               [{ text: "Explore src/ (by folder)", link: "/api/ts/web-editor/_explore/index.html" }]
             : []),
@@ -246,7 +211,6 @@ export default defineConfig({
           items: [{ text: "Index", link: "/api/mef/openpra-mef/index.html" }],
         },
       ],
-      // Only add MEF Schema sidebar if its docs are present
       ...(fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md")) ?
         {
           "/api/ts/mef-schema/": [
@@ -315,7 +279,6 @@ export default defineConfig({
             { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
             { text: "Files", link: "/api/cpp-doxybook2/index_files.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
-            // Coverage page is no longer surfaced
           ],
         },
       ],
@@ -324,7 +287,6 @@ export default defineConfig({
   vite: {
     server: { host: true },
     plugins: [
-      // Pre-render version tokens on Stack pages so we can keep markdown.html=false safely
       {
         name: "inject-stack-versions",
         enforce: "pre",
@@ -334,17 +296,11 @@ export default defineConfig({
           if (!/\/stack\/(frontend-overview|backend-overview|engine-overview)\.md$/.test(idPosix)) {
             return null;
           }
-
-          // Resolve repo root relative to this config file
           const __dirname = path.dirname(fileURLToPath(import.meta.url));
           const repoRoot = path.resolve(__dirname, "../../..");
           const readJson = (p: string) => JSON.parse(fs.readFileSync(p, "utf-8"));
-
-          // Common: root package
           const rootPkgPath = path.resolve(repoRoot, "package.json");
           const rootPkg = fs.existsSync(rootPkgPath) ? readJson(rootPkgPath) : {};
-
-          // Prepare replacements per page
           const replacements: Record<string, string> = {};
           if (idPosix.endsWith("/stack/frontend-overview.md")) {
             const fePkgPath = path.resolve(repoRoot, "packages/frontend/web-editor/package.json");
@@ -371,16 +327,11 @@ export default defineConfig({
             replacements["nodeAddonApi"] = enPkg?.dependencies?.["node-addon-api"] ?? "N/A";
             replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
           }
-
-          // Remove any <script setup> blocks (they're not allowed when markdown.html=false)
           let next = code.replace(/<script\s+setup>[^]*?<\/script>\s*/g, "");
-
-          // Replace Vue moustache tokens with static values
           for (const [key, val] of Object.entries(replacements)) {
             const re = new RegExp(String.raw`\{\{\s*${key}\s*\}\}`, "g");
             next = next.replace(re, String(val));
           }
-
           return { code: next, map: null };
         },
       },

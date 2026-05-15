@@ -2,36 +2,19 @@ import { Handle, NodeProps, Position } from "reactflow";
 import React, { useRef, useLayoutEffect, useEffect } from "react";
 import styles from "../../../components/treeNodes/bayesianNetwork/styles/nodeTypes.module.css";
 import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
-
-/**
- * Type definition for the props expected by the MindMapNode component,
- * specifically including a label for the node.
- */
 export interface NodeData {
   label: string;
 }
-
-/**
- * A functional component that renders a single node within the mind map.
- * This node includes a draggable handle, an input field to edit the node's label,
- * and handles to connect to other nodes.
- *
- * @param  props - Props passed to the component, including the node's ID and its data.
- * @returns \{JSX.Element\} The rendered node element.
- */
 const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   const updateNodeLabel = UseStore((state) => state.updateNodeLabel);
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const stylesMap = styles as Record<string, string>;
-
-  // Adjust the width of the input based on the label length
   useLayoutEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.width = `${String(data.label.length * 8.8)}px`;
     }
   }, [data.label]);
-
   useEffect(() => {
     setTimeout(() => {
       if (wrapperRef.current) {
@@ -39,7 +22,6 @@ const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
       }
     }, 1);
   }, []);
-
   return (
     <div
       className={stylesMap.inputWrapper}
@@ -51,7 +33,6 @@ const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
           e.stopPropagation();
         }}
       >
-        {/* icon taken from grommet https://icons.grommet.io */}
         <svg viewBox="0 0 24 24">
           <path
             fill="#0984e3"
@@ -84,5 +65,4 @@ const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     </div>
   );
 };
-
 export { MindMapNode };

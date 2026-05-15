@@ -1,7 +1,6 @@
 import { EuiPageBodyProps } from "@elastic/eui/src/components/page/page_body/page_body";
 import { EuiPageBody, EuiPageHeaderProps, useEuiTheme, EuiPageTemplate } from "@elastic/eui";
 import { EuiPageSectionProps } from "@elastic/eui/src/components/page/page_section/page_section";
-
 export type TemplatedPageBodyProps = {
   headerProps?: EuiPageHeaderProps;
   sectionProps?: EuiPageSectionProps;
@@ -23,9 +22,6 @@ function TemplatedPageBody({
       panelled={isPanelled}
       restrictWidth={false}
     >
-      {
-        //<TemplatedPageHeader {...headerProps} restrictWidth={width}/>
-      }
       <EuiPageTemplate.Section
         {...sectionProps}
         restrictWidth={width}

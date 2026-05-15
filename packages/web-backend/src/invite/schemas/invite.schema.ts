@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
-
 @Schema({
   minimize: false,
   timestamps: {
@@ -11,31 +10,18 @@ import { Document } from "mongoose";
 export class InvitedUser {
   @Prop({ required: false })
   id: string;
-
   @Prop({ required: false })
   firstName: string;
-
   @Prop({ required: false })
   lastName: string;
-
   @Prop({ required: false })
   username: string;
-
   @Prop({ required: false })
   email: string;
-
   @Prop({ required: false })
   expiry: Date;
-
   @Prop({ required: false })
   numberOfInvites: number;
 }
-
-/**
- * Mongoose document type for the InvitedUser schema.
- */
 export type InvitedUserDocument = InvitedUser & Document;
-/**
- * Mongoose schema for user invitations.
- */
 export const InvitedUserSchema = SchemaFactory.createForClass(InvitedUser);

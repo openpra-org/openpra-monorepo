@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "plugins": [
+      { "transform": "typia/lib/transform" },
+      { "transform": "@nestia/core/lib/transform" },
+      { "transform": "@nestia/sdk/lib/transform" }
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "config/**/*.ts",
+    "test/**/*.ts"
+  ]
+}

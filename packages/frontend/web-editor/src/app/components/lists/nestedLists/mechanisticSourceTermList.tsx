@@ -4,7 +4,6 @@ import {
   PatchMechanisticSourceTermLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function MechanisticSourceTermList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function MechanisticSourceTermList(): JSX.Element {
     />
   );
 }
-
 export { MechanisticSourceTermList };

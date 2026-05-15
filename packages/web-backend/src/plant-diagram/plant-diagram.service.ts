@@ -3,7 +3,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.schema";
 import { PlantDiagram, PlantDiagramDocument } from "./schemas/plant-diagram.schema";
-
 @Injectable()
 export class PlantDiagramService implements OnModuleInit {
   constructor(
@@ -12,17 +11,11 @@ export class PlantDiagramService implements OnModuleInit {
     @InjectModel(ModelCounter.name)
     private readonly modelCounterModel: mongoose.Model<ModelCounterDocument>,
   ) {}
-
   async onModuleInit(): Promise<void> {
-    // Drop the legacy unique index on seq (was created before unique:true was removed).
-    // Safe to call even if the index no longer exists.
     try {
       await this.modelCounterModel.collection.dropIndex("seq_1");
-    } catch {
-      // Index doesn't exist — nothing to do.
-    }
+    } catch {}
   }
-
   private async getNextValue(name: string): Promise<number> {
     const record = await this.modelCounterModel.findByIdAndUpdate(
       name,
@@ -31,7 +24,6 @@ export class PlantDiagramService implements OnModuleInit {
     );
     return record.seq;
   }
-
   async create(body: Partial<PlantDiagram>): Promise<PlantDiagram> {
     const doc = new this.plantDiagramModel({
       id: await this.getNextValue("PlantDiagramCounter"),
@@ -46,15 +38,12 @@ export class PlantDiagramService implements OnModuleInit {
     await doc.save();
     return doc;
   }
-
   async findByModelId(typedModelId: number): Promise<PlantDiagram[]> {
     return this.plantDiagramModel.find({ typedModelId: Number(typedModelId) }, { _id: 0 }).lean();
   }
-
   async findById(id: number): Promise<PlantDiagram | null> {
     return this.plantDiagramModel.findOne({ id: Number(id) }, { _id: 0 }).lean();
   }
-
   async updateDiagram(id: number, body: Partial<PlantDiagram>): Promise<PlantDiagram | null> {
     const update: Partial<PlantDiagram> = {};
     if (body.title !== undefined) update.title = body.title;
@@ -65,7 +54,6 @@ export class PlantDiagramService implements OnModuleInit {
     if (body.viewport !== undefined) update.viewport = body.viewport;
     return this.plantDiagramModel.findOneAndUpdate({ id: Number(id) }, { $set: update }, { new: true }).lean();
   }
-
   async delete(id: number): Promise<void> {
     await this.plantDiagramModel.findOneAndDelete({ id: Number(id) });
   }

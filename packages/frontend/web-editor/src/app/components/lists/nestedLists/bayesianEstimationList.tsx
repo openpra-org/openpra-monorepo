@@ -4,7 +4,6 @@ import {
   PatchBayesianEstimationLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function BayesianEstimationList(): JSX.Element {
   return (
     <NestedModelList

@@ -31,7 +31,6 @@ import { PlantDiagrams } from "../fullScopePages/plantDiagrams";
 import { DataAnalysis } from "../fullScopePages/dataAnalysis";
 import { FaultTrees } from "../fullScopePages/faultTrees";
 import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
-
 const getModelFixture = (): ModelProps => ({
   label: {
     name: "Model ABC",
@@ -55,12 +54,10 @@ const getModelFixture = (): ModelProps => ({
     },
   ],
 });
-
 export interface FaultTreeProps {
   id: string | number;
   label: LabelJSON;
 }
-
 export interface ModelProps {
   id: string | number;
   label: LabelJSON;
@@ -69,7 +66,6 @@ export interface ModelProps {
 export function LoadModel(): ModelProps {
   return getModelFixture();
 }
-
 function FullScopePage(): JSX.Element {
   return (
     <Routes>
@@ -202,9 +198,7 @@ function FullScopePage(): JSX.Element {
           element={<ModelSettings />}
         />
       </Route>
-      {}
     </Routes>
   );
 }
-
 export { FullScopePage };

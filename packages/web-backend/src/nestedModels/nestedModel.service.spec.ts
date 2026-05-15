@@ -29,7 +29,6 @@ import {
   RadiologicalConsequenceAnalysisSchema,
 } from "./schemas/radiological-consequence-analysis.schema";
 import { HumanReliabilityAnalysis, HumanReliabilityAnalysisSchema } from "./schemas/human-reliability-analysis.schema";
-
 import { createBayesianEstimationObject } from "./stubs/createBayesianEstimation.stub";
 import { createEventSequenceDiagramObject } from "./stubs/createEventSequenceDiagram.stub";
 import { createEventTreeObject } from "./stubs/createEventTree.stub";
@@ -48,17 +47,11 @@ import { createEventSequenceAnalysisObject } from "./stubs/createEventSequenceAn
 import { createOperatingStateAnalysisObject } from "./stubs/createOperatingStateAnalysis.stub";
 import { createRadiologicalConsequenceAnalysisObject } from "./stubs/createRadiologicalConsequenceAnalysis.stub";
 import { createHumanReliabilityAnalysisObject } from "./stubs/createHumanReliabilityAnalysis.stub";
-
 describe("CollabService", () => {
   let nestedModelService: NestedModelService;
   let connection: Connection;
-  /**
-   * Before all tests
-   * Create a new Testing module
-   * define connection and collabService
-   */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -109,38 +102,25 @@ describe("CollabService", () => {
       ],
       providers: [NestedModelService],
     }).compile();
-    connection = await module.get(getConnectionToken()); // create mongoose connection object to call functions like put, get, find
+    connection = await module.get(getConnectionToken());
     nestedModelService = module.get<NestedModelService>(NestedModelService);
   });
-
-  /**
-   * After each test drop database
-   */
   afterEach(async () => {
     await connection.dropDatabase();
   });
-
-  /**
-   * After all tests
-   * Disconnect mongoose
-   * Stop mongoDB server
-   */
   afterAll(async () => {
-    await mongoose.disconnect(); //disconnect from database
+    await mongoose.disconnect();
   });
-
   describe("NestedModelService", () => {
     it("NestedModelService should be defined", async () => {
       expect(nestedModelService).toBeDefined();
     });
   });
-
   describe("Bayesian Estimation", () => {
     describe("createBayesianEstimation", () => {
       it("Create Event Sequence digram is defined", () => {
         expect(nestedModelService.createBayesianEstimation).toBeDefined();
       });
-
       it("should create bayesian estimation without parent ids", async () => {
         const res = await nestedModelService.createBayesianEstimation(createBayesianEstimationObject);
         expect(res).toBeDefined();
@@ -150,16 +130,12 @@ describe("CollabService", () => {
       });
       it("should create bayesian estimation with parent ids", async () => {
         createBayesianEstimationObject.parentIds = [2, 3];
-
         const res = await nestedModelService.createBayesianEstimation(createBayesianEstimationObject);
         expect(res).toBeDefined();
         expect(res.parentIds).toEqual(createBayesianEstimationObject.parentIds);
         delete createBayesianEstimationObject.parentIds;
       });
-
       it("IDs should be incremented", async () => {
-        //copy the object to avoid changing the original object
-
         const bayesianEstimationObject1 = createBayesianEstimationObject;
         const res1 = await nestedModelService.createBayesianEstimation(bayesianEstimationObject1);
         const bayesianEstimationObject2 = {
@@ -173,31 +149,26 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getBayesianEstimations", () => {
       it("should be defined", () => {
         expect(nestedModelService.getBayesianEstimations).toBeDefined();
       });
     });
-
     describe("getSingleBayesianEstimations", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleBayesianEstimation).toBeDefined();
       });
-
       it("should return correct object", async () => {
         const res = await nestedModelService.createBayesianEstimation(createBayesianEstimationObject);
         const returnedBayesianEstimation = await nestedModelService.getSingleBayesianEstimation(res.id);
         expect(returnedBayesianEstimation).toBeDefined();
         expect(res.id).toEqual(returnedBayesianEstimation.id);
       });
-
       it("should return null if ID not present", async () => {
         const returnedBayesianEstimation = await nestedModelService.getSingleBayesianEstimation(0);
         expect(returnedBayesianEstimation).toBeNull();
       });
     });
-
     describe("deleteBayesianEstimation", () => {
       it("should be defined", () => {
         expect(nestedModelService.deleteBayesianEstimation).toBeDefined();
@@ -214,7 +185,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Bayesian Network", () => {
     describe("createBayesianNetwork", () => {
       it("Create Bayesian Network is defined", () => {
@@ -261,7 +231,6 @@ describe("CollabService", () => {
         expect(res.id).toEqual(returnedBayesianNetwork.id);
       });
     });
-
     describe("deleteBayesianNetwork", () => {
       it("should be defined", () => {
         expect(nestedModelService.deleteBayesianNetwork).toBeDefined();
@@ -283,7 +252,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Event Sequence Diagram", () => {
     describe("createEventSequenceDiagram", () => {
       it("Create Event Sequence digram is defined", () => {
@@ -303,7 +271,6 @@ describe("CollabService", () => {
         expect(res.parentIds).toEqual(createEventSequenceDiagramObject.parentIds);
         delete createEventSequenceDiagramObject.parentIds;
       });
-
       it("IDs should be incremented", async () => {
         const res1 = await nestedModelService.createEventSequenceDiagram(createEventSequenceDiagramObject);
         const eventSequenceDiagramObject2 = {
@@ -329,7 +296,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Event Tree", () => {
     describe("createEventTree", () => {
       it("Create Event Tree is defined", () => {
@@ -349,7 +315,6 @@ describe("CollabService", () => {
         expect(res.parentIds).toEqual(createEventTreeObject.parentIds);
         delete createEventTreeObject.parentIds;
       });
-
       it("IDs should be incremented", async () => {
         const res1 = await nestedModelService.createEventSequenceDiagram(createEventTreeObject);
         const eventTreeObject2 = {
@@ -359,7 +324,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleEventTrees", () => {
       it("getSingleEventTree is defined", () => {
         expect(nestedModelService.getSingleEventTree).toBeDefined();
@@ -395,7 +359,6 @@ describe("CollabService", () => {
         expect(res.parentIds).toEqual(createFaultTreeObject.parentIds);
         delete createFaultTreeObject.parentIds;
       });
-
       it("IDs should be incremented", async () => {
         const res1 = await nestedModelService.createEventSequenceDiagram(createFaultTreeObject);
         const faultTreeObject2 = {
@@ -405,7 +368,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleFaultTree", () => {
       it("getSingleFaultTree is defined", () => {
         expect(nestedModelService.getSingleFaultTree).toBeDefined();
@@ -422,7 +384,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Functional Events", () => {
     describe("createFunctionalEvent", () => {
       it("should be defined", () => {
@@ -470,7 +431,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Initiating Events", () => {
     describe("createInitiatingEvent", () => {
       it("should be defined", () => {
@@ -518,7 +478,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Markov Chain", () => {
     describe("createMarkovChain", () => {
       it("should be defined", () => {
@@ -563,7 +522,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Weibull analysis", () => {
     describe("createWeibullAnalysis", () => {
       it("should be defined", () => {
@@ -595,7 +553,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleWeibullAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleWeibullAnalysis).toBeDefined();
@@ -612,7 +569,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Risk Integration", () => {
     describe("createRiskIntegration", () => {
       it("should be defined", () => {
@@ -660,7 +616,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Radiological Consequence Analysis", () => {
     describe("createRadiologicalConsequenceAnalysis", () => {
       it("should be defined", () => {
@@ -746,7 +701,6 @@ describe("CollabService", () => {
       it("should be defined", () => {
         expect(nestedModelService.createEventSequenceQuantificationDiagram).toBeDefined();
       });
-
       it("should create Event Sequence Quantification Diagram without parent ids", async () => {
         const res = await nestedModelService.createEventSequenceQuantificationDiagram(
           createEventSequenceQuantificationDiagramObject,
@@ -845,9 +799,7 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Human Reliability Analysis", () => {
-    //test block for createHumanReliabilityAnalysis
     describe("createHumanReliabilityAnalysis", () => {
       it("should be defined", async () => {
         expect(nestedModelService.createHumanReliabilityAnalysis).toBeDefined();
@@ -878,7 +830,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleHumanReliabilityAnalysis", () => {
       it("should be defined", async () => {
         expect(nestedModelService.getSingleHumanReliabilityAnalysis).toBeDefined();
@@ -895,14 +846,11 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Systems Analysis", () => {
-    //test block for createSystemsAnalysis
     describe("createSystemsAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.createSystemsAnalysis).toBeDefined();
       });
-
       it("should create Systems Analysis without parent ids", async () => {
         const res = await nestedModelService.createSystemsAnalysis(createSystemsAnalysisObject);
         expect(res).toBeDefined();
@@ -910,7 +858,6 @@ describe("CollabService", () => {
         expect(res.label.name).toBe(createSystemsAnalysisObject.label.name);
         expect(res.label.description).toBe(createSystemsAnalysisObject.label.description);
       });
-
       it("should create Systems Analysis with parent ids", async () => {
         createSystemsAnalysisObject.parentIds = [2, 3];
         const res = await nestedModelService.createSystemsAnalysis(createSystemsAnalysisObject);
@@ -919,7 +866,6 @@ describe("CollabService", () => {
         delete createSystemsAnalysisObject.parentIds;
       });
     });
-
     describe("getSingleSystemsAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleSystemsAnalysis).toBeDefined();
@@ -936,7 +882,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Success Criteria", () => {
     describe("createSuccessCriteria", () => {
       it("should be defined", () => {
@@ -957,7 +902,6 @@ describe("CollabService", () => {
         delete createSuccessCriteriaObject.parentIds;
       });
     });
-
     describe("getSingleSuccessCriteria", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleSuccessCriteria).toBeDefined();
@@ -974,7 +918,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Event Sequence Analysis", () => {
     describe("createEventSequenceAnalysis", () => {
       it("should be defined", () => {
@@ -1003,7 +946,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleEventSequenceAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleEventSequenceAnalysis).toBeDefined();
@@ -1020,7 +962,6 @@ describe("CollabService", () => {
       });
     });
   });
-
   describe("Operating State Analysis", () => {
     describe("createOperatingStateAnalysis", () => {
       it("should be defined", () => {
@@ -1052,7 +993,6 @@ describe("CollabService", () => {
         expect(res1.id).toEqual(res2.id - 1);
       });
     });
-
     describe("getSingleOperatingStateAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.getSingleOperatingStateAnalysis).toBeDefined();
@@ -1068,7 +1008,6 @@ describe("CollabService", () => {
         expect(res.id).toEqual(returnedOperatingStateAnalysis.id);
       });
     });
-
     describe("getOperatingStateAnalysis", () => {
       it("should be defined", () => {
         expect(nestedModelService.getOperatingStateAnalysis).toBeDefined();

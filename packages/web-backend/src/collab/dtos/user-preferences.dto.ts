@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createZodDto } from "../../zod/zod-dto";
-
 const userPreferencesSchema = z.object({
   preferences: z.object({
     theme: z.string().optional(),
@@ -11,5 +10,4 @@ const userPreferencesSchema = z.object({
     pageBreaksVisible: z.string().or(z.boolean()).optional(),
   }),
 });
-
 export class UserPreferencesDto extends createZodDto(userPreferencesSchema) {}

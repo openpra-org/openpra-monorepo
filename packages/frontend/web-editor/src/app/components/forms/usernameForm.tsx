@@ -1,18 +1,6 @@
 import { EuiFieldText, EuiFormRow } from "@elastic/eui";
 import React from "react";
 import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
-
-/**
- * This is form with the following details: Firstname, Lastname, Email and Username
- * @param signup - The SignUpProps state object
- * @param setSignup - The function to update singup state object
- * @param signupButtonClicked - The function callback when signup is clicked
- * @param isValidEmail - boolean state object to check if email is valid
- * @param setIsValidEmail - isValidEmail state object update function
- * @param isValidUsername - boolean state object to check if username is valid
- * @param setIsValidUsername - isValidUsername state object update function
- * @param checkEmpty - If true, will add empty form field validation else will not check empty fields
- */
 const UsernameForm = ({
   signup,
   setSignup,
@@ -103,5 +91,4 @@ const UsernameForm = ({
     </EuiFormRow>
   </>
 );
-
 export { UsernameForm };

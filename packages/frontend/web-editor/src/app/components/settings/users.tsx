@@ -26,25 +26,21 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 import { GenerateUserForm } from "../forms/generateUserForm";
 import { Can } from "../../providers/abilityProvider";
-
-/**
- * Generate columns for table containing the names of the users
- */
 function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
   return [
     {
       name: "Users",
       render: (item: MemberResult): JSX.Element => (
-        <Link to={`../preferences/${String(item.id)}/personal-data`}>{`${String(item.firstName)} ${String(
-          item.lastName,
-        )}`}</Link>
+        <Link
+          to={`../preferences/${String(item.id)}/personal-data`}
+        >{`${String(item.firstName)} ${String(item.lastName)}`}</Link>
       ),
       mobileOptions: {
         render: (item: MemberResult): JSX.Element => (
           <span>
-            <Link to={`../preferences/${String(item.id)}/personal-data`}>{`${String(item.firstName)} ${String(
-              item.lastName,
-            )}`}</Link>
+            <Link
+              to={`../preferences/${String(item.id)}/personal-data`}
+            >{`${String(item.firstName)} ${String(item.lastName)}`}</Link>
           </span>
         ),
         header: false,
@@ -54,7 +50,6 @@ function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
     },
   ];
 }
-
 export const ExpiryOptions = [
   { value: 60 * 60 * 1000, text: "1 Hour" },
   { value: 6 * 60 * 60 * 1000, text: "6 Hours" },
@@ -62,11 +57,6 @@ export const ExpiryOptions = [
   { value: 24 * 60 * 60 * 1000, text: "1 Day" },
   { value: 7 * 24 * 60 * 60 * 1000, text: "7 Days" },
 ];
-
-/**
- * Exports the list of users JSX.Element
- *
- */
 export function Users(): JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNewUserModalVisible, setIsNewUserModalVisible] = useState<boolean>(false);
@@ -76,18 +66,10 @@ export function Users(): JSX.Element {
   const [generatedUserId, setGeneratedUserId] = useState<string>("");
   const { addToast } = UseToastContext();
   let modal;
-
   const [expiry, setExpiry] = useState(ExpiryOptions[0].value);
-
   const onValueChange = (e: ChangeEvent<HTMLSelectElement>): void => {
     setExpiry(Number(e.target.value));
   };
-
-  /**
-   * This function sends an api call to create new user
-   * If user creation is successful toast will appear notifying the user
-   * else it will show danger toast to inform user user was not created
-   */
   const handleSignup = (): void => {
     ApiManager.signupWithoutSignIn(signup)
       .then(() => {
@@ -98,7 +80,6 @@ export function Users(): JSX.Element {
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };
-
   const inviteUser = (): void => {
     UserInviteApi.inviteUser(signup, expiry, 1)
       .then((result: Response) => {
@@ -116,9 +97,7 @@ export function Users(): JSX.Element {
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };
-
   if (isNewUserModalVisible) {
-    // Since we disable the modal buttons here we will pass an empty promise in the onSubmit parameter
     modal = (
       <GenericModal
         title="New User"
@@ -139,7 +118,6 @@ export function Users(): JSX.Element {
       />
     );
   }
-
   if (isInviteNewUserModalVisible) {
     modal = (
       <GenericModal
@@ -184,9 +162,6 @@ export function Users(): JSX.Element {
       />
     );
   }
-  /**
-   * Get all available users from database
-   */
   useEffect(() => {
     ApiManager.getUsers()
       .then((result: Members) => {

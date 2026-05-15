@@ -1,0 +1,43 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "sourceMap": true,
+    "declaration": true,
+    "declarationDir": "../../dist/types/engine/scram-node"
+  },
+  /**
+  * @link https://www.typescriptlang.org/tsconfig/#include
+  * Specifies an array of filenames or patterns to include in the program. These filenames are resolved relative to the
+  * directory containing the tsconfig.json file.
+  *
+  * include and exclude support wildcard characters to make glob patterns:
+  * '*'  matches zero or more characters (excluding directory separators)
+  * '?'  matches any one character (excluding directory separators)
+  * '**' matches any directory nested to any level
+  * If the last path segment in a pattern does not contain a file extension or wildcard character, then it is treated as
+  * a directory, and files with supported extensions inside that directory are included (e.g. .ts, .tsx, and .d.ts by
+  * default, with .js and .jsx if allowJs is set to true).
+  **/
+  "include": [
+    "targets/**/*.ts",
+    "targets/**/*.d.ts",
+    "targets/**/*.js"
+  ],
+
+  /**
+  * @link https://www.typescriptlang.org/tsconfig/#exclude
+  * Specifies an array of filenames or patterns that should be skipped when resolving include.
+  *
+  * Important: exclude only changes which files are included as a result of the include setting. A file specified by
+  * exclude can still become part of your codebase due to an import statement in your code, a types inclusion,
+  * a /// <reference directive, or being specified in the files list.
+  * It is not a mechanism that prevents a file from being included in the codebase - it simply changes what the include
+  * setting finds.
+  **/
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.e2e.ts"
+  ]
+}

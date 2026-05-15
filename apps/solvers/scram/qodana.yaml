@@ -1,0 +1,99 @@
+#-------------------------------------------------------------------------------#
+#               Qodana analysis is configured by qodana.yaml file               #
+#             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
+#-------------------------------------------------------------------------------#
+version: "1.0"
+#Specify inspection profile for code analysis
+profile:
+  name: qodana.recommended
+#Enable inspections
+#include:
+#  - name: <SomeEnabledInspectionId>
+#Disable inspections
+#exclude:
+#  - name: <SomeDisabledInspectionId>
+#    paths:
+#      - <path/where/not/run/inspection>
+#Execute shell command before Qodana execution (Applied in CI/CD pipeline)
+#bootstrap: sh ./prepare-qodana.sh
+#Install IDE plugins before Qodana execution (Applied in CI/CD pipeline)
+#plugins:
+#  - id: <plugin.id> #(plugin id can be found at https://plugins.jetbrains.com)
+#Specify Qodana linter for analysis (Applied in CI/CD pipeline)
+linter: jetbrains/qodana-js:latest
+include:
+  - name: JsCoverageInspection
+  - name: CheckDependencyLicenses
+  - name: Eslint
+  - name: HtmlFormInputWithoutLabel
+  - name: HtmlRequiredAltAttribute
+  - name: HtmlRequiredTitleAttribute
+  - name: HtmlRequiredTitleElement
+  - name: HtmlRequiredLangAttribute
+  - name: HtmlRequiredSummaryAttribute
+  - name: ES6TopLevelAwaitExpression
+  - name: JSHint
+  - name: StandardJS
+  - name: TsLint
+  - name: JSDeclarationsAtScopeStart
+  - name: ChainedEqualityJS
+  - name: ChainedFunctionCallJS
+  - name: CssMissingSemicolon
+  - name: NestedFunctionCallJS
+  - name: CssRedundantUnit
+  - name: JSRemoveUnnecessaryParentheses
+  - name: NonBlockStatementBodyJS
+  - name: UnterminatedStatementJS
+  - name: FunctionWithInconsistentReturnsJS
+  - name: JSUnusedGlobalSymbols
+  - name: JSTestFailedLine
+  - name: TypeScriptExplicitMemberType
+  - name: JSEqualityComparisonWithCoercion.TS
+  - name: TypeScriptMissingAugmentationImport
+  - name: EmptyCatchBlockJS
+  - name: EmptyFinallyBlockJS
+  - name: EmptyTryBlockJS
+  - name: UnusedCatchParameterJS
+  - name: DivideByZeroJS
+  - name: ObjectAllocationIgnoredJS
+  - name: CssMissingComma
+  - name: JSClassNamingConvention
+  - name: FunctionNamingConventionJS
+  - name: ParameterNamingConventionJS
+  - name: LocalVariableNamingConventionJS
+  - name: JsonSchemaCompliance
+  - name: JsonStandardCompliance
+  - name: JsonSchemaDeprecation
+  - name: JsonDuplicatePropertyKeys
+  - name: JsonSchemaRefReference
+  - name: Json5StandardCompliance
+  - name: PackageJsonMismatchedDependency
+  - name: JSXNamespaceValidation
+  - name: NpmUsedModulesInstalled
+  - name: JSUrlImportUsage
+  - name: TodoComment
+  - name: JSValidateTypes
+  - name: JSFileReferences
+  - name: JSUnresolvedReference
+  - name: JSJoinVariableDeclarationAndAssignment
+  - name: JSNonStrictModeUsed
+  - name: JSMethodCanBeStatic
+  - name: JSXSyntaxUsed
+  - name: IncorrectFormatting
+  - name: InconsistentLineSeparators
+  - name: JSAnnotator
+  - name: Annotator
+  - name: EmptyDirectory
+  - name: ProblematicWhitespace
+  - name: CheckModuleLicenses
+  - name: ReuseOfLocalVariableJS
+  - name: IfStatementWithIdenticalBranchesJS
+  - name: IfStatementWithTooManyBranchesJS
+  - name: ConditionalExpressionWithIdenticalBranchesJS
+  - name: DuplicateConditionJS
+  - name: TailRecursionJS
+  - name: ReplaceAssignmentWithOperatorAssignmentJS
+  - name: AssignmentToForLoopParameterJS
+  - name: AssignmentToFunctionParameterJS
+  - name: NestedAssignmentJS
+  - name: AssignmentResultUsedJS

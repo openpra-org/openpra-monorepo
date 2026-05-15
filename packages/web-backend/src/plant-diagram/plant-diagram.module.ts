@@ -4,7 +4,6 @@ import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schem
 import { PlantDiagramController } from "./plant-diagram.controller";
 import { PlantDiagramService } from "./plant-diagram.service";
 import { PlantDiagram, PlantDiagramSchema } from "./schemas/plant-diagram.schema";
-
 @Module({
   imports: [
     MongooseModule.forFeature([

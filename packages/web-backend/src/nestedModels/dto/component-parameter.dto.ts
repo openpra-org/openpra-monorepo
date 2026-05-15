@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createZodDto } from "../../zod/zod-dto";
-
 const createComponentParameterSchema = z.object({
   componentType: z.string().min(1),
   componentFailureMode: z.string().min(1),
@@ -24,11 +23,8 @@ const createComponentParameterSchema = z.object({
   dateRange: z.string().optional(),
   effectiveDate: z.string().optional(),
 });
-
 const updateComponentParameterSchema = createComponentParameterSchema.partial();
-
 export class CreateComponentParameterDto extends createZodDto(createComponentParameterSchema) {}
 export class UpdateComponentParameterDto extends createZodDto(updateComponentParameterSchema) {}
-
 export type CreateComponentParameterBody = z.infer<typeof createComponentParameterSchema>;
 export type UpdateComponentParameterBody = z.infer<typeof updateComponentParameterSchema>;

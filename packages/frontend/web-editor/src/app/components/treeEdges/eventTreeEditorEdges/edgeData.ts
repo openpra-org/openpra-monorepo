@@ -1,10 +1,4 @@
 import { Edge } from "reactflow";
-
-/**
- * Example edge definitions used by the Event Tree editor demo.
- *
- * These edges connect the sample nodes rendered in the editor preview.
- */
 export const edgeData: Edge[] = [
   {
     id: "horizontal-1-2a",
@@ -20,7 +14,6 @@ export const edgeData: Edge[] = [
     target: "horizontal-2-b",
     animated: false,
   },
-
   {
     id: "horizontal-2a-3a",
     source: "horizontal-2-a",
@@ -56,7 +49,6 @@ export const edgeData: Edge[] = [
     target: "horizontal-4-b",
     animated: false,
   },
-
   {
     id: "vertical-e1-2",
     source: "vertical-1",
@@ -70,7 +62,6 @@ export const edgeData: Edge[] = [
     source: "vertical-2",
     hidden: true,
     type: "custom",
-
     target: "vertical-3",
     animated: false,
   },

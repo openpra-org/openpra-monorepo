@@ -2,9 +2,7 @@ import { BrowserRouter } from "react-router-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { SettingsOverview } from "../settingsOverview";
-
 describe("SettingsOverview", () => {
-  //test for accordian
   it("Renders the accordian", () => {
     render(
       <BrowserRouter>
@@ -14,8 +12,6 @@ describe("SettingsOverview", () => {
     const settingsAccordian = screen.getByTestId("settingsAccordian");
     expect(settingsAccordian).toBeInTheDocument();
   });
-
-  //test for settings menu
   it("Renders the save button", () => {
     render(
       <BrowserRouter>
@@ -27,8 +23,6 @@ describe("SettingsOverview", () => {
     const saveButton = screen.getByTestId("saveButton");
     expect(saveButton).toBeInTheDocument();
   });
-
-  //test for settings menu
   it("Renders the title", () => {
     render(
       <BrowserRouter>
@@ -40,8 +34,6 @@ describe("SettingsOverview", () => {
     const title = screen.getByTestId("title");
     expect(title).toBeInTheDocument();
   });
-
-  //test for settings menu
   it("Renders the text", () => {
     render(
       <BrowserRouter>
@@ -53,8 +45,6 @@ describe("SettingsOverview", () => {
     const text = screen.getByTestId("text");
     expect(text).toBeInTheDocument();
   });
-
-  //test for settings menu
   it("Renders the diagram select", () => {
     render(
       <BrowserRouter>
@@ -66,8 +56,6 @@ describe("SettingsOverview", () => {
     const selectDiagram = screen.getByTestId("selectDiagram");
     expect(selectDiagram).toBeInTheDocument();
   });
-
-  //test for settings menu
   it("Renders the diagram number", () => {
     render(
       <BrowserRouter>

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { EuiButton, EuiAccordion } from "@elastic/eui";
-
 const SettingsAccordian = ({
   id,
   children,
@@ -13,11 +12,9 @@ const SettingsAccordian = ({
   initial?: boolean;
 }): JSX.Element => {
   const [isOpen, setIsOpen] = useState(initial);
-
   const onToggle = (): void => {
     setIsOpen(!isOpen);
   };
-
   const extraAction = (
     <EuiButton
       color="accent"
@@ -28,7 +25,6 @@ const SettingsAccordian = ({
       {isOpen ? "Collapse" : "Expand"}
     </EuiButton>
   );
-
   return (
     <EuiAccordion
       id={id}
@@ -43,5 +39,4 @@ const SettingsAccordian = ({
     </EuiAccordion>
   );
 };
-
 export { SettingsAccordian };

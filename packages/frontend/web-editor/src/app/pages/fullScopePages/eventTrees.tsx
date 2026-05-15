@@ -11,43 +11,27 @@ import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList"
 import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
 import { parseOpenPsaEventTreeXml, buildImportedEventTreeGraph } from "../../../utils/parseOpenPsaEventTreeXml";
 import { EventTreeState } from "../../../utils/treeUtils";
-// TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
-
 import { nodeTypes } from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 import { EventTreeQuantificationPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreeQuantificationPanel";
 import { EventTreePropertiesPanel } from "../../components/treeNodes/eventTreeEditorNode/eventTreePropertiesPanel";
 import { useEventTreeStore } from "../../hooks/eventTree/useEventTreeStore";
-
 import useLayout from "../../hooks/eventTree/useLayout";
 import EventTreeNodeContextMenu, { TreeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
-
-// Initial set of nodes to be used in the ReactFlow component.
-
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
-
-// Modified fitViewOptions to ensure better visibility
 const fitViewOptions = {
   padding: 0.2,
   minZoom: 0.5,
   maxZoom: 2,
 };
-
 const PANEL_WIDTH = 300;
-
-// Component to handle proper fitting of the viewport
 const FitViewHandler: React.FC = (): null => {
   const reactFlowInstance = useReactFlow();
-
   useEffect(() => {
-    // Wait for nodes to be properly rendered
     const timer = setTimeout((): void => {
-      // Start slightly zoomed out to ensure we can see everything
       reactFlowInstance.setViewport({ zoom: 0.8, x: 0, y: 0 }, { duration: 0 });
-
-      // Then fit properly with a slight delay
       setTimeout((): void => {
         reactFlowInstance.fitView({
           ...fitViewOptions,
@@ -55,22 +39,12 @@ const FitViewHandler: React.FC = (): null => {
         });
       }, 50);
     }, 250);
-
     return (): void => {
       clearTimeout(timer);
     };
   }, [reactFlowInstance]);
-
   return null;
 };
-
-/**
- * The `HorizontalFlow` component sets up a React Flow instance with predefined nodes and edges.
- * It utilizes the `useNodesState` and `useEdgesState` hooks from React Flow to manage the state of nodes and edges.
- * The `onConnect` callback is used to handle new connections between nodes.
- *
- * @returns ReactElement The React Flow component with nodes and edges configured for horizontal layout.
- */
 interface Props {
   nodeData: Node[];
   edgeData: Edge[];
@@ -88,26 +62,20 @@ interface CustomNodeData {
 }
 const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   useLayout(depth);
-
   const { zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
-
   const [nodes, setNodes] = useState<Node<CustomNodeData>[]>(nodeData);
   const [edges, setEdges] = useState<Edge[]>(edgeData);
-
   const [loading, setLoading] = useState(true);
   const { eventTreeId, modelId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
-
   const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
-
   const setFunctionalEvents = useEventTreeStore((s) => s.setFunctionalEvents);
-
   useEffect((): void => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getEventTree(eventTreeId).then((res: EventTreeGraph) => {
@@ -121,12 +89,8 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     };
     void (loading && loadGraph());
   }, [eventTreeId, loading, nodeData, edgeData, setFunctionalEvents]);
-
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node): void => {
-    // Prevent native context menu from showing
     event.preventDefault();
-    // Calculate position of the context menu. We want to make sure it
-    // doesn't get positioned off-screen.
     setIsOpen((prev) => !prev);
     const pane = ref.current.getBoundingClientRect();
     setMenu({
@@ -137,7 +101,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
       bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
     });
   }, []);
-
   const onNodeClick = useCallback(
     (_e: React.MouseEvent, node: Node): void => {
       if (node.type === "columnNode") {
@@ -154,13 +117,11 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     },
     [getNodes],
   );
-
   const onPaneClick = useCallback((): void => {
     setMenu(null);
     setIsOpen(false);
     setSelectedNodeId(null);
   }, []);
-
   const handleImportXml = useCallback(
     async (file: File): Promise<void> => {
       if (!eventTreeId || !modelId) return;
@@ -168,8 +129,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
       try {
         const xml = await file.text();
         const parsed = parseOpenPsaEventTreeXml(xml);
-
-        // Create NestedModel records + store graph for each referenced fault tree
         const ftNameToId: Record<string, string> = {};
         const typedModel = GetCurrentModelType();
         for (const fe of parsed.eventTree.functionalEvents) {
@@ -187,17 +146,13 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
           });
           ftNameToId[fe.faultTreeName] = meta._id;
         }
-
-        // Build and store the event tree graph
         const { nodes: importedNodes, edges: importedEdges } = buildImportedEventTreeGraph(parsed, ftNameToId);
         await GraphApiManager.storeEventTree(
           EventTreeState({ eventTreeId, nodes: importedNodes, edges: importedEdges }),
         );
-
-        // Reload editor
         setLoading(true);
       } catch (err) {
-        console.error("[ET Import]", err); // eslint-disable-line no-console
+        console.error("[ET Import]", err);
         alert(`Import failed: ${err instanceof Error ? err.message : "unknown error"}`);
       } finally {
         setIsImporting(false);
@@ -206,7 +161,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
     },
     [eventTreeId, modelId, importFileRef],
   );
-
   return loading ?
       <LoadingCard />
     : <div style={{ position: "absolute", inset: 0, display: "flex", width: "100%", height: "100%" }}>
@@ -219,7 +173,7 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             defaultNodes={nodes}
             defaultEdges={edges}
             proOptions={proOptions}
-            fitView={false} // Disable automatic fit view - we'll handle it ourselves
+            fitView={false}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onPaneClick={onPaneClick}
@@ -230,12 +184,10 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
             nodesDraggable={false}
             nodesConnectable={false}
             zoomOnDoubleClick={false}
-            // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-            // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
             deleteKeyCode={null}
             className="react-flow-instance"
             style={{ width: "100%", height: "100%" }}
-            defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
+            defaultViewport={{ x: 0, y: 0, zoom: 0.7 }}
           >
             <Panel position="bottom-left">
               <EuiFlexGroup
@@ -325,7 +277,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
           </ReactFlow>
         </div>
 
-        {/* ── Quantification panel ── */}
         {isQuantifyOpen && eventTreeId && (
           <EuiPanel
             paddingSize="none"
@@ -345,7 +296,6 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
           </EuiPanel>
         )}
 
-        {/* ── Properties panel ── */}
         {selectedNodeId && (
           <EuiPanel
             paddingSize="none"
@@ -369,17 +319,10 @@ const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
         )}
       </div>;
 };
-
-/**
- * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
- * @returns ReactElement The HorizontalFlow component for editing event trees.
- */
 export const EventTreeEditor = (): ReactElement => {
   const input = 2;
   const output = 2;
   const { nodes, edges } = useTreeData(input, output, 140);
-
-  // Add some CSS to ensure the container can show the entire graph
   useEffect((): (() => void) => {
     const styleEl = document.createElement("style");
     styleEl.textContent = `
@@ -411,12 +354,10 @@ export const EventTreeEditor = (): ReactElement => {
       }
     `;
     document.head.appendChild(styleEl);
-
     return () => {
       document.head.removeChild(styleEl);
     };
   }, []);
-
   return (
     <div style={{ position: "relative", width: "100%", height: "calc(100vh - 60px)", overflow: "hidden" }}>
       <ReactFlowProvider>
@@ -429,11 +370,6 @@ export const EventTreeEditor = (): ReactElement => {
     </div>
   );
 };
-
-/**
- * The EventTrees component provides routing for the event tree list and the event tree editor.
- * @returns ReactElement Routes component containing the EventTreeList and EventTreeEditor components.
- */
 function EventTrees(): ReactElement {
   return (
     <CategoryProvider>
@@ -450,5 +386,4 @@ function EventTrees(): ReactElement {
     </CategoryProvider>
   );
 }
-
 export { EventTrees };

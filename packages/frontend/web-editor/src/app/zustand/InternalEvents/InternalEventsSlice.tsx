@@ -3,7 +3,6 @@ import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 import { InternalEventsActionsType, InternalEventsType } from "./InternalEventsTypes";
 import { InternalEventsState } from "./InternalEventsState";
 import { AddInternalEvent, DeleteInternalEvent, EditInternalEvent, SetInternalEvents } from "./InternalEventsActions";
-
 const InternalEventsSlice: StateCreator<
   StoreStateType & StoreActionType,
   [],
@@ -21,5 +20,4 @@ const InternalEventsSlice: StateCreator<
     DeleteInternalEvent: DeleteInternalEvent,
   };
 };
-
 export { InternalEventsSlice };

@@ -1,8 +1,5 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function InitiatingEventsTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
   const rows = [
     {
       id: "id1",
@@ -27,11 +24,6 @@ function InitiatingEventsTable(): JSX.Element {
       effectiveDate: "2021-11-01",
     },
   ];
-
-  //has the following column headers
-  // Section, Sub Section, Initiating Event, Description, Source, Number of Events, Reactor Critical Years
-  // Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, std dev, Error Factor, Baseline Period, Effective Date
-  // It may be worth going back and making some of these enums instead for limited options
   const columns = [
     {
       id: "id",
@@ -142,7 +134,6 @@ function InitiatingEventsTable(): JSX.Element {
       displayAsText: "Effective Date",
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -150,5 +141,4 @@ function InitiatingEventsTable(): JSX.Element {
     />
   );
 }
-
 export { InitiatingEventsTable };

@@ -11,14 +11,8 @@ import {
 import { useContext } from "react";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { PreferenceContext, PreferenceContextType } from "../settings/preferences";
-
-/**
- * Function returns the main user profile page
- *
- */
 export function EditPersonalInfoForm(): JSX.Element {
   const { currentUser, setCurrentUser } = useContext<PreferenceContextType>(PreferenceContext);
-
   return (
     <EuiPageTemplate
       panelled={false}

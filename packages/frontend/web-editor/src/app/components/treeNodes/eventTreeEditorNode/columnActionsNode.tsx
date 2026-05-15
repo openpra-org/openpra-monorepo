@@ -4,18 +4,15 @@ import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
-
 export interface ColumnActionsNodeData {
   width: number;
   label?: string;
 }
-
 interface ColumnNodeDataShape {
   depth: number;
   allowAdd?: boolean;
   output?: boolean;
 }
-
 function ColumnActionsNode(_props: NodeProps<ColumnActionsNodeData>): JSX.Element {
   const rightmostFEId = useStore((s) => {
     const feNodes = Array.from(s.nodeInternals.values()).filter(
@@ -25,10 +22,8 @@ function ColumnActionsNode(_props: NodeProps<ColumnActionsNodeData>): JSX.Elemen
     const maxDepth = feNodes.reduce((max, n) => Math.max(max, (n.data as ColumnNodeDataShape).depth ?? 0), 0);
     return feNodes.find((n) => (n.data as ColumnNodeDataShape).depth === maxDepth)?.id ?? "";
   });
-
   const onClickAdd = useCreateColClick(rightmostFEId);
   const onClickDelete = useDeleteColClick(rightmostFEId);
-
   return (
     <>
       <Handle
@@ -90,5 +85,4 @@ function ColumnActionsNode(_props: NodeProps<ColumnActionsNodeData>): JSX.Elemen
     </>
   );
 }
-
 export default memo(ColumnActionsNode);

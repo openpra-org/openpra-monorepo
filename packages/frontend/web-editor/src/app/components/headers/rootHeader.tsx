@@ -31,7 +31,6 @@ import { ToTitleCase, TokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
-
 const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
   const internalEvents = UseGlobalStore.use.InternalEvents();
@@ -42,7 +41,6 @@ const RootHeader = (): JSX.Element => {
   const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
   const fullScope = UseGlobalStore.use.FullScope();
   const setFullScope = UseGlobalStore.use.SetFullScope();
-
   useEffect(() => {
     if (!ApiManager.isLoggedIn()) return;
     const s = UseGlobalStore.getState();
@@ -55,7 +53,6 @@ const RootHeader = (): JSX.Element => {
       void Promise.all([setInternalEvents(), setInternalHazards(), setExternalHazards(), setFullScope()]);
     }
   }, [setInternalEvents, setInternalHazards, setExternalHazards, setFullScope]);
-
   const getModelName = (token: string): string => {
     const numericId = Number(token);
     if (!isNaN(numericId)) {
@@ -70,7 +67,6 @@ const RootHeader = (): JSX.Element => {
     }
     return token;
   };
-
   const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
     const tokens = TokenizePath(path);
     return tokens.map((token, i) => {
@@ -86,15 +82,12 @@ const RootHeader = (): JSX.Element => {
       };
     });
   };
-
   const location = useLocation();
-
   useEffect(() => {
     if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
       void navigate("/");
     }
   }, [location.pathname, navigate]);
-
   const renderBreadcrumbs = (): JSX.Element => (
     <EuiHeaderBreadcrumbs
       aria-label="Navigation Breadcrumbs"
@@ -139,7 +132,6 @@ const RootHeader = (): JSX.Element => {
       }
     />
   );
-
   return (
     <EuiHeader position="fixed">
       <EuiHeaderSection grow={false}>
@@ -167,33 +159,25 @@ export { RootHeader };
 const HeaderUserMenu = (): JSX.Element => {
   const navigate = useNavigate();
   const { logout: authLogout } = useAuth();
-
   const headerUserPopoverId = useGeneratedHtmlId({
     prefix: "headerUserPopover",
   });
-
   const [isOpen, setIsOpen] = useState(false);
-
   const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
-
   const currentUser = ApiManager.getCurrentUser();
   const nameString = currentUser.username ? currentUser.username : "Unknown User";
-
   const closeMenu = (): void => {
     setIsOpen(false);
   };
-
   const logoutFunction = (): void => {
     ApiManager.logout();
     window.location.replace("/");
   };
-
   const adminFunction = (): void => {
     void navigate("settings");
   };
-
   const button = (
     <EuiHeaderSectionItemButton
       aria-controls={headerUserPopoverId}
@@ -262,7 +246,6 @@ const HeaderUserMenu = (): JSX.Element => {
     </EuiPopover>
   );
 };
-
 const HeaderAppMenu = (): JSX.Element => {
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const headerAppKeyPadMenuId = useGeneratedHtmlId({

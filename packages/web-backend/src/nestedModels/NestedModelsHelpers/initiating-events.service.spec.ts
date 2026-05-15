@@ -4,10 +4,8 @@ import { InitiatingEventsService } from "./initiating-events.service";
 import { InitiatingEvent } from "../schemas/initiating-event.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModelHelperService } from "../nested-model-helper.service";
-
 describe("InitiatingEventsService", () => {
   let service: InitiatingEventsService;
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,10 +18,8 @@ describe("InitiatingEventsService", () => {
         },
       ],
     }).compile();
-
     service = module.get<InitiatingEventsService>(InitiatingEventsService);
   });
-
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

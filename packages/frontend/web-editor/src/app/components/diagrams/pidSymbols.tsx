@@ -1,7 +1,6 @@
 import { memo, CSSProperties } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
 import type { PidNodeData, PidSymbolType } from "shared-sdk/lib/api/PlantDiagramApiManager";
-
 function VesselSvg(): JSX.Element {
   return (
     <g
@@ -37,7 +36,6 @@ function VesselSvg(): JSX.Element {
     </g>
   );
 }
-
 function TankSvg(): JSX.Element {
   return (
     <g
@@ -73,7 +71,6 @@ function TankSvg(): JSX.Element {
     </g>
   );
 }
-
 function PumpSvg(): JSX.Element {
   return (
     <g
@@ -86,7 +83,7 @@ function PumpSvg(): JSX.Element {
         cy="20"
         r="13"
       />
-      {}
+
       <polygon
         points="10,27 20,7 30,27"
         fill="none"
@@ -102,7 +99,6 @@ function PumpSvg(): JSX.Element {
     </g>
   );
 }
-
 function CompressorSvg(): JSX.Element {
   return (
     <g
@@ -115,7 +111,7 @@ function CompressorSvg(): JSX.Element {
         cy="20"
         r="13"
       />
-      {}
+
       <path
         d="M27,12 Q10,12 10,20 Q10,28 27,28"
         fill="none"
@@ -124,7 +120,6 @@ function CompressorSvg(): JSX.Element {
     </g>
   );
 }
-
 function HeatExchangerSvg(): JSX.Element {
   return (
     <g
@@ -145,7 +140,6 @@ function HeatExchangerSvg(): JSX.Element {
     </g>
   );
 }
-
 function ColumnSvg(): JSX.Element {
   return (
     <g
@@ -178,7 +172,7 @@ function ColumnSvg(): JSX.Element {
         rx="8"
         ry="3"
       />
-      {}
+
       <line
         x1="12"
         y1="14"
@@ -203,7 +197,6 @@ function ColumnSvg(): JSX.Element {
     </g>
   );
 }
-
 function ReactorSvg(): JSX.Element {
   return (
     <g
@@ -216,7 +209,7 @@ function ReactorSvg(): JSX.Element {
         cy="20"
         r="13"
       />
-      {}
+
       <line
         x1="20"
         y1="7"
@@ -248,7 +241,6 @@ function ReactorSvg(): JSX.Element {
     </g>
   );
 }
-
 function FurnaceSvg(): JSX.Element {
   return (
     <g
@@ -263,7 +255,7 @@ function FurnaceSvg(): JSX.Element {
         height="26"
         rx="2"
       />
-      {}
+
       <path
         d="M13,26 Q13,18 17,22 Q17,14 20,18 Q20,10 23,14 Q23,18 27,26"
         fill="none"
@@ -272,7 +264,6 @@ function FurnaceSvg(): JSX.Element {
     </g>
   );
 }
-
 function FilterSvg(): JSX.Element {
   return (
     <g
@@ -281,7 +272,7 @@ function FilterSvg(): JSX.Element {
       strokeWidth="1.5"
     >
       <polygon points="20,5 35,20 20,35 5,20" />
-      {}
+
       <line
         x1="12"
         y1="20"
@@ -306,7 +297,6 @@ function FilterSvg(): JSX.Element {
     </g>
   );
 }
-
 function GateValveSvg(): JSX.Element {
   return (
     <g
@@ -320,7 +310,6 @@ function GateValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function GlobeValveSvg(): JSX.Element {
   return (
     <g
@@ -339,7 +328,6 @@ function GlobeValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function BallValveSvg(): JSX.Element {
   return (
     <g
@@ -359,7 +347,6 @@ function BallValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function ButterflyValveSvg(): JSX.Element {
   return (
     <g
@@ -379,7 +366,6 @@ function ButterflyValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function CheckValveSvg(): JSX.Element {
   return (
     <g
@@ -397,7 +383,6 @@ function CheckValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function ControlValveSvg(): JSX.Element {
   return (
     <g
@@ -406,10 +391,9 @@ function ControlValveSvg(): JSX.Element {
       strokeWidth="1.5"
       strokeLinejoin="miter"
     >
-      {}
       <polygon points="9,13 9,27 20,20" />
       <polygon points="31,13 31,27 20,20" />
-      {}
+
       <line
         x1="20"
         y1="13"
@@ -424,7 +408,6 @@ function ControlValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function ReliefValveSvg(): JSX.Element {
   return (
     <g
@@ -435,7 +418,7 @@ function ReliefValveSvg(): JSX.Element {
     >
       <polygon points="8,14 8,32 20,23" />
       <polygon points="32,14 32,32 20,23" />
-      {}
+
       <line
         x1="20"
         y1="14"
@@ -455,7 +438,6 @@ function ReliefValveSvg(): JSX.Element {
     </g>
   );
 }
-
 function InstrumentSvg({ code }: { code: string }): JSX.Element {
   const first = code.slice(0, 3);
   const second = code.slice(3, 7);
@@ -469,7 +451,7 @@ function InstrumentSvg({ code }: { code: string }): JSX.Element {
         fill="white"
         strokeWidth="1.5"
       />
-      {}
+
       <line
         x1="6"
         y1="20"
@@ -506,7 +488,6 @@ function InstrumentSvg({ code }: { code: string }): JSX.Element {
     </g>
   );
 }
-
 export function SymbolShape({
   symbolType,
   instrumentCode,
@@ -565,19 +546,16 @@ export function SymbolShape({
       );
   }
 }
-
 const handleStyle: CSSProperties = {
   width: 8,
   height: 8,
   background: "#aaa",
   border: "1px solid #666",
 };
-
 function PidNodeComponent({ data, selected }: NodeProps<PidNodeData>): JSX.Element {
   const isText = data.symbolType === "text_label";
   const nodeW = isText ? "auto" : 60;
   const nodeH = isText ? "auto" : 60;
-
   const outerStyle: CSSProperties = {
     width: nodeW,
     height: nodeH,
@@ -594,10 +572,8 @@ function PidNodeComponent({ data, selected }: NodeProps<PidNodeData>): JSX.Eleme
     border: isText ? "1px dashed #aaa" : "none",
     userSelect: "none",
   };
-
   return (
     <div style={outerStyle}>
-      {}
       <Handle
         type="source"
         position={Position.Top}
@@ -682,18 +658,14 @@ function PidNodeComponent({ data, selected }: NodeProps<PidNodeData>): JSX.Eleme
     </div>
   );
 }
-
 export const PidNode = memo(PidNodeComponent);
-
 export const NODE_TYPES = { pid: PidNode };
-
 export type PaletteSymbol = {
   symbolType: PidSymbolType;
   label: string;
   group: "Equipment" | "Valves" | "Instruments" | "Annotation";
   defaultInstrumentCode?: string;
 };
-
 export const PALETTE_SYMBOLS: PaletteSymbol[] = [
   { symbolType: "vessel", label: "Vessel / Tank (vertical)", group: "Equipment" },
   { symbolType: "tank", label: "Horizontal Tank", group: "Equipment" },
@@ -704,7 +676,6 @@ export const PALETTE_SYMBOLS: PaletteSymbol[] = [
   { symbolType: "reactor", label: "Reactor / Vessel with Agitator", group: "Equipment" },
   { symbolType: "furnace", label: "Furnace / Fired Heater", group: "Equipment" },
   { symbolType: "filter", label: "Filter / Strainer", group: "Equipment" },
-
   { symbolType: "gate_valve", label: "Gate Valve", group: "Valves" },
   { symbolType: "globe_valve", label: "Globe Valve", group: "Valves" },
   { symbolType: "ball_valve", label: "Ball Valve", group: "Valves" },
@@ -712,7 +683,6 @@ export const PALETTE_SYMBOLS: PaletteSymbol[] = [
   { symbolType: "check_valve", label: "Check Valve", group: "Valves" },
   { symbolType: "control_valve", label: "Control Valve", group: "Valves" },
   { symbolType: "relief_valve", label: "Safety / Relief Valve", group: "Valves" },
-
   { symbolType: "instrument", label: "Flow Indicator (FI)", group: "Instruments", defaultInstrumentCode: "FI" },
   { symbolType: "instrument", label: "Flow Controller (FC)", group: "Instruments", defaultInstrumentCode: "FC" },
   { symbolType: "instrument", label: "Pressure Indicator (PI)", group: "Instruments", defaultInstrumentCode: "PI" },
@@ -722,6 +692,5 @@ export const PALETTE_SYMBOLS: PaletteSymbol[] = [
   { symbolType: "instrument", label: "Level Indicator (LI)", group: "Instruments", defaultInstrumentCode: "LI" },
   { symbolType: "instrument", label: "Level Controller (LC)", group: "Instruments", defaultInstrumentCode: "LC" },
   { symbolType: "instrument", label: "Analyzer Transmitter (AT)", group: "Instruments", defaultInstrumentCode: "AT" },
-
   { symbolType: "text_label", label: "Text / Annotation", group: "Annotation" },
 ];

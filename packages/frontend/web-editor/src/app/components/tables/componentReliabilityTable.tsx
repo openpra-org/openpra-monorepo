@@ -2,7 +2,6 @@ import { SetStateAction, useCallback, useState } from "react";
 import { EuiButton, EuiButtonIcon, EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
 import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
 import { ComponentParameterType } from "shared-sdk/lib/api/NestedModelApiManager";
-
 export type ComponentReliabilityTableProps = {
   rows: ComponentParameterType[];
   onAdd: () => void;
@@ -10,7 +9,6 @@ export type ComponentReliabilityTableProps = {
   onDelete: (id: number) => void;
   onImport: () => void;
 };
-
 const SCIENTIFIC_COLUMNS = new Set([
   "fth",
   "median",
@@ -22,7 +20,6 @@ const SCIENTIFIC_COLUMNS = new Set([
   "dhValue",
   "componentCount",
 ]);
-
 const COLUMNS = [
   { id: "grouping", displayAsText: "Grouping", truncateText: true },
   { id: "componentType", displayAsText: "Component Type", truncateText: true },
@@ -46,7 +43,6 @@ const COLUMNS = [
   { id: "dateRange", displayAsText: "Date Range" },
   { id: "effectiveDate", displayAsText: "Effective Date" },
 ];
-
 function ComponentReliabilityTable({
   rows,
   onAdd,
@@ -57,19 +53,15 @@ function ComponentReliabilityTable({
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMNS.map((c) => c.id));
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
   const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
-
   const onChangeItemsPerPage = useCallback((pageSize: number): void => {
     setPagination((p) => ({ ...p, pageSize, pageIndex: 0 }));
   }, []);
-
   const onChangePage = useCallback((pageIndex: number): void => {
     setPagination((p) => ({ ...p, pageIndex }));
   }, []);
-
   const onSort = useCallback((updated: SetStateAction<EuiDataGridColumnSortingConfig[]>): void => {
     setSortingColumns(updated);
   }, []);
-
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: { rowIndex: number; columnId: string }): string | null => {
       const row = rows[rowIndex];
@@ -83,7 +75,6 @@ function ComponentReliabilityTable({
     },
     [rows],
   );
-
   return (
     <EuiFlexGroup direction="column">
       <EuiFlexItem grow={false}>
@@ -167,5 +158,4 @@ function ComponentReliabilityTable({
     </EuiFlexGroup>
   );
 }
-
 export { ComponentReliabilityTable };

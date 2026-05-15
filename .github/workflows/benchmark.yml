@@ -1,0 +1,51 @@
+# Runs the Aralia fault-tree benchmark suite on the self-hosted cluster runner.
+name: C2C Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "Dataset name"
+        default: "aralia"
+        required: false
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: self-hosted
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to private registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.openpra.org
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Pull benchmark image
+        run: docker pull registry.openpra.org/c2c-benchmark:latest
+
+      - name: Prepare results directory
+        run: mkdir -p ${{ github.workspace }}/fixtures/results
+
+      - name: Run benchmark
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/fixtures/aralia:/data:ro" \
+            -v "${{ github.workspace }}/deploy/utilities/benchmarking/scripts:/benchmark/scripts:ro" \
+            -v "${{ github.workspace }}/fixtures/results:/benchmark/results" \
+            -e MODEL_NAME=${{ inputs.dataset || 'aralia' }} \
+            registry.openpra.org/c2c-benchmark:latest \
+            bash /benchmark/scripts/run_benchmark.sh
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results-${{ inputs.dataset || 'aralia' }}-${{ github.run_id }}
+          path: ${{ github.workspace }}/fixtures/results/
+          retention-days: 90

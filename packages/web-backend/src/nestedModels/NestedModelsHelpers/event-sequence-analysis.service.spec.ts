@@ -4,10 +4,8 @@ import { EventSequenceAnalysisService } from "./event-sequence-analysis.service"
 import { EventSequenceAnalysis } from "../schemas/event-sequence-analysis.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModelHelperService } from "../nested-model-helper.service";
-
 describe("EventSequenceAnalysisService", () => {
   let service: EventSequenceAnalysisService;
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,10 +18,8 @@ describe("EventSequenceAnalysisService", () => {
         },
       ],
     }).compile();
-
     service = module.get<EventSequenceAnalysisService>(EventSequenceAnalysisService);
   });
-
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

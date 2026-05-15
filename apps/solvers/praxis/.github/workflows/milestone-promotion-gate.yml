@@ -1,0 +1,31 @@
+name: Milestone Promotion Gate
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  milestone-promotion-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Converted real-model suite (promotion blocker)
+        run: cargo test -q openpra_json_parity --test integration
+
+      - name: Full S9 gate (promotion blocker)
+        run: bash scripts/s9_release_gate.sh

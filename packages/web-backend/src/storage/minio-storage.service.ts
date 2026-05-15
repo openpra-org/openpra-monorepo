@@ -2,16 +2,13 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as Minio from "minio";
 import { Readable } from "stream";
-
 @Injectable()
 export class MinioStorageService implements OnModuleInit {
   private readonly client: Minio.Client;
   private readonly bucket: string;
   private readonly logger = new Logger(MinioStorageService.name);
-
   constructor(private readonly config: ConfigService) {
     this.bucket = this.config.getOrThrow<string>("MINIO_OPENPRA_BUCKET");
-
     this.client = new Minio.Client({
       endPoint: this.config.getOrThrow<string>("MINIO_ENDPOINT"),
       port: Number(this.config.getOrThrow<string>("MINIO_PORT")),
@@ -20,7 +17,6 @@ export class MinioStorageService implements OnModuleInit {
       secretKey: this.config.getOrThrow<string>("MINIO_SECRET_KEY"),
     });
   }
-
   async onModuleInit(): Promise<void> {
     const exists = await this.client.bucketExists(this.bucket);
     if (!exists) {
@@ -30,15 +26,12 @@ export class MinioStorageService implements OnModuleInit {
       this.logger.log(`Bucket ready: ${this.bucket}`);
     }
   }
-
   getClient(): Minio.Client {
     return this.client;
   }
-
   getBucket(): string {
     return this.bucket;
   }
-
   async listObjects(modelId: string, teType: string): Promise<string[]> {
     const prefix = `${modelId}/${teType}/`;
     const stream = this.client.listObjectsV2(this.bucket, prefix, true);
@@ -51,7 +44,6 @@ export class MinioStorageService implements OnModuleInit {
     }
     return uuids;
   }
-
   async getObject<T>(modelId: string, teType: string, uuid: string): Promise<T> {
     const key = `${modelId}/${teType}/${uuid}.json`;
     const stream = await this.client.getObject(this.bucket, key);
@@ -61,7 +53,6 @@ export class MinioStorageService implements OnModuleInit {
     }
     return JSON.parse(Buffer.concat(chunks).toString("utf-8")) as T;
   }
-
   async putObject(modelId: string, teType: string, uuid: string, data: unknown): Promise<void> {
     const key = `${modelId}/${teType}/${uuid}.json`;
     const body = JSON.stringify(data);
@@ -70,7 +61,6 @@ export class MinioStorageService implements OnModuleInit {
       "Content-Type": "application/json",
     });
   }
-
   async deleteObject(modelId: string, teType: string, uuid: string): Promise<void> {
     const key = `${modelId}/${teType}/${uuid}.json`;
     await this.client.removeObject(this.bucket, key);

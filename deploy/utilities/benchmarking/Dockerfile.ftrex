@@ -1,0 +1,37 @@
+FROM ubuntu:24.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Wine and necessary dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        wine64 \
+        wine \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up Wine environment
+ENV WINEDEBUG=-all
+ENV WINEPREFIX=/opt/wine
+ENV WINEARCH=win64
+
+# Initialize Wine (quietly)
+RUN wine64 winecfg /v win10
+
+# Create directory for FTREX
+WORKDIR /opt/ftrex
+
+# Copy FTREX files from the host
+COPY apps/solvers/ftrex/ /opt/ftrex/
+
+# Ensure the wrapper script is executable and in the PATH
+RUN chmod +x /opt/ftrex/ftrex && \
+    ln -s /opt/ftrex/ftrex /usr/local/bin/ftrex && \
+    /opt/ftrex/ftrex "/SERIAL=$(cat /opt/ftrex/Serial.txt | tr -d '\r\n')"
+
+# Default working directory for benchmarks
+WORKDIR /benchmark
+
+# Default command
+CMD ["bash"]

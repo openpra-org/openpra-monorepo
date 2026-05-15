@@ -10,12 +10,6 @@ import { PasswordChange } from "../../components/settings/passwordChange";
 import { Invitations } from "../../components/settings/invitations";
 import { Roles } from "../../components/settings/roles";
 import { RoleDescription } from "../../components/settings/roleDescription";
-
-/**
- * This function defines the routes for settings page
- *
- * @returns JSX.Element for the entire page which contains the routes
- */
 export function SettingsPage(): JSX.Element {
   const id = ApiManager.getCurrentUser().user_id;
   if (id === undefined) {

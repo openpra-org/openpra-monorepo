@@ -4,7 +4,6 @@ import ColumnNode from "./columnNode";
 import OutputNode from "./outputNode";
 import { InvisibleNode } from "./invisibleNode";
 import ColumnActionsNode from "./columnActionsNode";
-
 export const nodeTypes: NodeTypes = {
   visibleNode: VisibleNode,
   invisibleNode: InvisibleNode,

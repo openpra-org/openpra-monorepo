@@ -1,8 +1,5 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function CcfTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
   const rows = [
     {
       id: "\n id1",
@@ -18,9 +15,6 @@ function CcfTable(): JSX.Element {
       mean: 0.000304,
     },
   ];
-
-  // has the following column headers
-  // rule, template name, cccg, alpha factor, 5th, median, mean, 95th, alpha, and beta
   const columns = [
     {
       id: "id",
@@ -82,7 +76,6 @@ function CcfTable(): JSX.Element {
       formatter: "scientificFormatter",
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -90,5 +83,4 @@ function CcfTable(): JSX.Element {
     />
   );
 }
-
 export { CcfTable };

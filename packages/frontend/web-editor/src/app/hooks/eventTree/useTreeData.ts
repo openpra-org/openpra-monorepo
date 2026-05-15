@@ -1,13 +1,6 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { useEventTreeStore } from "./useEventTreeStore";
-
-/**
- * Get uppercase initials from a phrase.
- *
- * @param str - The phrase to extract initials from.
- * @returns The concatenated uppercase initials (e.g., "Initiating Event" -> "IE").
- */
 export const getInitials = (str: string): string => {
   return str
     .split(" ")
@@ -15,27 +8,19 @@ export const getInitials = (str: string): string => {
     .join("")
     .toUpperCase();
 };
-/**
- * Create default end-state nodes for a given leaf.
- *
- * Generates a Sequence ID node, a Frequency node, and a Release Category node,
- * connecting them in order and returning the new nodes and edges. Frequency is
- * initialized to 0.5 for default nodes and 0.0 otherwise.
- *
- * @param leafNode - The leaf node to attach the end-state chain to.
- * @param nodeWidth - The width to assign to generated nodes.
- * @param pos - The base position used for initial placement of generated nodes.
- * @param isDefaultNode - Whether to seed frequency with a default (0.5) value.
- * @returns An object containing the created nodes and edges.
- */
 export const createEndStates = (
   leafNode: Node,
   nodeWidth: number,
-  pos: { x: number; y: number },
-): { nodes: Node[]; edges: Edge[] } => {
+  pos: {
+    x: number;
+    y: number;
+  },
+): {
+  nodes: Node[];
+  edges: Edge[];
+} => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
-
   const sequenceIdNode = GenerateUUID();
   nodes.push({
     id: sequenceIdNode,
@@ -50,7 +35,6 @@ export const createEndStates = (
     type: "custom",
     animated: false,
   });
-
   const releaseCategoryNode = GenerateUUID();
   nodes.push({
     id: releaseCategoryNode,
@@ -68,43 +52,28 @@ export const createEndStates = (
       hidden: true,
     },
   });
-
   return { nodes, edges };
 };
-
-/**
- * Generate the initial Event Tree graph (nodes and edges).
- *
- * Builds a balanced binary tree of input levels with labelled edges and then
- * appends end-state chains for each leaf (Sequence ID, Frequency, Release Category).
- * Also generates the supporting column-nodes and hidden column edges.
- *
- * @param inputLevels - Number of functional-event levels to generate.
- * @param outputLevels - Number of end-state levels to generate.
- * @param nodeWidth - Node width used for layout and column positioning.
- * @returns The complete initial node and edge set for the Event Tree.
- */
 const useTreeData = (
   inputLevels: number,
   outputLevels: number,
   nodeWidth: number,
-): { nodes: Node[]; edges: Edge[] } => {
-  // Access Zustand store state
+): {
+  nodes: Node[];
+  edges: Edge[];
+} => {
   const { firstColumnLabel, setFirstColumnLabel } = useEventTreeStore.getState();
-
   if (!firstColumnLabel) {
-    setFirstColumnLabel("Initiating Event"); // Default label if not set
+    setFirstColumnLabel("Initiating Event");
   }
-
   const pos = { x: 0, y: 0 };
   const verticalLevels = inputLevels + outputLevels;
-
-  // Function to generate tree nodes and edges
-  const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
+  const generateTreeNodesAndEdges = (): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-
-    // Generate root node
     const rootId = GenerateUUID();
     const rootNode: Node = {
       id: rootId,
@@ -120,15 +89,11 @@ const useTreeData = (
       position: pos,
     };
     nodes.push(rootNode);
-
-    let prevNodes = [rootNode]; // Track previous nodes
+    let prevNodes = [rootNode];
     let currentNodes: Node[] = [];
-
     for (let depth = 2; depth <= inputLevels; depth++) {
       currentNodes = [];
-
       for (const parent of prevNodes) {
-        // Create two child nodes for each parent node
         const leftChildId = GenerateUUID();
         const leftChildNode: Node = {
           id: leftChildId,
@@ -142,7 +107,6 @@ const useTreeData = (
         };
         nodes.push(leftChildNode);
         currentNodes.push(leftChildNode);
-
         const rightChildId = GenerateUUID();
         const rightChildNode: Node = {
           id: rightChildId,
@@ -156,8 +120,6 @@ const useTreeData = (
         };
         nodes.push(rightChildNode);
         currentNodes.push(rightChildNode);
-
-        // Create edges between parent and child nodes
         const edgeLeft: Edge = {
           id: `${parent.id}-${leftChildId}`,
           source: parent.id,
@@ -177,11 +139,8 @@ const useTreeData = (
         edges.push(edgeLeft);
         edges.push(edgeRight);
       }
-
-      prevNodes = currentNodes; // Update previous nodes for the next depth
+      prevNodes = currentNodes;
     }
-
-    // Add end states for each leaf node
     prevNodes.forEach((leafNode) => {
       const { nodes: endNodes, edges: endEdges } = createEndStates(leafNode, nodeWidth, {
         x: leafNode.position.x,
@@ -190,18 +149,16 @@ const useTreeData = (
       nodes.push(...endNodes);
       edges.push(...endEdges);
     });
-
     return { nodes, edges };
   };
-
-  // Function to generate column nodes and edges
-  const generateColNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
+  const generateColNodesAndEdges = (): {
+    nodes: Node[];
+    edges: Edge[];
+  } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-
     const firstColumnLabel = "Initiating Event";
     setFirstColumnLabel(firstColumnLabel);
-
     const rootColNode = GenerateUUID();
     const node: Node = {
       id: rootColNode,
@@ -218,7 +175,6 @@ const useTreeData = (
     };
     nodes.push(node);
     let prevNode = rootColNode;
-
     for (let column = 2; column <= verticalLevels; column++) {
       if (column === inputLevels + 1) {
         const actionsNodeId = GenerateUUID();
@@ -239,10 +195,8 @@ const useTreeData = (
         });
         prevNode = actionsNodeId;
       }
-
       const nodeId = GenerateUUID();
       let nodeLabel = "";
-
       if (column <= inputLevels) {
         nodeLabel = `Functional Event`;
       } else {
@@ -252,8 +206,6 @@ const useTreeData = (
           nodeLabel = `Release Category`;
         }
       }
-
-      // Create the column node
       const colNode: Node = {
         id: nodeId,
         type: "columnNode",
@@ -261,16 +213,13 @@ const useTreeData = (
           label: nodeLabel,
           width: nodeWidth,
           depth: column,
-          output: column > inputLevels, // Columns after input levels are for end states
+          output: column > inputLevels,
           allowAdd: column <= inputLevels,
-          // Allow delete for all functional events, including the first one
           allowDelete: column <= inputLevels && column !== 1,
         },
         position: pos,
       };
       nodes.push(colNode);
-
-      // Create the edge connecting the previous column to the current column
       const edge: Edge = {
         id: `${prevNode}--${nodeId}`,
         source: prevNode,
@@ -282,17 +231,12 @@ const useTreeData = (
         },
       };
       edges.push(edge);
-
-      // Update the previous node to the current node
       prevNode = nodeId;
     }
-
     return { nodes, edges };
   };
-
   const { nodes: generatedTreeNodes, edges: treeEdges } = generateTreeNodesAndEdges();
   const { nodes: generatedColNodes, edges: colEdges } = generateColNodesAndEdges();
-
   const depthToColId: Record<number, string> = {};
   generatedColNodes.forEach((col) => {
     const d = (col.data as Record<string, unknown>).depth as number | undefined;
@@ -300,24 +244,19 @@ const useTreeData = (
     const output = (col.data as Record<string, unknown>).output as boolean | undefined;
     if (d && allowAdd && !output) depthToColId[d] = col.id;
   });
-
   const nodeDepthMap: Record<string, number> = {};
   generatedTreeNodes.forEach((n) => {
     const d = (n.data as Record<string, unknown>).depth as number | undefined;
     if (d) nodeDepthMap[n.id] = d;
   });
-
   const patchedTreeEdges = treeEdges.map((edge) => {
     const targetDepth = nodeDepthMap[edge.target];
     const feId = targetDepth ? depthToColId[targetDepth] : undefined;
     if (!feId) return edge;
     return { ...edge, data: { ...(edge.data as object), feId } };
   });
-
   const nodes = [...generatedTreeNodes, ...generatedColNodes];
   const edges = [...patchedTreeEdges, ...colEdges];
-
   return { nodes, edges };
 };
-
 export { useTreeData };

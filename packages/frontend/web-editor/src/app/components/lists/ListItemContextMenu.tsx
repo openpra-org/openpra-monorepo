@@ -8,20 +8,15 @@ import {
   useGeneratedHtmlId,
   useEuiPaddingSize,
 } from "@elastic/eui";
-
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import { DeleteItemBox } from "../listchanging/deleteItemBox";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
-
 export type ListItemContextMenuProps = GenericListItemProps & Omit<ItemFormProps, "action">;
-
 const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
-  //TODO: Make this work correctly, the prop is bad
   const {
     id,
     _id,
@@ -37,19 +32,13 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
     users,
     onCancel,
   } = props;
-
   const itemUsers = users ? users : [];
-
-  //pre-made model info we are sending to update
   const modelInfo: TypedModelJSON = {
     id: Number(id),
     label: label,
     users: itemUsers,
   };
-
-  //pre-made model info we are sending to update
   const nestedInfo: NestedModelJSON = { label: label, parentIds: [] };
-
   const embeddedCodeSwitchId1 = useGeneratedHtmlId({
     prefix: "embeddedCodeSwitch",
     suffix: "first",
@@ -58,7 +47,6 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
     prefix: "embeddedCodeSwitch",
     suffix: "second",
   });
-
   const panels = [
     {
       id: 0,
@@ -103,7 +91,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       title: "Quick Edit",
       content: (
         <div style={{ padding: useEuiPaddingSize("s") }}>
-          {patchTypedEndpoint ? (
+          {patchTypedEndpoint ?
             <TypedModelActionForm
               noHeader
               compressed
@@ -113,9 +101,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               initialFormValues={modelInfo}
               onCancel={onCancel}
             />
-          ) : (
-            // TODO: PatchNestedEndpoint should be replaced by patchEndpoint and the function of patchNestedEndpoint - patchNestedEndpointNew must be renamed and passed to it after all
-            <NestedModelActionForm
+          : <NestedModelActionForm
               noHeader
               compressed
               action="edit"
@@ -127,7 +113,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               initialFormValues={nestedInfo}
               onCancel={onCancel}
             />
-          )}
+          }
         </div>
       ),
     },
@@ -163,9 +149,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               id={embeddedCodeSwitchId1}
               label="Snapshot data"
               checked={true}
-              onChange={(): void => {
-                //empty
-              }}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiFormRow
@@ -177,9 +161,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               id={embeddedCodeSwitchId2}
               label="Current time range"
               checked={true}
-              onChange={(): void => {
-                //empty
-              }}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiSpacer />
@@ -188,7 +170,6 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       ),
     },
   ];
-
   return (
     <EuiContextMenu
       size="m"
@@ -197,5 +178,4 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
     />
   );
 };
-
 export { ListItemContextMenu };

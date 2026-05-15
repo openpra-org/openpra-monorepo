@@ -29,7 +29,6 @@ import {
   SetFaultTrees,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
-
 const NestedModelsSlice: StateCreator<
   StoreStateType & StoreActionType,
   [],
@@ -41,43 +40,30 @@ const NestedModelsSlice: StateCreator<
   });
   return {
     NestedModels: NestedModelsState.NestedModels,
-
-    // Initiating Events
     SetInitiatingEvents: SetInitiatingEvents,
     AddInitiatingEvent: AddInitiatingEvent,
     EditInitiatingEvent: EditInitiatingEvent,
     DeleteInitiatingEvent: DeleteInitiatingEvent,
-
-    // Event Sequence Diagrams
     SetEventSequenceDiagrams: SetEventSequenceDiagrams,
     AddEventSequenceDiagram: AddEventSequenceDiagram,
     EditEventSequenceDiagram: EditEventSequenceDiagram,
     DeleteEventSequenceDiagram: DeleteEventSequenceDiagram,
-
-    // Event Sequence Analysis
     SetEventSequenceAnalysis: SetEventSequenceAnalysis,
     AddEventSequenceAnalysis: AddEventSequenceAnalysis,
     EditEventSequenceAnalysis: EditEventSequenceAnalysis,
     DeleteEventSequenceAnalysis: DeleteEventSequenceAnalysis,
-
-    // Event Trees
     SetEventTrees: SetEventTrees,
     AddEventTree: AddEventTree,
     EditEventTree: EditEventTree,
     DeleteEventTree: DeleteEventTree,
-
-    // Bayesian Networks
     SetBayesianNetworks: SetBayesianNetworks,
     AddBayesianNetwork: AddBayesianNetwork,
     EditBayesianNetwork: EditBayesianNetwork,
     DeleteBayesianNetwork: DeleteBayesianNetwork,
-
-    // Fault Trees
     SetFaultTrees: SetFaultTrees,
     AddFaultTree: AddFaultTree,
     EditFaultTree: EditFaultTree,
     DeleteFaultTree: DeleteFaultTree,
   };
 });
-
 export { NestedModelsSlice };

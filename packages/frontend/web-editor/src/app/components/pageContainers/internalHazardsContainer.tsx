@@ -1,7 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
 import { SidebarContent, useSidebarCollapsed, EXPANDED_WIDTH, COLLAPSED_WIDTH } from "../sidenavs/collapsibleSidebar";
-
 const InternalHazardsContainer = (): JSX.Element => {
   const { collapsed, toggle } = useSidebarCollapsed();
   return (
@@ -28,5 +27,4 @@ const InternalHazardsContainer = (): JSX.Element => {
     </EuiPageTemplate>
   );
 };
-
 export { InternalHazardsContainer };

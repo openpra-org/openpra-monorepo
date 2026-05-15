@@ -1,42 +1,4 @@
-// =====================================================================================
-// WARNING: EXAMPLE FILE WITH TYPE SHORTCUTS
-// =====================================================================================
-// This file uses type assertions and incomplete implementations to bypass TypeScript's
-// strict type checking. These shortcuts are ONLY acceptable for example/documentation
-// purposes and should NEVER be used in production code.
-//
-// POTENTIAL ISSUES:
-// 1. Using "as unknown as Type" assertions undermines TypeScript's type safety
-// 2. Missing required properties means this example doesn't demonstrate complete objects
-// 3. Future interface changes may require updates to these assertions
-// 4. Code based on this example might miss critical properties required by the interfaces
-// 5. Documentation generated from this example may be misleading about required fields
-//
-// IN PRODUCTION CODE:
-// - Always implement all required properties defined in the interfaces
-// - Never use type assertions to bypass type checking
-// - Ensure all objects satisfy their interfaces completely
-// - Use optional properties (with ?) only when truly optional
-// =====================================================================================
-
-/**
- * WARNING:
- * This example file uses type assertions (as unknown as X) to bypass TypeScript's strict type checking.
- * This is done purely to provide an easy-to-understand example with minimal code, but introduces several risks:
- * 1. Type assertions undermine TypeScript's type safety benefits
- * 2. Required properties may be missing, leading to runtime errors and invalid models
- * 3. The example may not align with actual implementation requirements
- * 4. Documentation can become misleading if assertions hide important requirements
- *
- * For production code, ALWAYS:
- * - Implement all required properties specified in interfaces
- * - Avoid type assertions (as) in favor of proper implementation
- * - Test thoroughly with validation tools to ensure conformance
- * - Keep example code updated when interfaces change
- */
-
-// Assuming necessary imports from the original example are present, adding/correcting as needed:
-import { TechnicalElementTypes } from "../technical-element"; // Assuming path is correct relative to the example file's new location
+import { TechnicalElementTypes } from "../technical-element";
 import {
   OperatingState,
   BarrierStatus,
@@ -70,37 +32,23 @@ import {
   PlantRepresentationAccuracy,
   PlantOperatingStatesDocumentation,
   PlantOperatingStatesAnalysis,
-} from "./plant-operating-states-analysis"; // FIX 1: Corrected import path
-import { DistributionType, Frequency, FrequencyWithDistribution, InitiatingEvent, FrequencyUnit } from "../core/events"; // Assuming path
-import { ImportanceLevel, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns"; // Assuming path - Enums are likely here
-import { createVersionInfo, SCHEMA_VERSION } from "../core/version"; // Assuming path and SCHEMA_VERSION export
-
-/**
- * Helper function to extract numeric value from Frequency or FrequencyWithDistribution
- * @param frequency The frequency value or object
- * @returns The numeric value of the frequency
- */
+} from "./plant-operating-states-analysis";
+import { DistributionType, Frequency, FrequencyWithDistribution, InitiatingEvent, FrequencyUnit } from "../core/events";
+import { ImportanceLevel, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
+import { createVersionInfo, SCHEMA_VERSION } from "../core/version";
 function getFrequencyValue(frequency: Frequency | FrequencyWithDistribution | undefined): number {
   if (typeof frequency === "number") {
     return frequency;
   } else if (frequency && "value" in frequency) {
     return frequency.value;
   }
-  return 1; // Default value if undefined
+  return 1;
 }
-
-//==============================================================================
-// Example Data Initialization (with Error Fixes Applied)
-//==============================================================================
-
-// --- Core Event Definitions ---
 const loopInitiatingEvent: InitiatingEvent = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440001",
   name: "Loss of Offsite Power (LOOP)",
   description:
     "Complete loss of external 13.8kV grid connection to the plant, challenging power supply to primary pumps and support systems.",
-  // Updated to use FrequencyWithDistribution format
   frequency: {
     value: 0.08,
     units: FrequencyUnit.PER_CALENDAR_YEAR,
@@ -112,16 +60,11 @@ const loopInitiatingEvent: InitiatingEvent = {
   },
   eventType: "INITIATING",
 };
-
-// --- Core Component References (Placeholders - UUIDs not strictly required by errors, but good practice) ---
 const auxPumpRef = { componentId: "AUX-PUMP-01", systemId: "PRIMARY-COOLANT" };
 const sdCoolerARef = { componentId: "SDC-A-01", systemId: "SHUTDOWN-COOLING" };
 const controlRodBank1Ref = { componentId: "CR-BANK-01", systemId: "RSS" };
 const safetyRodRef = { componentId: "SAFETY-ROD-01", systemId: "RSS" };
 const priPumpARef = { componentId: "PRI-PUMP-A", systemId: "PRIMARY-COOLANT" };
-
-// --- Reusable Transition Parameters (No UUIDs, Frequency, ScreeningStatus reported here) ---
-// (Keep as is unless other errors appear)
 const powerLevelTransitionParam: TransitionParameter = {
   parameter: "Power Level",
   value: "100%",
@@ -134,56 +77,38 @@ const tempLowTransitionParam: TransitionParameter = {
   parameter: "Temperature",
   value: "Low",
 };
-
-// --- Detailed Instrument Definitions ---
 const coreOutletTC: Instrument = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440002",
   name: "Core Outlet Thermocouple Array",
   parameter: "Core Outlet Temperature",
-  // ... rest of properties
   safetyRelated: true,
   calibrationRequirements: "Annual calibration per Procedure CAL-TC-005",
-  // Add missing properties
   location: "IN_CORE_SOURCE" as SourceLocationType,
   accuracy: 0.5,
   availability: true,
 };
-
 const primaryFlowMeter: Instrument = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440003",
   name: "Primary Sodium Flow Meter (EM Type)",
   parameter: "Primary Sodium Flow Rate",
-  // ... rest of properties
   safetyRelated: true,
-  // Add missing properties
   location: "IN_CORE_SOURCE" as SourceLocationType,
   accuracy: 0.8,
   availability: true,
 };
-
 const shutdownCoolerFlow: Instrument = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440004",
   name: "Shutdown Cooler A Flow Monitor",
   parameter: "NaK Flow Rate",
-  // ... rest of properties
   safetyRelated: true,
-  // Add missing properties
   location: "OUT_OF_CORE_SOURCE" as SourceLocationType,
   accuracy: 1.0,
   availability: true,
 };
-
-// --- Safety Function Definitions ---
 const reactivityControlSF: SafetyFunction = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440005",
   name: "Reactivity Control",
-  // ... rest of properties
   successCriteriaIds: ["SC-SCRAM-001"],
-  // Add missing properties
   state: "SUCCESS",
   category: "Reactivity Control",
   implementationMechanisms: [
@@ -207,14 +132,10 @@ const reactivityControlSF: SafetyFunction = {
     },
   ],
 };
-
 const decayHeatRemovalSF_FP: SafetyFunction = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440006",
   name: "Decay Heat Removal (Full Power Availability)",
-  // ... rest of properties
   successCriteriaIds: ["SC-DHR-AVAIL-001"],
-  // Add missing properties
   state: "SUCCESS",
   category: "Heat Removal",
   implementationMechanisms: [
@@ -232,14 +153,10 @@ const decayHeatRemovalSF_FP: SafetyFunction = {
     },
   ],
 };
-
 const decayHeatRemovalSF_SD: SafetyFunction = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440007",
   name: "Decay Heat Removal (Shutdown Operation)",
-  // ... rest of properties
   successCriteriaIds: ["SC-DHR-OPERATE-001", "SC-NATCIRC-001", "SC-AUX-PUMP-001"],
-  // Add missing properties
   state: "SUCCESS",
   category: "Heat Removal",
   implementationMechanisms: [
@@ -263,99 +180,65 @@ const decayHeatRemovalSF_SD: SafetyFunction = {
     },
   ],
 };
-
-// --- Radioactive Source Definitions ---
 const coreSource: RadioactiveSource = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440008",
   name: "EBR-II Reactor Core",
-  // ... rest of properties
-  // FIX 5: Replace ScreeningStatus enum value
   screeningStatus: ScreeningStatus.RETAINED,
-  // Add missing properties
   location: "IN_VESSEL",
   description: "The reactor core containing fuel assemblies and reflector",
   radionuclides: ["Cs-137", "Sr-90", "Pu-239", "I-131"],
   status: "Active",
 };
-
 const spentFuelSource: RadioactiveSource = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440009",
   name: "In-Tank Spent Fuel Storage Basket",
-  // ... rest of properties
-  // FIX 5: Replace ScreeningStatus enum value
   screeningStatus: ScreeningStatus.RETAINED,
-  // Add missing properties
   location: "IN_VESSEL",
   description: "Storage basket for spent fuel assemblies within the primary tank",
   radionuclides: ["Cs-137", "Sr-90", "Pu-239", "I-131"],
   status: "Stored",
 };
-
 const activatedSodiumSource: RadioactiveSource = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-44665544000a",
   name: "Activated Primary Sodium Coolant",
-  // ... rest of properties
-  // FIX 5: Replace ScreeningStatus enum value
   screeningStatus: ScreeningStatus.RETAINED,
-  // Add missing properties
   location: "IN_VESSEL",
   description: "Primary sodium coolant with activation products",
   radionuclides: ["Na-24", "Na-22"],
   status: "Circulating",
 };
-
 const activatedSteelSource: RadioactiveSource = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-44665544000b",
   name: "Activated Structural Components",
-  // ... rest of properties
-  // FIX 5: Replace ScreeningStatus enum value based on original intent
-  screeningStatus: ScreeningStatus.SCREENED_OUT, // Was SCREENED -> SCREENED_OUT
-  // Add missing properties
+  screeningStatus: ScreeningStatus.SCREENED_OUT,
   location: "IN_VESSEL",
   description: "Activated structural steel components within the primary system",
   radionuclides: ["Co-60", "Fe-55", "Mn-54"],
   status: "Fixed",
 };
-
-// --- Time Varying Condition Example ---
 const decayHeatTVC: TimeVaryingCondition = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440011",
   name: "EBR-II Decay Heat - First 24 Hours",
   uncertainty: 0.05,
-  // Add required properties with correct types
-  time: 0, // Hours from start
+  time: 0,
   parameter: "Core Decay Heat Level",
-  value: 5.0, // Percent of full power
+  value: 5.0,
   impact: "Determines required DHR capacity",
   requiresMonitoring: true,
 };
-
 const decayHeatTVC_Late: TimeVaryingCondition = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440012",
   name: "EBR-II Decay Heat - Beyond 24 Hours",
   uncertainty: 0.03,
-  // Add required properties with correct types
-  time: 24, // Hours from start
+  time: 24,
   parameter: "Core Decay Heat Level",
-  value: 2.0, // Percent of full power
+  value: 2.0,
   impact: "May allow transition to standby DHR systems",
   requiresMonitoring: true,
 };
-
-// --- Plant Operating State Definitions ---
-// IMPORTANT: Using type assertion to bypass full implementation requirements.
-// In production code, all required properties (timeBoundary, operatingMode, etc.) must be included.
 const fullPowerPOS = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-44665544000e",
   name: "Full Power Operation",
-  // ... rest of properties (including nested objects, check if they use affected types)
   radioactiveMaterialSources: [
     coreSource.uuid as string,
     spentFuelSource.uuid as string,
@@ -363,29 +246,17 @@ const fullPowerPOS = {
     activatedSteelSource.uuid as string,
   ],
   detailedRadioactiveSources: [coreSource, spentFuelSource, activatedSodiumSource, activatedSteelSource],
-  // ... other properties
-  initiatingEvents: [loopInitiatingEvent /* Other IEs */],
+  initiatingEvents: [loopInitiatingEvent],
   safetyFunctions: [reactivityControlSF, decayHeatRemovalSF_FP],
-  // FIX 3: Update meanFrequency to be a number (potential data loss)
-  // TODO: Similar to InitiatingEvent, meanFrequency likely intended to be more complex.
   meanFrequency: 1.5 as Frequency,
-  /* Original Object:
-    meanFrequency: { value: 1.5, units: "entries/year" }, 
-    */
   successCriteriaIds: ["SC-SCRAM-001", "SC-DHR-AVAIL-001"],
   riskSignificance: {
-    // This structure seems okay based on original types, unless OperatingStateRisk itself changed
-    stateId: "pos-fp-ebr2-001", // This might need UUID format if type requires
+    stateId: "pos-fp-ebr2-001",
     stateName: "Full Power Operation",
     riskContribution: 0.85,
     riskMetrics: {
-      // FIX 3: Ensure CDF/LERF use the number type for Frequency
       CDF: 1e-6 as Frequency,
       LERF: 5e-8 as Frequency,
-      /* Original Objects if they existed:
-            CDF: { value: 1e-6, units: "events/year" },
-            LERF: { value: 5e-8, units: "events/year" }
-            */
     },
     riskSignificantContributors: [
       "LOOP Initiating Event",
@@ -400,21 +271,15 @@ const fullPowerPOS = {
     ],
   },
   plantRepresentationAccuracy: {
-    // ... properties likely okay unless ImportanceLevel enum changed
     accuracy: ImportanceLevel.HIGH,
     basis: "Extensive operational history, design docs, SHRT test data.",
     sufficientForRiskSignificantContributors: true,
     sufficiencyJustification: "Key safety systems and passive features well-characterized.",
   },
 } as unknown as PlantOperatingState;
-
-// IMPORTANT: Using type assertion to bypass full implementation requirements.
-// In production code, all required properties (timeBoundary, operatingMode, etc.) must be included.
 const controlledShutdownPOS = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-44665544000f",
   name: "Controlled Shutdown (Post-Trip/LOOP)",
-  // ... rest of properties
   radioactiveMaterialSources: [
     coreSource.uuid as string,
     spentFuelSource.uuid as string,
@@ -422,30 +287,18 @@ const controlledShutdownPOS = {
     activatedSteelSource.uuid as string,
   ],
   detailedRadioactiveSources: [coreSource, spentFuelSource, activatedSodiumSource, activatedSteelSource],
-  initiatingEvents: [
-    /* Empty */
-  ],
+  initiatingEvents: [],
   safetyFunctions: [decayHeatRemovalSF_SD],
-  // FIX 3: Update meanFrequency to be a number (potential data loss)
-  // TODO: Similar to InitiatingEvent, meanFrequency likely intended to be more complex.
   meanFrequency: 5 as Frequency,
-  /* Original Object:
-    meanFrequency: { value: 5, units: "entries/year" }, 
-    */
   successCriteriaIds: ["SC-DHR-OPERATE-001", "SC-NATCIRC-001", "SC-AUX-PUMP-001"],
   timeVaryingConditions: [decayHeatTVC, decayHeatTVC_Late],
   riskSignificance: {
-    stateId: "pos-csd-ebr2-001", // Might need UUID format
+    stateId: "pos-csd-ebr2-001",
     stateName: "Controlled Shutdown (Post-Trip/LOOP)",
     riskContribution: 0.1,
     riskMetrics: {
-      // FIX 3: Ensure CDF/LERF use the number type for Frequency
       CDF: 1e-7 as Frequency,
       LERF: 1e-8 as Frequency,
-      /* Original Objects if they existed:
-             CDF: { value: 1e-7, units: "events/year" },
-             LERF: { value: 1e-8, units: "events/year" }
-            */
     },
     riskSignificantContributors: [
       "Failure of Shutdown Coolers (Common Cause)",
@@ -461,11 +314,8 @@ const controlledShutdownPOS = {
     sufficiencyJustification: "Key safety systems and passive features well-characterized.",
   },
 } as unknown as PlantOperatingState;
-
-// --- Hazard Source Aggregation ---
 const ebr2HazardousSources: HazardousSources = {
   sourceDefinition: {
-    // FIX 5: Replace ScreeningStatus enum value
     IN_CORE_SOURCE: ScreeningStatus.RETAINED,
     OUT_OF_CORE_SOURCE: ScreeningStatus.RETAINED,
   },
@@ -478,22 +328,19 @@ const ebr2HazardousSources: HazardousSources = {
   },
   operatingStatesFrequencyDuration: {
     outagePlansRecords: [
-      // FIX 3: Update frequencyPerYear to be number (potential data loss)
-      // TODO: frequencyPerYear likely intended to be more complex.
       {
         startDate: "1989-10-01",
         endDate: "1989-10-20",
         description: "Scheduled Refueling Outage",
-        frequencyPerYear: 1 as Frequency /* Original: { value: 1 } */,
+        frequencyPerYear: 1 as Frequency,
       },
     ],
     maintenancePlansRecords: [
-      // FIX 3: Update frequencyPerYear to be number (potential data loss)
       {
         startDate: "1989-03-01",
         endDate: "1989-03-05",
         description: "Primary Pump #1 Maintenance",
-        frequencyPerYear: 0.5 as Frequency /* Original: { value: 0.5 } */,
+        frequencyPerYear: 0.5 as Frequency,
       },
     ],
     operationsData: [{ startDate: "1989-01-01", endDate: "1989-12-31" }],
@@ -516,27 +363,18 @@ const ebr2HazardousSources: HazardousSources = {
       },
     ],
   },
-  plantEvolution: {} as PlantEvolution, // Filled later
+  plantEvolution: {} as PlantEvolution,
 };
-
-// --- Plant Evolution Definition ---
-// IMPORTANT: Using type assertion to bypass full implementation requirements.
-// In production code, all required properties of PlantEvolution must be included.
 const normalCycleEvolution = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440010",
   name: "EBR-II Normal Operating Cycle",
-  // ... rest of properties
   plantOperatingStates: [fullPowerPOS, controlledShutdownPOS],
   evolutionProperties: {
     praMode: "LPSD (Low Power Shutdown) Analysis Included",
-    // FIX 5: Replace ScreeningStatus enum value
     screeningStatus: ScreeningStatus.RETAINED,
   },
   evolutionConsiderations: {
-    // FIX 5: Replace ScreeningStatus enum value
     screeningStatus: ScreeningStatus.RETAINED,
-    // Add missing properties
     reactorCoolantBoundaryConfigurations: ["Sealed Primary System"],
     reactorCoolantSystemParameterRanges: ["Temperature: 350°C - 500°C", "Flow: 50% - 100%"],
     availableMonitoringDevices: ["Core Outlet TC", "Primary Flow Meter", "Shutdown Cooler Flow"],
@@ -544,72 +382,37 @@ const normalCycleEvolution = {
     radionuclideTransportBarrierStatus: ["Fuel Cladding Intact", "Primary Boundary Intact"],
   },
   initiatingEvents: [loopInitiatingEvent],
-  transitions: [], // Filled later
+  transitions: [],
 } as unknown as PlantEvolution;
-
-// Link the evolution back into the hazardous sources
 ebr2HazardousSources.plantEvolution = normalCycleEvolution;
-
-// --- Transition Event Example ---
 const fpToShutdownTransitionLoop: TransitionEvent = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440011",
   name: "Transition: Full Power to Shutdown via LOOP",
   description: "Sequence initiated by Loss of Offsite Power (LOOP)...",
-  fromStateId: fullPowerPOS.uuid as string, // Assuming POS UUIDs are correct strings now
-  toStateId: controlledShutdownPOS.uuid as string, // Assuming POS UUIDs are correct strings now
-  risks: [
-    /* ... */
-  ],
+  fromStateId: fullPowerPOS.uuid as string,
+  toStateId: controlledShutdownPOS.uuid as string,
+  risks: [],
   duration: 0.05,
-  // FIX 3: Update frequency to be a number (potential data loss)
-  // TODO: TransitionEvent frequency likely intended to be complex.
-  frequency: loopInitiatingEvent.frequency, // Inherits the number from the fixed IE frequency
-  /* Original Object if it existed:
-    frequency: loopInitiatingEvent.frequency, // If IE frequency was object
-    */
-  specialConsiderations: [
-    /* ... */
-  ],
+  frequency: loopInitiatingEvent.frequency,
+  specialConsiderations: [],
   procedureIds: ["EOP-LOOP-01", "ARP-LOSS-OF-AC-01"],
-  criticalParameters: [
-    /* ... */
-  ],
-  transitionParameters: [
-    /* ... */
-  ],
+  criticalParameters: [],
+  transitionParameters: [],
   riskSignificance: ImportanceLevel.HIGH,
-  mitigatingActions: [
-    /* ... */
-  ],
-  requiredHumanActions: [
-    /* ... */
-  ],
-  requiredEquipment: [
-    /* ... */
-  ],
-  potentialFailureModes: [
-    /* ... */
-  ],
+  mitigatingActions: [],
+  requiredHumanActions: [],
+  requiredEquipment: [],
+  potentialFailureModes: [],
 };
-
-// Add transition to the evolution
 normalCycleEvolution.transitions = [fpToShutdownTransitionLoop];
-
-// --- Grouping Example ---
 const lpsdGroup: PlantOperatingStatesGroup = {
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440012",
   name: "Low Power and Shutdown (LPSD) Group",
   description: "Groups operating states where the reactor is subcritical...",
-  plantOperatingStateIds: [controlledShutdownPOS.uuid as string /* Add other POS UUIDs */],
+  plantOperatingStateIds: [controlledShutdownPOS.uuid as string],
   groupingJustification: "Similar DHR challenges...",
   representativeCharacteristics: ["Reactor Subcritical", "Decay Heat Removal Critical", "..."],
 };
-
-// --- Documentation Example (No specific errors reported here, assume okay for now) ---
-// IMPORTANT: Using type assertion to bypass full implementation requirements.
-// In production, ensure that PlantOperatingStatesDocumentation has only valid properties.
 const posDocumentation = {
   processDescription: "Process used standard IEEE-XXX methodology",
   plantEvolutionsDetails: "Normal operating cycle with refueling outages",
@@ -634,7 +437,6 @@ const posDocumentation = {
     },
   ],
   additionalInsights: "Natural circulation capabilities significant for safety",
-  // Add missing required properties
   stateGroupDefinitions: "Power Operation, Shutdown, Refueling, and Maintenance groups defined",
   stateCharacteristics: "Key characteristics documented for each state including thermal conditions",
   meanDurationsDetails: "Statistical analysis of operational data from 1985-1990",
@@ -643,8 +445,6 @@ const posDocumentation = {
   modelUncertaintySources: "Uncertainties in decay heat calculation and transition timing",
   asBuiltLimitations: "Pre-operational design information used where as-built details unavailable",
 } as unknown as PlantOperatingStatesDocumentation;
-
-// --- Validation Rules (No specific errors reported here, assume okay for now) ---
 const validationRules: POSValidationRules = {
   mutualExclusivityRules: {
     description: "Rules for ensuring mutual exclusivity of operating states",
@@ -668,12 +468,9 @@ const validationRules: POSValidationRules = {
     },
   },
 };
-
-// --- Subsumed POS Example ---
 const exampleSubsumedPOS: SubsumedPOS = {
-  // Added for completeness check on types
-  subsumedPOS: "Hot Standby (Post-Trip, Pre-Cooldown)", // Might need UUID format
-  subsumingPOS: controlledShutdownPOS.uuid as string, // Assuming POS UUID is correct string now
+  subsumedPOS: "Hot Standby (Post-Trip, Pre-Cooldown)",
+  subsumingPOS: controlledShutdownPOS.uuid as string,
   justification: "Very short duration (<1 hr)...",
   riskImpact: ImportanceLevel.LOW,
   validationMethod: "Review of system alignments...",
@@ -689,12 +486,9 @@ const exampleSubsumedPOS: SubsumedPOS = {
     insights: "Subsumption justified for baseline model.",
   },
 };
-
-// --- Main Analysis Object ---
 const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
   type: TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS,
   version: "POS-EBR2-EX02",
-  // FIX 2: Apply UUID format and assertion
   uuid: "550e8400-e29b-41d4-a716-446655440000",
   name: "EBR-II Plant Operating States Analysis Example (Enhanced)",
   description: "Enhanced POS analysis example for EBR-II...",
@@ -711,7 +505,6 @@ const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
   hazardousSources: ebr2HazardousSources,
   plantOperatingStatesGroups: [lpsdGroup],
   modelUncertainty: [
-    // Assume ModelUncertaintyInfo structure is okay
     {
       source: "LOOP Frequency",
       description: "Uncertainty in site-specific LOOP frequency.",
@@ -720,9 +513,8 @@ const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
       reasonableAlternatives: ["Use generic data only", "Use adjacent site data"],
     },
   ],
-  subsumedPOSs: [exampleSubsumedPOS], // Added example instance
+  subsumedPOSs: [exampleSubsumedPOS],
   assumptionsLackOfDetail: [
-    // Assume AssumptionsLackOfDetail structure is okay
     {
       description: "Assumed standard IEEE-384 separation criteria met...",
       influence: "Affects the common-cause failure probability...",
@@ -732,14 +524,11 @@ const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
       plannedActions: ["Recommend cable routing verification..."],
     },
   ],
-  sscsAndOperationalCharacteristics: [
-    /* ... list okay */
-  ],
+  sscsAndOperationalCharacteristics: [],
   documentation: posDocumentation,
   posValidationRules: validationRules,
   transitionEvents: [fpToShutdownTransitionLoop],
   plantRepresentationAccuracy: {
-    // Structure seems okay
     accuracy: ImportanceLevel.HIGH,
     basis: "Extensive operational history, design docs, SHRT test data.",
     sufficientForRiskSignificantContributors: true,
@@ -755,11 +544,5 @@ const ebr2_pos_analysis: PlantOperatingStatesAnalysis = {
     improvementPlans: ["Refine CCF analysis with more detailed component data if available."],
   },
 };
-
-//==============================================================================
-// Output (for potential JSON conversion)
-//==============================================================================
 console.log("Fixed & Enhanced Example Plant Operating States Analysis Object:");
-// console.log(JSON.stringify(ebr2_pos_analysis, null, 2));
-
 export default ebr2_pos_analysis;

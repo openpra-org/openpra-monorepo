@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="UnaryOr">
+    <define-gate name="TOP">
+      <or>
+        <basic-event name="A"/>
+      </or>
+    </define-gate>
+
+    <define-basic-event name="A">
+      <float value="0.123"/>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>

@@ -2,18 +2,6 @@ import { Edge, Node, NodeProps } from "reactflow";
 import { useStore } from "../../store/faultTreeStore";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { isSubgraphGrayed } from "../../../utils/treeUtils";
-
-/**
- * Hook for handling grayed node hover functionality.
- *
- * This hook provides two functions - `handleMouseEnter` and `handleMouseLeave` which are used to implement hover functionality.
- * When mouse is hovered over a grayed node, the entire branch of that node is solidified.
- * @param id - The unique identifier for each node.
- * @example
- * ```typescript
- * const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
- * ```
- */
 const UseGrayedNodeHover = (
   id: NodeProps["id"],
 ): {
@@ -21,7 +9,6 @@ const UseGrayedNodeHover = (
   handleMouseLeave: (branchId: string | undefined) => void;
 } => {
   const { nodes, edges, setNodes, setEdges } = useStore();
-
   if (isSubgraphGrayed(nodes, edges)) {
     const handleMouseEnter = (branchId: string | undefined): void => {
       if (branchId !== undefined) {
@@ -31,7 +18,6 @@ const UseGrayedNodeHover = (
           }
           return node;
         });
-
         const solidEdges: Edge<FaultTreeNodeProps>[] = edges.map((edge) => {
           if (edge.data && edge.data.isGrayed === true && edge.data.branchId === branchId) {
             edge.data.isGrayed = false;
@@ -39,12 +25,10 @@ const UseGrayedNodeHover = (
           }
           return edge;
         });
-
         setNodes(solidNodes);
         setEdges(solidEdges);
       }
     };
-
     const handleMouseLeave = (_branchId: string | undefined): void => {
       if (_branchId !== undefined) {
         const grayedNodes: Node<FaultTreeNodeProps>[] = nodes.map((node) => {
@@ -53,7 +37,6 @@ const UseGrayedNodeHover = (
           }
           return node;
         });
-
         const grayedEdges: Edge<FaultTreeNodeProps>[] = edges.map((edge) => {
           if (edge.data !== undefined && edge.data.isGrayed === false && edge.data.branchId === _branchId) {
             edge.data.isGrayed = true;
@@ -61,15 +44,12 @@ const UseGrayedNodeHover = (
           }
           return edge;
         });
-
         setNodes(grayedNodes);
         setEdges(grayedEdges);
       }
     };
-
     return { handleMouseEnter, handleMouseLeave };
   }
-
   return {
     handleMouseEnter: (): void => {
       return;
@@ -79,5 +59,4 @@ const UseGrayedNodeHover = (
     },
   };
 };
-
 export { UseGrayedNodeHover };

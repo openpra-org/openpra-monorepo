@@ -1,0 +1,49 @@
+name: M1 S9 Release Gate
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy (lib/tests)
+        run: cargo clippy --lib --tests -- -D warnings
+
+      - name: Clippy (bins)
+        run: cargo clippy --bins -- -D warnings
+
+      - name: Core test suite
+        run: cargo test --lib
+
+      - name: Real-model parity suite
+        run: cargo test -q openpra_json_parity --test integration
+
+      - name: NAPI Rust contract tests
+        run: cargo test -q napi::tests:: --lib
+
+      - name: Build NAPI addon (debug)
+        run: cargo build -q --features napi-rs
+
+      - name: Build NAPI addon (release)
+        run: cargo build -q --release --features napi-rs
+
+      - name: NAPI JS integration tests
+        run: node tests/napi/integration.cjs

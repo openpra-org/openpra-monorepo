@@ -4,7 +4,6 @@ import {
   PatchRadiologicalConsequenceLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function RadiologicalConsequenceAnalysisList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function RadiologicalConsequenceAnalysisList(): JSX.Element {
     />
   );
 }
-
 export { RadiologicalConsequenceAnalysisList };

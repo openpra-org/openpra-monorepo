@@ -8,7 +8,6 @@ import {
   SetExternalHazards,
 } from "./ExternalHazardsActions";
 import { ExternalHazardsState } from "./ExternalHazardsState";
-
 const ExternalHazardsSlice: StateCreator<
   StoreStateType & StoreActionType,
   [],
@@ -26,5 +25,4 @@ const ExternalHazardsSlice: StateCreator<
     DeleteExternalHazard: DeleteExternalHazard,
   };
 };
-
 export { ExternalHazardsSlice };

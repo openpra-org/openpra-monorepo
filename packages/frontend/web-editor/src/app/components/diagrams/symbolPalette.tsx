@@ -2,15 +2,15 @@ import { useState, DragEvent } from "react";
 import { EuiFieldSearch, EuiText, EuiSpacer } from "@elastic/eui";
 import { PALETTE_SYMBOLS, PaletteSymbol, SymbolShape } from "./pidSymbols";
 import type { PidSymbolType } from "shared-sdk/lib/api/PlantDiagramApiManager";
-
 const GROUPS = ["Equipment", "Valves", "Instruments", "Annotation"] as const;
-
-export type DragPayload = { symbolType: PidSymbolType; instrumentCode: string; label: string };
-
+export type DragPayload = {
+  symbolType: PidSymbolType;
+  instrumentCode: string;
+  label: string;
+};
 interface SymbolPaletteProps {
   onDragStart: (event: DragEvent<HTMLDivElement>, payload: DragPayload) => void;
 }
-
 function PaletteItem({
   sym,
   onDragStart,
@@ -23,7 +23,6 @@ function PaletteItem({
     instrumentCode: sym.defaultInstrumentCode ?? "",
     label: sym.label,
   };
-
   return (
     <div
       draggable
@@ -47,7 +46,6 @@ function PaletteItem({
         (e.currentTarget as HTMLDivElement).style.background = "transparent";
       }}
     >
-      {/* SVG symbol preview */}
       <svg
         viewBox="0 0 40 40"
         width={28}
@@ -64,7 +62,6 @@ function PaletteItem({
         />
       </svg>
 
-      {/* Label */}
       <span
         style={{
           fontSize: 12,
@@ -80,13 +77,10 @@ function PaletteItem({
     </div>
   );
 }
-
 export function SymbolPalette({ onDragStart }: SymbolPaletteProps): JSX.Element {
   const [query, setQuery] = useState("");
-
   const filtered =
     query.trim() ? PALETTE_SYMBOLS.filter((s) => s.label.toLowerCase().includes(query.toLowerCase())) : PALETTE_SYMBOLS;
-
   return (
     <div
       style={{

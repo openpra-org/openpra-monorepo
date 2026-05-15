@@ -49,7 +49,6 @@ import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequen
 import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
-
 @Module({
   imports: [
     MongooseModule.forFeature([

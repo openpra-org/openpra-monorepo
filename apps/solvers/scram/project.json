@@ -1,0 +1,31 @@
+{
+  "name": "engine-scram-node",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["!{projectRoot}/**/*.spec.tsx"]
+  },
+  "targets": {
+    "clean": {},
+    "distclean": {},
+    "build-deps": {},
+    "tidy": {},
+    "format": {},
+    "coverage": {},
+    "debug": {},
+    "release": {},
+    "sanitize": {},
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "{projectRoot}/tests/**/*.{ts,js}"
+        ]
+      }
+    }
+  },
+  "sourceRoot": "packages/engine/scram-node/src",
+  "projectType": "library",
+  "tags": []
+}

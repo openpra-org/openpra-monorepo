@@ -8,11 +8,6 @@ import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/mod
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
 import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
-
-/**
- * Fetches all Bayesian Networks for a given parent and updates store state.
- * @param parentId - The parent model identifier
- */
 export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
   try {
     const BayesianNetworks = await GetBayesianNetworks(parentId);
@@ -22,42 +17,24 @@ export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
         state.NestedModels.SystemAnalysis.BayesianNetworks = BayesianNetworks;
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Creates a new Bayesian Network and links it to its parent models in state.
- * @param data - New model payload
- */
 export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
     const BayesianNetwork: NestedModelType = await PostBayesianNetwork(data, typedModelName);
-
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.SystemAnalysis.BayesianNetworks.push(BayesianNetwork);
-
         state[typedModelName] = AddToParentModel(state, BayesianNetwork._id, BayesianNetwork.parentIds);
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Updates the label of a Bayesian Network.
- * @param modelId - Target model id
- * @param data - Partial payload containing the new label
- */
 export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
   if (!data.label) {
     return;
   }
-
   try {
     const bnr: NestedModelType = await PatchBayesianNetworkLabel(modelId, data.label);
     UseGlobalStore.setState(
@@ -67,33 +44,21 @@ export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedM
         );
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Deletes a Bayesian Network and removes cross-references from parent models.
- * @param id - Target model id
- */
 export const DeleteBayesianNetwork = async (id: string): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
     await DeleteBayesianNetworkAPI(id, typedModelName);
-
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         const parentIds =
           state.NestedModels.SystemAnalysis.BayesianNetworks.find((bn) => bn._id === id)?.parentIds ?? [];
-
         state.NestedModels.SystemAnalysis.BayesianNetworks = state.NestedModels.SystemAnalysis.BayesianNetworks.filter(
           (bn: NestedModelType) => bn._id !== id,
         );
-
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };

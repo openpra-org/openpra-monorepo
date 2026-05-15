@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: "engine-scram",
   preset: "../../../jest.preset.js",

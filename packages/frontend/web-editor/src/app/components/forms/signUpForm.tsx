@@ -8,14 +8,6 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { PasswordForm } from "./passwordForm";
 import { UsernameForm } from "./usernameForm";
-
-/**
- * The main signup Form component
- * @param handleSignup - This function will be called when user clicks on the button in the form
- * @param signup - The state object which holds the user object
- * @param setSignup - The function which will change the state object
- * @param buttonText - The text which should be shown on the button.
- */
 const SignUpForm = ({
   handleSignup,
   signup,
@@ -31,11 +23,6 @@ const SignUpForm = ({
   const [isValidUsername, setIsValidUsername] = useState(true);
   const [isValidEmail, setIsValidEmail] = useState(true);
   const { addToast } = UseToastContext();
-
-  /**
-   * This function will validate form validation
-   * @param e - The form component
-   */
   function validateSignup(e: React.FormEvent<HTMLFormElement>): void {
     const emailValidation: EmailValidationForm = {
       email: signup.email,
@@ -45,7 +32,6 @@ const SignUpForm = ({
     };
     e.preventDefault();
     setSignupButtonClicked(true);
-    // Check if email is valid, if email is valid check if username is valid, if valid handle sign up
     ApiManager.isValidEmail(JSON.stringify(emailValidation))
       .then((isValidEmail: boolean) => {
         setIsValidEmail(isValidEmail);
@@ -76,28 +62,23 @@ const SignUpForm = ({
         });
       });
   }
-
   type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
   type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
-
   const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
     const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
     return checkUserName((validationResult: boolean) => {
       setIsValidUsername(validationResult);
     });
   }, []);
-
   const debouncedCheckEmail = useMemo(() => {
     const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
     return checkEmail((validationResult: boolean) => {
       setIsValidEmail(validationResult);
     });
   }, []);
-
   useEffect(() => {
     debouncedCheckUserName(signup);
   }, [signup.username, signup, debouncedCheckUserName]);
-
   useEffect(() => {
     if (signup.email.length === 0 && !signupButtonClicked) {
       setIsValidEmail(true);
@@ -105,7 +86,6 @@ const SignUpForm = ({
     }
     debouncedCheckEmail(signup);
   }, [signup.email, signupButtonClicked, signup, debouncedCheckEmail]);
-
   return (
     <EuiForm
       component="form"
@@ -139,5 +119,4 @@ const SignUpForm = ({
     </EuiForm>
   );
 };
-
 export { SignUpForm };

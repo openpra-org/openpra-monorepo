@@ -4,10 +4,6 @@ import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schem
 import { FmeaController } from "./fmea.controller";
 import { FmeaService } from "./fmea.service";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
-
-/**
- * FMEA feature module exposing controller and service with Mongoose bindings.
- */
 @Module({
   imports: [
     MongooseModule.forFeature([

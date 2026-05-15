@@ -1,16 +1,12 @@
 import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
-
 @Schema({ _id: false, versionKey: false })
 class User {
   @Prop({ required: false })
   id: number;
-
   @Prop({ required: false })
   username: string;
 }
-
 const UserSchema = SchemaFactory.createForClass(User);
-
 @Schema({
   timestamps: {
     createdAt: false,
@@ -23,20 +19,13 @@ const UserSchema = SchemaFactory.createForClass(User);
   },
   versionKey: false,
 })
-/**
- * Action log entry associated with a model, including user and action type.
- */
 export class Action {
   @Prop({ required: false })
   tree_id: number;
-
   @Prop({ type: UserSchema, required: false })
   user: User;
-
   @Prop({ required: false })
   type: string;
 }
-
 export type ActionDocument = Action & Document;
-/** Mongoose schema for Action. */
 export const ActionSchema = SchemaFactory.createForClass(Action);

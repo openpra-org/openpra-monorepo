@@ -16,7 +16,6 @@ import {
 } from "@elastic/eui";
 import { useState, ChangeEvent } from "react";
 import { SettingsAccordian } from "./SettingsAccordian";
-
 const buttonContent = (
   <div>
     <EuiFlexGroup
@@ -43,30 +42,18 @@ const buttonContent = (
     </EuiText>
   </div>
 );
-
-//returns the advanced settings menu, which is a drop down with a few settings
 function AdvancedSettings(): JSX.Element {
-  //setting the value of the overview
   const [overviewValue, setOverviewValue] = useState("");
-
-  //generated id
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
-
-  //list of options to set a model as
   const options = [
     { value: "project", text: "Project" },
     { value: "subsystem", text: "Subsystem" },
     { value: "component", text: "Component" },
   ];
-
-  //part of changing the value in the dropdown menu
   const onChange = (e: ChangeEvent<HTMLSelectElement>): void => {
     setOverviewValue(e.target.value);
   };
-
   const smallScreen = useIsWithinBreakpoints(["xs", "s", "m"]);
-  //returns the three current advanced settings of changing type, deleting (which may be removed seems redundant), and then the third options which changes contorl
-  // between each option there is a horizontal rule that proivides a line
   return (
     <SettingsAccordian
       id="model_advanced_settings"
@@ -158,5 +145,4 @@ function AdvancedSettings(): JSX.Element {
     </SettingsAccordian>
   );
 }
-
 export { AdvancedSettings };

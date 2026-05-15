@@ -14,16 +14,13 @@ import moment from "moment";
 import { useParams } from "react-router-dom";
 import { MemberResult } from "shared-sdk/lib/api/Members";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
-
-/**
- * Main form container for editing and saving a user
- */
 export function MemberForm(): JSX.Element {
-  const { user } = useParams<{ user: string | undefined }>();
+  const { user } = useParams<{
+    user: string | undefined;
+  }>();
   const userId = Number(user);
   const [currentUer, setCurrentUser] = useState<MemberResult>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
   useEffect(() => {
     ApiManager.getUserById(String(userId))
       .then((result) => {
@@ -31,7 +28,6 @@ export function MemberForm(): JSX.Element {
         setIsLoading(false);
       })
       .catch((_reason: unknown) => {
-        //TODO : Handle this scenario
         setIsLoading(false);
       });
   }, [userId]);
@@ -132,7 +128,6 @@ export function MemberForm(): JSX.Element {
                   onClick={(): void => {
                     if (currentUer !== undefined) {
                       void ApiManager.updateUser(currentUer.id, JSON.stringify(currentUer));
-                      // TODO: State update parent component here
                     }
                   }}
                 >

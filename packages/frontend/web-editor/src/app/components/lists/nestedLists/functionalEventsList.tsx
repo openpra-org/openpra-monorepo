@@ -4,7 +4,6 @@ import {
   PatchFunctionalEventLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function FunctionalEventsList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function FunctionalEventsList(): JSX.Element {
     />
   );
 }
-
 export { FunctionalEventsList };

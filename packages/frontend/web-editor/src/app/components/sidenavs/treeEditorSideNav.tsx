@@ -38,5 +38,4 @@ function TreeEditorSideNav(): JSX.Element {
     </div>
   );
 }
-
 export { TreeEditorSideNav };

@@ -4,24 +4,20 @@ import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/l
 import { GenericItemList } from "../GenericItemList";
 import { CreateGenericList } from "../GenericList";
 import { UseGlobalStore } from "../../../zustand/Store";
-
 function InternalHazardsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
-
   const internalHazardsList = UseGlobalStore.use.InternalHazards();
   const setInternalHazards = UseGlobalStore.use.SetInternalHazards();
   const createInternalHazards = UseGlobalStore.use.AddInternalHazard();
   const deleteInternalHazard = UseGlobalStore.use.DeleteInternalHazard();
   const editInternalHazard = UseGlobalStore.use.EditInternalHazard();
-
   useEffect(() => {
     setIsLoading(true);
     void setInternalHazards().then(() => {
       setIsLoading(false);
     });
   }, [setInternalHazards]);
-
   useEffect(() => {
     setGenericListItems(
       CreateGenericList<InternalEventsModelType>({
@@ -33,7 +29,6 @@ function InternalHazardsList(): JSX.Element {
       }),
     );
   }, [createInternalHazards, deleteInternalHazard, editInternalHazard, internalHazardsList]);
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -56,5 +51,4 @@ function InternalHazardsList(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { InternalHazardsList };

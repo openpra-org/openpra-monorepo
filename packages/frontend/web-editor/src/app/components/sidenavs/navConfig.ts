@@ -1,5 +1,4 @@
 import type { NavNode, ScopedNavScope } from "./types";
-
 const POS: NavNode = {
   id: "plant-operating-state",
   name: "Plant Operating State Analysis",
@@ -15,7 +14,6 @@ const POS: NavNode = {
     },
   ],
 };
-
 const IE: NavNode = {
   id: "initiating-event-analysis",
   name: "Initiating Event Analysis",
@@ -32,7 +30,6 @@ const IE: NavNode = {
     },
   ],
 };
-
 const ES: NavNode = {
   id: "event-sequence-analysis",
   name: "Event Sequence Analysis",
@@ -54,7 +51,6 @@ const ES: NavNode = {
     { id: "event-trees", name: "Event Trees", path: "event-trees", iconType: "editorBold" },
   ],
 };
-
 const SC: NavNode = {
   id: "success-criteria-developement",
   name: "Success Criteria Developement",
@@ -65,7 +61,6 @@ const SC: NavNode = {
     { id: "functional-events", name: "Functional Events", path: "functional-events", iconType: "tokenRepo" },
   ],
 };
-
 const SY: NavNode = {
   id: "systems-analysis",
   name: "Systems Analysis",
@@ -79,7 +74,6 @@ const SY: NavNode = {
     { id: "markov-chains", name: "Markov Chains", path: "markov-chains", iconType: "tokenShape" },
   ],
 };
-
 const HR: NavNode = {
   id: "human-reliability-analysis",
   name: "Human Reliability Analysis",
@@ -94,7 +88,6 @@ const HR: NavNode = {
     },
   ],
 };
-
 const DA: NavNode = {
   id: "data-analysis",
   name: "Data Analysis",
@@ -111,7 +104,6 @@ const DA: NavNode = {
     { id: "weibull-analysis", name: "Weibull Analysis", path: "weibull-analysis", iconType: "bolt" },
   ],
 };
-
 const FL: NavNode = { id: "internal-flood-pra", name: "Internal Flood PRA", path: "internal-flood-pra" };
 const F: NavNode = { id: "internal-fire-pra", name: "Internal Fire PRA", path: "internal-fire-pra" };
 const S: NavNode = { id: "seismic-pra", name: "Seismic PRA", path: "seismic-pra" };
@@ -123,7 +115,6 @@ const HS: NavNode = {
 const W: NavNode = { id: "high-winds-pra", name: "High Winds PRA", path: "high-winds-pra" };
 const XF: NavNode = { id: "external-flooding-pra", name: "External Flooding PRA", path: "external-flooding-pra" };
 const O: NavNode = { id: "other-hazards-pra", name: "Other Hazards PRA", path: "other-hazards-pra" };
-
 const ESQ: NavNode = {
   id: "event-sequence-quantification",
   name: "Event Sequence Quantification",
@@ -138,7 +129,6 @@ const ESQ: NavNode = {
     },
   ],
 };
-
 const MS: NavNode = {
   id: "mechanistic-source-term-analysis",
   name: "Mechanistic Source Term Analysis",
@@ -153,7 +143,6 @@ const MS: NavNode = {
     },
   ],
 };
-
 const RC: NavNode = {
   id: "radiological-consequence-analysis",
   name: "Radiological Consequence Analysis",
@@ -168,7 +157,6 @@ const RC: NavNode = {
     },
   ],
 };
-
 const RI: NavNode = {
   id: "risk-integration",
   name: "Risk Integration",
@@ -176,19 +164,16 @@ const RI: NavNode = {
   expanded: true,
   items: [{ id: "risk-integration-item", name: "Risk Integration", path: "risk-integration", iconType: "tokenRepo" }],
 };
-
 const SETTINGS: NavNode = {
   id: "settings",
   name: "Settings",
   path: "settings",
   iconType: "gear",
 };
-
 export const NAV_BY_SCOPE: Record<ScopedNavScope, NavNode[]> = {
   InternalEvents: [POS, IE, ES, SC, SY, HR, DA, ESQ, MS, RC, RI, SETTINGS],
   InternalHazards: [POS, IE, ES, SC, SY, HR, DA, FL, F, HS, O, ESQ, MS, RC, RI, SETTINGS],
   ExternalHazards: [POS, IE, ES, SC, SY, HR, DA, S, HS, W, XF, O, ESQ, MS, RC, RI, SETTINGS],
   FullScope: [POS, IE, ES, SC, SY, HR, DA, FL, F, S, HS, W, XF, O, ESQ, MS, RC, RI, SETTINGS],
 };
-
 export type { NavNode };

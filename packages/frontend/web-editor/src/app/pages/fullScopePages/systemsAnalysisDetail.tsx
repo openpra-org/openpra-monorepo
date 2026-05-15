@@ -34,12 +34,9 @@ import {
   UpdateFmeaColumnDetails,
 } from "shared-sdk/lib/api/FmeaApiManager";
 import { FmeaTable } from "../../components/tables/fmeaTable";
-
 const GROUPS = ["Identification", "Component", "Analysis", "Effects", "Risk Scoring", "Actions", "PRA Links"];
-
 function ColumnSetupModal({ onConfirm }: { onConfirm: (selected: FmeaColumnSpec[]) => void }): JSX.Element {
   const [checked, setChecked] = useState<Set<string>>(() => new Set(DEFAULT_FMEA_COLUMNS.map((c) => c.id)));
-
   const toggle = (id: string): void => {
     setChecked((prev) => {
       const next = new Set(prev);
@@ -48,14 +45,11 @@ function ColumnSetupModal({ onConfirm }: { onConfirm: (selected: FmeaColumnSpec[
       return next;
     });
   };
-
   const selectAll = (): void => setChecked(new Set(DEFAULT_FMEA_COLUMNS.map((c) => c.id)));
   const selectNone = (): void => setChecked(new Set());
-
   const handleConfirm = (): void => {
     onConfirm(DEFAULT_FMEA_COLUMNS.filter((c) => checked.has(c.id)));
   };
-
   return (
     <EuiModal
       onClose={(): void => {
@@ -177,16 +171,15 @@ function ColumnSetupModal({ onConfirm }: { onConfirm: (selected: FmeaColumnSpec[
     </EuiModal>
   );
 }
-
 function SystemsAnalysisDetail(): JSX.Element {
-  const { systemsAnalysisId } = useParams<{ systemsAnalysisId: string }>();
+  const { systemsAnalysisId } = useParams<{
+    systemsAnalysisId: string;
+  }>();
   const parsedId = Number(systemsAnalysisId ?? "0");
-
   const [fmea, setFmea] = useState<FmeaType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
-
   useEffect(() => {
     if (!parsedId) return;
     setIsLoading(true);
@@ -206,7 +199,6 @@ function SystemsAnalysisDetail(): JSX.Element {
         setIsLoading(false);
       });
   }, [parsedId]);
-
   const handleSetupConfirm = useCallback(
     (selectedCols: FmeaColumnSpec[]): void => {
       setShowSetup(false);
@@ -225,9 +217,15 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [parsedId],
   );
-
   const handleAddColumn = useCallback(
-    (name: string, type: "string" | "dropdown", dropdownOptions?: { number: number; description: string }[]): void => {
+    (
+      name: string,
+      type: "string" | "dropdown",
+      dropdownOptions?: {
+        number: number;
+        description: string;
+      }[],
+    ): void => {
       if (!fmea) return;
       AddFmeaColumn(fmea.id, { name, type, dropdownOptions })
         .then((updated) => {
@@ -237,7 +235,6 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [fmea],
   );
-
   const handleAddRow = useCallback((): void => {
     if (!fmea) return;
     AddFmeaRow(fmea.id)
@@ -246,7 +243,6 @@ function SystemsAnalysisDetail(): JSX.Element {
       })
       .catch(() => undefined);
   }, [fmea]);
-
   const handleUpdateCell = useCallback(
     (rowId: string, columnId: string, value: string): void => {
       if (!fmea) return;
@@ -267,7 +263,6 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [fmea],
   );
-
   const handleDeleteRow = useCallback(
     (rowId: string): void => {
       if (!fmea) return;
@@ -279,7 +274,6 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [fmea],
   );
-
   const handleDeleteColumn = useCallback(
     (columnId: string): void => {
       if (!fmea) return;
@@ -291,11 +285,17 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [fmea],
   );
-
   const handleUpdateColumn = useCallback(
     (
       columnId: string,
-      body: { name: string; type: "string" | "dropdown"; dropdownOptions?: { number: number; description: string }[] },
+      body: {
+        name: string;
+        type: "string" | "dropdown";
+        dropdownOptions?: {
+          number: number;
+          description: string;
+        }[];
+      },
     ): void => {
       if (!fmea) return;
       UpdateFmeaColumnDetails(fmea.id, columnId, body)
@@ -306,7 +306,6 @@ function SystemsAnalysisDetail(): JSX.Element {
     },
     [fmea],
   );
-
   return (
     <>
       {showSetup && <ColumnSetupModal onConfirm={handleSetupConfirm} />}
@@ -359,5 +358,4 @@ function SystemsAnalysisDetail(): JSX.Element {
     </>
   );
 }
-
 export { SystemsAnalysisDetail };

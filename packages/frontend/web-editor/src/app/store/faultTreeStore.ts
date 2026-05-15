@@ -12,10 +12,6 @@ import {
 } from "reactflow";
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
 import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-
-/**
- * React Flow editor state for the Fault Tree editor.
- */
 export interface RFState {
   nodes: Node<FaultTreeNodeProps>[];
   edges: Edge<FaultTreeNodeProps>[];
@@ -30,26 +26,25 @@ export interface RFState {
   future: HistoryItem[];
   setPast: (past: HistoryItem[]) => void;
   setFuture: (future: HistoryItem[]) => void;
-  pendingEdge: { edgeId: string; x: number; y: number } | null;
-  setPendingEdge: (pending: { edgeId: string; x: number; y: number } | null) => void;
+  pendingEdge: {
+    edgeId: string;
+    x: number;
+    y: number;
+  } | null;
+  setPendingEdge: (
+    pending: {
+      edgeId: string;
+      x: number;
+      y: number;
+    } | null,
+  ) => void;
 }
-
-/**
- * A single undo/redo snapshot of the graph.
- */
 export type HistoryItem =
   | {
       nodes: Node[];
       edges: Edge[];
     }
   | undefined;
-
-/**
- * Zustand store for the Fault Tree editor.
- *
- * @returns The state and store functions for the editor.
- */
-
 const useStore = create<RFState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
@@ -89,5 +84,4 @@ const useStore = create<RFState>((set, get) => ({
     set({ pendingEdge: pending });
   },
 }));
-
 export { useStore };

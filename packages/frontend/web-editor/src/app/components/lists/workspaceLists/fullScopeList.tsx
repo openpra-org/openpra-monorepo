@@ -4,24 +4,20 @@ import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeM
 import { GenericItemList } from "../GenericItemList";
 import { UseGlobalStore } from "../../../zustand/Store";
 import { CreateGenericList } from "../GenericList";
-
 function FullScopeList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
-
   const fullScopeList = UseGlobalStore.use.FullScope();
   const setFullScope = UseGlobalStore.use.SetFullScope();
   const createFullScope = UseGlobalStore.use.AddFullScope();
   const deleteFullScope = UseGlobalStore.use.DeleteFullScope();
   const editFullScope = UseGlobalStore.use.EditFullScope();
-
   useEffect(() => {
     setIsLoading(true);
     void setFullScope().then(() => {
       setIsLoading(false);
     });
   }, [setFullScope]);
-
   useEffect(() => {
     setGenericListItems(
       CreateGenericList<FullScopeModelType>({
@@ -33,7 +29,6 @@ function FullScopeList(): JSX.Element {
       }),
     );
   }, [createFullScope, deleteFullScope, editFullScope, fullScopeList]);
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -56,5 +51,4 @@ function FullScopeList(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { FullScopeList };

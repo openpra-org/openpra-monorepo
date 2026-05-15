@@ -8,26 +8,15 @@ import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphSchema,
 } from "../src/schemas/graphs/event-sequence-diagram-graph.schema";
-// import { BaseGraphDocument } from "../src/schemas/graphs/base-graph.schema";
 import { FaultTreeGraph, FaultTreeGraphSchema } from "../src/schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph, EventTreeGraphSchema } from "../src/schemas/graphs/event-tree-graph.schema";
 import { GraphModelController } from "../src/graphModels/graphModel.controller";
-
 describe("GraphModelController", (): void => {
   let graphModelController: GraphModelController;
   let graphModelService: GraphModelService;
   let connection: Connection;
-
-  /**
-   * Before all tests, Create a new Testing module
-   * Define connection and the graphModelService
-   */
-
   beforeAll(async (): Promise<void> => {
-    // MongoDB server URI
     const mongoUri: string = process.env.MONGO_URI;
-
-    // The custom testing module
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -43,44 +32,28 @@ describe("GraphModelController", (): void => {
       providers: [GraphModelService],
       controllers: [GraphModelController],
     }).compile();
-
-    connection = await module.get(getConnectionToken()); // create connection
+    connection = await module.get(getConnectionToken());
     graphModelController = module.get<GraphModelController>(GraphModelController);
     graphModelService = module.get<GraphModelService>(GraphModelService);
   });
-
-  /**
-   * After each test, drop the database
-   */
   afterEach(async (): Promise<void> => {
     const collections = ["eventsequencediagramgraphs", "faulttreegraphs", "eventtreegraphs"];
     await Promise.all(
       collections.map(async (name) => {
         try {
           await connection.collection(name).deleteMany({});
-        } catch {
-          // ignore if collection doesn't exist
-        }
+        } catch {}
       }),
     );
   });
-
-  /**
-   * After all tests, disconnect mongoose
-   * Stop MongoDB server
-   */
   afterAll(async (): Promise<void> => {
     await mongoose.disconnect();
   });
-
-  // Ensure that GraphModelController is defined
   describe("GraphModelController", (): void => {
     it("GraphModelController should be defined", (): void => {
       expect(graphModelController).toBeDefined();
     });
   });
-
-  // Tests for event sequence diagram graph
   describe("Event Sequence Diagram Graph", (): void => {
     const node1: GraphNode<object> = {
       id: "1",
@@ -146,8 +119,6 @@ describe("GraphModelController", (): void => {
       });
     });
   });
-
-  // Tests for event sequence diagram graph
   describe("Fault Tree Graph", (): void => {
     const node1: GraphNode<object> = {
       id: "1",

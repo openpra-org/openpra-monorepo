@@ -33,31 +33,25 @@ import {
   PostComponentParameter,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { ComponentReliabilityTable } from "../../components/tables/componentReliabilityTable";
-
 function excelSerialToISO(serial: number): string {
   const ms = (serial - 25569) * 86400 * 1000;
   return new Date(ms).toISOString().slice(0, 10);
 }
-
 function num(v: unknown): number | undefined {
   if (v === undefined || v === null || v === "" || v === "--") return undefined;
   const n = Number(v);
   return isNaN(n) ? undefined : n;
 }
-
 function str(v: unknown): string | undefined {
   if (v === undefined || v === null) return undefined;
   const s = String(v).trim();
   return s === "" || s === "--" ? undefined : s;
 }
-
 function parseComponentReliabilitySheet(wb: XLSX.WorkBook): CreateComponentParameterBody[] {
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase().includes("component reliability")) ?? wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
-
   const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
-
-  let dataStart = 5; // default
+  let dataStart = 5;
   for (let i = 0; i < Math.min(10, raw.length); i++) {
     const row = raw[i] as unknown[];
     if (
@@ -69,40 +63,31 @@ function parseComponentReliabilitySheet(wb: XLSX.WorkBook): CreateComponentParam
       break;
     }
   }
-
   const results: CreateComponentParameterBody[] = [];
   let currentGrouping: string | undefined;
   let currentComponentType: string | undefined;
-
   for (let i = dataStart; i < raw.length; i++) {
     const r = raw[i] as unknown[];
-
     const colA = str(r[0]);
     const colB = str(r[1]);
     const colC = str(r[2]);
     const colD = str(r[3]);
-
     if (!colC && !colD) continue;
-
     if (colA && isNaN(Number(colA))) {
       currentGrouping = colA;
     }
-
     if (colB) {
       currentComponentType = colB;
     }
-
     const componentType = currentComponentType;
     const componentFailureMode = colC ?? colD ?? "";
     if (!componentType || !componentFailureMode) continue;
-
     const rawT = r[19];
     let effectiveDate: string | undefined;
     if (rawT !== "" && rawT !== undefined) {
       const n = Number(rawT);
       effectiveDate = isNaN(n) ? str(rawT) : excelSerialToISO(n);
     }
-
     results.push({
       grouping: currentGrouping,
       componentType,
@@ -126,10 +111,8 @@ function parseComponentReliabilitySheet(wb: XLSX.WorkBook): CreateComponentParam
       effectiveDate,
     });
   }
-
   return results;
 }
-
 type FormState = {
   componentType: string;
   componentFailureMode: string;
@@ -153,7 +136,6 @@ type FormState = {
   dateRange: string;
   effectiveDate: string;
 };
-
 const EMPTY_FORM: FormState = {
   componentType: "",
   componentFailureMode: "",
@@ -177,7 +159,6 @@ const EMPTY_FORM: FormState = {
   dateRange: "",
   effectiveDate: "",
 };
-
 function rowToForm(row: ComponentParameterType): FormState {
   const n = (v: number | undefined): string => (v !== undefined ? String(v) : "");
   return {
@@ -204,7 +185,6 @@ function rowToForm(row: ComponentParameterType): FormState {
     effectiveDate: row.effectiveDate ?? "",
   };
 }
-
 function formToBody(form: FormState): CreateComponentParameterBody {
   const num = (s: string): number | undefined => (s !== "" ? Number(s) : undefined);
   const str = (s: string): string | undefined => (s !== "" ? s : undefined);
@@ -232,31 +212,27 @@ function formToBody(form: FormState): CreateComponentParameterBody {
     effectiveDate: str(form.effectiveDate),
   };
 }
-
 function DataAnalysisDetail(): JSX.Element {
-  const { dataAnalysisId } = useParams<{ dataAnalysisId: string }>();
+  const { dataAnalysisId } = useParams<{
+    dataAnalysisId: string;
+  }>();
   const parsedId = Number(dataAnalysisId ?? "0");
-
   const [rows, setRows] = useState<ComponentParameterType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importRows, setImportRows] = useState<CreateComponentParameterBody[]>([]);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
-
   const loadRows = useCallback((): void => {
     if (!parsedId) return;
     setIsLoading(true);
@@ -271,11 +247,9 @@ function DataAnalysisDetail(): JSX.Element {
         setIsLoading(false);
       });
   }, [parsedId]);
-
   useEffect(() => {
     loadRows();
   }, [loadRows]);
-
   const handleAdd = useCallback((): void => {
     setForm(EMPTY_FORM);
     setIsEditing(false);
@@ -283,7 +257,6 @@ function DataAnalysisDetail(): JSX.Element {
     setFormError(null);
     setModalOpen(true);
   }, []);
-
   const handleEdit = useCallback((row: ComponentParameterType): void => {
     setForm(rowToForm(row));
     setIsEditing(true);
@@ -291,12 +264,10 @@ function DataAnalysisDetail(): JSX.Element {
     setFormError(null);
     setModalOpen(true);
   }, []);
-
   const handleCloseModal = useCallback((): void => {
     setModalOpen(false);
     setFormError(null);
   }, []);
-
   const handleSubmit = useCallback((): void => {
     if (form.componentType.trim() === "" || form.componentFailureMode.trim() === "") {
       setFormError("Component Type and Failure Mode are required.");
@@ -308,7 +279,6 @@ function DataAnalysisDetail(): JSX.Element {
       isEditing && editingId !== null ?
         PatchComponentParameter(editingId, body)
       : PostComponentParameter(parsedId, body);
-
     request
       .then(() => {
         setModalOpen(false);
@@ -321,11 +291,9 @@ function DataAnalysisDetail(): JSX.Element {
         setIsSubmitting(false);
       });
   }, [form, isEditing, editingId, parsedId, loadRows]);
-
   const handleDelete = useCallback((id: number): void => {
     setDeletingId(id);
   }, []);
-
   const handleConfirmDelete = useCallback((): void => {
     if (deletingId === null) return;
     setIsDeleting(true);
@@ -341,26 +309,21 @@ function DataAnalysisDetail(): JSX.Element {
         setIsDeleting(false);
       });
   }, [deletingId, loadRows]);
-
   const handleCancelDelete = useCallback((): void => {
     setDeletingId(null);
   }, []);
-
   const setField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]): void => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFormError(null);
   }, []);
-
   const handleImportClick = useCallback((): void => {
     fileInputRef.current?.click();
   }, []);
-
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
     setImportError(null);
-
     const reader = new FileReader();
     reader.onload = (evt): void => {
       try {
@@ -379,12 +342,10 @@ function DataAnalysisDetail(): JSX.Element {
     };
     reader.readAsArrayBuffer(file);
   }, []);
-
   const handleImportConfirm = useCallback((): void => {
     if (importRows.length === 0) return;
     setIsImporting(true);
     setImportProgress(0);
-
     let completed = 0;
     const postNext = (): void => {
       if (completed >= importRows.length) {
@@ -407,14 +368,12 @@ function DataAnalysisDetail(): JSX.Element {
     };
     postNext();
   }, [importRows, parsedId, loadRows]);
-
   const handleImportCancel = useCallback((): void => {
     if (isImporting) return;
     setImportModalOpen(false);
     setImportRows([]);
     setImportError(null);
   }, [isImporting]);
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -462,7 +421,6 @@ function DataAnalysisDetail(): JSX.Element {
         </EuiSkeletonRectangle>
       </EuiPageTemplate.Section>
 
-      {}
       {modalOpen && (
         <EuiModal
           onClose={handleCloseModal}
@@ -479,7 +437,6 @@ function DataAnalysisDetail(): JSX.Element {
               isInvalid={formError !== null}
               error={formError !== null ? [formError] : []}
             >
-              {}
               <EuiFlexGroup>
                 <EuiFlexItem>
                   <EuiFormRow
@@ -548,7 +505,6 @@ function DataAnalysisDetail(): JSX.Element {
 
               <EuiSpacer size="s" />
 
-              {}
               <EuiFlexGroup>
                 <EuiFlexItem>
                   <EuiFormRow label="Failures">
@@ -657,7 +613,6 @@ function DataAnalysisDetail(): JSX.Element {
 
               <EuiSpacer size="s" />
 
-              {}
               <EuiFlexGroup>
                 <EuiFlexItem>
                   <EuiFormRow label="5th Percentile">
@@ -749,7 +704,6 @@ function DataAnalysisDetail(): JSX.Element {
         </EuiModal>
       )}
 
-      {}
       {importModalOpen && (
         <EuiModal
           onClose={handleImportCancel}
@@ -807,7 +761,6 @@ function DataAnalysisDetail(): JSX.Element {
         </EuiModal>
       )}
 
-      {}
       {deletingId !== null && (
         <EuiConfirmModal
           title="Delete component parameter?"
@@ -824,5 +777,4 @@ function DataAnalysisDetail(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { DataAnalysisDetail };

@@ -49,42 +49,33 @@ import {
 import { GetFaultTrees } from "shared-sdk/lib/api/NestedModelsAPI/FaultTreesApiManager";
 import { GetBayesianNetworks } from "shared-sdk/lib/api/NestedModelsAPI/BayesianNetworksApiManager";
 import type { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 const LEAF_TYPES = [BASIC_EVENT, HOUSE_EVENT, TRANSFER_GATE];
 const GATE_TYPES = [AND_GATE, OR_GATE, NOT_GATE, ATLEAST_GATE];
-
 const PROB_TYPE_OPTIONS = [
   { value: "constant", text: "Constant" },
   { value: "distribution", text: "Distribution" },
   { value: "bayesian_network_link", text: "Bayesian Network Link" },
 ];
-
 const EVENT_TYPE_OPTIONS = [
   { value: "on_demand", text: "On Demand (per demand probability)" },
   { value: "during_operation", text: "During Operation (rate-based)" },
 ];
-
 const ON_DEMAND_DIST_OPTIONS = [
   { value: "lognormal", text: "Lognormal" },
   { value: "beta", text: "Beta" },
   { value: "normal", text: "Normal" },
   { value: "uniform", text: "Uniform" },
 ];
-
 const DURING_OP_DIST_OPTIONS = [
   { value: "exponential", text: "Exponential" },
   { value: "weibull", text: "Weibull" },
   { value: "gamma", text: "Gamma" },
   { value: "lognormal", text: "Lognormal" },
 ];
-
 const HOUSE_STATE_OPTIONS = [
   { value: "false", text: "False (not occurring)" },
   { value: "true", text: "True (always occurring)" },
 ];
-
 function labelFor(nodeType: string): string {
   switch (nodeType) {
     case AND_GATE:
@@ -105,14 +96,12 @@ function labelFor(nodeType: string): string {
       return nodeType;
   }
 }
-
 function defaultForType(nodeType: string): FaultTreeNodeQuantification {
   if (nodeType === ATLEAST_GATE) return defaultAtLeastQuantification();
   if (nodeType === HOUSE_EVENT) return defaultHouseQuantification();
   if (GATE_TYPES.includes(nodeType)) return defaultGateQuantification();
   return defaultQuantification();
 }
-
 function defaultParamsFor(dist: DistributionType): DistributionParams {
   switch (dist) {
     case "lognormal":
@@ -133,21 +122,15 @@ function defaultParamsFor(dist: DistributionType): DistributionParams {
       return { mean: 0, stdDev: 1 } as LognormalTimeParams;
   }
 }
-
-// ─── sub-panels ──────────────────────────────────────────────────────────────
-
 function ConstantPanel({ value, onChange }: { value: number; onChange: (v: number) => void }): JSX.Element {
   const [raw, setRaw] = useState(String(value));
-
   useEffect(() => {
     setRaw(String(value));
   }, [value]);
-
   const commit = (): void => {
     const n = parseFloat(raw);
     if (!isNaN(n)) onChange(Math.min(1, Math.max(0, n)));
   };
-
   return (
     <EuiFormRow
       label="Probability value"
@@ -167,7 +150,6 @@ function ConstantPanel({ value, onChange }: { value: number; onChange: (v: numbe
     </EuiFormRow>
   );
 }
-
 function LognormalPanel({
   params,
   onChange,
@@ -205,7 +187,6 @@ function LognormalPanel({
     </>
   );
 }
-
 function BetaPanel({ params, onChange }: { params: BetaParams; onChange: (p: BetaParams) => void }): JSX.Element {
   return (
     <>
@@ -238,7 +219,6 @@ function BetaPanel({ params, onChange }: { params: BetaParams; onChange: (p: Bet
     </>
   );
 }
-
 function NormalPanel({ params, onChange }: { params: NormalParams; onChange: (p: NormalParams) => void }): JSX.Element {
   return (
     <>
@@ -267,7 +247,6 @@ function NormalPanel({ params, onChange }: { params: NormalParams; onChange: (p:
     </>
   );
 }
-
 function UniformPanel({
   params,
   onChange,
@@ -298,7 +277,6 @@ function UniformPanel({
     </>
   );
 }
-
 function ExponentialPanel({
   params,
   onChange,
@@ -322,7 +300,6 @@ function ExponentialPanel({
     </EuiFormRow>
   );
 }
-
 function WeibullPanel({
   params,
   onChange,
@@ -373,7 +350,6 @@ function WeibullPanel({
     </>
   );
 }
-
 function GammaPanel({ params, onChange }: { params: GammaParams; onChange: (p: GammaParams) => void }): JSX.Element {
   return (
     <>
@@ -400,7 +376,6 @@ function GammaPanel({ params, onChange }: { params: GammaParams; onChange: (p: G
     </>
   );
 }
-
 function LognormalTimePanel({
   params,
   onChange,
@@ -432,7 +407,6 @@ function LognormalTimePanel({
     </>
   );
 }
-
 function DistributionParamsPanel({
   dist,
   params,
@@ -444,7 +418,6 @@ function DistributionParamsPanel({
 }): JSX.Element {
   switch (dist) {
     case "lognormal":
-      // on-demand lognormal uses median + errorFactor
       return (
         <LognormalPanel
           params={params as LognormalParams}
@@ -502,9 +475,6 @@ function DistributionParamsPanel({
       );
   }
 }
-
-// ─── BN Link panel ────────────────────────────────────────────────────────────
-
 function BNLinkPanel({
   modelId,
   bnId,
@@ -517,7 +487,6 @@ function BNLinkPanel({
 }): JSX.Element {
   const [bns, setBns] = useState<NestedModelType[]>([]);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     let cancelled = false;
     void GetBayesianNetworks(modelId)
@@ -532,14 +501,11 @@ function BNLinkPanel({
       cancelled = true;
     };
   }, [modelId]);
-
   if (loading) return <EuiLoadingSpinner size="s" />;
-
   const bnOptions = [
     { value: "", text: "— select a Bayesian Network —" },
     ...bns.map((b) => ({ value: String(b.id), text: b.label?.name ?? String(b.id) })),
   ];
-
   return (
     <EuiFormRow label="Bayesian Network">
       <EuiSelect
@@ -553,16 +519,12 @@ function BNLinkPanel({
     </EuiFormRow>
   );
 }
-
-// ─── Main panel ──────────────────────────────────────────────────────────────
-
 export interface FaultTreePropertiesPanelProps {
   node: Node<FaultTreeNodeProps>;
   modelId: string;
   faultTreeId?: string;
   onChange: (nodeId: string, q: FaultTreeNodeQuantification) => void;
 }
-
 export function FaultTreePropertiesPanel({
   node,
   modelId,
@@ -574,23 +536,16 @@ export function FaultTreePropertiesPanel({
   const isAtLeast = nodeType === ATLEAST_GATE;
   const isHouse = nodeType === HOUSE_EVENT;
   const isTransfer = nodeType === TRANSFER_GATE;
-
   const initial: FaultTreeNodeQuantification = node.data?.quantification ?? defaultForType(nodeType);
-
   const [q, setQ] = useState<FaultTreeNodeQuantification>(initial);
-
-  // Sync when a different node is selected
   useEffect(() => {
     setQ(node.data?.quantification ?? defaultForType(nodeType));
-  }, [node.id, nodeType]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [node.id, nodeType]);
   const update = (patch: Partial<FaultTreeNodeQuantification>): void => {
     const next = { ...q, ...patch };
     setQ(next);
     onChange(node.id, next);
   };
-
-  // ── Transfer gate: lazy-load sibling fault trees ─────────────────────────
   const [faultTrees, setFaultTrees] = useState<NestedModelType[]>([]);
   useEffect(() => {
     if (!isTransfer || !modelId) return;
@@ -598,20 +553,15 @@ export function FaultTreePropertiesPanel({
       .then(setFaultTrees)
       .catch(() => {});
   }, [isTransfer, modelId]);
-
   const ftOptions = [
     { value: "", text: "— select fault tree —" },
     ...faultTrees
       .filter((ft) => String(ft.id) !== faultTreeId)
       .map((ft) => ({ value: String(ft.id), text: ft.label?.name ?? String(ft.id) })),
   ];
-
-  // ── Distribution type options depend on event type ────────────────────────
   const distOptions = q.eventType === "during_operation" ? DURING_OP_DIST_OPTIONS : ON_DEMAND_DIST_OPTIONS;
-
   return (
     <div style={{ padding: "12px 16px", overflowY: "auto", height: "100%" }}>
-      {/* Header */}
       <EuiTitle size="xs">
         <h4>{labelFor(nodeType)} Properties</h4>
       </EuiTitle>
@@ -624,7 +574,6 @@ export function FaultTreePropertiesPanel({
 
       <EuiHorizontalRule margin="s" />
 
-      {/* ── Universal fields ── */}
       <EuiFormRow
         label="Name"
         helpText="Short identifier (e.g. P-001A-FTR)"
@@ -650,7 +599,6 @@ export function FaultTreePropertiesPanel({
         />
       </EuiFormRow>
 
-      {/* ── At-Least gate: K value ── */}
       {isAtLeast && (
         <>
           <EuiHorizontalRule margin="s" />
@@ -670,7 +618,6 @@ export function FaultTreePropertiesPanel({
         </>
       )}
 
-      {/* ── Transfer gate: target fault tree ── */}
       {isTransfer && (
         <>
           <EuiHorizontalRule margin="s" />
@@ -686,7 +633,6 @@ export function FaultTreePropertiesPanel({
         </>
       )}
 
-      {/* ── House event: state ── */}
       {isHouse && (
         <>
           <EuiHorizontalRule margin="s" />
@@ -705,7 +651,6 @@ export function FaultTreePropertiesPanel({
         </>
       )}
 
-      {/* ── Basic event: probability type and parameters ── */}
       {isLeaf && !isHouse && !isTransfer && (
         <>
           <EuiHorizontalRule margin="s" />
@@ -728,7 +673,6 @@ export function FaultTreePropertiesPanel({
             />
           </EuiFormRow>
 
-          {/* Constant */}
           {q.probabilityType === "constant" && (
             <ConstantPanel
               value={q.constantValue ?? 0}
@@ -738,7 +682,6 @@ export function FaultTreePropertiesPanel({
             />
           )}
 
-          {/* Distribution */}
           {q.probabilityType === "distribution" && (
             <>
               <EuiFormRow label="Event Type">
@@ -792,7 +735,6 @@ export function FaultTreePropertiesPanel({
             </>
           )}
 
-          {/* BN Link */}
           {q.probabilityType === "bayesian_network_link" && (
             <BNLinkPanel
               modelId={modelId}
@@ -806,7 +748,6 @@ export function FaultTreePropertiesPanel({
         </>
       )}
 
-      {/* Gates: note that probability is derived from children */}
       {!isLeaf && (
         <>
           <EuiHorizontalRule margin="s" />

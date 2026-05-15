@@ -4,30 +4,23 @@ import { onAuthEvent } from "shared-sdk/lib/api/AuthEvents";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import { RootHeader } from "../components/headers/rootHeader";
 import { RecentModelsPage } from "./routingPages/recentModelsPage";
-
 const RootContainer = (): ReactElement => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(ApiManager.isLoggedIn());
-
   const tokenTimerRef: React.MutableRefObject<number> = useRef(ApiManager.getTokenTimer());
-
   const location = useLocation();
-
   useEffect(() => {
     setIsLoggedIn(ApiManager.isLoggedIn());
     tokenTimerRef.current = ApiManager.getTokenTimer();
-
     const unsubscribe = onAuthEvent((evt) => {
       if (evt.type === "login") {
         setIsLoggedIn(true);
         tokenTimerRef.current = ApiManager.getTokenTimer();
       }
     });
-
     return () => {
       unsubscribe();
     };
   }, []);
-
   if (!isLoggedIn && (location.pathname === "/" || location.pathname.startsWith("/invite/"))) {
     return <Outlet />;
   } else if (!isLoggedIn) {
@@ -49,5 +42,4 @@ const RootContainer = (): ReactElement => {
     );
   }
 };
-
 export { RootContainer };

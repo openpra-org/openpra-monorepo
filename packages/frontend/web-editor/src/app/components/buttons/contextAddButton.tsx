@@ -26,10 +26,8 @@ import {
   CreateSystemsAnalysisButton,
   CreateWeibullAnalysisButton,
 } from "./CreateItemButton";
-
 const ContextAddButton = (): JSX.Element => {
   const location = useLocation().pathname;
-
   if (location.startsWith("/internal-events")) {
     if (location === "/internal-events") return <CreateInternalEventsButton />;
     if (location.endsWith("/initiating-events")) return <CreateInitiatingEventButton />;
@@ -112,5 +110,4 @@ const ContextAddButton = (): JSX.Element => {
     return null as unknown as JSX.Element;
   }
 };
-
 export { ContextAddButton };

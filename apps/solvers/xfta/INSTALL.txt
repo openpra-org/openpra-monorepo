@@ -1,0 +1,143 @@
+# XFTA
+
+From version 2.0.0, XFTA requires 64 bits architectures.
+
+## Windows
+
+### Distribution
+
+On Windows, XFTA distribution consists either of a zip archive XFTADistribution.zip or of installer XFTAInstaller.exe.
+In both cases, it involves the following files.
+
+- README.txt: some information about the current XFTA distribution.
+- NSTALL.txt: some information about how to install XFTA.
+- XFTALicense.pdf: XFTA License that you need to agree on before installing and using XFTA.
+- xfta.dll: the dynamic load library (DLL) that implements the XFTA interpreter.
+- xftar.exe: the executable file that calls the DLL.
+- xfta-api.h: the application programmable interface.
+- xftar.cpp: the C++ source code for xftar.exe.
+- xfta.bat: a batch file making it possible to launch XFTA onto a script file.
+- s2ml+pbe.xml: Notepad++ syntax highlighting rules for S2ML+PBE files (with extension .pbe).
+- Notepad++ syntax highlighting rules for XFTA script files (with extension .xfta).
+
+The core of XFTA consists thus of the two files xfta.dll and xftar.exe.
+
+### Manual Installation
+
+If you are familiar enough with Windows, you can just decompress the zip archive in the suitable folder, then make your life.
+This probably includes to add to your environment variable PATH the path to the installation folder.
+
+Once the installation completed, to execute XFTA on a script file myscript.xfta, you have to open a command prompt and to enter:
+xftar.exe myscript.xfta
+
+XFTA prints error messages on the standard error file (stderr).
+The default output file is the standard output file (stdout).
+
+### "Automated" Installation
+
+Alternatively, you can use execute the installer (by simply double clicking on it).
+The installer creates first a folder in which it uploads the files.
+By default, for the user JohnDoe, the installation folder is:
+
+C:\Users\JohnDoe\AppData\Roaming\AltaRica Association\XFTA
+
+
+Now to access xftar.exe, you have either to type the full path, which is admittedly not convenient, or tell Windows where to find it.
+A way to do that could be to append the path to installation folder to the PATH environment variable (or more exactly to ask the installer to do that for you).
+That would be simple and efficient.
+Unfortunately, Windows is Windows and this does not work for three reasons:
+- There is not one PATH environment variable but two: one global for all the users and one local for the current user.
+  When you ask the value of PATH, Windows returns the concatenation of both values.
+  But when you want to modify it with a program, you need to modify one of them, but not both.
+- Still when you want to modify with a program the value of either path variable, the value that you give them must fit on a limited number of characters.
+  This means that you just cannot concatenate paths to too many folders.
+  Strangely enough, the problem does not exist when you set the value manually.
+- It is not easy to remove the path to the installation folder from PATH when you want to deinstall the software.
+  Most installers just do not provide functionalities to do that.
+
+This is the reason why Microsoft recommends to use the registry base instead of modifying PATH.
+The principle consists in adding a registry key, xftar.exe for XFTA, in:
+
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\App Paths
+
+This is done automatically via the installer.
+
+Now, you may expect that the executable xftar.exe is recognized as a Windows command and can be used as explained in the previous section.
+Unfortunately, for obscure reasons, this does not work.
+To launch XFTA on the script file myscript.xfta, you have to use the command start:
+start /b xftar.exe myscript.xfta
+
+The switch /b makes it possible to run the application (xfta.exe) in the same command prompt.
+
+### Integration with Notepad++
+
+XFTA models and scripts are written into text files.
+This means that you need a text editor to create and modify them.
+I strongly advise to use Notepad++, which is a free, powerful, multi-purpose, user-friendly text editor.
+Notepad++ can be downloaded here:
+https://notepad-plus-plus.org/
+
+Notepad++ makes it possible to define syntax highlighting rules for your own language (and to modify those already embedded for virtually all popular programming languages).
+Moreover, it makes it possible to execute XFTA scripts directly from the editor.
+
+To install these features, you shall need the files s2ml+pbe.xml, xfta.xml and xfta.bat.
+
+The files s2ml+pbe.xml and xfta.xml define the syntax highlighting rules for respectively S2ML+PBE models and XFTA scripts.
+Using the menu Language/User Defined Language of Notepad++, it is possible to import (and modify at will) these rules, for files having extensions respectively .pbe and .xfta.
+
+Running XFTA from Notepad++ is only slightly more complex.
+This is achieved in two steps:
+1. You have to click on submenu Run of the Run. There appears a small windows asking you which program to run.
+You have to enter in the command line the path to the file xfta.bat, i.e.
+C:\Users\JohnDoe\AppData\Roaming\AltaRica Association\XFTA\Notepad++\xfta.bat
+followed with the argument $(FULL_CURRENT_PATH).
+
+2. Rather than to execute the command, you have to save it (e.g. under the name XFTA).
+You can then select the combination of keys making it possible to call it from the keyboard.
+
+That's all.
+
+## Linux
+
+With Linux, the situation is much simpler than with Windows.
+The distribution consists simply in a zip archive containing the following files.
+- README.txt: some information about the current XFTA distribution.
+- INSTALL.txt: some information about how to install XFTA.
+- XFTALicense.pdf: XFTA License that you need to agree on before installing and using XFTA.
+- xftar: the executable file that implements the XFTA interpreter.
+
+To install XFTA, you have to decompress the zip archive in any folder,
+and to add to your environment variable PATH the path to that folder.
+Once installed, to run XFTA on a script file myscript.xfta you have to open a terminal and to enter:
+xftar myscript.xfta
+
+While executing script file, XFTA prints out error messages on the standard error file (stderr).
+The default output file is the standard output file (stdout).
+
+## Mac OS
+
+Like on Linux, the situation is much simpler on Mac OS than with Windows.
+The distribution consists simply in a zip archive containing the following files.
+- README.txt: some information about the current XFTA distribution.
+- INSTALL.txt: some information about how to install XFTA.
+- XFTALicense.pdf: XFTA License that you need to agree on before installing and using XFTA.
+- xftar: the executable file that implements the XFTA interpreter.
+
+To install XFTA, you have to decompress the zip archive in any folder, and to move xftar to the folder /usr/local/bin.
+You will need the root password to do that.
+Once installed, to run XFTA on a script file myscript.xfta you have to open a terminal and to enter:
+xftar myscript.xfta
+
+While executing script file, XFTA prints out error messages on the standard error file (stderr).
+The default output file is the standard output file (stdout).
+
+## Application Programmable Interface (Windows only)
+
+The application programmable interface of XFTA is described in the file xfta-api.h.
+It is made of a single C function: int XFTA_EvalScriptFile(char* fileName);.
+Calling this function executes the XFTA script file whose name is given in parameter. 
+ 
+The source file xftar.cpp is for Windows.
+It just loads the DLL xfta.dll and calls the function XFTA_EvalScriptFile on each argument of the command line.
+xftar.cpp is actually the source code of the executable xftar.exe.
+

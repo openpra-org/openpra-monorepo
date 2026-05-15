@@ -22,22 +22,20 @@ import {
 } from "@elastic/eui";
 import { EuiDataGridColumn } from "@elastic/eui/src/components/datagrid/data_grid_types";
 import { FmeaColumn, FmeaColumnBadge, FmeaRow, FmeaType } from "shared-sdk/lib/api/FmeaApiManager";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function computeRpn(row: FmeaRow, computedFrom: string[]): number | null {
   const vals = computedFrom.map((id) => Number(row.row_data[id] ?? ""));
   if (vals.some((v) => isNaN(v) || v === 0)) return null;
   return vals.reduce((acc, v) => acc * v, 1);
 }
-
-function rpnToRisk(rpn: number | null): { label: string; color: "danger" | "warning" | "success" | "hollow" } {
+function rpnToRisk(rpn: number | null): {
+  label: string;
+  color: "danger" | "warning" | "success" | "hollow";
+} {
   if (rpn === null) return { label: "—", color: "hollow" };
   if (rpn > 100) return { label: "HIGH", color: "danger" };
   if (rpn > 50) return { label: "MEDIUM", color: "warning" };
   return { label: "LOW", color: "success" };
 }
-
 function badgeForColumn(col: FmeaColumn): FmeaColumnBadge | undefined {
   if (col.type === "computed") return { text: "Auto-calculated", color: "success" };
   if (col.type === "risk") return { text: "Auto-calculated", color: "success" };
@@ -46,8 +44,6 @@ function badgeForColumn(col: FmeaColumn): FmeaColumnBadge | undefined {
   if (col.id === "ccf_group") return { text: "Links: CCF", color: "primary" };
   return undefined;
 }
-
-/** Sensible initial widths per column id or type. */
 function initialWidth(col: FmeaColumn): number {
   if (col.type === "number") return 70;
   if (col.type === "computed") return 80;
@@ -59,10 +55,10 @@ function initialWidth(col: FmeaColumn): number {
   if (wide.has(col.id)) return 220;
   return 160;
 }
-
-// ─── Column modal helpers ─────────────────────────────────────────────────────
-
-function parseOptions(text: string): { number: number; description: string }[] {
+function parseOptions(text: string): {
+  number: number;
+  description: string;
+}[] {
   return text
     .split("\n")
     .map((l) => l.trim())
@@ -76,13 +72,14 @@ function parseOptions(text: string): { number: number; description: string }[] {
       return { number: i + 1, description: line };
     });
 }
-
-function optionsToText(opts: { number: number; description: string }[]): string {
+function optionsToText(
+  opts: {
+    number: number;
+    description: string;
+  }[],
+): string {
   return opts.map((o) => `${o.number}:${o.description}`).join("\n");
 }
-
-// ─── Column header with badge + popover ──────────────────────────────────────
-
 function ColumnHeader({
   col,
   onEdit,
@@ -95,7 +92,6 @@ function ColumnHeader({
   const [open, setOpen] = useState(false);
   const badge = badgeForColumn(col);
   const isReadOnly = col.type === "computed" || col.type === "risk";
-
   return (
     <EuiPopover
       isOpen={open}
@@ -159,15 +155,15 @@ function ColumnHeader({
     </EuiPopover>
   );
 }
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface FmeaTableProps {
   fmea: FmeaType;
   onAddColumn: (
     name: string,
     type: "string" | "dropdown",
-    dropdownOptions?: { number: number; description: string }[],
+    dropdownOptions?: {
+      number: number;
+      description: string;
+    }[],
   ) => void;
   onAddRow: () => void;
   onUpdateCell: (rowId: string, columnId: string, value: string) => void;
@@ -175,12 +171,21 @@ export interface FmeaTableProps {
   onDeleteColumn: (columnId: string) => void;
   onUpdateColumn: (
     columnId: string,
-    body: { name: string; type: "string" | "dropdown"; dropdownOptions?: { number: number; description: string }[] },
+    body: {
+      name: string;
+      type: "string" | "dropdown";
+      dropdownOptions?: {
+        number: number;
+        description: string;
+      }[];
+    },
   ) => void;
 }
-
-type EditingCell = { rowId: string; columnId: string; draft: string };
-
+type EditingCell = {
+  rowId: string;
+  columnId: string;
+  draft: string;
+};
 type ColumnModalState = {
   mode: "add" | "edit";
   columnId?: string;
@@ -188,11 +193,7 @@ type ColumnModalState = {
   type: "string" | "dropdown";
   optionsText: string;
 };
-
 const EMPTY_MODAL: ColumnModalState = { mode: "add", name: "", type: "string", optionsText: "" };
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
 function FmeaTable({
   fmea,
   onAddColumn,
@@ -205,8 +206,6 @@ function FmeaTable({
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [columnModal, setColumnModal] = useState<ColumnModalState | null>(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
-
-  // Sync visible columns when FMEA columns change (add/remove)
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => fmea.columns.map((c) => c.id));
   useEffect(() => {
     setVisibleColumns((prev) => {
@@ -219,7 +218,6 @@ function FmeaTable({
       return next;
     });
   }, [fmea.columns]);
-
   const openEditColumn = useCallback((col: FmeaColumn): void => {
     setColumnModal({
       mode: "edit",
@@ -229,7 +227,6 @@ function FmeaTable({
       optionsText: optionsToText(col.dropdownOptions ?? []),
     });
   }, []);
-
   const handleColumnModalConfirm = useCallback((): void => {
     if (!columnModal || !columnModal.name.trim()) return;
     const { name, type, optionsText, mode, columnId } = columnModal;
@@ -241,7 +238,6 @@ function FmeaTable({
     }
     setColumnModal(null);
   }, [columnModal, onAddColumn, onUpdateColumn]);
-
   const commitCell = useCallback((): void => {
     if (!editingCell) return;
     const col = fmea.columns.find((c) => c.id === editingCell.columnId);
@@ -252,8 +248,6 @@ function FmeaTable({
     onUpdateCell(editingCell.rowId, editingCell.columnId, editingCell.draft);
     setEditingCell(null);
   }, [editingCell, fmea.columns, onUpdateCell]);
-
-  // ── EuiDataGrid column definitions ─────────────────────────────────────────
   const gridColumns: EuiDataGridColumn[] = useMemo(
     () =>
       fmea.columns.map((col) => ({
@@ -271,21 +265,15 @@ function FmeaTable({
         isSortable: false,
         actions: false as const,
       })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fmea.columns, openEditColumn, onDeleteColumn],
   );
-
-  // ── Cell renderer ───────────────────────────────────────────────────────────
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: { rowIndex: number; columnId: string }): JSX.Element | null => {
       const row = fmea.rows[rowIndex];
       if (!row) return null;
       const col = fmea.columns.find((c) => c.id === columnId);
       if (!col) return null;
-
       const value = row.row_data[col.id] ?? "";
-
-      // computed (RPN)
       if (col.type === "computed") {
         const rpn = computeRpn(row, col.computedFrom ?? []);
         return (
@@ -294,17 +282,12 @@ function FmeaTable({
           </span>
         );
       }
-
-      // risk badge
       if (col.type === "risk") {
         const rpn = computeRpn(row, ["S", "D", "O"]);
         const { label, color } = rpnToRisk(rpn);
         return <EuiBadge color={color}>{label}</EuiBadge>;
       }
-
-      // editing cell
       const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === col.id;
-
       if (isEditing) {
         if (col.type === "dropdown") {
           const opts = (col.dropdownOptions ?? []).map((o) => ({
@@ -362,13 +345,10 @@ function FmeaTable({
           />
         );
       }
-
-      // display
       const display =
         col.type === "dropdown" ?
           ((col.dropdownOptions ?? []).find((o) => String(o.number) === value)?.description ?? value)
         : value;
-
       return (
         <span
           title={display}
@@ -389,8 +369,6 @@ function FmeaTable({
     },
     [fmea.rows, fmea.columns, editingCell, commitCell],
   );
-
-  // ── Leading control column (delete row) ─────────────────────────────────────
   const leadingControlColumns = useMemo(
     () => [
       {
@@ -416,10 +394,8 @@ function FmeaTable({
     ],
     [fmea.rows, onDeleteRow],
   );
-
   return (
     <>
-      {/* Toolbar */}
       <EuiFlexGroup
         alignItems="center"
         gutterSize="s"
@@ -457,7 +433,6 @@ function FmeaTable({
         )}
       </EuiFlexGroup>
 
-      {/* Grid */}
       {fmea.columns.length > 0 && (
         <>
           <EuiDataGrid
@@ -498,7 +473,6 @@ function FmeaTable({
         </>
       )}
 
-      {/* Column add/edit modal */}
       {columnModal !== null && (
         <EuiModal
           onClose={(): void => {
@@ -580,5 +554,4 @@ function FmeaTable({
     </>
   );
 }
-
 export { FmeaTable };

@@ -10,7 +10,6 @@ import {
 } from "@elastic/eui";
 import { useEffect, useRef, useState } from "react";
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
-
 function WorkspaceSelectorMenu(): JSX.Element {
   const didMountRef = useRef(false);
   const navigate = useNavigate();
@@ -18,11 +17,9 @@ function WorkspaceSelectorMenu(): JSX.Element {
   const popoverID = useGeneratedHtmlId({
     prefix: "WorkspaceSelectorMenu",
   });
-
   const [spaces, setSpaces] = useState<EuiSelectableOption[]>(SelectableWorkspaceOptions);
   const [selectedSpace, setSelectedSpace] = useState(() => spaces.filter((option) => option.checked)[0]);
   const [isOpen, setIsOpen] = useState(false);
-
   const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
@@ -38,8 +35,6 @@ function WorkspaceSelectorMenu(): JSX.Element {
       void navigate(`/${next.key}`);
     }
   };
-
-  // On mount, sync selected workspace with current URL, but do NOT navigate.
   useEffect(() => {
     if (!didMountRef.current) {
       const seg = location.pathname.split("/")[1] || "internal-events";
@@ -51,7 +46,6 @@ function WorkspaceSelectorMenu(): JSX.Element {
       didMountRef.current = true;
     }
   }, [location.pathname, spaces, selectedSpace]);
-
   const button = (
     <EuiHeaderSectionItemButton
       aria-controls={popoverID}
@@ -60,10 +54,9 @@ function WorkspaceSelectorMenu(): JSX.Element {
       aria-label="Workspace menu"
       onClick={onMenuButtonClick}
     >
-      {selectedSpace.prepend} {/* Render the label property */}
+      {selectedSpace.prepend}
     </EuiHeaderSectionItemButton>
   );
-
   return (
     <EuiPopover
       id={popoverID}

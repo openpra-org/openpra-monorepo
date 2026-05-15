@@ -1,4 +1,3 @@
-/** Column definition in an FMEA table. */
 export interface Column {
   id: string;
   name: string;

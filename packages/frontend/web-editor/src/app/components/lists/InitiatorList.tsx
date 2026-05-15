@@ -11,19 +11,15 @@ import {
   EuiTextColor,
   EuiTitle,
 } from "@elastic/eui";
-
 interface Item {
   id: number;
   name: string;
 }
-
 const items: Item[] = [
   { id: 1, name: "Item 1" },
   { id: 2, name: "Item 2" },
-  // ... other items
 ];
 type RouteParams = Record<string, string>;
-
 const List: React.FC = () => {
   const params = useParams<RouteParams>();
   const [intiatingEventId, setIntiatingEventId] = useState("");
@@ -75,7 +71,6 @@ const List: React.FC = () => {
     </EuiPageTemplate>
   );
 };
-
 const InitiatorList: React.FC = () => (
   <Routes>
     <Route
@@ -84,5 +79,4 @@ const InitiatorList: React.FC = () => (
     />
   </Routes>
 );
-
 export { InitiatorList };

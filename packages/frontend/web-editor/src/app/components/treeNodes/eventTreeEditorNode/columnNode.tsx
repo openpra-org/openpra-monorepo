@@ -2,7 +2,6 @@ import { NodeProps, Position, Handle } from "reactflow";
 import { memo } from "react";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
-
 export interface ColumnNodeData {
   label: string;
   width: number;
@@ -16,7 +15,6 @@ export interface ColumnNodeData {
   faultTreeLabel?: string;
   frequency?: number;
 }
-
 function ColumnNode({ data }: NodeProps<ColumnNodeData>): JSX.Element {
   return (
     <>
@@ -91,5 +89,4 @@ function ColumnNode({ data }: NodeProps<ColumnNodeData>): JSX.Element {
     </>
   );
 }
-
 export default memo(ColumnNode);

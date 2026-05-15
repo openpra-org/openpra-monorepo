@@ -1,6 +1,5 @@
 import { ComponentReliabilityTable } from "../../components/tables/componentReliabilityTable";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
-
 function ComponentReliability(): JSX.Element {
   return (
     <TemplatedPageBody
@@ -19,5 +18,4 @@ function ComponentReliability(): JSX.Element {
     </TemplatedPageBody>
   );
 }
-
 export { ComponentReliability };

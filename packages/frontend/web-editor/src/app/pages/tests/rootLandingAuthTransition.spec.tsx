@@ -4,8 +4,6 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { RootContainer } from "../../pages/rootContainer";
 import { LoginPage } from "../../pages/LandingPage";
 import { ToastProvider } from "../../providers/toastProvider";
-
-// Mock TypedModelApiManager to avoid network and return empty lists
 jest.mock("shared-sdk/lib/api/TypedModelApiManager", () => ({
   GetInternalEvents: jest.fn(async () => []),
   GetInternalHazards: jest.fn(async () => []),
@@ -13,8 +11,6 @@ jest.mock("shared-sdk/lib/api/TypedModelApiManager", () => ({
   PatchInternalEvent: jest.fn(),
   DeleteInternalEvent: jest.fn(),
 }));
-
-// Helper to mock ApiManager auth state with a toggle and expose setter
 jest.mock("shared-sdk/lib/api/ApiManager", () => {
   let loggedIn = false;
   return {
@@ -35,18 +31,18 @@ jest.mock("shared-sdk/lib/api/ApiManager", () => {
     },
   };
 });
-
 describe("Root '/' auth transition without navigation", () => {
   afterEach(() => {
     jest.clearAllMocks();
     document.body.innerHTML = "";
   });
-
   it("renders LoginPage then switches to RecentModelsPage after login", async () => {
     const { ApiManager } = await import("shared-sdk/lib/api/ApiManager");
-    // Ensure we start logged out
-    (ApiManager as unknown as { __setLoggedIn: (v: boolean) => void }).__setLoggedIn(false);
-
+    (
+      ApiManager as unknown as {
+        __setLoggedIn: (v: boolean) => void;
+      }
+    ).__setLoggedIn(false);
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={["/"]}>
@@ -64,18 +60,16 @@ describe("Root '/' auth transition without navigation", () => {
         </MemoryRouter>
       </ToastProvider>,
     );
-
-    // Initially shows LoginPage content
     expect(screen.getByText(/Welcome to OpenPRA!/i)).toBeInTheDocument();
-
-    // Flip auth to logged in without changing the route and emit event
-    (ApiManager as unknown as { __setLoggedIn: (v: boolean) => void }).__setLoggedIn(true);
+    (
+      ApiManager as unknown as {
+        __setLoggedIn: (v: boolean) => void;
+      }
+    ).__setLoggedIn(true);
     const { emitAuthEvent } = await import("shared-sdk/lib/api/AuthEvents");
     await act(async () => {
       emitAuthEvent({ type: "login" });
     });
-
-    // Now the RecentModelsPage should be visible
     expect(screen.getByText(/Welcome back/i)).toBeInTheDocument();
   });
 });

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createZodDto } from "../../zod/zod-dto";
-
 const hclModelQuantificationConfigurationSchema = z.object({
   configuration: z.object({
     constructor: z.object({
@@ -33,5 +32,4 @@ const hclModelQuantificationConfigurationSchema = z.object({
     }),
   }),
 });
-
 export class HclModelQuantificationConfigurationDto extends createZodDto(hclModelQuantificationConfigurationSchema) {}

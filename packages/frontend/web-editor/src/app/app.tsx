@@ -17,7 +17,6 @@ import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
 import { AuthProvider } from "./api/auth/AuthContext";
 import { PrivateRoute } from "./components/PrivateRoute";
-
 const routes: RouteObject[] = [
   {
     path: "/",
@@ -111,13 +110,11 @@ const routes: RouteObject[] = [
     ],
   },
 ];
-
 const router = createBrowserRouter(routes, {
   future: {
     v7_normalizeFormMethod: true,
   },
 });
-
 function App(): ReactElement {
   const ability = DefaultAbility();
   return (
@@ -133,5 +130,4 @@ function App(): ReactElement {
     </ThemeProvider>
   );
 }
-
 export { App };

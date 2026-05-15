@@ -7,17 +7,6 @@ import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select"
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { UsernameForm } from "./usernameForm";
-
-/**
- * This is a user form for inviting a new User to the app
- * @param buttonText - The button text
- * @param handleSignup - The function to be called when user clicks on the button
- * @param signup - The user data object (must be a state variable)
- * @param setSignup - The function to update the user data object (must be a state update function)
- * @param options - The options for expiry drop down
- * @param expiry - The expiry value state
- * @param onValueChange - State update function for expiry value
- */
 const GenerateUserForm = ({
   buttonText,
   handleSignup,
@@ -39,7 +28,6 @@ const GenerateUserForm = ({
   const [isValidUsername, setIsValidUsername] = useState(true);
   const [isValidEmail, setIsValidEmail] = useState(true);
   const { addToast } = UseToastContext();
-
   function validateDetails(e: React.FormEvent<HTMLFormElement>): void {
     const emailValidation: EmailValidationForm = {
       email: signup.email,
@@ -49,7 +37,6 @@ const GenerateUserForm = ({
     };
     e.preventDefault();
     setSignupButtonClicked(true);
-    // Check if email is valid, if email is valid check if username is valid, if valid handle sign up
     ApiManager.isValidEmail(JSON.stringify(emailValidation))
       .then((isValidEmail: boolean) => {
         setIsValidEmail(isValidEmail);
@@ -78,28 +65,23 @@ const GenerateUserForm = ({
         });
       });
   }
-
   type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
   type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
-
   const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
     const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
     return checkUserName((validationResult: boolean) => {
       setIsValidUsername(validationResult);
     });
   }, []);
-
   const debouncedCheckEmail = useMemo(() => {
     const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
     return checkEmail((validationResult: boolean) => {
       setIsValidEmail(validationResult);
     });
   }, []);
-
   useEffect(() => {
     debouncedCheckUserName(signup);
   }, [signup, debouncedCheckUserName]);
-
   useEffect(() => {
     if (signup.email.length === 0 && !signupButtonClicked) {
       setIsValidEmail(true);
@@ -107,7 +89,6 @@ const GenerateUserForm = ({
     }
     debouncedCheckEmail(signup);
   }, [signup, signupButtonClicked, debouncedCheckEmail]);
-
   return (
     <EuiForm
       component="form"
@@ -155,5 +136,4 @@ const GenerateUserForm = ({
     </EuiForm>
   );
 };
-
 export { GenerateUserForm };

@@ -7,13 +7,11 @@ import { GenerateUUID } from "../../../utils/treeUtils";
 import { InvitedUsersTable } from "../tables/invitedUsersTable";
 import { InviteMultipleUsersFlyout } from "../forms/inviteMultipleUsersFlyout";
 import { Can } from "../../providers/abilityProvider";
-
 const Invitations = (): JSX.Element => {
   const [invitedUsers, setInvitedUsers] = useState<InvitedUserDetailsDto[]>();
   const [isLoading, setIsLoading] = useState(false);
   const [isFlyoutVisible, setIsFlyoutVisible] = useState<boolean>(false);
   const { addToast } = UseToastContext();
-
   useEffect(() => {
     setIsLoading(true);
     UserInviteApi.getAllInvites()
@@ -42,12 +40,10 @@ const Invitations = (): JSX.Element => {
         });
       });
   }, [addToast, isFlyoutVisible]);
-
   let flyout;
   if (isFlyoutVisible) {
     flyout = <InviteMultipleUsersFlyout setIsFlyoutVisible={setIsFlyoutVisible} />;
   }
-
   return (
     <EuiSkeletonLoading
       isLoading={isLoading}
@@ -101,5 +97,4 @@ const Invitations = (): JSX.Element => {
     ></EuiSkeletonLoading>
   );
 };
-
 export { Invitations };

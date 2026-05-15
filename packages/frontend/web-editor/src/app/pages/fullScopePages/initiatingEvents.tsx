@@ -21,17 +21,11 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
-
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
-
 import FmeaApiManager from "shared-sdk/lib/api/InitiatingEventsApiManager";
-
 import { InitiatorList } from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
-
-// Use EUI's Toast type for EuiGlobalToastList compatibility
-
 export function EditableTable(): JSX.Element | null {
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);
@@ -44,44 +38,36 @@ export function EditableTable(): JSX.Element | null {
       { number: 3, description: "high" },
     ],
   });
-  const [originalColumnId, setOriginalColumnId] = useState(""); // Tracks the original id of the editing column
-  const [editingColumn, setEditingColumn] = useState<Column | null>(null); // Holds the column being edited
+  const [originalColumnId, setOriginalColumnId] = useState("");
+  const [editingColumn, setEditingColumn] = useState<Column | null>(null);
   const [dropdownOptions, setDropdownOptions] = useState<Column["dropdownOptions"]>([
     { number: 1, description: "low" },
   ]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
   const [selectedRowIdSidePanel, setSelectedRowIdSidePanel] = useState<string>("");
-  // // Toggle the side panel and adjust the width of the data grid accordingly
   const toggleSidePanel = useCallback((): void => {
     setIsSidePanelVisible((prev) => {
       const next = !prev;
       return next;
     });
   }, []);
-
   const addToast = useCallback((toast: Toast): void => {
     setToasts((prev: Toast[]) => [...prev, toast]);
   }, []);
-
   const removeToast = useCallback((removedToast: Toast): void => {
     setToasts((prev: Toast[]) => prev.filter((toast: Toast) => toast.id !== removedToast.id));
   }, []);
-
   interface DatagridColumn {
     id: string;
-    display?: JSX.Element; // Assuming you're using JSX elements for the display property
-    displayAsText?: string; // This could be optional based on your logic
+    display?: JSX.Element;
+    displayAsText?: string;
   }
-
   useEffect(() => {
     const loadFmea = async (): Promise<void> => {
       const res = await FmeaApiManager.getFmea(3);
-
-      // Modify the columns as needed
       const modifiedColumns = [
         ...res.columns,
         {
@@ -97,15 +83,11 @@ export function EditableTable(): JSX.Element | null {
           dropdownOptions: [],
         },
       ];
-
-      // Assuming setColumn and setData are setState functions from React's useState
       setColumn(modifiedColumns);
       setData(res.rows);
     };
-
     void loadFmea();
   }, []);
-
   const updateCell = useCallback((rowId: string, column: string, value: string): void => {
     const update = async (): Promise<void> => {
       const res = await FmeaApiManager.updateCell(3, {
@@ -123,7 +105,6 @@ export function EditableTable(): JSX.Element | null {
     };
     void update();
   }, []);
-
   function showModal(columnName: string): void {
     if (columnName) {
       const columnToEdit = columns.find((c) => c.name === columnName);
@@ -146,7 +127,6 @@ export function EditableTable(): JSX.Element | null {
     }
     setIsModalVisible(true);
   }
-
   const datagridColumns: DatagridColumn[] = columns.map((column) => {
     if (column.name !== "actions" && column.name !== "details") {
       return {
@@ -178,12 +158,9 @@ export function EditableTable(): JSX.Element | null {
       }
     }
   });
-
   const deleteRow = useCallback((id: string): void => {
     const del = async (): Promise<void> => {
       const res = await FmeaApiManager.deleteRow(3, id);
-
-      // Assuming res.columns is mutable and you're okay with modifying it directly
       const updatedColumns = [
         ...res.columns,
         { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
@@ -200,14 +177,12 @@ export function EditableTable(): JSX.Element | null {
     };
     void del();
   }, []);
-
   const addNewRow = (): void => {
     const callAddRow = async (): Promise<void> => {
       await FmeaApiManager.addRow(3).then((resposne) => {
         setData(resposne.rows);
       });
     };
-
     void callAddRow();
   };
   const closeModal = (): void => {
@@ -232,7 +207,6 @@ export function EditableTable(): JSX.Element | null {
         showErrorToast();
       } else {
         if (editingColumn) {
-          // Update existing column
           const updateColumn = async (): Promise<void> => {
             const body = { ...newColumn, prev_column_name: originalColumnId };
             await FmeaApiManager.updateColumnDetails(3, body).then((res) => {
@@ -254,7 +228,6 @@ export function EditableTable(): JSX.Element | null {
           };
           void updateColumn();
         } else {
-          // Add new column
           const addColumn = async (): Promise<void> => {
             const body = {
               name: newColumn.name,
@@ -280,15 +253,12 @@ export function EditableTable(): JSX.Element | null {
           };
           void addColumn();
         }
-
-        // Reset states and close modal
         setEditingColumn(null);
         setOriginalColumnId("");
         closeModal();
       }
     }
   }
-
   function renderAddColumnModal(): JSX.Element {
     const updateNewColumn = (key: keyof Column, value: string): void => {
       setNewColumn({ ...newColumn, [key]: value });
@@ -325,7 +295,6 @@ export function EditableTable(): JSX.Element | null {
         },
       ]);
     };
-
     const deleteDropdownOption = (index: number): void => {
       const updatedOptions = dropdownOptions.filter((_, i) => i !== index);
       setDropdownOptions(updatedOptions);
@@ -392,11 +361,6 @@ export function EditableTable(): JSX.Element | null {
             </EuiForm>
           </EuiModalBody>
           <EuiModalFooter>
-            {/*{editingColumn && (*/}
-            {/*  <EuiButton color="danger" onClick={deleteColumn}>*/}
-            {/*    Delete Column*/}
-            {/*  </EuiButton>*/}
-            {/*)}*/}
             <EuiButton onClick={closeModal}>Cancel</EuiButton>
             <EuiButton
               fill
@@ -410,7 +374,6 @@ export function EditableTable(): JSX.Element | null {
     );
   }
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-
   const onSelectionChange = useCallback(
     (itemId: string): void => {
       const newSelection = new Set(selectedItems);
@@ -427,12 +390,10 @@ export function EditableTable(): JSX.Element | null {
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
       const column = columns.find((col) => col.id === columnId);
-
       const item: RowData = data[rowIndex].row_data;
       const rowID = data[rowIndex].id;
       if (column !== undefined) {
         const value = item[column.id] as string;
-        // Use `value` here within the if block
         if (columnId === "id") {
           const id = data[rowIndex].id;
           return (
@@ -455,9 +416,6 @@ export function EditableTable(): JSX.Element | null {
                 onBlur={(e): void => {
                   updateCell(rowID, column.id, e.currentTarget.textContent || "");
                 }}
-                // onDoubleClick={() => {
-                //   setEditingCell({ rowIndex, columnId });
-                // }}
                 data-testid={column.name}
               >
                 <span>{value}</span>
@@ -496,7 +454,6 @@ export function EditableTable(): JSX.Element | null {
               <EuiButtonIcon
                 onClick={(): void => {
                   toggleSidePanel();
-
                   setSelectedRowIdSidePanel(rowID);
                 }}
                 iconType="searchProfilerApp"
@@ -577,7 +534,7 @@ export function EditableTable(): JSX.Element | null {
                       ),
                     }}
                     rowHeightsOptions={{
-                      defaultHeight: "auto", // This sets the default row height to auto-fit content
+                      defaultHeight: "auto",
                     }}
                     style={{ marginBottom: "20px", height: "auto" }}
                   />
@@ -590,13 +547,12 @@ export function EditableTable(): JSX.Element | null {
                     padding: "16px",
                     boxShadow: "inset -3px 0px 5px rgba(0,0,0,0.05)",
                     borderLeft: "1px solid #EBEFF5",
-                    // color: "#333",
                     fontFamily: "Arial, sans-serif",
                     lineHeight: "1.5",
-                    marginTop: "30px", // Adjust this value as needed
-                    overflowY: isSidePanelVisible ? "auto" : "hidden", // This will create a scrollbar when the content is larger than the panel
+                    marginTop: "30px",
+                    overflowY: isSidePanelVisible ? "auto" : "hidden",
                     transition: "width 0.2s",
-                    height: "calc(100vh - 50px)", // Adjust the height calculation if you've changed the marginTop
+                    height: "calc(100vh - 50px)",
                     display: isSidePanelVisible ? "block" : "none",
                   }}
                 >
@@ -613,7 +569,7 @@ export function EditableTable(): JSX.Element | null {
                                 label={column.name}
                                 key={column.id}
                               >
-                                {column.type === "dropdown" ? (
+                                {column.type === "dropdown" ?
                                   <EuiSelect
                                     options={column.dropdownOptions.map((option) => ({
                                       value: option.number.toString(),
@@ -625,14 +581,13 @@ export function EditableTable(): JSX.Element | null {
                                     }}
                                     style={{ minWidth: "100px" }}
                                   />
-                                ) : (
-                                  <EuiFieldText
+                                : <EuiFieldText
                                     value={value}
                                     onChange={(e): void => {
                                       updateCell(selectedRowIdSidePanel, column.id, e.target.value);
                                     }}
                                   />
-                                )}
+                                }
                               </EuiFormRow>
                             );
                           })}
@@ -653,7 +608,6 @@ export function EditableTable(): JSX.Element | null {
     </div>
   );
 }
-
 export function InitiatingEventAnalysis(): JSX.Element {
   return (
     <>

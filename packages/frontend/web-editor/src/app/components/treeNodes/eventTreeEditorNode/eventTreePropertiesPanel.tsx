@@ -22,12 +22,10 @@ import { getInitials } from "../../../hooks/eventTree/useTreeData";
 import type { EventTreeEdgeData } from "../../treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 import type { VisibleNodeData } from "./visibleNode";
 import type { OutputNodeData } from "./outputNode";
-
 export interface EventTreePropertiesPanelProps {
   selectedNodeId: string | null;
   modelId: string;
 }
-
 export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreePropertiesPanelProps): JSX.Element {
   const { setNodes, getNodes, getEdges } = useReactFlow<ColumnNodeData, EventTreeEdgeData>();
   const nodes = useNodes<ColumnNodeData>();
@@ -36,29 +34,27 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
   const [ieNameDraft, setIeNameDraft] = useState("");
   const [ieFreqDraft, setIeFreqDraft] = useState("");
   const setFunctionalEvent = useEventTreeStore((s) => s.setFunctionalEvent);
-  const { eventTreeId } = useParams() as { eventTreeId: string };
-
+  const { eventTreeId } = useParams() as {
+    eventTreeId: string;
+  };
   const ieNode =
     selectedNodeId !== null ?
       ((nodes.find(
         (n) => n.id === selectedNodeId && n.type === "columnNode" && n.data.depth === 1 && !n.data.allowAdd,
       ) as Node<ColumnNodeData> | undefined) ?? null)
     : null;
-
   const selectedNode =
     selectedNodeId !== null ?
       ((nodes.find((n) => n.id === selectedNodeId && n.type === "columnNode" && n.data.allowAdd === true) as
         | Node<ColumnNodeData>
         | undefined) ?? null)
     : null;
-
   useEffect(() => {
     if (ieNode) {
       setIeNameDraft(ieNode.data.label ?? "");
       setIeFreqDraft(ieNode.data.frequency !== undefined ? String(ieNode.data.frequency) : "");
     }
   }, [ieNode?.id]);
-
   useEffect(() => {
     if (!modelId) return;
     setLoading(true);
@@ -75,7 +71,6 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
       cancelled = true;
     };
   }, [modelId]);
-
   if (ieNode) {
     const saveIeName = (name: string): void => {
       const initials = getInitials(name);
@@ -99,7 +94,6 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
         EventTreeState({ eventTreeId, nodes: updated, edges: getEdges(), functionalEvents }),
       );
     };
-
     const saveIeFrequency = (raw: string): void => {
       const freq = parseFloat(raw);
       const allNodes = getNodes();
@@ -112,7 +106,6 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
         EventTreeState({ eventTreeId, nodes: updated, edges: getEdges(), functionalEvents }),
       );
     };
-
     return (
       <div style={{ padding: "12px 16px", overflowY: "auto", height: "100%" }}>
         <EuiTitle size="xs">
@@ -165,7 +158,6 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
       </div>
     );
   }
-
   if (!selectedNode) {
     return (
       <div style={{ padding: "16px" }}>
@@ -182,44 +174,36 @@ export function EventTreePropertiesPanel({ selectedNodeId, modelId }: EventTreeP
       </div>
     );
   }
-
   const { data } = selectedNode;
-
   const ftOptions = [
     { value: "", text: "— none —" },
     ...faultTrees.map((ft) => ({ value: String(ft.id), text: ft.label?.name ?? String(ft.id) })),
   ];
-
   const handleLabelChange = (value: string): void => {
     setNodes((prev: Node<ColumnNodeData>[]) =>
       prev.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label: value } } : n)),
     );
   };
-
   const handleFaultTreeChange = (value: string): void => {
     const selectedFt = faultTrees.find((ft) => String(ft.id) === value);
     const ftLabel = selectedFt ? (selectedFt.label?.name ?? value) : undefined;
-
     const updatedNodes: Node<ColumnNodeData>[] = getNodes().map((n) =>
       n.id === selectedNode.id ?
         { ...n, data: { ...n.data, faultTreeId: value || undefined, faultTreeLabel: value ? ftLabel : undefined } }
       : n,
     );
     setNodes(updatedNodes);
-
     setFunctionalEvent(selectedNode.id, {
       uuid: selectedNode.id,
       name: selectedNode.data.label,
       order: selectedNode.data.depth,
       faultTreeId: value || undefined,
     });
-
     const { functionalEvents } = useEventTreeStore.getState();
     void GraphApiManager.storeEventTree(
       EventTreeState({ eventTreeId, nodes: updatedNodes, edges: getEdges(), functionalEvents }),
     ).then(() => {});
   };
-
   return (
     <div style={{ padding: "12px 16px", overflowY: "auto", height: "100%" }}>
       <EuiTitle size="xs">

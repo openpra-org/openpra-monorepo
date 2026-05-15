@@ -1,9 +1,3 @@
-/**
- * Fault Tree editor page.
- * Canvas is ReactFlow; a right-side PropertiesPanel appears when a node is selected.
- * Clicking the + button on an edge opens a type-picker so the user can choose what
- * kind of node to insert.
- */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
@@ -15,7 +9,6 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
 } from "reactflow";
-
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import {
   EuiButtonIcon,
@@ -32,9 +25,7 @@ import { Route, Routes, useParams } from "react-router-dom";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
 import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
-
 import "reactflow/dist/style.css";
-
 import { FaultTreeList } from "../../components/lists/nestedLists/faultTreeList";
 import {
   FaultTreeNodeContextMenu,
@@ -80,16 +71,11 @@ import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.s
 import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
 import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
 import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
-
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
-
 const fitViewOptions: FitViewOptions = {
   padding: 0.95,
 };
-
 const PANEL_WIDTH = 300;
-
-/** Node-type options shown in the edge + button picker. */
 const NODE_TYPE_OPTIONS = [
   { type: AND_GATE, label: AND_GATE_LABEL, icon: AndGateIcon },
   { type: OR_GATE, label: OR_GATE_LABEL, icon: OrGateIcon },
@@ -99,7 +85,6 @@ const NODE_TYPE_OPTIONS = [
   { type: HOUSE_EVENT, label: HOUSE_EVENT_LABEL, icon: HouseEventIcon },
   { type: BASIC_EVENT, label: BASIC_EVENT_LABEL, icon: BasicEventIcon },
 ];
-
 function ReactFlowPro(): JSX.Element {
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
@@ -116,35 +101,23 @@ function ReactFlowPro(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId, modelId } = useParams();
   const { addToast } = UseToastContext();
-
-  // ── Properties panel state ──────────────────────────────────────────────
   const [selectedNode, setSelectedNode] = useState<Node<FaultTreeNodeProps> | null>(null);
   const [isQuantifyOpen, setIsQuantifyOpen] = useState(false);
-
-  // ── Import XML state ────────────────────────────────────────────────────
   const importFileRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
-
-  // ── Zoom helpers ────────────────────────────────────────────────────────
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-
-  // ── Edge insert hook ────────────────────────────────────────────────────
   const insertOnEdge = useEdgeInsert();
-
   UseLayout(!isLoading);
   const lastAppliedSigRef = useRef<string | undefined>(undefined);
   const loadRunsRef = useRef<number>(0);
-
   useEffect(() => {
     lastAppliedSigRef.current = undefined;
     setIsLoading(true);
     setSelectedNode(null);
   }, [faultTreeId]);
-
   useEffect(() => {
     if (!isLoading) return;
     if (!faultTreeId) return;
-
     let cancelled = false;
     const loadGraph = async (): Promise<void> => {
       loadRunsRef.current += 1;
@@ -164,12 +137,12 @@ function ReactFlowPro(): JSX.Element {
             runs: loadRunsRef.current,
             faultTreeId,
             nextSig,
-          }); // eslint-disable-line no-console
+          });
         } else {
           setNodes(nextNodes);
           setEdges(nextEdges);
           lastAppliedSigRef.current = nextSig;
-          console.debug("[FaultTreeEditor] loadGraph applied", { runs: loadRunsRef.current, faultTreeId, nextSig }); // eslint-disable-line no-console
+          console.debug("[FaultTreeEditor] loadGraph applied", { runs: loadRunsRef.current, faultTreeId, nextSig });
         }
       } catch (_err) {
         if (cancelled) return;
@@ -184,20 +157,16 @@ function ReactFlowPro(): JSX.Element {
         if (!cancelled) setIsLoading(false);
       }
     };
-
     void loadGraph();
     return () => {
       cancelled = true;
     };
   }, [faultTreeId, isLoading]);
-
-  // Keep selectedNode in sync when node data changes (e.g. quantification edits)
   useEffect(() => {
     if (!selectedNode) return;
     const updated = nodes.find((n) => n.id === selectedNode.id);
     if (updated) setSelectedNode(updated as Node<FaultTreeNodeProps>);
-  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  }, [nodes]);
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
@@ -218,11 +187,9 @@ function ReactFlowPro(): JSX.Element {
     },
     [nodes, edges, isOpen, setNodes, setEdges],
   );
-
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     setSelectedNode(node as Node<FaultTreeNodeProps>);
   }, []);
-
   const onPaneClick = useCallback(() => {
     closePopover();
     setPendingEdge(null);
@@ -233,18 +200,14 @@ function ReactFlowPro(): JSX.Element {
       setEdges(newEdges);
     }
   }, [edges, nodes, setEdges, setNodes, setPendingEdge]);
-
   const closePopover = (): void => {
     setMenu(null);
     setIsOpen(false);
   };
-
   const addToastHandler = (type: string): void => {
     const toast = allToasts.filter((t) => t.type === type)[0];
     addToast({ id: GenerateUUID(), ...toast });
   };
-
-  // Properties panel: update node data + persist
   const onQuantificationChange = useCallback(
     (nodeId: string, q: FaultTreeNodeQuantification) => {
       const updatedNodes = nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, quantification: q } } : n));
@@ -256,8 +219,6 @@ function ReactFlowPro(): JSX.Element {
     },
     [nodes, edges, faultTreeId, setNodes],
   );
-
-  // ── OpenPSA XML import ──────────────────────────────────────────────────
   const handleImportXml = useCallback(
     async (file: File): Promise<void> => {
       if (!faultTreeId) return;
@@ -267,7 +228,7 @@ function ReactFlowPro(): JSX.Element {
         const { topEventId, nodes: importedNodes } = parseOpenPsaXml(xml);
         await GraphApiManager.storeFaultTree({ faultTreeId, topEventId, nodes: importedNodes });
         setSelectedNode(null);
-        setIsLoading(true); // triggers the load useEffect to re-fetch and re-render
+        setIsLoading(true);
         addToast({ id: GenerateUUID(), title: `Imported "${file.name}"`, color: "success" });
       } catch (err) {
         addToast({
@@ -277,14 +238,11 @@ function ReactFlowPro(): JSX.Element {
         });
       } finally {
         setIsImporting(false);
-        // Reset file input so the same file can be re-imported if needed
         if (importFileRef.current) importFileRef.current.value = "";
       }
     },
     [faultTreeId, addToast, importFileRef],
   );
-
-  // Edge type-picker: build panels for TypedContextMenu
   const edgeTypePanelItems = NODE_TYPE_OPTIONS.map(({ type, label, icon }) => ({
     name: label,
     icon: (
@@ -300,7 +258,6 @@ function ReactFlowPro(): JSX.Element {
       }
     },
   }));
-
   if (isLoading) {
     return (
       <EuiSkeletonRectangle
@@ -310,12 +267,8 @@ function ReactFlowPro(): JSX.Element {
       />
     );
   }
-
   return (
-    // position: absolute; inset: 0 fills the FaultTreeEditor container exactly,
-    // avoiding height-100% inheritance issues across the EUI page template chain.
     <div style={{ position: "absolute", inset: 0, display: "flex" }}>
-      {/* ── Canvas ── */}
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
         <ReactFlow
           ref={ref}
@@ -415,7 +368,6 @@ function ReactFlowPro(): JSX.Element {
             </EuiFlexGroup>
           </Panel>
 
-          {/* Hidden file input for OpenPSA XML import */}
           <input
             ref={importFileRef}
             type="file"
@@ -427,7 +379,6 @@ function ReactFlowPro(): JSX.Element {
             }}
           />
 
-          {/* Node context menu */}
           <EuiPopover
             button=""
             isOpen={isOpen}
@@ -449,7 +400,6 @@ function ReactFlowPro(): JSX.Element {
             )}
           </EuiPopover>
 
-          {/* Edge type picker */}
           <EuiPopover
             button=""
             isOpen={!!pendingEdge}
@@ -469,7 +419,6 @@ function ReactFlowPro(): JSX.Element {
         </ReactFlow>
       </div>
 
-      {/* ── Properties panel (node selected) ── */}
       {selectedNode && faultTreeId && (
         <EuiPanel
           paddingSize="none"
@@ -494,7 +443,6 @@ function ReactFlowPro(): JSX.Element {
         </EuiPanel>
       )}
 
-      {/* ── Quantification panel (toggled via toolbar button) ── */}
       {isQuantifyOpen && faultTreeId && (
         <EuiPanel
           paddingSize="none"
@@ -516,11 +464,8 @@ function ReactFlowPro(): JSX.Element {
     </div>
   );
 }
-
 export function FaultTreeEditor(): JSX.Element {
   return (
-    // position: relative establishes the containing block for the absolute inner div.
-    // The height calc keeps the editor below the fixed EUI header.
     <div
       style={{
         position: "relative",
@@ -534,7 +479,6 @@ export function FaultTreeEditor(): JSX.Element {
     </div>
   );
 }
-
 function FaultTrees(): JSX.Element {
   return (
     <Routes>
@@ -549,5 +493,4 @@ function FaultTrees(): JSX.Element {
     </Routes>
   );
 }
-
 export { FaultTrees };

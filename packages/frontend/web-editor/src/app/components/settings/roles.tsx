@@ -5,7 +5,6 @@ import { GetAllRoles } from "shared-sdk/lib/api/roles/rolesApi";
 import { NavInsideNav, NavItemHeader } from "../sidenavs/genericNav";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
-
 const Roles = (): JSX.Element => {
   const { addToast } = UseToastContext();
   const [navItems, setNavItems] = useState<NavItemHeader[]>([]);
@@ -32,7 +31,12 @@ const Roles = (): JSX.Element => {
         setIsLoading(false);
       })
       .catch((err: unknown) => {
-        const message = (err as { message?: string }).message ?? "Unknown error";
+        const message =
+          (
+            err as {
+              message?: string;
+            }
+          ).message ?? "Unknown error";
         addToast(GetESToast("danger", message));
         setIsLoading(false);
       });
@@ -56,5 +60,4 @@ const Roles = (): JSX.Element => {
     </EuiPageTemplate>
   );
 };
-
 export { Roles };

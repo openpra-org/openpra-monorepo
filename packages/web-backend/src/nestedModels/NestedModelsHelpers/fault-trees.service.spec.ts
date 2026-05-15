@@ -4,10 +4,8 @@ import { FaultTreesService } from "./fault-trees.service";
 import { FaultTree } from "../schemas/fault-tree.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModelHelperService } from "../nested-model-helper.service";
-
 describe("FaultTreesService", () => {
   let service: FaultTreesService;
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,10 +18,8 @@ describe("FaultTreesService", () => {
         },
       ],
     }).compile();
-
     service = module.get<FaultTreesService>(FaultTreesService);
   });
-
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

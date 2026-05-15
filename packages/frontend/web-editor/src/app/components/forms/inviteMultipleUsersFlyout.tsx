@@ -25,7 +25,6 @@ import { ExpiryOptions } from "../settings/users";
 import { DefaultSignupProps } from "../login/signUp";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
-
 const buttons = [
   {
     id: `button__0`,
@@ -40,7 +39,6 @@ const buttons = [
     label: "Collaborators",
   },
 ];
-
 const linkOrEmailButtons = [
   {
     id: `button__link`,
@@ -51,7 +49,6 @@ const linkOrEmailButtons = [
     label: "Email",
   },
 ];
-
 const InviteMultipleUsersFlyout = ({
   setIsFlyoutVisible,
 }: {
@@ -62,11 +59,9 @@ const InviteMultipleUsersFlyout = ({
   const [expiry, setExpiry] = useState(ExpiryOptions[0].value);
   const [numberOfInvites, setNumberOfInvites] = useState(1);
   const { addToast } = UseToastContext();
-
   const onChangeOption = (optionId: string): void => {
     setToggle(optionId);
   };
-
   const onEmailOrInviteChange = (optionId: string): void => {
     setTypeOfInvite(optionId);
   };
@@ -90,7 +85,6 @@ const InviteMultipleUsersFlyout = ({
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };
-
   return (
     <EuiFlyout
       type={"overlay"}
@@ -190,5 +184,4 @@ const InviteMultipleUsersFlyout = ({
     </EuiFlyout>
   );
 };
-
 export { InviteMultipleUsersFlyout };

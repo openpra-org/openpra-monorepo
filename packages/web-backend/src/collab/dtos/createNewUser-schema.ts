@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createZodDto } from "../../zod/zod-dto";
-
 const CreateNewUserSchema = z
   .object({
     firstName: z.string().min(1).max(255).describe("Firstname of user"),
@@ -11,7 +10,5 @@ const CreateNewUserSchema = z
     roles: z.array(z.string().min(5).max(255)).describe("An array of role ids for the user"),
   })
   .describe("A new user in the backend");
-
 class CreateNewUserSchemaDto extends createZodDto(CreateNewUserSchema) {}
-
 export { CreateNewUserSchemaDto };

@@ -1,42 +1,38 @@
 import { AuthService } from "./AuthService";
-
 const FMEA_ENDPOINT = "/api/fmea";
 const OPTION_CACHE = "no-cache" as const;
-
 function authHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
     Authorization: `JWT ${AuthService.getEncodedToken()}`,
   };
 }
-
 export type FmeaColumnTypeString = "string";
 export type FmeaColumnTypeNumber = "number";
 export type FmeaColumnTypeDropdown = "dropdown";
 export type FmeaColumnTypeComputed = "computed";
 export type FmeaColumnTypeRisk = "risk";
-
 export type FmeaColumnType =
   | FmeaColumnTypeString
   | FmeaColumnTypeNumber
   | FmeaColumnTypeDropdown
   | FmeaColumnTypeComputed
   | FmeaColumnTypeRisk;
-
 export type FmeaColumn = {
   id: string;
   name: string;
   type: FmeaColumnType;
-  dropdownOptions: { number: number; description: string }[];
+  dropdownOptions: {
+    number: number;
+    description: string;
+  }[];
   computedFrom?: string[];
   formula?: "product";
 };
-
 export type FmeaRow = {
   id: string;
   row_data: Record<string, string>;
 };
-
 export type FmeaType = {
   id: number;
   systemsAnalysisId?: number;
@@ -45,22 +41,18 @@ export type FmeaType = {
   columns: FmeaColumn[];
   rows: FmeaRow[];
 };
-
 export type FmeaColumnBadge = {
   text: string;
   color: "primary" | "success" | "accent" | "warning" | "danger";
 };
-
 export type FmeaColumnSpec = FmeaColumn & {
   group: string;
   badge?: FmeaColumnBadge;
   linkedTo?: string;
 };
-
 export const DEFAULT_FMEA_COLUMNS: FmeaColumnSpec[] = [
   { id: "fmea_id", name: "FMEA ID", type: "string", dropdownOptions: [], group: "Identification" },
   { id: "subsystem", name: "Subsystem", type: "string", dropdownOptions: [], group: "Identification" },
-
   { id: "component_id", name: "Component ID", type: "string", dropdownOptions: [], group: "Component" },
   { id: "component_desc", name: "Component Description", type: "string", dropdownOptions: [], group: "Component" },
   {
@@ -73,16 +65,13 @@ export const DEFAULT_FMEA_COLUMNS: FmeaColumnSpec[] = [
       { number: 2, description: "NR" },
     ],
   },
-
   { id: "function", name: "Function", type: "string", dropdownOptions: [], group: "Analysis" },
   { id: "failure_mode", name: "Failure Mode", type: "string", dropdownOptions: [], group: "Analysis" },
   { id: "fm_code", name: "FM Code", type: "string", dropdownOptions: [], group: "Analysis" },
   { id: "failure_cause", name: "Failure Cause", type: "string", dropdownOptions: [], group: "Analysis" },
-
   { id: "local_effect", name: "Local Effect", type: "string", dropdownOptions: [], group: "Effects" },
   { id: "system_effect", name: "System Effect", type: "string", dropdownOptions: [], group: "Effects" },
   { id: "end_effect", name: "End Effect (Plant Level)", type: "string", dropdownOptions: [], group: "Effects" },
-
   {
     id: "S",
     name: "S — Severity",
@@ -134,9 +123,7 @@ export const DEFAULT_FMEA_COLUMNS: FmeaColumnSpec[] = [
     group: "Risk Scoring",
     badge: { text: "Auto-calculated", color: "success" },
   },
-
   { id: "recommended_actions", name: "Recommended Actions", type: "string", dropdownOptions: [], group: "Actions" },
-
   {
     id: "pra_be_id",
     name: "PRA BE ID",
@@ -156,7 +143,6 @@ export const DEFAULT_FMEA_COLUMNS: FmeaColumnSpec[] = [
     linkedTo: "ccf",
   },
 ];
-
 export async function GetFmeaBySaId(saId: number): Promise<FmeaType[]> {
   const response = await fetch(`${FMEA_ENDPOINT}/by-sa/${saId}`, {
     method: "GET",
@@ -165,7 +151,6 @@ export async function GetFmeaBySaId(saId: number): Promise<FmeaType[]> {
   });
   return (await response.json()) as FmeaType[];
 }
-
 export async function GetFmeaById(fmeaId: number): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}`, {
     method: "GET",
@@ -174,7 +159,6 @@ export async function GetFmeaById(fmeaId: number): Promise<FmeaType | null> {
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function CreateFmea(body: {
   systemsAnalysisId: number;
   title: string;
@@ -189,10 +173,16 @@ export async function CreateFmea(body: {
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function AddFmeaColumn(
   fmeaId: number,
-  body: { name: string; type: FmeaColumnType; dropdownOptions?: { number: number; description: string }[] },
+  body: {
+    name: string;
+    type: FmeaColumnType;
+    dropdownOptions?: {
+      number: number;
+      description: string;
+    }[];
+  },
 ): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/column`, {
     method: "PUT",
@@ -202,7 +192,6 @@ export async function AddFmeaColumn(
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function AddFmeaRow(fmeaId: number): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/row`, {
     method: "PUT",
@@ -211,7 +200,6 @@ export async function AddFmeaRow(fmeaId: number): Promise<FmeaType | null> {
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function UpdateFmeaCell(fmeaId: number, rowId: string, column: string, value: string): Promise<boolean> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/cell`, {
     method: "PUT",
@@ -221,7 +209,6 @@ export async function UpdateFmeaCell(fmeaId: number, rowId: string, column: stri
   });
   return (await response.json()) as boolean;
 }
-
 export async function DeleteFmeaColumn(fmeaId: number, column: string): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${encodeURIComponent(column)}/delete`, {
     method: "PUT",
@@ -230,7 +217,6 @@ export async function DeleteFmeaColumn(fmeaId: number, column: string): Promise<
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function DeleteFmeaRow(fmeaId: number, rowId: string): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${encodeURIComponent(rowId)}/delete`, {
     method: "DELETE",
@@ -239,11 +225,17 @@ export async function DeleteFmeaRow(fmeaId: number, rowId: string): Promise<Fmea
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function UpdateFmeaColumnDetails(
   fmeaId: number,
   columnId: string,
-  body: { name: string; type: FmeaColumnType; dropdownOptions?: { number: number; description: string }[] },
+  body: {
+    name: string;
+    type: FmeaColumnType;
+    dropdownOptions?: {
+      number: number;
+      description: string;
+    }[];
+  },
 ): Promise<FmeaType | null> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${encodeURIComponent(columnId)}/update`, {
     method: "PUT",
@@ -253,7 +245,6 @@ export async function UpdateFmeaColumnDetails(
   });
   return (await response.json()) as FmeaType;
 }
-
 export async function DeleteFmea(fmeaId: number): Promise<boolean> {
   const response = await fetch(`${FMEA_ENDPOINT}/${fmeaId}/delete`, {
     method: "PUT",

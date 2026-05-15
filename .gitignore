@@ -1,22 +1,17 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
-
 *.tsbuildinfo
-
 .cache
 migrations.json
-
 logs.txt
-# compiled output
+
 dist
 tmp
 /out-tsc
+/apps/solvers/scram/build
 
-# dependencies
 node_modules
 .pnpm-store
+/hyperfine
 
-# IDEs and   editors
-#/.idea
 .project
 .classpath
 .c9/
@@ -24,14 +19,12 @@ node_modules
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
 .vscode
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
 /.sass-cache
 /connect.lock
 /coverage
@@ -41,14 +34,10 @@ yarn-error.log
 testem.log
 /typings
 
-# System Files
 .DS_Store
 Thumbs.db
-
-
 .vcs
 
-# Logs
 logs
 *.log
 npm-debug.log*
@@ -57,43 +46,51 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Nx specific ignores
 .nx/installation
 .nx/cache
 .nx/workspace-data
 
+.eslintcache
 
-# Ignore e2e test auth files
+.env
+.env.local
+.env.*.local
+.jwt-open-secret
+
+**/coverage/**/*
 /packages/frontend/web-editor/e2e/.auth/
 
+fixtures/temp_input
+fixtures/models/ENT
+fixtures/models/aralia-fault-tree-dataset
+fixtures/models/generic-pwr-model
+fixtures/models/synthetic-models
+fixtures/models/benchexec-models
+fixtures/results/
+fixtures/benchmark_aralia
+fixtures/benchmark_chinese
+fixtures/benchmark_ent
+fixtures/benchexec-models/
+fixtures/ent
+fixtures/generic-pwr
+fixtures/mhtgr
+fixtures/synthetic-models
+benchmark_report_multitab.html
 
-# Ignore custom cursor rules and instruction files
+apps/solvers/ftrex
+apps/solvers/zebra
+apps/solvers/saphsolve
+
+__pycache__/
+*.pyc
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Ignore generated documentation and coverage outputs
-**/docs/**/*
-**/coverage/**/*
-
-# Keep Nx docs project tracked
-!/tools/docs/
-!/tools/docs/**
-
-# Ignore Markdown spike generated content
 /packages/docs-md/api/
 /packages/docs-md/.tmp/
 /packages/docs-md/.vitepress/dist/
 /packages/docs-md/.vitepress/.temp/
 /packages/docs-md/.vitepress/cache/
 /packages/docs-md/packages/**/api/
-
-# Ignore generated MEF element copies (built from mef-types during docs prepare)
 /packages/docs-md/mef-elements/
-
-# Editor/cache artifacts
-.eslintcache
-
-# Environment variables - never commit secrets
-.env
-.env.local
-.env.*.local

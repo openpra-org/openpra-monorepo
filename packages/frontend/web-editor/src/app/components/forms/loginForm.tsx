@@ -9,7 +9,6 @@ import { AbilityContext } from "../../providers/abilityProvider";
 import { UseToastContext } from "../../providers/toastProvider";
 import { useAuth } from "../../api/auth/AuthContext";
 import { GetESToast } from "../../../utils/treeUtils";
-
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {
     username: "",
@@ -19,7 +18,6 @@ function LoginForm(): JSX.Element {
     username: false,
     password: false,
   };
-
   const [login, setLogin] = useState(DefaultProps);
   const [error, setError] = useState(DefaultErrorProps);
   const [invalid, setInvalid] = useState(false);
@@ -27,7 +25,6 @@ function LoginForm(): JSX.Element {
   const ability = useContext(AbilityContext);
   const { addToast } = UseToastContext();
   const { login: authLogin } = useAuth();
-
   async function handleLogin(): Promise<void> {
     setInvalid(false);
     const { username, password } = login;
@@ -45,7 +42,6 @@ function LoginForm(): JSX.Element {
       setInvalid(true);
     }
   }
-
   useEffect(() => {
     if (login.username && error.username) {
       setError({
@@ -60,25 +56,20 @@ function LoginForm(): JSX.Element {
       });
     }
   }, [login, error]);
-
   function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-
     const errorCheck = {
       username: !login.username,
       password: !login.password,
     };
-
     setError({
       username: !login.username,
       password: !login.password,
     });
-
     if (!errorCheck.username && !errorCheck.password) {
       void handleLogin();
     }
   }
-
   if (redirectToHomepage) {
     return (
       <Navigate
@@ -141,5 +132,4 @@ function LoginForm(): JSX.Element {
     );
   }
 }
-
 export { LoginForm };

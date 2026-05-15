@@ -5,12 +5,10 @@ import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schem
 import { FmeaController } from "./fmea.controller";
 import { FmeaService } from "./fmea.service";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
-
 describe("FmeaController", () => {
   let _fmeaService: FmeaService;
   let fmeaController: FmeaController;
   let connection: Connection;
-
   beforeAll(async () => {
     const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
@@ -28,22 +26,12 @@ describe("FmeaController", () => {
     _fmeaService = module.get<FmeaService>(FmeaService);
     fmeaController = module.get<FmeaController>(FmeaController);
   });
-  /**
-   * After each test drop database
-   */
   afterEach(async () => {
     await connection.dropDatabase();
   });
-
-  /**
-   * After all tests
-   * Disconnect mongoose
-   * Stop mongoDB server
-   */
   afterAll(async () => {
     await mongoose.disconnect();
   });
-
   describe("createFmea", () => {
     it("should create a new FMEA object", async () => {
       const body = { title: "test fmea1", description: "for test" };
@@ -52,7 +40,6 @@ describe("FmeaController", () => {
       expect(createdFmea).toBeDefined();
     });
   });
-
   describe("getFmea", () => {
     it("should be defined", () => {
       expect(fmeaController.getFmea).toBeDefined();
@@ -64,7 +51,6 @@ describe("FmeaController", () => {
       expect(fmea).toBeDefined();
     });
   });
-
   describe("addColumn", () => {
     it("should be defined", () => {
       expect(fmeaController.addColumn).toBeDefined();
@@ -101,7 +87,6 @@ describe("FmeaController", () => {
       expect(fmea.columns[0].dropdownOptions[1].description).toEqual("test2");
     });
   });
-
   describe("addRow", () => {
     it("should be defined", () => {
       expect(fmeaController.addRow).toBeDefined();
@@ -116,7 +101,6 @@ describe("FmeaController", () => {
       expect(fmea.rows[0].row_data.test).toEqual("");
     });
   });
-
   describe("updateCell", () => {
     it("should be defined", () => {
       expect(fmeaController.updateCell).toBeDefined();
@@ -133,7 +117,6 @@ describe("FmeaController", () => {
       expect(updateResult).toEqual(true);
     });
   });
-
   describe("updateDropdownOptions", () => {
     it("should be defined", () => {
       expect(fmeaController.updateDropdownOptions).toBeDefined();
@@ -185,7 +168,6 @@ describe("FmeaController", () => {
       expect(fmea.columns[0].dropdownOptions[2].description).toEqual("test3");
     });
   });
-
   describe("deleteFmea", () => {
     it("should be defined", () => {
       expect(fmeaController.deleteFmea).toBeDefined();
@@ -197,13 +179,11 @@ describe("FmeaController", () => {
       console.log(result);
       expect(result).toEqual(true);
     });
-
     it("should return false if FMEA object not found", async () => {
       const result = await fmeaController.deleteFmea(1);
       expect(result).toEqual(false);
     });
   });
-
   describe("deleteColumn", () => {
     it("should be defined", () => {
       expect(fmeaController.deleteColumn).toBeDefined();
@@ -230,7 +210,6 @@ describe("FmeaController", () => {
       expect(result).toBeDefined();
     });
   });
-
   describe("deleteRow", () => {
     it("should be defined", () => {
       expect(fmeaController.deleteRow).toBeDefined();

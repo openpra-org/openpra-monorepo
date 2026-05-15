@@ -1,58 +1,27 @@
-/**
- * OpenPSA XML → Event Tree + Fault Tree importer.
- *
- * Parses a single `<define-event-tree>` block and all `<define-fault-tree>` blocks
- * from an OpenPSA MEF XML file, then produces the ReactFlow node/edge array used by
- * the event tree editor.
- *
- * Assumptions:
- *  - Each functional event is linked to at most one fault tree via its collect-formula.
- *  - Cross-tree gate references use dot notation: "FaultTree.gate".
- *  - Path order: first `<path>` = success, second `<path>` = failure.
- *  - Unbalanced event trees are supported (branches may terminate before others).
- */
-
 import type { Edge, Node } from "reactflow";
 import type { FaultTreeNode } from "mef-types/lib/systems-analysis/systems-analysis";
 import { FaultTreeNodeType } from "mef-types/lib/systems-analysis/systems-analysis";
 import { GenerateUUID } from "./treeUtils";
 import type { ParsedOpenPsaFaultTree } from "./parseOpenPsaXml";
-
-// ─── Public result types ──────────────────────────────────────────────────────
-
 export interface ParsedFunctionalEvent {
   name: string;
-  /** FT name extracted from the failure collect-formula (before the dot) */
   faultTreeName?: string;
 }
-
 export interface ParsedEventTreeResult {
   eventTree: {
     name: string;
     functionalEvents: ParsedFunctionalEvent[];
     sequences: string[];
   };
-  /** All FTs found in the XML, keyed by FT name */
   faultTrees: Record<string, ParsedOpenPsaFaultTree>;
-  /** Parsed fork structure — needed by buildImportedEventTreeGraph */
   parsedFork: ForkNode;
 }
-
-// ─── Shared XML helpers ───────────────────────────────────────────────────────
-
 function getParseError(doc: Document): string | null {
   const el = doc.getElementsByTagName("parsererror")[0];
   return el ? (el.textContent?.trim() ?? "unknown XML parse error") : null;
 }
-
-/**
- * Extract a probability value from a `<define-basic-event>` element.
- * Supports: `<float value="…">`, `<int value="…">`, `<exponential mean="…">`.
- * Throws for expressions that cannot be reduced to a scalar.
- */
 function extractEventProbability(el: Element): number {
   const name = el.getAttribute("name") ?? "?";
-
   const floatEl = el.querySelector("float");
   if (floatEl) {
     const v = parseFloat(floatEl.getAttribute("value") ?? "");
@@ -60,7 +29,6 @@ function extractEventProbability(el: Element): number {
     if (v < 0 || v > 1) throw new Error(`Basic event "${name}" probability ${String(v)} is outside [0, 1]`);
     return v;
   }
-
   const intEl = el.querySelector("int");
   if (intEl) {
     const v = parseInt(intEl.getAttribute("value") ?? "", 10);
@@ -68,23 +36,17 @@ function extractEventProbability(el: Element): number {
     if (v < 0 || v > 1) throw new Error(`Basic event "${name}" probability ${String(v)} is outside [0, 1]`);
     return v;
   }
-
-  // <exponential> — use mean as a scalar approximation (mean ≈ probability for small values)
   const expEl = el.querySelector("exponential");
   if (expEl) {
     const mean = parseFloat(expEl.getAttribute("mean") ?? "");
     if (!isNaN(mean) && mean >= 0) return Math.min(mean, 1);
     throw new Error(`Basic event "${name}" has an unresolvable <exponential> expression`);
   }
-
   throw new Error(
     `Basic event "${name}" uses an unsupported probability expression. ` +
       `Only <float>, <int>, and <exponential mean="…"> are supported.`,
   );
 }
-
-// ─── Fault tree parser ────────────────────────────────────────────────────────
-
 const LOGIC_TAG_TO_NODE_TYPE: Record<string, FaultTreeNodeType> = {
   and: FaultTreeNodeType.AND_GATE,
   or: FaultTreeNodeType.OR_GATE,
@@ -92,53 +54,43 @@ const LOGIC_TAG_TO_NODE_TYPE: Record<string, FaultTreeNodeType> = {
   inhibit: FaultTreeNodeType.INHIBIT_GATE,
   atleast: FaultTreeNodeType.ATLEAST_GATE,
 };
-
 const UNSUPPORTED_GATE_TAGS = new Set(["xor", "iff", "nand", "nor"]);
 const INPUT_TAGS = new Set(["gate", "basic-event", "house-event"]);
-
 interface GateDef {
   type: FaultTreeNodeType;
   inputs: string[];
   kValue?: number;
 }
-
 interface RawFaultTree {
   gateMap: Map<string, GateDef>;
   referencedGates: Set<string>;
   referencedEvents: Set<string>;
 }
-
 function parseSingleFaultTree(ftDef: Element): RawFaultTree {
   const gateMap = new Map<string, GateDef>();
   const referencedGates = new Set<string>();
   const referencedEvents = new Set<string>();
-
   ftDef.querySelectorAll("define-gate").forEach((gateDef) => {
     const gateName = gateDef.getAttribute("name");
     if (!gateName) return;
-
     const logicEl = Array.from(gateDef.children).find((c) => {
       const tag = c.tagName.toLowerCase();
       return LOGIC_TAG_TO_NODE_TYPE[tag] !== undefined || UNSUPPORTED_GATE_TAGS.has(tag);
     });
     if (!logicEl) return;
-
     const tagLower = logicEl.tagName.toLowerCase();
-
     if (UNSUPPORTED_GATE_TAGS.has(tagLower)) {
       throw new Error(
         `Gate "${gateName}" uses unsupported logic type "${tagLower}". ` +
           `Supported types: and, or, not, inhibit, atleast.`,
       );
     }
-
     const type = LOGIC_TAG_TO_NODE_TYPE[tagLower];
     let kValue: number | undefined;
     if (tagLower === "atleast") {
       const k = parseInt(logicEl.getAttribute("min") ?? "1", 10);
       kValue = isNaN(k) ? 1 : k;
     }
-
     const inputs: string[] = [];
     Array.from(logicEl.children).forEach((child) => {
       const childTag = child.tagName.toLowerCase();
@@ -148,13 +100,10 @@ function parseSingleFaultTree(ftDef: Element): RawFaultTree {
       if (childTag === "gate") referencedGates.add(childName);
       else referencedEvents.add(childName);
     });
-
     gateMap.set(gateName, { type, inputs, kValue });
   });
-
   return { gateMap, referencedGates, referencedEvents };
 }
-
 function parseAllFaultTrees(
   root: Element,
   eventProbs: Map<string, number>,
@@ -166,18 +115,13 @@ function parseAllFaultTrees(
     if (!name) return;
     rawTrees.set(name, parseSingleFaultTree(ftDef));
   });
-
   if (rawTrees.size === 0) return {};
-
   const result: Record<string, ParsedOpenPsaFaultTree> = {};
-
   for (const [ftName, raw] of rawTrees) {
     const nodes: Record<string, FaultTreeNode> = {};
-
     const inlineGate = (gateRef: string, visited = new Set<string>()): void => {
       if (nodes[gateRef] || visited.has(gateRef)) return;
       visited.add(gateRef);
-
       if (gateRef.includes(".")) {
         const dotIdx = gateRef.indexOf(".");
         const foreignFtName = gateRef.slice(0, dotIdx);
@@ -186,7 +130,6 @@ function parseAllFaultTrees(
         if (!foreignTree) return;
         const gateDef = foreignTree.gateMap.get(foreignGateName);
         if (!gateDef) return;
-
         nodes[gateRef] = {
           uuid: gateRef,
           nodeType: gateDef.type,
@@ -199,7 +142,6 @@ function parseAllFaultTrees(
           position: { x: 0, y: 0 },
           ...(gateDef.kValue !== undefined ? { kValue: gateDef.kValue } : {}),
         };
-
         for (const inp of gateDef.inputs) {
           const resolved =
             inp.includes(".") ? inp
@@ -212,10 +154,8 @@ function parseAllFaultTrees(
         }
         return;
       }
-
       const gateDef = raw.gateMap.get(gateRef);
       if (!gateDef) return;
-
       nodes[gateRef] = {
         uuid: gateRef,
         nodeType: gateDef.type,
@@ -224,13 +164,11 @@ function parseAllFaultTrees(
         position: { x: 0, y: 0 },
         ...(gateDef.kValue !== undefined ? { kValue: gateDef.kValue } : {}),
       };
-
       for (const inp of gateDef.inputs) {
         inlineGate(inp, visited);
         inlineEvent(inp);
       }
     };
-
     const inlineEvent = (eventName: string): void => {
       if (nodes[eventName] || raw.gateMap.has(eventName) || eventName.includes(".")) return;
       if (houseStates.has(eventName)) {
@@ -254,11 +192,9 @@ function parseAllFaultTrees(
         };
       }
     };
-
     for (const gateName of raw.gateMap.keys()) {
       inlineGate(gateName);
     }
-
     const allGateIds = new Set(raw.gateMap.keys());
     const topCandidates = [...allGateIds].filter((id) => !raw.referencedGates.has(id));
     if (topCandidates.length === 0) {
@@ -271,29 +207,22 @@ function parseAllFaultTrees(
       );
     }
     const topEventId = topCandidates[0];
-
     result[ftName] = { treeName: ftName, topEventId, nodes };
   }
-
   return result;
 }
-
-// ─── Event tree fork parser ───────────────────────────────────────────────────
-
 export interface ForkNode {
   feName: string;
-  successBranch?: ForkNode | string; // string = sequence name leaf
+  successBranch?: ForkNode | string;
   failureBranch?: ForkNode | string;
-  bypassBranch?: ForkNode | string; // straight-through; can end at a leaf
+  bypassBranch?: ForkNode | string;
 }
-
 function parseForkElement(forkEl: Element): ForkNode {
   const feName = forkEl.getAttribute("functional-event") ?? "";
   const paths = Array.from(forkEl.children).filter((c) => c.tagName.toLowerCase() === "path");
   if (paths.length === 0) {
     throw new Error(`Fork for functional event "${feName}" has no paths`);
   }
-
   const parseBranch = (pathEl: Element): ForkNode | string => {
     const childFork = Array.from(pathEl.children).find((c) => c.tagName.toLowerCase() === "fork");
     if (childFork) return parseForkElement(childFork);
@@ -301,9 +230,7 @@ function parseForkElement(forkEl: Element): ForkNode {
     if (seqEl) return seqEl.getAttribute("name") ?? "?";
     throw new Error(`Path in fork "${feName}" has no <fork> or <sequence> child`);
   };
-
   const result: ForkNode = { feName };
-
   for (const path of paths) {
     const state = (path.getAttribute("state") ?? "").trim().toLowerCase();
     const branch = parseBranch(path);
@@ -314,15 +241,12 @@ function parseForkElement(forkEl: Element): ForkNode {
     } else if (state === "bypass") {
       result.bypassBranch = branch;
     } else {
-      // Unknown state: fill whichever standard slot is still empty.
       if (result.successBranch === undefined) result.successBranch = branch;
       else if (result.failureBranch === undefined) result.failureBranch = branch;
     }
   }
-
   return result;
 }
-
 function extractFtNameFromFailurePath(pathEl: Element): string | undefined {
   const formula = Array.from(pathEl.children).find((c) => c.tagName.toLowerCase() === "collect-formula");
   if (!formula) return undefined;
@@ -332,7 +256,6 @@ function extractFtNameFromFailurePath(pathEl: Element): string | undefined {
   const dotIdx = ref.indexOf(".");
   return dotIdx >= 0 ? ref.slice(0, dotIdx) : undefined;
 }
-
 function collectSequences(fork: ForkNode | string | undefined): string[] {
   if (fork === undefined) return [];
   if (typeof fork === "string") return [fork];
@@ -342,21 +265,7 @@ function collectSequences(fork: ForkNode | string | undefined): string[] {
     ...collectSequences(fork.bypassBranch),
   ];
 }
-
-// ─── ReactFlow graph builder (supports unbalanced trees) ─────────────────────
-
 const NODE_WIDTH = 140;
-
-/**
- * Recursively build visible nodes and edges from the fork tree.
- *
- * Each call creates (or terminates at) a visible node and attaches an incoming edge
- * from the parent node. The incoming edge carries:
- *   - `branchState`: "success" | "failure" (the outcome of the parent fork)
- *   - `feId`: column-node ID of the FE resolved by the parent fork
- *
- * For leaf branches (string sequence names), an output node is created directly.
- */
 function buildVisibleSubtree(
   branch: ForkNode | string | undefined,
   parentId: string,
@@ -369,7 +278,6 @@ function buildVisibleSubtree(
   edges: Edge[],
 ): void {
   if (branch === undefined) return;
-
   const addEdgeToParent = (targetId: string): void => {
     edges.push({
       id: `${parentId}-${targetId}`,
@@ -380,9 +288,7 @@ function buildVisibleSubtree(
       data: { branchState: edgeBranchState, feId: edgeFeColId },
     });
   };
-
   if (typeof branch === "string") {
-    // Leaf: create output nodes and connect from parent.
     const seqNodeId = GenerateUUID();
     nodes.push({
       id: seqNodeId,
@@ -391,7 +297,6 @@ function buildVisibleSubtree(
       position: { x: 0, y: 0 },
     });
     addEdgeToParent(seqNodeId);
-
     const relCatId = GenerateUUID();
     nodes.push({
       id: relCatId,
@@ -409,10 +314,6 @@ function buildVisibleSubtree(
     });
     return;
   }
-
-  // Internal fork: create a visible node at the column depth of this FE.
-  // Using feDepthMap ensures nodes align under their declared column even when
-  // bypass branches skip intermediate functional events.
   const actualDepth = feDepthMap.get(branch.feName) ?? nodeDepth;
   const nodeId = GenerateUUID();
   nodes.push({
@@ -422,10 +323,8 @@ function buildVisibleSubtree(
     position: { x: 0, y: 0 },
   });
   addEdgeToParent(nodeId);
-
   const childFeColId = feColIds.get(branch.feName);
   const childDepth = nodeDepth + 1;
-
   buildVisibleSubtree(
     branch.successBranch,
     nodeId,
@@ -448,7 +347,6 @@ function buildVisibleSubtree(
     nodes,
     edges,
   );
-  // Bypass: straight-through edge from this node — no new visible fork created here.
   buildVisibleSubtree(
     branch.bypassBranch,
     nodeId,
@@ -461,19 +359,20 @@ function buildVisibleSubtree(
     edges,
   );
 }
-
 function buildEventTreeGraph(
   functionalEvents: ParsedFunctionalEvent[],
   parsedFork: ForkNode,
   sequences: string[],
   ftNameToId: Record<string, string>,
   ieName: string,
-): { nodes: Node[]; edges: Edge[] } {
+): {
+  nodes: Node[];
+  edges: Edge[];
+} {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   const feColIds = new Map<string, string>();
   const feDepthMap = new Map<string, number>();
-
   const addColEdge = (fromId: string, toId: string): void => {
     edges.push({
       id: `${fromId}--${toId}`,
@@ -484,9 +383,6 @@ function buildEventTreeGraph(
       data: { hidden: true },
     });
   };
-
-  // ── Column nodes ─────────────────────────────────────────────────────────────
-
   const ieColId = GenerateUUID();
   nodes.push({
     id: ieColId,
@@ -495,7 +391,6 @@ function buildEventTreeGraph(
     position: { x: 0, y: 0 },
   });
   let prevColId = ieColId;
-
   functionalEvents.forEach((fe, idx) => {
     const feColId = GenerateUUID();
     feColIds.set(fe.name, feColId);
@@ -518,7 +413,6 @@ function buildEventTreeGraph(
     addColEdge(prevColId, feColId);
     prevColId = feColId;
   });
-
   const actionsId = GenerateUUID();
   nodes.push({
     id: actionsId,
@@ -528,7 +422,6 @@ function buildEventTreeGraph(
   });
   addColEdge(prevColId, actionsId);
   prevColId = actionsId;
-
   const inputLevels = functionalEvents.length + 1;
   ["Sequence ID", "Release Category"].forEach((label, i) => {
     const outColId = GenerateUUID();
@@ -541,9 +434,6 @@ function buildEventTreeGraph(
     addColEdge(prevColId, outColId);
     prevColId = outColId;
   });
-
-  // ── Root visible node ─────────────────────────────────────────────────────────
-
   const rootId = GenerateUUID();
   nodes.push({
     id: rootId,
@@ -558,12 +448,8 @@ function buildEventTreeGraph(
     },
     position: { x: 0, y: 0 },
   });
-
-  // ── Recurse from root through the fork tree ───────────────────────────────────
-  // The root resolves parsedFork.feName — that FE's column ID goes on the outgoing edges.
   const rootFeColId = feColIds.get(parsedFork.feName);
   const childDepth = 2;
-
   buildVisibleSubtree(
     parsedFork.successBranch,
     rootId,
@@ -597,35 +483,20 @@ function buildEventTreeGraph(
     nodes,
     edges,
   );
-
-  void sequences; // sequences are embedded as output-node labels via the fork tree
-
+  void sequences;
   return { nodes, edges };
 }
-
-// ─── Main export ──────────────────────────────────────────────────────────────
-
-/**
- * Parse an OpenPSA MEF XML file containing a single event tree plus
- * all its linked fault trees. Supports unbalanced binary event trees.
- *
- * @throws {Error} if the XML is malformed, has no event tree, uses unsupported
- *   gate types, or has probability expressions that cannot be reduced to scalars.
- */
 export function parseOpenPsaEventTreeXml(xmlString: string): ParsedEventTreeResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, "application/xml");
   const parseError = getParseError(doc);
   if (parseError) throw new Error(`XML parse error: ${parseError}`);
   const root = doc.documentElement;
-
-  // ── Collect basic-event probabilities and house-event states ─────────────────
   const eventProbs = new Map<string, number>();
   root.querySelectorAll("model-data > define-basic-event").forEach((el) => {
     const name = el.getAttribute("name");
     if (name) eventProbs.set(name, extractEventProbability(el));
   });
-
   const houseStates = new Map<string, boolean>();
   root.querySelectorAll("model-data > define-house-event").forEach((el) => {
     const name = el.getAttribute("name");
@@ -633,22 +504,16 @@ export function parseOpenPsaEventTreeXml(xmlString: string): ParsedEventTreeResu
     const constEl = el.querySelector("constant");
     houseStates.set(name, constEl ? constEl.getAttribute("value") === "true" : false);
   });
-
   const faultTrees = parseAllFaultTrees(root, eventProbs, houseStates);
-
-  // ── Parse event tree ──────────────────────────────────────────────────────────
   const etDef = root.querySelector("define-event-tree");
   if (!etDef) throw new Error("No <define-event-tree> element found in XML");
   const etName = etDef.getAttribute("name") ?? "imported";
-
   const feNames: string[] = [];
   etDef.querySelectorAll("define-functional-event").forEach((el) => {
     const name = el.getAttribute("name");
     if (name) feNames.push(name);
   });
   if (feNames.length === 0) throw new Error("Event tree has no functional events");
-
-  // Extract FE → FT mapping from failure-path collect-formulas
   const feToFtName: Record<string, string> = {};
   const collectFtMappings = (el: Element): void => {
     Array.from(el.children).forEach((child) => {
@@ -657,7 +522,6 @@ export function parseOpenPsaEventTreeXml(xmlString: string): ParsedEventTreeResu
         const feName = child.getAttribute("functional-event") ?? "";
         const paths = Array.from(child.children).filter((c) => c.tagName.toLowerCase() === "path");
         if (paths.length >= 1 && !feToFtName[feName]) {
-          // Prefer the explicit failure path; bypass paths have no collect-formula.
           const failurePath =
             paths.find((p) => {
               const s = (p.getAttribute("state") ?? "").trim().toLowerCase();
@@ -676,39 +540,30 @@ export function parseOpenPsaEventTreeXml(xmlString: string): ParsedEventTreeResu
       }
     });
   };
-
   const initialState = Array.from(etDef.children).find((c) => c.tagName.toLowerCase() === "initial-state");
   if (!initialState) throw new Error("Event tree has no <initial-state>");
   collectFtMappings(initialState);
-
   const rootForkEl = Array.from(initialState.children).find((c) => c.tagName.toLowerCase() === "fork");
   if (!rootForkEl) throw new Error("Event tree <initial-state> has no <fork>");
   const parsedFork = parseForkElement(rootForkEl);
   const sequences = collectSequences(parsedFork);
-
   const functionalEvents: ParsedFunctionalEvent[] = feNames.map((name) => ({
     name,
     faultTreeName: feToFtName[name],
   }));
-
   return {
     eventTree: { name: etName, functionalEvents, sequences },
     faultTrees,
     parsedFork,
   };
 }
-
-/**
- * Build the ReactFlow nodes and edges for an imported event tree.
- * Must be called after fault trees have been created (so their DB IDs are known).
- *
- * @param parsed     - Result from `parseOpenPsaEventTreeXml`
- * @param ftNameToId - Map from FT name (as in XML) → NestedModel `_id` string
- */
 export function buildImportedEventTreeGraph(
   parsed: ParsedEventTreeResult,
   ftNameToId: Record<string, string>,
-): { nodes: Node[]; edges: Edge[] } {
+): {
+  nodes: Node[];
+  edges: Edge[];
+} {
   const { eventTree, parsedFork } = parsed;
   return buildEventTreeGraph(eventTree.functionalEvents, parsedFork, eventTree.sequences, ftNameToId, eventTree.name);
 }

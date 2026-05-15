@@ -8,7 +8,6 @@ import {
   SetInternalHazards,
 } from "./InternalHazardsActions";
 import { InternalHazardsState } from "./InternalHazardsState";
-
 const InternalHazardsSlice: StateCreator<
   StoreStateType & StoreActionType,
   [],
@@ -26,5 +25,4 @@ const InternalHazardsSlice: StateCreator<
     DeleteInternalHazard: DeleteInternalHazard,
   };
 };
-
 export { InternalHazardsSlice };

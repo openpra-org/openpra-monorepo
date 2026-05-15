@@ -28,7 +28,6 @@ import { PlantDiagrams } from "../fullScopePages/plantDiagrams";
 import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
 import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
 import { FaultTrees } from "../fullScopePages/faultTrees";
-
 const getModelFixture = (): ModelProps => ({
   label: {
     name: "Model ABC",
@@ -52,12 +51,10 @@ const getModelFixture = (): ModelProps => ({
     },
   ],
 });
-
 export interface FaultTreeProps {
   id: string | number;
   label: LabelJSON;
 }
-
 export interface ModelProps {
   id: string | number;
   label: LabelJSON;
@@ -66,7 +63,6 @@ export interface ModelProps {
 export function LoadModel(): ModelProps {
   return getModelFixture();
 }
-
 function ExternalHazardsPage(): JSX.Element {
   return (
     <Routes>
@@ -187,9 +183,7 @@ function ExternalHazardsPage(): JSX.Element {
           element={<ModelSettings />}
         />
       </Route>
-      {}
     </Routes>
   );
 }
-
 export { ExternalHazardsPage };

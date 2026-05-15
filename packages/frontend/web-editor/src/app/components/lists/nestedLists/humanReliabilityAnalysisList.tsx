@@ -4,7 +4,6 @@ import {
   PatchHumanReliabilityLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function HumanReliabilityAnalysisList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function HumanReliabilityAnalysisList(): JSX.Element {
     />
   );
 }
-
 export { HumanReliabilityAnalysisList };

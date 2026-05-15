@@ -1,5 +1,4 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function SpecialEventsTable(): JSX.Element {
   const rows = [
     {
@@ -7,7 +6,6 @@ function SpecialEventsTable(): JSX.Element {
       name: "TDP-PRST(RCIC)",
     },
   ];
-
   const columns = [
     {
       id: "id",
@@ -20,7 +18,6 @@ function SpecialEventsTable(): JSX.Element {
       truncateText: true,
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -28,5 +25,4 @@ function SpecialEventsTable(): JSX.Element {
     />
   );
 }
-
 export { SpecialEventsTable };

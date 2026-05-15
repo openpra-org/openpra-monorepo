@@ -9,5 +9,4 @@ function QuantificationHistory(): JSX.Element {
     ></TemplatedPageBody>
   );
 }
-
 export { QuantificationHistory };

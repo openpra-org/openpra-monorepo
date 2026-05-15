@@ -10,7 +10,6 @@ import { GenerateUUID } from "../../../utils/treeUtils";
 import { SignUpForm } from "../forms/signUpForm";
 import { UpdateAbility } from "../../casl/ability";
 import { AbilityContext } from "../../providers/abilityProvider";
-
 const DefaultSignupProps: SignUpPropsWithRole = {
   username: "",
   email: "",
@@ -20,20 +19,11 @@ const DefaultSignupProps: SignUpPropsWithRole = {
   passConfirm: "",
   roles: [MemberRole],
 };
-
-/**
- * This is a wrapper component for the SignUp Form. Mainly because we want to decouple the form for reuse
- */
 function SignUp(): JSX.Element {
   const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const { addToast } = UseToastContext();
   const ability = useContext(AbilityContext);
-  // Do not auto-redirect when already logged in; allow "/" to act as a welcome page.
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
-
-  /**
-   * The function to call when user clicks on signup
-   */
   function handleSignup(): void {
     const { passConfirm: _passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
@@ -44,8 +34,12 @@ function SignUp(): JSX.Element {
         }
       })
       .catch((signInError: unknown) => {
-        const message = (signInError as { message?: string }).message ?? "unknown error";
-        // Send a toast message saying there was an error while logging in
+        const message =
+          (
+            signInError as {
+              message?: string;
+            }
+          ).message ?? "unknown error";
         addToast({
           id: GenerateUUID(),
           color: "danger",
@@ -53,7 +47,6 @@ function SignUp(): JSX.Element {
         });
       });
   }
-
   if (redirectToHomepage) {
     return (
       <Navigate
@@ -72,5 +65,4 @@ function SignUp(): JSX.Element {
     );
   }
 }
-
 export { SignUp, DefaultSignupProps };

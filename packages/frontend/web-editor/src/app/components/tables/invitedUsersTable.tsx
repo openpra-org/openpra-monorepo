@@ -15,7 +15,6 @@ import { DefaultItemAction } from "@elastic/eui/src/components/basic_table/actio
 import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
-
 const InvitedUsersTable = ({
   invitedUsers,
   setInvitedUsers,
@@ -26,7 +25,6 @@ const InvitedUsersTable = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const { addToast } = UseToastContext();
-
   const actions = useMemo(() => {
     const actions: DefaultItemAction<InvitedUserDetailsDto>[] = [
       {
@@ -91,7 +89,6 @@ const InvitedUsersTable = ({
     ];
     return actions;
   }, [addToast, invitedUsers, setInvitedUsers]);
-
   const onTableChange = ({ page }: Criteria<InvitedUserDetailsDto>): void => {
     if (page) {
       const { index: pageIndex, size: pageSize } = page;
@@ -99,7 +96,6 @@ const InvitedUsersTable = ({
       setPageSize(pageSize);
     }
   };
-
   const findUsers = (
     users: InvitedUserDetailsDto[],
     pageIndex: number,
@@ -109,7 +105,6 @@ const InvitedUsersTable = ({
     totalItemCount: number;
   } => {
     let pageOfItems;
-
     if (!pageIndex && !pageSize) {
       pageOfItems = users;
     } else {
@@ -121,9 +116,7 @@ const InvitedUsersTable = ({
       totalItemCount: users.length,
     };
   };
-
   const { pageOfItems, totalItemCount } = findUsers(invitedUsers, pageIndex, pageSize);
-
   const pagination = {
     pageIndex,
     pageSize,
@@ -131,17 +124,14 @@ const InvitedUsersTable = ({
     pageSizeOptions: [10, 0],
   };
   const resultsCount =
-    pageSize === 0 ? (
+    pageSize === 0 ?
       <strong>All</strong>
-    ) : (
-      <>
+    : <>
         <strong>
           {String(pageSize * pageIndex + 1)}-{String(pageSize * pageIndex + pageSize)}
         </strong>{" "}
         of {String(totalItemCount)}
-      </>
-    );
-
+      </>;
   const columns: EuiBasicTableColumn<InvitedUserDetailsDto>[] = [
     {
       field: "firstName",
@@ -186,7 +176,6 @@ const InvitedUsersTable = ({
       render: (user: Date) => formatDate(user, "dateTime"),
     },
   ];
-
   const columnsWithActions = [
     ...columns,
     {
@@ -194,7 +183,6 @@ const InvitedUsersTable = ({
       actions,
     },
   ];
-
   const getRowProps = (
     user: InvitedUserDetailsDto,
   ): {

@@ -1,7 +1,5 @@
 import React from "react";
-
 import { useEventTreeContextMenuClick } from "../../hooks/eventTree/useEventTreeContextMenuClick";
-
 export interface TreeNodeContextMenuProps {
   id: string;
   top: number | false | undefined;
@@ -10,7 +8,6 @@ export interface TreeNodeContextMenuProps {
   bottom: number | false | undefined;
   onClick?: () => void;
 }
-
 export default function EventTreeNodeContextMenu({
   id,
   top: _top,

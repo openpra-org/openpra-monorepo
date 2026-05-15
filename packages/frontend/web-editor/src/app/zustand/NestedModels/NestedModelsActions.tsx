@@ -24,39 +24,27 @@ import {
   SetBayesianNetworks,
 } from "./ActionHelpers/BayesianNetworksActions";
 import { AddFaultTree, DeleteFaultTree, EditFaultTree, SetFaultTrees } from "./ActionHelpers/FaultTreesActions";
-
 export {
-  // Initiating Events
   SetInitiatingEvents,
   AddInitiatingEvent,
   EditInitiatingEvent,
   DeleteInitiatingEvent,
-
-  // Event Sequence Diagrams
   SetEventSequenceDiagrams,
   AddEventSequenceDiagram,
   EditEventSequenceDiagram,
   DeleteEventSequenceDiagram,
-
-  // Event Sequence Analysis
   SetEventSequenceAnalysis,
   AddEventSequenceAnalysis,
   EditEventSequenceAnalysis,
   DeleteEventSequenceAnalysis,
-
-  // Event Trees
   SetEventTrees,
   AddEventTree,
   EditEventTree,
   DeleteEventTree,
-
-  // Bayesian Networks
   SetBayesianNetworks,
   AddBayesianNetwork,
   EditBayesianNetwork,
   DeleteBayesianNetwork,
-
-  // Fault Trees
   SetFaultTrees,
   AddFaultTree,
   EditFaultTree,

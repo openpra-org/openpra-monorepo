@@ -5,40 +5,25 @@ import { EventTreeState } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { useEventTreeStore } from "./useEventTreeStore";
-
-/**
- * Delete an empty functional-event column and rewire connections in the Event Tree.
- *
- * Validates the column is empty (only invisible nodes), connects adjacent
- * columns with a hidden edge, removes the target column and its invisible
- * nodes, updates the root counters, and persists the result.
- *
- * @param clickedColumnId - The id of the column-node to delete.
- * @returns A function that performs the deletion when invoked.
- */
 function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
-  const { eventTreeId } = useParams() as { eventTreeId: string };
+  const { eventTreeId } = useParams() as {
+    eventTreeId: string;
+  };
   const { addToast } = UseToastContext();
   const functionalEvents = useEventTreeStore((s) => s.functionalEvents);
-
   interface EventTreeNodeData {
     depth: number;
     inputDepth?: number;
   }
-
   const deleteColumn = (): void => {
     const nodes = getNodes() as Node<EventTreeNodeData>[];
     const edges = getEdges();
     const clickedColumn = nodes.find((node) => node.id === clickedColumnId);
-
     if (!clickedColumn) return;
     const columnDepth = clickedColumn.data.depth;
-
-    // 1. Validation
     const nodesInColumn = nodes.filter((node) => node.data.depth === columnDepth);
     const hasVisibleNodes = nodesInColumn.some((node) => node.type === "visibleNode");
-
     if (hasVisibleNodes) {
       addToast({
         id: GenerateUUID(),
@@ -48,21 +33,12 @@ function useDeleteColClick(clickedColumnId: string): () => void {
       });
       return;
     }
-
     let currentNodes: Node<EventTreeNodeData>[] = [...nodes];
     let currentEdges: Edge[] = [...edges];
-
-    // 2. Iteratively remove invisible nodes and maintain connections
     const invisibleNodes = nodesInColumn.filter((node) => node.type === "invisibleNode");
-
     invisibleNodes.forEach((invisibleNode) => {
-      // Find incoming edges to this invisible node
       const incomingEdges = currentEdges.filter((edge) => edge.target === invisibleNode.id);
-
-      // Find outgoing edges from this invisible node
       const outgoingEdges = currentEdges.filter((edge) => edge.source === invisibleNode.id);
-
-      // Create direct connections between nodes before and after the invisible node
       incomingEdges.forEach((inEdge) => {
         outgoingEdges.forEach((outEdge) => {
           currentEdges.push({
@@ -74,29 +50,20 @@ function useDeleteColClick(clickedColumnId: string): () => void {
           });
         });
       });
-
-      // Remove edges connected to this invisible node
       currentEdges = currentEdges.filter(
         (edge) => edge.source !== invisibleNode.id && edge.target !== invisibleNode.id,
       );
     });
-
-    // 3. Remove invisible nodes
     currentNodes = currentNodes.filter((node) => node.type !== "invisibleNode" || node.data.depth !== columnDepth);
-
-    // 4. Handle column nodes
     const prevColumnNode = currentNodes.find(
       (node) => node.type === "columnNode" && node.data.depth === columnDepth - 1,
     );
-
     const chainEdge = currentEdges.find(
       (e) =>
         e.source === clickedColumnId &&
         currentNodes.find((n) => n.id === e.target && (n.type === "columnNode" || n.type === "columnActionsNode")),
     );
     const nextColumnNode = chainEdge ? currentNodes.find((n) => n.id === chainEdge.target) : undefined;
-
-    // 5. Connect adjacent columns with hidden edge
     if (prevColumnNode && nextColumnNode) {
       currentEdges.push({
         id: `${prevColumnNode.id}-${nextColumnNode.id}`,
@@ -107,30 +74,20 @@ function useDeleteColClick(clickedColumnId: string): () => void {
         data: { hidden: true },
       });
     }
-
-    // 6. Remove column node and orphaned column edges
     currentNodes = currentNodes.filter((node) => node.data.depth !== columnDepth);
     currentEdges = currentEdges.filter((edge) => edge.source !== clickedColumnId && edge.target !== clickedColumnId);
-
-    // 6b. Decrement depth of all nodes deeper than the removed column
     currentNodes = currentNodes.map((node) => {
       if (node.data.depth > columnDepth) {
         return { ...node, data: { ...node.data, depth: node.data.depth - 1 } };
       }
       return node;
     });
-
-    // 7. Update root node counter
     const rootNode = currentNodes.find((node) => node.data.depth === 1);
     if (rootNode && typeof rootNode.data.inputDepth === "number") {
       rootNode.data.inputDepth -= 1;
     }
-
-    // 8. Apply updates
     setNodes(currentNodes);
     setEdges(currentEdges);
-
-    // 9. Store updated state
     void GraphApiManager.storeEventTree(
       EventTreeState({
         eventTreeId,
@@ -140,8 +97,6 @@ function useDeleteColClick(clickedColumnId: string): () => void {
       }),
     );
   };
-
   return deleteColumn;
 }
-
 export default useDeleteColClick;

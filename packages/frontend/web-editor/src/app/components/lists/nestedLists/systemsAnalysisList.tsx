@@ -4,7 +4,6 @@ import {
   PatchSystemsAnalysisLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function SystemsAnalysisList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function SystemsAnalysisList(): JSX.Element {
     />
   );
 }
-
 export { SystemsAnalysisList };

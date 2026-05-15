@@ -1,5 +1,4 @@
 import { AdminRole, MemberRole, CollabRole } from "./shared-sdk";
-
 describe("shared-sdk barrel", () => {
   it("exports predefined role ids", () => {
     expect(typeof AdminRole).toBe("string");

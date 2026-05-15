@@ -27,7 +27,6 @@ import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModel
 import { GlobalToastList } from "../../components/lists/globalToastList";
 import { ToastProvider } from "../../providers/toastProvider";
 import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
-
 const getModelFixture = (): ModelProps => ({
   label: {
     name: "Model ABC",
@@ -51,12 +50,10 @@ const getModelFixture = (): ModelProps => ({
     },
   ],
 });
-
 export interface FaultTreeProps {
   id: string | number;
   label: LabelJSON;
 }
-
 export interface ModelProps {
   id: string | number;
   label: LabelJSON;
@@ -65,7 +62,6 @@ export interface ModelProps {
 export function LoadModel(): ModelProps {
   return getModelFixture();
 }
-
 function InternalEventsPage(): JSX.Element {
   return (
     <ToastProvider>
@@ -175,11 +171,9 @@ function InternalEventsPage(): JSX.Element {
             element={<ModelSettings />}
           />
         </Route>
-        {}
       </Routes>
       <GlobalToastList />
     </ToastProvider>
   );
 }
-
 export { InternalEventsPage };

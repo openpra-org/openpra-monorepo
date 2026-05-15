@@ -1,8 +1,4 @@
 import { IIconProps } from "./iconProps";
-
-/**
- * @public Represents enum of different types of Nodes of an Event Sequence Diagram
- */
 export enum NodeTypes {
   Initiating = "Initiating Event",
   Functional = "Functional",
@@ -19,25 +15,9 @@ export enum NodeTypes {
   BasicEvent = "Basic Event",
   HouseEvent = "House Event",
 }
-
-/**
- * Represents the node properties
- */
 export interface INodeProps {
-  /**
-   * @param nodeType - type of node (based on NodeTypes enum)
-   */
   nodeType: NodeTypes;
-  /**
-   * @param iconProps - properties of icon associated with the node
-   */
   iconProps: IIconProps;
-  /**
-   * @param selected - boolean value indicating whether node is selected or not
-   */
   selected: boolean | undefined;
-  /**
-   * @param isGrayed - boolean value indicating if node is grayed out or not
-   */
   isGrayed: boolean;
 }

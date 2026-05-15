@@ -1,0 +1,35 @@
+{
+  "name": "scram-node",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./build/Release/scram-node.node",
+  "types": "./targets/scram-node/lib/index.d.ts",
+  "private": true,
+  "scripts": {
+    "postinstall": "node -e \"if (process.platform !== 'win32') { require('child_process').execSync('cd build && cmake --install . --prefix \\\"$HOME/.local\\\" && cd .. && chmod +x ./scripts/inform_update_paths.sh && ./scripts/inform_update_paths.sh', { stdio: 'inherit' }); }\"",
+    "install": "cmake-js -C --parallel 4 compile",
+    "build:addon": "cmake-js --parallel 4 compile",
+    "rebuild": "cmake-js -C --parallel 4 rebuild",
+    "configure": "cmake-js -C --parallel 4 configure",
+    "clean": "cmake-js clean",
+    "ctest": "cmake-js -C --parallel 4 compile && cd build && make test"
+  },
+  "dependencies": {
+    "cmake-js": "7.3.0",
+    "glob": "11.0.0",
+    "node-addon-api": "8.1.0",
+    "npmlog": "7.0.1",
+    "tmp": "0.2.3"
+  },
+  "devDependencies": {
+    "@types/glob": "8.1.0"
+  },
+  "binary": {
+    "napi_versions": [
+      9
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

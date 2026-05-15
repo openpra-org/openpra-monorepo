@@ -11,12 +11,9 @@ import {
   EuiText,
 } from "@elastic/eui";
 import { UseGlobalStore } from "../../zustand/Store";
-
 const TOP_N = 5;
-
 export function RecentModelsPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
-
   const internalEvents = UseGlobalStore.use.InternalEvents();
   const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
   const internalHazards = UseGlobalStore.use.InternalHazards();
@@ -25,7 +22,6 @@ export function RecentModelsPage(): JSX.Element {
   const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
   const fullScope = UseGlobalStore.use.FullScope();
   const setFullScope = UseGlobalStore.use.SetFullScope();
-
   useEffect(() => {
     let cancelled = false;
     const run = async (): Promise<void> => {
@@ -40,14 +36,18 @@ export function RecentModelsPage(): JSX.Element {
       cancelled = true;
     };
   }, [setInternalEvents, setInternalHazards, setExternalHazards, setFullScope]);
-
   const recentIE = useMemo(() => internalEvents.slice(0, TOP_N), [internalEvents]);
   const recentIH = useMemo(() => internalHazards.slice(0, TOP_N), [internalHazards]);
   const recentEH = useMemo(() => externalHazards.slice(0, TOP_N), [externalHazards]);
   const recentFS = useMemo(() => fullScope.slice(0, TOP_N), [fullScope]);
-
   const renderList = (
-    items: { _id: string; id: number; label?: { name?: string } }[],
+    items: {
+      _id: string;
+      id: number;
+      label?: {
+        name?: string;
+      };
+    }[],
     basePath: string,
   ): JSX.Element => (
     <EuiListGroup
@@ -71,7 +71,6 @@ export function RecentModelsPage(): JSX.Element {
       }
     </EuiListGroup>
   );
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -128,5 +127,4 @@ export function RecentModelsPage(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export default RecentModelsPage;

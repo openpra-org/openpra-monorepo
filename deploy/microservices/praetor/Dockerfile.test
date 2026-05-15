@@ -1,0 +1,19 @@
+FROM node:20-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ cmake git \
+    ca-certificates curl gnupg \
+    libxml2-dev libomp-dev \
+    libboost-all-dev \
+    libjemalloc-dev \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable
+
+WORKDIR /usr/src/app
+
+COPY . .
+
+RUN pnpm install
+

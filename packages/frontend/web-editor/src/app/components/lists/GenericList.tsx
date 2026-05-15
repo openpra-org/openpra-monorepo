@@ -2,7 +2,6 @@ import { ReactElement } from "react";
 import { TypedModelJSON, typedModelType } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { GenericListItem } from "./GenericListItem";
-
 interface CreateGenericListPropTypes<T> {
   modelList: T[];
   endpoint: string;
@@ -13,7 +12,6 @@ interface CreateGenericListPropTypes<T> {
   patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   deleteNestedEndpoint?: (id: string) => Promise<void>;
 }
-
 function CreateGenericList<T extends typedModelType | NestedModelType>(
   props: CreateGenericListPropTypes<T>,
 ): ReactElement[] {
@@ -27,7 +25,6 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
     patchNestedEndpoint,
     deleteNestedEndpoint,
   } = props;
-
   return modelList.map((modelItem: T) => (
     <GenericListItem
       itemName={modelItem.label.name}
@@ -52,5 +49,4 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
     />
   )) as ReactElement[];
 }
-
 export { CreateGenericList };

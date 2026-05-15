@@ -14,85 +14,53 @@ import type {
   EventTreeQuantificationResult,
   EventTreeMetadataResult,
 } from "shared-types/src/lib/types/eventTreeQuantification";
-
-/**
- * Controller for graph model operations and updates.
- * Stores and retrieves graph states for event sequence, fault tree, and event tree diagrams.
- * @public
- */
 @Controller()
 export class GraphModelController {
-  /**
-   * Instantiate the Graph Model controller.
-   *
-   * @param graphModelService - Service for persisting and querying diagram graphs.
-   */
   constructor(private readonly graphModelService: GraphModelService) {}
-
-  /**
-   * stores/creates a fault tree diagram graph
-   * @param data - takes in a partial of a fault tree diagram model
-   * as well as the faultTreeId, if the id is missing - a new graph document will be created.
-   * @returns a promise with the newly created graph model
-   */
   @Post("/fault-tree-graph")
-  async createFaultTreeGraph(@Body() data: FaultTreeGraph): Promise<boolean> {
+  async createFaultTreeGraph(
+    @Body()
+    data: FaultTreeGraph,
+  ): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
     } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  /**
-   * stores/creates a event tree diagram graph
-   * @param data - takes in a partial of a event tree diagram model
-   * as well as the eventTreeId, if the id is missing - a new graph document will be created.
-   * @returns a promise with the newly created graph model
-   */
   @Post("/event-tree-graph")
-  async createEventTreeGraph(@Body() data: Partial<EventTreeGraph>): Promise<boolean> {
+  async createEventTreeGraph(
+    @Body()
+    data: Partial<EventTreeGraph>,
+  ): Promise<boolean> {
     try {
       return this.graphModelService.saveEventTreeGraph(data);
     } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  /**
-   * fetches the event sequence graph model for a particular diagram, based on its id
-   * @param eventSequenceId - the id of the event sequence diagram
-   * @returns a promise with an object of the event sequence diagram graph
-   */
   @Get("/event-sequence-diagram-graph/")
   async getEventSequenceDiagramGraph(
-    @Query("eventSequenceId") eventSequenceId: string,
+    @Query("eventSequenceId")
+    eventSequenceId: string,
   ): Promise<EventSequenceDiagramGraph> {
     return this.graphModelService.getEventSequenceDiagramGraph(eventSequenceId);
   }
-
-  /**
-   * fetches the fault tree graph model for a particular diagram, based on its id
-   * @param faultTreeId - the id of the fault tree diagram
-   * @returns a promise with an object of the fault tree diagram graph
-   */
   @Get("/fault-tree-graph/")
-  async getFaultTreeGraph(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeGraph> {
+  async getFaultTreeGraph(
+    @Query("faultTreeId")
+    faultTreeId: string,
+  ): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(faultTreeId);
   }
-
-  /**
-   * Update the label of node/edge of an event sequence diagram
-   * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
-   * @param label - New label for the node/edge
-   * @returns a promise with boolean confirmation whether update was successful or not
-   */
   @Patch("/event-sequence-diagram-graph/update-label/")
   async updateESNodeLabel(
-    @Body("id") id: string,
-    @Body("type") type: string,
-    @Body("label") label: string,
+    @Body("id")
+    id: string,
+    @Body("type")
+    type: string,
+    @Body("label")
+    label: string,
   ): Promise<boolean> {
     try {
       return this.graphModelService.updateESLabel(id, type, label);
@@ -100,20 +68,14 @@ export class GraphModelController {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  /**
-   * Update parts of an event sequence diagram graph.
-   *
-   * @param eventSequenceId - The diagram identifier whose graph should be updated.
-   * @param updatedSubgraph - Nodes/edges to upsert into the graph.
-   * @param deletedSubgraph - Nodes/edges to remove from the graph.
-   * @returns true when the update succeeds; otherwise throws.
-   */
   @Patch("/event-sequence-diagram-graph")
   async updateESSubgraph(
-    @Body("eventSequenceId") eventSequenceId: string,
-    @Body("updated") updatedSubgraph: Partial<BaseGraph>,
-    @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
+    @Body("eventSequenceId")
+    eventSequenceId: string,
+    @Body("updated")
+    updatedSubgraph: Partial<BaseGraph>,
+    @Body("deleted")
+    deletedSubgraph: Partial<BaseGraph>,
   ): Promise<boolean> {
     try {
       return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
@@ -121,32 +83,19 @@ export class GraphModelController {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  /**
-   * fetches the event tree graph model for a particular diagram, based on its id
-   * @param eventTreeId - the id of the event tree diagram
-   * @returns a promise with an object of the event tree diagram graph
-   */
   @Get("/event-tree-graph/")
-  async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
+  async getEventTreeGraph(
+    @Query("eventTreeId")
+    eventTreeId: string,
+  ): Promise<EventTreeGraph> {
     return this.graphModelService.getEventTreeGraph(eventTreeId);
   }
-
-  /**
-   * Quantify a fault tree using the praxis engine.
-   *
-   * The stored MEF graph for `faultTreeId` is fetched from the database and
-   * combined with the algorithm / approximation settings from the request body,
-   * then passed to the `praxis-node` native addon.
-   *
-   * @param faultTreeId   - ID of the fault tree to quantify (query param)
-   * @param body          - Algorithm, approximation, and optional maxOrder
-   * @returns Top-event probability and (for ZBDD / MOCUS) cut sets
-   */
   @Post("/fault-tree-graph/quantify")
   async quantifyFaultTree(
-    @Query("faultTreeId") faultTreeId: string,
-    @Body() body: Omit<FaultTreeQuantificationRequest, "graph">,
+    @Query("faultTreeId")
+    faultTreeId: string,
+    @Body()
+    body: Omit<FaultTreeQuantificationRequest, "graph">,
   ): Promise<FaultTreeQuantificationResult> {
     try {
       return await this.graphModelService.quantifyFaultTree(faultTreeId, body);
@@ -155,16 +104,11 @@ export class GraphModelController {
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
-  /**
-   * Phase 1 analysis: build BDD + full ZBDD and return exact top-event probability
-   * plus per-order MCS distribution. No cut sets are enumerated.
-   *
-   * @param faultTreeId - ID of the fault tree to analyze (query param)
-   * @returns Exact probability and order statistics
-   */
   @Post("/fault-tree-graph/analyze")
-  async analyzeFaultTree(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeMetadataResult> {
+  async analyzeFaultTree(
+    @Query("faultTreeId")
+    faultTreeId: string,
+  ): Promise<FaultTreeMetadataResult> {
     try {
       return await this.graphModelService.analyzeFaultTree(faultTreeId);
     } catch (err) {
@@ -172,9 +116,11 @@ export class GraphModelController {
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
   @Post("/event-tree-graph/analyze")
-  async analyzeEventTree(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeMetadataResult> {
+  async analyzeEventTree(
+    @Query("eventTreeId")
+    eventTreeId: string,
+  ): Promise<EventTreeMetadataResult> {
     try {
       return await this.graphModelService.analyzeEventTree(eventTreeId);
     } catch (err) {
@@ -182,11 +128,12 @@ export class GraphModelController {
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
   @Post("/event-tree-graph/quantify")
   async quantifyEventTree(
-    @Query("eventTreeId") eventTreeId: string,
-    @Body() body: Omit<EventTreeQuantificationRequest, "graph">,
+    @Query("eventTreeId")
+    eventTreeId: string,
+    @Body()
+    body: Omit<EventTreeQuantificationRequest, "graph">,
   ): Promise<EventTreeQuantificationResult> {
     try {
       return await this.graphModelService.quantifyEventTree(eventTreeId, body);

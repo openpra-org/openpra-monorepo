@@ -1,5 +1,4 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-
 export const NestedModelsState = {
   NestedModels: {
     parentId: "",

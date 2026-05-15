@@ -20,22 +20,13 @@ import { CollabRole } from "shared-sdk/lib/data/predefiniedRoles";
 import { GenericModal } from "../modals/genericModal";
 import { PasswordForm } from "../forms/passwordForm";
 import { PreferenceContext, PreferenceContextType } from "./preferences";
-
-/**
- * This function will validate weather old password is correct or not
- * @param username - The username of the user
- * @param password - The old password of the user
- * @returns - Either true or undefined depending on weather password is correct or not
- */
 const validateCurrentPassword = async (username: string, password: string): Promise<boolean> => {
   const val = await ApiManager.verifyPassword(username, password);
-  const { match } = (await val.json()) as { match: boolean };
+  const { match } = (await val.json()) as {
+    match: boolean;
+  };
   return match;
 };
-
-/**
- * Main react component of the file
- */
 const PasswordChange = (): JSX.Element => {
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [buttonClicked, setButtonClicked] = useState<boolean>(false);
@@ -60,16 +51,16 @@ const PasswordChange = (): JSX.Element => {
       setIsActiveUser(true);
     }
   }, [currentUser]);
-
-  /**
-   * This is the main form for change password
-   * @param modalFormId - Modal Form Id, which helps recognize the form uniquely
-   */
   const changePasswordForm = (modalFormId: string): JSX.Element => (
     <EuiForm
       id={modalFormId}
       isInvalid={showErrors}
-      error={isInvalidOldPass ? ["Old password is wrong"] : isInvalidNewPass ? ["New password is wrong"] : []}
+      error={
+        isInvalidOldPass ? ["Old password is wrong"]
+        : isInvalidNewPass ?
+          ["New password is wrong"]
+        : []
+      }
       component="form"
     >
       {isActiveUser && (
@@ -98,7 +89,6 @@ const PasswordChange = (): JSX.Element => {
       )}
     </EuiForm>
   );
-
   const lastLogin = moment(currentUser?.last_login);
   const modalFormId = useGeneratedHtmlId({ prefix: "modalForm" });
   let modal;
@@ -115,11 +105,9 @@ const PasswordChange = (): JSX.Element => {
         onSubmit={async (): Promise<void> => {
           setButtonClicked(true);
           const { password = "", passConfirm = "" } = signup ?? {};
-
           if (passConfirm !== password || !signup) {
             return;
           }
-
           let isPasswordValid = true;
           if (isActiveUser) {
             isPasswordValid = await validateCurrentPassword(signup.username, currentPassword);
@@ -189,5 +177,4 @@ const PasswordChange = (): JSX.Element => {
     </div>
   );
 };
-
 export { PasswordChange };

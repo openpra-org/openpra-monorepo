@@ -1,7 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { SystemsAnalysisList } from "../../components/lists/nestedLists/systemsAnalysisList";
 import { SystemsAnalysisDetail } from "./systemsAnalysisDetail";
-
 function SystemsAnalysis(): JSX.Element {
   return (
     <Routes>
@@ -16,5 +15,4 @@ function SystemsAnalysis(): JSX.Element {
     </Routes>
   );
 }
-
 export { SystemsAnalysis };

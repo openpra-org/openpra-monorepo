@@ -1,11 +1,9 @@
 import { EuiFieldText, EuiForm, EuiFormRow } from "@elastic/eui";
 import React from "react";
-
 interface CategoryFormProps {
   newCategory: string;
   setNewCategory: (value: string) => void;
 }
-
 const CategoryForm = ({ newCategory, setNewCategory }: CategoryFormProps): JSX.Element => {
   return (
     <EuiForm>
@@ -21,5 +19,4 @@ const CategoryForm = ({ newCategory, setNewCategory }: CategoryFormProps): JSX.E
     </EuiForm>
   );
 };
-
 export { CategoryForm };

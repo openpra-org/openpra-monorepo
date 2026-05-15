@@ -1,8 +1,5 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function BasicEventsTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
   const rows = [
     {
       id: "id",
@@ -14,9 +11,6 @@ function BasicEventsTable(): JSX.Element {
       description: "description",
     },
   ];
-
-  // has the following column headers
-  // id, type, name, value, proxy, source, description
   const columns = [
     {
       id: "id",
@@ -55,7 +49,6 @@ function BasicEventsTable(): JSX.Element {
       truncateText: true,
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -63,5 +56,4 @@ function BasicEventsTable(): JSX.Element {
     />
   );
 }
-
 export { BasicEventsTable };

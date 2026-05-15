@@ -5,7 +5,6 @@ import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisT
 import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
 import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
-
 export interface NestedModelsStateType {
   parentId: string;
   nestedListRefreshCount: number;
@@ -57,11 +56,9 @@ export interface NestedModelsStateType {
     RiskIntegrationList: string[];
   };
 }
-
 export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
 }
-
 export type NestedModelActionsType = BayesianNetworksType &
   InitiatingEventsType &
   EventSequenceDiagramsType &

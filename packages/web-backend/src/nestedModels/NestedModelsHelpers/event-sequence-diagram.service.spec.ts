@@ -5,10 +5,8 @@ import { EventSequenceDiagram } from "../schemas/event-sequence-diagram.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModelHelperService } from "../nested-model-helper.service";
 import { GraphModelService } from "../../graphModels/graphModel.service";
-
 describe("EventSequenceDiagramService", () => {
   let service: EventSequenceDiagramService;
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -22,10 +20,8 @@ describe("EventSequenceDiagramService", () => {
         { provide: GraphModelService, useValue: { saveEventSequenceDiagramGraph: jest.fn() } },
       ],
     }).compile();
-
     service = module.get<EventSequenceDiagramService>(EventSequenceDiagramService);
   });
-
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

@@ -3,7 +3,6 @@ import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 import { FullScopeActionsType, FullScopeType } from "./FullScopeTypes";
 import { FullScopeState } from "./FullScopeState";
 import { AddFullScope, DeleteFullScope, EditFullScope, SetFullScope } from "./FullScopeActions";
-
 const FullScopeSlice: StateCreator<StoreStateType & StoreActionType, [], [], FullScopeType & FullScopeActionsType> = (
   set,
 ) => {
@@ -18,5 +17,4 @@ const FullScopeSlice: StateCreator<StoreStateType & StoreActionType, [], [], Ful
     DeleteFullScope: DeleteFullScope,
   };
 };
-
 export { FullScopeSlice };

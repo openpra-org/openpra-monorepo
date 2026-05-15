@@ -36,7 +36,6 @@ import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/Transfer
 import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
 import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
 import { MenuPanel, MenuPanelItem, TypedContextMenu } from "./contextMenuTypes";
-
 export interface TreeNodeContextMenuProps {
   id: string;
   top: number | false | undefined;
@@ -46,8 +45,6 @@ export interface TreeNodeContextMenuProps {
   onClick?: () => void;
   addToastHandler?: (type: string) => void;
 }
-
-// Allowed action identifiers for the fault tree context menu.
 type FaultTreeAction =
   | typeof AND_GATE
   | typeof OR_GATE
@@ -58,7 +55,6 @@ type FaultTreeAction =
   | typeof BASIC_EVENT
   | "deleteNode"
   | "deleteSubtree";
-
 const FaultTreeNodeContextMenu = ({
   id,
   top: _top,
@@ -95,7 +91,6 @@ const FaultTreeNodeContextMenu = ({
       panel: 2,
     });
   }
-
   const onItemClick = async (id: string, type: FaultTreeAction): Promise<void> => {
     const toast = validateFaultTreeContextMenuClick(id, type);
     if (toast) {
@@ -228,5 +223,4 @@ const FaultTreeNodeContextMenu = ({
     />
   );
 };
-
 export { FaultTreeNodeContextMenu };

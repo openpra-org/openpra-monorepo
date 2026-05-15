@@ -1,0 +1,37 @@
+{
+  "name": "praetor",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/microservices/praetor/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "nest build --path tsconfig.build.json",
+        "cwd": "apps/microservices/praetor"
+      }
+    },
+    "start-manager": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx ts-node -r tsconfig-paths/register src/main.ts",
+        "cwd": "apps/microservices/praetor"
+      }
+    },
+    "start-engine": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx ts-node -r tsconfig-paths/register src/main-engine.ts",
+        "cwd": "apps/microservices/praetor"
+      }
+    },
+    "test": {
+      "executor": "@nx/vitest:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "passWithNoTests": true,
+        "reportsDirectory": "../../../coverage/apps/microservices/praetor"
+      }
+    }
+  }
+}

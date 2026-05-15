@@ -2,42 +2,23 @@ import React from "react";
 import { EdgeProps, getStraightPath } from "reactflow";
 import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
 import { GetEdgeParams } from "../../../../utils/bayesianNodeIntersectionCalculator";
-
-/**
- * A functional component that renders an edge in the mind map with custom styling and directional arrows.
- * This component uses data from the store to find source and target nodes and calculates the path for the edge.
- *
- * @param  props - Props passed to the component, including identifiers for source and target nodes.
- * @returns \{JSX.Element | null\} The rendered SVG path for the edge if nodes are found, otherwise null.
- */
 const MindMapEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
   const { id, source, target, style } = props;
-
   const { nodes } = UseStore((state) => state);
   const sourceNode = nodes.find((n) => n.id === source);
   const targetNode = nodes.find((n) => n.id === target);
-
   if (!sourceNode || !targetNode) {
     return null;
   }
-
   const edgeParams = GetEdgeParams(sourceNode, targetNode);
-
   const { sx, sy, tx, ty } = edgeParams;
-
-  // // Check if sourcePos and targetPos are not null
-  // if (sourcePos === null || targetPos === null) {
-  //   return null;
-  // }
   const [edgePath] = getStraightPath({
     sourceX: sx,
     sourceY: sy,
     targetX: tx,
     targetY: ty,
   });
-
   const markerEndId = `url(#react-flow__arrow-${id})`;
-
   return (
     <>
       <svg
@@ -72,5 +53,4 @@ const MindMapEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
     </>
   );
 };
-
 export { MindMapEdge };

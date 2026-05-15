@@ -1,5 +1,3 @@
-// initial setup: one OR gate node and two basic events
-// basic event nodes can be turned into any type by right click
 import { Edge, Node } from "reactflow";
 import {
   ATLEAST_TWO_CHILDREN,
@@ -13,10 +11,6 @@ import {
   WORKFLOW,
 } from "./constants";
 import { defaultGateQuantification, defaultQuantification } from "../app/types/faultTreeQuantification";
-
-/**
- * Initial set of nodes used to bootstrap a minimal Fault Tree graph in the editor.
- */
 export const initialNodes: Node[] = [
   {
     id: FAULT_TREE_ROOT_NODE_ID,
@@ -46,10 +40,6 @@ export const initialNodes: Node[] = [
     type: BASIC_EVENT,
   },
 ];
-
-/**
- * Initial set of edges connecting the bootstrap nodes.
- */
 export const initialEdges: Edge[] = [
   {
     id: "1=>2",
@@ -64,10 +54,6 @@ export const initialEdges: Edge[] = [
     type: WORKFLOW,
   },
 ];
-
-/**
- * UI toast messages for common Fault Tree editor constraints.
- */
 export const allToasts = [
   {
     type: DELETE_ROOT_NODE,

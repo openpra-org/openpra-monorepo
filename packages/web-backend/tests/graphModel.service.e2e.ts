@@ -10,21 +10,11 @@ import {
 } from "../src/schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph, FaultTreeGraphSchema } from "../src/schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph, EventTreeGraphSchema } from "../src/schemas/graphs/event-tree-graph.schema";
-
 describe("GraphModelService", (): void => {
   let graphModelService: GraphModelService;
   let connection: Connection;
-
-  /**
-   * Before all tests, Create a new Testing module
-   * Define connection and the graphModelService
-   */
-
   beforeAll(async (): Promise<void> => {
-    // MongoDB server URI
     const mongoUri: string = process.env.MONGO_URI;
-
-    // The custom testing module
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -39,44 +29,27 @@ describe("GraphModelService", (): void => {
       ],
       providers: [GraphModelService],
     }).compile();
-
-    connection = await module.get(getConnectionToken()); // create connection
+    connection = await module.get(getConnectionToken());
     graphModelService = module.get<GraphModelService>(GraphModelService);
   });
-
-  /**
-   * After each test, drop the database
-   */
   afterEach(async (): Promise<void> => {
-    // Clean up only the relevant collections to avoid cross-suite DB drops
     const collections = ["eventsequencediagramgraphs", "faulttreegraphs", "eventtreegraphs"];
     await Promise.all(
       collections.map(async (name) => {
         try {
           await connection.collection(name).deleteMany({});
-        } catch {
-          // ignore if collection doesn't exist in this suite
-        }
+        } catch {}
       }),
     );
   });
-
-  /**
-   * After all tests, disconnect mongoose
-   * Stop MongoDB server
-   */
   afterAll(async (): Promise<void> => {
     await mongoose.disconnect();
   });
-
-  // Ensure that GraphModelService is defined
   describe("GraphModelService", (): void => {
     it("GraphModelService should be defined", (): void => {
       expect(graphModelService).toBeDefined();
     });
   });
-
-  // Tests for event sequence diagram graph
   describe("Event Sequence Diagram Graph", (): void => {
     const node1: GraphNode<object> = {
       id: "1",
@@ -134,7 +107,7 @@ describe("GraphModelService", (): void => {
       nodes: [node1, node2],
       edges: [edge],
     };
-  const _updatedEventSequenceGraph: EventSequenceDiagramGraph = {
+    const _updatedEventSequenceGraph: EventSequenceDiagramGraph = {
       id: "",
       _id: new mongoose.Types.ObjectId(),
       eventSequenceId: "1",
@@ -148,16 +121,13 @@ describe("GraphModelService", (): void => {
       it("Saving an ES Graph document", async (): Promise<void> => {
         const res = await graphModelService.saveEventSequenceDiagramGraph(eventSequenceGraph);
         expect(res).toBeDefined();
-        // Service initializes defaults; ensure nodes/edges arrays are populated
         expect(Array.isArray(res.nodes)).toBe(true);
         expect(Array.isArray(res.edges)).toBe(true);
         expect(res.nodes.length).toBeGreaterThanOrEqual(2);
         expect(res.edges.length).toBeGreaterThanOrEqual(2);
       });
       it("Updating an ES Graph document", async (): Promise<void> => {
-        // First ensure a document exists
         await graphModelService.saveEventSequenceDiagramGraph(eventSequenceGraph);
-        // Then run update path with no changes (should still return true)
         const ok = await graphModelService.updateESSubgraph("1", { nodes: [], edges: [] }, { nodes: [], edges: [] });
         expect(ok).toBe(true);
       });
@@ -176,8 +146,6 @@ describe("GraphModelService", (): void => {
       });
     });
   });
-
-  // Tests for fault tree graph
   describe("Fault Tree Graph", (): void => {
     const node0: GraphNode<object> = {
       id: "0",
@@ -293,7 +261,6 @@ describe("GraphModelService", (): void => {
         expect(res.nodes.map((n) => ({ id: n.id, type: n.type }))).toEqual(
           [node1, node2, node3].map((n) => ({ id: n.id, type: n.type })),
         );
-        // Match only core edge fields; DB may omit empty data objects
         expect(res.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, type: e.type }))).toEqual(
           [edge1, edge2].map((e) => ({ id: e.id, source: e.source, target: e.target, type: e.type })),
         );

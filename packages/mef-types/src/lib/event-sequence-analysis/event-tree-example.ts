@@ -1,143 +1,66 @@
-/**
- * @module event_tree_example
- * @description Example demonstrating the conceptual structure of event trees in OpenPRA
- * and their relationship to event sequences
- *
- * Note: This is a conceptual example showing the structure of event trees.
- * This file doesn't implement the actual interfaces to avoid validation errors
- * with specific required field formats. In a real implementation, the proper
- * Unique, Named, and other interface requirements would need to be satisfied.
- */
-
 import { EndState } from "./event-sequence-analysis";
-
-/**
- * Event Tree Conceptual Structure
- *
- * This shows the conceptual structure of an event tree without implementing
- * the exact interfaces, which would require specific format requirements.
- *
- * An event tree is a graphical method used to model and depict event sequences.
- * It starts with an initiating event and branches at various "top events"
- * (functional events), with each branch representing a possible outcome.
- * @hidden
- */
 export interface ConceptualEventTree {
   name: string;
   label?: string;
-  initiatingEventId: string; // Reference to the initiating event that starts this tree
+  initiatingEventId: string;
   plantOperatingStateId?: string;
-  functionalEvents: Record<string, ConceptualFunctionalEvent>; // Top events at branch points
-  branches: Record<string, ConceptualBranch>; // Branch points with success/failure paths
-  sequences: Record<string, ConceptualSequence>; // End points of event tree paths
+  functionalEvents: Record<string, ConceptualFunctionalEvent>;
+  branches: Record<string, ConceptualBranch>;
+  sequences: Record<string, ConceptualSequence>;
   initialState: {
-    branchId: string; // First branch after initiating event
+    branchId: string;
   };
   description?: string;
   missionTime?: number;
   missionTimeUnits?: string;
-
-  // Each event tree can map to multiple event sequences
-  // Each sequence is a unique path through the event tree
   mappedEventSequences?: Record<string, ConceptualEventSequence>;
 }
-
-/**
- * Functional Event (Top Event) in an event tree
- * These represent systems, components, or operator actions that can succeed or fail
- * @hidden
- */
 export interface ConceptualFunctionalEvent {
   name: string;
   label?: string;
   description?: string;
-  systemReference?: string; // Reference to system model
-  humanActionReference?: string; // Reference to human action model
-  order?: number; // Chronological order in sequence
+  systemReference?: string;
+  humanActionReference?: string;
+  order?: number;
 }
-
-/**
- * Branch point in an event tree
- * Each branch contains a functional event and paths following success/failure
- * @hidden
- */
 export interface ConceptualBranch {
   name: string;
   label?: string;
-  functionalEventId?: string; // Reference to the functional event at this branch
-  paths: ConceptualPath[]; // Success and failure paths from this branch
+  functionalEventId?: string;
+  paths: ConceptualPath[];
 }
-
-/**
- * Path from a branch point
- * Represents the success or failure of the functional event
- * @hidden
- */
 export interface ConceptualPath {
-  state: "SUCCESS" | "FAILURE"; // Outcome of the functional event
-  target: string; // Where this path leads (branch, sequence, or end state)
-  targetType: "BRANCH" | "SEQUENCE" | "END_STATE"; // Type of target
+  state: "SUCCESS" | "FAILURE";
+  target: string;
+  targetType: "BRANCH" | "SEQUENCE" | "END_STATE";
   description?: string;
 }
-
-/**
- * Sequence (end point) in an event tree
- * Each sequence represents a specific path through the event tree
- * @hidden
- */
 export interface ConceptualSequence {
   name: string;
   label?: string;
-  endState?: string; // Final outcome (e.g., SUCCESSFUL_MITIGATION or RADIONUCLIDE_RELEASE)
+  endState?: string;
   instructions?: string[];
-  eventSequenceId?: string; // Reference to the corresponding event sequence
-  functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">; // States of all functional events on this path
+  eventSequenceId?: string;
+  functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">;
 }
-
-/**
- * Event sequence corresponding to a path through an event tree
- * An event sequence is a chronological progression of events from an initiating event
- * to a specific end state, accounting for system/component/operator responses.
- * @hidden
- */
 export interface ConceptualEventSequence {
   id: string;
   name: string;
   description?: string;
-  initiatingEventId: string; // Same as in the event tree
+  initiatingEventId: string;
   plantOperatingStateId: string;
-
-  // The chronological progression of events in this sequence
   progression: string;
-
-  // System responses along this sequence path
   systemResponses: Record<string, "SUCCESS" | "FAILURE">;
-
-  // Operator actions involved in this sequence
   operatorActions?: string[];
-
-  // Timing information for key events
   timing?: Array<{
     event: string;
     timeAfterInitiator: number;
   }>;
-
-  // End state of this sequence
   endState: string;
-
-  // Connection to event tree
-  eventTreeId: string; // Reference to the event tree that models this sequence
-  eventTreeSequenceId: string; // Reference to the specific sequence in the event tree
+  eventTreeId: string;
+  eventTreeSequenceId: string;
 }
-
-/**
- * Create a simple example event tree for a Loss of Offsite Power (LOOP) scenario
- * @returns A sample conceptual event tree with mapped event sequences
- * @hidden
- *
- */
 export function createConceptualEventTree(): ConceptualEventTree {
-  // Define functional events (systems or operator actions that can succeed or fail)
   const functionalEvents: Record<string, ConceptualFunctionalEvent> = {
     "FE-EDG": {
       name: "FE-EDG",
@@ -168,8 +91,6 @@ export function createConceptualEventTree(): ConceptualEventTree {
       order: 4,
     },
   };
-
-  // Define branches for the event tree
   const branches: Record<string, ConceptualBranch> = {
     "BR-INIT": {
       name: "BR-INIT",
@@ -248,8 +169,6 @@ export function createConceptualEventTree(): ConceptualEventTree {
       ],
     },
   };
-
-  // Define sequences (end points of the event tree)
   const sequences: Record<string, ConceptualSequence> = {
     "SEQ-1": {
       name: "SEQ-1",
@@ -309,9 +228,6 @@ export function createConceptualEventTree(): ConceptualEventTree {
       },
     },
   };
-
-  // Define the corresponding event sequences
-  // These represent the actual chronological event progressions modeled by the event tree
   const eventSequences: Record<string, ConceptualEventSequence> = {
     "ES-LOOP-1": {
       id: "ES-LOOP-1",
@@ -419,8 +335,6 @@ export function createConceptualEventTree(): ConceptualEventTree {
       eventTreeSequenceId: "SEQ-5",
     },
   };
-
-  // Create the event tree
   const eventTree: ConceptualEventTree = {
     name: "ET-LOOP",
     label: "Loss of Offsite Power Event Tree",
@@ -435,32 +349,15 @@ export function createConceptualEventTree(): ConceptualEventTree {
     },
     missionTime: 24,
     missionTimeUnits: "hours",
-    // Map the event sequences that correspond to paths through this event tree
     mappedEventSequences: eventSequences,
   };
-
   return eventTree;
 }
-
-/**
- * Demonstrate event tree serialization
- * @returns String representation of the event tree
- * @hidden
- */
 export function stringifyConceptualEventTree(): string {
   const eventTree = createConceptualEventTree();
   return JSON.stringify(eventTree, null, 2);
 }
-
-/**
- * Example of how one might represent the event tree in a diagram format.
- * Note: This is a text representation for illustration purposes.
- *
- * Each path through the event tree represents a unique event sequence.
- * @hidden
- */
 export function printEventTreeDiagram(): string {
-  // Simple ASCII representation of the event tree
   return `
   IE-LOOP
     |
@@ -488,12 +385,6 @@ export function printEventTreeDiagram(): string {
   [ES-LOOP-X] = Corresponding Event Sequence
   `;
 }
-
-/**
- * Demonstrate the relationship between event trees and event sequences
- * @returns String representation explaining the relationship
- * @group Event Trees
- */
 export function explainEventTreeSequenceRelationship(): string {
   return `
   EVENT TREE TO EVENT SEQUENCE RELATIONSHIP:
@@ -521,8 +412,6 @@ export function explainEventTreeSequenceRelationship(): string {
      can be captured in the event tree structure or in the branch point probabilities.
   `;
 }
-
-// Example usage
 if (require.main === module) {
   console.log(printEventTreeDiagram());
   console.log("\nEvent Tree to Event Sequence Relationship:");

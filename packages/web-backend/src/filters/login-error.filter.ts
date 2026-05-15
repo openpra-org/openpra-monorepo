@@ -1,9 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
 import { Response } from "express";
-
-/**
- * Formats login failures into a consistent JSON response shape.
- */
 @Catch(HttpException)
 export class LoginErrorFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {

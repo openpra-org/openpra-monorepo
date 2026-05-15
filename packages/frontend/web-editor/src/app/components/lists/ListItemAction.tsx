@@ -1,7 +1,6 @@
 import { ButtonWithClosablePopover } from "../buttons/ButtonWithPopover";
 import { GenericListItemProps } from "./GenericListItem";
 import { ListItemContextMenu } from "./ListItemContextMenu";
-
 export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Element {
   return (
     <ButtonWithClosablePopover

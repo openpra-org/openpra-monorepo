@@ -3,7 +3,6 @@ import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 const css = styles as Record<string, string>;
-
 export interface VisibleNodeData {
   width: number;
   depth: number;
@@ -13,11 +12,9 @@ export interface VisibleNodeData {
   inputDepth?: number;
   outputDepth?: number;
 }
-
 function VisibleNode({ id, data }: NodeProps<VisibleNodeData>): JSX.Element {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
-
   return (
     <div>
       <Handle
@@ -86,5 +83,4 @@ function VisibleNode({ id, data }: NodeProps<VisibleNodeData>): JSX.Element {
     </div>
   );
 }
-
 export default VisibleNode;

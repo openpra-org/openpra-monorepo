@@ -8,12 +8,6 @@ import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/mod
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
 import { GetTypedModelName } from "../Helper";
-
-/**
- * Load and set Fault Trees for a given parent typed model id.
- *
- * @param parentId - Typed model id owning the Fault Trees collection.
- */
 export const SetFaultTrees = async (parentId: string): Promise<void> => {
   try {
     const FaultTrees = await GetFaultTrees(parentId);
@@ -23,42 +17,23 @@ export const SetFaultTrees = async (parentId: string): Promise<void> => {
         state.NestedModels.SystemAnalysis.FaultTrees = FaultTrees;
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Create a Fault Tree under the current typed model and update store links.
- *
- * @param data - Fault tree create payload.
- */
 export const AddFaultTree = async (data: NestedModelJSON): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
     const FaultTree: NestedModelType = await PostFaultTree(data, typedModelName);
-
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.SystemAnalysis.FaultTrees.push(FaultTree);
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Patch a Fault Tree's label and update it in the store.
- *
- * @param modelId - Fault tree id to update.
- * @param data - Patch payload; `label` is required.
- */
 export const EditFaultTree = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
   if (!data.label) {
     return;
   }
-
   try {
     const ftr: NestedModelType = await PatchFaultTreeLabel(modelId, data.label);
     UseGlobalStore.setState(
@@ -68,21 +43,12 @@ export const EditFaultTree = async (modelId: string, data: Partial<NestedModelJS
         );
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };
-
-/**
- * Delete a Fault Tree and unlink it from its parents in the store.
- *
- * @param id - Fault tree id to delete.
- */
 export const DeleteFaultTree = async (id: string): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
     await DeleteFaultTreeAPI(id, typedModelName);
-
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.SystemAnalysis.FaultTrees = state.NestedModels.SystemAnalysis.FaultTrees.filter(
@@ -90,7 +56,5 @@ export const DeleteFaultTree = async (id: string): Promise<void> => {
         );
       }),
     );
-  } catch (_error: unknown) {
-    // Intentionally ignore: state remains unchanged on failure
-  }
+  } catch (_error: unknown) {}
 };

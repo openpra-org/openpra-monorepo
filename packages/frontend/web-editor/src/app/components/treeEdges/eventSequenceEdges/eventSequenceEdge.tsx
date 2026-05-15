@@ -9,7 +9,6 @@ import { GetESToast } from "../../../../utils/treeUtils";
 import { UseToastContext } from "../../../providers/toastProvider";
 import styles from "./styles/edgeType.module.css";
 import { EventSequenceEdgeProps } from "./eventSequenceEdgeType";
-
 function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentType<EdgeProps<EventSequenceEdgeProps>>> {
   return memo(
     ({
@@ -60,7 +59,6 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
           }, 500),
         [getEdges, id, setEdges, addToast],
       );
-
       useEffect((): (() => void) => {
         return () => {
           updateHandler.cancel();
@@ -75,10 +73,9 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
         [updateHandler],
       );
       const edgeLabelElement =
-        type === "normal" ? (
+        type === "normal" ?
           <span style={{ width: 0 }}></span>
-        ) : (
-          <foreignObject
+        : <foreignObject
             x={10}
             y={-10}
             width={40}
@@ -93,8 +90,7 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
               disabled={data.tentative}
               title={edgeLabel}
             />
-          </foreignObject>
-        );
+          </foreignObject>;
       const edgeBtn = (
         <g transform={`translate(${String(edgeCenterX)}, ${String(edgeCenterY)})`}>
           <rect
@@ -117,7 +113,6 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
           {edgeLabelElement}
         </g>
       );
-
       return (
         <>
           <path
@@ -127,11 +122,12 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
             d={edgePath}
             markerEnd={markerEnd}
           />
-          {data.tentative ? <button style={{ width: 0 }} /> : edgeBtn}
+          {data.tentative ?
+            <button style={{ width: 0 }} />
+          : edgeBtn}
         </>
       );
     },
   );
 }
-
 export { EventSequenceEdge };

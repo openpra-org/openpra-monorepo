@@ -3,14 +3,7 @@ import { produce } from "immer";
 import { typedModelType } from "packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { GetCurrentNestedModelType } from "shared-sdk/lib/api/NestedModelApiManager";
 import { StoreStateType } from "../Store";
-
-/**
- * Allowed typed-model slice names in the global store.
- */
 export type TypedModelNames = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";
-/**
- * Allowed nested-model collection names in the global store.
- */
 export type NestedModelNames =
   | "initiatingEvents"
   | "eventSequenceDiagrams"
@@ -18,13 +11,8 @@ export type NestedModelNames =
   | "eventTrees"
   | "bayesianNetworks"
   | "faultTrees";
-
-/**
- * Resolves the currently active typed-model slice name from API context.
- */
 export const GetTypedModelName = (): TypedModelNames => {
   const typedModel = GetCurrentModelType();
-
   switch (typedModel) {
     case "internal-events":
       return "InternalEvents";
@@ -35,16 +23,10 @@ export const GetTypedModelName = (): TypedModelNames => {
     case "full-scope":
       return "FullScope";
   }
-
   return "InternalEvents";
 };
-
-/**
- * Resolves the currently active nested-model collection name from API context.
- */
 export const GetNestedModelName = (): NestedModelNames => {
   const nestedModel = GetCurrentNestedModelType();
-
   switch (nestedModel) {
     case "initiating-events":
       return "initiatingEvents";
@@ -59,16 +41,8 @@ export const GetNestedModelName = (): NestedModelNames => {
     case "fault-trees":
       return "faultTrees";
   }
-
   return "initiatingEvents";
 };
-
-/**
- * Adds a nested model id to all parent typed models that reference it.
- * @param state - The current global store state
- * @param nestedModelId - The nested model identifier to add
- * @param parentIds - List of parent typed model ids
- */
 export const AddToParentModel = (
   state: StoreStateType,
   nestedModelId: string,
@@ -76,7 +50,6 @@ export const AddToParentModel = (
 ): typedModelType[] => {
   const typedModelName: keyof StoreStateType = GetTypedModelName();
   const nestedModelName: keyof typedModelType = GetNestedModelName();
-
   return state[typedModelName].map(
     produce((tm: typedModelType) => {
       if (parentIds.includes(tm._id)) {
@@ -85,13 +58,6 @@ export const AddToParentModel = (
     }),
   );
 };
-
-/**
- * Removes a nested model id from all parent typed models that reference it.
- * @param state - The current global store state
- * @param nestedModelId - The nested model identifier to remove
- * @param parentIds - List of parent typed model ids
- */
 export const RemoveFromParentModel = (
   state: StoreStateType,
   nestedModelId: string,
@@ -99,7 +65,6 @@ export const RemoveFromParentModel = (
 ): typedModelType[] => {
   const typedModelName: keyof StoreStateType = GetTypedModelName();
   const nestedModelName: keyof typedModelType = GetNestedModelName();
-
   return state[typedModelName].map(
     produce((tm: typedModelType) => {
       if (parentIds.includes(tm._id)) {

@@ -44,5 +44,4 @@ function LoginPage(): JSX.Element {
     </EuiFlexGroup>
   );
 }
-
 export { LoginPage };

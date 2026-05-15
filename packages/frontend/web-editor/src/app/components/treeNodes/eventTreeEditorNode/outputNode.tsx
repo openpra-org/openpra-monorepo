@@ -5,24 +5,24 @@ import { useStore } from "reactflow";
 import { getInitials } from "../../../hooks/eventTree/useTreeData";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import { GenericModal } from "../../modals/genericModal";
-
 export interface OutputNodeData {
   label: string;
   isSequenceId?: boolean;
   width?: number;
 }
-
 const ManageCategoriesForm = ({
   categories,
   addCategory,
   deleteCategory,
 }: {
-  categories: { value: string; text: string }[];
+  categories: {
+    value: string;
+    text: string;
+  }[];
   addCategory: (category: string) => void;
   deleteCategory: (category: string) => void;
 }): JSX.Element => {
   const [newCategory, setNewCategory] = useState("");
-
   return (
     <div>
       {categories.map((category) => (
@@ -87,13 +87,10 @@ const ManageCategoriesForm = ({
     </div>
   );
 };
-
 let firstColumnLabel = "Initiating Event";
-
 export const setFirstColumnLabel = (label: string): void => {
   firstColumnLabel = label;
 };
-
 function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
   const { categories, addCategory, deleteCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
@@ -101,19 +98,16 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [sequenceId, setSequenceId] = useState<string | null>(null);
   const nodes = useStore((store) => store.getNodes() as Node<OutputNodeData>[]);
-
   const superSelectOptions = categories.map((category) => ({
     value: category.value,
     inputDisplay: category.text || category.value,
     dropdownDisplay: category.text || category.value,
   }));
-
   const updateSequenceId = useCallback((): void => {
     if (data.isSequenceId) {
       const sequenceIdNodes = nodes
         .filter((node) => node.type === "outputNode" && node.data.isSequenceId)
         .sort((a, b) => a.position.y - b.position.y);
-
       sequenceIdNodes.forEach((node, index) => {
         if (node.id === id) {
           const initials = getInitials(firstColumnLabel);
@@ -126,28 +120,22 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
       });
     }
   }, [data.isSequenceId, nodes, id, sequenceId]);
-
   useEffect(() => {
     setDisplayLabel(data.label);
   }, [data.label]);
-
   useEffect(() => {
     updateSequenceId();
   }, [updateSequenceId]);
-
   const handleCategoryChange = (value: string): void => {
     setReleaseCategory(value);
   };
-
   const handleModalSubmit = (): Promise<void> => {
     setIsManageModalVisible(false);
     return Promise.resolve();
   };
-
   const handleModalClose = (): void => {
     setIsManageModalVisible(false);
   };
-
   return (
     <div>
       <Handle
@@ -226,5 +214,4 @@ function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
     </div>
   );
 }
-
 export default OutputNode;

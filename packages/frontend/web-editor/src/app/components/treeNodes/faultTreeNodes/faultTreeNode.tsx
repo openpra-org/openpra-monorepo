@@ -26,9 +26,7 @@ import {
 import styles from "./styles/faultTreeNodeStyles.module.css";
 import { FaultTreeNodeProps } from "./faultTreeNodeType";
 import { FaultTreeNodeLabel } from "./faultTreeNodeLabel";
-
 const stylesMap = styles as Record<string, string>;
-
 export type FaultTreeNodeTypes =
   | "andGate"
   | "orGate"
@@ -37,7 +35,6 @@ export type FaultTreeNodeTypes =
   | "transferGate"
   | "houseEvent"
   | "basicEvent";
-
 function getNodeIcon(type: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
   switch (type) {
     case AND_GATE:
@@ -131,7 +128,6 @@ function getNodeIcon(type: string, selected: boolean | undefined, data: FaultTre
       throw new Error("Node Type Invalid");
   }
 }
-
 function getNodeLabel(type: string): string {
   switch (type) {
     case AND_GATE:
@@ -152,15 +148,9 @@ function getNodeLabel(type: string): string {
       return "";
   }
 }
-
-/**
- * Returns the short quantification label displayed above a node.
- * Gates show nothing (probability is derived); leaf nodes show their value.
- */
 function getQuantificationLabel(nodeType: string, data: FaultTreeNodeProps): string {
   if (!data) return "";
   const q = data.quantification;
-
   switch (nodeType) {
     case BASIC_EVENT: {
       if (!q) return "—";
@@ -182,11 +172,9 @@ function getQuantificationLabel(nodeType: string, data: FaultTreeNodeProps): str
     case ATLEAST_GATE:
       return q?.kValue !== undefined ? `K=${q.kValue}` : "";
     default:
-      // Logic gates — probability derived from children
       return "";
   }
 }
-
 function FaultTreeNode(
   type: FaultTreeNodeTypes,
 ): MemoExoticComponent<React.ComponentType<NodeProps<FaultTreeNodeProps>>> {
@@ -203,7 +191,6 @@ function FaultTreeNode(
     const grayedNodeClickHandler = (): void => {
       void handleGrayedNodeClick(data.branchId);
     };
-
     return (
       <div
         className={stylesMap.node_container}
@@ -240,5 +227,4 @@ function FaultTreeNode(
     );
   });
 }
-
 export { FaultTreeNode };

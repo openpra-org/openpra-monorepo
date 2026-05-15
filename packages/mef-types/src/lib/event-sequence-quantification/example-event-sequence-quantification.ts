@@ -1,9 +1,3 @@
-/**
- * @packageDocumentation
- * @module event_sequence_quantification
- * @category Examples
- */
-
 import {
   EventSequenceQuantification,
   TruncationMethod,
@@ -14,30 +8,6 @@ import {
 import { DistributionType } from "../data-analysis/data-analysis";
 import { TechnicalElementTypes } from "../technical-element";
 import { DependencyType } from "../event-sequence-analysis/event-sequence-analysis";
-
-/**
- * Example of a complete Event Sequence Quantification analysis
- *
- * This example demonstrates how to structure a complete event sequence quantification
- * with all required properties according to latest non LWR standards.
- *
- * @dependency_management
- * This example follows the module's dependency management approach:
- * 1. Uses string references and IDs for most cross-module references
- * 2. Only imports BarrierStatus from event-sequence-quantification (which re-exports it from plant-operating-states-analysis)
- * 3. Demonstrates loose coupling through well-defined interfaces
- *
- * @example
- * ```typescript
- * // Import the example
- * import { EventSequenceQuantificationExample } from 'event_sequence_quantification';
- *
- * // Use the example
- * const myAnalysis = { ...EventSequenceQuantificationExample };
- * ```
- * @const
- * @group Examples
- */
 export const EventSequenceQuantificationExample = {
   "technical-element-type": TechnicalElementTypes.EVENT_SEQUENCE_QUANTIFICATION,
   "technical-element-code": "ESQ",
@@ -397,23 +367,6 @@ export const EventSequenceQuantificationExample = {
   },
   mechanisticSourceTermAnalysisReferences: ["MST-REP-001", "MST-CALC-002"],
 } as const;
-
-/**
- * Collection of examples for Event Sequence Quantification
- *
- * A convenient object containing all the examples for easy access.
- *
- * @example
- * ```typescript
- * // Access all examples
- * import { examples } from 'event_sequence_quantification';
- *
- * // Use a specific example
- * const esqExample = examples.EventSequenceQuantificationExample;
- * ```
- * @const
- * @hidden
- */
 export const examples = {
   EventSequenceQuantificationExample,
 } as const;

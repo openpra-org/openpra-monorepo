@@ -15,11 +15,6 @@ import { useEffect, useState } from "react";
 import { MemberResult } from "shared-sdk/lib/api/Members";
 import { useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
-
-/**
- * Function returns the main user profile page
- *
- */
 export function UserProfilePage({ id }: { id: number }): JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [onDetails, setOnDetails] = useState<boolean>(false);

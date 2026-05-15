@@ -45,21 +45,21 @@ import type {
   PidSymbolType,
   PlantDiagramType,
 } from "shared-sdk/lib/api/PlantDiagramApiManager";
-
 const LINE_STYLES: Record<PidLineType, React.CSSProperties> = {
   process: { stroke: "#1a1a2e", strokeWidth: 2 },
   instrument_signal: { stroke: "#666", strokeWidth: 1.5, strokeDasharray: "5 4" },
   electrical: { stroke: "#666", strokeWidth: 1.5, strokeDasharray: "8 3 1 3" },
   pneumatic: { stroke: "#999", strokeWidth: 1.5, strokeDasharray: "1 4" },
 };
-
-const LINE_TYPE_OPTIONS: { value: PidLineType; text: string }[] = [
+const LINE_TYPE_OPTIONS: {
+  value: PidLineType;
+  text: string;
+}[] = [
   { value: "process", text: "Process line" },
   { value: "instrument_signal", text: "Instrument signal" },
   { value: "electrical", text: "Electrical" },
   { value: "pneumatic", text: "Pneumatic" },
 ];
-
 function defaultNodeData(symbolType: PidSymbolType, instrumentCode: string, label: string): PidNodeData {
   return {
     label,
@@ -71,18 +71,15 @@ function defaultNodeData(symbolType: PidSymbolType, instrumentCode: string, labe
     properties: {},
   };
 }
-
 interface PropertiesPanelProps {
   node: Node<PidNodeData>;
   onChange: (id: string, data: Partial<PidNodeData>) => void;
   onDelete: (id: string) => void;
 }
-
 function PropertiesPanel({ node, onChange, onDelete }: PropertiesPanelProps): JSX.Element {
   const d = node.data;
   const isInstr = d.symbolType === "instrument";
   const isText = d.symbolType === "text_label";
-
   return (
     <div
       style={{
@@ -204,13 +201,11 @@ function PropertiesPanel({ node, onChange, onDelete }: PropertiesPanelProps): JS
     </div>
   );
 }
-
 interface EdgePanelProps {
   edge: Edge<PidEdgeData>;
   onChange: (id: string, data: Partial<PidEdgeData>) => void;
   onDelete: (id: string) => void;
 }
-
 function EdgePanel({ edge, onChange, onDelete }: EdgePanelProps): JSX.Element {
   return (
     <div
@@ -270,16 +265,13 @@ function EdgePanel({ edge, onChange, onDelete }: EdgePanelProps): JSX.Element {
     </div>
   );
 }
-
 interface DexpiModalProps {
   onImport: (xmlStr: string) => void;
   onClose: () => void;
 }
-
 function DexpiImportModal({ onImport, onClose }: DexpiModalProps): JSX.Element {
   const [xmlText, setXmlText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -289,7 +281,6 @@ function DexpiImportModal({ onImport, onClose }: DexpiModalProps): JSX.Element {
     };
     reader.readAsText(file);
   };
-
   return (
     <EuiModal
       onClose={onClose}
@@ -347,13 +338,19 @@ function DexpiImportModal({ onImport, onClose }: DexpiModalProps): JSX.Element {
     </EuiModal>
   );
 }
-
 interface PlantDiagramEditorInnerProps {
   diagram: PlantDiagramType;
-  onSave: (nodes: Node[], edges: Edge[], viewport: { x: number; y: number; zoom: number }) => Promise<void>;
+  onSave: (
+    nodes: Node[],
+    edges: Edge[],
+    viewport: {
+      x: number;
+      y: number;
+      zoom: number;
+    },
+  ) => Promise<void>;
   onBack: () => void;
 }
-
 function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditorInnerProps): JSX.Element {
   const [nodes, setNodes, onNodesChange] = useNodesState<PidNodeData>(diagram.nodes as Node<PidNodeData>[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<PidEdgeData>(diagram.edges as Edge<PidEdgeData>[]);
@@ -364,7 +361,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
   const [showDexpi, setShowDexpi] = useState(false);
   const [dexpiError, setDexpiError] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (selectedNode) {
       const updated = nodes.find((n) => n.id === selectedNode.id);
@@ -372,7 +368,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
       else setSelectedNode(null);
     }
   }, [nodes]);
-
   useEffect(() => {
     if (selectedEdge) {
       const updated = edges.find((e) => e.id === selectedEdge.id);
@@ -380,17 +375,14 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
       else setSelectedEdge(null);
     }
   }, [edges]);
-
   const onDragOver = useCallback((e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
-
   const onPaletteDragStart = useCallback((e: DragEvent<HTMLDivElement>, payload: DragPayload): void => {
     e.dataTransfer.setData("application/pid-symbol", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "move";
   }, []);
-
   const onDrop = useCallback(
     (e: DragEvent<HTMLDivElement>): void => {
       e.preventDefault();
@@ -410,7 +402,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     },
     [rfInstance, setNodes],
   );
-
   const onConnect = useCallback(
     (params: Connection): void => {
       if (!params.source || !params.target) return;
@@ -427,37 +418,30 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     },
     [setEdges],
   );
-
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node): void => {
     setSelectedNode(node as Node<PidNodeData>);
     setSelectedEdge(null);
   }, []);
-
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge): void => {
     setSelectedEdge(edge as Edge<PidEdgeData>);
     setSelectedNode(null);
   }, []);
-
   const onPaneClick = useCallback((): void => {
     setSelectedNode(null);
     setSelectedEdge(null);
   }, []);
-
-  // ── Property change handlers ──
   const onNodeDataChange = useCallback(
     (id: string, patch: Partial<PidNodeData>): void => {
       setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)));
     },
     [setNodes],
   );
-
   const onEdgeDataChange = useCallback(
     (id: string, patch: Partial<PidEdgeData>): void => {
       setEdges((es) => es.map((e) => (e.id === id ? { ...e, data: { ...e.data, ...patch } as PidEdgeData } : e)));
     },
     [setEdges],
   );
-
   const onDeleteNode = useCallback(
     (id: string): void => {
       setNodes((ns) => ns.filter((n) => n.id !== id));
@@ -466,7 +450,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     },
     [setNodes, setEdges],
   );
-
   const onDeleteEdge = useCallback(
     (id: string): void => {
       setEdges((es) => es.filter((e) => e.id !== id));
@@ -474,7 +457,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     },
     [setEdges],
   );
-
   const handleSave = async (): Promise<void> => {
     setSaving(true);
     try {
@@ -484,7 +466,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
       setSaving(false);
     }
   };
-
   const handleDexpiImport = useCallback(
     (xmlStr: string): void => {
       const result = parseDexpiXml(xmlStr);
@@ -492,7 +473,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
         setDexpiError(result.error);
         return;
       }
-
       const offsetX = nodes.length > 0 ? 40 : 0;
       const offsetY = nodes.length > 0 ? 40 : 0;
       const imported = result.nodes.map((n) => ({
@@ -504,7 +484,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     },
     [nodes.length, setNodes, setEdges],
   );
-
   const styledEdges = edges.map((e) => {
     const lineType: PidLineType = (e.data?.lineType as PidLineType) ?? "process";
     return {
@@ -514,12 +493,9 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
       labelStyle: { fontSize: 10, fontFamily: "monospace" },
     };
   });
-
   const showRightPanel = selectedNode !== null || selectedEdge !== null;
-
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-      {}
       <div
         style={{
           height: 48,
@@ -575,11 +551,9 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
         </EuiButton>
       </div>
 
-      {}
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
         <SymbolPalette onDragStart={onPaletteDragStart} />
 
-        {}
         <div
           ref={wrapperRef}
           style={{ flex: 1, minWidth: 0, position: "relative" }}
@@ -619,7 +593,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
           </ReactFlow>
         </div>
 
-        {/* Right panel */}
         {showRightPanel && selectedNode && (
           <PropertiesPanel
             node={selectedNode}
@@ -636,7 +609,6 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
         )}
       </div>
 
-      {}
       {showDexpi && (
         <DexpiImportModal
           onImport={handleDexpiImport}
@@ -648,13 +620,19 @@ function PlantDiagramEditorInner({ diagram, onSave, onBack }: PlantDiagramEditor
     </div>
   );
 }
-
 export interface PlantDiagramEditorProps {
   diagram: PlantDiagramType;
-  onSave: (nodes: Node[], edges: Edge[], viewport: { x: number; y: number; zoom: number }) => Promise<void>;
+  onSave: (
+    nodes: Node[],
+    edges: Edge[],
+    viewport: {
+      x: number;
+      y: number;
+      zoom: number;
+    },
+  ) => Promise<void>;
   onBack: () => void;
 }
-
 export function PlantDiagramEditor(props: PlantDiagramEditorProps): JSX.Element {
   return (
     <ReactFlowProvider>

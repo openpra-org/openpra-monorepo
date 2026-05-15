@@ -1,5 +1,4 @@
 import { TemplatedPageHeader } from "../../components/headers/TemplatedPageHeader";
-
 function CcfGroups(): JSX.Element {
   return (
     <TemplatedPageHeader
@@ -8,5 +7,4 @@ function CcfGroups(): JSX.Element {
     />
   );
 }
-
 export { CcfGroups };

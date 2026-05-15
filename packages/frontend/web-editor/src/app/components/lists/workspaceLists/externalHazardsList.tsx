@@ -4,24 +4,20 @@ import { ReactElement, useEffect, useState } from "react";
 import { GenericItemList } from "../GenericItemList";
 import { UseGlobalStore } from "../../../zustand/Store";
 import { CreateGenericList } from "../GenericList";
-
 function ExternalHazardsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
-
   const externalHazardsList = UseGlobalStore.use.ExternalHazards();
   const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
   const createExternalHazards = UseGlobalStore.use.AddExternalHazard();
   const deleteExternalHazard = UseGlobalStore.use.DeleteExternalHazard();
   const editExternalHazard = UseGlobalStore.use.EditExternalHazard();
-
   useEffect(() => {
     setIsLoading(true);
     void setExternalHazards().then(() => {
       setIsLoading(false);
     });
   }, [setExternalHazards]);
-
   useEffect(() => {
     setGenericListItems(
       CreateGenericList<ExternalHazardsModelType>({
@@ -33,7 +29,6 @@ function ExternalHazardsList(): JSX.Element {
       }),
     );
   }, [createExternalHazards, deleteExternalHazard, editExternalHazard, externalHazardsList]);
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -56,5 +51,4 @@ function ExternalHazardsList(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { ExternalHazardsList };

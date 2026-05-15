@@ -4,7 +4,6 @@ import {
   PatchRiskIntegrationLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function RiskIntegrationList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function RiskIntegrationList(): JSX.Element {
     />
   );
 }
-
 export { RiskIntegrationList };

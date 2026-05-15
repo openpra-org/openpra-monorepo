@@ -1,28 +1,3 @@
-/**
- * Generic quantification panel.
- *
- * Handles all shared UI and state:
- *   - Algorithm / Approximation / Mode selectors
- *   - ZBDD two-phase flow (Analyze First) or direct Set Limits flow
- *   - BDD one-shot flow
- *   - Loading / error states
- *   - Phase 1 metadata display (order distribution table)
- *
- * Callers supply three render props that encode the only differences
- * between fault-tree and event-tree quantification:
- *   onAnalyze   — optional; enables the "Analyze First" ZBDD mode
- *   onQuantify  — calls the correct API endpoint
- *   renderResult — renders the compact summary + "View Details" button
- *   renderModal  — renders the full results modal
- *   hasDetails   — whether the result warrants auto-opening the modal
- *
- * Decision matrix (WORKFLOW.md):
- *   Approx × Mode
- *   None (Exact)  + Analyze First  → WF1: BDD cache prob, full ZBDD, metadata shown
- *   Approx        + Analyze First  → WF2: ZBDD approx prob, full ZBDD, metadata shown
- *   None (Exact)  + Set Limits     → WF3: BDD cache prob, on-the-fly pruned ZBDD
- *   Approx        + Set Limits     → WF4: ZBDD approx prob, on-the-fly pruned ZBDD
- */
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
@@ -42,27 +17,19 @@ import {
   EuiText,
   EuiTitle,
 } from "@elastic/eui";
-
-// ─── Shared types ─────────────────────────────────────────────────────────────
-
 export interface QuantificationOptions {
   algorithm: "bdd" | "zbdd";
   approximation?: "rare_event" | "mcub";
   maxOrder?: number;
   truncation?: number;
 }
-
 type ZbddApprox = "none" | "rare_event" | "mcub";
 type ZbddMode = "analyze" | "limits";
-
-// ─── Shared helpers ───────────────────────────────────────────────────────────
-
 export function fmtNumber(p: number): string {
   if (p === 0) return "0";
   if (p < 1e-3) return p.toExponential(3);
   return p.toPrecision(4);
 }
-
 export function severityColor(
   p: number,
   thresholds: [number, number] = [0.01, 1e-4],
@@ -73,29 +40,23 @@ export function severityColor(
     : "success"
   );
 }
-
 export function approxBadgeLabel(approx: string | undefined): string {
   if (approx === "rare_event") return "Rare-Event";
   if (approx === "mcub") return "MCUB";
   return "Exact";
 }
-
-// ─── Shared order-stats table ─────────────────────────────────────────────────
-
 export interface OrderStatsRow {
   order: number;
   count: number;
   min: number;
   max: number;
 }
-
 export interface OrderStatsTableProps {
   rows: OrderStatsRow[];
   minLabel?: string;
   maxLabel?: string;
   maxColor?: (max: number) => string | undefined;
 }
-
 export function OrderStatsTable({
   rows,
   minLabel = "Min",
@@ -112,9 +73,7 @@ export function OrderStatsTable({
       </EuiText>
     );
   }
-
   const sorted = [...rows].sort((a, b) => a.order - b.order);
-
   return (
     <div>
       <EuiFlexGroup
@@ -202,9 +161,6 @@ export function OrderStatsTable({
     </div>
   );
 }
-
-// ─── Limits sub-form ──────────────────────────────────────────────────────────
-
 interface LimitsFormProps {
   maxOrder: number | undefined;
   truncationText: string;
@@ -212,7 +168,6 @@ interface LimitsFormProps {
   onMaxOrderChange: (v: number | undefined) => void;
   onTruncationChange: (v: string) => void;
 }
-
 function LimitsForm({
   maxOrder,
   truncationText,
@@ -256,27 +211,15 @@ function LimitsForm({
     </>
   );
 }
-
-// ─── Generic panel ────────────────────────────────────────────────────────────
-
 export interface QuantificationPanelProps<R> {
   subjectId: string;
-  /**
-   * If provided, enables the ZBDD "Analyze First" mode (Phase 1 metadata).
-   * Must be paired with renderMetadata.
-   */
   onAnalyze?: (subjectId: string) => Promise<unknown>;
-  /** Renders the Phase 1 metadata returned by onAnalyze. */
   renderMetadata?: (metadata: unknown) => ReactNode;
   onQuantify: (subjectId: string, options: QuantificationOptions) => Promise<R>;
-  /** Compact summary rendered in the side panel. Receives onViewDetails to open the modal. */
   renderResult: (result: R, onViewDetails: () => void) => ReactNode;
-  /** Full details modal. */
   renderModal: (result: R, onClose: () => void) => ReactNode;
-  /** Whether the result has details worth showing in a modal (controls auto-open). */
   hasDetails: (result: R) => boolean;
 }
-
 export function QuantificationPanel<R>({
   subjectId,
   onAnalyze,
@@ -289,21 +232,15 @@ export function QuantificationPanel<R>({
   const [algorithm, setAlgorithm] = useState<"bdd" | "zbdd">("zbdd");
   const [zbddApprox, setZbddApprox] = useState<ZbddApprox>("none");
   const [zbddMode, setZbddMode] = useState<ZbddMode>("analyze");
-
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [metadata, setMetadata] = useState<unknown>(null);
-
   const [maxOrder, setMaxOrder] = useState<number | undefined>(undefined);
   const [truncationText, setTruncationText] = useState<string>("");
-
   const [isEnumerating, setIsEnumerating] = useState(false);
   const [result, setResult] = useState<R | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
-
   const isRunning = isAnalyzing || isEnumerating;
-
   const resetAll = (): void => {
     setMetadata(null);
     setResult(null);
@@ -313,7 +250,6 @@ export function QuantificationPanel<R>({
     setMaxOrder(undefined);
     setTruncationText("");
   };
-
   const handleAnalyze = async (): Promise<void> => {
     if (!onAnalyze) return;
     setIsAnalyzing(true);
@@ -328,7 +264,6 @@ export function QuantificationPanel<R>({
       setIsAnalyzing(false);
     }
   };
-
   const handleEnumerate = async (): Promise<void> => {
     setIsEnumerating(true);
     setError(null);
@@ -349,33 +284,21 @@ export function QuantificationPanel<R>({
       setIsEnumerating(false);
     }
   };
-
-  // "Analyze First" mode is available only when onAnalyze is provided.
-  // If not provided (e.g. event tree), zbddMode is forced to "limits".
   const effectiveZbddMode: ZbddMode = onAnalyze ? zbddMode : "limits";
-
-  // Phase 2 controls appear:
-  //   BDD: always
-  //   ZBDD + Set Limits: always
-  //   ZBDD + Analyze First: only after metadata is loaded
   const showPhase2 = algorithm === "bdd" || effectiveZbddMode === "limits" || metadata !== null;
-
   const algorithmOptions = [
     { value: "zbdd", text: "ZBDD" },
     { value: "bdd", text: "BDD" },
   ];
-
   const approxOptions = [
     { value: "none", text: "None (Exact)" },
     { value: "rare_event", text: "Rare-Event Approximation" },
     { value: "mcub", text: "Min-Cut Upper Bound (MCUB)" },
   ];
-
   const modeButtons = [
     { id: "analyze", label: "Analyze First" },
     { id: "limits", label: "Set Limits" },
   ];
-
   return (
     <>
       <div style={{ padding: "24px 16px 16px" }}>
@@ -384,7 +307,6 @@ export function QuantificationPanel<R>({
         </EuiTitle>
         <EuiSpacer size="s" />
 
-        {/* Algorithm */}
         <EuiFormRow
           label="Algorithm"
           fullWidth
@@ -401,7 +323,6 @@ export function QuantificationPanel<R>({
           />
         </EuiFormRow>
 
-        {/* ZBDD sub-controls */}
         {algorithm === "zbdd" && (
           <>
             <EuiFormRow
@@ -420,7 +341,6 @@ export function QuantificationPanel<R>({
               />
             </EuiFormRow>
 
-            {/* Mode toggle only when Analyze is available */}
             {onAnalyze && (
               <EuiFormRow
                 label="Mode"
@@ -444,7 +364,6 @@ export function QuantificationPanel<R>({
           </>
         )}
 
-        {/* Phase 1: Analyze button (ZBDD + Analyze First only) */}
         {algorithm === "zbdd" && effectiveZbddMode === "analyze" && (
           <>
             <EuiSpacer size="m" />
@@ -496,7 +415,6 @@ export function QuantificationPanel<R>({
           </>
         )}
 
-        {/* Phase 2 / Set Limits / BDD */}
         {showPhase2 && (
           <>
             <EuiHorizontalRule margin="m" />
@@ -563,7 +481,6 @@ export function QuantificationPanel<R>({
           </>
         )}
 
-        {/* Error */}
         {error && (
           <>
             <EuiSpacer size="s" />
@@ -578,7 +495,6 @@ export function QuantificationPanel<R>({
           </>
         )}
 
-        {/* Result summary (caller-supplied) */}
         {result && !isEnumerating && (
           <>
             <EuiHorizontalRule margin="m" />
@@ -587,7 +503,6 @@ export function QuantificationPanel<R>({
         )}
       </div>
 
-      {/* Result modal (caller-supplied) */}
       {result && isModalOpen && renderModal(result, () => setIsModalOpen(false))}
     </>
   );

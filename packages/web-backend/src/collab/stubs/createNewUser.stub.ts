@@ -1,6 +1,5 @@
 import { MemberRole } from "shared-sdk";
 import { CreateNewUserSchemaDto } from "../dtos/createNewUser-schema";
-
 export const CreateUserObject: CreateNewUserSchemaDto = {
   firstName: "User1",
   lastName: "Last1",

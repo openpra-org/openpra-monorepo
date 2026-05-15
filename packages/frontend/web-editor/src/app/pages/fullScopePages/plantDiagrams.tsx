@@ -31,15 +31,11 @@ import {
 } from "shared-sdk/lib/api/PlantDiagramApiManager";
 import { PlantDiagramEditor } from "../../components/diagrams/plantDiagramEditor";
 import { parseDexpiXml } from "../../components/diagrams/dexpiParser";
-
-// ─── Create modal (with optional DEXPI import) ────────────────────────────────
-
 interface CreateModalProps {
   modelId: number;
   onCreated: (diagram: PlantDiagramType) => void;
   onClose: () => void;
 }
-
 function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): JSX.Element {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<"PID" | "PFD">("PID");
@@ -48,7 +44,6 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
   const [dexpiFileName, setDexpiFileName] = useState<string | null>(null);
   const [dexpiError, setDexpiError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -60,7 +55,6 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
     };
     reader.readAsText(file);
   };
-
   const handleCreate = async (): Promise<void> => {
     if (!title.trim()) return;
     setLoading(true);
@@ -70,8 +64,6 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
         title: title.trim(),
         diagramType: type,
       });
-
-      // If DEXPI XML was provided, parse and save the nodes/edges immediately
       if (dexpiXml) {
         const result = parseDexpiXml(dexpiXml);
         if (result.error) {
@@ -88,13 +80,11 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
           diagram.edges = result.edges as PlantDiagramType["edges"];
         }
       }
-
       onCreated(diagram);
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <EuiModal
       onClose={onClose}
@@ -134,7 +124,6 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
             />
           </div>
 
-          {/* Optional DEXPI XML import */}
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>
               Import from DEXPI XML <span style={{ fontWeight: 400, color: "#69707d" }}>(optional)</span>
@@ -200,18 +189,15 @@ function CreateDiagramModal({ modelId, onCreated, onClose }: CreateModalProps): 
     </EuiModal>
   );
 }
-
-// ─── Diagram list ──────────────────────────────────────────────────────────────
-
 function PlantDiagramsList(): JSX.Element {
-  const { modelId } = useParams<{ modelId: string }>();
+  const { modelId } = useParams<{
+    modelId: string;
+  }>();
   const navigate = useNavigate();
   const parsedModelId = Number(modelId);
-
   const [diagrams, setDiagrams] = useState<PlantDiagramType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-
   useEffect(() => {
     void (async () => {
       setLoading(true);
@@ -223,7 +209,6 @@ function PlantDiagramsList(): JSX.Element {
       }
     })();
   }, [parsedModelId]);
-
   const handleCreated = useCallback(
     (diagram: PlantDiagramType): void => {
       setDiagrams((prev) => [...prev, diagram]);
@@ -232,7 +217,6 @@ function PlantDiagramsList(): JSX.Element {
     },
     [navigate],
   );
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -357,16 +341,14 @@ function PlantDiagramsList(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
-// ─── Editor page ───────────────────────────────────────────────────────────────
-
 function PlantDiagramEditorPage(): JSX.Element {
-  const { diagramId } = useParams<{ diagramId: string }>();
+  const { diagramId } = useParams<{
+    diagramId: string;
+  }>();
   const navigate = useNavigate();
   const [diagram, setDiagram] = useState<PlantDiagramType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     void (async () => {
       setLoading(true);
@@ -384,9 +366,16 @@ function PlantDiagramEditorPage(): JSX.Element {
       }
     })();
   }, [diagramId]);
-
   const handleSave = useCallback(
-    async (nodes: Node[], edges: Edge[], viewport: { x: number; y: number; zoom: number }): Promise<void> => {
+    async (
+      nodes: Node[],
+      edges: Edge[],
+      viewport: {
+        x: number;
+        y: number;
+        zoom: number;
+      },
+    ): Promise<void> => {
       if (!diagram) return;
       await SavePlantDiagram(diagram.id, {
         nodes: nodes as PlantDiagramType["nodes"],
@@ -396,7 +385,6 @@ function PlantDiagramEditorPage(): JSX.Element {
     },
     [diagram],
   );
-
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
@@ -404,7 +392,6 @@ function PlantDiagramEditorPage(): JSX.Element {
       </div>
     );
   }
-
   if (error || !diagram) {
     return (
       <EuiEmptyPrompt
@@ -424,9 +411,7 @@ function PlantDiagramEditorPage(): JSX.Element {
       />
     );
   }
-
   return (
-    // Use full viewport height minus the 48px global header
     <div style={{ width: "100%", height: "calc(100vh - 48px)", overflow: "hidden" }}>
       <PlantDiagramEditor
         diagram={diagram}
@@ -438,9 +423,6 @@ function PlantDiagramEditorPage(): JSX.Element {
     </div>
   );
 }
-
-// ─── Router ────────────────────────────────────────────────────────────────────
-
 function PlantDiagrams(): JSX.Element {
   return (
     <Routes>
@@ -455,5 +437,4 @@ function PlantDiagrams(): JSX.Element {
     </Routes>
   );
 }
-
 export { PlantDiagrams };

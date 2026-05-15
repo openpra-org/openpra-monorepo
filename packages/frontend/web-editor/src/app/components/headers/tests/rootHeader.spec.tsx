@@ -3,11 +3,7 @@ import "@testing-library/jest-dom";
 import { act } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { RootHeader } from "../rootHeader";
-
 describe("RootHeader", () => {
-  //test for workspace selector
-
-  //test for initial render of breadcrumbs
   it("renders header breadcrumbs", async () => {
     act(() => {
       render(
@@ -19,8 +15,6 @@ describe("RootHeader", () => {
     const headerBreadcrumbs = await screen.findByTestId("breadcrumbs");
     expect(headerBreadcrumbs).toBeInTheDocument();
   });
-
-  //test for initial render of search icon
   it("renders header search icon", async () => {
     act(() => {
       render(
@@ -32,8 +26,6 @@ describe("RootHeader", () => {
     const searchIcon = await screen.findByTestId("search-icon");
     expect(searchIcon).toBeInTheDocument();
   });
-
-  //test for displaying search menu on clicking search icon
   it("renders search menu on clicking search icon", async () => {
     act(() => {
       render(
@@ -49,8 +41,6 @@ describe("RootHeader", () => {
     const searchMenuMessage = (await screen.findAllByTestId("search-menu"))[0];
     expect(searchMenuMessage).toBeInTheDocument();
   });
-
-  //test for initial render of user menu
   it("renders header user menu", async () => {
     act(() => {
       render(
@@ -62,8 +52,6 @@ describe("RootHeader", () => {
     const userMenu = await screen.findByTestId("user-menu");
     expect(userMenu).toBeInTheDocument();
   });
-
-  //test for rendering user menu contents on clicking search menu
   it("renders user menu contents on clicking user menu", async () => {
     act(() => {
       render(
@@ -79,8 +67,6 @@ describe("RootHeader", () => {
     const userMenuContents = await screen.findByTestId("user-menu-content");
     expect(userMenuContents).toBeInTheDocument();
   });
-
-  //test for initial render of header app menu
   it("renders header app menu", async () => {
     act(() => {
       render(
@@ -92,8 +78,6 @@ describe("RootHeader", () => {
     const appMenu = await screen.findByTestId("app-menu");
     expect(appMenu).toBeInTheDocument();
   });
-
-  //test for rendering header app menu contents after clicking header app icon
   it("renders header app menu content on clicking header user app icon", async () => {
     act(() => {
       render(

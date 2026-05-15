@@ -36,7 +36,6 @@ import {
   RadiologicalConsequenceAnalysisSchema,
 } from "./schemas/radiological-consequence-analysis.schema";
 import { HumanReliabilityAnalysis, HumanReliabilityAnalysisSchema } from "./schemas/human-reliability-analysis.schema";
-
 import { createBayesianEstimationObject } from "./stubs/createBayesianEstimation.stub";
 import { createBayesianNetworkObject } from "./stubs/createBayesianNetwork.stub";
 import { createEventSequenceDiagramObject } from "./stubs/createEventSequenceDiagram.stub";
@@ -56,17 +55,11 @@ import { createOperatingStateAnalysisObject } from "./stubs/createOperatingState
 import { createRadiologicalConsequenceAnalysisObject } from "./stubs/createRadiologicalConsequenceAnalysis.stub";
 import { createHumanReliabilityAnalysisObject } from "./stubs/createHumanReliabilityAnalysis.stub";
 import { createEventSequenceQuantificationDiagramObject } from "./stubs/createEventSequenceQuantificationDiagram.stub";
-
 describe("CollabController", () => {
   let nestedModelController: NestedModelController;
   let connection: Connection;
-  /**
-   * Before all tests
-   * Create a new Testing module
-   * define connection and collabService
-   */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -120,121 +113,160 @@ describe("CollabController", () => {
         {
           provide: InitiatingEventsService,
           useValue: {
-            createInitiatingEvent: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
+            createInitiatingEvent: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
           },
         },
         {
           provide: EventSequenceDiagramService,
           useValue: {
-            createEventSequenceDiagram: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
-            getSingleEventSequenceDiagram: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
-              id: 1,
-              parentIds: [1],
-            })),
+            createEventSequenceDiagram: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleEventSequenceDiagram: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({
+                id: 1,
+                parentIds: [1],
+              }),
+            ),
           },
         },
         {
           provide: EventSequenceAnalysisService,
           useValue: {
-            createEventSequenceAnalysis: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
+            createEventSequenceAnalysis: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
           },
         },
         {
           provide: EventTreesService,
           useValue: {
-            createEventTree: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as { id: number })),
-            getSingleEventTree: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({ id: 1, parentIds: [1] })),
+            createEventTree: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleEventTree: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({ id: 1, parentIds: [1] }),
+            ),
           },
         },
         {
           provide: BayesianNetworksService,
           useValue: {
-            createBayesianNetwork: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
-            getSingleBayesianNetwork: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
-              id: 1,
-              parentIds: [1],
-            })),
+            createBayesianNetwork: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleBayesianNetwork: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({
+                id: 1,
+                parentIds: [1],
+              }),
+            ),
           },
         },
         {
           provide: FaultTreesService,
           useValue: {
-            createFaultTree: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as { id: number })),
-            getSingleFaultTree: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({ id: 1, parentIds: [1] })),
+            createFaultTree: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleFaultTree: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({ id: 1, parentIds: [1] }),
+            ),
           },
         },
         {
           provide: InitiatingEventsService,
           useValue: {
-            createInitiatingEvent: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
-            getSingleInitiatingEvent: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
-              id: 1,
-              parentIds: [1],
-            })),
+            createInitiatingEvent: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleInitiatingEvent: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({
+                id: 1,
+                parentIds: [1],
+              }),
+            ),
           },
         },
         {
           provide: EventSequenceAnalysisService,
           useValue: {
-            createEventSequenceAnalysis: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
-              id: number;
-            })),
-            getSingleEventSequenceAnalysis: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
-              id: 1,
-              parentIds: [1],
-            })),
+            createEventSequenceAnalysis: jest.fn(
+              async (d: Record<string, unknown>) =>
+                ({ ...(d as object), id: 1 }) as {
+                  id: number;
+                },
+            ),
+            getSingleEventSequenceAnalysis: jest.fn(
+              async (): Promise<{
+                id: number;
+                parentIds: number[];
+              }> => ({
+                id: 1,
+                parentIds: [1],
+              }),
+            ),
           },
         },
       ],
       controllers: [NestedModelController],
     }).compile();
-    connection = await module.get(getConnectionToken()); // create mongoose connection object to call functions like put, get, find
+    connection = await module.get(getConnectionToken());
     nestedModelController = module.get<NestedModelController>(NestedModelController);
   });
-
-  /**
-   * After each test drop database
-   */
   afterEach(async () => {
     await connection.dropDatabase();
   });
-
-  /**
-   * After all tests
-   * Disconnect mongoose
-   * Stop mongoDB server
-   */
   afterAll(async () => {
     await mongoose.disconnect();
   });
-
   describe("NestedModelController", () => {
-    /**
-     * Test if nestedModelController is defined
-     */
     it("NestedModelController should be defined", () => {
       expect(nestedModelController).toBeDefined();
     });
   });
-
   describe("createBayesianEstimation", () => {
-    /**
-     * Test if createBayesianEstimation is defined
-     */
     it("createBayesianEstimation should be defined", () => {
       expect(nestedModelController.createBayesianEstimation).toBeDefined();
     });
-
     it("should create a BayesianEstimation", async () => {
       const result = await nestedModelController.createBayesianEstimation(createBayesianEstimationObject);
       expect(result).toHaveProperty("label");
@@ -243,11 +275,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Bayesian Estimation Model");
     });
   });
-
   describe("createBayesianNetwork", () => {
-    /**
-     * Test if createBayesianNetwork is defined
-     */
     it("createBayesianNetwork should be defined", () => {
       expect(nestedModelController.createBayesianNetwowrk).toBeDefined();
     });
@@ -259,11 +287,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Bayesian Network Model");
     });
   });
-
   describe("createEventSequenceDiagram", () => {
-    /**
-     * Test if createEventSequenceDiagram is defined
-     */
     it("createEventSequenceDiagram should be defined", () => {
       expect(nestedModelController.createEventSequenceDiagram).toBeDefined();
     });
@@ -275,11 +299,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Event Sequence Diagram Model");
     });
   });
-
   describe("createEventTree", () => {
-    /**
-     * Test if createEventTree is defined
-     */
     it("createEventTree should be defined", () => {
       expect(nestedModelController.createEventTree).toBeDefined();
     });
@@ -292,9 +312,6 @@ describe("CollabController", () => {
     });
   });
   describe("createFaultTree", () => {
-    /**
-     * Test if createFaultTree is defined
-     */
     it("createFaultTree should be defined", () => {
       expect(nestedModelController.createFaultTree).toBeDefined();
     });
@@ -306,11 +323,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Fault Tree Model");
     });
   });
-
   describe("createFunctionalEvent", () => {
-    /**
-     * Test if createFunctionalEvent is defined
-     */
     it("createFunctionalEvent should be defined", () => {
       expect(nestedModelController.createFunctionalEvent).toBeDefined();
     });
@@ -323,9 +336,6 @@ describe("CollabController", () => {
     });
   });
   describe("createInitiatingEvent", () => {
-    /**
-     * Test if createInitiatingEvent is defined
-     */
     it("createInitiatingEvent should be defined", () => {
       expect(nestedModelController.createInitiatingEvent).toBeDefined();
     });
@@ -338,9 +348,6 @@ describe("CollabController", () => {
     });
   });
   describe("createMarkovChain", () => {
-    /**
-     * Test if createMarkovChain is defined
-     */
     it("createMarkovChain should be defined", () => {
       expect(nestedModelController.createMarkovChain).toBeDefined();
     });
@@ -352,11 +359,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Markov Chain Model");
     });
   });
-
   describe("createWeibullAnalysis", () => {
-    /**
-     * Test if createWeibullAnalysis is defined
-     */
     it("createWeibullAnalysis should be defined", () => {
       expect(nestedModelController.createWeibullAnalysis).toBeDefined();
     });
@@ -368,11 +371,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Weibull Analysis Model");
     });
   });
-
   describe("createRiskIntegration", () => {
-    /**
-     * Test if createRiskIntegration is defined
-     */
     it("createRiskIntegration should be defined", () => {
       expect(nestedModelController.createRiskIntegration).toBeDefined();
     });
@@ -384,11 +383,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Risk Integration Model");
     });
   });
-
   describe("createRadioLogicalConsequenceAnalysis", () => {
-    /**
-     * Test if createRadioLogicalConsequenceAnalysis is defined
-     */
     it("createRadioLogicalConsequenceAnalysis should be defined", () => {
       expect(nestedModelController.createRadiologicalConsequenceAnalysis).toBeDefined();
     });
@@ -402,11 +397,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Radiological Consequence Analysis Model");
     });
   });
-
   describe("createMechanisticSourceTerm", () => {
-    /**
-     * Test if createMechanisticSourceTerm is defined
-     */
     it("createMechanisticSourceTerm should be defined", () => {
       expect(nestedModelController.createMechanisticSourceTerm).toBeDefined();
     });
@@ -418,11 +409,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Mechanistic Source Term Model");
     });
   });
-
   describe("createEventSequenceQuantificationDiagram", () => {
-    /**
-     * Test if createEventSequenceQuantificationDiagram is defined
-     */
     it("createEventSequenceQuantificationDiagram should be defined", () => {
       expect(nestedModelController.createEventSequenceQuantificationDiagram).toBeDefined();
     });
@@ -436,11 +423,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Event Sequence Quantification Diagram Model");
     });
   });
-
   describe("createDataAnalysis", () => {
-    /**
-     * Test if createDataAnalysis is defined
-     */
     it("createDataAnalysis should be defined", () => {
       expect(nestedModelController.createDataAnalysis).toBeDefined();
     });
@@ -452,11 +435,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Data Analysis Model");
     });
   });
-
   describe("HumanReliabilityAnalysis", () => {
-    /**
-     * Test if HumanReliabilityAnalysis is defined
-     */
     it("HumanReliabilityAnalysis should be defined", () => {
       expect(nestedModelController.createHumanReliabilityAnalysis).toBeDefined();
     });
@@ -468,11 +447,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Human Reliability Analysis Model");
     });
   });
-
   describe("createSystemsAnalysis", () => {
-    /**
-     * Test if createSystemAnalysis is defined
-     */
     it("createSystemAnalysis should be defined", () => {
       expect(nestedModelController.createSystemsAnalysis).toBeDefined();
     });
@@ -484,11 +459,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Systems Analysis Model");
     });
   });
-
   describe("createSuccessCriteria", () => {
-    /**
-     * Test if createSuccessCriteria is defined
-     */
     it("createSuccessCriteria should be defined", () => {
       expect(nestedModelController.createSuccessCriteria).toBeDefined();
     });
@@ -500,11 +471,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Success Criteria Model");
     });
   });
-
   describe("createEventSequenceAnalysis", () => {
-    /**
-     * Test if createEventSequenceAnalysis is defined
-     */
     it("createEventSequenceAnalysis should be defined", () => {
       expect(nestedModelController.createEventSequenceAnalysis).toBeDefined();
     });
@@ -516,11 +483,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Event Sequence Analysis Model");
     });
   });
-
   describe("createOperatingStateAnalysis", () => {
-    /**
-     * Test if createOperatingStateAnalysis is defined
-     */
     it("createOperatingStateAnalysis should be defined", () => {
       expect(nestedModelController.createOperatingStateAnalysis).toBeDefined();
     });
@@ -532,11 +495,7 @@ describe("CollabController", () => {
       expect(result.label.description).toBe("Description for Operating State Analysis Model");
     });
   });
-
   describe("getSingleBayesianEstimation", () => {
-    /**
-     * Test if getSingleBayesianEstimation is defined
-     */
     it("getSingleBayesianEstimation should be defined", () => {
       expect(nestedModelController.getSingleBayesianEstimation).toBeDefined();
     });
@@ -549,11 +508,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Bayesian Estimation Model");
     });
   });
-
   describe("getSingleBayesianNetwork", () => {
-    /**
-     * Test if getSingleBayesianNetwork is defined
-     */
     it("getSingleBayesianNetwork should be defined", () => {
       expect(nestedModelController.getSingleBayesianNetwork).toBeDefined();
     });
@@ -566,11 +521,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Bayesian Network Model");
     });
   });
-
   describe("getSingleEventSequenceDiagram", () => {
-    /**
-     * Test if getSingleEventSequenceDiagram is defined
-     */
     it("getSingleEventSequenceDiagram should be defined", () => {
       expect(nestedModelController.getSingleEventSequenceDiagram).toBeDefined();
     });
@@ -583,11 +534,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Event Sequence Diagram Model");
     });
   });
-
   describe("getSingleEventTree", () => {
-    /**
-     * Test if getSingleEventTree is defined
-     */
     it("getSingleEventTree should be defined", () => {
       expect(nestedModelController.getSingleEventTree).toBeDefined();
     });
@@ -600,11 +547,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Event Tree Model");
     });
   });
-
   describe("getSingleFaultTree", () => {
-    /**
-     * Test if getSingleFaultTree is defined
-     */
     it("getSingleFaultTree should be defined", () => {
       expect(nestedModelController.getSingleFaultTree).toBeDefined();
     });
@@ -617,11 +560,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Fault Tree Model");
     });
   });
-
   describe("getSingleFunctionalEvent", () => {
-    /**
-     * Test if getSingleFunctionalEvent is defined
-     */
     it("getSingleFunctionalEvent should be defined", () => {
       expect(nestedModelController.getSingleFunctionalEvent).toBeDefined();
     });
@@ -634,11 +573,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Functional Event Model");
     });
   });
-
   describe("getSingleInitiatingEvent", () => {
-    /**
-     * Test if getSingleInitiatingEvent is defined
-     */
     it("getSingleInitiatingEvent should be defined", () => {
       expect(nestedModelController.getSingleInitiatingEvent).toBeDefined();
     });
@@ -651,11 +586,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Initiating Event Model");
     });
   });
-
   describe("getSingleMarkovChain", () => {
-    /**
-     * Test if getSingleMarkovChain is defined
-     */
     it("getSingleMarkovChain should be defined", () => {
       expect(nestedModelController.getSingleMarkovChain).toBeDefined();
     });
@@ -668,11 +599,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Markov Chain Model");
     });
   });
-
   describe("getSingleWeibullAnalysis", () => {
-    /**
-     * Test if getSingleWeibullAnalysis is defined
-     */
     it("getSingleWeibullAnalysis should be defined", () => {
       expect(nestedModelController.getSingleWeibullAnalysis).toBeDefined();
     });
@@ -685,11 +612,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Weibull Analysis Model");
     });
   });
-
   describe("getSingleRiskIntegration", () => {
-    /**
-     * Test if getSingleRiskIntegration is defined
-     */
     it("getSingleRiskIntegration should be defined", () => {
       expect(nestedModelController.getSingleRiskIntegration).toBeDefined();
     });
@@ -702,11 +625,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Risk Integration Model");
     });
   });
-
   describe("getSingleRadioLogicalConsequenceAnalysis", () => {
-    /**
-     * Test if getSingleRadioLogicalConsequenceAnalysis is defined
-     */
     it("getSingleRadioLogicalConsequenceAnalysis should be defined", () => {
       expect(nestedModelController.getSingleRadiologicalConsequenceAnalysis).toBeDefined();
     });
@@ -721,11 +640,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Radiological Consequence Analysis Model");
     });
   });
-
   describe("getSingleMechanisticSourceTerm", () => {
-    /**
-     * Test if getSingleMechanisticSourceTerm is defined
-     */
     it("getSingleMechanisticSourceTerm should be defined", () => {
       expect(nestedModelController.getSingleMechanisticSourceTerm).toBeDefined();
     });
@@ -738,11 +653,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Mechanistic Source Term Model");
     });
   });
-
   describe("getSingleEventSequenceQuantificationDiagram", () => {
-    /**
-     * Test if getSingleEventSequenceQuantificationDiagram is defined
-     */
     it("getSingleEventSequenceQuantificationDiagram should be defined", () => {
       expect(nestedModelController.getSingleEventSequenceQuantificationDiagram).toBeDefined();
     });
@@ -757,11 +668,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Event Sequence Quantification Diagram Model");
     });
   });
-
   describe("getSingleDataAnalysis", () => {
-    /**
-     * Test if getSingleDataAnalysis is defined
-     */
     it("getSingleDataAnalysis should be defined", () => {
       expect(nestedModelController.getSingleDataAnalysis).toBeDefined();
     });
@@ -774,11 +681,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Data Analysis Model");
     });
   });
-
   describe("getSingleHumanReliabilityAnalysis", () => {
-    /**
-     * Test if getSingleHumanReliabilityAnalysis is defined
-     */
     it("getSingleHumanReliabilityAnalysis should be defined", () => {
       expect(nestedModelController.getSingleHumanReliabilityAnalysis).toBeDefined();
     });
@@ -791,11 +694,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Human Reliability Analysis Model");
     });
   });
-
   describe("getSingleSystemsAnalysis", () => {
-    /**
-     * Test if getSingleSystemsAnalysis is defined
-     */
     it("getSingleSystemsAnalysis should be defined", () => {
       expect(nestedModelController.getSingleSystemsAnalysis).toBeDefined();
     });
@@ -808,11 +707,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Systems Analysis Model");
     });
   });
-
   describe("getSingleSuccessCriteria", () => {
-    /**
-     * Test if getSingleSuccessCriteria is defined
-     */
     it("getSingleSuccessCriteria should be defined", () => {
       expect(nestedModelController.getSingleSuccessCriteria).toBeDefined();
     });
@@ -825,11 +720,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Success Criteria Model");
     });
   });
-
   describe("getSingleEventSequenceAnalysis", () => {
-    /**
-     * Test if getSingleEventSequenceAnalysis is defined
-     */
     it("getSingleEventSequenceAnalysis should be defined", () => {
       expect(nestedModelController.getSingleEventSequenceAnalysis).toBeDefined();
     });
@@ -842,11 +733,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Event Sequence Analysis Model");
     });
   });
-
   describe("getSingleOperatingStateAnalysis", () => {
-    /**
-     * Test if getSingleOperatingStateAnalysis is defined
-     */
     it("getSingleOperatingStateAnalysis should be defined", () => {
       expect(nestedModelController.getSingleOperatingStateAnalysis).toBeDefined();
     });
@@ -859,11 +746,7 @@ describe("CollabController", () => {
       expect(singleResult.label.description).toBe("Description for Operating State Analysis Model");
     });
   });
-
   describe("deleteBayesianEstimation", () => {
-    /**
-     * Test if deleteBayesianEstimation is defined
-     */
     it("deleteBayesianEstimation should be defined", () => {
       expect(nestedModelController.deleteBayesianEstimation).toBeDefined();
     });
@@ -871,7 +754,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createBayesianEstimation(createBayesianEstimationObject);
       const singleResult = (await nestedModelController.deleteBayesianEstimation(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -881,11 +767,7 @@ describe("CollabController", () => {
       expect(returnedBayesianEstimation).toBe(null);
     });
   });
-
   describe("deleteBayesianNetwork", () => {
-    /**
-     * Test if deleteBayesianNetwork is defined
-     */
     it("deleteBayesianNetwork should be defined", () => {
       expect(nestedModelController.deleteBayesianNetwork).toBeDefined();
     });
@@ -893,7 +775,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createBayesianNetwowrk(createBayesianNetworkObject);
       const singleResult = (await nestedModelController.deleteBayesianNetwork(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -903,11 +788,7 @@ describe("CollabController", () => {
       expect(returnedBayesianNetwork).toBe(null);
     });
   });
-
   describe("deleteEventSequenceDiagram", () => {
-    /**
-     * Test if deleteEventSequenceDiagram is defined
-     */
     it("deleteEventSequenceDiagram should be defined", () => {
       expect(nestedModelController.deleteEventSequenceDiagram).toBeDefined();
     });
@@ -915,7 +796,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createEventSequenceDiagram(createEventSequenceDiagramObject);
       const singleResult = (await nestedModelController.deleteEventSequenceDiagram(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -925,11 +809,7 @@ describe("CollabController", () => {
       expect(returnedEventSequenceDiagram).toBe(null);
     });
   });
-
   describe("deleteEventTree", () => {
-    /**
-     * Test if deleteEventTree is defined
-     */
     it("deleteEventTree should be defined", () => {
       expect(nestedModelController.deleteEventTree).toBeDefined();
     });
@@ -937,7 +817,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createEventTree(createEventTreeObject);
       const singleResult = (await nestedModelController.deleteEventTree(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -948,9 +831,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteFaultTree", () => {
-    /**
-     * Test if deleteFaultTree is defined
-     */
     it("deleteFaultTree should be defined", () => {
       expect(nestedModelController.deleteFaultTree).toBeDefined();
     });
@@ -958,7 +838,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createFaultTree(createFaultTreeObject);
       const singleResult = (await nestedModelController.deleteFaultTree(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -969,9 +852,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteFunctionalEvent", () => {
-    /**
-     * Test if deleteFunctionalEvent is defined
-     */
     it("deleteFunctionalEvent should be defined", () => {
       expect(nestedModelController.deleteFunctionalEvent).toBeDefined();
     });
@@ -979,7 +859,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createFunctionalEvent(createFunctionalEventObject);
       const singleResult = (await nestedModelController.deleteFunctionalEvent(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -990,9 +873,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteInitiatingEvent", () => {
-    /**
-     * Test if deleteInitiatingEvent is defined
-     */
     it("deleteInitiatingEvent should be defined", () => {
       expect(nestedModelController.deleteInitiatingEvent).toBeDefined();
     });
@@ -1000,7 +880,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createInitiatingEvent(createInitiatingEventObject);
       const singleResult = (await nestedModelController.deleteInitiatingEvent(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1011,9 +894,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteMarkovChain", () => {
-    /**
-     * Test if deleteMarkovChain is defined
-     */
     it("deleteMarkovChain should be defined", () => {
       expect(nestedModelController.deleteMarkovChain).toBeDefined();
     });
@@ -1021,7 +901,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createMarkovChain(createMarkovChainObject);
       const singleResult = (await nestedModelController.deleteMarkovChain(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1032,9 +915,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteWeibullAnalysis", () => {
-    /**
-     * Test if deleteWeibullAnalysis is defined
-     */
     it("deleteWeibullAnalysis should be defined", () => {
       expect(nestedModelController.deleteWeibullAnalysis).toBeDefined();
     });
@@ -1042,7 +922,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createWeibullAnalysis(createWeibullAnalysisObject);
       const singleResult = (await nestedModelController.deleteWeibullAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1053,9 +936,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteRiskIntegration", () => {
-    /**
-     * Test if deleteRiskIntegration is defined
-     */
     it("deleteRiskIntegration should be defined", () => {
       expect(nestedModelController.deleteRiskIntegration).toBeDefined();
     });
@@ -1063,7 +943,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createRiskIntegration(createRiskIntegrationObject);
       const singleResult = (await nestedModelController.deleteRiskIntegration(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1074,9 +957,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteRadioLogicalConsequenceAnalysis", () => {
-    /**
-     * Test if deleteRadioLogicalConsequenceAnalysis is defined
-     */
     it("deleteRadioLogicalConsequenceAnalysis should be defined", () => {
       expect(nestedModelController.deleteRadiologicalConsequenceAnalysis).toBeDefined();
     });
@@ -1086,7 +966,10 @@ describe("CollabController", () => {
       );
       const singleResult = (await nestedModelController.deleteRadiologicalConsequenceAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1098,9 +981,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteMechanisticSourceTerm", () => {
-    /**
-     * Test if deleteMechanisticSourceTerm is defined
-     */
     it("deleteMechanisticSourceTerm should be defined", () => {
       expect(nestedModelController.deleteMechanisticSourceTerm).toBeDefined();
     });
@@ -1108,7 +988,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createMechanisticSourceTerm(createMechanisticSourceTermObject);
       const singleResult = (await nestedModelController.deleteMechanisticSourceTerm(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1119,9 +1002,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteEventSequenceQuantificationDiagram", () => {
-    /**
-     * Test if deleteEventSequenceQuantificationDiagram is defined
-     */
     it("deleteEventSequenceQuantificationDiagram should be defined", () => {
       expect(nestedModelController.deleteEventSequenceQuantificationDiagram).toBeDefined();
     });
@@ -1131,7 +1011,10 @@ describe("CollabController", () => {
       );
       const singleResult = (await nestedModelController.deleteEventSequenceQuantificationDiagram(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1143,9 +1026,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteDataAnalysis", () => {
-    /**
-     * Test if deleteDataAnalysis is defined
-     */
     it("deleteDataAnalysis should be defined", () => {
       expect(nestedModelController.deleteDataAnalysis).toBeDefined();
     });
@@ -1153,7 +1033,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createDataAnalysis(createDataAnalysisObject);
       const singleResult = (await nestedModelController.deleteDataAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1164,9 +1047,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteHumanReliabilityAnalysis", () => {
-    /**
-     * Test if deleteHumanReliabilityAnalysis is defined
-     */
     it("deleteHumanReliabilityAnalysis should be defined", () => {
       expect(nestedModelController.deleteHumanReliabilityAnalysis).toBeDefined();
     });
@@ -1174,7 +1054,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createHumanReliabilityAnalysis(createHumanReliabilityAnalysisObject);
       const singleResult = (await nestedModelController.deleteHumanReliabilityAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1185,9 +1068,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteSystemsAnalysis", () => {
-    /**
-     * Test if deleteSystemsAnalysis is defined
-     */
     it("deleteSystemsAnalysis should be defined", () => {
       expect(nestedModelController.deleteSystemsAnalysis).toBeDefined();
     });
@@ -1195,7 +1075,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createSystemsAnalysis(createSystemsAnalysisObject);
       const singleResult = (await nestedModelController.deleteSystemsAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1206,9 +1089,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteSuccessCriteria", () => {
-    /**
-     * Test if deleteSuccessCriteria is defined
-     */
     it("deleteSuccessCriteria should be defined", () => {
       expect(nestedModelController.deleteSuccessCriteria).toBeDefined();
     });
@@ -1216,7 +1096,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createSuccessCriteria(createSuccessCriteriaObject);
       const singleResult = (await nestedModelController.deleteSuccessCriteria(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1227,9 +1110,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteEventSequenceAnalysis", () => {
-    /**
-     * Test if deleteEventSequenceAnalysis is defined
-     */
     it("deleteEventSequenceAnalysis should be defined", () => {
       expect(nestedModelController.deleteEventSequenceAnalysis).toBeDefined();
     });
@@ -1237,7 +1117,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createEventSequenceAnalysis(createEventSequenceAnalysisObject);
       const singleResult = (await nestedModelController.deleteEventSequenceAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1248,9 +1131,6 @@ describe("CollabController", () => {
     });
   });
   describe("deleteOperatingStateAnalysis", () => {
-    /**
-     * Test if deleteOperatingStateAnalysis is defined
-     */
     it("deleteOperatingStateAnalysis should be defined", () => {
       expect(nestedModelController.deleteOperatingStateAnalysis).toBeDefined();
     });
@@ -1258,7 +1138,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createOperatingStateAnalysis(createOperatingStateAnalysisObject);
       const singleResult = (await nestedModelController.deleteOperatingStateAnalysis(result.id)) as {
         id: number;
-        label: { name: string; description?: string };
+        label: {
+          name: string;
+          description?: string;
+        };
       };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
@@ -1268,11 +1151,7 @@ describe("CollabController", () => {
       expect(returnedOperatingStateAnalysis).toBe(null);
     });
   });
-
   describe("updateBayesianEstimationLabel", () => {
-    /**
-     * Test if updateBayesianEstimationLabel is defined
-     */
     it("updateBayesianEstimationLabel should be defined", () => {
       expect(nestedModelController.updateBayesianEstimationLabel).toBeDefined();
     });
@@ -1290,9 +1169,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateBayesianNetworkLabel", () => {
-    /**
-     * Test if updateBayesianNetworkLabel is defined
-     */
     it("updateBayesianNetworkLabel should be defined", () => {
       expect(nestedModelController.updateBayesianNetworkLabel).toBeDefined();
     });
@@ -1310,9 +1186,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateEventSequenceDiagramLabel", () => {
-    /**
-     * Test if updateEventSequenceDiagramLabel is defined
-     */
     it("updateEventSequenceDiagramLabel should be defined", () => {
       expect(nestedModelController.updateEventSequenceDiagramLabel).toBeDefined();
     });
@@ -1330,9 +1203,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateEventTreeLabel", () => {
-    /**
-     * Test if updateEventTreeLabel is defined
-     */
     it("updateEventTreeLabel should be defined", () => {
       expect(nestedModelController.updateEventTreeLabel).toBeDefined();
     });
@@ -1350,9 +1220,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateFaultTreeLabel", () => {
-    /**
-     * Test if updateFaultTreeLabel is defined
-     */
     it("updateFaultTreeLabel should be defined", () => {
       expect(nestedModelController.updateFaultTreeLabel).toBeDefined();
     });
@@ -1370,9 +1237,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateFunctionalEventLabel", () => {
-    /**
-     * Test if updateFunctionalEventLabel is defined
-     */
     it("updateFunctionalEventLabel should be defined", () => {
       expect(nestedModelController.updateFunctionalEventLabel).toBeDefined();
     });
@@ -1390,9 +1254,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateInitiatingEventLabel", () => {
-    /**
-     * Test if updateInitiatingEventLabel is defined
-     */
     it("updateInitiatingEventLabel should be defined", () => {
       expect(nestedModelController.updateInitiatingEventLabel).toBeDefined();
     });
@@ -1410,9 +1271,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateMarkovChainLabel", () => {
-    /**
-     * Test if updateMarkovChainLabel is defined
-     */
     it("updateMarkovChainLabel should be defined", () => {
       expect(nestedModelController.updateMarkovChainLabel).toBeDefined();
     });
@@ -1430,9 +1288,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateWeibullAnalysisLabel", () => {
-    /**
-     * Test if updateWeibullAnalysisLabel is defined
-     */
     it("updateWeibullAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateWeibullAnalysisLabel).toBeDefined();
     });
@@ -1450,9 +1305,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateRiskIntegrationLabel", () => {
-    /**
-     * Test if updateRiskIntegrationLabel is defined
-     */
     it("updateRiskIntegrationLabel should be defined", () => {
       expect(nestedModelController.updateRiskIntegrationLabel).toBeDefined();
     });
@@ -1470,9 +1322,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateRadioLogicalConsequenceAnalysisLabel", () => {
-    /**
-     * Test if updateRadioLogicalConsequenceAnalysisLabel is defined
-     */
     it("updateRadioLogicalConsequenceAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateRadiologicalConsequenceAnalysisLabel).toBeDefined();
     });
@@ -1495,9 +1344,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateMechanisticSourceTermLabel", () => {
-    /**
-     * Test if updateMechanisticSourceTermLabel is defined
-     */
     it("updateMechanisticSourceTermLabel should be defined", () => {
       expect(nestedModelController.updateMechanisticSourceTermLabel).toBeDefined();
     });
@@ -1515,9 +1361,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateEventSequenceQuantificationDiagramLabel", () => {
-    /**
-     * Test if updateEventSequenceQuantificationDiagramLabel is defined
-     */
     it("updateEventSequenceQuantificationDiagramLabel should be defined", () => {
       expect(nestedModelController.updateEventSequenceQuantificationDiagramLabel).toBeDefined();
     });
@@ -1542,9 +1385,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateDataAnalysisLabel", () => {
-    /**
-     * Test if updateDataAnalysisLabel is defined
-     */
     it("updateDataAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateDataAnalysisLabel).toBeDefined();
     });
@@ -1562,9 +1402,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateHumanReliabilityAnalysisLabel", () => {
-    /**
-     * Test if updateHumanReliabilityAnalysisLabel is defined
-     */
     it("updateHumanReliabilityAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateHumanReliabilityAnalysisLabel).toBeDefined();
     });
@@ -1585,9 +1422,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateSystemsAnalysisLabel", () => {
-    /**
-     * Test if updateSystemsAnalysisLabel is defined
-     */
     it("updateSystemsAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateSystemsAnalysisLabel).toBeDefined();
     });
@@ -1605,9 +1439,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateSuccessCriteriaLabel", () => {
-    /**
-     * Test if updateSuccessCriteriaLabel is defined
-     */
     it("updateSuccessCriteriaLabel should be defined", () => {
       expect(nestedModelController.updateSuccessCriteriaLabel).toBeDefined();
     });
@@ -1625,9 +1456,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateEventSequenceAnalysisLabel", () => {
-    /**
-     * Test if updateEventSequenceAnalysisLabel is defined
-     */
     it("updateEventSequenceAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateEventSequenceAnalysisLabel).toBeDefined();
     });
@@ -1645,9 +1473,6 @@ describe("CollabController", () => {
     });
   });
   describe("updateOperatingStateAnalysisLabel", () => {
-    /**
-     * Test if updateOperatingStateAnalysisLabel is defined
-     */
     it("updateOperatingStateAnalysisLabel should be defined", () => {
       expect(nestedModelController.updateOperatingStateAnalysisLabel).toBeDefined();
     });
@@ -1664,11 +1489,7 @@ describe("CollabController", () => {
       expect(updatedLabel.label.description).toBe("Updated Description for Operating State Analysis Model");
     });
   });
-
   describe("removeParentIds", () => {
-    /**
-     * Test if removeParentIds is defined
-     */
     it("removeParentIds should be defined", () => {
       expect(nestedModelController.removeParentIds).toBeDefined();
     });
@@ -1683,10 +1504,8 @@ describe("CollabController", () => {
       expect(returnedEventSequenceDiagram).toBe(null);
     });
     it("should not remove model if multiple parent IDs present", async () => {
-      //create bayesian estimation model and event sequence diagram model
       const result1 = await nestedModelController.createBayesianEstimation(createBayesianEstimationObject);
       const result2 = await nestedModelController.createEventSequenceDiagram(createEventSequenceDiagramObject);
-      //add bayesian estimation to parentIds of event sequence diagram
       createEventSequenceDiagramObject.parentIds = [result1.id, result2.id];
       const result3 = await nestedModelController.createEventSequenceDiagram(createEventSequenceDiagramObject);
       delete createEventSequenceDiagramObject.parentIds;

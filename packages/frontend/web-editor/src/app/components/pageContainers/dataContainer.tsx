@@ -1,7 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
 import { DataSidenav } from "../sidenavs/dataSidenav";
-
 function DataContainer(): JSX.Element {
   return (
     <EuiPageTemplate
@@ -22,5 +21,4 @@ function DataContainer(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { DataContainer };

@@ -1,14 +1,11 @@
-import { parentPort, workerData } from 'node:worker_threads';
-import { QuantifyModel } from 'scram-node';
-import type { QuantifyModelResult } from '../../common/types/quantify-result';
-import type { NodeQuantRequest } from '../../common/types/quantify-request';
-
+import { parentPort, workerData } from "node:worker_threads";
+import { QuantifyModel } from "scram-node";
+import type { QuantifyModelResult } from "../../common/types/quantify-result";
+import type { NodeQuantRequest } from "../../common/types/quantify-request";
 interface QuantWorkerData {
-  quantRequest: Omit<NodeQuantRequest, '_id'>;
+  quantRequest: Omit<NodeQuantRequest, "_id">;
 }
-
 const data = workerData as QuantWorkerData;
-
 (async () => {
   try {
     const result: QuantifyModelResult = await Promise.resolve(

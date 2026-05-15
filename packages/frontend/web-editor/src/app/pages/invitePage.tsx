@@ -11,18 +11,15 @@ import { UseToastContext } from "../providers/toastProvider";
 import { GenerateUUID } from "../../utils/treeUtils";
 import { GenericModal } from "../components/modals/genericModal";
 import { SignUpForm } from "../components/forms/signUpForm";
-
 const InvitePage = (): JSX.Element => {
-  const { inviteId } = useParams<{ inviteId: string | undefined }>();
+  const { inviteId } = useParams<{
+    inviteId: string | undefined;
+  }>();
   const [isLoading, setIsLoading] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
   const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const navigate = useNavigate();
   const { addToast } = UseToastContext();
-
-  /**
-   * Search and verify if invite id is correct
-   */
   useEffect(() => {
     if (inviteId) {
       setIsLoading(true);
@@ -48,7 +45,12 @@ const InvitePage = (): JSX.Element => {
               setIsLoading(false);
             })
             .catch((error: unknown) => {
-              const message = (error as { message?: string }).message ?? "unknown error";
+              const message =
+                (
+                  error as {
+                    message?: string;
+                  }
+                ).message ?? "unknown error";
               addToast({
                 id: GenerateUUID(),
                 color: "danger",
@@ -58,7 +60,12 @@ const InvitePage = (): JSX.Element => {
             });
         })
         .catch((err: unknown) => {
-          const message = (err as { message?: string }).message ?? "unknown error";
+          const message =
+            (
+              err as {
+                message?: string;
+              }
+            ).message ?? "unknown error";
           addToast({
             id: GenerateUUID(),
             color: "danger",
@@ -68,7 +75,6 @@ const InvitePage = (): JSX.Element => {
         });
     }
   }, [inviteId, addToast]);
-
   function handleSignup(): void {
     const { passConfirm: _passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
@@ -79,8 +85,12 @@ const InvitePage = (): JSX.Element => {
         }
       })
       .catch((signInError: unknown) => {
-        const message = (signInError as { message?: string }).message ?? "unknown error";
-        // Send a toast message saying there was an error while logging in
+        const message =
+          (
+            signInError as {
+              message?: string;
+            }
+          ).message ?? "unknown error";
         addToast({
           id: GenerateUUID(),
           color: "danger",
@@ -88,10 +98,6 @@ const InvitePage = (): JSX.Element => {
         });
       });
   }
-
-  /**
-   * Handles expired id case and returns correct component
-   */
   function getModal(): JSX.Element {
     if (isExpired) {
       return (
@@ -113,7 +119,6 @@ const InvitePage = (): JSX.Element => {
       </EuiPageTemplate>
     );
   }
-
   return (
     <EuiSkeletonLoading
       isLoading={isLoading}
@@ -133,5 +138,4 @@ const InvitePage = (): JSX.Element => {
     ></EuiSkeletonLoading>
   );
 };
-
 export { InvitePage };

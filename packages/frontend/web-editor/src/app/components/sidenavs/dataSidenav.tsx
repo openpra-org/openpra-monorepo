@@ -11,7 +11,6 @@ import {
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
-
 interface TreeItem {
   id: string;
   key: string;
@@ -19,13 +18,11 @@ interface TreeItem {
   label: JSX.Element;
   children?: TreeItem[];
   icon?: JSX.Element;
-  // Optional explicit iconType to avoid unsafe access on JSX.Element internals
   iconType?: string;
   callback?: () => NonNullable<unknown>;
 }
 function DataSidenav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
-
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
     let size: "xs" | "s" | "m" | "relative" = "relative";
     let text;
@@ -62,9 +59,7 @@ function DataSidenav(): JSX.Element {
       ...data,
     };
   };
-
   const navigate = useNavigate();
-
   const parameterEstimates = [
     createTreeItem("Parameter Estimates", {
       isExpanded: true,
@@ -161,21 +156,21 @@ function DataSidenav(): JSX.Element {
       ],
     }),
   ];
-
   const backgroundColor = useEuiBackgroundColor("plain");
   const padding = useEuiPaddingSize("s");
-
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     const getIconType = (icon?: JSX.Element): string | undefined => {
       if (!icon) return undefined;
-      const props = (icon as React.ReactElement).props as { type?: unknown; iconType?: unknown };
+      const props = (icon as React.ReactElement).props as {
+        type?: unknown;
+        iconType?: unknown;
+      };
       const t = props.type;
       if (typeof t === "string") return t;
       const it = props.iconType;
       if (typeof it === "string") return it;
       return undefined;
     };
-    //TODO
     if (forceTreeView) {
       const style = {
         background: backgroundColor,
@@ -192,13 +187,10 @@ function DataSidenav(): JSX.Element {
             aria-label="Model Sidebar"
             expandByDefault={false}
             showExpansionArrows
-            // display="compressed"
           />
         </div>
       );
     }
-
-    //single node
     if (!items[0].children) {
       return (
         <EuiCollapsibleNavGroup
@@ -213,7 +205,6 @@ function DataSidenav(): JSX.Element {
         />
       );
     }
-
     return (
       <EuiCollapsibleNavGroup
         title={items[0].label}
@@ -228,23 +219,14 @@ function DataSidenav(): JSX.Element {
       </EuiCollapsibleNavGroup>
     );
   };
-
   const treeItems = [parameterEstimates];
-
   const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
-      viewItems.push(
-        ...[
-          createTreeView(item, i),
-          // <EuiHorizontalRule margin="xs" key={items.length + i} />,
-        ],
-      );
+      viewItems.push(...[createTreeView(item, i)]);
     });
     return viewItems;
   };
-
   return <>{createTreeViews(treeItems)}</>;
 }
-
 export { DataSidenav };

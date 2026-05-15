@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+  <information>
+    <software name="praxis" version="0.1.0"/>
+    <model-features>
+      <gates>10703</gates>
+      <basic-events>384</basic-events>
+    </model-features>
+  </information>
+  <results>
+    <event-tree-monte-carlo>
+      <event-tree id="LOOP">
+        <initiating-event id="LOOP-IE">
+          <frequency>1</frequency>
+        </initiating-event>
+        <monte-carlo-analysis>
+          <run-config>
+            <engine>dpmc</engine>
+            <target>event-tree</target>
+            <backend-requested>cuda</backend-requested>
+            <backend-used>cuda</backend-used>
+            <seed>847</seed>
+            <num-trials-requested>100000000000</num-trials-requested>
+            <dpmc-params t="10000" b="1250" p="125" omega="64"/>
+          </run-config>
+          <statistics>
+            <num-trials>100000000000</num-trials>
+          </statistics>
+          <sequences>
+            <sequence id="S139">
+              <frequency-estimate>0.15081039505</frequency-estimate>
+              <successes>15081039505</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S140">
+              <frequency-estimate>0.31628983699</frequency-estimate>
+              <successes>31628983699</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S141">
+              <frequency-estimate>0.01245661084</frequency-estimate>
+              <successes>1245661084</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S142">
+              <frequency-estimate>0.02681393689</frequency-estimate>
+              <successes>2681393689</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S143">
+              <frequency-estimate>0.01212408362</frequency-estimate>
+              <successes>1212408362</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S144">
+              <frequency-estimate>0.02681441169</frequency-estimate>
+              <successes>2681441169</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S145">
+              <frequency-estimate>0.00000000008</frequency-estimate>
+              <successes>8</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S146">
+              <frequency-estimate>0.00000000319</frequency-estimate>
+              <successes>319</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S147">
+              <frequency-estimate>0.00000000717</frequency-estimate>
+              <successes>717</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S148">
+              <frequency-estimate>0.00000008645</frequency-estimate>
+              <successes>8645</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S149">
+              <frequency-estimate>0.02860517418</frequency-estimate>
+              <successes>2860517418</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S150">
+              <frequency-estimate>0.06507231628</frequency-estimate>
+              <successes>6507231628</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+          </sequences>
+        </monte-carlo-analysis>
+      </event-tree>
+    </event-tree-monte-carlo>
+  </results>
+</report>

@@ -12,5 +12,4 @@ function BasicEvents(): JSX.Element {
     </TemplatedPageBody>
   );
 }
-
 export { BasicEvents };

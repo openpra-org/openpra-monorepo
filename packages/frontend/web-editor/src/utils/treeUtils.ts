@@ -19,99 +19,50 @@ import type { ColumnNodeData } from "../app/components/treeNodes/eventTreeEditor
 import type { VisibleNodeData } from "../app/components/treeNodes/eventTreeEditorNode/visibleNode";
 import type { OutputNodeData } from "../app/components/treeNodes/eventTreeEditorNode/outputNode";
 import type { EventTreeEdgeData } from "../app/components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
-
-/**
- * Function to generate a new & random UUID
- */
 export const GenerateUUID = (): string => new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-
-/**
- * Event Sequence state to store the event sequence id and list of nodes & edges
- */
 export type EventSequenceStateType = {
   eventSequenceId: string;
 } & BaseGraphState;
-
-/**
- * Fault Tree state to store the fault tree id and list of nodes & edges
- */
 export type FaultTreeStateType = {
   faultTreeId: string;
 } & BaseGraphState;
-
-/**
- * Event Tree state to store the event tree id and list of nodes & edges
- */
 export type EventTreeStateType = {
   eventTreeId: string;
   functionalEvents?: Record<string, FunctionalEvent>;
 } & BaseGraphState;
-
-/**
- * Base Graph state to store the list of nodes & edges
- */
 export interface BaseGraphState {
   nodes: Node[];
   edges: Edge[];
 }
-
 export interface OnUpdateOrDeleteGraphState {
   syncState?: boolean;
   updatedState: BaseGraphState;
   updatedSubgraph: BaseGraphState;
   deletedSubgraph: BaseGraphState;
 }
-
-/**
- * Grayed node state to store grayed nodes and edges data array
- */
 export interface OnGrayedState {
   grayedNodes: Node<FaultTreeNodeProps>[];
   grayedEdges: Edge<FaultTreeNodeProps>[];
 }
-
-/**
- * Common type to store grayed nodes and edges data
- */
 export type GrayedNodeData = Node<FaultTreeNodeProps> | Edge<FaultTreeNodeProps>;
-
-/**
- * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id.
- *
- * @param state - Object containing eventSequenceId, nodes, and edges.
- * @returns A normalized EventSequenceGraph snapshot.
- */
 export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSequenceStateType): EventSequenceGraph => ({
   eventSequenceId: eventSequenceId,
   nodes: getNodes<EventSequenceNodeProps>(nodes),
   edges: getEdges<EventSequenceEdgeProps>(edges),
 });
-
-/**
- * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id.
- *
- * @param state - Object containing faultTreeId, nodes, and edges.
- * @returns A normalized FaultTreeGraph snapshot.
- */
 export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType): FaultTreeGraph => {
   const { topEventId, nodes: mefNodes } = reactFlowToMEF(nodes, edges);
   return { faultTreeId, topEventId, nodes: mefNodes };
 };
-
-/**
- * Generate the event tree state with the provided list of nodes and edges, for a particular event tree id.
- *
- * @param state - Object containing eventTreeId, nodes, and edges.
- * @returns A normalized EventTreeGraph snapshot.
- */
 export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: EventTreeStateType): EventTreeGraph => {
   const recomputedEdges = recomputeBranchStates(nodes, edges);
   const sanitizedNodes = nodes.map((n) => {
     if (n.type !== "outputNode") return n;
-    const { sequenceId: _sq, ...rest } = n.data as VisibleNodeData & { sequenceId?: string };
+    const { sequenceId: _sq, ...rest } = n.data as VisibleNodeData & {
+      sequenceId?: string;
+    };
     return { ...n, data: rest };
   });
-
   const derivedFunctionalEvents: Record<string, FunctionalEvent> = {};
   nodes.forEach((n) => {
     if (n.type !== "columnNode") return;
@@ -125,7 +76,6 @@ export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: 
       ...(functionalEvents?.[n.id] ? functionalEvents[n.id] : {}),
     };
   });
-
   let initiatingEventId: string | undefined;
   let initiatingEventFrequency: number | undefined;
   nodes.forEach((n) => {
@@ -138,9 +88,7 @@ export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: 
       }
     }
   });
-
   const sequences = enumerateMefSequences(nodes, recomputedEdges);
-
   return {
     eventTreeId,
     ...(initiatingEventId ? { initiatingEventId } : {}),
@@ -151,42 +99,65 @@ export const EventTreeState = ({ eventTreeId, nodes, edges, functionalEvents }: 
     ...(Object.keys(sequences).length > 0 ? { sequences } : {}),
   };
 };
-
 function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
-  const depthToCol: Record<number, { id: string; ftLinked: boolean }> = {};
+  const depthToCol: Record<
+    number,
+    {
+      id: string;
+      ftLinked: boolean;
+    }
+  > = {};
   nodes.forEach((n) => {
     if (n.type !== "columnNode") return;
     const d = n.data as ColumnNodeData;
     if (d.depth && d.allowAdd && !d.output) depthToCol[d.depth] = { id: n.id, ftLinked: Boolean(d.faultTreeId) };
   });
-
-  const nodeInfo: Record<string, { depth: number; y: number }> = {};
+  const nodeInfo: Record<
+    string,
+    {
+      depth: number;
+      y: number;
+    }
+  > = {};
   nodes.forEach((n) => {
     if (n.type === "columnNode") return;
     const depth = (n.data as VisibleNodeData).depth;
     if (depth) nodeInfo[n.id] = { depth, y: n.position.y };
   });
-
-  const groups: Record<string, { edgeId: string; targetY: number }[]> = {};
+  const groups: Record<
+    string,
+    {
+      edgeId: string;
+      targetY: number;
+    }[]
+  > = {};
   edges.forEach((e) => {
     const tgt = nodeInfo[e.target];
     if (!nodeInfo[e.source] || !tgt) return;
-    // Bypass edges carry explicit structural state from the model — never re-classify them.
-    // Excluding them here prevents a bypass+failure sibling pair from being mistaken for a
-    // success/failure pair, which would corrupt the feId and branchState for both edges.
-    if ((e.data as { branchState?: string } | undefined)?.branchState === "bypass") return;
+    if (
+      (
+        e.data as
+          | {
+              branchState?: string;
+            }
+          | undefined
+      )?.branchState === "bypass"
+    )
+      return;
     const key = `${e.source}:${tgt.depth}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push({ edgeId: e.id, targetY: tgt.y });
   });
-
-  const updates: Record<string, { branchState: string; feId?: string }> = {};
+  const updates: Record<
+    string,
+    {
+      branchState: string;
+      feId?: string;
+    }
+  > = {};
   Object.entries(groups).forEach(([key, list]) => {
     const targetDepth = Number(key.split(":")[1]);
     const col = depthToCol[targetDepth];
-    // Only reorder by Y-position when there are exactly 2 siblings.
-    // A singleton group means an unbalanced branch — preserve the existing branchState
-    // set during import rather than incorrectly assigning it as "success".
     if (list.length !== 2) return;
     const sorted = [...list].sort((a, b) => a.targetY - b.targetY);
     sorted.forEach(({ edgeId }, idx) => {
@@ -199,19 +170,21 @@ function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
       };
     });
   });
-
   const bypassLeafEdges = new Set<string>();
   edges.forEach((e) => {
     if (nodeInfo[e.source] && !nodeInfo[e.target] && !updates[e.id]) {
-      // Do not overwrite edges that already carry a real FE state.
-      // This preserves early-terminating branches in unbalanced event trees.
-      const existingBranch = (e.data as { branchState?: string } | undefined)?.branchState;
+      const existingBranch = (
+        e.data as
+          | {
+              branchState?: string;
+            }
+          | undefined
+      )?.branchState;
       if (existingBranch !== "success" && existingBranch !== "failure") {
         bypassLeafEdges.add(e.id);
       }
     }
   });
-
   return edges.map((e) => {
     const u = updates[e.id];
     if (u) return { ...e, data: { ...(e.data as object), ...u } };
@@ -219,14 +192,17 @@ function recomputeBranchStates(nodes: Node[], edges: Edge[]): Edge[] {
     return e;
   });
 }
-
 function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, EventTreeSequence> {
   const nodeMap: Record<string, Node> = {};
   nodes.forEach((n) => {
     nodeMap[n.id] = n;
   });
-
-  type AdjEntry = { targetId: string; branchState?: string; feId?: string; hidden?: boolean };
+  type AdjEntry = {
+    targetId: string;
+    branchState?: string;
+    feId?: string;
+    hidden?: boolean;
+  };
   const adjacency: Record<string, AdjEntry[]> = {};
   edges.forEach((e) => {
     if (!adjacency[e.source]) adjacency[e.source] = [];
@@ -238,24 +214,19 @@ function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, Eve
       hidden: d.hidden as boolean | undefined,
     });
   });
-
   const root = nodes.find(
     (n) => (n.type === "visibleNode" || n.type === "invisibleNode") && (n.data as VisibleNodeData).depth === 1,
   );
   if (!root) return {};
-
   const sequences: Record<string, EventTreeSequence> = {};
-
   function dfs(nodeId: string, fes: Record<string, "SUCCESS" | "FAILURE">): void {
     for (const child of adjacency[nodeId] ?? []) {
       if (child.hidden) continue;
       const target = nodeMap[child.targetId];
       if (!target) continue;
-
       if (target.type === "outputNode") {
         const td = target.data as OutputNodeData;
         if (td.isSequenceId) {
-          // The edge to the output node carries the last FE's state; include it before storing.
           const finalFes = { ...fes };
           if (child.feId && (child.branchState === "success" || child.branchState === "failure")) {
             finalFes[child.feId] = child.branchState === "success" ? "SUCCESS" : "FAILURE";
@@ -278,7 +249,6 @@ function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, Eve
         }
         continue;
       }
-
       const nextFes = { ...fes };
       if (child.feId && (child.branchState === "success" || child.branchState === "failure")) {
         nextFes[child.feId] = child.branchState === "success" ? "SUCCESS" : "FAILURE";
@@ -286,16 +256,9 @@ function enumerateMefSequences(nodes: Node[], edges: Edge[]): Record<string, Eve
       dfs(child.targetId, nextFes);
     }
   }
-
   dfs(root.id, {});
   return sequences;
 }
-
-/**
- * Map Node[] to GraphNode[]
- * @param nodes - List of Nodes
- * @returns List of GraphNodes
- */
 function getNodes<T>(nodes: Node[]): GraphNode<T>[] {
   return nodes.map(
     (node: Node<T>) =>
@@ -307,12 +270,6 @@ function getNodes<T>(nodes: Node[]): GraphNode<T>[] {
       }) as GraphNode<T>,
   );
 }
-
-/**
- * Map Edge[] to GraphEdge[]
- * @param edges - List of Edges
- * @returns List of GraphEdges
- */
 function getEdges<T>(edges: Edge[]): GraphEdge<T>[] {
   return edges.map(
     (edge: Edge<T>) =>
@@ -326,13 +283,6 @@ function getEdges<T>(edges: Edge[]): GraphEdge<T>[] {
       }) as GraphEdge<T>,
   );
 }
-
-/**
- * Generates a new empty Basic Event node for Fault Trees.
- * Assigns a sequential numeric ID based on the current node list.
- * @param currentNodes - The existing nodes in the tree (used to determine the next ID).
- * @returns New empty Basic Event node.
- */
 export const getBasicEventNode = (currentNodes: Node[] = []): Node => {
   const numericIds = currentNodes.map((n) => parseInt(n.id, 10)).filter((n) => !isNaN(n));
   const nextId = numericIds.length > 0 ? String(Math.max(...numericIds) + 1) : "2";
@@ -343,19 +293,6 @@ export const getBasicEventNode = (currentNodes: Node[] = []): Node => {
     type: BASIC_EVENT,
   };
 };
-
-/**
- * Generates a new workflow edge.
- * @returns a new workflow edge.
- */
-/**
- * Create a workflow edge connecting a parent and child node.
- *
- * @param parentNodeId - ID of the source (parent) node
- * @param childNodeId - ID of the target (child) node
- * @param _label - Optional label for the edge (unused placeholder)
- * @returns A React Flow Edge configured as a workflow edge
- */
 export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _label = ""): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
   source: parentNodeId,
@@ -364,37 +301,20 @@ export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _labe
   animated: false,
   data: {},
 });
-
-/**
- * Filters out duplicate nodes and edges when graying out the graph.
- * Utility function for `grayOutSubgraph` function
- * @param currentData - Node or Edge array containing duplicates
- */
 export const filterDuplicateData = (currentData: GrayedNodeData[]): GrayedNodeData[] => {
   return currentData.reduce((acc: GrayedNodeData[], curr: GrayedNodeData) => {
     const existingItem: GrayedNodeData | undefined = acc.find((item: GrayedNodeData): boolean => item.id === curr.id);
     if (existingItem) {
       if (curr.data?.branchId) {
-        // Replace the existing item if the current item has branchId
         return acc.map((item) => (item.id === curr.id ? curr : item));
       } else {
-        // Skip the current item if the existing item already has branchId
         return acc;
       }
     } else {
-      // Add the current item if it's a new id
       return [...acc, curr];
     }
   }, []);
 };
-
-/**
- * Grays out the entire subgraph from the given node. The given node is also grayed out.
- * This function attaches a unique branchId to all immediate children of the given node.
- * @param node - Node from which the graph beneath is to be grayed out
- * @param currentNodes - Current nodes
- * @param currentEdges - Current Edges
- */
 export const grayOutSubgraph = (
   node: Node<FaultTreeNodeProps>,
   currentNodes: Node[],
@@ -402,17 +322,11 @@ export const grayOutSubgraph = (
 ): OnGrayedState => {
   const grayedNodes: Node[] = [...currentNodes];
   const grayedEdges: Edge[] = [...currentEdges];
-
-  //gray out current node
   if (node.data) node.data.isGrayed = true;
   grayedNodes.push(node);
-
-  //first we will get the subgraph which we want to gray out
   const { nodes, edges } = GetSubgraph(node, currentNodes, currentEdges);
-  //get immediate children of the current node
   const outgoers: Node[] = getOutgoers(node, currentNodes, currentEdges);
   const branchRootNodes: Node<FaultTreeNodeProps>[] = [];
-  //attach unique branchId to each branch and an isGrayed property
   nodes.forEach((node, index) => {
     if (outgoers.includes(node)) {
       node.data = {
@@ -423,10 +337,7 @@ export const grayOutSubgraph = (
     }
   });
   grayedNodes.push(...branchRootNodes);
-  //gray out all child edges
   const childEdges = getConnectedEdges([node, ...nodes], currentEdges).filter((edge) => !(edge.target === node.id));
-
-  //gray out edges and attach corresponding branchId
   const grayedChildEdges: Edge<FaultTreeNodeProps>[] = childEdges.map((childEdge: Edge<FaultTreeNodeProps>) => {
     const targetNode: Node<FaultTreeNodeProps> = getNodeFromId(childEdge.target, nodes);
     return {
@@ -439,7 +350,6 @@ export const grayOutSubgraph = (
     };
   });
   grayedEdges.push(...grayedChildEdges);
-
   branchRootNodes.forEach((branchRootNode: Node<FaultTreeNodeProps>) => {
     const { grayedNodes: grayedBranchNodes, grayedEdges: grayedBranchEdges } = grayOutBranch(
       branchRootNode,
@@ -452,21 +362,11 @@ export const grayOutSubgraph = (
   });
   const finalNodes = filterDuplicateData(grayedNodes);
   const finalEdges = filterDuplicateData(grayedEdges);
-
   return {
     grayedNodes: finalNodes as Node<FaultTreeNodeProps>[],
     grayedEdges: finalEdges as Edge<FaultTreeNodeProps>[],
   };
 };
-
-/**
- * Grays out a particular branch in the graph given the branch's root node.
- * It attaches the given branchId to all nodes and edges.
- * @param branchRootNode - Root node of the branch.
- * @param branchId - Unique branchId for the branch.
- * @param currentNodes - Current nodes.
- * @param currentEdges - Current edges.
- */
 export const grayOutBranch = (
   branchRootNode: Node<FaultTreeNodeProps>,
   branchId: string | undefined,
@@ -474,7 +374,6 @@ export const grayOutBranch = (
   currentEdges: Edge<FaultTreeNodeProps>[],
 ): OnGrayedState => {
   const { nodes, edges } = GetSubgraph(branchRootNode, currentNodes, currentEdges);
-
   const branchChildNodes = nodes.map((branchChildNode: Node<FaultTreeNodeProps>) => ({
     ...branchChildNode,
     data: {
@@ -482,7 +381,6 @@ export const grayOutBranch = (
       branchId: branchId,
     },
   }));
-
   const branchChildEdges = edges.map((branchChildEdge) => ({
     ...branchChildEdge,
     animated: true,
@@ -491,28 +389,21 @@ export const grayOutBranch = (
       branchId: branchId,
     },
   }));
-
   return { grayedNodes: branchChildNodes, grayedEdges: branchChildEdges };
 };
-
-/**
- * Given current nodes and edges, checks if any of them are grayed out. Returns true if yes else false.
- * @param nodes - Current nodes
- * @param edges - Current edges
- */
 export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]): boolean => {
   return !(
     nodes.findIndex((n: Node<FaultTreeNodeProps>) => n.data?.isGrayed === true) === -1 &&
     edges.findIndex((e: Edge<FaultTreeNodeProps>) => e.data?.isGrayed === true) === -1
   );
 };
-
-/**
- * Exist the grayed out state of a graph and solidifies entire graph again.
- * @param nodes - Current nodes
- * @param edges - Current edges
- */
-export const exitGrayedState = (nodes: Node[], edges: Edge[]): { newNodes: Node[]; newEdges: Edge[] } => {
+export const exitGrayedState = (
+  nodes: Node[],
+  edges: Edge[],
+): {
+  newNodes: Node[];
+  newEdges: Edge[];
+} => {
   const newNodes: Node[] = nodes.map(({ data: _data, ...node }) => ({
     ...node,
     data: {
@@ -526,23 +417,11 @@ export const exitGrayedState = (nodes: Node[], edges: Edge[]): { newNodes: Node[
       isGrayed: false,
     },
   }));
-
   return { newNodes, newEdges };
 };
-/**
- * Given the node id, return the node from current nodes.
- * @param id - ID of the node to be retrieved.
- * @param currentNodes - Current nodes.
- */
 export const getNodeFromId = (id: string, currentNodes: Node<FaultTreeNodeProps>[]): Node<FaultTreeNodeProps> => {
   return currentNodes.filter((node: Node) => node.id === id)[0];
 };
-
-/**
- * Determine whether a node can be deleted, based on its type
- * @param nodeType - type of node
- * @returns boolean flag determining whether node can be deleted
- */
 export function IsNodeDeletable(nodeType?: string): boolean {
   switch (nodeType) {
     case "initiating":
@@ -558,55 +437,27 @@ export function IsNodeDeletable(nodeType?: string): boolean {
       return false;
   }
 }
-
-/**
- * Gets the whole subgraph originating from a given node
- * The originating node is not included, but the edge(s) from the originating node is included
- * All further nodes and edges are included as well
- * @param node - originating node
- * @param currentNodes - list of current nodes
- * @param currentEdges - list of current edges
- * @returns a list of nodes and edges present in the subgraph
- */
 export function GetSubgraph(node: Node, currentNodes: Node[], currentEdges: Edge[]): BaseGraphState {
   let childNodes: Node[] = [];
   let childEdges: Edge[] = [];
-
-  // get out-goers of the current node
   const children = getOutgoers(node, currentNodes, currentEdges);
   childNodes.push(...children);
-
-  // get connected edges from the current node to children nodes
   const childrenEdges = getConnectedEdges([node, ...children], currentEdges).filter(
     (edge) => !(edge.target === node.id),
   );
   childEdges.push(...childrenEdges);
-
-  // for each child, find children recursively
   children.forEach((child) => {
     const { nodes, edges } = GetSubgraph(child, currentNodes, currentEdges);
     childNodes.push(...nodes);
     childEdges.push(...edges);
   });
-
-  // make sure nodes and edges are unique
   childNodes = _.uniqBy(childNodes, "id");
   childEdges = _.uniqBy(childEdges, "id");
-
   return {
     nodes: childNodes,
     edges: childEdges,
   } as BaseGraphState;
 }
-
-/**
- * Given a node, returns its parent node
- * @param node - child node
- * @param currentNodes - list of current nodes
- * @param currentEdges - list of current edges
- * @returns parent node
- * @throws Error - if single parent for the node is not found, in such case, the node is invalid
- */
 export function GetParentNode(node: Node, currentNodes: Node[], currentEdges: Edge[]): Node {
   const incomingNodes = getIncomers(node, currentNodes, currentEdges);
   if (incomingNodes.length !== 1) {
@@ -614,14 +465,6 @@ export function GetParentNode(node: Node, currentNodes: Node[], currentEdges: Ed
   }
   return incomingNodes[0];
 }
-
-/**
- * Given a node, returns its incoming edge
- * @param node - given node
- * @param connectedEdges - list of connected edges
- * @returns incoming edge
- * @throws Error - if no incoming edge found
- */
 export function GetIncomingEdge(node: Node, connectedEdges: Edge[]): Edge<EventSequenceEdgeProps> {
   const incomingEdge: Edge | undefined = connectedEdges.find((edge) => edge.target === node.id);
   if (incomingEdge === undefined) {
@@ -629,15 +472,6 @@ export function GetIncomingEdge(node: Node, connectedEdges: Edge[]): Edge<EventS
   }
   return incomingEdge;
 }
-
-/**
- * Build an edge between an originating node and a destination node
- * @param fromNode - originating node
- * @param toNode - destination node
- * @param edgeType - type of edge
- * @param data - edge properties like label, etc
- * @returns the connecting edge
- */
 export function BuildAnEdge(
   fromNode: Node,
   toNode: Node,
@@ -653,18 +487,6 @@ export function BuildAnEdge(
     animated: false,
   };
 }
-
-/**
- * Persist event-sequence mutations by sending updated and deleted subgraphs.
- *
- * Wraps the provided subgraphs into normalized `EventSequenceGraph` payloads and
- * calls the Graph API to apply the delta. Returns true on success.
- *
- * @param eventSequenceId - The current Event Sequence id.
- * @param updatedSubgraph - Nodes/edges to add or update.
- * @param deletedSubgraph - Nodes/edges to remove.
- * @returns Promise resolving to a boolean indicating API success.
- */
 export function UpdateEventSequenceDiagram(
   eventSequenceId: string,
   updatedSubgraph: BaseGraphState,
@@ -682,43 +504,23 @@ export function UpdateEventSequenceDiagram(
   });
   return GraphApiManager.updateESSubgraph(eventSequenceId, updatedSubgraphState, deletedSubgraphState);
 }
-
-/**
- * Delete an event sequence node, check necessary validations before deleting the node
- * @param selectedNode - selected node to be deleted
- * @param currentNodes - list of current nodes
- * @param currentEdges - list of current edges
- * @returns List of nodes and edges which need to be updated,
- * along with a flag 'updateState' (if true, make API call as well).
- * The function returns undefined if the selected node cannot be deleted
- * @throws Error - if incoming or outgoing edge is not found for the node
- */
 export function DeleteEventSequenceNode(
   selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
   currentEdges: Edge[],
 ): OnUpdateOrDeleteGraphState | undefined {
-  // if the selected node is already in an intermediate delete state, it cannot be deleted
   if (selectedNode.data.isDeleted === true || selectedNode.data.tentative === true) return;
-
   const parentNode: Node = GetParentNode(selectedNode, currentNodes, currentEdges);
   const connectedEdges: Edge[] = getConnectedEdges([selectedNode], currentEdges);
-
-  // handle the functional node deletion in a different way, as the user needs to select which child will be retained
-  // introduce an intermediate state of deletion by marking the whole subgraph as 'tentative'
-  // and additionally mark the functional node to be deleted as 'isDeleted'
   if (selectedNode.type === "functional") {
     return GenerateTentativeState("delete", selectedNode, currentNodes, currentEdges);
   }
-
-  // for description / intermediate node, delete the node and connect the parent node directly to its child node
   if (selectedNode.type === "description" || selectedNode.type === "intermediate") {
     const incomingEdge: Edge<EventSequenceEdgeProps> = GetIncomingEdge(selectedNode, connectedEdges);
     const outgoingEdges: Node[] = getOutgoers(selectedNode, currentNodes, currentEdges);
     if (outgoingEdges.length < 1) {
       throw Error("Outgoing edge(s) not found");
     }
-
     const newEdge: Edge<EventSequenceEdgeProps> = BuildAnEdge(
       parentNode,
       outgoingEdges[0],
@@ -726,11 +528,9 @@ export function DeleteEventSequenceNode(
       incomingEdge.data,
     );
     const newNodes: Node[] = currentNodes.filter((n: Node) => !(n.id === selectedNode.id));
-
     const newEdges: Edge[] = currentEdges
       .filter((edge) => !connectedEdges.some((e) => e.id === edge.id))
       .concat([newEdge]);
-
     return {
       updatedState: {
         nodes: newNodes,
@@ -747,18 +547,8 @@ export function DeleteEventSequenceNode(
       syncState: true,
     } as OnUpdateOrDeleteGraphState;
   }
-
-  // for other types of nodes, simply return as they cannot be deleted
   return;
 }
-
-/**
- * Generate the tentative state when a functional node is either updated or deleted
- * @param mode - 'update' or 'delete'
- * @param selectedNode - selected functional node which has been updated or deleted
- * @param currentNodes - list of current nodes
- * @param currentEdges - list of current edges
- */
 function GenerateTentativeState(
   mode: "update" | "delete",
   selectedNode: Node<EventSequenceNodeProps>,
@@ -821,18 +611,6 @@ function GenerateTentativeState(
     syncState: false,
   } as OnUpdateOrDeleteGraphState;
 }
-
-/**
- * Clear all "tentative" markers on nodes/edges and reset related flags.
- *
- * Used to exit the intermediate state created during functional node update/delete
- * workflows. Returns an updated state with tentative flags removed; no API sync
- * is performed by this function.
- *
- * @param currentNodes - Current nodes (may include tentative flags).
- * @param currentEdges - Current edges (may include tentative flags).
- * @returns Updated state with all tentative flags cleared.
- */
 export function RevertTentativeState(
   currentNodes: Node<EventSequenceNodeProps>[],
   currentEdges: Edge<EventSequenceEdgeProps>[],
@@ -868,11 +646,6 @@ export function RevertTentativeState(
     syncState: false,
   } as OnUpdateOrDeleteGraphState;
 }
-
-/**
- * Generate a new End State Node
- * @returns node object of newly generate End State node
- */
 function GetEndStateNode(): Node<EventSequenceNodeProps, EventSequenceNodeTypes> {
   return {
     id: GenerateUUID(),
@@ -883,11 +656,6 @@ function GetEndStateNode(): Node<EventSequenceNodeProps, EventSequenceNodeTypes>
     type: "end",
   };
 }
-
-/**
- * Generate a new End State edge
- * @returns edge object of newly generate edge
- */
 function GetEndStateEdge(
   parentNodeId: string,
   childNodeId: string,
@@ -906,16 +674,6 @@ function GetEndStateEdge(
   }
   return edge;
 }
-
-/**
- * Update an event sequence node, check necessary validations before updating the node
- * @param selectedNode - selected node to be updated
- * @param currentNodes - list of current nodes
- * @param currentEdges - list of current edges
- * @returns List of nodes and edges which need to be updated,
- * along with a flag 'updateState' (if true, make API call as well).
- * The function returns undefined if the selected node cannot be updated
- */
 export function UpdateEventSequenceNode(
   selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
@@ -926,10 +684,8 @@ export function UpdateEventSequenceNode(
   const edgesToAdd: Edge[] = [];
   const nodesToRemove: Node[] = [];
   const edgesToRemove: Edge[] = [];
-
   if (selectedNode.type === "functional") {
     if (childNodes.length === 0) {
-      // if no nodes present, add two end state nodes
       const child1 = GetEndStateNode();
       const child2 = GetEndStateNode();
       const edge1 = GetEndStateEdge(selectedNode.id, child1.id, "Yes", 1);
@@ -937,7 +693,6 @@ export function UpdateEventSequenceNode(
       nodesToAdd.push(child1, child2);
       edgesToAdd.push(edge1, edge2);
     } else if (childNodes.length === 1) {
-      // if 1 node present, update the existing node's label and add an end state node
       const existingEdge: Edge | undefined = currentEdges.find((edge) => edge.source === selectedNode.id);
       if (existingEdge) {
         edgesToRemove.push(existingEdge);
@@ -954,7 +709,6 @@ export function UpdateEventSequenceNode(
       nodesToAdd.push(child2);
       edgesToAdd.push(edge2);
     } else if (childNodes.length === 2) {
-      // update the edge labels of existing connections
       const existingEdges = currentEdges.filter((edge) => edge.source === selectedNode.id);
       edgesToRemove.push(...existingEdges);
       edgesToAdd.push(
@@ -976,31 +730,24 @@ export function UpdateEventSequenceNode(
     }
   } else if (selectedNode.type === "description" || selectedNode.type === "intermediate") {
     if (childNodes.length === 0) {
-      // if no child nodes present, add an end state node
       const child = GetEndStateNode();
       const edge = GetEndStateEdge(selectedNode.id, child.id);
       nodesToAdd.push(child);
       edgesToAdd.push(edge);
     } else if (childNodes.length === 2) {
-      // for a functional node, change the state of the subgraph to tentative so that
-      // the user can select one of the child nodes to finalize the state
       return GenerateTentativeState("update", selectedNode, currentNodes, currentEdges);
     }
   } else if (selectedNode.type === "transfer" || selectedNode.type === "end" || selectedNode.type === "undeveloped") {
-    // remove all child nodes present
     const { nodes, edges } = GetSubgraph(selectedNode, currentNodes, currentEdges);
     nodesToRemove.push(...nodes);
     edgesToRemove.push(...edges.filter((edge) => !(edge.target === selectedNode.id)));
   }
-
   const updatedNodes: Node[] = currentNodes
     .filter((node) => !nodesToRemove.some((n) => n.id === node.id))
     .concat(nodesToAdd);
-
   const updatedEdges: Edge[] = currentEdges
     .filter((edge) => !edgesToRemove.some((e) => e.id === edge.id))
     .concat(edgesToAdd);
-
   return {
     updatedState: {
       nodes: updatedNodes.map((n) => {
@@ -1022,27 +769,11 @@ export function UpdateEventSequenceNode(
     syncState: true,
   } as OnUpdateOrDeleteGraphState;
 }
-
-/**
- * Check if the provided nodes are siblings, check that they have a common parent node
- * @param node1 - Node 1
- * @param node2 - Node 2
- * @param nodes - List of current nodes
- * @param edges - List of current edges
- * @returns boolean - True if common parent found
- */
 export function AreSiblings(node1: Node, node2: Node, nodes: Node[], edges: Edge[]): boolean {
   const parentOfNode1: Node = GetParentNode(node1, nodes, edges);
   const parentOfNode2: Node = GetParentNode(node2, nodes, edges);
-
   return parentOfNode1.id === parentOfNode2.id;
 }
-
-/**
- * Get default node label, based on its type
- * @param nodeType - type of node
- * @returns string - Default node label
- */
 export function GetDefaultLabelOfNode(nodeType: EventSequenceNodeTypes): string {
   switch (nodeType) {
     case "initiating":
@@ -1063,27 +794,12 @@ export function GetDefaultLabelOfNode(nodeType: EventSequenceNodeTypes): string 
       return "Invalid Node";
   }
 }
-
-/**
- * Check if the current graph state is tentative
- * (i.e. if the user has tried to delete or update a functional node
- * and has not finalized the process by selecting a child node)
- * @param nodes - current list of nodes
- * @param edges - current list of edges
- * @returns boolean
- */
 export function IsCurrentStateTentative(nodes: Node[], edges: Edge[]): boolean {
   return !(
     nodes.findIndex((n: Node<EventSequenceNodeProps>) => n.data.tentative === true) === -1 &&
     edges.findIndex((e: Edge<EventSequenceEdgeProps>) => e.data?.tentative === true) === -1
   );
 }
-
-/**
- * Create a toast with the given type and message
- * @param type - type of toast (primary / warning / danger / success)
- * @param message - toast message text
- */
 export function GetESToast(type: EuiToastProps["color"], message: string): Toast {
   return {
     id: GenerateUUID(),
@@ -1091,13 +807,6 @@ export function GetESToast(type: EuiToastProps["color"], message: string): Toast
     text: message,
   } as Toast;
 }
-
-/**
- * Get the default number of children allowed for a given node type.
- *
- * @param type - Event Sequence node type.
- * @returns The expected child count for that type.
- */
 export function GetChildCount(type: EventSequenceNodeTypes): number {
   switch (type) {
     case "functional":

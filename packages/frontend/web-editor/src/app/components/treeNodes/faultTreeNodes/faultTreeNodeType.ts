@@ -1,10 +1,6 @@
 import { NodeTypes } from "reactflow";
 import { FaultTreeNode } from "./faultTreeNode";
 import type { FaultTreeNodeQuantification } from "../../../types/faultTreeQuantification";
-
-/**
- * Optional UI flags and quantification data stored on Fault Tree nodes.
- */
 export type FaultTreeNodeProps =
   | {
       isGrayed?: boolean | undefined;
@@ -13,10 +9,6 @@ export type FaultTreeNodeProps =
       canonicalId?: string;
     }
   | undefined;
-
-/**
- * Registered React Flow node types used by the Fault Tree editor.
- */
 const FaultTreeNodeTypes: NodeTypes = {
   orGate: FaultTreeNode("orGate"),
   andGate: FaultTreeNode("andGate"),
@@ -26,5 +18,4 @@ const FaultTreeNodeTypes: NodeTypes = {
   houseEvent: FaultTreeNode("houseEvent"),
   transferGate: FaultTreeNode("transferGate"),
 };
-
 export { FaultTreeNodeTypes };

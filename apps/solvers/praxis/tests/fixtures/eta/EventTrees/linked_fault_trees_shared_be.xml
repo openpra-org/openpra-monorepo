@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<!--
+Scaffolding fixture for future DPMC event-tree quantification.
+
+Intent:
+- Two functional events are linked to two different fault trees.
+- The fault trees share a basic event (A), so the two functional events are correlated.
+- Sequence BothFail corresponds to (FT1 fails) AND (FT2 fails).
+
+Analytic reference (when implemented):
+Let FT1 = A OR B, FT2 = A OR C with independent basic events.
+Then P(FT1 & FT2) = pA + (1-pA)*pB*pC.
+-->
+<opsa-mef>
+  <define-initiating-event name="IE" event-tree="LinkedFTs">
+    <float value="1.0"/>
+  </define-initiating-event>
+
+  <define-event-tree name="LinkedFTs">
+    <define-functional-event name="FE1"/>
+    <define-functional-event name="FE2"/>
+
+    <define-sequence name="BothFail"/>
+    <define-sequence name="Other"/>
+
+    <initial-state>
+      <fork functional-event="FE1">
+        <path state="failure">
+          <collect-formula>
+            <gate name="FT1.root"/>
+          </collect-formula>
+          <fork functional-event="FE2">
+            <path state="failure">
+              <collect-formula>
+                <gate name="FT2.root"/>
+              </collect-formula>
+              <sequence name="BothFail"/>
+            </path>
+            <path state="success">
+              <collect-formula>
+                <not><gate name="FT2.root"/></not>
+              </collect-formula>
+              <sequence name="Other"/>
+            </path>
+          </fork>
+        </path>
+        <path state="success">
+          <collect-formula>
+            <not><gate name="FT1.root"/></not>
+          </collect-formula>
+          <sequence name="Other"/>
+        </path>
+      </fork>
+    </initial-state>
+  </define-event-tree>
+
+  <define-fault-tree name="FT1">
+    <define-gate name="root" role="private">
+      <or>
+        <basic-event name="A"/>
+        <basic-event name="B"/>
+      </or>
+    </define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="FT2">
+    <define-gate name="root" role="private">
+      <or>
+        <basic-event name="A"/>
+        <basic-event name="C"/>
+      </or>
+    </define-gate>
+  </define-fault-tree>
+
+  <model-data>
+    <define-basic-event name="A"><float value="0.3"/></define-basic-event>
+    <define-basic-event name="B"><float value="0.01"/></define-basic-event>
+    <define-basic-event name="C"><float value="0.01"/></define-basic-event>
+  </model-data>
+</opsa-mef>

@@ -4,7 +4,6 @@ export enum PraModelType {
   EXTERNAL_HAZARDS = "external-hazards",
   FULL_SCOPE = "full-scope",
 }
-
 export interface PraModelMeta {
   uuid: string;
   name: string;

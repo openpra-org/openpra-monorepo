@@ -1,8 +1,5 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function GatesTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
   const rows = [
     {
       id: "Id",
@@ -12,9 +9,6 @@ function GatesTable(): JSX.Element {
       probability: ".002",
     },
   ];
-
-  //has the following column headers
-  // id, type, name, description, probability
   const columns = [
     {
       id: "id",
@@ -40,7 +34,6 @@ function GatesTable(): JSX.Element {
       formatter: "scientificFormatter",
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -48,5 +41,4 @@ function GatesTable(): JSX.Element {
     />
   );
 }
-
 export { GatesTable };

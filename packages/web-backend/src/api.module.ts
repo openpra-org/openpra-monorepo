@@ -17,7 +17,6 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
 import { PraModelModule } from "./pra-model/pra-model.module";
 import { PlantDiagramModule } from "./plant-diagram/plant-diagram.module";
-
 @Module({
   imports: [
     AuthModule,

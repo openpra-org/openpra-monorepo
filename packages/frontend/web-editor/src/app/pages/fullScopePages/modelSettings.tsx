@@ -3,7 +3,6 @@ import { EditCurrentModel } from "../../components/settingsdropdowns/editCurrent
 import { SettingsOverview } from "../../components/settingsdropdowns/settingsOverview";
 import { AdvancedSettings } from "../../components/settingsdropdowns/advancedSettings";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
-
 function ModelSettings(): JSX.Element {
   return (
     <TemplatedPageBody
@@ -21,5 +20,4 @@ function ModelSettings(): JSX.Element {
     </TemplatedPageBody>
   );
 }
-
 export { ModelSettings };

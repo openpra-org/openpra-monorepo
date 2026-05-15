@@ -4,10 +4,8 @@ import { BayesianNetworksService } from "./bayesian-networks.service";
 import { BayesianNetwork } from "../schemas/bayesian-network.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModelHelperService } from "../nested-model-helper.service";
-
 describe("BayesianNetworksService", () => {
   let service: BayesianNetworksService;
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -20,10 +18,8 @@ describe("BayesianNetworksService", () => {
         },
       ],
     }).compile();
-
     service = module.get<BayesianNetworksService>(BayesianNetworksService);
   });
-
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

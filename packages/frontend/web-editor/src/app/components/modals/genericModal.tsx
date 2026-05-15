@@ -8,16 +8,6 @@ import {
   EuiModalHeaderTitle,
 } from "@elastic/eui";
 import { useState } from "react";
-
-/**
- * This component will return a generic modal
- * @param title - The title of the modal
- * @param body - The body of the modal could be anything for example a form component
- * @param onClose - What should happen on close of the modal
- * @param onSubmit - Async function that should be trigger when submit is clicked in the modal
- * @param modalFormId - A unique identifier for the modal could be generated
- * @param showButtons - If true will show the modal buttons
- */
 const GenericModal = ({
   title,
   body,
@@ -72,5 +62,4 @@ const GenericModal = ({
     </EuiModal>
   );
 };
-
 export { GenericModal };

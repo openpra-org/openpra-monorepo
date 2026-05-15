@@ -1,6 +1,5 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { InitiatingEventModelViewTable } from "../../components/tables/initiatingEventModelViewTable";
-
 function InitiatingEventModelView(): JSX.Element {
   return (
     <EuiPageTemplate
@@ -23,5 +22,4 @@ function InitiatingEventModelView(): JSX.Element {
     </EuiPageTemplate>
   );
 }
-
 export { InitiatingEventModelView };

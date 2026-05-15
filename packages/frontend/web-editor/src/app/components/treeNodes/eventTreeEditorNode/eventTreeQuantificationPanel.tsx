@@ -1,11 +1,3 @@
-/**
- * Event Tree Quantification Panel — thin wrapper around the shared QuantificationPanel.
- *
- * This file contains only what is specific to event trees:
- *   - API wiring (quantifyEventTree — no analyze endpoint yet)
- *   - Result summary (total CDF, sequence count, badges)
- *   - Event Tree Results modal (sequences table with expandable cut sets)
- */
 import { useState } from "react";
 import type { Criteria, EuiBasicTableColumn } from "@elastic/eui";
 import {
@@ -41,9 +33,6 @@ import {
   approxBadgeLabel,
 } from "../quantificationPanel";
 import type { QuantificationOptions, OrderStatsRow } from "../quantificationPanel";
-
-// ─── ET Phase 1 metadata display ─────────────────────────────────────────────
-
 function SequenceMetadataRow({
   sequenceId,
   frequency,
@@ -59,14 +48,12 @@ function SequenceMetadataRow({
     : severityColor(frequency, [1e-4, 1e-6]) === "warning" ? "#F5A700"
     : undefined;
   const hasStats = orderStats && orderStats.length > 0;
-
   const rows: OrderStatsRow[] = (orderStats ?? []).map((s) => ({
     order: s.order,
     count: s.count,
     min: s.minFrequency,
     max: s.maxFrequency,
   }));
-
   const maxColor = (max: number): string | undefined => {
     const frac = frequency > 0 ? max / frequency : 0;
     return (
@@ -75,7 +62,6 @@ function SequenceMetadataRow({
       : undefined
     );
   };
-
   return (
     <div style={{ marginBottom: 6 }}>
       <EuiFlexGroup
@@ -123,11 +109,9 @@ function SequenceMetadataRow({
     </div>
   );
 }
-
 function EventTreeMetadataDisplay({ metadata }: { metadata: EventTreeMetadataResult }): JSX.Element {
   const totalCdf = metadata.totalCdf;
   const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
-
   return (
     <>
       <EuiStat
@@ -159,9 +143,6 @@ function EventTreeMetadataDisplay({ metadata }: { metadata: EventTreeMetadataRes
     </>
   );
 }
-
-// ─── ET-specific result summary ───────────────────────────────────────────────
-
 function EventTreeResultSummary({
   result,
   onViewDetails,
@@ -170,9 +151,7 @@ function EventTreeResultSummary({
   onViewDetails: () => void;
 }): JSX.Element {
   const totalCdf = result.totalCdf ?? result.sequences.reduce((sum, s) => sum + s.frequency, 0);
-  // CDF thresholds differ from probability: 1e-4 danger, 1e-6 warning
   const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
-
   return (
     <>
       <EuiStat
@@ -213,16 +192,12 @@ function EventTreeResultSummary({
     </>
   );
 }
-
-// ─── Results modal ────────────────────────────────────────────────────────────
-
 interface SequenceRow {
   rank: number;
   sequenceId: string;
   frequency: number;
   cutSets: EventTreeCutSet[];
 }
-
 interface CutSetRow {
   rank: number;
   events: string[];
@@ -230,10 +205,8 @@ interface CutSetRow {
   probability: number;
   contribution: number;
 }
-
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const DEFAULT_PAGE_SIZE = 20;
-
 function ResultsModal({
   result,
   onClose,
@@ -244,11 +217,9 @@ function ResultsModal({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
   const totalCdf = result.totalCdf ?? result.sequences.reduce((sum, s) => sum + s.frequency, 0);
   const cdfColor = severityColor(totalCdf, [1e-4, 1e-6]);
   const label = approxBadgeLabel(result.approximation);
-
   const allRows: SequenceRow[] = [...result.sequences]
     .sort((a, b) => a.sequenceId.localeCompare(b.sequenceId, undefined, { numeric: true }))
     .map((seq, idx) => ({
@@ -258,19 +229,16 @@ function ResultsModal({
       cutSets: seq.cutSets ?? [],
     }));
   const pageRows = allRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-
   const handleTableChange = ({ page }: Criteria<SequenceRow>): void => {
     if (page) {
       setPageIndex(page.index);
       setPageSize(page.size);
     }
   };
-
   const freqColor = (f: number): "danger" | "warning" | "success" =>
     f >= 1e-4 ? "danger"
     : f >= 1e-6 ? "warning"
     : "success";
-
   const columns: EuiBasicTableColumn<SequenceRow>[] = [
     {
       field: "rank",
@@ -345,7 +313,6 @@ function ResultsModal({
       ],
     },
   ];
-
   return (
     <EuiModal
       onClose={onClose}
@@ -434,7 +401,6 @@ function ResultsModal({
     </EuiModal>
   );
 }
-
 function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }): JSX.Element {
   const rows: CutSetRow[] = cutSets.map((cs, idx) => ({
     rank: idx + 1,
@@ -443,7 +409,6 @@ function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }): JSX.Elemen
     probability: cs.probability,
     contribution: cs.contribution,
   }));
-
   const columns: EuiBasicTableColumn<CutSetRow>[] = [
     {
       field: "rank",
@@ -533,7 +498,6 @@ function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }): JSX.Elemen
       },
     },
   ];
-
   return (
     <div style={{ padding: "8px 16px 16px" }}>
       <EuiBasicTable<CutSetRow>
@@ -545,13 +509,9 @@ function CutSetSubTable({ cutSets }: { cutSets: EventTreeCutSet[] }): JSX.Elemen
     </div>
   );
 }
-
-// ─── Public component ─────────────────────────────────────────────────────────
-
 interface EventTreeQuantificationPanelProps {
   eventTreeId: string;
 }
-
 export function EventTreeQuantificationPanel({ eventTreeId }: EventTreeQuantificationPanelProps): JSX.Element {
   return (
     <QuantificationPanel<EventTreeQuantificationResult>

@@ -4,15 +4,12 @@ import { AuthCard } from "../authCard";
 import { ToastProvider } from "../../../providers/toastProvider";
 import { AbilityContext } from "../../../providers/abilityProvider";
 import { DefaultAbility } from "../../../casl/ability";
-
-// Ensure SignUp does not redirect during test render
 jest.mock("shared-sdk/lib/api/ApiManager", () => {
   return {
     ApiManager: {
       isLoggedIn: jest.fn(function isLoggedInMock(): boolean {
         return false;
       }),
-      // Debounced validators used by SignUpForm
       checkUserName: jest.fn(function checkUserNameMock(cb: (result: boolean) => void) {
         return function debouncedValidator(): void {
           cb(true);
@@ -23,7 +20,6 @@ jest.mock("shared-sdk/lib/api/ApiManager", () => {
           cb(true);
         };
       }),
-      // Promise-based validators used on submit
       isValidEmail: jest.fn(function isValidEmailMock(): Promise<boolean> {
         return Promise.resolve(true);
       }),
@@ -33,15 +29,9 @@ jest.mock("shared-sdk/lib/api/ApiManager", () => {
     },
   };
 });
-
 describe("AuthCard", () => {
-  // before(() => {
-  //   // Navigate to the URL where your AuthCard component is rendered
-  //   cy.visit('/your-app-url');
-  // });
-
   it("renders AuthCard component with correct elements", () => {
-  const { getByText, getByAltText, getByTestId } = render(
+    const { getByText, getByAltText, getByTestId } = render(
       <MemoryRouter>
         <AbilityContext.Provider value={DefaultAbility()}>
           <ToastProvider>
@@ -50,33 +40,17 @@ describe("AuthCard", () => {
         </AbilityContext.Provider>
       </MemoryRouter>,
     );
-
-    // Test title and logo
     const titleElement = getByText("OpenPRA App");
     const logoElement = getByAltText("OpenPRA Logo");
-
-    // Regular expression pattern to match a valid version number (e.g., v0.0.1)
     const versionNumberPattern = /^v\d*\.\d*\.\d*$/;
-
-    // Test description
-    const descriptionElement = getByText((content, _element) =>
-      // Use the regex to check if the content matches the version number pattern
-      versionNumberPattern.test(content),
-    );
-
-    //grab context
+    const descriptionElement = getByText((content, _element) => versionNumberPattern.test(content));
     const authCardContent = getByTestId("Context");
-
-    // Get the list of tab elements within AuthCardContent
-    const tabs = queryAllByRole(authCardContent, "tab"); // Assuming the role is 'tab'
-
-    // Assertions
+    const tabs = queryAllByRole(authCardContent, "tab");
     expect(titleElement).toBeTruthy();
     expect(logoElement).toBeTruthy();
     expect(descriptionElement).toBeTruthy();
     expect(authCardContent).toBeTruthy();
     expect(tabs).toHaveLength(2);
-
     expect(titleElement.textContent).toBeTruthy();
   });
 });

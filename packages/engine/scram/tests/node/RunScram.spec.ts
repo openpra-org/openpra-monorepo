@@ -1,4 +1,3 @@
-// TODO: migrate tests from `raptor`
-test('stub', () => {
+test("stub", () => {
   expect(true).toBeTruthy();
 });

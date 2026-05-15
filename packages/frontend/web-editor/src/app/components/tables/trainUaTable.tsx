@@ -1,8 +1,5 @@
 import { DataTable } from "./templatetable/dataTable";
-
 function TrainUaTable(): JSX.Element {
-  //data has fields for every label
-  //fth is 5th, nfth is 95th
   const rows = [
     {
       id: "id1",
@@ -26,11 +23,6 @@ function TrainUaTable(): JSX.Element {
       effectiveDate: "2021-11-01",
     },
   ];
-
-  //has the following column headers
-  // Section, Sub Section, Train Unavailability Event, Train Description, Data Source, Analysis, MSPI Trains,
-  // Distribution, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, std dev, Error Factor, Baseline Period, Effective Date
-  // It may be worth going back and making some of these enums instead for limited options
   const columns = [
     {
       id: "id",
@@ -114,7 +106,6 @@ function TrainUaTable(): JSX.Element {
       displayAsText: "Effective Date",
     },
   ];
-
   return (
     <DataTable
       rows={rows}
@@ -122,5 +113,4 @@ function TrainUaTable(): JSX.Element {
     />
   );
 }
-
 export { TrainUaTable };

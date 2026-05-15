@@ -4,7 +4,6 @@ import {
   PatchEventSequenceQuantificationDiagramLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function EventSequenceQuantificationDiagramList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function EventSequenceQuantificationDiagramList(): JSX.Element {
     />
   );
 }
-
 export { EventSequenceQuantificationDiagramList };

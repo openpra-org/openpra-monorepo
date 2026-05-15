@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createZodDto } from "../../zod/zod-dto";
-
 const createNewColumnSchema = z.object({
   name: z.string(),
   type: z.string(),
@@ -11,5 +10,4 @@ const createNewColumnSchema = z.object({
     }),
   ),
 });
-
 export class CreateNewColumnDto extends createZodDto(createNewColumnSchema) {}

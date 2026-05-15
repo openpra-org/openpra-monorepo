@@ -1,7 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { DataAnalysisList } from "../../components/lists/nestedLists/dataAnalysisList";
 import { DataAnalysisDetail } from "./dataAnalysisDetail";
-
 function DataAnalysis(): JSX.Element {
   return (
     <Routes>
@@ -16,5 +15,4 @@ function DataAnalysis(): JSX.Element {
     </Routes>
   );
 }
-
 export { DataAnalysis };

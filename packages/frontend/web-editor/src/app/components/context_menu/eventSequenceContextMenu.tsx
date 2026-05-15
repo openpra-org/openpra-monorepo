@@ -22,38 +22,26 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { UseFocusContext } from "../../providers/focusProvider";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
 import { MenuPanel, MenuPanelItem, TypedContextMenu } from "./contextMenuTypes";
-
-/**
- * @public The context menu with different types of nodes of Event Sequence Diagram
- * @param EventSequenceContextMenuOptions - options to load the menu
- * @returns JSX Element
- */
 type EventSequenceMenuAction = "delete" | EventSequenceNodeTypes;
-
 function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequenceContextMenuOptions): JSX.Element {
   const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const { addToast } = UseToastContext();
-  const { eventSequenceId } = useParams() as { eventSequenceId: string };
+  const { eventSequenceId } = useParams() as {
+    eventSequenceId: string;
+  };
   const { setFocus } = UseFocusContext();
-
   const onItemClick = useCallback(
     (id: NodeProps["id"], type: EventSequenceMenuAction) => {
-      // we need the parent node object for positioning the new child node
       const parentNode = getNode(id) as Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined;
-      // React Flow generics are not preserved at runtime; assert types once and keep subsequent usage strongly typed.
       const currentNodes = getNodes() as Node<EventSequenceNodeProps, EventSequenceNodeTypes>[];
       const currentEdges = getEdges();
       if (!parentNode) {
         return;
       }
-
       if (parentNode.type === undefined) {
         return;
       }
-
       if (parentNode.data.isDeleted === true || parentNode.data.tentative === true) return;
-
-      // if the event is for delete node, handle it separately
       if (type === "delete") {
         if (parentNode.type === "functional") {
           fitView({
@@ -84,19 +72,14 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
         onClick && onClick();
         return;
       }
-
-      // if the selected node type is already the current node's type, simply return
       if (parentNode.type === type) {
         addToast(GetESToast("warning", "The selected node type is already the current node's type."));
         return;
       }
-
-      // change child nodes based on the updated type of node
       const childCount = GetChildCount(parentNode.type);
       const newChildCount = GetChildCount(type);
       parentNode.type = type;
       parentNode.data.label = GetDefaultLabelOfNode(type);
-
       const state = UpdateEventSequenceNode(parentNode, currentNodes, currentEdges);
       if (state) {
         const { updatedState, syncState, updatedSubgraph, deletedSubgraph } = state;
@@ -127,7 +110,6 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
     },
     [addToast, eventSequenceId, fitView, getEdges, getNode, getNodes, onClick, setEdges, setFocus, setNodes],
   );
-
   const basePanelItems: MenuPanelItem[] = [
     {
       name: "Update node type",
@@ -156,8 +138,6 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
       },
     });
   }
-
-  // Build panels as a readonly literal so item shapes remain inferred without any widening.
   const panels: readonly MenuPanel[] = [
     {
       id: 0,
@@ -242,7 +222,6 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
       ],
     },
   ];
-
   return (
     <TypedContextMenu
       initialPanelId={0}

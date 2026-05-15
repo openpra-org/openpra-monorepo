@@ -4,7 +4,6 @@ import {
   PatchSuccessCriteriaLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function SuccessCriteriaList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function SuccessCriteriaList(): JSX.Element {
     />
   );
 }
-
 export { SuccessCriteriaList };

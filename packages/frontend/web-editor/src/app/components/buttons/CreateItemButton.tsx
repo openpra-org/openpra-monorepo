@@ -21,11 +21,10 @@ import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { ToTitleCase } from "../../../utils/StringUtils";
 import { UseGlobalStore } from "../../zustand/Store";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
-
 export type CreateItemButtonProps = Omit<ItemFormProps, "action">;
-
-export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action"> & { buttonText?: string };
-
+export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action"> & {
+  buttonText?: string;
+};
 function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   return (
@@ -40,7 +39,6 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
       iconSize="m"
       size="s"
     >
-      {}
       <TypedModelActionForm
         compressed
         action="create"
@@ -51,7 +49,6 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
   );
 }
 export { CreateItemButton };
-
 export function CreateNestedItemButton({
   itemName,
   postNestedEndpoint,
@@ -81,10 +78,8 @@ export function CreateNestedItemButton({
     </ButtonWithClosablePopover>
   );
 }
-
 export function CreateInternalEventsButton(): JSX.Element {
   const createInternalEvent = UseGlobalStore.use.AddInternalEvent();
-
   return (
     <CreateItemButton
       itemName="Internal Events"
@@ -92,7 +87,6 @@ export function CreateInternalEventsButton(): JSX.Element {
     />
   );
 }
-
 export function CreateInternalHazardsButton(): JSX.Element {
   const createInternalHazard = UseGlobalStore.use.AddInternalHazard();
   return (
@@ -102,7 +96,6 @@ export function CreateInternalHazardsButton(): JSX.Element {
     />
   );
 }
-
 export function CreateExternalHazardsButton(): JSX.Element {
   const createExternalHazard = UseGlobalStore.use.AddExternalHazard();
   return (
@@ -112,7 +105,6 @@ export function CreateExternalHazardsButton(): JSX.Element {
     />
   );
 }
-
 export function CreateFullScopeButton(): JSX.Element {
   const createFullScope = UseGlobalStore.use.AddFullScope();
   return (
@@ -122,7 +114,6 @@ export function CreateFullScopeButton(): JSX.Element {
     />
   );
 }
-
 export function CreateFaultTreeButton(): JSX.Element {
   const AddFaultTree = UseGlobalStore.use.AddFaultTree();
   return (
@@ -132,7 +123,6 @@ export function CreateFaultTreeButton(): JSX.Element {
     />
   );
 }
-
 export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -141,7 +131,6 @@ export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
     />
   );
 }
-
 export function CreateBayesianNetworkButton(): JSX.Element {
   const AddBayesianNetwork = UseGlobalStore.use.AddBayesianNetwork();
   return (
@@ -151,7 +140,6 @@ export function CreateBayesianNetworkButton(): JSX.Element {
     />
   );
 }
-
 export function CreateBayesianEstimationButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -160,7 +148,6 @@ export function CreateBayesianEstimationButton(): JSX.Element {
     />
   );
 }
-
 export function CreateEventSequenceDiagramButton(): JSX.Element {
   const AddEventSequenceDiagram = UseGlobalStore.use.AddEventSequenceDiagram();
   return (
@@ -170,7 +157,6 @@ export function CreateEventSequenceDiagramButton(): JSX.Element {
     />
   );
 }
-
 export function CreateEventTreeButton(): JSX.Element {
   const AddEventTree = UseGlobalStore.use.AddEventTree();
   return (
@@ -180,7 +166,6 @@ export function CreateEventTreeButton(): JSX.Element {
     />
   );
 }
-
 export function CreateInitiatingEventButton(): JSX.Element {
   const AddInitiatingEvent = UseGlobalStore.use.AddInitiatingEvent();
   return (
@@ -190,7 +175,6 @@ export function CreateInitiatingEventButton(): JSX.Element {
     />
   );
 }
-
 export function CreateFunctionalEventButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -199,7 +183,6 @@ export function CreateFunctionalEventButton(): JSX.Element {
     />
   );
 }
-
 export function CreateMarkovChainButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -208,7 +191,6 @@ export function CreateMarkovChainButton(): JSX.Element {
     />
   );
 }
-
 export function CreateRiskIntegrationButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -217,7 +199,6 @@ export function CreateRiskIntegrationButton(): JSX.Element {
     />
   );
 }
-
 export function CreateRadiologicalConsequenceAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -226,7 +207,6 @@ export function CreateRadiologicalConsequenceAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateMechanisticSourceTermButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -235,7 +215,6 @@ export function CreateMechanisticSourceTermButton(): JSX.Element {
     />
   );
 }
-
 export function CreateEventSequenceQuantificationDiagramButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -244,7 +223,6 @@ export function CreateEventSequenceQuantificationDiagramButton(): JSX.Element {
     />
   );
 }
-
 export function CreateDataAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -254,7 +232,6 @@ export function CreateDataAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateHumanReliabilityAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -263,7 +240,6 @@ export function CreateHumanReliabilityAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateSystemsAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -273,7 +249,6 @@ export function CreateSystemsAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateSuccessCriteriaButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -282,7 +257,6 @@ export function CreateSuccessCriteriaButton(): JSX.Element {
     />
   );
 }
-
 export function CreateEventSequenceAnalysisButton(): JSX.Element {
   const AddEventSequenceAnalysis = UseGlobalStore.use.AddEventSequenceAnalysis();
   return (
@@ -292,7 +266,6 @@ export function CreateEventSequenceAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateOperatingStateAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
@@ -301,7 +274,6 @@ export function CreateOperatingStateAnalysisButton(): JSX.Element {
     />
   );
 }
-
 export function CreateWeibullAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton

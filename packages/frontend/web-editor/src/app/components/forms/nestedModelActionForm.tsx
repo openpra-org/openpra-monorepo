@@ -11,14 +11,11 @@ import {
   EuiTitle,
 } from "@elastic/eui";
 import { useState } from "react";
-
 import { GetCurrentModelId } from "shared-sdk/lib/api/TypedModelApiManager";
 import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-
 import { ToTitleCase } from "../../../utils/StringUtils";
 import { StoreStateType, UseGlobalStore } from "../../zustand/Store";
-
 export interface NestedItemFormProps {
   itemName: string;
   id?: number;
@@ -35,7 +32,6 @@ export interface NestedItemFormProps {
   compressed?: boolean;
   noHeader?: boolean;
 }
-
 function NestedModelActionForm({
   itemName,
   onCancel,
@@ -51,18 +47,14 @@ function NestedModelActionForm({
   _id,
 }: NestedItemFormProps): JSX.Element {
   const formInitials = initialFormValues ? initialFormValues : DefaultNestedModelJSON;
-
   const [typedModel, setTypedModel] = useState(formInitials);
-
   const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-
     if (typedModel.label.name !== "") {
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
         parentIds: [GetCurrentModelId()],
       };
-
       if (
         itemName === "initiating-event" ||
         itemName === "event-sequence-diagram" ||
@@ -101,7 +93,6 @@ function NestedModelActionForm({
       alert("Please enter a valid name");
     }
   };
-
   const actionLabel = ToTitleCase(action);
   const itemLabel = ToTitleCase(itemName);
   return (

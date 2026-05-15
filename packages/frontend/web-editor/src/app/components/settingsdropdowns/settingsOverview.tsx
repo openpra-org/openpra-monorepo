@@ -17,7 +17,6 @@ import {
 } from "@elastic/eui";
 import { useState, ChangeEvent } from "react";
 import { SettingsAccordian } from "./SettingsAccordian";
-
 const buttonContent = (
   <div>
     <EuiFlexGroup
@@ -44,25 +43,17 @@ const buttonContent = (
     </EuiText>
   </div>
 );
-
-//this page in theory changes the diagram on the voerview page, but again, cant even remotely test right now so its mostly dummied out
 function SettingsOverview(): JSX.Element {
   const [overviewValue, setOverviewValue] = useState("");
-
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
-
-  //selectable options, this will change
   const options = [
     { value: "eventTree", text: "Event Tree" },
     { value: "faultTree", text: "Fault Tree" },
     { value: "bayesianNetwork", text: "Bayesian Network" },
   ];
-
   const onChange = (e: ChangeEvent<HTMLSelectElement>): void => {
     setOverviewValue(e.target.value);
   };
-
-  //returns a form with a place to select which diagram, and then save to make the change
   return (
     <SettingsAccordian
       id="model_overview_settings"
@@ -138,5 +129,4 @@ function SettingsOverview(): JSX.Element {
     </SettingsAccordian>
   );
 }
-
 export { SettingsOverview };

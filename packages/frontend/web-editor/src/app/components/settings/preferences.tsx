@@ -6,26 +6,20 @@ import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
 import { AbilityContext } from "../../providers/abilityProvider";
-
 interface PreferenceContextType {
   currentUser: MemberResult | undefined;
   setCurrentUser: (user: MemberResult) => void;
 }
-
 const PreferenceContext = React.createContext<PreferenceContextType>({
   currentUser: undefined,
-  setCurrentUser: (_: MemberResult) => {
-    // no-op default implementation
-  },
+  setCurrentUser: (_: MemberResult) => {},
 });
-
 const GENERAL = {
   name: "General",
   id: "General",
   icon: <EuiIcon type="gear" />,
   items: [{ name: "Personal Data", url: "personal-data", data: {} }],
 };
-
 const AUTHENTICATION = {
   name: "Authentication",
   id: "Authentication",
@@ -38,9 +32,10 @@ const AUTHENTICATION = {
     },
   ],
 };
-
 function Preferences(): JSX.Element {
-  const { user } = useParams<{ user: string | undefined }>();
+  const { user } = useParams<{
+    user: string | undefined;
+  }>();
   const userId = Number(user);
   const [currentUser, setCurrentUser] = useState<MemberResult>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -101,5 +96,4 @@ function Preferences(): JSX.Element {
     ></EuiSkeletonLoading>
   );
 }
-
 export { Preferences, PreferenceContextType, PreferenceContext };

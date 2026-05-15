@@ -1,13 +1,3 @@
-/**
- * Serializer / deserializer between ReactFlow graph state and the OpenPRA MEF FaultTree node format.
- *
- * - `reactFlowToMEF`  — converts in-memory ReactFlow nodes + edges → MEF `Record<string, FaultTreeNode>`
- * - `mefToReactFlow`  — converts MEF nodes → ReactFlow `Node[]` + `Edge[]`
- *
- * Only the fields that the editor actually populates are mapped.
- * Fields that have no editor representation are left undefined (MEF optional fields).
- */
-
 import type { Edge, Node } from "reactflow";
 import {
   FaultTreeNodeType,
@@ -31,9 +21,6 @@ import {
   TRANSFER_GATE,
   WORKFLOW,
 } from "./constants";
-
-// ─── Type look-up tables ──────────────────────────────────────────────────────
-
 const RF_TO_MEF_TYPE: Record<string, FaultTreeNodeType> = {
   [OR_GATE]: FaultTreeNodeType.OR_GATE,
   [AND_GATE]: FaultTreeNodeType.AND_GATE,
@@ -43,7 +30,6 @@ const RF_TO_MEF_TYPE: Record<string, FaultTreeNodeType> = {
   [HOUSE_EVENT]: FaultTreeNodeType.HOUSE_EVENT,
   [TRANSFER_GATE]: FaultTreeNodeType.TRANSFER_OUT,
 };
-
 const MEF_TO_RF_TYPE: Partial<Record<FaultTreeNodeType, string>> = {
   [FaultTreeNodeType.OR_GATE]: OR_GATE,
   [FaultTreeNodeType.AND_GATE]: AND_GATE,
@@ -54,23 +40,12 @@ const MEF_TO_RF_TYPE: Partial<Record<FaultTreeNodeType, string>> = {
   [FaultTreeNodeType.TRANSFER_OUT]: TRANSFER_GATE,
   [FaultTreeNodeType.TRANSFER_IN]: TRANSFER_GATE,
 };
-
-// ─── Distribution helpers ─────────────────────────────────────────────────────
-
-/**
- * Build a typed `FaultTreeDistribution` from the flat quantification fields.
- * Returns undefined when no distribution is fully specified.
- */
 function buildMEFDistribution(q: FaultTreeNodeQuantification): FaultTreeDistribution | undefined {
   if (q.probabilityType !== "distribution" || !q.distributionType || !q.distributionParams) return undefined;
-
   const p = q.distributionParams as unknown as Record<string, number>;
-
-  // lognormal during-operation uses log-mean/stdDev → stored as lognormal_time
   if (q.distributionType === "lognormal" && q.eventType === "during_operation") {
     return { type: "lognormal_time", mean: p["mean"] ?? 0, stdDev: p["stdDev"] ?? 0 };
   }
-
   switch (q.distributionType as DistributionType) {
     case "lognormal":
       return { type: "lognormal", median: p["median"] ?? 0, errorFactor: p["errorFactor"] ?? 3 };
@@ -90,10 +65,6 @@ function buildMEFDistribution(q: FaultTreeNodeQuantification): FaultTreeDistribu
       return undefined;
   }
 }
-
-/**
- * Reconstruct the flat `distributionType` + `distributionParams` fields from a MEF distribution.
- */
 function parseMEFDistribution(dist: FaultTreeDistribution): {
   distributionType: DistributionType;
   distributionParams: DistributionParams;
@@ -150,65 +121,45 @@ function parseMEFDistribution(dist: FaultTreeDistribution): {
       };
   }
 }
-
-// ─── Clone ID helpers ─────────────────────────────────────────────────────────
-
 function cloneDisplayId(parentDisplayId: string, childCanonicalId: string): string {
   return `${parentDisplayId.toLowerCase()}${childCanonicalId.toLowerCase()}`;
 }
-
-// ─── Derive top-event id ──────────────────────────────────────────────────────
-
 function deriveTopEventId(nodes: Node[], edges: Edge[]): string {
   const targets = new Set(edges.map((e) => e.target));
   const root = nodes.find((n) => !targets.has(n.id));
   return root?.id ?? nodes[0]?.id ?? "";
 }
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Convert the current ReactFlow graph state to a MEF node map.
- *
- * Collapses display-clone IDs back to canonical MEF UUIDs on both the source
- * and target side of every edge, then deduplicates, so the solver always sees
- * a proper DAG with shared nodes referenced by their original UUID.
- */
 export function reactFlowToMEF(
   nodes: Node<FaultTreeNodeProps>[],
   edges: Edge[],
-): { topEventId: string; nodes: Record<string, FaultTreeNode> } {
+): {
+  topEventId: string;
+  nodes: Record<string, FaultTreeNode>;
+} {
   const displayToCanonical = new Map<string, string>();
   for (const node of nodes) {
     displayToCanonical.set(node.id, node.data?.canonicalId ?? node.id);
   }
-
   const collapsedEdges: Edge[] = edges.map((e) => {
     const src = displayToCanonical.get(e.source) ?? e.source;
     const tgt = displayToCanonical.get(e.target) ?? e.target;
     return { ...e, source: src, target: tgt, id: `${src}=>${tgt}` };
   });
-
   const seenEdgeIds = new Set<string>();
   const dedupedEdges = collapsedEdges.filter((e) => {
     if (seenEdgeIds.has(e.id)) return false;
     seenEdgeIds.add(e.id);
     return true;
   });
-
   const canonicalNodes = nodes.map((n) => ({ ...n, id: displayToCanonical.get(n.id) ?? n.id }));
   const topEventId = deriveTopEventId(canonicalNodes, dedupedEdges);
-
   const mefNodes: Record<string, FaultTreeNode> = {};
-
   for (const node of nodes) {
     const cid = displayToCanonical.get(node.id) ?? node.id;
     if (mefNodes[cid]) continue;
-
     const q = node.data?.quantification;
     const nodeType: FaultTreeNodeType = RF_TO_MEF_TYPE[node.type ?? ""] ?? FaultTreeNodeType.BASIC_EVENT;
     const inputs = dedupedEdges.filter((e) => e.source === cid).map((e) => e.target);
-
     const mefNode: FaultTreeNode = {
       uuid: cid,
       nodeType,
@@ -217,7 +168,6 @@ export function reactFlowToMEF(
       ...(inputs.length > 0 ? { inputs } : {}),
       position: node.position,
     };
-
     if (q) {
       if (q.probabilityType) {
         mefNode.probabilityType = q.probabilityType as FaultTreeNodeProbabilityType;
@@ -246,24 +196,17 @@ export function reactFlowToMEF(
         mefNode.kValue = q.kValue;
       }
     }
-
     mefNodes[cid] = mefNode;
   }
-
   return { topEventId, nodes: mefNodes };
 }
-
-// ─── mefToReactFlow helpers ───────────────────────────────────────────────────
-
 function buildQuantification(mefNode: FaultTreeNode): FaultTreeNodeQuantification {
   const q: FaultTreeNodeQuantification = {
     name: mefNode.name,
     description: mefNode.description ?? "",
     probabilityType: (mefNode.probabilityType as FaultTreeNodeQuantification["probabilityType"]) ?? "constant",
   };
-
   if (mefNode.probability !== undefined) q.constantValue = mefNode.probability;
-
   if (mefNode.probabilityDistribution) {
     const { distributionType, distributionParams, eventType } = parseMEFDistribution(mefNode.probabilityDistribution);
     q.distributionType = distributionType;
@@ -272,7 +215,6 @@ function buildQuantification(mefNode: FaultTreeNode): FaultTreeNodeQuantificatio
   } else if (mefNode.eventType) {
     q.eventType = mefNode.eventType;
   }
-
   if (mefNode.bayesianNetworkRef) {
     q.bayesianNetworkId = mefNode.bayesianNetworkRef.networkId;
     q.bayesianNetworkNodeId = mefNode.bayesianNetworkRef.nodeId;
@@ -282,23 +224,8 @@ function buildQuantification(mefNode: FaultTreeNode): FaultTreeNodeQuantificatio
   }
   if (mefNode.transferTreeId) q.targetFaultTreeId = mefNode.transferTreeId;
   if (mefNode.kValue !== undefined) q.kValue = mefNode.kValue;
-
   return q;
 }
-
-/**
- * DFS from `canonicalUuid`, emitting one ReactFlow node + edges per visit.
- *
- * When a node is reached for the first time its display ID equals its canonical
- * UUID.  Every subsequent visit (shared node) gets a fresh display ID:
- *   `{canonicalUuid}@@{parentDisplayId}`
- * The recursion continues into the subtree with the new display ID as context,
- * so every descendant of a shared subtree also gets a unique display ID scoped
- * to this branch.
- *
- * `visitedUnder` maps canonical UUID → display ID of the first visit.
- * On the first visit we use that display ID; on later visits we generate a clone.
- */
 function expandNode(
   canonicalUuid: string,
   parentDisplayId: string | null,
@@ -309,21 +236,16 @@ function expandNode(
 ): string {
   const mefNode = mefNodes[canonicalUuid];
   if (!mefNode) return canonicalUuid;
-
   const firstVisitDisplayId = visitedUnder.get(canonicalUuid);
   const isFirstVisit = firstVisitDisplayId === undefined;
-
   const displayId = isFirstVisit ? canonicalUuid : cloneDisplayId(parentDisplayId ?? canonicalUuid, canonicalUuid);
-
   if (isFirstVisit) visitedUnder.set(canonicalUuid, displayId);
-
   rfNodes.push({
     id: displayId,
     type: MEF_TO_RF_TYPE[mefNode.nodeType] ?? BASIC_EVENT,
     position: mefNode.position ?? { x: 0, y: 0 },
     data: { quantification: buildQuantification(mefNode), canonicalId: canonicalUuid },
   });
-
   for (const childCanonicalId of mefNode.inputs ?? []) {
     const childDisplayId = expandNode(childCanonicalId, displayId, mefNodes, visitedUnder, rfNodes, rfEdges);
     rfEdges.push({
@@ -335,39 +257,21 @@ function expandNode(
       data: {},
     });
   }
-
   return displayId;
 }
-
-/**
- * Convert a MEF node map to ReactFlow nodes and edges.
- *
- * Any node (gate or leaf) referenced by more than one parent is expanded into
- * one display clone per reference.  Each clone gets a synthetic display ID of
- * the form `{canonicalUuid}@@{parentDisplayId}`.  The entire subtree beneath a
- * shared gate is also cloned recursively so every branch forms a strict tree.
- *
- * `reactFlowToMEF` collapses all clone IDs back to canonical UUIDs on the
- * return trip, so the solver always sees the correct shared-event DAG.
- */
 export function mefToReactFlow(mefNodes: Record<string, FaultTreeNode>): {
   nodes: Node<FaultTreeNodeProps>[];
   edges: Edge[];
 } {
   const rfNodes: Node<FaultTreeNodeProps>[] = [];
   const rfEdges: Edge[] = [];
-
-  // Find the top event: the node whose canonical UUID is not in any inputs list.
   const allInputs = new Set<string>();
   for (const n of Object.values(mefNodes)) {
     for (const i of n.inputs ?? []) allInputs.add(i);
   }
   const topId = Object.keys(mefNodes).find((id) => !allInputs.has(id));
   if (!topId) return { nodes: rfNodes, edges: rfEdges };
-
-  // DFS from the top event, cloning any node encountered more than once.
   const visitedUnder = new Map<string, string>();
   expandNode(topId, null, mefNodes, visitedUnder, rfNodes, rfEdges);
-
   return { nodes: rfNodes, edges: rfEdges };
 }

@@ -3,28 +3,12 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Roles, RolesDocument } from "./schemas/roles.schema";
 import { PredefinedRoles, Role } from "./schemas/predefined-roles";
-
-/**
- * Service for roles persistence and predefined role initialization.
- * Provides CRUD operations and bootstrap seeding.
- * @public
- */
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
-  /**
-   * Construct the roles service with the injected Mongoose model.
-   * @param roleModel - Mongoose model for the Roles collection
-   */
   constructor(
     @InjectModel(Roles.name)
     private readonly roleModel: Model<RolesDocument>,
   ) {}
-
-  /**
-   * This is a bootstrap function, called before routes are loaded by the application.
-   * This will load all the predefined roles defined in the predefiniedRoles.ts file.
-   * We can edit the predefinedRoles file to load even more predefined roles if required in the future
-   */
   onApplicationBootstrap(): void {
     PredefinedRoles.forEach((element) => {
       void this.roleModel.findOne({ id: element.id }).then((res) => {
@@ -34,11 +18,6 @@ export class RolesService implements OnApplicationBootstrap {
       });
     });
   }
-
-  /**
-   * This function returns all the roles from the database.
-   * @param roleId - Optional list of role IDs to filter the results
-   */
   async getAllRoles(roleId?: string[] | null): Promise<Roles[]> {
     let roles: Roles[];
     if (roleId !== undefined && roleId.length > 0) {
@@ -52,11 +31,6 @@ export class RolesService implements OnApplicationBootstrap {
       permissions: role.permissions,
     }));
   }
-
-  /**
-   * Get a single role by Id or return NotFoundException if id doesnt exist
-   * @param id - The unique Id for the role
-   */
   async getRole(id: string): Promise<Roles> {
     const role = await this.roleModel.findOne({ id: id }).exec();
     if (role === null) {
@@ -64,11 +38,6 @@ export class RolesService implements OnApplicationBootstrap {
     }
     return role;
   }
-
-  /**
-   * Create a single role from a RoleDTO object
-   * @param role - The RoleDTO object
-   */
   async createRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole !== null) {
@@ -76,11 +45,6 @@ export class RolesService implements OnApplicationBootstrap {
     }
     await this.roleModel.insertMany([role]);
   }
-
-  /**
-   * Update an existing role in the database
-   * @param role - The RoleDTO object
-   */
   async updateRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole === null) {
@@ -88,11 +52,6 @@ export class RolesService implements OnApplicationBootstrap {
     }
     await this.roleModel.findOneAndUpdate({ id: role.id }, role).exec();
   }
-
-  /**
-   * Delete a role by its id or throw if it doesn't exist.
-   * @param id - The unique id of the role to delete
-   */
   async deleteRole(id: string): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: id }).exec();
     if (checkRole === null) {

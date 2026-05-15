@@ -14,7 +14,6 @@ import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModel
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
-
 export interface GenericListItemProps {
   id: number;
   label: LabelJSON;
@@ -34,12 +33,10 @@ export interface GenericListItemProps {
   createdAt?: string;
   updatedAt?: string;
 }
-
 function GenericListItem(props: GenericListItemProps): JSX.Element {
   const { label, id, path, createdAt, updatedAt } = props;
   const timestamp = updatedAt ?? createdAt;
   const timestampMs = timestamp ? Date.parse(timestamp) : Date.now();
-
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle("border-bottom", `${String(border.width.thin)} solid ${String(border.color)}`);
   const paddingLine = logicalStyle("padding-vertical", String(useEuiPaddingSize("s")));
@@ -49,7 +46,6 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
       style={customStyles}
       icon={
         <Link to={path}>
-          {}
           <EuiAvatar
             name={label.name ? label.name : ""}
             size="l"
@@ -65,7 +61,6 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
         >
           <EuiFlexItem grow={5}>
             <Link to={path}>
-              {}
               <EuiText
                 size="m"
                 color="default"
@@ -74,7 +69,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
                 <strong>{label.name}</strong>
               </EuiText>
             </Link>
-            {}
+
             <EuiText
               size="s"
               color="subdued"

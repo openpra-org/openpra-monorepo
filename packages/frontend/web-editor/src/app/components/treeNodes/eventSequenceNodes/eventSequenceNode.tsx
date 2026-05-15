@@ -9,16 +9,7 @@ import { GetESToast } from "../../../../utils/treeUtils";
 import { UseToastContext } from "../../../providers/toastProvider";
 import { EventSequenceNodeProps, EventSequenceNodeTypes } from "./eventSequenceNodeType";
 import styles from "./styles/nodeTypes.module.css";
-
 const stylesMap = styles as Record<string, string>;
-
-/**
- * Get Node Elements for the node - editable label and handles
- * @param id - Node ID
- * @param type - Node Type
- * @param data - Node properties
- * @returns Editable Label and Handles for the node
- */
 function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceNodeProps): JSX.Element {
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
@@ -48,7 +39,6 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
       }, 500),
     [getNodes, id, setNodes, addToast],
   );
-
   useEffect((): (() => void) => {
     return () => {
       updateHandler.cancel();
@@ -62,9 +52,7 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
     },
     [updateHandler],
   );
-
   switch (type) {
-    // Only source handle for initiating node (no incoming edge)
     case "initiating":
       handles = (
         <Handle
@@ -75,7 +63,6 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
         />
       );
       break;
-    // Source and Target handles for functional/description/intermediate nodes
     case "functional":
     case "description":
     case "intermediate":
@@ -96,7 +83,6 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
         </>
       );
       break;
-    // Only target handle for end-state/transfer-state/undeveloped node (no outgoing edge)
     case "end":
     case "transfer":
     case "undeveloped":
@@ -129,18 +115,6 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
     </>
   );
 }
-
-/**
- * Get the node component -
- * @param id - Node ID
- * @param type - Node Type
- * @param selected - Selected flag
- * @param data - Node Properties
- * @param className - CSS Class for the node component
- * @param testId - Test ID for the node component
- * @param borderClassName - CSS Class for the node's border component
- * (present for custom shaped nodes like intermediate/end-state/transfer-state/undeveloped)
- */
 function GetNode(
   id: NodeProps["id"],
   type: EventSequenceNodeTypes,
@@ -154,7 +128,6 @@ function GetNode(
   const onClick = UseNodeClick(id, data);
   const nodeElements: JSX.Element = GetNodeElements(id, type, data);
   switch (type) {
-    // for simple node shape, return the node component containing the div tag
     case "initiating":
     case "functional":
     case "description":
@@ -168,7 +141,6 @@ function GetNode(
           {nodeElements}
         </div>
       );
-    // for custom node shape, return the node component containing the div tag along with the border div tag
     case "intermediate":
     case "end":
     case "transfer":
@@ -195,41 +167,23 @@ function GetNode(
       throw new Error("Node Type invalid");
   }
 }
-
-/**
- * Get the node container for the node component
- * @param nodeComponent - Node component inside the container
- * @param className - CSS class for the container
- * @param style - Apply styling for opacity - not required for initiating node
- * @param tentative - Flag for tentative node state - for node border during deletion process
- */
 function GetNodeContainer(
   nodeComponent: JSX.Element,
   className: string,
   style: boolean,
   tentative: boolean | undefined,
 ): JSX.Element {
-  return style ? (
-    <div
-      className={className}
-      style={{
-        opacity: tentative ? "0.5" : "1",
-      }}
-    >
-      {nodeComponent}
-    </div>
-  ) : (
-    <div className={className}>{nodeComponent}</div>
-  );
+  return style ?
+      <div
+        className={className}
+        style={{
+          opacity: tentative ? "0.5" : "1",
+        }}
+      >
+        {nodeComponent}
+      </div>
+    : <div className={className}>{nodeComponent}</div>;
 }
-
-/**
- * Get Node component according to the type and other properties
- * @param id - node id
- * @param type - node type
- * @param selected - selected flag
- * @param data - node data and attributes
- */
 function GetNodeComponent(
   id: NodeProps["id"],
   type: EventSequenceNodeTypes,
@@ -325,7 +279,6 @@ function GetNodeComponent(
       throw new Error("Node Type invalid");
   }
 }
-
 function EventSequenceNode(
   type: EventSequenceNodeTypes,
 ): MemoExoticComponent<React.ComponentType<NodeProps<EventSequenceNodeProps>>> {
@@ -334,5 +287,4 @@ function EventSequenceNode(
       GetNodeComponent(id, type, selected, data),
   );
 }
-
 export { EventSequenceNode };

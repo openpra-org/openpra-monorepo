@@ -4,7 +4,6 @@ import {
   PatchOperatingStateLabel,
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
-
 function OperatingStateAnalysisList(): JSX.Element {
   return (
     <NestedModelList
@@ -15,5 +14,4 @@ function OperatingStateAnalysisList(): JSX.Element {
     />
   );
 }
-
 export { OperatingStateAnalysisList };

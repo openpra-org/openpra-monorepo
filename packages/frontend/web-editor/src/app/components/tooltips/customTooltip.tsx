@@ -1,11 +1,8 @@
 import React from "react";
-
-// Tooltip Component
 interface TooltipProps {
   content: string;
-  children: React.ReactNode; // The element that the tooltip is attached to
+  children: React.ReactNode;
 }
-
 export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   return (
     <div className="custom-tooltip">
@@ -56,5 +53,4 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
     </div>
   );
 };
-
 export default Tooltip;

@@ -1,7 +1,5 @@
 import { Delete, Get, Patch, PostDirect } from "../NestedModelApiManager";
-
 const DATA_ANALYSIS_ENDPOINT = "/api/nested-models/data-analysis";
-
 export type ComponentParameterType = {
   id: number;
   dataAnalysisId: number;
@@ -27,11 +25,8 @@ export type ComponentParameterType = {
   dateRange?: string;
   effectiveDate?: string;
 };
-
 export type CreateComponentParameterBody = Omit<ComponentParameterType, "id" | "dataAnalysisId">;
-
 export type UpdateComponentParameterBody = Partial<CreateComponentParameterBody>;
-
 export async function GetComponentParameters(dataAnalysisId: number): Promise<ComponentParameterType[]> {
   try {
     const response = await Get(`${DATA_ANALYSIS_ENDPOINT}/${dataAnalysisId}/parameters`);
@@ -41,7 +36,6 @@ export async function GetComponentParameters(dataAnalysisId: number): Promise<Co
     throw error;
   }
 }
-
 export async function PostComponentParameter(
   dataAnalysisId: number,
   body: CreateComponentParameterBody,
@@ -54,7 +48,6 @@ export async function PostComponentParameter(
     throw error;
   }
 }
-
 export async function PatchComponentParameter(
   paramId: number,
   body: UpdateComponentParameterBody,
@@ -67,7 +60,6 @@ export async function PatchComponentParameter(
     throw error;
   }
 }
-
 export async function DeleteComponentParameter(paramId: number): Promise<void> {
   try {
     await Delete(`${DATA_ANALYSIS_ENDPOINT}/parameters/${paramId}`);

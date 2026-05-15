@@ -5,88 +5,34 @@ import { NestedModelService } from "../nestedModel.service";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { FaultTree, FaultTreeDocument } from "../schemas/fault-tree.schema";
-
-/**
- * Service for Fault Tree nested model operations.
- * Provides collection and single-item retrieval, updates and label helpers.
- */
 @Injectable()
 export class FaultTreesService {
-  /**
-   * Construct the service with persistence dependencies.
-   * @param FaultTreeModel - Mongoose model for FaultTree collection
-   * @param nestedModelService - Service to allocate IDs and shared nested model ops
-   */
   constructor(
     @InjectModel(FaultTree.name)
     private readonly FaultTreeModel: Model<FaultTreeDocument>,
     private readonly nestedModelService: NestedModelService,
   ) {}
-
-  /**
-   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
-   * @param parentId - id of the parent model the nested model is number
-   * @returns a promise with an array of the nested model of the type in the function name
-   */
   async getFaultTree(parentId: number): Promise<FaultTree[]> {
     return this.FaultTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
-
-  /**
-   * Retrieves Fault Trees by parent id (string form).
-   * @param parentId - Parent identifier as a string (ObjectId)
-   * @returns Array of Fault Tree documents for the given parent
-   */
   async getFaultTreeString(parentId: string): Promise<FaultTree[]> {
     return this.FaultTreeModel.find({ parentIds: parentId });
   }
-
-  /**
-   * gets a single model from the collection based on the id
-   * @param modelId - the id of the model to be retrieved
-   * @returns the model which has the associated id
-   */
   async getSingleFaultTree(modelId: number): Promise<FaultTree> {
     return this.FaultTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
-
-  /**
-   * Retrieves a single Fault Tree by string id.
-   * @param modelId - Document _id as a string (ObjectId)
-   * @returns The matching Fault Tree document
-   */
   async getSingleFaultTreeString(modelId: string): Promise<FaultTree> {
     return this.FaultTreeModel.findOne({ _id: modelId });
   }
-
-  /**
-   * creates the type of nested model defined in the function name
-   * @param body - a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
-   */
   async createFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFaultTree = new this.FaultTreeModel(body);
     newFaultTree.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newFaultTree.save();
     return newFaultTree;
   }
-
-  /**
-   * updates the label in the nested model
-   * @param id - the id of the nested model to be updated
-   * @param body - a label with a name and description
-   * @returns a promise with the updated model with an updated label
-   */
   async updateFaultTreeLabel(id: string, body: Label): Promise<NestedModel> {
     return this.FaultTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
   }
-
-  /**
-   * finds and deletes the nested model in this collection with the given model id
-   * @param modelId - the id of the model we want to delete
-   * @returns a promise that resolves when the model is deleted
-   */
   async deleteFaultTree(modelId: string): Promise<void> {
     await this.FaultTreeModel.findOneAndDelete({ _id: modelId });
   }

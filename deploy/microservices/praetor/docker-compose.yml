@@ -1,0 +1,103 @@
+version: '3.8'
+
+volumes:
+  rabbitmq_data:
+  minio_data:
+
+networks:
+  db_net:
+  svc_net:
+  rmq_net:
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/.docker-compose.env
+
+x-base-service: &base-service
+  build:
+    context: ../../../
+    dockerfile: deploy/microservices/praetor/Dockerfile
+  restart: unless-stopped
+  env_file:
+    - configs/.docker-compose.env
+  configs:
+    - source: nestjs_env_vars
+      target: /data/project/.env
+  networks:
+    - db_net
+    - rmq_net
+    - svc_net
+  depends_on:
+    rabbitmq:
+      condition: service_started
+    minio:
+      condition: service_healthy
+  environment:
+    MINIO_ENDPOINT: minio
+    MINIO_PORT: 9000
+    # Removed max-old-space-size to let Node manage memory naturally for small footprint
+
+services:
+  praetor-manager:
+    <<: *base-service
+    image: praetor-manager:latest
+    ports:
+      - "3000:3000"
+    # Default CMD is "node dist/main.js" which runs the broker
+    command: "node dist/src/main.js"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 30s
+
+  praetor-engine:
+    <<: *base-service
+    image: praetor-engine:latest
+    # Override command to run the consumer entry point
+    command: "node dist/src/main-engine.js"
+    deploy:
+      replicas: 1
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - rmq_net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - svc_net
+      - db_net
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

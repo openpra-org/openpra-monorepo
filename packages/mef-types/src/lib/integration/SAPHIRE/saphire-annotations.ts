@@ -1,99 +1,27 @@
-/**
- * @packageDocumentation
- * @module technical_elements.integration.SAPHIRE
- * @description SAPHIRE compatibility annotations for OpenPRA
- * @annotation Required for SAPHIRE model type differentiation (MTD format)
- * @group SAPHIRE
- */
-
-/**
- * Represents a mapping between OpenPRA fields and SAPHIRE fields
- * @memberof technical_elements.integration.SAPHIRE
- * @group SAPHIRE
- */
 export interface SaphireFieldMapping {
-  /** Field name in OpenPRA */
   openPraField: string;
-
-  /** Corresponding field name in SAPHIRE */
   saphireField: string;
-
-  /** Optional description of the mapping */
   description?: string;
 }
-
-/**
- * Interface for elements that are compatible with SAPHIRE format
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireCompatible {
-  /** Field mappings between OpenPRA and SAPHIRE */
   saphireFieldMappings?: SaphireFieldMapping[];
-
-  /** OpenPSA/SCRAM compatibility mappings */
   openPsaFieldMappings?: Record<string, string>;
 }
-
-/**
- * Template use flags for SAPHIRE basic event attributes
- * @memberof technical_elements.core.integration
- * @description Controls which attributes are applied during template-based updates
- * This interface enables:
- * - Standardized component modeling through template flags
- * - Consistent failure mode representation
- * - Systematic event categorization
- * - Efficient bulk updates through templates
- * - Detailed component tracking and documentation
- * - Compatibility with SAPHIRE's BED format
- * @group SAPHIRE
- */
 export interface SaphireTemplateUseFlags {
-  /** Component identifier template flag */
   componentId: boolean;
-
-  /** System identifier template flag */
   system: boolean;
-
-  /** Train identifier template flag */
   train: boolean;
-
-  /** Type identifier template flag */
   type: boolean;
-
-  /** Failure mode template flag */
   failureMode: boolean;
-
-  /** Location template flag */
   location: boolean;
-
-  /** Event type template flag */
   eventType: boolean;
-
-  /** Description template flag */
   description: boolean;
-
-  /** Models template flag */
   models: boolean;
-
-  /** Phases template flag */
   phases: boolean;
-
-  /** Notes template flag */
   notes: boolean;
-
-  /** References template flag */
   references: boolean;
-
-  /** Categories template flags */
   categories: boolean[];
 }
-
-/**
- * Template use flags mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const templateUseFlagsSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "templateUseFlags.componentId",
@@ -161,12 +89,6 @@ export const templateUseFlagsSaphireMappings: SaphireFieldMapping[] = [
     description: "Categories template flags",
   },
 ];
-
-/**
- * Model type mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const modelTypeSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "num",
@@ -189,55 +111,22 @@ export const modelTypeSaphireMappings: SaphireFieldMapping[] = [
     description: "Color code for visualization in SAPHIRE",
   },
 ];
-
-/**
- * Interface for SAPHIRE phase compatibility
- * @memberof technical_elements.core.integration
- * Maps SAPHIRE phases to OpenPRA technical elements:
- * - systems_analysis: Maps to temporal phases and component timelines
- * - plant_operating_states_analysis: Maps to operating states
- * - mechanistic_source_term: Maps to release phases
- * - event_sequence_analysis: Maps to intermediate states
- * @group SAPHIRE
- */
 export interface SaphirePhase {
-  /** Numerical identifier for the phase */
   num: number;
-
-  /** Name of the phase */
   name: string;
-
-  /** Order of the phase in the sequence */
   order: number;
-
-  /** Suffix used in SAPHIRE for the phase */
   suffix: string;
-
-  /** Color code for visualization in SAPHIRE */
   color: number;
-
-  /** Reference to the technical element this phase maps to */
   technicalElementReference?: {
-    /** Technical element namespace this phase maps to */
     namespace:
       | "systems_analysis"
       | "plant_operating_states_analysis"
       | "mechanistic_source_term"
       | "event_sequence_analysis";
-
-    /** ID of the technical element */
     elementId: string;
-
-    /** Description of how this phase relates to the technical element */
     mappingDescription?: string;
   };
 }
-
-/**
- * Phase mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const phaseSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "num",
@@ -280,13 +169,6 @@ export const phaseSaphireMappings: SaphireFieldMapping[] = [
     description: "Description of how this phase relates to the technical element",
   },
 ];
-
-/**
- * Field mappings for special events in SAPHIRE
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- * @annotation Required for SAPHIRE special event compatibility
- */
 export const specialEventSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "specialEventValue",
@@ -299,56 +181,20 @@ export const specialEventSaphireMappings: SaphireFieldMapping[] = [
     description: "Reference to initiating event for INIT events",
   },
 ];
-
-/**
- * Interface for SAPHIRE project attributes
- * @memberof technical_elements.core.integration
- * @annotation Required for SAPHIRE project compatibility (FAA format)
- * @group SAPHIRE
- */
 export interface SaphireProjectAttributes {
-  /** Mission time in hours */
   missionTime: number;
-
-  /** New sum identifier */
   newSum: string;
-
-  /** Company name */
   company: string;
-
-  /** Project location */
   location: string;
-
-  /** Project type */
   type: string;
-
-  /** Design information */
   design: string;
-
-  /** Vendor information */
   vendor: string;
-
-  /** Architect/Engineer information */
   architectEngineer: string;
-
-  /** Operation date (YYYY/MM/DD) */
   operationDate: string;
-
-  /** Qualification date (YYYY/MM/DD) */
   qualificationDate: string;
-
-  /** Alternate project name */
   alternateName: string;
-
-  /** Analyst information */
   analystInfo: string;
 }
-
-/**
- * Project attributes mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const projectAttributesSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "missionTime",
@@ -411,34 +257,13 @@ export const projectAttributesSaphireMappings: SaphireFieldMapping[] = [
     description: "Analyst information",
   },
 ];
-
-/**
- * Interface for SAPHIRE fault tree compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireFaultTree {
-  /** Fault tree name */
   name: string;
-
-  /** Fault tree description */
   description?: string;
-
-  /** Whether this is a sub-tree */
   subTree?: boolean;
-
-  /** Alternate fault tree name */
   alternateName?: string;
-
-  /** Textual information */
   text?: string;
 }
-
-/**
- * Fault tree mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const faultTreeSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -466,33 +291,14 @@ export const faultTreeSaphireMappings: SaphireFieldMapping[] = [
     description: "Textual information",
   },
 ];
-
-/**
- * Interface for SAPHIRE gate compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireGate {
-  /** Gate name */
   name: string;
-
-  /** Gate description */
   description?: string;
-
-  /** Gate attributes */
   attributes: {
-    /** Gate type */
     type: "OR" | "AND" | "NOT" | "NOR" | "NAND" | "XOR";
-    /** Alternate gate name */
     alternateName?: string;
   };
 }
-
-/**
- * Gate mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const gateSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -515,36 +321,15 @@ export const gateSaphireMappings: SaphireFieldMapping[] = [
     description: "Alternate gate name",
   },
 ];
-
-/**
- * Interface for SAPHIRE event tree compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireEventTree {
-  /** Event tree name */
   name: string;
-
-  /** Event tree description */
   description?: string;
-
-  /** Event tree attributes */
   attributes?: {
-    /** Initiating event name */
     initiatingEvent?: string;
-    /** Alternate event tree name */
     alternateName?: string;
   };
-
-  /** Textual information */
   text?: string;
 }
-
-/**
- * Event tree mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const eventTreeSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -572,54 +357,24 @@ export const eventTreeSaphireMappings: SaphireFieldMapping[] = [
     description: "Textual information",
   },
 ];
-
-/**
- * Interface for SAPHIRE sequence compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireSequence {
-  /** Sequence name */
   name: string;
-
-  /** Parent event tree name */
   eventTree: string;
-
-  /** Sequence description */
   description?: string;
-
-  /** Sequence attributes */
   attributes?: {
-    /** End state name */
     endState?: string;
-    /** Minimal cut set information */
     minCut?: string;
-    /** Mission time */
     mission?: number;
-    /** Cut set probability */
     proCut?: string;
-    /** Sampling information */
     sample?: string;
-    /** Random seed */
     seed?: string;
-    /** Size information */
     size?: string;
-    /** Number of cuts */
     cuts?: string;
-    /** Events information */
     events?: string;
-    /** Quantification method */
     quantificationMethod?: string;
-    /** Alternate sequence name */
     alternateName?: string;
   };
 }
-
-/**
- * Sequence mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const sequenceSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -667,72 +422,33 @@ export const sequenceSaphireMappings: SaphireFieldMapping[] = [
     description: "Alternate sequence name",
   },
 ];
-
-/**
- * Interface for SAPHIRE basic event compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireBasicEvent {
-  /** Basic event name */
   name: string;
-
-  /** Basic event description */
   description?: string;
-
-  /** Alternate description for the basic event */
   alternateDescription?: string;
-
-  /** Basic event attributes */
   attributes?: {
-    /** Alternate name */
     altName?: string;
-    /** Event type */
     type?: string;
-    /** System identifier */
     system?: string;
-    /** Failure mode */
     failureMode?: string;
-    /** Location identifier */
     location?: string;
-    /** Component identifier */
     componentId?: string;
-    /** Train identifier */
     train?: string;
-    /** Whether the event is a template */
     isTemplate?: boolean;
-    /** Template name if used */
     templateName?: string;
   };
-
-  /** Basic event failure information */
   failureInfo?: {
-    /** Failure data type */
     calculationType?: number;
-    /** Failure probability */
     probability?: number;
-    /** Failure rate (per time) */
     lambda?: number;
-    /** Time period */
     tau?: number;
-    /** Mission time */
     missionTime?: number;
-    /** Initiating event flag */
     init?: string;
-    /** Calculated probability */
     calcProb?: number;
-    /** Analysis type */
     analysisType?: "RANDOM" | "SEISMIC" | "FIRE" | "OTHER";
-    /** Phase type */
     phaseType?: string;
   };
 }
-
-/**
- * Basic event mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const basicEventSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -830,34 +546,13 @@ export const basicEventSaphireMappings: SaphireFieldMapping[] = [
     description: "Analysis type",
   },
 ];
-
-/**
- * Interface for SAPHIRE Common Cause Failure (CCF) compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireCCF {
-  /** CCF type */
   type: string;
-
-  /** CCF model name */
   model: string;
-
-  /** Whether the CCF is staggered */
   staggered: boolean;
-
-  /** CCF factors */
   factors: number[];
-
-  /** Names of independent events */
   independentNames?: string[];
 }
-
-/**
- * CCF mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const ccfSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "type",
@@ -885,36 +580,15 @@ export const ccfSaphireMappings: SaphireFieldMapping[] = [
     description: "Names of independent events",
   },
 ];
-
-/**
- * Interface for SAPHIRE end state compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireEndState {
-  /** End state name */
   name: string;
-
-  /** End state description */
   description?: string;
-
-  /** Textual information */
   text?: string;
-
-  /** End state information */
   information?: {
-    /** Default quantification method */
     quantificationMethod?: string;
-    /** Number of passes */
     passes?: number;
   };
 }
-
-/**
- * End state mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const endStateSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",
@@ -942,35 +616,15 @@ export const endStateSaphireMappings: SaphireFieldMapping[] = [
     description: "Number of passes",
   },
 ];
-
-/**
- * Interface for SAPHIRE histogram compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export interface SaphireHistogram {
-  /** Histogram name */
   name: string;
-
-  /** Histogram description */
   description?: string;
-
-  /** Histogram bins */
   bins: {
-    /** Lower bound of the bin */
     lowerBound: number;
-    /** Upper bound of the bin */
     upperBound: number;
-    /** Count in the bin */
     count: number;
   }[];
 }
-
-/**
- * Histogram mappings for SAPHIRE compatibility
- * @memberof technical_elements.core.integration
- * @group SAPHIRE
- */
 export const histogramSaphireMappings: SaphireFieldMapping[] = [
   {
     openPraField: "name",

@@ -1,11 +1,3 @@
-/**
- * Fault Tree Quantification Panel — thin wrapper around the shared QuantificationPanel.
- *
- * This file contains only what is specific to fault trees:
- *   - API wiring (analyzeFaultTree, quantifyFaultTree)
- *   - Result summary (top-event probability, cut-set badges, diagnostics)
- *   - Cut Set Analysis modal
- */
 import { useState } from "react";
 import type { Criteria, EuiBasicTableColumn } from "@elastic/eui";
 import {
@@ -41,9 +33,6 @@ import {
   approxBadgeLabel,
 } from "../quantificationPanel";
 import type { QuantificationOptions, OrderStatsRow } from "../quantificationPanel";
-
-// ─── FT Phase 1 metadata display ─────────────────────────────────────────────
-
 function FaultTreeMetadataDisplay({ metadata }: { metadata: FaultTreeMetadataResult }): JSX.Element {
   const rows: OrderStatsRow[] = metadata.orderStats.map((s) => ({
     order: s.order,
@@ -51,7 +40,6 @@ function FaultTreeMetadataDisplay({ metadata }: { metadata: FaultTreeMetadataRes
     min: s.minProbability,
     max: s.maxProbability,
   }));
-
   return (
     <>
       <EuiStat
@@ -77,9 +65,6 @@ function FaultTreeMetadataDisplay({ metadata }: { metadata: FaultTreeMetadataRes
     </>
   );
 }
-
-// ─── FT-specific result summary ───────────────────────────────────────────────
-
 function FaultTreeResultSummary({
   result,
   onViewDetails,
@@ -145,9 +130,6 @@ function FaultTreeResultSummary({
     </>
   );
 }
-
-// ─── Compact order stats (post-enumeration) ───────────────────────────────────
-
 function OrderStatsBadges({ orderStats }: { orderStats: OrderStats[] }): JSX.Element {
   return (
     <EuiFlexGroup
@@ -176,9 +158,6 @@ function OrderStatsBadges({ orderStats }: { orderStats: OrderStats[] }): JSX.Ele
     </EuiFlexGroup>
   );
 }
-
-// ─── ZBDD diagnostics ─────────────────────────────────────────────────────────
-
 function ZbddDiagnosticsPanel({ diagnostics }: { diagnostics: ZbddDiagnostics }): JSX.Element {
   return (
     <>
@@ -208,9 +187,6 @@ function ZbddDiagnosticsPanel({ diagnostics }: { diagnostics: ZbddDiagnostics })
     </>
   );
 }
-
-// ─── Cut Set Analysis modal ───────────────────────────────────────────────────
-
 interface CutSetRow {
   rank: number;
   events: string[];
@@ -218,10 +194,8 @@ interface CutSetRow {
   probability: number;
   contribution: number;
 }
-
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const DEFAULT_PAGE_SIZE = 20;
-
 function CutSetAnalysisModal({
   result,
   onClose,
@@ -231,7 +205,6 @@ function CutSetAnalysisModal({
 }): JSX.Element {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-
   const allRows: CutSetRow[] = result.cutSets.map((cs, idx) => ({
     rank: idx + 1,
     events: cs.events,
@@ -240,17 +213,14 @@ function CutSetAnalysisModal({
     contribution: cs.contribution,
   }));
   const pageRows = allRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-
   const handleTableChange = ({ page }: Criteria<CutSetRow>): void => {
     if (page) {
       setPageIndex(page.index);
       setPageSize(page.size);
     }
   };
-
   const topProb = result.topEventProbability;
   const label = approxBadgeLabel(result.approximation);
-
   const columns: EuiBasicTableColumn<CutSetRow>[] = [
     {
       field: "rank",
@@ -340,7 +310,6 @@ function CutSetAnalysisModal({
       },
     },
   ];
-
   return (
     <EuiModal
       onClose={onClose}
@@ -441,13 +410,9 @@ function CutSetAnalysisModal({
     </EuiModal>
   );
 }
-
-// ─── Public component ─────────────────────────────────────────────────────────
-
 interface FaultTreeQuantificationPanelProps {
   faultTreeId: string;
 }
-
 export function FaultTreeQuantificationPanel({ faultTreeId }: FaultTreeQuantificationPanelProps): JSX.Element {
   return (
     <QuantificationPanel<FaultTreeQuantificationResult>

@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown, } from '@nestjs/common';
 import { ChannelModel, Channel } from 'amqplib';
-import typia from 'typia';
 import { v4 as uuidv4 } from 'uuid';
 import { NodeQuantRequest } from '../../common/types/quantify-request';
 import { RpcException } from '@nestjs/microservices';
@@ -36,15 +35,7 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
         const inputId = await this.minioService.storeInputData(quantRequest);
         const sentAt = Date.now();
         await this.minioService.createJobMetadata(jobId, inputId, { sentAt });
-        const modelsData = ((): string => {
-            try {
-                this.logger.debug('Gets the request body from the Quantification controller');
-                return typia.json.assertStringify<NodeQuantRequest>(quantRequest);
-            }
-            catch (err) {
-                throw new RpcException(`Invalid schema: JobID <${jobId}>`);
-            }
-        })();
+        const modelsData = JSON.stringify(quantRequest);
         try {
             this.logger.debug('Queueing the quantification job');
             await this.channel?.checkExchange(this.quantQueueConfig.exchange.name);
@@ -52,7 +43,7 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
                 persistent: true,
             });
         }
-        catch (err) {
+        catch {
             throw new RpcException(`${this.quantQueueConfig.exchange.name} does not exist.`);
         }
         return jobId;
@@ -73,17 +64,9 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
         });
         for (const sequenceRequest of sequenceRequests) {
             const sequenceInputId = await this.minioService.storeInputData(sequenceRequest);
-            const sentAt = Date.now();
-            await this.minioService.createJobMetadata(sequenceRequest._id!, sequenceInputId, { sentAt });
-            const modelsData = ((): string => {
-                try {
-                    this.logger.debug(`Queueing sequence job ${sequenceRequest._id}`);
-                    return typia.json.assertStringify<NodeQuantRequest>(sequenceRequest);
-                }
-                catch (err) {
-                    throw new RpcException(`Invalid schema: JobID <${sequenceRequest._id}>`);
-                }
-            })();
+            const seqSentAt = Date.now();
+            await this.minioService.createJobMetadata(sequenceRequest._id!, sequenceInputId, { sentAt: seqSentAt });
+            const modelsData = JSON.stringify(sequenceRequest);
             try {
                 await this.channel?.checkExchange(this.distributedSequencesQueueConfig.exchange.name);
                 this.channel?.publish(this.distributedSequencesQueueConfig.exchange.name, this.distributedSequencesQueueConfig.exchange.routingKey, Buffer.from(modelsData), {
@@ -91,7 +74,7 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
                 });
             }
             catch (err) {
-                this.logger.error(`Failed to queue sequence ${sequenceRequest._id}: ${err}`);
+                this.logger.error(`Failed to queue sequence ${sequenceRequest._id}: ${String(err)}`);
                 throw new RpcException(`Failed to queue sequence batch for parent job ${parentJobId}`);
             }
         }
@@ -114,17 +97,9 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
         });
         for (const sequenceRequest of sequenceRequests) {
             const sequenceInputId = await this.minioService.storeInputData(sequenceRequest);
-            const sentAt = Date.now();
-            await this.minioService.createJobMetadata(sequenceRequest._id!, sequenceInputId, { sentAt });
-            const modelsData = ((): string => {
-                try {
-                    this.logger.debug(`Queueing adaptive sequence job ${sequenceRequest._id}`);
-                    return typia.json.assertStringify<NodeQuantRequest>(sequenceRequest);
-                }
-                catch (err) {
-                    throw new RpcException(`Invalid schema: JobID <${sequenceRequest._id}>`);
-                }
-            })();
+            const seqSentAt = Date.now();
+            await this.minioService.createJobMetadata(sequenceRequest._id!, sequenceInputId, { sentAt: seqSentAt });
+            const modelsData = JSON.stringify(sequenceRequest);
             try {
                 await this.channel?.checkExchange(this.adaptiveSequencesQueueConfig.exchange.name);
                 this.channel?.publish(this.adaptiveSequencesQueueConfig.exchange.name, this.adaptiveSequencesQueueConfig.exchange.routingKey, Buffer.from(modelsData), {
@@ -132,7 +107,7 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
                 });
             }
             catch (err) {
-                this.logger.error(`Failed to queue adaptive sequence ${sequenceRequest._id}: ${err}`);
+                this.logger.error(`Failed to queue adaptive sequence ${sequenceRequest._id}: ${String(err)}`);
                 throw new RpcException(`Failed to queue adaptive sequence batch for parent job ${parentJobId}`);
             }
         }
@@ -147,7 +122,7 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
             await this.channel?.close();
             await this.channelModel?.close();
         }
-        catch (err) {
+        catch {
             throw new RpcException(`${ProducerService.name} failed to stop RabbitMQ services.`);
         }
     }

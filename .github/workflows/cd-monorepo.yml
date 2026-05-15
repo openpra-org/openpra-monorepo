@@ -1,4 +1,4 @@
-name: 'CD: Deploy Monorepo Application'
+name: "CD: Deploy Monorepo Application"
 
 on:
   workflow_call:
@@ -19,7 +19,7 @@ jobs:
         run: |
           BRANCH_NAME="${{ github.ref_name }}"
           BRANCH_SLUG=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
-          
+
           if [ "$BRANCH_NAME" = "main" ]; then
             IMAGE_TAG="latest"
             HOST_URL="app-dev.openpra.org"
@@ -27,7 +27,7 @@ jobs:
             IMAGE_TAG="${BRANCH_SLUG}"
             HOST_URL="${BRANCH_SLUG}-app-dev.openpra.org"
           fi
-          
+
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
           echo "host_url=$HOST_URL" >> $GITHUB_OUTPUT
@@ -48,8 +48,8 @@ jobs:
         env:
           IMAGE_FRONTEND: registry.openpra.org/openpra-frontend:${{ steps.vars.outputs.image_tag }}
           IMAGE_BACKEND: registry.openpra.org/openpra-web-backend:${{ steps.vars.outputs.image_tag }}
-          IMAGE_RAPTOR_MANAGER: registry.openpra.org/openpra-raptor-manager:${{ steps.vars.outputs.image_tag }}
-          IMAGE_RAPTOR_ENGINE: registry.openpra.org/openpra-raptor-engine:${{ steps.vars.outputs.image_tag }}
+          IMAGE_PRAETOR_MANAGER: registry.openpra.org/openpra-praetor-manager:${{ steps.vars.outputs.image_tag }}
+          IMAGE_PRAETOR_ENGINE: registry.openpra.org/openpra-praetor-engine:${{ steps.vars.outputs.image_tag }}
           HOST_URL: ${{ steps.vars.outputs.host_url }}
           BRANCH_SLUG: ${{ steps.vars.outputs.branch_slug }}
           APP_NAME: openpra-${{ steps.vars.outputs.branch_slug }}
@@ -70,7 +70,7 @@ jobs:
             --with-registry-auth \
             --compose-file docker/cd-stack.yml \
             openpra-${{ steps.vars.outputs.branch_slug }}
-          
+
           echo "Application deployed with image tag: ${{ steps.vars.outputs.image_tag }}"
 
       - name: Check deployment status

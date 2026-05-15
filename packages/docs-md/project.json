@@ -53,7 +53,6 @@
         "ts:markdown:mef-types",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
-        "ts:markdown:raptor",
         "ts:markdown:scram-node"
       ]
     },
@@ -73,12 +72,6 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --json ../docs-md/api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.app.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
-      }
-    },
-    "ts:markdown:raptor": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/raptor --json api/ts/raptor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/test/** --tsconfig ../../packages/microservices/raptor/tsconfig.app.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../packages/microservices/raptor/src"
       }
     },
     "ts:markdown:scram-node": {
@@ -136,7 +129,6 @@
         "ts:explore:folders",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
-        "ts:markdown:raptor",
         "ts:markdown:scram-node",
         "cpp:sanitize"
       ]

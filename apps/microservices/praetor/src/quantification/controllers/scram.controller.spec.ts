@@ -3,18 +3,7 @@ import { ScramController } from './scram.controller';
 import { ProducerService } from '../services/producer.service';
 import { StorageService } from '../services/storage.service';
 import { InternalServerErrorException, NotFoundException, } from '@nestjs/common';
-vi.mock('@nestia/core', async () => {
-    const common = await import('@nestjs/common');
-    return {
-        TypedRoute: {
-            Post: common.Post,
-            Get: common.Get,
-        },
-        TypedBody: common.Body,
-        TypedQuery: common.Query,
-        TypedParam: common.Param,
-    };
-});
+import type { NodeQuantRequest } from '../../common/types/quantify-request';
 describe('ScramController', () => {
     let controller: ScramController;
     const mockProducerService = {
@@ -49,46 +38,46 @@ describe('ScramController', () => {
         it('should queue quant job', async () => {
             const jobId = 'job-id';
             mockProducerService.createAndQueueQuant.mockResolvedValue(jobId);
-            const result = await controller.createAndQueueQuant({} as any);
+            const result = await controller.createAndQueueQuant({} as NodeQuantRequest);
             expect(result).toEqual({ jobId });
         });
         it('should queue sequence batch job', async () => {
             const sequenceJobIds = ['job-1-seq1', 'job-1-seq2'];
             mockProducerService.createAndQueueSequenceBatch.mockResolvedValue(sequenceJobIds);
-            const result = await controller.createAndQueueQuant({} as any, {
+            const result = await controller.createAndQueueQuant({} as NodeQuantRequest, {
                 distributedSequences: 'yes',
             });
             expect(result).toEqual({ parentJobId: 'job-1', sequenceJobIds });
         });
         it('should throw InternalServerErrorException on error', async () => {
             mockProducerService.createAndQueueQuant.mockRejectedValue(new Error());
-            await expect(controller.createAndQueueQuant({} as any)).rejects.toThrow(InternalServerErrorException);
+            await expect(controller.createAndQueueQuant({} as NodeQuantRequest)).rejects.toThrow(InternalServerErrorException);
         });
     });
     describe('createAndQueueAdaptiveQuant', () => {
         it('should queue adaptive quant job', async () => {
             const jobId = 'job-id';
             mockProducerService.createAndQueueQuant.mockResolvedValue(jobId);
-            const result = await controller.createAndQueueAdaptiveQuant({} as any);
+            const result = await controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest);
             expect(result).toEqual({ jobId });
         });
         it('should queue adaptive sequence batch job', async () => {
             const sequenceJobIds = ['job-1-seq1', 'job-1-seq2'];
             mockProducerService.createAndQueueAdaptiveSequenceBatch.mockResolvedValue(sequenceJobIds);
-            const result = await controller.createAndQueueAdaptiveQuant({} as any, {
+            const result = await controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest, {
                 distributedSequences: 'yes',
             });
             expect(result).toEqual({ parentJobId: 'job-1', sequenceJobIds });
         });
         it('should throw InternalServerErrorException if no sequences extracted', async () => {
             mockProducerService.createAndQueueAdaptiveSequenceBatch.mockResolvedValue([]);
-            await expect(controller.createAndQueueAdaptiveQuant({} as any, {
+            await expect(controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest, {
                 distributedSequences: 'yes',
             })).rejects.toThrow(InternalServerErrorException);
         });
         it('should throw InternalServerErrorException on error', async () => {
             mockProducerService.createAndQueueQuant.mockRejectedValue(new Error());
-            await expect(controller.createAndQueueAdaptiveQuant({} as any)).rejects.toThrow(InternalServerErrorException);
+            await expect(controller.createAndQueueAdaptiveQuant({} as NodeQuantRequest)).rejects.toThrow(InternalServerErrorException);
         });
     });
     describe('getJobStatus', () => {

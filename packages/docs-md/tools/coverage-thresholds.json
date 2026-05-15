@@ -10,7 +10,6 @@
     "model-generator": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
     "mef-types": { "symbolDocPct": 78, "paramsPct": 90, "returnsPct": 89 },
     "web-editor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
-    "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 },
-    "raptor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 80 }
+    "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 }
   }
 }

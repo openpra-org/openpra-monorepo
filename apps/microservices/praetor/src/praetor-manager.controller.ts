@@ -1,15 +1,22 @@
-import { Controller, Query, InternalServerErrorException, NotFoundException, } from '@nestjs/common';
-import { TypedRoute } from '@nestia/core';
+import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { PraetorManagerService } from './praetor-manager.service';
+import type { NodeQuantRequest } from './common/types/quantify-request';
 import { JobMetadata } from './shared/minio.service';
-export interface JobResponse {
-    message: string;
+export interface JobTypesResponse {
+    services: Array<{
+        name: string;
+        endpoint: string;
+    }>;
 }
+@ApiTags('Job Management')
 @Controller()
 export class PraetorManagerController {
     constructor(private readonly praetorManagerService: PraetorManagerService) { }
-    @TypedRoute.Get('/job-types')
-    public getJobTypes(): JobResponse {
+    @Get('/job-types')
+    public getJobTypes(): JobTypesResponse {
         try {
             return this.praetorManagerService.getJobTypes();
         }
@@ -17,23 +24,17 @@ export class PraetorManagerController {
             throw new NotFoundException('Server was unable to find the requested list of job types.');
         }
     }
-    @TypedRoute.Get('/jobs')
-    public async getJobs(
-    @Query('status')
-    status: string): Promise<{
-        jobs: JobMetadata[];
-    }> {
+    @Get('/jobs')
+    public async getJobs(@Query('status') status: string): Promise<{ jobs: JobMetadata[] }> {
         try {
             return await this.praetorManagerService.getJobs(status);
         }
         catch {
-            throw new NotFoundException('Server was unable to find the requested list of pending jobs.');
+            throw new NotFoundException('Server was unable to find the requested list of jobs.');
         }
     }
-    @TypedRoute.Get('/pending-jobs')
-    public async getPendingJobs(): Promise<{
-        jobs: JobMetadata[];
-    }> {
+    @Get('/pending-jobs')
+    public async getPendingJobs(): Promise<{ jobs: JobMetadata[] }> {
         try {
             return await this.praetorManagerService.getPendingJobs();
         }
@@ -41,10 +42,8 @@ export class PraetorManagerController {
             throw new NotFoundException('Server was unable to find the requested list of pending jobs.');
         }
     }
-    @TypedRoute.Get('/running-jobs')
-    public async getRunningJobs(): Promise<{
-        jobs: JobMetadata[];
-    }> {
+    @Get('/running-jobs')
+    public async getRunningJobs(): Promise<{ jobs: JobMetadata[] }> {
         try {
             return await this.praetorManagerService.getRunningJobs();
         }
@@ -52,10 +51,26 @@ export class PraetorManagerController {
             throw new NotFoundException('Server was unable to find the requested list of running jobs.');
         }
     }
-    @TypedRoute.Get('/completed-jobs')
-    public async getCompletedJobs(): Promise<{
-        jobs: JobMetadata[];
-    }> {
+    @Get('/processing-jobs')
+    public async getProcessingJobs(): Promise<{ jobs: JobMetadata[] }> {
+        try {
+            return await this.praetorManagerService.getProcessingJobs();
+        }
+        catch {
+            throw new NotFoundException('Server was unable to find the requested list of processing jobs.');
+        }
+    }
+    @Get('/partial-jobs')
+    public async getPartialJobs(): Promise<{ jobs: JobMetadata[] }> {
+        try {
+            return await this.praetorManagerService.getPartialJobs();
+        }
+        catch {
+            throw new NotFoundException('Server was unable to find the requested list of partial jobs.');
+        }
+    }
+    @Get('/completed-jobs')
+    public async getCompletedJobs(): Promise<{ jobs: JobMetadata[] }> {
         try {
             return await this.praetorManagerService.getCompletedJobs();
         }
@@ -63,13 +78,44 @@ export class PraetorManagerController {
             throw new NotFoundException('Server was unable to find the requested list of completed jobs.');
         }
     }
-    @TypedRoute.Post('/create-job')
-    public createJob(): JobResponse {
+    @Get('/failed-jobs')
+    public async getFailedJobs(): Promise<{ jobs: JobMetadata[] }> {
         try {
-            return this.praetorManagerService.createJob();
+            return await this.praetorManagerService.getFailedJobs();
         }
         catch {
-            throw new InternalServerErrorException('Server encountered a problem while creating a job.');
+            throw new NotFoundException('Server was unable to find the requested list of failed jobs.');
+        }
+    }
+    @Get('/examples/:exampleId')
+    public getExample(@Param('exampleId') exampleId: string): NodeQuantRequest {
+        try {
+            const fixturesPath = join(process.cwd(), 'fixtures', 'models', 'MHTGR');
+            let filePath: string;
+            switch (exampleId) {
+                case '1':
+                    filePath = join(fixturesPath, 'JSON', 'chinese.json');
+                    break;
+                case '2':
+                    filePath = join(fixturesPath, 'JSON', 'demo_gas_leak.json');
+                    break;
+                case '3':
+                    filePath = join(fixturesPath, 'JSON', 'chinese_adaptive.json');
+                    break;
+                case '4':
+                    filePath = join(fixturesPath, 'Adaptive', 'demo_gas_leak.json');
+                    break;
+                default:
+                    throw new NotFoundException(`Example ID must be 1, 2, 3, or 4. Received: ${exampleId}`);
+            }
+            return JSON.parse(readFileSync(filePath, 'utf-8')) as NodeQuantRequest;
+        }
+        catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            const message = error instanceof Error ? error.message : String(error);
+            throw new NotFoundException(`Unable to load example ${exampleId}: ${message}`);
         }
     }
 }

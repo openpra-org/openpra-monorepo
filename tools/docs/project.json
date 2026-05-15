@@ -9,7 +9,6 @@
     "shared-types",
     "shared-sdk",
     "model-generator",
-    "microservices-raptor",
     "web-backend",
     "engine-scram"
   ],

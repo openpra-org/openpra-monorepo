@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MinioService, JobMetadata } from '../../shared/minio.service';
+import type { ScramResult, ScramInitiatingEvent } from '../../common/types/scram-result';
 export interface ChildJobOutput {
     jobId: string;
-    output?: any;
+    output?: ScramResult | string;
 }
 export interface JobStatusIds {
     inputId?: string;
@@ -11,9 +12,9 @@ export interface JobStatusIds {
 }
 export interface JobOutputResponse {
     jobId: string;
-    output?: any;
+    output?: ScramResult | string;
     childOutputs?: ChildJobOutput[];
-    aggregatedOutput?: any;
+    aggregatedOutput?: ScramResult;
     failedJobs?: Array<{
         jobId: string;
         error?: string;
@@ -108,8 +109,9 @@ export class StorageService {
                         stats: childMetadata.stats,
                     });
                 }
-                catch (error: any) {
-                    this.logger.warn(`Could not fetch stats for child job ${childJobId}: ${error?.message || String(error)}`);
+                catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    this.logger.warn(`Could not fetch stats for child job ${childJobId}: ${message}`);
                 }
             }
             if (childStats.length > 0) {
@@ -118,63 +120,52 @@ export class StorageService {
         }
         return result;
     }
-    private aggregateSequenceResults(sequenceResults: any[]): any {
-        if (!sequenceResults || sequenceResults.length === 0) {
+    private aggregateSequenceResults(sequenceResults: ScramResult[]): ScramResult {
+        if (sequenceResults.length === 0) {
             return {
                 modelFeatures: {},
                 results: { initiatingEvents: [], sumOfProducts: [] },
             };
         }
-        const aggregatedResult = {
+        const aggregatedResult: ScramResult = {
             modelFeatures: sequenceResults[0]?.modelFeatures ?? {},
             results: {
-                initiatingEvents: [] as any[],
-                sumOfProducts: [] as any[],
+                initiatingEvents: [],
+                sumOfProducts: [],
             },
         };
-        const ieMap = new Map<string, {
-            name: string;
-            description?: string;
-            sequences: any[];
-        }>();
+        const ieMap = new Map<string, ScramInitiatingEvent>();
         for (const res of sequenceResults) {
-            const ies = res?.results?.initiatingEvents ?? [];
-            for (const ie of ies) {
-                const key: string = ie.name;
-                if (!ieMap.has(key)) {
-                    ieMap.set(key, {
+            for (const ie of res.results.initiatingEvents) {
+                if (!ieMap.has(ie.name)) {
+                    ieMap.set(ie.name, {
                         name: ie.name,
                         description: ie.description,
                         sequences: [],
                     });
                 }
-                const entry = ieMap.get(key)!;
-                const seqs = ie?.sequences ?? [];
-                for (const seq of seqs) {
-                    const seqName = seq?.name ?? '';
-                    if (!entry.sequences.some((existing: any) => existing?.name === seqName)) {
+                const entry = ieMap.get(ie.name)!;
+                for (const seq of ie.sequences) {
+                    if (!entry.sequences.some((existing) => existing.name === seq.name)) {
                         entry.sequences.push(seq);
                     }
                 }
             }
         }
         for (const entry of ieMap.values()) {
-            entry.sequences.sort((a: any, b: any) => {
-                const an = String(a?.name ?? '');
-                const bn = String(b?.name ?? '');
-                const anum = parseInt(an.replace(/\D+/g, ''), 10);
-                const bnum = parseInt(bn.replace(/\D+/g, ''), 10);
+            entry.sequences.sort((a, b) => {
+                const anum = parseInt(a.name.replace(/\D+/g, ''), 10);
+                const bnum = parseInt(b.name.replace(/\D+/g, ''), 10);
                 if (!Number.isNaN(anum) && !Number.isNaN(bnum)) {
                     return anum - bnum;
                 }
-                return an.localeCompare(bn);
+                return a.name.localeCompare(b.name);
             });
         }
         aggregatedResult.results.initiatingEvents = Array.from(ieMap.values());
         for (const res of sequenceResults) {
-            const sop = res?.results?.sumOfProducts ?? [];
-            if (sop.length > 0) {
-                aggregatedResult.results.sumOfProducts = sop;
+            if (res.results.sumOfProducts.length > 0) {
+                aggregatedResult.results.sumOfProducts = res.results.sumOfProducts;
                 break;
             }
         }
@@ -186,14 +177,14 @@ export class StorageService {
             jobId: string;
             error?: string;
         }>;
-        sequenceResults: any[];
+        sequenceResults: ScramResult[];
     }> {
         const childOutputs: ChildJobOutput[] = [];
         const failedJobs: Array<{
             jobId: string;
             error?: string;
         }> = [];
-        const sequenceResults: any[] = [];
+        const sequenceResults: ScramResult[] = [];
         if (!metadata.childJobs || metadata.childJobs.length === 0) {
             return { childOutputs, failedJobs, sequenceResults };
         }
@@ -203,14 +194,11 @@ export class StorageService {
                 if (childMetadata.status === 'completed' && childMetadata.outputId) {
                     const output = await this.safeLoadOutput(childMetadata.outputId);
                     if (output === undefined) {
-                        failedJobs.push({
-                            jobId: childJobId,
-                            error: 'Output not available',
-                        });
+                        failedJobs.push({ jobId: childJobId, error: 'Output not available' });
                         continue;
                     }
                     childOutputs.push({ jobId: childJobId, output });
-                    if (output && typeof output === 'object') {
+                    if (typeof output !== 'string') {
                         sequenceResults.push(output);
                     }
                 }
@@ -224,29 +212,30 @@ export class StorageService {
                     });
                 }
             }
-            catch (error: any) {
-                const message = error?.message || String(error);
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
                 this.logger.error(`Failed to load metadata or output for child job ${childJobId}: ${message}`);
                 failedJobs.push({ jobId: childJobId, error: message });
             }
         }
         return { childOutputs, failedJobs, sequenceResults };
     }
-    private async safeLoadOutput(outputId?: string): Promise<any | undefined> {
+    private async safeLoadOutput(outputId?: string): Promise<ScramResult | string | undefined> {
         if (!outputId) {
             return undefined;
         }
         try {
             const rawOutput = await this.minioService.getOutputData(outputId);
             try {
-                return JSON.parse(rawOutput);
+                return JSON.parse(rawOutput) as ScramResult;
             }
             catch {
                 return rawOutput;
             }
         }
-        catch (error: any) {
-            this.logger.error(`Failed to load output for ID ${outputId}: ${error?.message || String(error)}`);
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to load output for ID ${outputId}: ${message}`);
             return undefined;
         }
     }

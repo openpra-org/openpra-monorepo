@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { QueueService } from './queue.service';
 import { RpcException } from '@nestjs/microservices';
+import type { Channel } from 'amqplib';
+import type { QueueConfig } from './queue-config.interfaces';
 describe('QueueService', () => {
     let service: QueueService;
     const mockChannel = {
@@ -9,7 +11,7 @@ describe('QueueService', () => {
         bindQueue: vi.fn(),
         prefetch: vi.fn(),
     };
-    const mockQueueConfig = {
+    const mockQueueConfig: QueueConfig = {
         name: 'test-queue',
         durable: true,
         messageTtl: 1000,
@@ -46,7 +48,7 @@ describe('QueueService', () => {
     });
     describe('setupQueue', () => {
         it('should setup queue and dead letter queue successfully', async () => {
-            await service.setupQueue(mockQueueConfig as any, mockChannel as any);
+            await service.setupQueue(mockQueueConfig, mockChannel as Channel);
             expect(mockChannel.assertExchange).toHaveBeenCalledWith('dlx', 'topic', {
                 durable: true,
             });
@@ -69,19 +71,19 @@ describe('QueueService', () => {
             mockChannel.assertExchange.mockRejectedValueOnce(new Error('Failed'));
             mockChannel.assertExchange.mockResolvedValueOnce(undefined);
             mockChannel.assertExchange.mockRejectedValueOnce(new Error('Failed'));
-            await expect(service.setupQueue(mockQueueConfig as any, mockChannel as any)).rejects.toThrow(RpcException);
+            await expect(service.setupQueue(mockQueueConfig, mockChannel as Channel)).rejects.toThrow(RpcException);
         });
         it('should throw RpcException if queue assertion fails', async () => {
             mockChannel.assertQueue.mockRejectedValueOnce(new Error('Failed'));
             mockChannel.assertQueue.mockResolvedValueOnce(undefined);
             mockChannel.assertQueue.mockRejectedValueOnce(new Error('Failed'));
-            await expect(service.setupQueue(mockQueueConfig as any, mockChannel as any)).rejects.toThrow(RpcException);
+            await expect(service.setupQueue(mockQueueConfig, mockChannel as Channel)).rejects.toThrow(RpcException);
         });
         it('should throw RpcException if binding fails', async () => {
             mockChannel.bindQueue.mockRejectedValueOnce(new Error('Failed'));
             mockChannel.bindQueue.mockResolvedValueOnce(undefined);
             mockChannel.bindQueue.mockRejectedValueOnce(new Error('Failed'));
-            await expect(service.setupQueue(mockQueueConfig as any, mockChannel as any)).rejects.toThrow(RpcException);
+            await expect(service.setupQueue(mockQueueConfig, mockChannel as Channel)).rejects.toThrow(RpcException);
         });
     });
 });

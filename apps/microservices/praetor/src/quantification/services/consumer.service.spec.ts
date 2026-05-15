@@ -3,13 +3,7 @@ import { ConsumerService } from './consumer.service';
 import { QueueService, RabbitMQChannelModelService, QueueConfigFactory, MinioService, } from '../../shared';
 import { runQuantificationWithWorker } from '../workers/quantify-worker-runner';
 import { RpcException } from '@nestjs/microservices';
-vi.mock('typia', () => ({
-    default: {
-        json: {
-            assertParse: vi.fn(),
-        },
-    },
-}));
+import type { ConsumeMessage } from 'amqplib';
 vi.mock('../workers/quantify-worker-runner', () => ({
     runQuantificationWithWorker: vi.fn(),
 }));
@@ -37,12 +31,8 @@ describe('ConsumerService', () => {
     };
     const mockQueueConfigFactory = {
         createQuantJobQueueConfig: vi.fn().mockReturnValue({ name: 'quant' }),
-        createDistributedSequencesJobQueueConfig: vi
-            .fn()
-            .mockReturnValue({ name: 'dist' }),
-        createAdaptiveSequencesJobQueueConfig: vi
-            .fn()
-            .mockReturnValue({ name: 'adapt' }),
+        createDistributedSequencesJobQueueConfig: vi.fn().mockReturnValue({ name: 'dist' }),
+        createAdaptiveSequencesJobQueueConfig: vi.fn().mockReturnValue({ name: 'adapt' }),
     };
     const mockMinioService = {
         getJobMetadata: vi.fn().mockResolvedValue({ sentAt: Date.now() }),
@@ -78,9 +68,9 @@ describe('ConsumerService', () => {
         });
     });
     describe('consumeQuantJobs processing', () => {
-        let consumeCallback: (msg: any) => Promise<void>;
+        let consumeCallback: (msg: ConsumeMessage | null) => Promise<void>;
         beforeEach(async () => {
-            mockChannel.consume.mockImplementation((queue, callback) => {
+            mockChannel.consume.mockImplementation((queue: string, callback: (msg: ConsumeMessage | null) => Promise<void>) => {
                 if (queue === 'quant') {
                     consumeCallback = callback;
                 }
@@ -88,36 +78,28 @@ describe('ConsumerService', () => {
             await service.onApplicationBootstrap();
         });
         it('should process valid message successfully', async () => {
-            const msg = { content: Buffer.from('{}') };
             const quantRequest = { _id: 'job-id' };
-            const typiaMock = await import('typia');
-            (typiaMock.default.json.assertParse as any).mockReturnValue(quantRequest);
-            (runQuantificationWithWorker as any).mockResolvedValue({
-                result: 'success',
+            const msg = { content: Buffer.from(JSON.stringify(quantRequest)) } as ConsumeMessage;
+            vi.mocked(runQuantificationWithWorker).mockResolvedValue({
+                modelFeatures: {},
+                results: { initiatingEvents: [], sumOfProducts: [] },
             });
             await consumeCallback(msg);
-            expect(typiaMock.default.json.assertParse).toHaveBeenCalled();
             expect(runQuantificationWithWorker).toHaveBeenCalled();
             expect(minioService.updateJobMetadata).toHaveBeenCalledWith('job-id', expect.objectContaining({ status: 'running' }));
             expect(minioService.storeOutputData).toHaveBeenCalled();
             expect(mockChannel.ack).toHaveBeenCalledWith(msg);
         });
         it('should nack and update metadata on worker failure', async () => {
-            const msg = { content: Buffer.from('{}') };
             const quantRequest = { _id: 'job-id' };
-            const typiaMock = await import('typia');
-            (typiaMock.default.json.assertParse as any).mockReturnValue(quantRequest);
-            (runQuantificationWithWorker as any).mockRejectedValue(new Error('Worker failed'));
+            const msg = { content: Buffer.from(JSON.stringify(quantRequest)) } as ConsumeMessage;
+            vi.mocked(runQuantificationWithWorker).mockRejectedValue(new Error('Worker failed'));
             await consumeCallback(msg);
             expect(mockChannel.nack).toHaveBeenCalledWith(msg, false, false);
             expect(minioService.updateJobMetadata).toHaveBeenCalledWith('job-id', expect.objectContaining({ status: 'failed' }));
         });
         it('should nack on parse error', async () => {
-            const msg = { content: Buffer.from('invalid-json') };
-            const typiaMock = await import('typia');
-            (typiaMock.default.json.assertParse as any).mockImplementation(() => {
-                throw new Error('Parse error');
-            });
+            const msg = { content: Buffer.from('invalid-json-{{{') } as ConsumeMessage;
             await expect(consumeCallback(msg)).rejects.toThrow(RpcException);
             expect(mockChannel.nack).toHaveBeenCalledWith(msg, false, false);
         });

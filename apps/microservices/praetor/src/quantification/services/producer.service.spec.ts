@@ -3,13 +3,7 @@ import { ProducerService } from './producer.service';
 import { QueueService, RabbitMQChannelModelService, QueueConfigFactory, MinioService, } from '../../shared';
 import { SequenceExtractorService } from './sequence-extractor';
 import { RpcException } from '@nestjs/microservices';
-vi.mock('typia', () => ({
-    default: {
-        json: {
-            assertStringify: vi.fn().mockReturnValue('{}'),
-        },
-    },
-}));
+import type { NodeQuantRequest } from '../../common/types/quantify-request';
 describe('ProducerService', () => {
     let service: ProducerService;
     let minioService: MinioService;
@@ -71,7 +65,7 @@ describe('ProducerService', () => {
     });
     describe('createAndQueueQuant', () => {
         it('should create and queue quant job', async () => {
-            const quantRequest = { _id: 'job-id' } as any;
+            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
             const jobId = await service.createAndQueueQuant(quantRequest);
             expect(jobId).toBeDefined();
             expect(minioService.storeInputData).toHaveBeenCalled();
@@ -80,13 +74,13 @@ describe('ProducerService', () => {
         });
         it('should throw RpcException if exchange check fails', async () => {
             mockChannel.checkExchange.mockRejectedValueOnce(new Error());
-            const quantRequest = { _id: 'job-id' } as any;
+            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
             await expect(service.createAndQueueQuant(quantRequest)).rejects.toThrow(RpcException);
         });
     });
     describe('createAndQueueSequenceBatch', () => {
         it('should create and queue sequence batch', async () => {
-            const quantRequest = { _id: 'job-id' } as any;
+            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
             const sequenceRequests = [{ _id: 'seq-1' }, { _id: 'seq-2' }];
             const sequenceJobIds = ['seq-1', 'seq-2'];
             mockSequenceExtractorService.extractSequenceRequests.mockReturnValue({
@@ -101,7 +95,7 @@ describe('ProducerService', () => {
     });
     describe('createAndQueueAdaptiveSequenceBatch', () => {
         it('should create and queue adaptive sequence batch', async () => {
-            const quantRequest = { _id: 'job-id' } as any;
+            const quantRequest: NodeQuantRequest = { _id: 'job-id' };
             const sequenceRequests = [{ _id: 'seq-1' }, { _id: 'seq-2' }];
             const sequenceJobIds = ['seq-1', 'seq-2'];
             mockSequenceExtractorService.extractSequenceRequests.mockReturnValue({

@@ -20,7 +20,6 @@ vi.mock('minio', () => {
 });
 describe('MinioService', () => {
     let service: MinioService;
-    let minioClient: any;
     const mockConfigService = {
         getOrThrow: vi.fn((key: string) => {
             switch (key) {
@@ -55,7 +54,6 @@ describe('MinioService', () => {
             ],
         }).compile();
         service = module.get<MinioService>(MinioService);
-        minioClient = mockMinioClient;
     });
     it('should be defined', () => {
         expect(service).toBeDefined();

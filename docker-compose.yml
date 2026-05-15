@@ -49,29 +49,26 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:4200/"]
       <<: *healthcheck-fragments
 
-  raptor-manager:
+  praetor-manager:
     <<: *base-image
     ports:
       - "3000:3000"
-    command: "nx run --verbose raptor:serve:development"
+    command: "nx run --verbose praetor:serve:development"
     networks:
       - db_net
       - rmq_net
     depends_on:
-      - mongodb
       - rabbitmq
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
       <<: *healthcheck-fragments
 
-  raptor-engine:
+  praetor-engine:
     <<: *base-image
-    command: "nx run --verbose raptor:serve-engine:development"
+    command: "nx run --verbose praetor:serve-engine:development"
     networks:
-      - db_net
       - rmq_net
     depends_on:
-      - mongodb
       - rabbitmq
     deploy:
       replicas: 2

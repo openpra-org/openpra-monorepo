@@ -82,7 +82,6 @@ export default defineConfig({
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
-          { text: "Raptor (microservice)", link: "/api/ts/raptor/README.html" },
         ],
       },
       {
@@ -256,18 +255,6 @@ export default defineConfig({
             { text: "Modules", link: "/api/ts/web-backend/modules.html" },
             ...(explorerEnabled ?
               [{ text: "Explore src/ (by folder)", link: "/api/ts/web-backend/_explore/index.html" }]
-            : []),
-          ],
-        },
-      ],
-      "/api/ts/raptor/": [
-        {
-          text: "Raptor",
-          items: [
-            { text: "Index", link: "/api/ts/raptor/README.html" },
-            { text: "Modules", link: "/api/ts/raptor/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/raptor/_explore/index.html" }]
             : []),
           ],
         },

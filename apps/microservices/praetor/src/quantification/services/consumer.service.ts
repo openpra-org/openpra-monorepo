@@ -2,11 +2,12 @@ import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown, } fr
 import { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 import { createReadStream, promises as fsPromises } from 'fs';
 import { Readable } from 'stream';
-import typia from 'typia';
 import { NodeQuantRequest } from '../../common/types/quantify-request';
 import { RpcException } from '@nestjs/microservices';
 import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQChannelModelService, MinioService, } from '../../shared';
 import { runQuantificationWithWorker } from '../workers/quantify-worker-runner';
+import type { QuantifyModelResult, QuantifyModelFileResult } from '../../common/types/quantify-result';
+import type { ScramResult } from '../../common/types/scram-result';
 @Injectable()
 export class ConsumerService implements OnApplicationBootstrap, OnApplicationShutdown {
     private readonly logger = new Logger(ConsumerService.name);
@@ -38,7 +39,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         try {
             await this.channel?.checkQueue(this.quantQueueConfig.name);
         }
-        catch (err) {
+        catch {
             throw new RpcException(`Queue: ${this.quantQueueConfig.name} does not exist.`);
         }
         await this.channel?.consume(this.quantQueueConfig.name, async (msg: ConsumeMessage | null) => {
@@ -47,9 +48,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             }
             const modelsData = ((): NodeQuantRequest => {
                 try {
-                    return typia.json.assertParse<NodeQuantRequest>(msg.content.toString());
+                    return JSON.parse(msg.content.toString()) as NodeQuantRequest;
                 }
-                catch (err) {
+                catch {
                     this.channel?.nack(msg, false, false);
                     throw new RpcException(`${ConsumerService.name} consumed invalid message.`);
                 }
@@ -57,9 +58,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             try {
                 await this.handleRegularJob(modelsData);
             }
-            catch (err: any) {
+            catch (err) {
                 this.channel?.nack(msg, false, false);
-                const errorMessage = err?.message || String(err);
+                const errorMessage = err instanceof Error ? err.message : String(err);
                 await this.minioService.updateJobMetadata(String(modelsData._id), {
                     status: 'failed',
                     error: errorMessage,
@@ -73,7 +74,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         try {
             await this.channel?.checkQueue(this.distributedSequencesQueueConfig.name);
         }
-        catch (err) {
+        catch {
             throw new RpcException(`Queue: ${this.distributedSequencesQueueConfig.name} does not exist.`);
         }
         await this.channel?.consume(this.distributedSequencesQueueConfig.name, async (msg: ConsumeMessage | null) => {
@@ -81,9 +82,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                 throw new RpcException(`Null message from ${this.distributedSequencesQueueConfig.name}`);
             const modelsData = ((): NodeQuantRequest => {
                 try {
-                    return typia.json.assertParse<NodeQuantRequest>(msg.content.toString());
+                    return JSON.parse(msg.content.toString()) as NodeQuantRequest;
                 }
-                catch (err) {
+                catch {
                     this.channel?.nack(msg, false, false);
                     throw new RpcException(`Invalid message from ${this.distributedSequencesQueueConfig.name}`);
                 }
@@ -91,9 +92,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             try {
                 await this.handleSequenceJob(modelsData);
             }
-            catch (err: any) {
+            catch (err) {
                 this.channel?.nack(msg, false, false);
-                const errorMessage = err?.message || String(err);
+                const errorMessage = err instanceof Error ? err.message : String(err);
                 const parentJobId = this.extractParentJobId(String(modelsData._id));
                 if (parentJobId) {
                     await this.minioService.updateJobMetadata(parentJobId, {
@@ -112,15 +113,11 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         let idleTime: number | undefined;
         try {
             const metadata = await this.minioService.getJobMetadata(jobId);
-            if (metadata.sentAt)
-                idleTime = (receivedAt - metadata.sentAt) / 1000;
+            if (metadata.sentAt) idleTime = (receivedAt - metadata.sentAt) / 1000;
         }
-        catch (err) { }
+        catch { }
         this.logger.debug(`Running regular job: ${jobId}`);
-        await this.minioService.updateJobMetadata(jobId, {
-            status: 'running',
-            receivedAt,
-        });
+        await this.minioService.updateJobMetadata(jobId, { status: 'running', receivedAt });
         const executionStartTime = Date.now();
         const result = await this.performQuantification(nodeQuantRequest);
         const executionTime = (Date.now() - executionStartTime) / 1000;
@@ -129,24 +126,20 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         let totalSeconds: number | undefined;
         let probability: number | undefined;
         let products: number | undefined;
-        const isFileReference = this.isFileResult(result);
-        if (!isFileReference && result && typeof result === 'object') {
-            const resultObj = result as Record<string, any>;
-            analysisSeconds =
-                resultObj.runtimeSummary?.analysisSeconds ||
-                    resultObj.results?.runtimeSummary?.analysisSeconds;
-            totalSeconds =
-                resultObj.runtimeSummary?.totalSeconds ||
-                    resultObj.results?.runtimeSummary?.totalSeconds ||
-                    analysisSeconds;
-            if (resultObj.results?.sumOfProducts?.[0]) {
-                probability = resultObj.results.sumOfProducts[0].probability;
-                products = resultObj.results.sumOfProducts[0].products;
+        if (!this.isFileResult(result)) {
+            analysisSeconds = result.runtimeSummary?.analysisSeconds ?? result.results.runtimeSummary?.analysisSeconds;
+            totalSeconds = result.runtimeSummary?.totalSeconds ?? result.results.runtimeSummary?.totalSeconds ?? analysisSeconds;
+            const firstSop = result.results.sumOfProducts[0];
+            if (firstSop) {
+                probability = firstSop.probability;
+                products = firstSop.products;
             }
-            else if (resultObj.results?.initiatingEvents?.[0]?.sequences?.[0]) {
-                const seq = resultObj.results.initiatingEvents[0].sequences[0];
-                probability = seq.probability;
-                products = seq.products;
+            else {
+                const firstSeq = result.results.initiatingEvents[0]?.sequences?.[0];
+                if (firstSeq) {
+                    probability = firstSeq.probability;
+                    products = firstSeq.products;
+                }
             }
         }
         await this.minioService.updateJobMetadata(jobId, {
@@ -178,31 +171,28 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         let idleTime: number | undefined;
         try {
             const metadata = await this.minioService.getJobMetadata(sequenceJobId);
-            if (metadata.sentAt)
-                idleTime = (receivedAt - metadata.sentAt) / 1000;
+            if (metadata.sentAt) idleTime = (receivedAt - metadata.sentAt) / 1000;
         }
-        catch (err) { }
-        await this.minioService.updateJobMetadata(sequenceJobId, {
-            status: 'running',
-            receivedAt,
-        });
+        catch { }
+        await this.minioService.updateJobMetadata(sequenceJobId, { status: 'running', receivedAt });
         const executionStartTime = Date.now();
         const result = await this.performQuantification(nodeQuantRequest);
         const executionTime = (Date.now() - executionStartTime) / 1000;
         const outputId = await this.storeQuantificationResult(sequenceJobId, result);
         let probability: number | undefined;
         let products: number | undefined;
-        const isFileReference = this.isFileResult(result);
-        if (!isFileReference && result && typeof result === 'object') {
-            const resultObj = result as Record<string, any>;
-            if (resultObj.results?.sumOfProducts?.[0]) {
-                probability = resultObj.results.sumOfProducts[0].probability;
-                products = resultObj.results.sumOfProducts[0].products;
+        if (!this.isFileResult(result)) {
+            const firstSop = result.results.sumOfProducts[0];
+            if (firstSop) {
+                probability = firstSop.probability;
+                products = firstSop.products;
             }
-            else if (resultObj.results?.initiatingEvents?.[0]?.sequences?.[0]) {
-                probability =
-                    resultObj.results.initiatingEvents[0].sequences[0].probability;
-                products = resultObj.results.initiatingEvents[0].sequences[0].products;
+            else {
+                const firstSeq = result.results.initiatingEvents[0]?.sequences?.[0];
+                if (firstSeq) {
+                    probability = firstSeq.probability;
+                    products = firstSeq.products;
+                }
             }
         }
         await this.minioService.updateJobMetadata(sequenceJobId, {
@@ -221,21 +211,17 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         const allCompleted = await this.checkAllSequencesCompleted(parentJobId);
         if (allCompleted) {
             this.logger.debug(`All sequences completed for parent ${parentJobId}`);
-            await this.minioService.updateJobMetadata(parentJobId, {
-                status: 'completed',
-            });
+            await this.minioService.updateJobMetadata(parentJobId, { status: 'completed' });
         }
         else {
-            await this.minioService.updateJobMetadata(parentJobId, {
-                status: 'partial',
-            });
+            await this.minioService.updateJobMetadata(parentJobId, { status: 'partial' });
         }
     }
     private async consumeAdaptiveSequenceJobs(): Promise<void> {
         try {
             await this.channel?.checkQueue(this.adaptiveSequencesQueueConfig.name);
         }
-        catch (err) {
+        catch {
             throw new RpcException(`Queue: ${this.adaptiveSequencesQueueConfig.name} does not exist.`);
         }
         await this.channel?.consume(this.adaptiveSequencesQueueConfig.name, async (msg: ConsumeMessage | null) => {
@@ -243,9 +229,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                 throw new RpcException(`Null msg from ${this.adaptiveSequencesQueueConfig.name}`);
             const nodeQuantRequest = ((): NodeQuantRequest => {
                 try {
-                    return typia.json.assertParse<NodeQuantRequest>(msg.content.toString());
+                    return JSON.parse(msg.content.toString()) as NodeQuantRequest;
                 }
-                catch (err) {
+                catch {
                     this.logger.error('Failed to parse adaptive message');
                     throw new RpcException('Parse failure');
                 }
@@ -253,9 +239,9 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             try {
                 await this.handleAdaptiveSequenceJob(nodeQuantRequest);
             }
-            catch (err: any) {
+            catch (err) {
                 this.channel?.nack(msg, false, false);
-                const errorMessage = err?.message || String(err);
+                const errorMessage = err instanceof Error ? err.message : String(err);
                 this.logger.error(`Adaptive Job ${String(nodeQuantRequest._id)} failed: ${errorMessage}`);
                 await this.minioService.updateJobMetadata(String(nodeQuantRequest._id), {
                     status: 'failed',
@@ -282,13 +268,10 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                 idleTime = (receivedAt - metadata.sentAt) / 1000;
             }
         }
-        catch (err) {
+        catch {
             this.logger.debug(`Could not calculate idle time for adaptive sequence job ${sequenceJobId}`);
         }
-        await this.minioService.updateJobMetadata(sequenceJobId, {
-            status: 'running',
-            receivedAt,
-        });
+        await this.minioService.updateJobMetadata(sequenceJobId, { status: 'running', receivedAt });
         const executionStartTime = Date.now();
         const report = await this.performQuantification(nodeQuantRequest);
         const executionTime = (Date.now() - executionStartTime) / 1000;
@@ -296,34 +279,29 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         const metrics = this.extractAdaptiveMetrics(report);
         let analysisSeconds: number | undefined;
         let totalSeconds: number | undefined;
-        if (report && typeof report === 'object' && !this.isFileResult(report)) {
-            const runtimeSummary = (report as any).runtimeSummary ??
-                (report as any).results?.runtimeSummary;
+        if (!this.isFileResult(report)) {
+            const runtimeSummary = report.runtimeSummary ?? report.results.runtimeSummary;
             if (runtimeSummary) {
-                analysisSeconds = runtimeSummary.analysisSeconds ?? undefined;
-                totalSeconds =
-                    runtimeSummary.totalSeconds ??
-                        runtimeSummary.analysisSeconds ??
-                        undefined;
+                analysisSeconds = runtimeSummary.analysisSeconds;
+                totalSeconds = runtimeSummary.totalSeconds ?? runtimeSummary.analysisSeconds;
             }
         }
-        const stats = {
-            idleTime,
-            executionTime,
-            startedAt: executionStartTime,
-            endedAt: Date.now(),
-            analysisSeconds,
-            totalSeconds,
-            originalProducts: metrics.originalProducts,
-            products: metrics.products,
-            exactProbability: metrics.exactProbability,
-            approximateProbability: metrics.approximateProbability,
-            relativeError: metrics.relativeError,
-        };
         await this.minioService.updateJobMetadata(sequenceJobId, {
             status: 'completed',
             outputId: outputId,
-            stats,
+            stats: {
+                idleTime,
+                executionTime,
+                startedAt: executionStartTime,
+                endedAt: Date.now(),
+                analysisSeconds,
+                totalSeconds,
+                originalProducts: metrics.originalProducts,
+                products: metrics.products,
+                exactProbability: metrics.exactProbability,
+                approximateProbability: metrics.approximateProbability,
+                relativeError: metrics.relativeError,
+            },
         });
         await this.markSequenceCompleted(parentJobId, sequenceJobId);
         const allCompleted = await this.checkAllSequencesCompleted(parentJobId);
@@ -331,24 +309,19 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             status: allCompleted ? 'completed' : 'partial',
         });
     }
-    private extractAdaptiveMetrics(report: any): {
+    private extractAdaptiveMetrics(report: QuantifyModelResult): {
         originalProducts?: number;
         products?: number;
         exactProbability?: number;
         approximateProbability?: number;
         relativeError?: number;
     } {
-        if (!report || typeof report !== 'object' || this.isFileResult(report)) {
+        if (this.isFileResult(report)) {
             return {};
         }
-        const results = (report as Record<string, any>).results ?? {};
-        const sumOfProducts = Array.isArray(results.sumOfProducts) && results.sumOfProducts.length > 0
-            ? results.sumOfProducts[0]
-            : undefined;
-        const sequence = Array.isArray(results.initiatingEvents) &&
-            results.initiatingEvents[0]?.sequences
-            ? results.initiatingEvents[0].sequences[0]
-            : undefined;
+        const { results } = report;
+        const sumOfProducts = results.sumOfProducts.length > 0 ? results.sumOfProducts[0] : undefined;
+        const sequence = results.initiatingEvents[0]?.sequences?.[0];
         const cutSets = sequence?.cutSets;
         const rawOriginalProducts = sumOfProducts?.originalProducts ?? cutSets?.originalProducts;
         const originalProducts = typeof rawOriginalProducts === 'number' ? rawOriginalProducts : undefined;
@@ -358,7 +331,6 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             sumOfProducts?.adaptiveTarget ??
             sumOfProducts?.['exact-probability'] ??
             cutSets?.exactProbability ??
-            cutSets?.adaptiveTarget ??
             sequence?.exactProbability;
         const exactProbability = typeof rawExact === 'number' ? rawExact : undefined;
         const rawApprox = sumOfProducts?.approximateProbability ??
@@ -369,22 +341,13 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             sequence?.probability ??
             sequence?.value;
         const approximateProbability = typeof rawApprox === 'number' ? rawApprox : undefined;
-        const rawRelError = sumOfProducts?.relativeError ??
-            cutSets?.relativeError ??
-            sequence?.relativeError;
+        const rawRelError = sumOfProducts?.relativeError ?? cutSets?.relativeError ?? sequence?.relativeError;
         const relativeError = typeof rawRelError === 'number' ? rawRelError : undefined;
-        return {
-            originalProducts,
-            products,
-            exactProbability,
-            approximateProbability,
-            relativeError,
-        };
+        return { originalProducts, products, exactProbability, approximateProbability, relativeError };
     }
     private extractParentJobId(sequenceJobId: string): string | null {
         const parts = sequenceJobId.split('-');
-        if (parts.length === 6)
-            return parts.slice(0, 5).join('-');
+        if (parts.length === 6) return parts.slice(0, 5).join('-');
         return null;
     }
     private async markSequenceCompleted(parentJobId: string, sequenceJobId: string): Promise<void> {
@@ -392,49 +355,47 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
     }
     private async checkAllSequencesCompleted(parentJobId: string): Promise<boolean> {
         const parentMetadata = await this.minioService.getJobMetadata(parentJobId);
-        if (!parentMetadata.childJobs || parentMetadata.childJobs.length === 0)
-            return false;
+        if (!parentMetadata.childJobs || parentMetadata.childJobs.length === 0) return false;
         const completedCount = await this.minioService.getCompletedSequenceCount(parentJobId);
         return completedCount === parentMetadata.childJobs.length;
     }
-    public async performQuantification(nodeQuantRequest: NodeQuantRequest): Promise<any> {
+    public async performQuantification(nodeQuantRequest: NodeQuantRequest): Promise<QuantifyModelResult> {
         const { _id, ...quantRequest } = nodeQuantRequest;
         try {
             this.logger.debug(`${String(_id)} running scram-node`);
-            const report = await runQuantificationWithWorker(quantRequest);
-            return report;
+            return await runQuantificationWithWorker(quantRequest);
         }
-        catch (error: any) {
-            this.logger.error(`Quantification failed for ${String(_id)}: ${error?.message}`);
-            throw new Error(`SCRAM quantification failed: ${error?.message}`);
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Quantification failed for ${String(_id)}: ${message}`);
+            throw new Error(`SCRAM quantification failed: ${message}`);
         }
     }
-    private isFileResult(result: any): result is {
-        type: 'file';
-        path: string;
-        size?: number | bigint;
-        format?: string;
-    } {
-        return Boolean(result &&
+    private isFileResult(result: QuantifyModelResult): result is QuantifyModelFileResult {
+        return (
             typeof result === 'object' &&
-            (result as Record<string, unknown>).type === 'file' &&
-            typeof (result as Record<string, unknown>).path === 'string');
+            result !== null &&
+            'type' in result &&
+            (result as QuantifyModelFileResult).type === 'file' &&
+            typeof (result as QuantifyModelFileResult).path === 'string'
+        );
     }
-    private async storeQuantificationResult(jobId: string, result: any): Promise<string> {
+    private async storeQuantificationResult(jobId: string, result: QuantifyModelResult): Promise<string> {
         if (this.isFileResult(result)) {
             const reportPath = result.path;
             try {
                 const sizeLabel = typeof result.size === 'bigint'
                     ? result.size.toString()
-                    : result.size ?? 'unknown';
+                    : String(result.size ?? 'unknown');
                 this.logger.debug(`Uploading streamed report for job ${jobId} from ${reportPath} (size=${sizeLabel} bytes)`);
                 const stream = createReadStream(reportPath);
                 const outputId = await this.minioService.storeOutputData(stream, jobId);
                 try {
                     await fsPromises.unlink(reportPath);
                 }
-                catch (unlinkErr: any) {
-                    this.logger.warn(`Failed to delete temporary report ${reportPath}: ${unlinkErr?.message || unlinkErr}`);
+                catch (unlinkErr) {
+                    const unlinkMessage = unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr);
+                    this.logger.warn(`Failed to delete temporary report ${reportPath}: ${unlinkMessage}`);
                 }
                 return outputId;
             }
@@ -443,7 +404,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                 throw streamErr;
             }
         }
-        const payload = JSON.stringify(result ?? {});
+        const payload = JSON.stringify(result);
         const outputStream = Readable.from([payload]);
         return this.minioService.storeOutputData(outputStream, jobId);
     }
@@ -455,7 +416,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             await this.channel?.close();
             await this.channelModel?.close();
         }
-        catch (err) {
+        catch {
             throw new RpcException(`${ConsumerService.name} failed to stop RabbitMQ services.`);
         }
     }

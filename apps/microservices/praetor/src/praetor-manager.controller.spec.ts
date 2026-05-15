@@ -2,15 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PraetorManagerController } from './praetor-manager.controller';
 import { PraetorManagerService } from './praetor-manager.service';
 import { NotFoundException } from '@nestjs/common';
-vi.mock('@nestia/core', () => ({
-    TypedRoute: {
-        Get: vi.fn(() => vi.fn()),
-        Post: vi.fn(() => vi.fn()),
-    },
-    TypedQuery: vi.fn(),
-    TypedParam: vi.fn(),
-    TypedBody: vi.fn(),
-}));
 describe('PraetorManagerController', () => {
     let controller: PraetorManagerController;
     const mockService = {
@@ -18,8 +9,10 @@ describe('PraetorManagerController', () => {
         getJobs: vi.fn(),
         getPendingJobs: vi.fn(),
         getRunningJobs: vi.fn(),
+        getProcessingJobs: vi.fn(),
+        getPartialJobs: vi.fn(),
         getCompletedJobs: vi.fn(),
-        createJob: vi.fn(),
+        getFailedJobs: vi.fn(),
     };
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -38,7 +31,7 @@ describe('PraetorManagerController', () => {
     });
     describe('getJobTypes', () => {
         it('should return job types', () => {
-            const result = { message: 'types' };
+            const result = { services: [{ name: 'SCRAM Quantify', endpoint: '/q/scram' }] };
             mockService.getJobTypes.mockReturnValue(result);
             expect(controller.getJobTypes()).toBe(result);
         });
@@ -75,11 +68,32 @@ describe('PraetorManagerController', () => {
             expect(await controller.getRunningJobs()).toBe(result);
         });
     });
+    describe('getProcessingJobs', () => {
+        it('should return processing jobs', async () => {
+            const result = { jobs: [] };
+            mockService.getProcessingJobs.mockResolvedValue(result);
+            expect(await controller.getProcessingJobs()).toBe(result);
+        });
+    });
+    describe('getPartialJobs', () => {
+        it('should return partial jobs', async () => {
+            const result = { jobs: [] };
+            mockService.getPartialJobs.mockResolvedValue(result);
+            expect(await controller.getPartialJobs()).toBe(result);
+        });
+    });
     describe('getCompletedJobs', () => {
         it('should return completed jobs', async () => {
             const result = { jobs: [] };
             mockService.getCompletedJobs.mockResolvedValue(result);
             expect(await controller.getCompletedJobs()).toBe(result);
+        });
+    });
+    describe('getFailedJobs', () => {
+        it('should return failed jobs', async () => {
+            const result = { jobs: [] };
+            mockService.getFailedJobs.mockResolvedValue(result);
+            expect(await controller.getFailedJobs()).toBe(result);
         });
     });
 });

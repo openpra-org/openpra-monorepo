@@ -420,7 +420,6 @@ export interface EventSequenceQuantificationDocumentation extends BaseProcessDoc
   intermediateStatesApproach?: string;
   riskSignificanceDrivers?: string;
   comparisonToSimilarPlants?: string;
-  [key: string]: any;
 }
 export interface EventSequenceQuantificationUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   modelUncertaintySources: {

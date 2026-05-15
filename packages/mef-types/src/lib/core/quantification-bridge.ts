@@ -4,7 +4,7 @@ export interface QuantificationReference {
   dataAnalysisReference?: string;
   referenceType: "direct" | "template-based" | "component-based" | "custom";
   quantificationMethod?: "point-estimate" | "distribution" | "bayesian" | "maximum-likelihood" | string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean | null>;
 }
 export interface QuantificationReferenceRegistry {
   references: Record<string, QuantificationReference>;
@@ -22,8 +22,8 @@ export interface QuantificationWorkflowConfig {
   missingReferenceHandling?: "error" | "warn" | "ignore";
   enableCaching?: boolean;
   hooks?: {
-    beforeQuantification?: Function;
-    afterQuantification?: Function;
+    beforeQuantification?: () => void | Promise<void>;
+    afterQuantification?: () => void | Promise<void>;
   };
 }
 export class QuantificationReferenceManager {
@@ -33,7 +33,7 @@ export class QuantificationReferenceManager {
     options?: {
       referenceType?: "direct" | "template-based" | "component-based" | "custom";
       quantificationMethod?: string;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, string | number | boolean | null>;
     },
   ): QuantificationReference {
     return {
@@ -45,7 +45,7 @@ export class QuantificationReferenceManager {
       metadata: options?.metadata,
     };
   }
-  static resolveReference(reference: QuantificationReference): any {
+  static resolveReference(_reference: QuantificationReference): null {
     return null;
   }
   static createRegistry(): QuantificationReferenceRegistry {

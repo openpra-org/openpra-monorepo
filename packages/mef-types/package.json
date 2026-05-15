@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "dependencies": {
     "tslib": "2.5.2",
-    "typia": "9.7.2"
+    "zod": "^3.24.0"
   },
   "type": "commonjs",
   "main": "./src/index.js",

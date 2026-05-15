@@ -197,7 +197,7 @@ export interface BoundingSite {
     siteBoundaryDistance?: number;
     populationCentreDistance?: number;
     terrain?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
   boundingJustification: string;
   boundedSites?: string[];

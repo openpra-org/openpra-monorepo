@@ -18,7 +18,7 @@ export interface OpenPSASerializable {
     modelType?: "fault-tree" | "event-tree" | "reliability-block";
     modelName?: string;
   };
-  openPSAAttributes?: Record<string, any>;
+  openPSAAttributes?: Record<string, string | number | boolean>;
 }
 export interface OpenPSASerializationOptions {
   prettyPrint?: boolean;

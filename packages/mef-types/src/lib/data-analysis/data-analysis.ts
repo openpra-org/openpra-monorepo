@@ -104,7 +104,7 @@ export interface OperationalDataPoint {
   failureModeReference?: string;
   measurements?: Record<string, number>;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean | null>;
 }
 export interface OperationalDataRegistry {
   id: string;

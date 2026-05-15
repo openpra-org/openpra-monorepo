@@ -364,7 +364,7 @@ export interface FaultTreeNode extends Unique {
   houseEventValue?: boolean;
   transferTreeId?: string;
   sourceNodeId?: string;
-  specialEventValue?: any;
+  specialEventValue?: string | number | boolean | null;
   initiatingEventRef?: string;
   kValue?: number;
   probabilityType?: FaultTreeNodeProbabilityType;

@@ -18,7 +18,7 @@ export interface ComponentRegistry extends Unique {
 export interface ComponentType extends Unique, Named, Versioned {
   description?: string;
   category: string;
-  commonCharacteristics: Record<string, any>;
+  commonCharacteristics: Record<string, unknown>;
 }
 export const ComponentUtils = {
   generateComponentId: (): ComponentReference => {

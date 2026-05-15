@@ -87,6 +87,8 @@ __pycache__/
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
+.claude/
+
 /packages/docs-md/api/
 /packages/docs-md/.tmp/
 /packages/docs-md/.vitepress/dist/

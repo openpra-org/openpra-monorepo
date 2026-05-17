@@ -59,7 +59,12 @@
 .pf__section-actions {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.pf__section-h > div:first-child {
+  min-width: 0;
 }
 
 .pf__edit-btn {

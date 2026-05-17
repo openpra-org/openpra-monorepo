@@ -88,6 +88,7 @@ __pycache__/
 .github/instructions/nx.instructions.md
 
 .claude/
+.mcp.json
 
 /packages/docs-md/api/
 /packages/docs-md/.tmp/

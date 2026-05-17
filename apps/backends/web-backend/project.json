@@ -1,0 +1,48 @@
+{
+  "name": "backends-web-backend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:server"],
+  "sourceRoot": "apps/backends/web-backend/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/apps/backends/web-backend",
+        "generatePackageJson": false,
+        "generateLockfile": false,
+        "main": "apps/backends/web-backend/src/main.ts",
+        "tsConfig": "apps/backends/web-backend/tsconfig.app.json",
+        "assets": [],
+        "webpackConfig": "apps/backends/web-backend/webpack.config.js"
+      },
+      "configurations": {
+        "development": {},
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "backends-web-backend:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "backends-web-backend:build:development"
+        },
+        "production": {
+          "buildTarget": "backends-web-backend:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  }
+}

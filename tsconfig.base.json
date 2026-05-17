@@ -10,7 +10,9 @@
       "shared-types": ["packages/shared-types/src/index.ts"],
       "shared-types/*": ["packages/shared-types/*"],
       "shared-types/src/*": ["packages/shared-types/src/*"],
-      "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"]
+      "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"],
+      "interfaces-shared-types": ["apps/interfaces/shared-types/src/index.ts"],
+      "interfaces-shared-types/*": ["apps/interfaces/shared-types/src/*"]
     },
     "types": ["jest", "node", "@types/jest"],
     "strictNullChecks": true,

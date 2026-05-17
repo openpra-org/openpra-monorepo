@@ -1,0 +1,71 @@
+{
+  "name": "frontends-web-frontend",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:client"],
+  "sourceRoot": "apps/frontends/web-frontend/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/frontends/web-frontend",
+        "index": "apps/frontends/web-frontend/src/index.html",
+        "baseHref": "/",
+        "main": "apps/frontends/web-frontend/src/main.tsx",
+        "tsConfig": "apps/frontends/web-frontend/tsconfig.app.json",
+        "assets": [],
+        "styles": ["apps/frontends/web-frontend/src/styles.css"],
+        "scripts": [],
+        "webpackConfig": "apps/frontends/web-frontend/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true,
+          "vendorChunk": true
+        },
+        "production": {
+          "optimization": true,
+          "outputHashing": "all",
+          "sourceMap": false,
+          "namedChunks": false,
+          "extractLicenses": true,
+          "vendorChunk": false
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/webpack:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "frontends-web-frontend:build",
+        "hmr": true,
+        "host": "0.0.0.0"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "frontends-web-frontend:build:development"
+        },
+        "production": {
+          "buildTarget": "frontends-web-frontend:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/frontends/web-frontend/jest.config.ts"
+      }
+    }
+  }
+}

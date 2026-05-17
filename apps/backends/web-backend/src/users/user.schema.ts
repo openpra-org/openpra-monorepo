@@ -28,6 +28,21 @@ export class User {
 
   @Prop({ type: Date, default: null })
   resetTokenExpiresAt!: Date | null;
+
+  @Prop({ type: String, default: "" })
+  title!: string;
+
+  @Prop({ type: String, default: "" })
+  bio!: string;
+
+  @Prop({ type: String, default: "" })
+  altEmail!: string;
+
+  @Prop({ type: String, default: "" })
+  phone!: string;
+
+  @Prop({ type: String, default: "" })
+  linkedin!: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

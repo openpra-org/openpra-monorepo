@@ -1,0 +1,97 @@
+.pf__vis-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf__vis {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-surface-low);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.pf__vis:hover {
+  border-color: var(--color-border-strong);
+}
+
+.pf__vis-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pf__vis-dot {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.pf__vis-dot::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.pf__vis-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pf__vis-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pf__vis-head svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+}
+
+.pf__vis-desc {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.pf__vis--checked {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+}
+
+.pf__vis--checked .pf__vis-head svg {
+  color: var(--color-primary);
+}
+
+.pf__vis--checked .pf__vis-dot {
+  border-color: var(--color-primary);
+}
+
+.pf__vis--checked .pf__vis-dot::after {
+  opacity: 1;
+}

@@ -5,7 +5,7 @@ import { getModelToken } from "@nestjs/mongoose";
 import * as argon2 from "argon2";
 import { AuthService } from "../auth.service";
 import { EmailService } from "../email.service";
-import { User } from "../user.schema";
+import { User } from "../../users/user.schema";
 
 interface FakeUser {
   _id: string;

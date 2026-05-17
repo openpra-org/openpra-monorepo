@@ -5,7 +5,7 @@ import { elementsForMode } from "interfaces-shared-types";
 import { Types } from "mongoose";
 import { ProjectsService } from "../projects.service";
 import { Project } from "../project.schema";
-import { User } from "../../auth/user.schema";
+import { User } from "../../users/user.schema";
 
 function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);

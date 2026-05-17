@@ -14,7 +14,7 @@ import {
   elementsForMode,
   riskModeLabel,
 } from "interfaces-shared-types";
-import { User, type UserDocument } from "../auth/user.schema";
+import { User, type UserDocument } from "../users/user.schema";
 import { Project, type ProjectDocument } from "./project.schema";
 
 function computeInitials(fullName: string): string {

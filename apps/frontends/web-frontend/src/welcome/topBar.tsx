@@ -86,7 +86,12 @@ function TopBar(): JSX.Element {
                 <div className="wp__menu-name">{displayName}</div>
                 {displayEmail && <div className="wp__menu-email">{displayEmail}</div>}
               </div>
-              <button type="button" className="wp__menu-item" role="menuitem" onClick={() => { comingSoon("Profile"); }}>
+              <button
+                type="button"
+                className="wp__menu-item"
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); navigate("/profile"); }}
+              >
                 <UserIcon /> Profile
               </button>
               <button type="button" className="wp__menu-item" role="menuitem" onClick={() => { comingSoon("Settings"); }}>

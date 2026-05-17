@@ -14,7 +14,7 @@ import type {
   ResetPasswordRequest,
   ResetPasswordResponse,
 } from "interfaces-shared-types";
-import { User, type UserDocument } from "./user.schema";
+import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;

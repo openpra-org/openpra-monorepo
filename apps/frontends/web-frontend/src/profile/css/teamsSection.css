@@ -1,0 +1,177 @@
+.pf__teams {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf__team {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--color-surface-low);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.pf__team:hover {
+  border-color: var(--color-border-strong);
+}
+
+.pf__team-glyph {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #a16cd1 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.pf__team-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pf__team-name {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 4px;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+
+.pf__team-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.pf__role-chip {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pf__role-chip--admin {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.pf__role-chip--pending {
+  background: rgba(184, 106, 0, 0.12);
+  color: var(--color-warning);
+}
+
+[data-theme="dark"] .pf__role-chip--pending {
+  background: rgba(224, 161, 77, 0.18);
+  color: var(--color-warning);
+}
+
+.pf__team-org {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.pf__team-sep {
+  color: var(--color-text-subtle);
+}
+
+.pf__team-members {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pf__team-members svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pf__team-leave {
+  background: none;
+  border: 1px solid var(--color-border);
+  padding: 7px 13px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.pf__team-leave:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: rgba(186, 26, 26, 0.05);
+}
+
+.pf__teams-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 20px;
+  background: var(--color-surface-low);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  gap: 6px;
+}
+
+.pf__teams-empty > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--color-text-subtle);
+  margin-bottom: 4px;
+}
+
+.pf__teams-empty h3 {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.pf__teams-empty p {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 360px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.pf__teams-empty-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (max-width: 760px) {
+  .pf__team {
+    flex-wrap: wrap;
+  }
+  .pf__team-leave {
+    margin-left: auto;
+  }
+}

@@ -1,0 +1,196 @@
+import { Test } from "@nestjs/testing";
+import type { INestApplication } from "@nestjs/common";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import request from "supertest";
+import { AppModule } from "../../app.module";
+
+jest.mock("../../auth/email.service", () => {
+  return {
+    EmailService: jest.fn().mockImplementation(() => ({
+      onModuleInit: jest.fn(),
+      sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    })),
+  };
+});
+
+async function signupAndLogin(httpServer: ReturnType<INestApplication["getHttpServer"]>, overrides: Record<string, string> = {}): Promise<string> {
+  const user = {
+    fullName: "Ada Lovelace",
+    email: "ada@example.com",
+    organization: "OpenPRA",
+    username: "ada",
+    password: "hunter2hunter2",
+    ...overrides,
+  };
+  await request(httpServer).post("/api/auth/signup").send(user);
+  const login = await request(httpServer).post("/api/auth/login").send({ identifier: user.username, password: user.password });
+  return login.body.token as string;
+}
+
+describe("Teams (e2e)", () => {
+  let app: INestApplication;
+  let mongo: MongoMemoryServer;
+  let httpServer: ReturnType<INestApplication["getHttpServer"]>;
+
+  beforeAll(async () => {
+    mongo = await MongoMemoryServer.create();
+    process.env["MONGO_URI"] = mongo.getUri();
+    process.env["JWT_SECRET"] = "test-secret";
+    process.env["JWT_EXPIRES_IN"] = "1h";
+    process.env["RESEND_API_KEY"] = "re_test";
+    process.env["MAIL_FROM"] = "noreply@example.com";
+
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication();
+    app.setGlobalPrefix("api");
+    await app.init();
+    httpServer = app.getHttpServer();
+  }, 90_000);
+
+  afterAll(async () => {
+    await app.close();
+    await mongo.stop();
+  });
+
+  it("rejects unauthenticated requests with 401", async () => {
+    const res = await request(httpServer).get("/api/teams/mine");
+    expect(res.status).toBe(401);
+  });
+
+  it("creates a team with creator as admin + sole member", async () => {
+    const token = await signupAndLogin(httpServer, { username: "creator", email: "creator@example.com" });
+    const res = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Risk Research Group", organization: "NC State", description: "PRA team", visibility: "public" });
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe("Risk Research Group");
+    expect(res.body.adminUsername).toBe("creator");
+    expect(res.body.memberCount).toBe(1);
+    expect(res.body.role).toBe("admin");
+  });
+
+  it("returns 400 when team name is shorter than 3 characters", async () => {
+    const token = await signupAndLogin(httpServer, { username: "shortname", email: "shortname@example.com" });
+    const res = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "ab", visibility: "public" });
+    expect(res.status).toBe(400);
+  });
+
+  it("lists the user's own teams in /teams/mine", async () => {
+    const a = await signupAndLogin(httpServer, { username: "a-user", email: "a-user@example.com" });
+    await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${a}`)
+      .send({ name: "My Group", visibility: "private" });
+    const res = await request(httpServer).get("/api/teams/mine").set("Authorization", `Bearer ${a}`);
+    expect(res.status).toBe(200);
+    expect(res.body.teams.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.teams[0].role).toBe("admin");
+  });
+
+  it("excludes teams the user already belongs to from /teams/available", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-x", email: "owner-x@example.com" });
+    await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Owner's Group", visibility: "public" });
+    const res = await request(httpServer).get("/api/teams/available").set("Authorization", `Bearer ${owner}`);
+    expect(res.status).toBe(200);
+    expect(res.body.teams.find((t: { adminUsername: string }) => t.adminUsername === "owner-x")).toBeUndefined();
+  });
+
+  it("filters /teams/available by q against name / org / description", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "search-owner", email: "search-owner@example.com" });
+    await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Seismic Analysts", organization: "OpenPRA", visibility: "public" });
+    await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Cyber Pilot", organization: "OpenPRA", visibility: "public" });
+
+    const stranger = await signupAndLogin(httpServer, { username: "stranger", email: "stranger@example.com" });
+    const res = await request(httpServer)
+      .get("/api/teams/available?q=seismic")
+      .set("Authorization", `Bearer ${stranger}`);
+    expect(res.status).toBe(200);
+    expect(res.body.teams.length).toBe(1);
+    expect(res.body.teams[0].name).toBe("Seismic Analysts");
+  });
+
+  it("joins a public team as 'member' immediately", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-pub", email: "owner-pub@example.com" });
+    const created = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Public Group", visibility: "public" });
+    const joiner = await signupAndLogin(httpServer, { username: "joiner-pub", email: "joiner-pub@example.com" });
+    const res = await request(httpServer)
+      .post(`/api/teams/${created.body.id}/join`)
+      .set("Authorization", `Bearer ${joiner}`);
+    expect(res.status).toBe(200);
+    expect(res.body.role).toBe("member");
+    expect(res.body.memberCount).toBe(2);
+  });
+
+  it("joins a private team as 'pending'", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-priv", email: "owner-priv@example.com" });
+    const created = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Private Group", visibility: "private" });
+    const joiner = await signupAndLogin(httpServer, { username: "joiner-priv", email: "joiner-priv@example.com" });
+    const res = await request(httpServer)
+      .post(`/api/teams/${created.body.id}/join`)
+      .set("Authorization", `Bearer ${joiner}`);
+    expect(res.status).toBe(200);
+    expect(res.body.role).toBe("pending");
+    expect(res.body.memberCount).toBe(1);
+  });
+
+  it("returns 409 when the user is already a member", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-dup", email: "owner-dup@example.com" });
+    const created = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Dup Group", visibility: "public" });
+    const res = await request(httpServer)
+      .post(`/api/teams/${created.body.id}/join`)
+      .set("Authorization", `Bearer ${owner}`);
+    expect(res.status).toBe(409);
+  });
+
+  it("leaves a team and disappears from /teams/mine", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-leave", email: "owner-leave@example.com" });
+    const created = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Leavable Group", visibility: "public" });
+    const member = await signupAndLogin(httpServer, { username: "member-leave", email: "member-leave@example.com" });
+    await request(httpServer)
+      .post(`/api/teams/${created.body.id}/join`)
+      .set("Authorization", `Bearer ${member}`);
+    const leave = await request(httpServer)
+      .delete(`/api/teams/${created.body.id}/membership`)
+      .set("Authorization", `Bearer ${member}`);
+    expect(leave.status).toBe(204);
+    const mine = await request(httpServer).get("/api/teams/mine").set("Authorization", `Bearer ${member}`);
+    expect(mine.body.teams.find((t: { id: string }) => t.id === created.body.id)).toBeUndefined();
+  });
+
+  it("forbids an admin from leaving their own team (403)", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-admin-leave", email: "owner-admin-leave@example.com" });
+    const created = await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Admin Locked Group", visibility: "public" });
+    const res = await request(httpServer)
+      .delete(`/api/teams/${created.body.id}/membership`)
+      .set("Authorization", `Bearer ${owner}`);
+    expect(res.status).toBe(403);
+  });
+});

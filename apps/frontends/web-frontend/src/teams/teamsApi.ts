@@ -1,10 +1,16 @@
 import {
   type AvailableTeamsResponse,
   type CreateTeamRequest,
+  type InviteToTeamRequest,
+  type MyInvitationsResponse,
   type MyTeamsResponse,
   type Team,
+  type TeamDetail,
+  type UpdateTeamRequest,
   AvailableTeamsResponseSchema,
+  MyInvitationsResponseSchema,
   MyTeamsResponseSchema,
+  TeamDetailSchema,
   TeamSchema,
 } from "interfaces-shared-types";
 import { getToken } from "../auth/authStorage";
@@ -42,6 +48,11 @@ async function getMyTeams(): Promise<MyTeamsResponse> {
   return MyTeamsResponseSchema.parse(data);
 }
 
+async function getMyInvitations(): Promise<MyInvitationsResponse> {
+  const data = await (await call("GET", "/invitations")).json();
+  return MyInvitationsResponseSchema.parse(data);
+}
+
 async function getAvailableTeams(query: string): Promise<AvailableTeamsResponse> {
   const q = query.trim();
   const path = q.length > 0 ? `/available?q=${encodeURIComponent(q)}` : "/available";
@@ -49,9 +60,23 @@ async function getAvailableTeams(query: string): Promise<AvailableTeamsResponse>
   return AvailableTeamsResponseSchema.parse(data);
 }
 
+async function getTeamDetail(id: string): Promise<TeamDetail> {
+  const data = await (await call("GET", `/${id}`)).json();
+  return TeamDetailSchema.parse(data);
+}
+
 async function createTeam(payload: CreateTeamRequest): Promise<Team> {
   const data = await (await call("POST", "", payload)).json();
   return TeamSchema.parse(data);
+}
+
+async function updateTeam(id: string, payload: UpdateTeamRequest): Promise<Team> {
+  const data = await (await call("PATCH", `/${id}`, payload)).json();
+  return TeamSchema.parse(data);
+}
+
+async function deleteTeam(id: string): Promise<void> {
+  await call("DELETE", `/${id}`);
 }
 
 async function joinTeam(id: string): Promise<Team> {
@@ -63,4 +88,52 @@ async function leaveTeam(id: string): Promise<void> {
   await call("DELETE", `/${id}/membership`);
 }
 
-export { getMyTeams, getAvailableTeams, createTeam, joinTeam, leaveTeam };
+async function inviteToTeam(id: string, payload: InviteToTeamRequest): Promise<Team> {
+  const data = await (await call("POST", `/${id}/invites`, payload)).json();
+  return TeamSchema.parse(data);
+}
+
+async function cancelInvite(id: string, username: string): Promise<void> {
+  await call("DELETE", `/${id}/invites/${encodeURIComponent(username)}`);
+}
+
+async function acceptInvite(id: string): Promise<Team> {
+  const data = await (await call("POST", `/${id}/invites/me/accept`)).json();
+  return TeamSchema.parse(data);
+}
+
+async function declineInvite(id: string): Promise<void> {
+  await call("DELETE", `/${id}/invites/me`);
+}
+
+async function kickMember(id: string, username: string): Promise<void> {
+  await call("DELETE", `/${id}/members/${encodeURIComponent(username)}`);
+}
+
+async function approveRequest(id: string, username: string): Promise<Team> {
+  const data = await (await call("POST", `/${id}/pending/${encodeURIComponent(username)}/approve`)).json();
+  return TeamSchema.parse(data);
+}
+
+async function rejectRequest(id: string, username: string): Promise<void> {
+  await call("DELETE", `/${id}/pending/${encodeURIComponent(username)}`);
+}
+
+export {
+  getMyTeams,
+  getMyInvitations,
+  getAvailableTeams,
+  getTeamDetail,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  joinTeam,
+  leaveTeam,
+  inviteToTeam,
+  cancelInvite,
+  acceptInvite,
+  declineInvite,
+  kickMember,
+  approveRequest,
+  rejectRequest,
+};

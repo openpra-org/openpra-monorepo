@@ -193,4 +193,214 @@ describe("Teams (e2e)", () => {
       .set("Authorization", `Bearer ${owner}`);
     expect(res.status).toBe(403);
   });
+
+  it("hides private teams from /teams/available", async () => {
+    const owner = await signupAndLogin(httpServer, { username: "owner-hide", email: "owner-hide@example.com" });
+    await request(httpServer)
+      .post("/api/teams")
+      .set("Authorization", `Bearer ${owner}`)
+      .send({ name: "Private Group Hide", visibility: "private" });
+    const stranger = await signupAndLogin(httpServer, { username: "stranger-hide", email: "stranger-hide@example.com" });
+    const res = await request(httpServer).get("/api/teams/available").set("Authorization", `Bearer ${stranger}`);
+    expect(res.body.teams.find((t: { name: string }) => t.name === "Private Group Hide")).toBeUndefined();
+  });
+
+  describe("PATCH /api/teams/:id", () => {
+    it("admin can update name + visibility", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "edit-owner", email: "edit-owner@example.com" });
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Editable Team", visibility: "public" });
+      const res = await request(httpServer)
+        .patch(`/api/teams/${created.body.id}`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Renamed Team", visibility: "private" });
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe("Renamed Team");
+      expect(res.body.visibility).toBe("private");
+    });
+
+    it("non-admin gets 403", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "edit-owner-2", email: "edit-owner-2@example.com" });
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Locked Team", visibility: "public" });
+      const intruder = await signupAndLogin(httpServer, { username: "intruder-edit", email: "intruder-edit@example.com" });
+      const res = await request(httpServer)
+        .patch(`/api/teams/${created.body.id}`)
+        .set("Authorization", `Bearer ${intruder}`)
+        .send({ name: "Hacked" });
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe("DELETE /api/teams/:id", () => {
+    it("admin can delete the team", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "del-owner", email: "del-owner@example.com" });
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Deletable Team", visibility: "public" });
+      const res = await request(httpServer)
+        .delete(`/api/teams/${created.body.id}`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(204);
+    });
+  });
+
+  describe("Team detail visibility", () => {
+    it("hides a private team from non-members with 404", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "priv-owner", email: "priv-owner@example.com" });
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Hidden Detail", visibility: "private" });
+      const stranger = await signupAndLogin(httpServer, { username: "priv-stranger", email: "priv-stranger@example.com" });
+      const res = await request(httpServer).get(`/api/teams/${created.body.id}`).set("Authorization", `Bearer ${stranger}`);
+      expect(res.status).toBe(404);
+    });
+
+    it("returns roster + pending + invited for the admin", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "detail-owner", email: "detail-owner@example.com", fullName: "Owner User" });
+      const inviteeFull = await signupAndLogin(httpServer, { username: "invitee-user", email: "invitee-user@example.com", fullName: "Invited Person" });
+      void inviteeFull;
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Detailed Team", visibility: "private" });
+      await request(httpServer)
+        .post(`/api/teams/${created.body.id}/invites`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "invitee-user" });
+      const res = await request(httpServer).get(`/api/teams/${created.body.id}`).set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(200);
+      expect(res.body.members.map((m: { username: string }) => m.username)).toEqual(["detail-owner"]);
+      expect(res.body.invited.map((m: { username: string }) => m.username)).toEqual(["invitee-user"]);
+      expect(res.body.invited[0].fullName).toBe("Invited Person");
+    });
+  });
+
+  describe("Invite flow", () => {
+    it("admin invites by username, invitee sees the team in /teams/invitations and can accept", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "inv-owner-1", email: "inv-owner-1@example.com" });
+      const invitee = await signupAndLogin(httpServer, { username: "inv-user-1", email: "inv-user-1@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Invite Team A", visibility: "private" });
+      const invite = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "inv-user-1" });
+      expect(invite.status).toBe(201);
+
+      const list = await request(httpServer).get("/api/teams/invitations").set("Authorization", `Bearer ${invitee}`);
+      expect(list.status).toBe(200);
+      expect(list.body.teams).toHaveLength(1);
+      expect(list.body.teams[0].role).toBe("invited");
+
+      const accept = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites/me/accept`)
+        .set("Authorization", `Bearer ${invitee}`);
+      expect(accept.status).toBe(200);
+      expect(accept.body.role).toBe("member");
+    });
+
+    it("admin invites by email (case-insensitive)", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "inv-owner-2", email: "inv-owner-2@example.com" });
+      await signupAndLogin(httpServer, { username: "inv-user-2", email: "Invited2@Example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Invite Team B", visibility: "private" });
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "INVITED2@example.com" });
+      expect(res.status).toBe(201);
+    });
+
+    it("declined invitation removes the team from /teams/invitations without joining", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "inv-owner-3", email: "inv-owner-3@example.com" });
+      const invitee = await signupAndLogin(httpServer, { username: "inv-user-3", email: "inv-user-3@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Invite Team C", visibility: "private" });
+      await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "inv-user-3" });
+      const decline = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/invites/me`)
+        .set("Authorization", `Bearer ${invitee}`);
+      expect(decline.status).toBe(204);
+      const after = await request(httpServer).get("/api/teams/invitations").set("Authorization", `Bearer ${invitee}`);
+      expect(after.body.teams).toEqual([]);
+    });
+
+    it("returns 404 when no identifier resolves", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "inv-owner-4", email: "inv-owner-4@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Invite Team D", visibility: "private" });
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "no-such-user" });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("Pending request handling", () => {
+    it("admin approves a pending public-team request and the user becomes a member", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "req-owner-1", email: "req-owner-1@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Request Team A", visibility: "private" });
+      // simulate request by directly using join endpoint (private path drops user into pending)
+      const requester = await signupAndLogin(httpServer, { username: "req-user-1", email: "req-user-1@example.com" });
+      const join = await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${requester}`);
+      expect(join.body.role).toBe("pending");
+
+      const approve = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/pending/req-user-1/approve`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(approve.status).toBe(200);
+      expect(approve.body.memberCount).toBe(2);
+    });
+  });
+
+  describe("Kick member", () => {
+    it("admin removes a regular member", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "kick-owner", email: "kick-owner@example.com" });
+      const member = await signupAndLogin(httpServer, { username: "kick-member", email: "kick-member@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Kickable Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${member}`);
+
+      const res = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/members/kick-member`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(204);
+    });
+
+    it("refuses to kick the admin", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "kick-owner-2", email: "kick-owner-2@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Self Kick Team", visibility: "public" });
+      const res = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/members/kick-owner-2`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(403);
+    });
+  });
 });

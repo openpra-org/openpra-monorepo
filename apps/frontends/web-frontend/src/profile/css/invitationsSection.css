@@ -1,0 +1,83 @@
+.pf__invitations {
+  border-color: var(--color-primary);
+  background: linear-gradient(180deg, var(--color-primary-tint) 0%, var(--color-surface) 80%);
+}
+
+[data-theme="dark"] .pf__invitations {
+  background: linear-gradient(180deg, var(--color-primary-tint) 0%, var(--color-surface) 90%);
+}
+
+.pf__inv-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #ffffff;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.pf__inv-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.pf__inv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf__inv {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pf__inv-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pf__inv-name {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+
+.pf__inv-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+.pf__inv-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .pf__inv {
+    flex-wrap: wrap;
+  }
+  .pf__inv-actions {
+    margin-left: auto;
+  }
+}

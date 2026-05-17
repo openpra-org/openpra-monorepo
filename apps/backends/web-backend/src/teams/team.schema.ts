@@ -26,6 +26,9 @@ export class Team {
 
   @Prop({ type: [String], default: [], index: true })
   pending!: string[];
+
+  @Prop({ type: [String], default: [], index: true })
+  invited!: string[];
 }
 
 export const TeamSchema = SchemaFactory.createForClass(Team);

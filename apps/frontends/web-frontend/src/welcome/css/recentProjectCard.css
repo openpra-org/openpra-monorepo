@@ -1,0 +1,236 @@
+.recent {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.recent__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.recent__head-l {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.recent__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recent__title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  word-break: break-word;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.progress__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.progress__pct {
+  font-size: 22px;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__bar {
+  height: 8px;
+  background: var(--color-surface-low);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #a16cd1 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+[data-theme="dark"] .progress__fill {
+  background: linear-gradient(90deg, #8c5cc0 0%, #b388dd 100%);
+}
+
+.elements {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.elements__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.elements__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.elements__legend {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.elements__legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.elements__legend-dot--baseline {
+  background: var(--color-success);
+}
+
+.elements__legend-dot--in-progress {
+  background: var(--color-primary);
+}
+
+.elements__legend-dot--not-started {
+  background: #cfc2d4;
+}
+
+.elements__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.element {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-low);
+  border: 1px solid transparent;
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: default;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.element:hover {
+  border-color: var(--color-border-strong);
+}
+
+.element__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.element__code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.element--baseline .element__dot {
+  background: var(--color-success);
+}
+
+.element--in-progress .element__dot {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(121, 57, 177, 0.15);
+}
+
+.element--not-started .element__dot {
+  background: #cfc2d4;
+}
+
+.element--na {
+  opacity: 0.45;
+}
+
+.element--na .element__dot {
+  background: #cfc2d4;
+  border: 1px dashed #a89bb0;
+  box-sizing: border-box;
+}
+
+.element--na .element__code {
+  text-decoration: line-through;
+}
+
+.recent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+@media (max-width: 920px) {
+  .recent {
+    padding: 22px;
+  }
+  .recent__title {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 560px) {
+  .recent {
+    padding: 18px;
+    gap: 18px;
+  }
+  .recent__title {
+    font-size: 20px;
+  }
+  .recent__head {
+    flex-direction: column;
+  }
+  .elements__list {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  }
+}

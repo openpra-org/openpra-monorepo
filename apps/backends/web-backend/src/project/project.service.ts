@@ -1,0 +1,93 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import {
+  type CreateProjectRequest,
+  type Project as ProjectDto,
+  type ProjectStatus,
+  type ProjectStatusMap,
+  type RecentProjectResponse,
+  type RiskMode,
+  type SharedProjectsResponse,
+  elementsForMode,
+  riskModeLabel,
+} from "interfaces-shared-types";
+import { User, type UserDocument } from "../auth/user.schema";
+import { Project, type ProjectDocument } from "./project.schema";
+
+function computeInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function computeProgress(status: ProjectStatusMap, mode: RiskMode): number {
+  const elements = elementsForMode(mode);
+  if (elements.length === 0) return 0;
+  const baseline = elements.filter((e) => status[e.code] === "baseline").length;
+  return baseline / elements.length;
+}
+
+function toDto(doc: ProjectDocument): ProjectDto {
+  const status = doc.status;
+  const mode = doc.mode;
+  const updatedAt = (doc as ProjectDocument & { updatedAt?: Date }).updatedAt ?? new Date();
+  return {
+    id: String(doc._id),
+    name: doc.name,
+    mode,
+    modeLabel: riskModeLabel(mode),
+    ownerUsername: doc.ownerUsername,
+    ownerFullName: doc.ownerFullName,
+    ownerInitials: computeInitials(doc.ownerFullName),
+    collaborators: doc.collaborators,
+    status,
+    progress: computeProgress(status, mode),
+    updatedAt: updatedAt.toISOString(),
+  };
+}
+
+interface ActingUser {
+  username: string;
+}
+
+@Injectable()
+export class ProjectService {
+  constructor(
+    @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {}
+
+  async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
+    const owner = await this.userModel.findOne({ username: acting.username }).lean();
+    if (!owner) throw new NotFoundException("Acting user not found");
+    const initialStatus: Record<string, ProjectStatus> = {};
+    for (const el of elementsForMode(payload.mode)) initialStatus[el.code] = "not-started";
+    const created = await this.projectModel.create({
+      name: payload.name,
+      mode: payload.mode,
+      ownerUsername: owner.username,
+      ownerFullName: owner.fullName,
+      collaborators: [],
+      status: initialStatus,
+    });
+    return toDto(created);
+  }
+
+  async getRecentProject(acting: ActingUser): Promise<RecentProjectResponse> {
+    const doc = await this.projectModel
+      .findOne({ ownerUsername: acting.username })
+      .sort({ updatedAt: -1 })
+      .exec();
+    return { project: doc === null ? null : toDto(doc) };
+  }
+
+  async getSharedProjects(acting: ActingUser): Promise<SharedProjectsResponse> {
+    const docs = await this.projectModel
+      .find({ collaborators: acting.username })
+      .sort({ updatedAt: -1 })
+      .exec();
+    return { projects: docs.map(toDto) };
+  }
+}

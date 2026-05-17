@@ -25,6 +25,8 @@ export default {
     "^@nestjs/(.+)$": "<rootDir>/node_modules/@nestjs/$1",
     "^interfaces-shared-types$": "<rootDir>/../../interfaces/shared-types/src/index.ts",
     "^interfaces-shared-types/(.*)$": "<rootDir>/../../interfaces/shared-types/src/$1",
+    "^mef-types$": "<rootDir>/../../../packages/mef-types/src/index.ts",
+    "^mef-types/lib/(.*)$": "<rootDir>/../../../packages/mef-types/src/lib/$1",
   },
   collectCoverage: false,
 };

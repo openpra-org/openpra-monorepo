@@ -10,6 +10,7 @@ import { User, UserSchema } from "./user.schema";
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     JwtModule.registerAsync({
+      global: true,
       useFactory: () => ({
         secret: process.env["JWT_SECRET"] ?? "dev-secret-do-not-use-in-production",
         signOptions: { expiresIn: (process.env["JWT_EXPIRES_IN"] ?? "12h") as JwtSignOptions["expiresIn"] },

@@ -1,12 +1,19 @@
-import { createBrowserRouter, RouteObject, RouterProvider } from "react-router-dom";
-import { ReactElement } from "react";
-import { AuthProvider } from "../auth/AuthContext";
+import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from "react-router-dom";
+import { JSX, ReactElement } from "react";
+import { AuthProvider, useAuth } from "../auth/AuthContext";
 import { RoleContext } from "../role/roleProvider";
 import { DefaultRole } from "../role/role";
 import { ToastProvider } from "../toast/toastProvider";
 import { ToastContainer } from "../toast/toastContainer";
 import { AuthPage } from "../auth/authPage";
 import { ResetPasswordPage } from "../auth/resetPassword";
+import { WelcomePage } from "../welcome/welcomePage";
+
+function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
+  return children;
+}
 
 const routes: RouteObject[] = [
   {
@@ -14,8 +21,20 @@ const routes: RouteObject[] = [
     element: <ResetPasswordPage />,
   },
   {
-    path: "/*",
+    path: "/auth/*",
     element: <AuthPage />,
+  },
+  {
+    path: "/",
+    element: (
+      <ProtectedRoute>
+        <WelcomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
   },
 ];
 

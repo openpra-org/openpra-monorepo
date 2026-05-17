@@ -3,8 +3,16 @@
   padding: 24px 32px 48px;
 }
 
-.pf__back {
+.pf__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 18px;
+}
+
+.pf__back {
+  margin-bottom: 0;
 }
 
 .pf__load-error {

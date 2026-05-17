@@ -9,8 +9,9 @@ import {
   type UserProfile,
 } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
-import { TopBar } from "../welcome/topBar";
 import { ArrowLeftIcon } from "../welcome/icons";
+import { ThemePicker } from "../welcome/themePicker";
+import { useTheme } from "../welcome/useTheme";
 import { getMyProfile, updateMyProfile } from "../users/userApi";
 import {
   acceptInvite,
@@ -53,6 +54,7 @@ function ProfilePage(): JSX.Element {
 
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [theme, setTheme] = useTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -217,11 +219,13 @@ function ProfilePage(): JSX.Element {
   return (
     <div className="wp wp--compact ap pf">
       <div className="wp__bg" />
-      <TopBar />
       <main className="wp__main pf__main">
-        <button type="button" className="ap__back pf__back" onClick={() => { navigate("/"); }}>
-          <ArrowLeftIcon /> Welcome
-        </button>
+        <div className="pf__topline">
+          <button type="button" className="ap__back pf__back" onClick={() => { navigate("/"); }}>
+            <ArrowLeftIcon /> Welcome
+          </button>
+          <ThemePicker theme={theme} setTheme={setTheme} />
+        </div>
 
         {loadError && <p className="pf__load-error">{loadError}</p>}
 

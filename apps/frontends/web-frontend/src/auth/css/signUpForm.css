@@ -50,6 +50,12 @@
   position: relative;
 }
 
+.signup-form__hint {
+  font-size: 12px;
+  color: #7a7388;
+  margin: -2px 0 6px;
+}
+
 .signup-form__input {
   display: block;
   width: 100%;

@@ -62,8 +62,9 @@ function ForgotPassword({ onClose }: ForgotPasswordProps): JSX.Element {
             </div>
 
             <form onSubmit={handleSubmit} noValidate>
-              <label className="forgot-password__label">Username / Email</label>
+              <label className="forgot-password__label" htmlFor="forgot-identifier">Username / Email</label>
               <input
+                id="forgot-identifier"
                 type="text"
                 value={payload.identifier}
                 onChange={(e) => { setPayload({ identifier: e.target.value }); if (error) setError(null); }}

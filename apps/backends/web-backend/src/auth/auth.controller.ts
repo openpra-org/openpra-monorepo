@@ -13,7 +13,7 @@ import {
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
 } from "interfaces-shared-types";
-import { ZodValidationPipe } from "../zod-validation.pipe";
+import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { AuthService } from "./auth.service";
 
 @Controller("auth")

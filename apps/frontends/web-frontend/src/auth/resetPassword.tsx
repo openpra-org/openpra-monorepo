@@ -66,9 +66,11 @@ function ResetPasswordPage(): JSX.Element {
             {!token && <p className="reset-password__invalid-msg">Invalid or missing reset token.</p>}
 
             <form onSubmit={handleSubmit} noValidate>
-              <label className="reset-password__label">New password</label>
+              <label className="reset-password__label" htmlFor="reset-new-password">New password</label>
+              <p className="reset-password__hint">At least 8 characters</p>
               <div className="reset-password__input-wrap">
                 <input
+                  id="reset-new-password"
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); if (error) setError(null); }}

@@ -71,8 +71,9 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
 
       <form onSubmit={validateLogin} noValidate>
         <div className="login-form__field">
-          <label className="login-form__label">Username / Email</label>
+          <label className="login-form__label" htmlFor="login-identifier">Username / Email</label>
           <input
+            id="login-identifier"
             type="text"
             value={credentials.identifier}
             onChange={(e) => { setCredentials({ ...credentials, identifier: e.target.value }); }}
@@ -84,11 +85,12 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
 
         <div className="login-form__field login-form__field--password">
           <div className="login-form__password-header">
-            <label className="login-form__label--inline">Password</label>
+            <label className="login-form__label--inline" htmlFor="login-password">Password</label>
             <button type="button" className="login-form__forgot-btn" onClick={() => { setShowForgotPassword(true); }}>Forgot password?</button>
           </div>
           <div className="login-form__input-wrap">
             <input
+              id="login-password"
               type={showPassword ? "text" : "password"}
               value={credentials.password}
               onChange={(e) => { setCredentials({ ...credentials, password: e.target.value }); }}

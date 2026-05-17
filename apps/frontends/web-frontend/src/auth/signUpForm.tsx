@@ -70,8 +70,9 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
 
       <form onSubmit={validateSignup} noValidate>
         <div className="signup-form__field">
-          <label className="signup-form__label">Full name</label>
+          <label className="signup-form__label" htmlFor="signup-fullname">Full name</label>
           <input
+            id="signup-fullname"
             type="text"
             value={signup.fullName}
             onChange={(e) => { updateField("fullName", e.target.value); }}
@@ -82,8 +83,9 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         </div>
 
         <div className="signup-form__field">
-          <label className="signup-form__label">Email</label>
+          <label className="signup-form__label" htmlFor="signup-email">Email</label>
           <input
+            id="signup-email"
             type="email"
             value={signup.email}
             onChange={(e) => { updateField("email", e.target.value); }}
@@ -94,8 +96,9 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         </div>
 
         <div className="signup-form__field">
-          <label className="signup-form__label">Organization</label>
+          <label className="signup-form__label" htmlFor="signup-organization">Organization</label>
           <input
+            id="signup-organization"
             type="text"
             value={signup.organization}
             onChange={(e) => { updateField("organization", e.target.value); }}
@@ -105,8 +108,10 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         </div>
 
         <div className="signup-form__field">
-          <label className="signup-form__label">Username</label>
+          <label className="signup-form__label" htmlFor="signup-username">Username</label>
+          <p className="signup-form__hint">At least 3 characters</p>
           <input
+            id="signup-username"
             type="text"
             value={signup.username}
             onChange={(e) => { updateField("username", e.target.value); }}
@@ -117,9 +122,11 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         </div>
 
         <div className="signup-form__field">
-          <label className="signup-form__label">Password</label>
+          <label className="signup-form__label" htmlFor="signup-password">Password</label>
+          <p className="signup-form__hint">At least 8 characters</p>
           <div className="signup-form__input-wrap">
             <input
+              id="signup-password"
               type={showPassword ? "text" : "password"}
               value={signup.password}
               onChange={(e) => { updateField("password", e.target.value); }}

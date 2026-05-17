@@ -1,2 +1,2 @@
 export * from "./lib/auth";
-export * from "./lib/project";
+export * from "./lib/projects";

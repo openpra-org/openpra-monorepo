@@ -1,7 +1,8 @@
 import { JSX, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { type Project } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
-import { getRecentProject, getSharedProjects } from "../project/projectApi";
+import { getRecentProject, getSharedProjects } from "../projects/projectApi";
 import { TopBar } from "./topBar";
 import { RecentProjectCard } from "./recentProjectCard";
 import { NewProjectCard } from "./newProjectCard";
@@ -17,6 +18,7 @@ function WelcomePage(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const { addToast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +78,7 @@ function WelcomePage(): JSX.Element {
                   <RecentProjectCard
                     project={recent}
                     onContinue={() => { comingSoon("Project workspace"); }}
-                    onViewAll={() => { comingSoon("All projects"); }}
+                    onViewAll={() => { navigate("/projects"); }}
                   />
                 )}
                 <NewProjectCard onClick={() => { setModalOpen(true); }} />

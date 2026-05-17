@@ -1,8 +1,11 @@
 import {
   type CreateProjectRequest,
+  type OwnedProjectsResponse,
   type Project,
   type RecentProjectResponse,
   type SharedProjectsResponse,
+  type UpdateProjectRequest,
+  OwnedProjectsResponseSchema,
   ProjectSchema,
   RecentProjectResponseSchema,
   SharedProjectsResponseSchema,
@@ -29,25 +32,37 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-async function getJson(path: string): Promise<unknown> {
-  const response = await fetch(`${PROJECT_BASE}${path}`, { method: "GET", headers: authHeaders() });
+async function request(method: string, path: string, body?: unknown): Promise<Response> {
+  const init: RequestInit = { method, headers: authHeaders() };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const response = await fetch(`${PROJECT_BASE}${path}`, init);
   if (!response.ok) throw new Error(await readError(response));
+  return response;
+}
+
+async function getJson(path: string): Promise<unknown> {
+  const response = await request("GET", path);
   return response.json();
 }
 
 async function postJson(path: string, body: unknown): Promise<unknown> {
-  const response = await fetch(`${PROJECT_BASE}${path}`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error(await readError(response));
+  const response = await request("POST", path, body);
+  return response.json();
+}
+
+async function patchJson(path: string, body: unknown): Promise<unknown> {
+  const response = await request("PATCH", path, body);
   return response.json();
 }
 
 async function getRecentProject(): Promise<RecentProjectResponse> {
   const data = await getJson("/recent");
   return RecentProjectResponseSchema.parse(data);
+}
+
+async function getOwnedProjects(): Promise<OwnedProjectsResponse> {
+  const data = await getJson("");
+  return OwnedProjectsResponseSchema.parse(data);
 }
 
 async function getSharedProjects(): Promise<SharedProjectsResponse> {
@@ -60,4 +75,26 @@ async function createProject(payload: CreateProjectRequest): Promise<Project> {
   return ProjectSchema.parse(data);
 }
 
-export { getRecentProject, getSharedProjects, createProject };
+async function updateProject(id: string, payload: UpdateProjectRequest): Promise<Project> {
+  const data = await patchJson(`/${id}`, payload);
+  return ProjectSchema.parse(data);
+}
+
+async function duplicateProject(id: string): Promise<Project> {
+  const data = await postJson(`/${id}/duplicate`, undefined);
+  return ProjectSchema.parse(data);
+}
+
+async function deleteProject(id: string): Promise<void> {
+  await request("DELETE", `/${id}`);
+}
+
+export {
+  getRecentProject,
+  getOwnedProjects,
+  getSharedProjects,
+  createProject,
+  updateProject,
+  duplicateProject,
+  deleteProject,
+};

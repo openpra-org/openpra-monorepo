@@ -1,0 +1,9 @@
+.empty--results {
+  padding: 56px 32px;
+}
+
+.empty__art--soft {
+  background: var(--color-surface-low);
+  border-color: var(--color-border);
+  color: var(--color-text-subtle);
+}

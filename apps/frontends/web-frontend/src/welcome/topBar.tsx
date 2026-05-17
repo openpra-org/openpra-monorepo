@@ -49,10 +49,15 @@ function TopBar(): JSX.Element {
 
   return (
     <header className="wp__topbar">
-      <div className="wp__brand">
+      <button
+        type="button"
+        className="wp__brand wp__brand--link"
+        onClick={() => { navigate("/"); }}
+        aria-label="Go to welcome page"
+      >
         <img src={logo} alt="OpenPRA" className="wp__brand-logo" />
         <span className="wp__brand-name">OpenPRA</span>
-      </div>
+      </button>
       <nav className="wp__topbar-nav" aria-label="Primary">
         <button
           type="button"

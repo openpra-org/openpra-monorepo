@@ -1,0 +1,30 @@
+.ap__main {
+  max-width: 1280px;
+  padding: 28px 32px 48px;
+}
+
+.modal--sm {
+  max-width: 460px;
+}
+
+.ap__load-error {
+  background: var(--color-surface);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  color: var(--color-error);
+  font-size: 14px;
+  margin: 0 0 24px;
+}
+
+@media (max-width: 920px) {
+  .ap__main {
+    padding: 24px 20px 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .ap__main {
+    padding: 24px 16px 40px;
+  }
+}

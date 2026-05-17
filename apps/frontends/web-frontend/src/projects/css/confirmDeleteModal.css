@@ -1,0 +1,17 @@
+.btn--danger {
+  background: var(--color-error);
+  color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #9a1414;
+}
+
+[data-theme="dark"] .btn--danger {
+  background: var(--color-error);
+  color: #1f1828;
+}
+
+[data-theme="dark"] .btn--danger:hover:not(:disabled) {
+  background: #ff8a8a;
+}

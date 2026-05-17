@@ -82,7 +82,9 @@ function RecentProjectCard({
         <button type="button" className="btn btn--primary btn--lg" onClick={onContinue}>
           Continue analysis <ArrowRightIcon />
         </button>
-        <button type="button" className="btn btn--link" onClick={onViewAll}>View all projects</button>
+        <button type="button" className="btn btn--link" onClick={onViewAll}>
+          View all projects
+        </button>
       </div>
     </article>
   );

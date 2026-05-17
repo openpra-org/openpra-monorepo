@@ -53,6 +53,8 @@ describe("NewProjectModal", () => {
           collaborators: [],
           status: { POS: "not-started" },
           progress: 0,
+          pinned: false,
+          state: "active",
           updatedAt: new Date().toISOString(),
         }),
         { status: 201, headers: { "Content-Type": "application/json" } },

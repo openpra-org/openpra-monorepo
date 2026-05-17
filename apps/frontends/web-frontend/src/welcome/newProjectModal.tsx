@@ -8,7 +8,7 @@ import {
   elementsForMode,
 } from "interfaces-shared-types";
 import { ArrowRightIcon, CloseIcon } from "./icons";
-import { createProject } from "../project/projectApi";
+import { createProject } from "../projects/projectApi";
 import "./css/newProjectModal.css";
 
 function NewProjectModal({

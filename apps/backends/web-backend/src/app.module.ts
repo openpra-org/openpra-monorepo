@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "./auth/auth.module";
-import { ProjectModule } from "./project/project.module";
+import { ProjectsModule } from "./projects/projects.module";
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { ProjectModule } from "./project/project.module";
       }),
     }),
     AuthModule,
-    ProjectModule,
+    ProjectsModule,
   ],
 })
 export class AppModule {}

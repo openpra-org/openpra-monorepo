@@ -1,0 +1,147 @@
+.ap__table {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ap__tr {
+  display: grid;
+  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color 0.12s;
+  outline: none;
+}
+
+.ap__tr:last-child {
+  border-bottom: none;
+}
+
+.ap__tr:hover {
+  background: var(--color-surface-low);
+}
+
+.ap__tr:focus-visible {
+  background: var(--color-primary-soft);
+}
+
+.ap__tr--head {
+  background: var(--color-surface-low);
+  cursor: default;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.ap__tr--head:hover {
+  background: var(--color-surface-low);
+}
+
+.ap__th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.ap__td {
+  font-size: 13.5px;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+.ap__td--muted {
+  color: var(--color-text-subtle);
+  font-size: 13px;
+}
+
+.ap__td--name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ap__td-name-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ap__td-name {
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pcard__pin--row {
+  margin-top: 0;
+}
+
+.ap__td-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ap__td-progress-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--color-surface-low);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.ap__td-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, #a16cd1 100%);
+  border-radius: 999px;
+}
+
+.ap__td-pct {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  min-width: 36px;
+  text-align: right;
+}
+
+.ap__td--actions,
+.ap__th--actions {
+  justify-self: end;
+}
+
+@media (max-width: 1080px) {
+  .ap__tr {
+    grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) 48px;
+  }
+  .ap__th:nth-child(4),
+  .ap__td:nth-child(4) {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .ap__tr {
+    grid-template-columns: minmax(0, 1fr) auto 48px;
+    gap: 10px;
+  }
+  .ap__th:nth-child(2),
+  .ap__td:nth-child(2),
+  .ap__th:nth-child(5),
+  .ap__td:nth-child(5) {
+    display: none;
+  }
+}

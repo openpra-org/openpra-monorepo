@@ -1,0 +1,145 @@
+.ap__toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 12px 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.ap__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ap__search-icon {
+  position: absolute;
+  left: 14px;
+  display: inline-flex;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+}
+
+.ap__search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ap__search-input {
+  width: 100%;
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 11px 40px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.ap__search-input::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.ap__search-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.ap__search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ap__search-clear:hover {
+  background: var(--color-surface-low);
+  color: var(--color-text);
+}
+
+.ap__search-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ap__filters {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ap__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.ap__chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.ap__chip--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.ap__chip--active:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: #ffffff;
+}
+
+.ap__toolbar-r {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+@media (max-width: 1080px) {
+  .ap__toolbar {
+    grid-template-columns: 1fr;
+  }
+  .ap__toolbar-r {
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .ap__filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .ap__filters::-webkit-scrollbar {
+    display: none;
+  }
+  .ap__chip {
+    flex-shrink: 0;
+  }
+}

@@ -8,6 +8,7 @@ import { ToastContainer } from "../toast/toastContainer";
 import { AuthPage } from "../auth/authPage";
 import { ResetPasswordPage } from "../auth/resetPassword";
 import { WelcomePage } from "../welcome/welcomePage";
+import { ProjectsPage } from "../projects/projectsPage";
 
 function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   const { user } = useAuth();
@@ -29,6 +30,14 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <WelcomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/projects",
+    element: (
+      <ProtectedRoute>
+        <ProjectsPage />
       </ProtectedRoute>
     ),
   },

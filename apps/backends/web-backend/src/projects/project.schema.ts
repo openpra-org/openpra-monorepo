@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
-import type { ProjectStatus, RiskMode, ProjectStatusMap } from "interfaces-shared-types";
+import type { ProjectState, ProjectStatus, ProjectStatusMap, RiskMode } from "interfaces-shared-types";
 
 export type ProjectDocument = HydratedDocument<Project>;
 
@@ -23,6 +23,12 @@ export class Project {
 
   @Prop({ type: Object, required: true })
   status!: Record<string, ProjectStatus>;
+
+  @Prop({ type: Boolean, default: false, index: true })
+  pinned!: boolean;
+
+  @Prop({ type: String, default: "active", index: true })
+  state!: ProjectState;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

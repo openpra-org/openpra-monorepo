@@ -2,7 +2,14 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+}
+
+.ap__tr--head {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.ap__tr:last-child {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .ap__tr {

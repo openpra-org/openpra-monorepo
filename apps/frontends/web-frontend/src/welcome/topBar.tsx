@@ -94,7 +94,12 @@ function TopBar(): JSX.Element {
               >
                 <UserIcon /> Profile
               </button>
-              <button type="button" className="wp__menu-item" role="menuitem" onClick={() => { comingSoon("Settings"); }}>
+              <button
+                type="button"
+                className="wp__menu-item"
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); navigate("/settings"); }}
+              >
                 <SettingsIcon /> Settings
               </button>
               <div className="wp__menu-divider" />

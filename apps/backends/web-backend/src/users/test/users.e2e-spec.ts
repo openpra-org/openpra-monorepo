@@ -121,4 +121,191 @@ describe("Users (e2e)", () => {
     expect(res.status).toBe(200);
     expect(res.body.profile.altEmail).toBe("");
   });
+
+  describe("PATCH /api/users/me/email", () => {
+    it("rotates the email when current password verifies and returns a new token", async () => {
+      const token = await signupAndLogin(httpServer, { username: "rotate-email", email: "rotate-email@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/email")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newEmail: "Rotated@Example.com", currentPassword: "hunter2hunter2" });
+      expect(res.status).toBe(200);
+      expect(res.body.profile.email).toBe("rotated@example.com");
+      expect(typeof res.body.token).toBe("string");
+
+      const me = await request(httpServer)
+        .get("/api/users/me")
+        .set("Authorization", `Bearer ${res.body.token}`);
+      expect(me.body.profile.email).toBe("rotated@example.com");
+    });
+
+    it("returns 401 when current password is wrong", async () => {
+      const token = await signupAndLogin(httpServer, { username: "bad-pass-email", email: "bad-pass-email@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/email")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newEmail: "valid@example.com", currentPassword: "wrong-pass" });
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 409 when the email is already in use", async () => {
+      await signupAndLogin(httpServer, { username: "occupant", email: "occupant@example.com" });
+      const token = await signupAndLogin(httpServer, { username: "claimant", email: "claimant@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/email")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newEmail: "Occupant@example.com", currentPassword: "hunter2hunter2" });
+      expect(res.status).toBe(409);
+    });
+  });
+
+  describe("PATCH /api/users/me/username", () => {
+    it("renames the user and the new token works", async () => {
+      const token = await signupAndLogin(httpServer, { username: "rename-me", email: "rename-me@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/username")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newUsername: "renamed-user" });
+      expect(res.status).toBe(200);
+      expect(res.body.profile.username).toBe("renamed-user");
+
+      const me = await request(httpServer)
+        .get("/api/users/me")
+        .set("Authorization", `Bearer ${res.body.token}`);
+      expect(me.body.profile.username).toBe("renamed-user");
+    });
+
+    it("rejects usernames shorter than 3 characters with 400", async () => {
+      const token = await signupAndLogin(httpServer, { username: "short-user", email: "short-user@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/username")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newUsername: "ab" });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects usernames containing whitespace with 409", async () => {
+      const token = await signupAndLogin(httpServer, { username: "space-user", email: "space-user@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/username")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newUsername: "has space" });
+      expect(res.status).toBe(409);
+    });
+
+    it("returns 409 when the username is already taken", async () => {
+      await signupAndLogin(httpServer, { username: "claimed", email: "claimed@example.com" });
+      const token = await signupAndLogin(httpServer, { username: "challenger", email: "challenger@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/username")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ newUsername: "claimed" });
+      expect(res.status).toBe(409);
+    });
+  });
+
+  describe("PATCH /api/users/me/password", () => {
+    it("rotates the password and enables login with the new password", async () => {
+      const token = await signupAndLogin(httpServer, { username: "pw-rotator", email: "pw-rotator@example.com" });
+      const rotate = await request(httpServer)
+        .patch("/api/users/me/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "hunter2hunter2", newPassword: "brand-new-strong" });
+      expect(rotate.status).toBe(200);
+
+      const loginNew = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "pw-rotator", password: "brand-new-strong" });
+      expect(loginNew.status).toBe(200);
+
+      const loginOld = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "pw-rotator", password: "hunter2hunter2" });
+      expect(loginOld.status).toBe(401);
+    });
+
+    it("returns 401 when the current password is wrong", async () => {
+      const token = await signupAndLogin(httpServer, { username: "pw-bad", email: "pw-bad@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "wrong-pass", newPassword: "brand-new-strong" });
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 409 when new password matches current", async () => {
+      const token = await signupAndLogin(httpServer, { username: "pw-same", email: "pw-same@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/password")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "hunter2hunter2", newPassword: "hunter2hunter2" });
+      expect(res.status).toBe(409);
+    });
+  });
+
+  describe("notification prefs", () => {
+    it("defaults to all four event types enabled", async () => {
+      const token = await signupAndLogin(httpServer, { username: "notif-default", email: "notif-default@example.com" });
+      const res = await request(httpServer).get("/api/users/me/prefs/notifications").set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        projectShared: true,
+        teamInvite: true,
+        runFinished: true,
+        quantErrors: true,
+      });
+    });
+
+    it("partial updates persist and other fields stay untouched", async () => {
+      const token = await signupAndLogin(httpServer, { username: "notif-patch", email: "notif-patch@example.com" });
+      const res = await request(httpServer)
+        .patch("/api/users/me/prefs/notifications")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ projectShared: false, quantErrors: false });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        projectShared: false,
+        teamInvite: true,
+        runFinished: true,
+        quantErrors: false,
+      });
+    });
+  });
+
+  describe("DELETE /api/users/me", () => {
+    it("removes the user + their owned projects + admin teams; subsequent /me returns 401", async () => {
+      const token = await signupAndLogin(httpServer, { username: "doomed-user", email: "doomed-user@example.com" });
+      await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Goes Away With Me", mode: "internal-events" });
+      await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ name: "Doomed Team", visibility: "public" });
+
+      const del = await request(httpServer)
+        .delete("/api/users/me")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "hunter2hunter2" });
+      expect(del.status).toBe(204);
+
+      const me = await request(httpServer).get("/api/users/me").set("Authorization", `Bearer ${token}`);
+      expect([401, 404]).toContain(me.status);
+
+      const login = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "doomed-user", password: "hunter2hunter2" });
+      expect(login.status).toBe(401);
+    });
+
+    it("returns 401 on wrong password", async () => {
+      const token = await signupAndLogin(httpServer, { username: "safe-user", email: "safe-user@example.com" });
+      const res = await request(httpServer)
+        .delete("/api/users/me")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ currentPassword: "wrong-pass" });
+      expect(res.status).toBe(401);
+    });
+  });
 });

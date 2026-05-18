@@ -43,6 +43,26 @@ export class User {
 
   @Prop({ type: String, default: "" })
   linkedin!: string;
+
+  @Prop({
+    type: Object,
+    default: () => ({
+      notify: {
+        projectShared: true,
+        teamInvite: true,
+        runFinished: true,
+        quantErrors: true,
+      },
+    }),
+  })
+  prefs!: {
+    notify: {
+      projectShared: boolean;
+      teamInvite: boolean;
+      runFinished: boolean;
+      quantErrors: boolean;
+    };
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

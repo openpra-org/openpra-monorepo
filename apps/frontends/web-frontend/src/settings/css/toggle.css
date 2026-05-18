@@ -1,0 +1,43 @@
+.st__toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 22px;
+  background: var(--color-border-strong);
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.st__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.st__toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.st__toggle--on {
+  background: var(--color-primary);
+}
+
+.st__toggle-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transform: translateX(2px);
+  transition: transform 0.2s ease;
+}
+
+.st__toggle--on .st__toggle-thumb {
+  transform: translateX(20px);
+}

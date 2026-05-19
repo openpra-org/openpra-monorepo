@@ -20,9 +20,11 @@ import {
   type MyTeamsResponse,
   type Team,
   type TeamDetail,
+  type TransferTeamAdminRequest,
   type UpdateTeamRequest,
   CreateTeamRequestSchema,
   InviteToTeamRequestSchema,
+  TransferTeamAdminRequestSchema,
   UpdateTeamRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
@@ -138,5 +140,35 @@ export class TeamsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.teamsService.kickMember(id, username, req.user!.username);
+  }
+
+  @Post(":id/transfer-admin")
+  @HttpCode(HttpStatus.OK)
+  transferAdmin(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(TransferTeamAdminRequestSchema)) body: TransferTeamAdminRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Team> {
+    return this.teamsService.transferAdmin(id, body.username, req.user!.username);
+  }
+
+  @Post(":id/leads/:username")
+  @HttpCode(HttpStatus.OK)
+  promoteLead(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Team> {
+    return this.teamsService.promoteToLead(id, username, req.user!.username);
+  }
+
+  @Delete(":id/leads/:username")
+  @HttpCode(HttpStatus.OK)
+  demoteLead(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Team> {
+    return this.teamsService.demoteFromLead(id, username, req.user!.username);
   }
 }

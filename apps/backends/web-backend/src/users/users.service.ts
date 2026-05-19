@@ -172,8 +172,8 @@ export class UsersService {
       await team.deleteOne();
     }
     await this.teamModel.updateMany(
-      { $or: [{ members: username }, { invited: username }] },
-      { $pull: { members: username, invited: username } },
+      { $or: [{ members: username }, { leads: username }, { invited: username }] },
+      { $pull: { members: username, leads: username, invited: username } },
     );
     await this.projectModel.deleteMany({ ownerUsername: username });
     await this.projectModel.updateMany(

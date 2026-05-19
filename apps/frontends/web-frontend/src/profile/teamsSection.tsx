@@ -1,7 +1,7 @@
-import { JSX, useState } from "react";
+import { JSX } from "react";
+import { Link } from "react-router-dom";
 import { type Team } from "interfaces-shared-types";
-import { CaretIcon, PlusIcon, UsersIcon } from "../welcome/icons";
-import { TeamAdminPanel } from "./teamAdminPanel";
+import { ArrowRightIcon, PlusIcon, UsersIcon } from "../welcome/icons";
 import "./css/teamsSection.css";
 
 function teamInitials(name: string): string {
@@ -13,9 +13,17 @@ function teamInitials(name: string): string {
 
 function roleLabel(role: Team["role"]): string {
   if (role === "admin") return "Admin";
+  if (role === "lead") return "Lead";
   if (role === "member") return "Member";
   if (role === "invited") return "Invited";
   return "";
+}
+
+function roleChipClassFor(role: Team["role"]): string {
+  if (role === "admin") return "pf__role-chip pf__role-chip--admin";
+  if (role === "lead") return "pf__role-chip pf__role-chip--lead";
+  if (role === "invited") return "pf__role-chip pf__role-chip--invited";
+  return "pf__role-chip";
 }
 
 interface TeamsSectionProps {
@@ -23,21 +31,11 @@ interface TeamsSectionProps {
   onJoin: () => void;
   onCreate: () => void;
   onLeave: (team: Team) => void;
-  onTeamUpdated: (team: Team) => void;
-  onEdit: (team: Team) => void;
-  onDelete: (team: Team) => void;
-  onError: (message: string) => void;
-  onSuccess: (message: string) => void;
 }
 
 function TeamsSection(props: TeamsSectionProps): JSX.Element {
-  const { teams, onJoin, onCreate, onLeave, onTeamUpdated, onEdit, onDelete, onError, onSuccess } = props;
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { teams, onJoin, onCreate, onLeave } = props;
   const isEmpty = teams.length === 0;
-
-  function toggle(id: string): void {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }
 
   return (
     <section className="pf__section">
@@ -45,7 +43,7 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
         <div>
           <h2 className="pf__section-title">Teams &amp; organizations</h2>
           <p className="pf__section-sub">
-            Groups you belong to or have requested to join. Expand a team you own to manage members.
+            Groups you belong to. Open a team to see the roster and manage members (admins and leads).
           </p>
         </div>
         {!isEmpty && (
@@ -78,22 +76,17 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
         <div className="pf__teams">
           {teams.map((team) => {
             const role = team.role;
-            const isAdmin = role === "admin";
-            const isExpanded = isAdmin && expandedId === team.id;
-            const roleChipClass = role === "admin"
-              ? "pf__role-chip pf__role-chip--admin"
-              : role === "invited"
-                ? "pf__role-chip pf__role-chip--invited"
-                : "pf__role-chip";
+            const canOpen = role === "admin" || role === "lead" || role === "member";
+            const showLeave = role === "member" || role === "lead";
 
             return (
-              <div key={team.id} className={`pf__team-wrap${isExpanded ? " pf__team-wrap--expanded" : ""}`}>
+              <div key={team.id} className="pf__team-wrap">
                 <div className="pf__team">
                   <span className="pf__team-glyph" aria-hidden="true">{teamInitials(team.name)}</span>
                   <div className="pf__team-body">
                     <h3 className="pf__team-name">{team.name}</h3>
                     <div className="pf__team-meta">
-                      {role !== null && <span className={roleChipClass}>{roleLabel(role)}</span>}
+                      {role !== null && <span className={roleChipClassFor(role)}>{roleLabel(role)}</span>}
                       {team.organization && <span className="pf__team-org">{team.organization}</span>}
                       <span className="pf__team-sep">·</span>
                       <span className="pf__team-members">
@@ -101,17 +94,12 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
                       </span>
                     </div>
                   </div>
-                  {isAdmin ? (
-                    <button
-                      type="button"
-                      className={`pf__team-toggle${isExpanded ? " pf__team-toggle--open" : ""}`}
-                      onClick={() => { toggle(team.id); }}
-                      aria-expanded={isExpanded}
-                      aria-label={isExpanded ? "Collapse team management" : "Expand team management"}
-                    >
-                      Manage <CaretIcon />
-                    </button>
-                  ) : role === "invited" ? null : (
+                  {canOpen && (
+                    <Link to={`/teams/${team.id}`} className="pf__team-toggle">
+                      Open <ArrowRightIcon />
+                    </Link>
+                  )}
+                  {showLeave && (
                     <button
                       type="button"
                       className="pf__team-leave"
@@ -121,16 +109,6 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
                     </button>
                   )}
                 </div>
-                {isExpanded && (
-                  <TeamAdminPanel
-                    team={team}
-                    onTeamChanged={onTeamUpdated}
-                    onEdit={() => { onEdit(team); }}
-                    onDelete={() => { onDelete(team); }}
-                    onError={onError}
-                    onSuccess={onSuccess}
-                  />
-                )}
               </div>
             );
           })}

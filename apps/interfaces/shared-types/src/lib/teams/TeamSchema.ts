@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TeamRoleSchema = z.enum(["admin", "member", "invited"]);
+const TeamRoleSchema = z.enum(["admin", "lead", "member", "invited"]);
 type TeamRole = z.infer<typeof TeamRoleSchema>;
 
 const TeamVisibilitySchema = z.enum(["public", "private"]);
@@ -22,6 +22,7 @@ const TeamRosterEntrySchema = z.object({
   username: z.string(),
   fullName: z.string(),
   initials: z.string(),
+  role: TeamRoleSchema,
 });
 type TeamRosterEntry = z.infer<typeof TeamRosterEntrySchema>;
 
@@ -56,6 +57,11 @@ const InviteToTeamRequestSchema = z.object({
 });
 type InviteToTeamRequest = z.infer<typeof InviteToTeamRequestSchema>;
 
+const TransferTeamAdminRequestSchema = z.object({
+  username: z.string().trim().min(1, "Username is required"),
+});
+type TransferTeamAdminRequest = z.infer<typeof TransferTeamAdminRequestSchema>;
+
 const MyTeamsResponseSchema = z.object({
   teams: z.array(TeamSchema),
 });
@@ -80,6 +86,7 @@ export {
   CreateTeamRequestSchema,
   UpdateTeamRequestSchema,
   InviteToTeamRequestSchema,
+  TransferTeamAdminRequestSchema,
   MyTeamsResponseSchema,
   AvailableTeamsResponseSchema,
   MyInvitationsResponseSchema,
@@ -93,6 +100,7 @@ export type {
   CreateTeamRequest,
   UpdateTeamRequest,
   InviteToTeamRequest,
+  TransferTeamAdminRequest,
   MyTeamsResponse,
   AvailableTeamsResponse,
   MyInvitationsResponse,

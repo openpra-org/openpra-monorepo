@@ -11,6 +11,7 @@ import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
+import { TeamPage } from "../teams/teamPage";
 
 function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   const { user } = useAuth();
@@ -56,6 +57,14 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <SettingsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/teams/:id",
+    element: (
+      <ProtectedRoute>
+        <TeamPage />
       </ProtectedRoute>
     ),
   },

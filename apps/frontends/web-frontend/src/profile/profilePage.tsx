@@ -4,7 +4,6 @@ import {
   type CreateTeamRequest,
   type MyProfileResponse,
   type Team,
-  type UpdateTeamRequest,
   type UserProfile,
 } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
@@ -23,11 +22,9 @@ import {
   acceptInvite,
   createTeam,
   declineInvite,
-  deleteTeam,
   getMyInvitations,
   getMyTeams,
   leaveTeam,
-  updateTeam,
 } from "../teams/teamsApi";
 import { ProfileHeader } from "./profileHeader";
 import { StatsStrip } from "./statsStrip";
@@ -39,8 +36,6 @@ import { EditProfileModal, type EditProfilePayload } from "./editProfileModal";
 import { CreateTeamModal } from "./createTeamModal";
 import { JoinTeamModal } from "./joinTeamModal";
 import { ConfirmLeaveModal } from "./confirmLeaveModal";
-import { EditTeamModal } from "./editTeamModal";
-import { ConfirmDeleteTeamModal } from "./confirmDeleteTeamModal";
 import "./css/profilePage.css";
 
 function ProfilePage(): JSX.Element {
@@ -53,8 +48,6 @@ function ProfilePage(): JSX.Element {
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [joinTeamOpen, setJoinTeamOpen] = useState(false);
   const [leaveTarget, setLeaveTarget] = useState<Team | null>(null);
-  const [editTeamTarget, setEditTeamTarget] = useState<Team | null>(null);
-  const [deleteTeamTarget, setDeleteTeamTarget] = useState<Team | null>(null);
   const [invitationBusyId, setInvitationBusyId] = useState<string | null>(null);
   const [mutating, setMutating] = useState(false);
 
@@ -164,41 +157,6 @@ function ProfilePage(): JSX.Element {
       .finally(() => { setMutating(false); });
   }
 
-  function handleTeamUpdated(updated: Team): void {
-    setTeams((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-  }
-
-  function handleEditTeamSubmit(payload: UpdateTeamRequest): void {
-    if (editTeamTarget === null) return;
-    setMutating(true);
-    updateTeam(editTeamTarget.id, payload)
-      .then((updated) => {
-        handleTeamUpdated(updated);
-        setEditTeamTarget(null);
-        flashSuccess("Team updated");
-      })
-      .catch((err: unknown) => {
-        flashError((err as { message?: string }).message ?? "Could not update team");
-      })
-      .finally(() => { setMutating(false); });
-  }
-
-  function handleDeleteTeamConfirm(): void {
-    if (deleteTeamTarget === null) return;
-    setMutating(true);
-    const target = deleteTeamTarget;
-    deleteTeam(target.id)
-      .then(() => {
-        setTeams((prev) => prev.filter((t) => t.id !== target.id));
-        setDeleteTeamTarget(null);
-        flashSuccess(`Deleted "${target.name}"`);
-      })
-      .catch((err: unknown) => {
-        flashError((err as { message?: string }).message ?? "Could not delete team");
-      })
-      .finally(() => { setMutating(false); });
-  }
-
   function handleAcceptInvitation(team: Team): void {
     setInvitationBusyId(team.id);
     acceptInvite(team.id)
@@ -266,11 +224,6 @@ function ProfilePage(): JSX.Element {
               onJoin={() => { setJoinTeamOpen(true); }}
               onCreate={() => { setCreateTeamOpen(true); }}
               onLeave={(team) => { setLeaveTarget(team); }}
-              onTeamUpdated={handleTeamUpdated}
-              onEdit={(team) => { setEditTeamTarget(team); }}
-              onDelete={(team) => { setDeleteTeamTarget(team); }}
-              onError={flashError}
-              onSuccess={flashSuccess}
             />
             <ApiKeysSection onAdd={() => { comingSoon("AI provider keys"); }} />
           </>
@@ -311,23 +264,6 @@ function ProfilePage(): JSX.Element {
         />
       )}
 
-      {editTeamTarget !== null && (
-        <EditTeamModal
-          team={editTeamTarget}
-          onCancel={() => { if (!mutating) setEditTeamTarget(null); }}
-          onSubmit={handleEditTeamSubmit}
-          pending={mutating}
-        />
-      )}
-
-      {deleteTeamTarget !== null && (
-        <ConfirmDeleteTeamModal
-          team={deleteTeamTarget}
-          onCancel={() => { if (!mutating) setDeleteTeamTarget(null); }}
-          onConfirm={handleDeleteTeamConfirm}
-          pending={mutating}
-        />
-      )}
     </div>
   );
 }

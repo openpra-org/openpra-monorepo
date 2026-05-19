@@ -25,6 +25,9 @@ export class Team {
   members!: string[];
 
   @Prop({ type: [String], default: [], index: true })
+  leads!: string[];
+
+  @Prop({ type: [String], default: [], index: true })
   invited!: string[];
 }
 

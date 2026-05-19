@@ -391,4 +391,105 @@ describe("Teams (e2e)", () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe("Lead role + transfer admin", () => {
+    it("admin promotes a member to lead and demotes them back", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "ld-owner", email: "ld-owner@example.com" });
+      const lead = await signupAndLogin(httpServer, { username: "ld-lead", email: "ld-lead@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Lead Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${lead}`);
+
+      const promote = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/leads/ld-lead`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(promote.status).toBe(200);
+
+      const detail = await request(httpServer)
+        .get(`/api/teams/${team.body.id}`)
+        .set("Authorization", `Bearer ${lead}`);
+      expect(detail.body.role).toBe("lead");
+      expect(detail.body.members.find((m: { username: string }) => m.username === "ld-lead").role).toBe("lead");
+
+      const demote = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/leads/ld-lead`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(demote.status).toBe(200);
+    });
+
+    it("a lead can invite users (admin gate widens to manager)", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "lmi-owner", email: "lmi-owner@example.com" });
+      const lead = await signupAndLogin(httpServer, { username: "lmi-lead", email: "lmi-lead@example.com" });
+      await signupAndLogin(httpServer, { username: "lmi-invitee", email: "lmi-invitee@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Lead Invite Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${lead}`);
+      await request(httpServer)
+        .post(`/api/teams/${team.body.id}/leads/lmi-lead`)
+        .set("Authorization", `Bearer ${owner}`);
+
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${lead}`)
+        .send({ identifier: "lmi-invitee" });
+      expect(res.status).toBe(201);
+    });
+
+    it("a plain member cannot invite (403)", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "pmi-owner", email: "pmi-owner@example.com" });
+      const member = await signupAndLogin(httpServer, { username: "pmi-mbr", email: "pmi-mbr@example.com" });
+      await signupAndLogin(httpServer, { username: "pmi-invitee", email: "pmi-invitee@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Plain Member Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${member}`);
+
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites`)
+        .set("Authorization", `Bearer ${member}`)
+        .send({ identifier: "pmi-invitee" });
+      expect(res.status).toBe(403);
+    });
+
+    it("admin transfers admin to an existing member, and can then leave the team", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "tx-owner", email: "tx-owner@example.com" });
+      const heir = await signupAndLogin(httpServer, { username: "tx-heir", email: "tx-heir@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Transfer Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${heir}`);
+
+      const transfer = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/transfer-admin`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ username: "tx-heir" });
+      expect(transfer.status).toBe(200);
+      expect(transfer.body.adminUsername).toBe("tx-heir");
+
+      const leave = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/membership`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(leave.status).toBe(204);
+    });
+
+    it("transfer-admin to a non-member returns 400", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "tx-bad-owner", email: "tx-bad-owner@example.com" });
+      await signupAndLogin(httpServer, { username: "tx-stranger", email: "tx-stranger@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Bad Transfer Team", visibility: "public" });
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/transfer-admin`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ username: "tx-stranger" });
+      expect(res.status).toBe(400);
+    });
+  });
 });

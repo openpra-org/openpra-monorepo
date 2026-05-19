@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { type Team } from "interfaces-shared-types";
 import { TeamsSection } from "../teamsSection";
 
@@ -21,24 +22,16 @@ function renderSection(teams: Team[], handlers: Partial<{
   onJoin: () => void;
   onCreate: () => void;
   onLeave: (team: Team) => void;
-  onTeamUpdated: (team: Team) => void;
-  onEdit: (team: Team) => void;
-  onDelete: (team: Team) => void;
-  onError: (message: string) => void;
-  onSuccess: (message: string) => void;
 }> = {}) {
   return render(
-    <TeamsSection
-      teams={teams}
-      onJoin={handlers.onJoin ?? (() => undefined)}
-      onCreate={handlers.onCreate ?? (() => undefined)}
-      onLeave={handlers.onLeave ?? (() => undefined)}
-      onTeamUpdated={handlers.onTeamUpdated ?? (() => undefined)}
-      onEdit={handlers.onEdit ?? (() => undefined)}
-      onDelete={handlers.onDelete ?? (() => undefined)}
-      onError={handlers.onError ?? (() => undefined)}
-      onSuccess={handlers.onSuccess ?? (() => undefined)}
-    />,
+    <MemoryRouter>
+      <TeamsSection
+        teams={teams}
+        onJoin={handlers.onJoin ?? (() => undefined)}
+        onCreate={handlers.onCreate ?? (() => undefined)}
+        onLeave={handlers.onLeave ?? (() => undefined)}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -50,18 +43,22 @@ describe("TeamsSection", () => {
     expect(screen.getByRole("button", { name: /create a team/i })).toBeInTheDocument();
   });
 
-  it("renders a Manage toggle for an admin team instead of a Leave button", () => {
+  it("renders an Open link to the team page for admin/lead/member roles", () => {
     renderSection([makeTeam({ role: "admin", adminUsername: "ada" })]);
-    expect(screen.queryByRole("button", { name: /^leave$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /manage/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open/i })).toHaveAttribute("href", "/teams/t1");
     expect(screen.getByText(/Admin/)).toBeInTheDocument();
   });
 
   it("renders no row-level action for an invited membership (invitations are accepted from the Invitations section)", () => {
     renderSection([makeTeam({ role: "invited", visibility: "private" })]);
+    expect(screen.queryByRole("link", { name: /open/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^leave$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /manage/i })).not.toBeInTheDocument();
     expect(screen.getByText(/Invited/)).toBeInTheDocument();
+  });
+
+  it("renders the Lead role chip for a lead", () => {
+    renderSection([makeTeam({ role: "lead" })]);
+    expect(screen.getByText(/^Lead$/)).toBeInTheDocument();
   });
 
   it("invokes onLeave with the team when the leave button is clicked", async () => {

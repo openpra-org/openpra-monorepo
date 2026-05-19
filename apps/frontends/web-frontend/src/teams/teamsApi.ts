@@ -110,6 +110,21 @@ async function kickMember(id: string, username: string): Promise<void> {
   await call("DELETE", `/${id}/members/${encodeURIComponent(username)}`);
 }
 
+async function transferTeamAdmin(id: string, username: string): Promise<Team> {
+  const data = await (await call("POST", `/${id}/transfer-admin`, { username })).json();
+  return TeamSchema.parse(data);
+}
+
+async function promoteToLead(id: string, username: string): Promise<Team> {
+  const data = await (await call("POST", `/${id}/leads/${encodeURIComponent(username)}`)).json();
+  return TeamSchema.parse(data);
+}
+
+async function demoteFromLead(id: string, username: string): Promise<Team> {
+  const data = await (await call("DELETE", `/${id}/leads/${encodeURIComponent(username)}`)).json();
+  return TeamSchema.parse(data);
+}
+
 export {
   getMyTeams,
   getMyInvitations,
@@ -125,4 +140,7 @@ export {
   acceptInvite,
   declineInvite,
   kickMember,
+  transferTeamAdmin,
+  promoteToLead,
+  demoteFromLead,
 };

@@ -33,8 +33,16 @@ function escapeForRegex(input: string): string {
 
 function roleFor(doc: TeamDocument, username: string): TeamRole | null {
   if (doc.adminUsername === username) return "admin";
+  if (doc.leads.includes(username)) return "lead";
   if (doc.members.includes(username)) return "member";
   if (doc.invited.includes(username)) return "invited";
+  return null;
+}
+
+function memberRoleFor(doc: TeamDocument, username: string): TeamRole | null {
+  if (doc.adminUsername === username) return "admin";
+  if (doc.leads.includes(username)) return "lead";
+  if (doc.members.includes(username)) return "member";
   return null;
 }
 
@@ -71,6 +79,7 @@ export class TeamsService {
       visibility: payload.visibility,
       adminUsername: username,
       members: [username],
+      leads: [],
       invited: [],
     });
     return toDto(created, username);
@@ -115,12 +124,12 @@ export class TeamsService {
       throw new NotFoundException("Team not found");
     }
 
-    const isAdmin = role === "admin";
-    const members = await this.resolveRoster(doc.members);
-    const invited = isAdmin
-      ? await this.resolveRoster(doc.invited)
+    const canSeeInvited = role === "admin" || role === "lead";
+    const members = await this.resolveRoster(doc, doc.members);
+    const invited = canSeeInvited
+      ? await this.resolveRoster(doc, doc.invited)
       : role === "invited"
-        ? await this.resolveRoster([username])
+        ? await this.resolveRoster(doc, [username])
         : [];
 
     return {
@@ -149,12 +158,13 @@ export class TeamsService {
   async leaveTeam(id: string, username: string): Promise<void> {
     const doc = await this.findById(id);
     if (doc.adminUsername === username) {
-      throw new ForbiddenException("Admins cannot leave; transfer ownership or delete the team");
+      throw new ForbiddenException("Admins cannot leave; transfer admin first, or delete the team");
     }
     if (!doc.members.includes(username)) {
       throw new BadRequestException("Not a member of this team");
     }
     doc.members = doc.members.filter((u) => u !== username);
+    doc.leads = doc.leads.filter((u) => u !== username);
     await doc.save();
   }
 
@@ -173,10 +183,39 @@ export class TeamsService {
     await doc.deleteOne();
   }
 
-  async inviteUser(id: string, identifier: string, adminUsername: string): Promise<TeamDto> {
-    const doc = await this.findAsAdmin(id, adminUsername);
+  async transferAdmin(id: string, target: string, acting: string): Promise<TeamDto> {
+    const doc = await this.findAsAdmin(id, acting);
+    if (target === acting) throw new BadRequestException("You are already the admin");
+    if (!doc.members.includes(target)) throw new BadRequestException("New admin must be an existing member");
+    doc.adminUsername = target;
+    if (!doc.members.includes(acting)) doc.members.push(acting);
+    doc.leads = doc.leads.filter((u) => u !== target);
+    await doc.save();
+    return toDto(doc, acting);
+  }
+
+  async promoteToLead(id: string, target: string, acting: string): Promise<TeamDto> {
+    const doc = await this.findAsAdmin(id, acting);
+    if (target === doc.adminUsername) throw new BadRequestException("The admin cannot also be a lead");
+    if (!doc.members.includes(target)) throw new NotFoundException("User is not a member");
+    if (doc.leads.includes(target)) throw new ConflictException("User is already a lead");
+    doc.leads.push(target);
+    await doc.save();
+    return toDto(doc, acting);
+  }
+
+  async demoteFromLead(id: string, target: string, acting: string): Promise<TeamDto> {
+    const doc = await this.findAsAdmin(id, acting);
+    if (!doc.leads.includes(target)) throw new NotFoundException("User is not a lead");
+    doc.leads = doc.leads.filter((u) => u !== target);
+    await doc.save();
+    return toDto(doc, acting);
+  }
+
+  async inviteUser(id: string, identifier: string, acting: string): Promise<TeamDto> {
+    const doc = await this.findAsManager(id, acting);
     const invitee = await this.resolveByIdentifier(identifier);
-    if (invitee.username === adminUsername || doc.members.includes(invitee.username)) {
+    if (invitee.username === doc.adminUsername || doc.members.includes(invitee.username)) {
       throw new ConflictException("User is already a member");
     }
     if (doc.invited.includes(invitee.username)) {
@@ -184,11 +223,11 @@ export class TeamsService {
     }
     doc.invited.push(invitee.username);
     await doc.save();
-    return toDto(doc, adminUsername);
+    return toDto(doc, acting);
   }
 
-  async cancelInvite(id: string, target: string, adminUsername: string): Promise<void> {
-    const doc = await this.findAsAdmin(id, adminUsername);
+  async cancelInvite(id: string, target: string, acting: string): Promise<void> {
+    const doc = await this.findAsManager(id, acting);
     if (!doc.invited.includes(target)) throw new NotFoundException("No invitation for that user");
     doc.invited = doc.invited.filter((u) => u !== target);
     await doc.save();
@@ -210,11 +249,16 @@ export class TeamsService {
     await doc.save();
   }
 
-  async kickMember(id: string, target: string, adminUsername: string): Promise<void> {
-    const doc = await this.findAsAdmin(id, adminUsername);
+  async kickMember(id: string, target: string, acting: string): Promise<void> {
+    const doc = await this.findAsManager(id, acting);
     if (target === doc.adminUsername) throw new ForbiddenException("Cannot remove the team admin");
+    if (target === acting) throw new ForbiddenException("Use Leave team to remove yourself");
+    if (doc.leads.includes(target) && doc.adminUsername !== acting) {
+      throw new ForbiddenException("Only the admin can remove a lead");
+    }
     if (!doc.members.includes(target)) throw new NotFoundException("User is not a member");
     doc.members = doc.members.filter((u) => u !== target);
+    doc.leads = doc.leads.filter((u) => u !== target);
     await doc.save();
   }
 
@@ -231,6 +275,13 @@ export class TeamsService {
     return doc;
   }
 
+  private async findAsManager(id: string, username: string): Promise<TeamDocument> {
+    const doc = await this.findById(id);
+    const role = memberRoleFor(doc, username);
+    if (role !== "admin" && role !== "lead") throw new ForbiddenException("Admin or lead only");
+    return doc;
+  }
+
   private async resolveByIdentifier(identifier: string): Promise<ResolvedUser> {
     const normalized = identifier.trim().toLowerCase();
     const user = await this.userModel
@@ -240,14 +291,15 @@ export class TeamsService {
     return { username: user.username, fullName: user.fullName };
   }
 
-  private async resolveRoster(usernames: string[]): Promise<TeamRosterEntry[]> {
+  private async resolveRoster(doc: TeamDocument, usernames: string[]): Promise<TeamRosterEntry[]> {
     if (usernames.length === 0) return [];
     const users = await this.userModel.find({ username: { $in: usernames } }).lean();
     const byUsername = new Map(users.map((u) => [u.username, u]));
     return usernames.map((u) => {
       const found = byUsername.get(u);
       const fullName = found?.fullName ?? u;
-      return { username: u, fullName, initials: computeInitials(fullName) };
+      const role = roleFor(doc, u) ?? "member";
+      return { username: u, fullName, initials: computeInitials(fullName), role };
     });
   }
 }

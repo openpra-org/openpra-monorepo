@@ -17,6 +17,7 @@ function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, un
     visibility: "public",
     adminUsername: "ada",
     members: ["ada"],
+    leads: [],
     invited: [],
     save,
     deleteOne,
@@ -68,6 +69,7 @@ describe("TeamsService", () => {
       const arg = teamModelMock.create.mock.calls[0][0] as Record<string, unknown>;
       expect(arg.adminUsername).toBe("ada");
       expect(arg.members).toEqual(["ada"]);
+      expect(arg.leads).toEqual([]);
       expect(arg.invited).toEqual([]);
       expect(out.role).toBe("admin");
       expect(out.memberCount).toBe(1);
@@ -141,6 +143,51 @@ describe("TeamsService", () => {
       }));
       const out = await service.getTeamDetail(String(doc._id), "ada");
       expect(out.members.map((m) => m.username)).toEqual(["ada", "chen"]);
+      expect(out.members.map((m) => m.role)).toEqual(["admin", "member"]);
+      expect(out.invited.map((m) => m.username)).toEqual(["carol"]);
+      expect(out.invited[0].role).toBe("invited");
+    });
+
+    it("tags lead members with role='lead' on the roster", async () => {
+      const doc = makeTeamDoc({
+        adminUsername: "ada",
+        members: ["ada", "chen", "bob"],
+        leads: ["chen"],
+        visibility: "private",
+      });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.find.mockImplementation(() => ({
+        lean: () => Promise.resolve([
+          { username: "ada", fullName: "Ada Lovelace" },
+          { username: "chen", fullName: "M. Chen" },
+          { username: "bob", fullName: "Bob Q" },
+        ]),
+      }));
+      const out = await service.getTeamDetail(String(doc._id), "ada");
+      const byName = new Map(out.members.map((m) => [m.username, m.role]));
+      expect(byName.get("ada")).toBe("admin");
+      expect(byName.get("chen")).toBe("lead");
+      expect(byName.get("bob")).toBe("member");
+    });
+
+    it("lets leads see the invited list (not just admins)", async () => {
+      const doc = makeTeamDoc({
+        adminUsername: "ada",
+        members: ["ada", "chen"],
+        leads: ["chen"],
+        invited: ["carol"],
+        visibility: "private",
+      });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.find.mockImplementation(() => ({
+        lean: () => Promise.resolve([
+          { username: "ada", fullName: "Ada Lovelace" },
+          { username: "chen", fullName: "M. Chen" },
+          { username: "carol", fullName: "Carol R" },
+        ]),
+      }));
+      const out = await service.getTeamDetail(String(doc._id), "chen");
+      expect(out.role).toBe("lead");
       expect(out.invited.map((m) => m.username)).toEqual(["carol"]);
     });
 
@@ -299,17 +346,112 @@ describe("TeamsService", () => {
   });
 
   describe("kickMember", () => {
-    it("removes a member from the roster", async () => {
+    it("removes a member from the roster (admin acting)", async () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await service.kickMember(String(doc._id), "chen", "ada");
       expect(doc.members).toEqual(["ada"]);
     });
 
+    it("lets a lead kick a regular member", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen", "bob"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.kickMember(String(doc._id), "bob", "chen");
+      expect(doc.members).toEqual(["ada", "chen"]);
+    });
+
+    it("forbids a lead from kicking another lead", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen", "bob"], leads: ["chen", "bob"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.kickMember(String(doc._id), "bob", "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("forbids a plain member from kicking anyone", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen", "bob"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.kickMember(String(doc._id), "bob", "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
     it("refuses to kick the admin", async () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.kickMember(String(doc._id), "ada", "ada")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe("inviteUser (manager gate)", () => {
+    it("lets a lead invite users", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "bob", fullName: "Bob Q" }),
+      });
+      await service.inviteUser(String(doc._id), "bob", "chen");
+      expect(doc.invited).toEqual(["bob"]);
+    });
+
+    it("forbids a plain member from inviting", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.inviteUser(String(doc._id), "bob", "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe("transferAdmin", () => {
+    it("transfers admin to an existing member", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.transferAdmin(String(doc._id), "chen", "ada");
+      expect(doc.adminUsername).toBe("chen");
+      expect(doc.members).toContain("ada");
+      expect(out.adminUsername).toBe("chen");
+    });
+
+    it("demotes the new admin from leads if they were a lead", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.transferAdmin(String(doc._id), "chen", "ada");
+      expect(doc.leads).not.toContain("chen");
+    });
+
+    it("rejects transfer to a non-member with BadRequestException", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.transferAdmin(String(doc._id), "chen", "ada")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("rejects when acting user is not the admin (403)", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.transferAdmin(String(doc._id), "ada", "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe("promoteToLead / demoteFromLead", () => {
+    it("admin promotes a member to lead", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.promoteToLead(String(doc._id), "chen", "ada");
+      expect(doc.leads).toEqual(["chen"]);
+    });
+
+    it("admin demotes a lead back to member", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.demoteFromLead(String(doc._id), "chen", "ada");
+      expect(doc.leads).toEqual([]);
+    });
+
+    it("forbids non-admins from promoting", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen", "bob"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.promoteToLead(String(doc._id), "bob", "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws ConflictException when the target is already a lead", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.promoteToLead(String(doc._id), "chen", "ada")).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

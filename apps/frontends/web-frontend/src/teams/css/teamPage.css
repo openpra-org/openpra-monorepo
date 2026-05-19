@@ -1,0 +1,250 @@
+.tp {
+  min-height: 100vh;
+}
+
+.tp__main {
+  padding: 24px 0 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tp__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tp__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.tp__back:hover {
+  background: var(--color-surface-low);
+  color: var(--color-text);
+}
+
+.tp__back svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tp__load,
+.tp__load-error,
+.tp__empty {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.tp__load-error {
+  color: var(--color-error);
+}
+
+.tp__header {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tp__title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.tp__org {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.tp__desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.tp__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tp__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-surface-low);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+
+.tp__chip svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tp__role {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  background: var(--color-surface-low);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.tp__role--admin {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.tp__role--lead {
+  background: rgba(46, 125, 79, 0.12);
+  color: var(--color-success);
+  border-color: rgba(46, 125, 79, 0.25);
+}
+
+.tp__role--invited {
+  background: rgba(184, 106, 0, 0.12);
+  color: var(--color-warning);
+  border-color: rgba(184, 106, 0, 0.25);
+}
+
+.tp__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tp__section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tp__h {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tp__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tp__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-low);
+}
+
+.tp__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tp__row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp__row-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.tp__row-meta {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+}
+
+.tp__remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp__remove:hover {
+  background: var(--color-surface);
+  color: var(--color-error);
+}
+
+.tp__remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tp__invite {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+
+.tp__invite-input {
+  flex: 1;
+  font-size: 14px;
+  padding: 8px 12px;
+}

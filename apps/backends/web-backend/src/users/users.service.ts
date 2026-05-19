@@ -19,6 +19,7 @@ import { User, type UserDocument } from "./user.schema";
 import { Project, type ProjectDocument } from "../projects/project.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
 import { StorageService } from "./storage.service";
+import { OrgsService } from "../orgs/orgs.service";
 
 const AVATAR_FOLDER = "avatars";
 const COVER_FOLDER = "covers";
@@ -111,6 +112,7 @@ export class UsersService {
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     private readonly jwtService: JwtService,
     private readonly storage: StorageService,
+    private readonly orgsService: OrgsService,
   ) {}
 
   async getMyProfile(username: string): Promise<UserProfile> {
@@ -144,7 +146,11 @@ export class UsersService {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
     if (payload.fullName !== undefined) doc.fullName = payload.fullName;
-    if (payload.organization !== undefined) doc.organization = payload.organization;
+    if (payload.organization !== undefined) {
+      const resolved = await this.orgsService.findOrCreate(payload.organization, username);
+      doc.organization = resolved?.name ?? "";
+      doc.organizationId = resolved?.id ?? null;
+    }
     if (payload.title !== undefined) doc.title = payload.title;
     if (payload.bio !== undefined) doc.bio = payload.bio;
     if (payload.altEmail !== undefined) doc.altEmail = payload.altEmail;

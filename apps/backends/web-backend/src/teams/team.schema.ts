@@ -12,6 +12,9 @@ export class Team {
   @Prop({ type: String, default: "" })
   organization!: string;
 
+  @Prop({ type: String, default: null, index: true })
+  organizationId!: string | null;
+
   @Prop({ type: String, default: "" })
   description!: string;
 

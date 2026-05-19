@@ -8,6 +8,7 @@ import { StorageService } from "../storage.service";
 import { User } from "../user.schema";
 import { Project } from "../../projects/project.schema";
 import { Team } from "../../teams/team.schema";
+import { OrgsService } from "../../orgs/orgs.service";
 
 interface FakeUser {
   username: string;
@@ -70,6 +71,7 @@ describe("UsersService", () => {
   let teamModelMock: { find: jest.Mock; updateMany: jest.Mock };
   let jwtServiceMock: { signAsync: jest.Mock };
   let storageMock: { isAllowedMime: jest.Mock; uploadImage: jest.Mock; deleteByKey: jest.Mock; urlForKey: jest.Mock };
+  let orgsServiceMock: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
     userModelMock = { findOne: jest.fn(), find: jest.fn() };
@@ -89,6 +91,11 @@ describe("UsersService", () => {
       deleteByKey: jest.fn().mockResolvedValue(undefined),
       urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/openpra-web/${key}`)),
     };
+    orgsServiceMock = {
+      findOrCreate: jest.fn().mockImplementation((name: string) =>
+        Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
+      ),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -97,6 +104,7 @@ describe("UsersService", () => {
         { provide: getModelToken(Team.name), useValue: teamModelMock },
         { provide: JwtService, useValue: jwtServiceMock },
         { provide: StorageService, useValue: storageMock },
+        { provide: OrgsService, useValue: orgsServiceMock },
       ],
     }).compile();
     service = moduleRef.get(UsersService);

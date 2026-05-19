@@ -14,6 +14,7 @@ import type {
 } from "interfaces-shared-types";
 import { Team, type TeamDocument } from "./team.schema";
 import { User, type UserDocument } from "../users/user.schema";
+import { OrgsService } from "../orgs/orgs.service";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -69,12 +70,15 @@ export class TeamsService {
   constructor(
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    private readonly orgsService: OrgsService,
   ) {}
 
   async createTeam(payload: CreateTeamRequest, username: string): Promise<TeamDto> {
+    const resolved = await this.orgsService.findOrCreate(payload.organization, username);
     const created = await this.teamModel.create({
       name: payload.name,
-      organization: payload.organization,
+      organization: resolved?.name ?? "",
+      organizationId: resolved?.id ?? null,
       description: payload.description,
       visibility: payload.visibility,
       adminUsername: username,
@@ -171,7 +175,11 @@ export class TeamsService {
   async updateTeam(id: string, payload: UpdateTeamRequest, username: string): Promise<TeamDto> {
     const doc = await this.findAsAdmin(id, username);
     if (payload.name !== undefined) doc.name = payload.name;
-    if (payload.organization !== undefined) doc.organization = payload.organization;
+    if (payload.organization !== undefined) {
+      const resolved = await this.orgsService.findOrCreate(payload.organization, username);
+      doc.organization = resolved?.name ?? "";
+      doc.organizationId = resolved?.id ?? null;
+    }
     if (payload.description !== undefined) doc.description = payload.description;
     if (payload.visibility !== undefined) doc.visibility = payload.visibility;
     await doc.save();

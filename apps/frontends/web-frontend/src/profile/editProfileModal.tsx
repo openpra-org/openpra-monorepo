@@ -5,6 +5,7 @@ import {
   UpdateUserProfileRequestSchema,
 } from "interfaces-shared-types";
 import { CloseIcon, TrashIcon } from "../welcome/icons";
+import { OrgTypeahead } from "../orgs/orgTypeahead";
 import "./css/editProfileModal.css";
 
 const FIELD_KEYS = ["fullName", "title", "organization", "bio", "altEmail", "phone", "linkedin"] as const;
@@ -320,14 +321,13 @@ function EditProfileModal({
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="ep-org">Organization</label>
-                  <input
-                    id="ep-org"
-                    type="text"
+                  <OrgTypeahead
                     value={organization}
-                    onChange={(e) => { setOrganization(e.target.value); }}
-                    className="field__input"
+                    onChange={setOrganization}
                     placeholder="NC State University"
+                    ariaLabel="Organization"
                     disabled={pending}
+                    inputId="ep-org"
                   />
                 </div>
               </div>

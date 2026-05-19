@@ -5,6 +5,7 @@ import { Types } from "mongoose";
 import { TeamsService } from "../teams.service";
 import { Team } from "../team.schema";
 import { User } from "../../users/user.schema";
+import { OrgsService } from "../../orgs/orgs.service";
 
 function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
@@ -47,11 +48,17 @@ describe("TeamsService", () => {
       findOne: jest.fn(),
       find: jest.fn(),
     };
+    const orgsServiceMock = {
+      findOrCreate: jest.fn().mockImplementation((name: string) =>
+        Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
+      ),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         TeamsService,
         { provide: getModelToken(Team.name), useValue: teamModelMock },
         { provide: getModelToken(User.name), useValue: userModelMock },
+        { provide: OrgsService, useValue: orgsServiceMock },
       ],
     }).compile();
     service = moduleRef.get(TeamsService);

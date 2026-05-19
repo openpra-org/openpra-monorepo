@@ -5,6 +5,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { EmailService } from "./email.service";
 import { User, UserSchema } from "../users/user.schema";
+import { OrgsModule } from "../orgs/orgs.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { User, UserSchema } from "../users/user.schema";
         signOptions: { expiresIn: (process.env["JWT_EXPIRES_IN"] ?? "12h") as JwtSignOptions["expiresIn"] },
       }),
     }),
+    OrgsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, EmailService],

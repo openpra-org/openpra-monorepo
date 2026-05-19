@@ -17,6 +17,9 @@ export class User {
   @Prop({ default: "" })
   organization!: string;
 
+  @Prop({ type: String, default: null, index: true })
+  organizationId!: string | null;
+
   @Prop({ required: true })
   passwordHash!: string;
 

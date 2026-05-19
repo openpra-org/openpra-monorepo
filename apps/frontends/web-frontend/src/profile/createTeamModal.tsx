@@ -5,6 +5,7 @@ import {
   CreateTeamRequestSchema,
 } from "interfaces-shared-types";
 import { CloseIcon, GlobeIcon, LockIcon } from "../welcome/icons";
+import { OrgTypeahead } from "../orgs/orgTypeahead";
 import "./css/createTeamModal.css";
 
 interface FieldErrors {
@@ -122,14 +123,13 @@ function CreateTeamModal({
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ct-org">Organization</label>
-              <input
-                id="ct-org"
-                type="text"
+              <OrgTypeahead
                 value={organization}
-                onChange={(e) => { setOrganization(e.target.value); }}
-                className="field__input"
+                onChange={setOrganization}
                 placeholder="NC State University"
+                ariaLabel="Organization"
                 disabled={pending}
+                inputId="ct-org"
               />
             </div>
             <div className="field">

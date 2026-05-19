@@ -6,6 +6,7 @@ import { Team, TeamSchema } from "../teams/team.schema";
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { StorageService } from "./storage.service";
+import { OrgsModule } from "../orgs/orgs.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { StorageService } from "./storage.service";
       { name: Project.name, schema: ProjectSchema },
       { name: Team.name, schema: TeamSchema },
     ]),
+    OrgsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService, StorageService],

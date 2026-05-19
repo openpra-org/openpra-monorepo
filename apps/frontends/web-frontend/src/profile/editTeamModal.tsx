@@ -6,6 +6,7 @@ import {
   UpdateTeamRequestSchema,
 } from "interfaces-shared-types";
 import { CloseIcon, GlobeIcon, LockIcon } from "../welcome/icons";
+import { OrgTypeahead } from "../orgs/orgTypeahead";
 
 const VISIBILITY_OPTIONS: { id: TeamVisibility; label: string; icon: JSX.Element; desc: string }[] = [
   { id: "private", label: "Private", icon: <LockIcon />, desc: "Hidden from Browse. Members join only via admin invite." },
@@ -116,13 +117,12 @@ function EditTeamModal({
             </div>
             <div className="field">
               <label className="field__label" htmlFor="et-org">Organization</label>
-              <input
-                id="et-org"
-                type="text"
+              <OrgTypeahead
                 value={organization}
-                onChange={(e) => { setOrganization(e.target.value); }}
-                className="field__input"
+                onChange={setOrganization}
+                ariaLabel="Organization"
                 disabled={pending}
+                inputId="et-org"
               />
             </div>
             <div className="field">

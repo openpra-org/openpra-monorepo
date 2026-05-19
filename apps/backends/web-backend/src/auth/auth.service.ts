@@ -16,6 +16,7 @@ import type {
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
+import { OrgsService } from "../orgs/orgs.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
@@ -25,6 +26,7 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly orgsService: OrgsService,
   ) {}
 
   async checkAvailability(username?: string, email?: string): Promise<{ usernameAvailable?: boolean; emailAvailable?: boolean }> {
@@ -52,11 +54,13 @@ export class AuthService {
       throw new ConflictException("Email already registered");
     }
     const passwordHash = await argon2.hash(payload.password);
+    const resolved = await this.orgsService.findOrCreate(payload.organization, payload.username);
     const created = await this.userModel.create({
       username: payload.username,
       email,
       fullName: payload.fullName,
-      organization: payload.organization,
+      organization: resolved?.name ?? "",
+      organizationId: resolved?.id ?? null,
       passwordHash,
       roles: ["member-role"],
     });

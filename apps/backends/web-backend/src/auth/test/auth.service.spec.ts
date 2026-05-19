@@ -6,6 +6,7 @@ import * as argon2 from "argon2";
 import { AuthService } from "../auth.service";
 import { EmailService } from "../email.service";
 import { User } from "../../users/user.schema";
+import { OrgsService } from "../../orgs/orgs.service";
 
 interface FakeUser {
   _id: string;
@@ -44,6 +45,7 @@ describe("AuthService", () => {
   } & ((...args: unknown[]) => unknown);
   let jwtService: { signAsync: jest.Mock };
   let emailService: { sendPasswordResetEmail: jest.Mock };
+  let orgsService: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
     userModelMock = Object.assign(jest.fn(), {
@@ -52,6 +54,11 @@ describe("AuthService", () => {
     });
     jwtService = { signAsync: jest.fn().mockResolvedValue("signed.jwt.token") };
     emailService = { sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined) };
+    orgsService = {
+      findOrCreate: jest.fn().mockImplementation((name: string) =>
+        Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
+      ),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -59,6 +66,7 @@ describe("AuthService", () => {
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: JwtService, useValue: jwtService },
         { provide: EmailService, useValue: emailService },
+        { provide: OrgsService, useValue: orgsService },
       ],
     }).compile();
 

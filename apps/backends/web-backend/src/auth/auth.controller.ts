@@ -1,5 +1,6 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
 import {
+  type AvailabilityResponse,
   type LoginRequest,
   type LoginResponse,
   type SignupRequest,
@@ -46,5 +47,14 @@ export class AuthController {
     @Body(new ZodValidationPipe(ResetPasswordRequestSchema)) body: ResetPasswordRequest,
   ): Promise<ResetPasswordResponse> {
     return this.authService.resetPassword(body);
+  }
+
+  @Get("availability")
+  @HttpCode(HttpStatus.OK)
+  availability(
+    @Query("username") username?: string,
+    @Query("email") email?: string,
+  ): Promise<AvailabilityResponse> {
+    return this.authService.checkAvailability(username, email);
   }
 }

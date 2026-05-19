@@ -27,6 +27,21 @@ export class AuthService {
     private readonly emailService: EmailService,
   ) {}
 
+  async checkAvailability(username?: string, email?: string): Promise<{ usernameAvailable?: boolean; emailAvailable?: boolean }> {
+    const out: { usernameAvailable?: boolean; emailAvailable?: boolean } = {};
+    const trimmedUsername = username?.trim() ?? "";
+    if (trimmedUsername.length > 0) {
+      const existing = await this.userModel.findOne({ username: trimmedUsername }).lean();
+      out.usernameAvailable = existing === null;
+    }
+    const trimmedEmail = email?.trim().toLowerCase() ?? "";
+    if (trimmedEmail.length > 0) {
+      const existing = await this.userModel.findOne({ email: trimmedEmail }).lean();
+      out.emailAvailable = existing === null;
+    }
+    return out;
+  }
+
   async signup(payload: SignupRequest): Promise<SignupResponse> {
     const email = payload.email.toLowerCase();
     const existing = await this.userModel

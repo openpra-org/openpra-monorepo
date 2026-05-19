@@ -1,4 +1,5 @@
 import {
+  type AvailabilityResponse,
   type LoginRequest,
   type LoginResponse,
   type SignupRequest,
@@ -7,6 +8,7 @@ import {
   type ForgotPasswordResponse,
   type ResetPasswordRequest,
   type ResetPasswordResponse,
+  AvailabilityResponseSchema,
   LoginResponseSchema,
   SignupResponseSchema,
   ForgotPasswordResponseSchema,
@@ -62,4 +64,17 @@ async function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswo
   return ResetPasswordResponseSchema.parse(data);
 }
 
-export { signIn, signUp, forgotPassword, resetPassword };
+async function checkAvailability(params: { username?: string; email?: string }): Promise<AvailabilityResponse> {
+  const search = new URLSearchParams();
+  if (params.username !== undefined && params.username.length > 0) search.set("username", params.username);
+  if (params.email !== undefined && params.email.length > 0) search.set("email", params.email);
+  const response = await fetch(`${AUTH_BASE}/availability?${search.toString()}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(response.statusText);
+  const data = (await response.json()) as unknown;
+  return AvailabilityResponseSchema.parse(data);
+}
+
+export { signIn, signUp, forgotPassword, resetPassword, checkAvailability };

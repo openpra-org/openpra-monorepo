@@ -219,4 +219,40 @@ describe("AuthService", () => {
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
+
+  describe("checkAvailability", () => {
+    it("returns usernameAvailable=true when no user matches", async () => {
+      userModelMock.findOne.mockReturnValueOnce({ lean: () => Promise.resolve(null) });
+      const out = await service.checkAvailability("free-name");
+      expect(userModelMock.findOne).toHaveBeenCalledWith({ username: "free-name" });
+      expect(out).toEqual({ usernameAvailable: true });
+    });
+
+    it("returns usernameAvailable=false when a user is found", async () => {
+      userModelMock.findOne.mockReturnValueOnce({ lean: () => Promise.resolve(makeUser()) });
+      const out = await service.checkAvailability("ada");
+      expect(out).toEqual({ usernameAvailable: false });
+    });
+
+    it("lowercases the email lookup", async () => {
+      userModelMock.findOne.mockReturnValueOnce({ lean: () => Promise.resolve(null) });
+      const out = await service.checkAvailability(undefined, "Ada@example.com");
+      expect(userModelMock.findOne).toHaveBeenCalledWith({ email: "ada@example.com" });
+      expect(out).toEqual({ emailAvailable: true });
+    });
+
+    it("returns both flags when both fields are queried", async () => {
+      userModelMock.findOne
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
+        .mockReturnValueOnce({ lean: () => Promise.resolve(makeUser()) });
+      const out = await service.checkAvailability("free", "taken@example.com");
+      expect(out).toEqual({ usernameAvailable: true, emailAvailable: false });
+    });
+
+    it("returns an empty object when both inputs are empty / undefined", async () => {
+      const out = await service.checkAvailability("   ", "");
+      expect(out).toEqual({});
+      expect(userModelMock.findOne).not.toHaveBeenCalled();
+    });
+  });
 });

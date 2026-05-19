@@ -1,7 +1,6 @@
 import { JSX, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { useToast } from "../toast/toastProvider";
 import logo from "../assets/Logo.png";
 import { BookIcon, CaretIcon, LogoutIcon, SettingsIcon, UserIcon } from "./icons";
 import { ThemePicker } from "./themePicker";
@@ -20,7 +19,6 @@ function TopBar(): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const { user, logout } = useAuth();
-  const { addToast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,11 +28,6 @@ function TopBar(): JSX.Element {
     if (menuOpen) document.addEventListener("mousedown", onClick);
     return () => { document.removeEventListener("mousedown", onClick); };
   }, [menuOpen]);
-
-  function comingSoon(label: string): void {
-    setMenuOpen(false);
-    addToast({ id: crypto.randomUUID(), type: "info", message: `${label} — coming soon` });
-  }
 
   function handleSignOut(): void {
     setMenuOpen(false);
@@ -59,14 +52,15 @@ function TopBar(): JSX.Element {
         <span className="wp__brand-name">OpenPRA</span>
       </button>
       <nav className="wp__topbar-nav" aria-label="Primary">
-        <button
-          type="button"
+        <a
           className="wp__nav-link"
-          onClick={() => { comingSoon("Documentation"); }}
-          aria-label="Documentation"
+          href="https://docs-dev.openpra.org/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Documentation (opens in a new tab)"
         >
           <BookIcon /><span>Documentation</span>
-        </button>
+        </a>
         <ThemePicker theme={theme} setTheme={setTheme} />
         <div className="wp__avatar-wrap" ref={wrapRef}>
           <button

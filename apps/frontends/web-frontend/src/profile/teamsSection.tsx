@@ -14,13 +14,8 @@ function teamInitials(name: string): string {
 function roleLabel(role: Team["role"]): string {
   if (role === "admin") return "Admin";
   if (role === "member") return "Member";
-  if (role === "pending") return "Pending";
   if (role === "invited") return "Invited";
   return "";
-}
-
-function leaveLabel(role: Team["role"]): string {
-  return role === "pending" ? "Cancel" : "Leave";
 }
 
 interface TeamsSectionProps {
@@ -87,11 +82,9 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
             const isExpanded = isAdmin && expandedId === team.id;
             const roleChipClass = role === "admin"
               ? "pf__role-chip pf__role-chip--admin"
-              : role === "pending"
-                ? "pf__role-chip pf__role-chip--pending"
-                : role === "invited"
-                  ? "pf__role-chip pf__role-chip--pending"
-                  : "pf__role-chip";
+              : role === "invited"
+                ? "pf__role-chip pf__role-chip--invited"
+                : "pf__role-chip";
 
             return (
               <div key={team.id} className={`pf__team-wrap${isExpanded ? " pf__team-wrap--expanded" : ""}`}>
@@ -118,13 +111,13 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
                     >
                       Manage <CaretIcon />
                     </button>
-                  ) : (
+                  ) : role === "invited" ? null : (
                     <button
                       type="button"
                       className="pf__team-leave"
                       onClick={() => { onLeave(team); }}
                     >
-                      {leaveLabel(role)}
+                      Leave
                     </button>
                   )}
                 </div>

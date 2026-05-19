@@ -145,7 +145,7 @@ function ProfilePage(): JSX.Element {
       return [team, ...prev];
     });
     setJoinTeamOpen(false);
-    flashSuccess(team.role === "pending" ? `Requested to join "${team.name}"` : `Joined "${team.name}"`);
+    flashSuccess(`Joined "${team.name}"`);
   }
 
   function handleLeaveConfirm(): void {
@@ -155,7 +155,7 @@ function ProfilePage(): JSX.Element {
     leaveTeam(target.id)
       .then(() => {
         setTeams((prev) => prev.filter((t) => t.id !== target.id));
-        flashSuccess(target.role === "pending" ? "Join request cancelled" : `Left "${target.name}"`);
+        flashSuccess(`Left "${target.name}"`);
         setLeaveTarget(null);
       })
       .catch((err: unknown) => {

@@ -5,8 +5,6 @@ import {
   getTeamDetail,
   inviteToTeam,
   kickMember,
-  approveRequest,
-  rejectRequest,
 } from "../teams/teamsApi";
 import { EditIcon, TrashIcon } from "../welcome/icons";
 import "./css/teamAdminPanel.css";
@@ -74,31 +72,6 @@ function TeamAdminPanel(props: TeamAdminPanelProps): JSX.Element {
       .finally(() => { setBusyRow(null); });
   }
 
-  function handleApprove(entry: TeamRosterEntry): void {
-    setBusyRow(`pend:${entry.username}`);
-    approveRequest(team.id, entry.username)
-      .then((updated) => {
-        onTeamChanged(updated);
-        return reloadDetail();
-      })
-      .then(() => { onSuccess(`Approved ${entry.fullName}`); })
-      .catch((err: unknown) => {
-        onError((err as { message?: string }).message ?? "Could not approve request");
-      })
-      .finally(() => { setBusyRow(null); });
-  }
-
-  function handleReject(entry: TeamRosterEntry): void {
-    setBusyRow(`pend:${entry.username}`);
-    rejectRequest(team.id, entry.username)
-      .then(reloadDetail)
-      .then(() => { onSuccess(`Rejected request from ${entry.fullName}`); })
-      .catch((err: unknown) => {
-        onError((err as { message?: string }).message ?? "Could not reject request");
-      })
-      .finally(() => { setBusyRow(null); });
-  }
-
   function handleKick(entry: TeamRosterEntry): void {
     setBusyRow(`mem:${entry.username}`);
     kickMember(team.id, entry.username)
@@ -123,7 +96,7 @@ function TeamAdminPanel(props: TeamAdminPanelProps): JSX.Element {
         <div>
           <h4 className="pf__admin-title">Manage team</h4>
           <p className="pf__admin-sub">
-            Invite collaborators, review join requests, remove members.
+            Invite collaborators, remove members, or edit team metadata.
           </p>
         </div>
         <div className="pf__admin-actions">
@@ -186,41 +159,6 @@ function TeamAdminPanel(props: TeamAdminPanelProps): JSX.Element {
           )}
         </ul>
       </div>
-
-      {detail.pending.length > 0 && (
-        <div className="pf__admin-group">
-          <h5 className="pf__admin-group-h">Pending requests ({detail.pending.length})</h5>
-          <ul className="pf__roster">
-            {detail.pending.map((p) => (
-              <li key={p.username} className="pf__roster-row">
-                <span className="pf__roster-av">{p.initials}</span>
-                <div className="pf__roster-body">
-                  <span className="pf__roster-name">{p.fullName}</span>
-                  <span className="pf__roster-username">@{p.username}</span>
-                </div>
-                <div className="pf__roster-pair">
-                  <button
-                    type="button"
-                    className="pf__roster-action"
-                    onClick={() => { handleReject(p); }}
-                    disabled={busyRow !== null}
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    className="pf__roster-action pf__roster-action--primary"
-                    onClick={() => { handleApprove(p); }}
-                    disabled={busyRow !== null}
-                  >
-                    {busyRow === `pend:${p.username}` ? "Working…" : "Approve"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {detail.invited.length > 0 && (
         <div className="pf__admin-group">

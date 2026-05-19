@@ -17,7 +17,6 @@ function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, un
     visibility: "public",
     adminUsername: "ada",
     members: ["ada"],
-    pending: [],
     invited: [],
     save,
     deleteOne,
@@ -69,7 +68,6 @@ describe("TeamsService", () => {
       const arg = teamModelMock.create.mock.calls[0][0] as Record<string, unknown>;
       expect(arg.adminUsername).toBe("ada");
       expect(arg.members).toEqual(["ada"]);
-      expect(arg.pending).toEqual([]);
       expect(arg.invited).toEqual([]);
       expect(out.role).toBe("admin");
       expect(out.memberCount).toBe(1);
@@ -77,13 +75,12 @@ describe("TeamsService", () => {
   });
 
   describe("getMyTeams", () => {
-    it("returns teams where the user is admin / member / pending", async () => {
+    it("returns teams where the user is admin or member", async () => {
       const a = makeTeamDoc({ adminUsername: "ada", members: ["ada"] });
       const b = makeTeamDoc({ adminUsername: "chen", members: ["chen", "ada"] });
-      const c = makeTeamDoc({ adminUsername: "chen", members: ["chen"], pending: ["ada"], visibility: "private" });
-      teamModelMock.find.mockReturnValue({ sort: () => ({ exec: jest.fn().mockResolvedValue([a, b, c]) }) });
+      teamModelMock.find.mockReturnValue({ sort: () => ({ exec: jest.fn().mockResolvedValue([a, b]) }) });
       const out = await service.getMyTeams("ada");
-      expect(out.teams.map((t) => t.role)).toEqual(["admin", "member", "pending"]);
+      expect(out.teams.map((t) => t.role)).toEqual(["admin", "member"]);
     });
   });
 
@@ -106,7 +103,6 @@ describe("TeamsService", () => {
       expect(filter["visibility"]).toBe("public");
       expect(filter["adminUsername"]).toEqual({ $ne: "ada" });
       expect(filter["members"]).toEqual({ $ne: "ada" });
-      expect(filter["pending"]).toEqual({ $ne: "ada" });
       expect(filter["invited"]).toEqual({ $ne: "ada" });
       const orClauses = filter["$or"] as { name?: RegExp; organization?: RegExp; description?: RegExp }[];
       expect(orClauses).toHaveLength(3);
@@ -128,11 +124,10 @@ describe("TeamsService", () => {
       await expect(service.getTeamDetail(String(doc._id), "ada")).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("returns roster + pending + invited for the admin", async () => {
+    it("returns roster + invited for the admin", async () => {
       const doc = makeTeamDoc({
         adminUsername: "ada",
         members: ["ada", "chen"],
-        pending: ["bob"],
         invited: ["carol"],
         visibility: "private",
       });
@@ -141,13 +136,11 @@ describe("TeamsService", () => {
         lean: () => Promise.resolve([
           { username: "ada", fullName: "Ada Lovelace" },
           { username: "chen", fullName: "M. Chen" },
-          { username: "bob", fullName: "Bob Q" },
           { username: "carol", fullName: "Carol R" },
         ]),
       }));
       const out = await service.getTeamDetail(String(doc._id), "ada");
       expect(out.members.map((m) => m.username)).toEqual(["ada", "chen"]);
-      expect(out.pending.map((m) => m.username)).toEqual(["bob"]);
       expect(out.invited.map((m) => m.username)).toEqual(["carol"]);
     });
 
@@ -167,7 +160,6 @@ describe("TeamsService", () => {
       }));
       const out = await service.getTeamDetail(String(doc._id), "chen");
       expect(out.role).toBe("invited");
-      expect(out.pending).toEqual([]);
       expect(out.invited.map((m) => m.username)).toEqual(["chen"]);
     });
   });
@@ -181,16 +173,14 @@ describe("TeamsService", () => {
       expect(out.role).toBe("member");
     });
 
-    it("adds the user to pending for a private team", async () => {
+    it("returns 404 for a private team (join-by-discovery is not allowed)", async () => {
       const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], visibility: "private" });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      const out = await service.joinTeam(String(doc._id), "ada");
-      expect(doc.pending).toContain("ada");
-      expect(out.role).toBe("pending");
+      await expect(service.joinTeam(String(doc._id), "ada")).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it("throws ConflictException when the user has an open invitation", async () => {
-      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invited: ["ada"], visibility: "private" });
+      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invited: ["ada"], visibility: "public" });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.joinTeam(String(doc._id), "ada")).rejects.toBeInstanceOf(ConflictException);
     });
@@ -320,25 +310,6 @@ describe("TeamsService", () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.kickMember(String(doc._id), "ada", "ada")).rejects.toBeInstanceOf(ForbiddenException);
-    });
-  });
-
-  describe("approveRequest / rejectRequest", () => {
-    it("promotes a pending user to member on approve", async () => {
-      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], pending: ["chen"] });
-      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      const out = await service.approveRequest(String(doc._id), "chen", "ada");
-      expect(doc.members).toContain("chen");
-      expect(doc.pending).not.toContain("chen");
-      expect(out.memberCount).toBe(2);
-    });
-
-    it("removes from pending on reject without adding to members", async () => {
-      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], pending: ["chen"] });
-      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      await service.rejectRequest(String(doc._id), "chen", "ada");
-      expect(doc.pending).toEqual([]);
-      expect(doc.members).toEqual(["ada"]);
     });
   });
 });

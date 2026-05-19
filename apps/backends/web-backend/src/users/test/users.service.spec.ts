@@ -243,8 +243,8 @@ describe("UsersService", () => {
 
       expect(adminTeam.deleteOne).toHaveBeenCalledTimes(2);
       expect(teamModelMock.updateMany).toHaveBeenCalledWith(
-        { $or: [{ members: "ada" }, { pending: "ada" }, { invited: "ada" }] },
-        { $pull: { members: "ada", pending: "ada", invited: "ada" } },
+        { $or: [{ members: "ada" }, { invited: "ada" }] },
+        { $pull: { members: "ada", invited: "ada" } },
       );
       expect(projectModelMock.deleteMany).toHaveBeenCalledWith({ ownerUsername: "ada" });
       expect(projectModelMock.updateMany).toHaveBeenCalledWith(

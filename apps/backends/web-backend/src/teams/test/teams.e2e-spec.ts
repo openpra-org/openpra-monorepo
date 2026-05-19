@@ -147,7 +147,7 @@ describe("Teams (e2e)", () => {
     expect(res.body.memberCount).toBe(2);
   });
 
-  it("joins a private team as 'pending'", async () => {
+  it("returns 404 when joining a private team (join-by-discovery is not allowed)", async () => {
     const owner = await signupAndLogin(httpServer, { username: "owner-priv", email: "owner-priv@example.com" });
     const created = await request(httpServer)
       .post("/api/teams")
@@ -157,9 +157,7 @@ describe("Teams (e2e)", () => {
     const res = await request(httpServer)
       .post(`/api/teams/${created.body.id}/join`)
       .set("Authorization", `Bearer ${joiner}`);
-    expect(res.status).toBe(200);
-    expect(res.body.role).toBe("pending");
-    expect(res.body.memberCount).toBe(1);
+    expect(res.status).toBe(404);
   });
 
   it("returns 409 when the user is already a member", async () => {
@@ -272,7 +270,7 @@ describe("Teams (e2e)", () => {
       expect(res.status).toBe(404);
     });
 
-    it("returns roster + pending + invited for the admin", async () => {
+    it("returns roster + invited for the admin", async () => {
       const owner = await signupAndLogin(httpServer, { username: "detail-owner", email: "detail-owner@example.com", fullName: "Owner User" });
       const inviteeFull = await signupAndLogin(httpServer, { username: "invitee-user", email: "invitee-user@example.com", fullName: "Invited Person" });
       void inviteeFull;
@@ -362,26 +360,6 @@ describe("Teams (e2e)", () => {
         .set("Authorization", `Bearer ${owner}`)
         .send({ identifier: "no-such-user" });
       expect(res.status).toBe(404);
-    });
-  });
-
-  describe("Pending request handling", () => {
-    it("admin approves a pending public-team request and the user becomes a member", async () => {
-      const owner = await signupAndLogin(httpServer, { username: "req-owner-1", email: "req-owner-1@example.com" });
-      const team = await request(httpServer)
-        .post("/api/teams")
-        .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Request Team A", visibility: "private" });
-      // simulate request by directly using join endpoint (private path drops user into pending)
-      const requester = await signupAndLogin(httpServer, { username: "req-user-1", email: "req-user-1@example.com" });
-      const join = await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${requester}`);
-      expect(join.body.role).toBe("pending");
-
-      const approve = await request(httpServer)
-        .post(`/api/teams/${team.body.id}/pending/req-user-1/approve`)
-        .set("Authorization", `Bearer ${owner}`);
-      expect(approve.status).toBe(200);
-      expect(approve.body.memberCount).toBe(2);
     });
   });
 

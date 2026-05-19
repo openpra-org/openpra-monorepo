@@ -21,12 +21,9 @@ function ConfirmLeaveModal({
     return () => { document.removeEventListener("keydown", onKey); };
   }, [onCancel, pending]);
 
-  const isPending = team.role === "pending";
-  const title = isPending ? `Cancel your request to "${team.name}"?` : `Leave "${team.name}"?`;
-  const body = isPending
-    ? "Your pending join request will be withdrawn. You can request again later."
-    : "You'll lose access to the team's shared analyses. The admin can re-invite you any time.";
-  const confirmLabel = isPending ? "Cancel request" : "Leave team";
+  const title = `Leave "${team.name}"?`;
+  const body = "You'll lose access to the team's shared analyses. The admin can re-invite you any time.";
+  const confirmLabel = "Leave team";
 
   return (
     <div

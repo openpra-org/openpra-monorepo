@@ -110,15 +110,6 @@ async function kickMember(id: string, username: string): Promise<void> {
   await call("DELETE", `/${id}/members/${encodeURIComponent(username)}`);
 }
 
-async function approveRequest(id: string, username: string): Promise<Team> {
-  const data = await (await call("POST", `/${id}/pending/${encodeURIComponent(username)}/approve`)).json();
-  return TeamSchema.parse(data);
-}
-
-async function rejectRequest(id: string, username: string): Promise<void> {
-  await call("DELETE", `/${id}/pending/${encodeURIComponent(username)}`);
-}
-
 export {
   getMyTeams,
   getMyInvitations,
@@ -134,6 +125,4 @@ export {
   acceptInvite,
   declineInvite,
   kickMember,
-  approveRequest,
-  rejectRequest,
 };

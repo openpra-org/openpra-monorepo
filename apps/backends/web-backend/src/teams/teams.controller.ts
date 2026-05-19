@@ -139,24 +139,4 @@ export class TeamsController {
   ): Promise<void> {
     await this.teamsService.kickMember(id, username, req.user!.username);
   }
-
-  @Post(":id/pending/:username/approve")
-  @HttpCode(HttpStatus.OK)
-  approveRequest(
-    @Param("id") id: string,
-    @Param("username") username: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<Team> {
-    return this.teamsService.approveRequest(id, username, req.user!.username);
-  }
-
-  @Delete(":id/pending/:username")
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async rejectRequest(
-    @Param("id") id: string,
-    @Param("username") username: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<void> {
-    await this.teamsService.rejectRequest(id, username, req.user!.username);
-  }
 }

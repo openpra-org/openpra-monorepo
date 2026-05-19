@@ -31,7 +31,7 @@ function ConfirmDeleteTeamModal({
           <div>
             <h2 className="modal__title" id="dt-title">Delete &quot;{team.name}&quot;?</h2>
             <p className="modal__sub">
-              All {team.memberCount} member{team.memberCount === 1 ? "" : "s"} will lose access. Pending invitations and join requests are dropped. This cannot be undone.
+              All {team.memberCount} member{team.memberCount === 1 ? "" : "s"} will lose access. Open invitations are dropped. This cannot be undone.
             </p>
           </div>
           <button

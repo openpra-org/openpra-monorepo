@@ -22,11 +22,19 @@ function computeInitials(fullName: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function escapeForRegex(input: string): string {
+  let out = "";
+  for (const ch of input) {
+    if (".*+?^${}()|[]\\".indexOf(ch) >= 0) out += "\\";
+    out += ch;
+  }
+  return out;
+}
+
 function roleFor(doc: TeamDocument, username: string): TeamRole | null {
   if (doc.adminUsername === username) return "admin";
   if (doc.members.includes(username)) return "member";
   if (doc.invited.includes(username)) return "invited";
-  if (doc.pending.includes(username)) return "pending";
   return null;
 }
 
@@ -63,7 +71,6 @@ export class TeamsService {
       visibility: payload.visibility,
       adminUsername: username,
       members: [username],
-      pending: [],
       invited: [],
     });
     return toDto(created, username);
@@ -71,7 +78,7 @@ export class TeamsService {
 
   async getMyTeams(username: string): Promise<MyTeamsResponse> {
     const docs = await this.teamModel
-      .find({ $or: [{ adminUsername: username }, { members: username }, { pending: username }] })
+      .find({ $or: [{ adminUsername: username }, { members: username }] })
       .sort({ updatedAt: -1 })
       .exec();
     return { teams: docs.map((d) => toDto(d, username)) };
@@ -90,12 +97,11 @@ export class TeamsService {
       visibility: "public",
       adminUsername: { $ne: username },
       members: { $ne: username },
-      pending: { $ne: username },
       invited: { $ne: username },
     };
     const q = (query ?? "").trim();
     if (q.length > 0) {
-      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      const re = new RegExp(escapeForRegex(q), "i");
       filter.$or = [{ name: re }, { organization: re }, { description: re }];
     }
     const docs = await this.teamModel.find(filter).sort({ updatedAt: -1 }).exec();
@@ -111,7 +117,6 @@ export class TeamsService {
 
     const isAdmin = role === "admin";
     const members = await this.resolveRoster(doc.members);
-    const pending = isAdmin ? await this.resolveRoster(doc.pending) : [];
     const invited = isAdmin
       ? await this.resolveRoster(doc.invited)
       : role === "invited"
@@ -121,27 +126,22 @@ export class TeamsService {
     return {
       ...toDto(doc, username),
       members,
-      pending,
       invited,
     };
   }
 
   async joinTeam(id: string, username: string): Promise<TeamDto> {
     const doc = await this.findById(id);
+    if (doc.visibility !== "public") {
+      throw new NotFoundException("Team not found");
+    }
     if (doc.adminUsername === username || doc.members.includes(username)) {
       throw new ConflictException("Already a member of this team");
-    }
-    if (doc.pending.includes(username)) {
-      throw new ConflictException("Join request already pending");
     }
     if (doc.invited.includes(username)) {
       throw new ConflictException("Open invitation pending — accept it instead");
     }
-    if (doc.visibility === "public") {
-      doc.members.push(username);
-    } else {
-      doc.pending.push(username);
-    }
+    doc.members.push(username);
     await doc.save();
     return toDto(doc, username);
   }
@@ -151,12 +151,10 @@ export class TeamsService {
     if (doc.adminUsername === username) {
       throw new ForbiddenException("Admins cannot leave; transfer ownership or delete the team");
     }
-    const inAny = doc.members.includes(username) || doc.pending.includes(username);
-    if (!inAny) {
+    if (!doc.members.includes(username)) {
       throw new BadRequestException("Not a member of this team");
     }
     doc.members = doc.members.filter((u) => u !== username);
-    doc.pending = doc.pending.filter((u) => u !== username);
     await doc.save();
   }
 
@@ -183,9 +181,6 @@ export class TeamsService {
     }
     if (doc.invited.includes(invitee.username)) {
       throw new ConflictException("User already has an open invitation");
-    }
-    if (doc.pending.includes(invitee.username)) {
-      doc.pending = doc.pending.filter((u) => u !== invitee.username);
     }
     doc.invited.push(invitee.username);
     await doc.save();
@@ -220,22 +215,6 @@ export class TeamsService {
     if (target === doc.adminUsername) throw new ForbiddenException("Cannot remove the team admin");
     if (!doc.members.includes(target)) throw new NotFoundException("User is not a member");
     doc.members = doc.members.filter((u) => u !== target);
-    await doc.save();
-  }
-
-  async approveRequest(id: string, target: string, adminUsername: string): Promise<TeamDto> {
-    const doc = await this.findAsAdmin(id, adminUsername);
-    if (!doc.pending.includes(target)) throw new NotFoundException("No pending request from that user");
-    doc.pending = doc.pending.filter((u) => u !== target);
-    doc.members.push(target);
-    await doc.save();
-    return toDto(doc, adminUsername);
-  }
-
-  async rejectRequest(id: string, target: string, adminUsername: string): Promise<void> {
-    const doc = await this.findAsAdmin(id, adminUsername);
-    if (!doc.pending.includes(target)) throw new NotFoundException("No pending request from that user");
-    doc.pending = doc.pending.filter((u) => u !== target);
     await doc.save();
   }
 

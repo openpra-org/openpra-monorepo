@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TeamRoleSchema = z.enum(["admin", "member", "invited", "pending"]);
+const TeamRoleSchema = z.enum(["admin", "member", "invited"]);
 type TeamRole = z.infer<typeof TeamRoleSchema>;
 
 const TeamVisibilitySchema = z.enum(["public", "private"]);
@@ -27,7 +27,6 @@ type TeamRosterEntry = z.infer<typeof TeamRosterEntrySchema>;
 
 const TeamDetailSchema = TeamSchema.extend({
   members: z.array(TeamRosterEntrySchema),
-  pending: z.array(TeamRosterEntrySchema),
   invited: z.array(TeamRosterEntrySchema),
 });
 type TeamDetail = z.infer<typeof TeamDetailSchema>;

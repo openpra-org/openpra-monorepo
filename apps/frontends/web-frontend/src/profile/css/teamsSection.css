@@ -76,12 +76,12 @@
   color: #ffffff;
 }
 
-.pf__role-chip--pending {
+.pf__role-chip--invited {
   background: rgba(184, 106, 0, 0.12);
   color: var(--color-warning);
 }
 
-[data-theme="dark"] .pf__role-chip--pending {
+[data-theme="dark"] .pf__role-chip--invited {
   background: rgba(224, 161, 77, 0.18);
   color: var(--color-warning);
 }

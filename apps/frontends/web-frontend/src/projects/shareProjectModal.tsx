@@ -1,4 +1,5 @@
 import { JSX, useEffect, useState, FormEvent } from "react";
+import { Link } from "react-router-dom";
 import {
   type Project,
   type ProjectShareRole,
@@ -6,6 +7,7 @@ import {
 } from "interfaces-shared-types";
 import { CloseIcon, TrashIcon, UsersIcon } from "../welcome/icons";
 import { getMyTeams } from "../teams/teamsApi";
+import { UserTypeahead } from "../users/userTypeahead";
 import {
   shareProjectWithTeam,
   shareProjectWithUser,
@@ -228,7 +230,7 @@ function ShareProjectModal({ project, onClose, onChanged, onError, onSuccess }: 
                       {s.fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?"}
                     </span>
                     <div className="sh__row-body">
-                      <div className="sh__row-name">{s.fullName}</div>
+                      <Link to={`/users/${s.username}`} className="sh__row-name sh__row-link">{s.fullName}</Link>
                       <div className="sh__row-meta">@{s.username}</div>
                     </div>
                     <select
@@ -256,14 +258,13 @@ function ShareProjectModal({ project, onClose, onChanged, onError, onSuccess }: 
             )}
 
             <form className="sh__add" onSubmit={submitUser} noValidate>
-              <input
-                type="text"
-                className="field__input sh__add-input"
+              <UserTypeahead
                 value={userIdentifier}
-                onChange={(e) => { setUserIdentifier(e.target.value); }}
+                onChange={setUserIdentifier}
                 placeholder="username or email"
+                ariaLabel="Username or email"
                 disabled={busy}
-                aria-label="Username or email"
+                className="sh__add-input"
               />
               <select
                 className="field__input sh__add-role"

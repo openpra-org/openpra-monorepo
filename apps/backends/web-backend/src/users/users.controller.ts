@@ -6,8 +6,10 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -24,9 +26,11 @@ import {
   type ChangeUsernameResponse,
   type MyProfileResponse,
   type NotificationPrefs,
+  type PublicUserProfile,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
   type UserProfile,
+  type UserSearchResponse,
   ChangeEmailRequestSchema,
   ChangePasswordRequestSchema,
   ChangeUsernameRequestSchema,
@@ -61,6 +65,18 @@ export class UsersController {
       this.usersService.getMyProjectCount(username),
     ]);
     return { profile, projectCount };
+  }
+
+  @Get("search")
+  @HttpCode(HttpStatus.OK)
+  search(@Req() req: AuthenticatedRequest, @Query("q") q?: string): Promise<UserSearchResponse> {
+    return this.usersService.searchUsers(q ?? "", req.user!.username);
+  }
+
+  @Get(":username")
+  @HttpCode(HttpStatus.OK)
+  getPublic(@Param("username") username: string): Promise<PublicUserProfile> {
+    return this.usersService.getPublicProfile(username);
   }
 
   @Patch("me")

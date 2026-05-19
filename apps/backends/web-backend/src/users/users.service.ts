@@ -8,9 +8,12 @@ import type {
   ChangeUsernameRequest,
   ChangePasswordRequest,
   NotificationPrefs,
+  PublicUserProfile,
   UpdateNotificationPrefsRequest,
   UpdateUserProfileRequest,
   UserProfile,
+  UserSearchHit,
+  UserSearchResponse,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "./user.schema";
 import { Project, type ProjectDocument } from "../projects/project.schema";
@@ -51,6 +54,41 @@ function toDtoWithStorage(doc: UserDocument, storage: StorageService): UserProfi
   };
 }
 
+function toPublicProfile(doc: UserDocument, storage: StorageService): PublicUserProfile {
+  const createdAt = (doc as UserDocument & { createdAt?: Date }).createdAt;
+  return {
+    username: doc.username,
+    fullName: doc.fullName,
+    organization: doc.organization,
+    title: doc.title,
+    bio: doc.bio,
+    linkedin: doc.linkedin,
+    initials: computeInitials(doc.fullName),
+    memberSince: formatMemberSince(createdAt),
+    avatarUrl: storage.urlForKey(doc.avatarKey),
+    coverUrl: storage.urlForKey(doc.coverKey),
+  };
+}
+
+function toSearchHit(doc: UserDocument, storage: StorageService): UserSearchHit {
+  return {
+    username: doc.username,
+    fullName: doc.fullName,
+    initials: computeInitials(doc.fullName),
+    organization: doc.organization,
+    avatarUrl: storage.urlForKey(doc.avatarKey),
+  };
+}
+
+function escapeForRegex(input: string): string {
+  let out = "";
+  for (const ch of input) {
+    if (".*+?^${}()|[]\\".indexOf(ch) >= 0) out += "\\";
+    out += ch;
+  }
+  return out;
+}
+
 function isUsernameCharValid(ch: string): boolean {
   if (ch.length !== 1) return false;
   const code = ch.charCodeAt(0);
@@ -79,6 +117,27 @@ export class UsersService {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
     return toDtoWithStorage(doc, this.storage);
+  }
+
+  async getPublicProfile(username: string): Promise<PublicUserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    return toPublicProfile(doc, this.storage);
+  }
+
+  async searchUsers(query: string, actingUsername: string): Promise<UserSearchResponse> {
+    const q = query.trim();
+    if (q.length < 2) return { users: [] };
+    const re = new RegExp(escapeForRegex(q), "i");
+    const docs = await this.userModel
+      .find({
+        username: { $ne: actingUsername },
+        $or: [{ username: re }, { fullName: re }],
+      })
+      .sort({ username: 1 })
+      .limit(20)
+      .exec();
+    return { users: docs.map((d) => toSearchHit(d, this.storage)) };
   }
 
   async updateMyProfile(username: string, payload: UpdateUserProfileRequest): Promise<UserProfile> {

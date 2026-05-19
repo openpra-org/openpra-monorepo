@@ -53,6 +53,34 @@ const MyProfileResponseSchema = z.object({
 });
 type MyProfileResponse = z.infer<typeof MyProfileResponseSchema>;
 
+const PublicUserProfileSchema = z.object({
+  username: z.string(),
+  fullName: z.string(),
+  organization: z.string(),
+  title: z.string(),
+  bio: z.string(),
+  linkedin: z.string(),
+  initials: z.string(),
+  memberSince: z.string(),
+  avatarUrl: z.string().nullable(),
+  coverUrl: z.string().nullable(),
+});
+type PublicUserProfile = z.infer<typeof PublicUserProfileSchema>;
+
+const UserSearchHitSchema = z.object({
+  username: z.string(),
+  fullName: z.string(),
+  initials: z.string(),
+  organization: z.string(),
+  avatarUrl: z.string().nullable(),
+});
+type UserSearchHit = z.infer<typeof UserSearchHitSchema>;
+
+const UserSearchResponseSchema = z.object({
+  users: z.array(UserSearchHitSchema),
+});
+type UserSearchResponse = z.infer<typeof UserSearchResponseSchema>;
+
 const ChangeEmailRequestSchema = z.object({
   newEmail: z.email("Invalid email format").max(254),
   currentPassword: z.string().min(1, "Current password is required"),
@@ -117,6 +145,9 @@ export {
   UserProfileSchema,
   UpdateUserProfileRequestSchema,
   MyProfileResponseSchema,
+  PublicUserProfileSchema,
+  UserSearchHitSchema,
+  UserSearchResponseSchema,
   ChangeEmailRequestSchema,
   ChangeUsernameRequestSchema,
   ChangePasswordRequestSchema,
@@ -131,6 +162,9 @@ export type {
   UserProfile,
   UpdateUserProfileRequest,
   MyProfileResponse,
+  PublicUserProfile,
+  UserSearchHit,
+  UserSearchResponse,
   ChangeEmailRequest,
   ChangeUsernameRequest,
   ChangePasswordRequest,

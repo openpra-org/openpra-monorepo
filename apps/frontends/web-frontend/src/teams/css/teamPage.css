@@ -209,6 +209,15 @@
   color: var(--color-text);
 }
 
+.tp__row-link {
+  text-decoration: none;
+}
+
+.tp__row-link:hover {
+  text-decoration: underline;
+  color: var(--color-primary);
+}
+
 .tp__row-meta {
   font-size: 12px;
   color: var(--color-text-subtle);

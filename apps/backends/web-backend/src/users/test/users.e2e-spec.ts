@@ -374,4 +374,56 @@ describe("Users (e2e)", () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe("GET /api/users/search", () => {
+    it("returns case-insensitive matches and excludes the acting user", async () => {
+      const me = await signupAndLogin(httpServer, { username: "srch-me", email: "srch-me@example.com", fullName: "Search Me" });
+      await signupAndLogin(httpServer, { username: "srch-alice", email: "srch-alice@example.com", fullName: "Alice Albright" });
+      await signupAndLogin(httpServer, { username: "srch-allan", email: "srch-allan@example.com", fullName: "Allan Wu" });
+
+      const res = await request(httpServer).get("/api/users/search?q=AL").set("Authorization", `Bearer ${me}`);
+      expect(res.status).toBe(200);
+      const usernames = res.body.users.map((u: { username: string }) => u.username);
+      expect(usernames).toContain("srch-alice");
+      expect(usernames).toContain("srch-allan");
+      expect(usernames).not.toContain("srch-me");
+    });
+
+    it("returns an empty list when q is shorter than 2 characters", async () => {
+      const me = await signupAndLogin(httpServer, { username: "srch-empty", email: "srch-empty@example.com" });
+      const res = await request(httpServer).get("/api/users/search?q=a").set("Authorization", `Bearer ${me}`);
+      expect(res.status).toBe(200);
+      expect(res.body.users).toEqual([]);
+    });
+
+    it("requires authentication", async () => {
+      const res = await request(httpServer).get("/api/users/search?q=ada");
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe("GET /api/users/:username", () => {
+    it("returns the public profile without email / phone / altEmail", async () => {
+      await signupAndLogin(httpServer, { username: "pub-target", email: "pub-target@example.com", fullName: "Public Target" });
+      const viewer = await signupAndLogin(httpServer, { username: "pub-viewer", email: "pub-viewer@example.com" });
+      const res = await request(httpServer).get("/api/users/pub-target").set("Authorization", `Bearer ${viewer}`);
+      expect(res.status).toBe(200);
+      expect(res.body.username).toBe("pub-target");
+      expect(res.body.fullName).toBe("Public Target");
+      expect(res.body).not.toHaveProperty("email");
+      expect(res.body).not.toHaveProperty("altEmail");
+      expect(res.body).not.toHaveProperty("phone");
+    });
+
+    it("returns 404 for an unknown username", async () => {
+      const viewer = await signupAndLogin(httpServer, { username: "pub-viewer-2", email: "pub-viewer-2@example.com" });
+      const res = await request(httpServer).get("/api/users/no-such-user").set("Authorization", `Bearer ${viewer}`);
+      expect(res.status).toBe(404);
+    });
+
+    it("requires authentication", async () => {
+      const res = await request(httpServer).get("/api/users/anything");
+      expect(res.status).toBe(401);
+    });
+  });
 });

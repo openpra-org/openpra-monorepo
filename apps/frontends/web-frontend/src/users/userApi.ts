@@ -7,15 +7,19 @@ import {
   type ChangeUsernameResponse,
   type MyProfileResponse,
   type NotificationPrefs,
+  type PublicUserProfile,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
   type UserProfile,
+  type UserSearchResponse,
   ChangeEmailResponseSchema,
   ChangePasswordResponseSchema,
   ChangeUsernameResponseSchema,
   MyProfileResponseSchema,
   NotificationPrefsSchema,
+  PublicUserProfileSchema,
   UserProfileSchema,
+  UserSearchResponseSchema,
 } from "interfaces-shared-types";
 import { getToken, setToken } from "../auth/authStorage";
 
@@ -120,6 +124,18 @@ async function deleteCover(): Promise<UserProfile> {
   return UserProfileSchema.parse(data);
 }
 
+async function getPublicUser(username: string): Promise<PublicUserProfile> {
+  const data = await (await call("GET", `/${encodeURIComponent(username)}`)).json();
+  return PublicUserProfileSchema.parse(data);
+}
+
+async function searchUsers(query: string): Promise<UserSearchResponse> {
+  const q = query.trim();
+  if (q.length < 2) return { users: [] };
+  const data = await (await call("GET", `/search?q=${encodeURIComponent(q)}`)).json();
+  return UserSearchResponseSchema.parse(data);
+}
+
 export {
   getMyProfile,
   updateMyProfile,
@@ -133,4 +149,6 @@ export {
   deleteAvatar,
   uploadCover,
   deleteCover,
+  getPublicUser,
+  searchUsers,
 };

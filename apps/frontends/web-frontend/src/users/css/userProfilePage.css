@@ -1,0 +1,30 @@
+.up__load,
+.up__load-error {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 16px 0 0;
+}
+
+.up__load-error {
+  color: var(--color-error);
+}
+
+.up__handle {
+  font-size: 13px;
+  color: var(--color-text-subtle);
+  font-weight: 600;
+}
+
+.up__link {
+  margin: 0;
+  font-size: 14px;
+}
+
+.up__link a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.up__link a:hover {
+  text-decoration: underline;
+}

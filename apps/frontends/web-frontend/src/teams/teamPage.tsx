@@ -1,5 +1,5 @@
 import { JSX, useEffect, useState, FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   type Team,
   type TeamDetail,
@@ -12,6 +12,7 @@ import { useTheme } from "../welcome/useTheme";
 import { ThemePicker } from "../welcome/themePicker";
 import { EditTeamModal } from "../profile/editTeamModal";
 import { ConfirmDeleteTeamModal } from "../profile/confirmDeleteTeamModal";
+import { UserTypeahead } from "../users/userTypeahead";
 import {
   cancelInvite,
   deleteTeam,
@@ -266,7 +267,7 @@ function TeamPage(): JSX.Element {
                   <li key={m.username} className="tp__row">
                     <span className="tp__avatar" aria-hidden="true">{m.initials}</span>
                     <div className="tp__row-body">
-                      <div className="tp__row-name">{m.fullName}</div>
+                      <Link to={`/users/${m.username}`} className="tp__row-name tp__row-link">{m.fullName}</Link>
                       <div className="tp__row-meta">@{m.username}</div>
                     </div>
                     <span className={roleChipClass(m.role)}>{roleLabel(m.role)}</span>
@@ -326,14 +327,13 @@ function TeamPage(): JSX.Element {
                 )}
 
                 <form className="tp__invite" onSubmit={submitInvite} noValidate>
-                  <input
-                    type="text"
-                    className="field__input tp__invite-input"
+                  <UserTypeahead
                     value={inviteValue}
-                    onChange={(e) => { setInviteValue(e.target.value); }}
+                    onChange={setInviteValue}
                     placeholder="username or email"
+                    ariaLabel="Invite by username or email"
                     disabled={busy}
-                    aria-label="Invite by username or email"
+                    className="tp__invite-input"
                   />
                   <button type="submit" className="btn btn--primary" disabled={busy || inviteValue.trim() === ""}>
                     Send invite

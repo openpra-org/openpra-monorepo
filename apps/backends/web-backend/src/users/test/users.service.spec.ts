@@ -65,14 +65,14 @@ function makeUserDoc(overrides: Partial<FakeUser> = {}): FakeUser {
 
 describe("UsersService", () => {
   let service: UsersService;
-  let userModelMock: { findOne: jest.Mock };
+  let userModelMock: { findOne: jest.Mock; find: jest.Mock };
   let projectModelMock: { countDocuments: jest.Mock; deleteMany: jest.Mock; updateMany: jest.Mock };
   let teamModelMock: { find: jest.Mock; updateMany: jest.Mock };
   let jwtServiceMock: { signAsync: jest.Mock };
   let storageMock: { isAllowedMime: jest.Mock; uploadImage: jest.Mock; deleteByKey: jest.Mock; urlForKey: jest.Mock };
 
   beforeEach(async () => {
-    userModelMock = { findOne: jest.fn() };
+    userModelMock = { findOne: jest.fn(), find: jest.fn() };
     projectModelMock = {
       countDocuments: jest.fn(),
       deleteMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(undefined) }),
@@ -109,6 +109,53 @@ describe("UsersService", () => {
       const out = await service.getMyProfile("ada");
       expect(out.initials).toBe("AL");
       expect(out.memberSince).toBe("March 2026");
+    });
+  });
+
+  describe("getPublicProfile", () => {
+    it("omits private fields (email, altEmail, phone)", async () => {
+      const doc = makeUserDoc({ email: "private@example.com", altEmail: "alt@example.com", phone: "+1-555-0100" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.getPublicProfile("ada");
+      expect(out.username).toBe("ada");
+      expect(out.fullName).toBe("Ada Lovelace");
+      expect(out.initials).toBe("AL");
+      expect(out).not.toHaveProperty("email");
+      expect(out).not.toHaveProperty("altEmail");
+      expect(out).not.toHaveProperty("phone");
+    });
+
+    it("throws NotFoundException when the user is unknown", async () => {
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+      await expect(service.getPublicProfile("ghost")).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("searchUsers", () => {
+    it("returns up to 20 matching users excluding the acting user, with case-insensitive match", async () => {
+      const exec = jest.fn().mockResolvedValue([
+        makeUserDoc({ username: "chen", fullName: "M. Chen" }),
+        makeUserDoc({ username: "bob", fullName: "Bob Q" }),
+      ]);
+      const limit = jest.fn().mockReturnValue({ exec });
+      const sort = jest.fn().mockReturnValue({ limit });
+      userModelMock.find.mockReturnValue({ sort });
+
+      const out = await service.searchUsers("ch", "ada");
+
+      const filter = userModelMock.find.mock.calls[0][0] as Record<string, unknown>;
+      expect(filter["username"]).toEqual({ $ne: "ada" });
+      const orClauses = filter["$or"] as { username?: RegExp; fullName?: RegExp }[];
+      expect(orClauses[0].username?.test("CHEN")).toBe(true);
+      expect(orClauses[1].fullName?.test("chen")).toBe(true);
+      expect(limit).toHaveBeenCalledWith(20);
+      expect(out.users.map((u) => u.username)).toEqual(["chen", "bob"]);
+    });
+
+    it("returns empty results when the query is shorter than 2 chars", async () => {
+      const out = await service.searchUsers("a", "ada");
+      expect(out.users).toEqual([]);
+      expect(userModelMock.find).not.toHaveBeenCalled();
     });
   });
 

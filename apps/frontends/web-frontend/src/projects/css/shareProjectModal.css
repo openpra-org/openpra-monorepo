@@ -78,6 +78,16 @@
   white-space: nowrap;
 }
 
+.sh__row-link {
+  text-decoration: none;
+  display: block;
+}
+
+.sh__row-link:hover {
+  text-decoration: underline;
+  color: var(--color-primary);
+}
+
 .sh__row-meta {
   font-size: 12px;
   color: var(--color-text-subtle);

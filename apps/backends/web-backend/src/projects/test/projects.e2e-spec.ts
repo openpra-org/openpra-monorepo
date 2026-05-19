@@ -309,4 +309,81 @@ describe("Projects (e2e)", () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe("Project ↔ team ownership", () => {
+    it("creates a project with ownerTeamId when the user is a member of the team", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "to-owner", email: "to-owner@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Risk Research Group", visibility: "public" });
+      const res = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Team-owned analysis", mode: "internal-events", ownerTeamId: team.body.id });
+      expect(res.status).toBe(201);
+      expect(res.body.ownerTeamId).toBe(team.body.id);
+      expect(res.body.ownerTeamName).toBe("Risk Research Group");
+    });
+
+    it("rejects creation with a team the user does not belong to (403)", async () => {
+      const adminUser = await signupAndLogin(httpServer, { username: "to-admin", email: "to-admin@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${adminUser}`)
+        .send({ name: "Locked Team", visibility: "public" });
+      const stranger = await signupAndLogin(httpServer, { username: "to-stranger", email: "to-stranger@example.com" });
+      const res = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${stranger}`)
+        .send({ name: "Sneaky project", mode: "internal-events", ownerTeamId: team.body.id });
+      expect(res.status).toBe(403);
+    });
+
+    it("attaches and detaches a team owner via transfer-to-team and transfer-to-self", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "to-flip", email: "to-flip@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Flip Team", visibility: "public" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Flippable Project", mode: "internal-events" });
+      expect(project.body.ownerTeamId).toBeNull();
+
+      const attach = await request(httpServer)
+        .post(`/api/projects/${project.body.id}/transfer-to-team`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ teamId: team.body.id });
+      expect(attach.status).toBe(200);
+      expect(attach.body.ownerTeamId).toBe(team.body.id);
+      expect(attach.body.ownerTeamName).toBe("Flip Team");
+
+      const detach = await request(httpServer)
+        .post(`/api/projects/${project.body.id}/transfer-to-self`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(detach.status).toBe(200);
+      expect(detach.body.ownerTeamId).toBeNull();
+      expect(detach.body.ownerTeamName).toBeNull();
+    });
+
+    it("returns 403 when a non-owner tries to transfer the project", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "to-prot-owner", email: "to-prot-owner@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Protected Team", visibility: "public" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Protected Project", mode: "internal-events" });
+      const intruder = await signupAndLogin(httpServer, { username: "to-prot-intr", email: "to-prot-intr@example.com" });
+      const res = await request(httpServer)
+        .post(`/api/projects/${project.body.id}/transfer-to-team`)
+        .set("Authorization", `Bearer ${intruder}`)
+        .send({ teamId: team.body.id });
+      expect(res.status).toBe(403);
+    });
+  });
 });

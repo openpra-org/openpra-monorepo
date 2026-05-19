@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 import { ProjectsService } from "../projects.service";
 import { Project } from "../project.schema";
 import { User } from "../../users/user.schema";
+import { Team } from "../../teams/team.schema";
 
 function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
@@ -17,6 +18,7 @@ function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string,
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     collaborators: [],
+    ownerTeamId: null,
     status: {
       POS: "baseline", IE: "baseline", ES: "baseline",
       SC: "not-started", SY: "not-started", HRA: "not-started", DA: "not-started",
@@ -42,6 +44,10 @@ describe("ProjectsService", () => {
   let userModelMock: {
     findOne: jest.Mock;
   };
+  let teamModelMock: {
+    findById: jest.Mock;
+    find: jest.Mock;
+  };
 
   beforeEach(async () => {
     projectModelMock = {
@@ -51,12 +57,17 @@ describe("ProjectsService", () => {
       create: jest.fn(),
     };
     userModelMock = { findOne: jest.fn() };
+    teamModelMock = {
+      findById: jest.fn(),
+      find: jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { provide: getModelToken(Project.name), useValue: projectModelMock },
         { provide: getModelToken(User.name), useValue: userModelMock },
+        { provide: getModelToken(Team.name), useValue: teamModelMock },
       ],
     }).compile();
     service = moduleRef.get(ProjectsService);
@@ -209,6 +220,126 @@ describe("ProjectsService", () => {
       expect(created.pinned).toBe(false);
       expect(created.state).toBe("active");
       expect(result.name).toBe("Original (copy)");
+    });
+  });
+
+  describe("transferToTeam", () => {
+    it("attaches ownerTeamId on an owned project when the user is a member of the team", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const teamId = new Types.ObjectId().toHexString();
+      teamModelMock.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: teamId,
+          name: "Risk Group",
+          adminUsername: "chen",
+          members: ["chen", "ada"],
+        }),
+      });
+      teamModelMock.find.mockReturnValue({
+        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group" }]),
+      });
+
+      const result = await service.transferToTeam(String(doc._id), teamId, { username: "ada" });
+
+      expect(doc.ownerTeamId).toBe(teamId);
+      expect((doc.save as jest.Mock)).toHaveBeenCalled();
+      expect(result.ownerTeamId).toBe(teamId);
+      expect(result.ownerTeamName).toBe("Risk Group");
+    });
+
+    it("throws ForbiddenException when the acting user is not in the team", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const teamId = new Types.ObjectId().toHexString();
+      teamModelMock.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: teamId,
+          name: "Stranger Team",
+          adminUsername: "chen",
+          members: ["chen"],
+        }),
+      });
+      await expect(
+        service.transferToTeam(String(doc._id), teamId, { username: "ada" }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("throws NotFoundException when the team id is unknown", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+      await expect(
+        service.transferToTeam(String(doc._id), new Types.ObjectId().toHexString(), { username: "ada" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("transferToSelf", () => {
+    it("clears ownerTeamId on an owned project", async () => {
+      const teamId = new Types.ObjectId().toHexString();
+      const doc = makeProjectDoc({ ownerTeamId: teamId });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+
+      const result = await service.transferToSelf(String(doc._id), { username: "ada" });
+
+      expect(doc.ownerTeamId).toBeNull();
+      expect((doc.save as jest.Mock)).toHaveBeenCalled();
+      expect(result.ownerTeamId).toBeNull();
+      expect(result.ownerTeamName).toBeNull();
+    });
+  });
+
+  describe("createProject with ownerTeamId", () => {
+    it("validates membership before assigning the team owner", async () => {
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
+      });
+      const teamId = new Types.ObjectId().toHexString();
+      teamModelMock.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: teamId,
+          name: "Risk Group",
+          adminUsername: "chen",
+          members: ["chen", "ada"],
+        }),
+      });
+      teamModelMock.find.mockReturnValue({
+        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group" }]),
+      });
+      projectModelMock.create.mockImplementation((data: Record<string, unknown>) =>
+        Promise.resolve(makeProjectDoc({ ...data })),
+      );
+
+      const result = await service.createProject(
+        { name: "Team Project", mode: "internal-events", ownerTeamId: teamId },
+        { username: "ada" },
+      );
+
+      const created = projectModelMock.create.mock.calls[0][0] as { ownerTeamId: string };
+      expect(created.ownerTeamId).toBe(teamId);
+      expect(result.ownerTeamName).toBe("Risk Group");
+    });
+
+    it("rejects assignment when the acting user is not in the team", async () => {
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
+      });
+      const teamId = new Types.ObjectId().toHexString();
+      teamModelMock.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: teamId,
+          name: "Stranger Team",
+          adminUsername: "chen",
+          members: ["chen"],
+        }),
+      });
+      await expect(
+        service.createProject(
+          { name: "Team Project", mode: "internal-events", ownerTeamId: teamId },
+          { username: "ada" },
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 

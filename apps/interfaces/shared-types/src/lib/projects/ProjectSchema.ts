@@ -12,6 +12,8 @@ const ProjectSchema = z.object({
   ownerUsername: z.string(),
   ownerFullName: z.string(),
   ownerInitials: z.string(),
+  ownerTeamId: z.string().nullable(),
+  ownerTeamName: z.string().nullable(),
   collaborators: z.array(z.string()),
   status: ProjectStatusMapSchema,
   progress: z.number().min(0).max(1),
@@ -24,8 +26,14 @@ type Project = z.infer<typeof ProjectSchema>;
 const CreateProjectRequestSchema = z.object({
   name: z.string().trim().min(3, "Project name must be at least 3 characters"),
   mode: RiskModeSchema,
+  ownerTeamId: z.string().min(1).nullable().optional(),
 });
 type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
+
+const TransferProjectToTeamRequestSchema = z.object({
+  teamId: z.string().min(1, "Team id is required"),
+});
+type TransferProjectToTeamRequest = z.infer<typeof TransferProjectToTeamRequestSchema>;
 
 const UpdateProjectRequestSchema = z
   .object({
@@ -59,6 +67,7 @@ export {
   ProjectSchema,
   CreateProjectRequestSchema,
   UpdateProjectRequestSchema,
+  TransferProjectToTeamRequestSchema,
   RecentProjectResponseSchema,
   OwnedProjectsResponseSchema,
   SharedProjectsResponseSchema,
@@ -68,6 +77,7 @@ export type {
   Project,
   CreateProjectRequest,
   UpdateProjectRequest,
+  TransferProjectToTeamRequest,
   RecentProjectResponse,
   OwnedProjectsResponse,
   SharedProjectsResponse,

@@ -15,6 +15,7 @@ import {
   riskModeLabel,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
+import { Team, type TeamDocument } from "../teams/team.schema";
 import { Project, type ProjectDocument } from "./project.schema";
 
 function computeInitials(fullName: string): string {
@@ -31,10 +32,11 @@ function computeProgress(status: ProjectStatusMap, mode: RiskMode): number {
   return baseline / elements.length;
 }
 
-function toDto(doc: ProjectDocument): ProjectDto {
+function toDto(doc: ProjectDocument, teamNameById: Map<string, string>): ProjectDto {
   const status = doc.status;
   const mode = doc.mode;
   const updatedAt = (doc as ProjectDocument & { updatedAt?: Date }).updatedAt ?? new Date();
+  const teamId = doc.ownerTeamId ?? null;
   return {
     id: String(doc._id),
     name: doc.name,
@@ -43,6 +45,8 @@ function toDto(doc: ProjectDocument): ProjectDto {
     ownerUsername: doc.ownerUsername,
     ownerFullName: doc.ownerFullName,
     ownerInitials: computeInitials(doc.ownerFullName),
+    ownerTeamId: teamId,
+    ownerTeamName: teamId !== null ? (teamNameById.get(teamId) ?? null) : null,
     collaborators: doc.collaborators,
     status,
     progress: computeProgress(status, mode),
@@ -61,11 +65,16 @@ export class ProjectsService {
   constructor(
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
   ) {}
 
   async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
     const owner = await this.userModel.findOne({ username: acting.username }).lean();
     if (!owner) throw new NotFoundException("Acting user not found");
+    const requestedTeamId = payload.ownerTeamId ?? null;
+    if (requestedTeamId !== null) {
+      await this.assertTeamAffiliation(requestedTeamId, acting.username);
+    }
     const initialStatus: Record<string, ProjectStatus> = {};
     for (const el of elementsForMode(payload.mode)) initialStatus[el.code] = "not-started";
     const created = await this.projectModel.create({
@@ -74,11 +83,13 @@ export class ProjectsService {
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
       collaborators: [],
+      ownerTeamId: requestedTeamId,
       status: initialStatus,
       pinned: false,
       state: "active",
     });
-    return toDto(created);
+    const teamNameById = await this.resolveTeamNames([created]);
+    return toDto(created, teamNameById);
   }
 
   async getRecentProject(acting: ActingUser): Promise<RecentProjectResponse> {
@@ -86,7 +97,9 @@ export class ProjectsService {
       .findOne({ ownerUsername: acting.username })
       .sort({ updatedAt: -1 })
       .exec();
-    return { project: doc === null ? null : toDto(doc) };
+    if (doc === null) return { project: null };
+    const teamNameById = await this.resolveTeamNames([doc]);
+    return { project: toDto(doc, teamNameById) };
   }
 
   async getOwnedProjects(acting: ActingUser): Promise<OwnedProjectsResponse> {
@@ -94,7 +107,8 @@ export class ProjectsService {
       .find({ ownerUsername: acting.username })
       .sort({ updatedAt: -1 })
       .exec();
-    return { projects: docs.map(toDto) };
+    const teamNameById = await this.resolveTeamNames(docs);
+    return { projects: docs.map((d) => toDto(d, teamNameById)) };
   }
 
   async getSharedProjects(acting: ActingUser): Promise<SharedProjectsResponse> {
@@ -102,7 +116,8 @@ export class ProjectsService {
       .find({ collaborators: acting.username })
       .sort({ updatedAt: -1 })
       .exec();
-    return { projects: docs.map(toDto) };
+    const teamNameById = await this.resolveTeamNames(docs);
+    return { projects: docs.map((d) => toDto(d, teamNameById)) };
   }
 
   async updateProject(id: string, payload: UpdateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
@@ -111,7 +126,24 @@ export class ProjectsService {
     if (payload.pinned !== undefined) doc.pinned = payload.pinned;
     if (payload.state !== undefined) doc.state = payload.state;
     await doc.save();
-    return toDto(doc);
+    const teamNameById = await this.resolveTeamNames([doc]);
+    return toDto(doc, teamNameById);
+  }
+
+  async transferToTeam(id: string, teamId: string, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    await this.assertTeamAffiliation(teamId, acting.username);
+    doc.ownerTeamId = teamId;
+    await doc.save();
+    const teamNameById = await this.resolveTeamNames([doc]);
+    return toDto(doc, teamNameById);
+  }
+
+  async transferToSelf(id: string, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    doc.ownerTeamId = null;
+    await doc.save();
+    return toDto(doc, new Map());
   }
 
   async duplicateProject(id: string, acting: ActingUser): Promise<ProjectDto> {
@@ -122,11 +154,13 @@ export class ProjectsService {
       ownerUsername: original.ownerUsername,
       ownerFullName: original.ownerFullName,
       collaborators: [],
+      ownerTeamId: original.ownerTeamId ?? null,
       status: { ...original.status },
       pinned: false,
       state: "active",
     });
-    return toDto(created);
+    const teamNameById = await this.resolveTeamNames([created]);
+    return toDto(created, teamNameById);
   }
 
   async deleteProject(id: string, acting: ActingUser): Promise<void> {
@@ -140,5 +174,27 @@ export class ProjectsService {
     if (!doc) throw new NotFoundException("Project not found");
     if (doc.ownerUsername !== acting.username) throw new ForbiddenException("Not the project owner");
     return doc;
+  }
+
+  private async assertTeamAffiliation(teamId: string, username: string): Promise<void> {
+    if (!isValidObjectId(teamId)) throw new NotFoundException("Team not found");
+    const team = await this.teamModel.findById(teamId).exec();
+    if (!team) throw new NotFoundException("Team not found");
+    const isMember = team.adminUsername === username || team.members.includes(username);
+    if (!isMember) throw new ForbiddenException("You are not a member of that team");
+  }
+
+  private async resolveTeamNames(docs: ProjectDocument[]): Promise<Map<string, string>> {
+    const ids = new Set<string>();
+    for (const d of docs) {
+      if (d.ownerTeamId !== null && d.ownerTeamId !== undefined) ids.add(d.ownerTeamId);
+    }
+    if (ids.size === 0) return new Map();
+    const teams = await this.teamModel
+      .find({ _id: { $in: Array.from(ids) } })
+      .lean();
+    const out = new Map<string, string>();
+    for (const t of teams) out.set(String(t._id), t.name);
+    return out;
   }
 }

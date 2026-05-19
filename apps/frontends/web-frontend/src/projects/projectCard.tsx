@@ -12,6 +12,8 @@ interface ProjectCardProps {
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  onMoveToTeam: () => void;
+  onMoveToPersonal: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
 }
@@ -39,6 +41,11 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
       <div className="pcard__top">
         <div className="pcard__chips">
           <span className="chip chip--mode">{project.modeLabel}</span>
+          {project.ownerTeamName !== null && (
+            <span className="chip chip--team" title={`Owned with team ${project.ownerTeamName}`}>
+              <UsersIcon /> {project.ownerTeamName}
+            </span>
+          )}
           {project.state === "baseline" && <span className="chip chip--success">Baseline</span>}
           {project.state === "archived" && <span className="chip chip--muted">Archived</span>}
         </div>

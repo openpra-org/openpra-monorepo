@@ -12,6 +12,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
+    ownerTeamId: null,
+    ownerTeamName: null,
     collaborators: ["a", "b"],
     status: { POS: "baseline", IE: "baseline", ES: "in-progress" },
     progress: 2 / 11,
@@ -28,6 +30,8 @@ const noopHandlers = {
   onRename: jest.fn(),
   onDuplicate: jest.fn(),
   onShare: jest.fn(),
+  onMoveToTeam: jest.fn(),
+  onMoveToPersonal: jest.fn(),
   onToggleArchive: jest.fn(),
   onDelete: jest.fn(),
 };
@@ -63,5 +67,10 @@ describe("ProjectCard", () => {
     render(<ProjectCard project={makeProject()} {...noopHandlers} />);
     await userEvent.click(screen.getByText("Sample Project"));
     expect(noopHandlers.onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the team chip when the project is owned by a team", () => {
+    render(<ProjectCard project={makeProject({ ownerTeamId: "t-1", ownerTeamName: "Risk Group" })} {...noopHandlers} />);
+    expect(screen.getByText("Risk Group")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { JSX, KeyboardEvent } from "react";
 import { type Project } from "interfaces-shared-types";
-import { PinIcon } from "../welcome/icons";
+import { PinIcon, UsersIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
 import { KebabMenu } from "./kebabMenu";
 import type { ProjectCardProps } from "./projectCard";
@@ -40,6 +40,11 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
       </div>
       <div className="ap__td" role="cell">
         <span className="chip chip--mode chip--xs">{project.modeLabel}</span>
+        {project.ownerTeamName !== null && (
+          <span className="chip chip--team chip--xs" title={`Owned with team ${project.ownerTeamName}`}>
+            <UsersIcon /> {project.ownerTeamName}
+          </span>
+        )}
       </div>
       <div className="ap__td ap__td--progress" role="cell">
         <div className="ap__td-progress">

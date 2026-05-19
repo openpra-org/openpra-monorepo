@@ -21,6 +21,9 @@ export class Project {
   @Prop({ type: [String], default: [], index: true })
   collaborators!: string[];
 
+  @Prop({ type: String, default: null, index: true })
+  ownerTeamId!: string | null;
+
   @Prop({ type: Object, required: true })
   status!: Record<string, ProjectStatus>;
 

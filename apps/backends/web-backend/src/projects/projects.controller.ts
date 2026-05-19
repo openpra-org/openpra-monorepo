@@ -17,8 +17,10 @@ import {
   type Project,
   type RecentProjectResponse,
   type SharedProjectsResponse,
+  type TransferProjectToTeamRequest,
   type UpdateProjectRequest,
   CreateProjectRequestSchema,
+  TransferProjectToTeamRequestSchema,
   UpdateProjectRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
@@ -71,6 +73,22 @@ export class ProjectsController {
   @HttpCode(HttpStatus.CREATED)
   duplicate(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Project> {
     return this.projectsService.duplicateProject(id, { username: req.user!.username });
+  }
+
+  @Post(":id/transfer-to-team")
+  @HttpCode(HttpStatus.OK)
+  transferToTeam(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(TransferProjectToTeamRequestSchema)) body: TransferProjectToTeamRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Project> {
+    return this.projectsService.transferToTeam(id, body.teamId, { username: req.user!.username });
+  }
+
+  @Post(":id/transfer-to-self")
+  @HttpCode(HttpStatus.OK)
+  transferToSelf(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Project> {
+    return this.projectsService.transferToSelf(id, { username: req.user!.username });
   }
 
   @Delete(":id")

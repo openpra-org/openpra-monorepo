@@ -85,6 +85,16 @@ async function duplicateProject(id: string): Promise<Project> {
   return ProjectSchema.parse(data);
 }
 
+async function transferProjectToTeam(id: string, teamId: string): Promise<Project> {
+  const data = await postJson(`/${id}/transfer-to-team`, { teamId });
+  return ProjectSchema.parse(data);
+}
+
+async function transferProjectToSelf(id: string): Promise<Project> {
+  const data = await postJson(`/${id}/transfer-to-self`, undefined);
+  return ProjectSchema.parse(data);
+}
+
 async function deleteProject(id: string): Promise<void> {
   await request("DELETE", `/${id}`);
 }
@@ -96,5 +106,7 @@ export {
   createProject,
   updateProject,
   duplicateProject,
+  transferProjectToTeam,
+  transferProjectToSelf,
   deleteProject,
 };

@@ -1,4 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Req, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 import {
   type ChangeEmailRequest,
   type ChangeEmailResponse,
@@ -10,6 +26,7 @@ import {
   type NotificationPrefs,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
+  type UserProfile,
   ChangeEmailRequestSchema,
   ChangePasswordRequestSchema,
   ChangeUsernameRequestSchema,
@@ -19,6 +36,16 @@ import {
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { UsersService } from "./users.service";
+
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const COVER_MAX_BYTES = 10 * 1024 * 1024;
+
+interface UploadedImage {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+  originalname: string;
+}
 
 @Controller("users")
 @UseGuards(JwtAuthGuard)
@@ -98,5 +125,45 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.usersService.deleteMyAccount(req.user!.username, body.currentPassword);
+  }
+
+  @Post("me/avatar")
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: AVATAR_MAX_BYTES },
+  }))
+  async uploadAvatar(
+    @UploadedFile() file: UploadedImage | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserProfile> {
+    if (file === undefined) throw new BadRequestException("Expected a 'file' field in multipart body");
+    return this.usersService.setAvatar(req.user!.username, file);
+  }
+
+  @Delete("me/avatar")
+  @HttpCode(HttpStatus.OK)
+  async deleteAvatar(@Req() req: AuthenticatedRequest): Promise<UserProfile> {
+    return this.usersService.clearAvatar(req.user!.username);
+  }
+
+  @Post("me/cover")
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: COVER_MAX_BYTES },
+  }))
+  async uploadCover(
+    @UploadedFile() file: UploadedImage | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserProfile> {
+    if (file === undefined) throw new BadRequestException("Expected a 'file' field in multipart body");
+    return this.usersService.setCover(req.user!.username, file);
+  }
+
+  @Delete("me/cover")
+  @HttpCode(HttpStatus.OK)
+  async deleteCover(@Req() req: AuthenticatedRequest): Promise<UserProfile> {
+    return this.usersService.clearCover(req.user!.username);
   }
 }

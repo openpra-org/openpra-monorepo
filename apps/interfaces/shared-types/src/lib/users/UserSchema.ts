@@ -12,11 +12,24 @@ const UserProfileSchema = z.object({
   linkedin: z.string(),
   initials: z.string(),
   memberSince: z.string(),
+  avatarUrl: z.string().nullable(),
+  coverUrl: z.string().nullable(),
 });
 type UserProfile = z.infer<typeof UserProfileSchema>;
 
+function looksLikeEmail(value: string): boolean {
+  const at = value.indexOf("@");
+  if (at <= 0 || at !== value.lastIndexOf("@")) return false;
+  const domain = value.slice(at + 1);
+  const dot = domain.indexOf(".");
+  return dot > 0 && dot < domain.length - 1;
+}
+
 const optionalEmailField = z
-  .union([z.literal(""), z.email("Invalid email format").max(254)]);
+  .string()
+  .trim()
+  .max(254)
+  .refine((v) => v === "" || looksLikeEmail(v), { message: "Invalid email format" });
 
 const UpdateUserProfileRequestSchema = z
   .object({

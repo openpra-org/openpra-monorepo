@@ -17,11 +17,15 @@ function ProfileHeader({
   return (
     <div className="pf__header">
       <div className="pf__cover">
-        <div className="pf__cover-art" />
+        {profile.coverUrl !== null
+          ? <img src={profile.coverUrl} alt="" className="pf__cover-img" />
+          : <div className="pf__cover-art" />}
       </div>
       <div className="pf__header-body">
         <div className="pf__avatar-wrap">
-          <span className="pf__avatar" aria-hidden="true">{profile.initials}</span>
+          {profile.avatarUrl !== null
+            ? <img src={profile.avatarUrl} alt={`${profile.fullName} avatar`} className="pf__avatar pf__avatar--img" />
+            : <span className="pf__avatar" aria-hidden="true">{profile.initials}</span>}
         </div>
         <div className="pf__identity">
           <div className="pf__identity-top">

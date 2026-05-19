@@ -82,8 +82,8 @@ describe("EditProfileModal", () => {
     await userEvent.type(screen.getByRole("textbox", { name: /^title$/i }), "PhD Candidate");
     await userEvent.click(screen.getByRole("button", { name: /save changes/i }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
-    const payload = onSubmit.mock.calls[0][0] as Record<string, string>;
-    expect(payload.title).toBe("PhD Candidate");
+    const payload = onSubmit.mock.calls[0][0] as { text: Record<string, string> | null };
+    expect(payload.text?.title).toBe("PhD Candidate");
   });
 
   it("closes on Escape when not pending", async () => {

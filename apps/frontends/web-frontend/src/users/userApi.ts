@@ -9,11 +9,13 @@ import {
   type NotificationPrefs,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
+  type UserProfile,
   ChangeEmailResponseSchema,
   ChangePasswordResponseSchema,
   ChangeUsernameResponseSchema,
   MyProfileResponseSchema,
   NotificationPrefsSchema,
+  UserProfileSchema,
 } from "interfaces-shared-types";
 import { getToken, setToken } from "../auth/authStorage";
 
@@ -88,6 +90,36 @@ async function deleteMyAccount(currentPassword: string): Promise<void> {
   await call("DELETE", "/me", { currentPassword });
 }
 
+async function uploadImage(path: string, file: File): Promise<UserProfile> {
+  const token = getToken();
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token !== null) headers.Authorization = `Bearer ${token}`;
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const response = await fetch(`${USERS_BASE}${path}`, { method: "POST", headers, body: form });
+  if (!response.ok) throw new Error(await readError(response));
+  const data = await response.json();
+  return UserProfileSchema.parse(data);
+}
+
+async function uploadAvatar(file: File): Promise<UserProfile> {
+  return uploadImage("/me/avatar", file);
+}
+
+async function deleteAvatar(): Promise<UserProfile> {
+  const data = await (await call("DELETE", "/me/avatar")).json();
+  return UserProfileSchema.parse(data);
+}
+
+async function uploadCover(file: File): Promise<UserProfile> {
+  return uploadImage("/me/cover", file);
+}
+
+async function deleteCover(): Promise<UserProfile> {
+  const data = await (await call("DELETE", "/me/cover")).json();
+  return UserProfileSchema.parse(data);
+}
+
 export {
   getMyProfile,
   updateMyProfile,
@@ -97,4 +129,8 @@ export {
   getNotificationPrefs,
   updateNotificationPrefs,
   deleteMyAccount,
+  uploadAvatar,
+  deleteAvatar,
+  uploadCover,
+  deleteCover,
 };

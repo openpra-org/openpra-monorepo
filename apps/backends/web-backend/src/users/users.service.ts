@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
@@ -15,6 +15,10 @@ import type {
 import { User, type UserDocument } from "./user.schema";
 import { Project, type ProjectDocument } from "../projects/project.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
+import { StorageService } from "./storage.service";
+
+const AVATAR_FOLDER = "avatars";
+const COVER_FOLDER = "covers";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -28,7 +32,7 @@ function formatMemberSince(createdAt: Date | undefined): string {
   return createdAt.toLocaleString("en-US", { month: "long", year: "numeric" });
 }
 
-function toDto(doc: UserDocument): UserProfile {
+function toDtoWithStorage(doc: UserDocument, storage: StorageService): UserProfile {
   const createdAt = (doc as UserDocument & { createdAt?: Date }).createdAt;
   return {
     username: doc.username,
@@ -42,6 +46,8 @@ function toDto(doc: UserDocument): UserProfile {
     linkedin: doc.linkedin,
     initials: computeInitials(doc.fullName),
     memberSince: formatMemberSince(createdAt),
+    avatarUrl: storage.urlForKey(doc.avatarKey),
+    coverUrl: storage.urlForKey(doc.coverKey),
   };
 }
 
@@ -66,12 +72,13 @@ export class UsersService {
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     private readonly jwtService: JwtService,
+    private readonly storage: StorageService,
   ) {}
 
   async getMyProfile(username: string): Promise<UserProfile> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
-    return toDto(doc);
+    return toDtoWithStorage(doc, this.storage);
   }
 
   async updateMyProfile(username: string, payload: UpdateUserProfileRequest): Promise<UserProfile> {
@@ -85,7 +92,7 @@ export class UsersService {
     if (payload.phone !== undefined) doc.phone = payload.phone;
     if (payload.linkedin !== undefined) doc.linkedin = payload.linkedin;
     await doc.save();
-    return toDto(doc);
+    return toDtoWithStorage(doc, this.storage);
   }
 
   async getMyProjectCount(username: string): Promise<number> {
@@ -104,7 +111,7 @@ export class UsersService {
     doc.email = nextEmail;
     await doc.save();
     const token = await this.signToken(doc);
-    return { profile: toDto(doc), token };
+    return { profile: toDtoWithStorage(doc, this.storage), token };
   }
 
   async changeUsername(username: string, payload: ChangeUsernameRequest): Promise<{ profile: UserProfile; token: string }> {
@@ -120,7 +127,7 @@ export class UsersService {
     doc.username = next;
     await doc.save();
     const token = await this.signToken(doc);
-    return { profile: toDto(doc), token };
+    return { profile: toDtoWithStorage(doc, this.storage), token };
   }
 
   async changePassword(username: string, payload: ChangePasswordRequest): Promise<void> {
@@ -173,7 +180,67 @@ export class UsersService {
       { collaborators: username },
       { $pull: { collaborators: username } },
     );
+    await this.storage.deleteByKey(doc.avatarKey);
+    await this.storage.deleteByKey(doc.coverKey);
     await doc.deleteOne();
+  }
+
+  async setAvatar(username: string, file: { buffer: Buffer; mimetype: string; size: number; originalname: string }): Promise<UserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    if (!this.storage.isAllowedMime(file.mimetype)) {
+      throw new BadRequestException("Only PNG, JPEG, or WebP images are allowed");
+    }
+    const previousKey = doc.avatarKey;
+    const nextKey = await this.storage.uploadImage(AVATAR_FOLDER, username, {
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      size: file.size,
+      originalName: file.originalname,
+    });
+    doc.avatarKey = nextKey;
+    await doc.save();
+    await this.storage.deleteByKey(previousKey);
+    return toDtoWithStorage(doc, this.storage);
+  }
+
+  async clearAvatar(username: string): Promise<UserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    const previousKey = doc.avatarKey;
+    doc.avatarKey = null;
+    await doc.save();
+    await this.storage.deleteByKey(previousKey);
+    return toDtoWithStorage(doc, this.storage);
+  }
+
+  async setCover(username: string, file: { buffer: Buffer; mimetype: string; size: number; originalname: string }): Promise<UserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    if (!this.storage.isAllowedMime(file.mimetype)) {
+      throw new BadRequestException("Only PNG, JPEG, or WebP images are allowed");
+    }
+    const previousKey = doc.coverKey;
+    const nextKey = await this.storage.uploadImage(COVER_FOLDER, username, {
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      size: file.size,
+      originalName: file.originalname,
+    });
+    doc.coverKey = nextKey;
+    await doc.save();
+    await this.storage.deleteByKey(previousKey);
+    return toDtoWithStorage(doc, this.storage);
+  }
+
+  async clearCover(username: string): Promise<UserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    const previousKey = doc.coverKey;
+    doc.coverKey = null;
+    await doc.save();
+    await this.storage.deleteByKey(previousKey);
+    return toDtoWithStorage(doc, this.storage);
   }
 
   private async signToken(doc: UserDocument): Promise<string> {

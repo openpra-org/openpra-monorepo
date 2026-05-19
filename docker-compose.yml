@@ -1,6 +1,7 @@
 volumes:
   mongo_data:
   rabbitmq_data:
+  minio_data:
 
 networks:
   db_net:
@@ -116,3 +117,23 @@ services:
       - db_net
     volumes:
       - mongo_data:/data/db
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - db_net
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 2s
+      retries: 5

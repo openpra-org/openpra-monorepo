@@ -13,6 +13,16 @@ jest.mock("../../auth/email.service", () => {
   };
 });
 
+jest.mock("../storage.service", () => ({
+  StorageService: jest.fn().mockImplementation(() => ({
+    onModuleInit: jest.fn(),
+    isAllowedMime: jest.fn().mockReturnValue(true),
+    uploadImage: jest.fn().mockResolvedValue("avatars/test/mocked.png"),
+    deleteByKey: jest.fn().mockResolvedValue(undefined),
+    urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/${key}`)),
+  })),
+}));
+
 async function signupAndLogin(httpServer: ReturnType<INestApplication["getHttpServer"]>, overrides: Record<string, string> = {}): Promise<string> {
   const user = {
     fullName: "Ada Lovelace",
@@ -106,6 +116,62 @@ describe("Users (e2e)", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ altEmail: "not-an-email" });
     expect(res.status).toBe(400);
+  });
+
+  describe("POST/DELETE /api/users/me/avatar", () => {
+    it("accepts a PNG upload and returns avatarUrl", async () => {
+      const token = await signupAndLogin(httpServer, { username: "avatar1", email: "avatar1@example.com" });
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const res = await request(httpServer)
+        .post("/api/users/me/avatar")
+        .set("Authorization", `Bearer ${token}`)
+        .attach("file", png, { filename: "a.png", contentType: "image/png" });
+      expect(res.status).toBe(200);
+      expect(res.body.avatarUrl).toMatch(/^https:\/\/cdn\.example\.com\//);
+    });
+
+    it("rejects multipart with no file field with 400", async () => {
+      const token = await signupAndLogin(httpServer, { username: "avatar2", email: "avatar2@example.com" });
+      const res = await request(httpServer)
+        .post("/api/users/me/avatar")
+        .set("Authorization", `Bearer ${token}`)
+        .field("hello", "world");
+      expect(res.status).toBe(400);
+    });
+
+    it("clears the avatar on DELETE and returns avatarUrl: null", async () => {
+      const token = await signupAndLogin(httpServer, { username: "avatar3", email: "avatar3@example.com" });
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      await request(httpServer)
+        .post("/api/users/me/avatar")
+        .set("Authorization", `Bearer ${token}`)
+        .attach("file", png, { filename: "a.png", contentType: "image/png" });
+      const res = await request(httpServer)
+        .delete("/api/users/me/avatar")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.avatarUrl).toBeNull();
+    });
+
+    it("returns 401 when unauthenticated", async () => {
+      const res = await request(httpServer)
+        .post("/api/users/me/avatar")
+        .attach("file", Buffer.from([1]), { filename: "x.png", contentType: "image/png" });
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe("POST /api/users/me/cover", () => {
+    it("accepts a JPEG upload and returns coverUrl", async () => {
+      const token = await signupAndLogin(httpServer, { username: "cover1", email: "cover1@example.com" });
+      const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      const res = await request(httpServer)
+        .post("/api/users/me/cover")
+        .set("Authorization", `Bearer ${token}`)
+        .attach("file", jpeg, { filename: "c.jpg", contentType: "image/jpeg" });
+      expect(res.status).toBe(200);
+      expect(res.body.coverUrl).toMatch(/^https:\/\/cdn\.example\.com\//);
+    });
   });
 
   it("accepts an empty altEmail to clear the field", async () => {

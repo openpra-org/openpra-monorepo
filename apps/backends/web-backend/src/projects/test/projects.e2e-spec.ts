@@ -16,6 +16,16 @@ jest.mock("../../auth/email.service", () => {
   };
 });
 
+jest.mock("../../users/storage.service", () => ({
+  StorageService: jest.fn().mockImplementation(() => ({
+    onModuleInit: jest.fn(),
+    isAllowedMime: jest.fn().mockReturnValue(true),
+    uploadImage: jest.fn().mockResolvedValue("avatars/test/mocked.png"),
+    deleteByKey: jest.fn().mockResolvedValue(undefined),
+    urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/${key}`)),
+  })),
+}));
+
 async function signupAndLogin(httpServer: ReturnType<INestApplication["getHttpServer"]>, overrides: Record<string, string> = {}): Promise<string> {
   const user = {
     fullName: "Ada Lovelace",

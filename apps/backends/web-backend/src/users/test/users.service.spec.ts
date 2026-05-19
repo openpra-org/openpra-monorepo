@@ -1,9 +1,10 @@
-import { ConflictException, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { UsersService } from "../users.service";
+import { StorageService } from "../storage.service";
 import { User } from "../user.schema";
 import { Project } from "../../projects/project.schema";
 import { Team } from "../../teams/team.schema";
@@ -23,6 +24,8 @@ interface FakeUser {
   prefs: {
     notify: { projectShared: boolean; teamInvite: boolean; runFinished: boolean; quantErrors: boolean };
   };
+  avatarKey: string | null;
+  coverKey: string | null;
   createdAt: Date;
   _id: string;
   save: jest.Mock;
@@ -50,6 +53,8 @@ function makeUserDoc(overrides: Partial<FakeUser> = {}): FakeUser {
     prefs: {
       notify: { projectShared: true, teamInvite: true, runFinished: true, quantErrors: true },
     },
+    avatarKey: null,
+    coverKey: null,
     createdAt: new Date("2026-03-12T10:00:00Z"),
     save,
     deleteOne,
@@ -64,6 +69,7 @@ describe("UsersService", () => {
   let projectModelMock: { countDocuments: jest.Mock; deleteMany: jest.Mock; updateMany: jest.Mock };
   let teamModelMock: { find: jest.Mock; updateMany: jest.Mock };
   let jwtServiceMock: { signAsync: jest.Mock };
+  let storageMock: { isAllowedMime: jest.Mock; uploadImage: jest.Mock; deleteByKey: jest.Mock; urlForKey: jest.Mock };
 
   beforeEach(async () => {
     userModelMock = { findOne: jest.fn() };
@@ -77,6 +83,12 @@ describe("UsersService", () => {
       updateMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(undefined) }),
     };
     jwtServiceMock = { signAsync: jest.fn().mockResolvedValue("signed.jwt.token") };
+    storageMock = {
+      isAllowedMime: jest.fn().mockReturnValue(true),
+      uploadImage: jest.fn().mockResolvedValue("uploaded/key.png"),
+      deleteByKey: jest.fn().mockResolvedValue(undefined),
+      urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/openpra-web/${key}`)),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         UsersService,
@@ -84,6 +96,7 @@ describe("UsersService", () => {
         { provide: getModelToken(Project.name), useValue: projectModelMock },
         { provide: getModelToken(Team.name), useValue: teamModelMock },
         { provide: JwtService, useValue: jwtServiceMock },
+        { provide: StorageService, useValue: storageMock },
       ],
     }).compile();
     service = moduleRef.get(UsersService);
@@ -246,6 +259,81 @@ describe("UsersService", () => {
       const doc = makeUserDoc({ passwordHash });
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.deleteMyAccount("ada", "wrong")).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("also deletes the user's avatar + cover objects from storage", async () => {
+      const passwordHash = await argon2.hash("hunter2hunter2");
+      const doc = makeUserDoc({ passwordHash, avatarKey: "avatars/ada/a.png", coverKey: "covers/ada/b.jpg" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([]) });
+      await service.deleteMyAccount("ada", "hunter2hunter2");
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("avatars/ada/a.png");
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("covers/ada/b.jpg");
+    });
+  });
+
+  describe("setAvatar", () => {
+    it("uploads the file, persists the key, and deletes the previous key", async () => {
+      const doc = makeUserDoc({ avatarKey: "avatars/ada/old.png" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      storageMock.uploadImage.mockResolvedValueOnce("avatars/ada/new.png");
+
+      const out = await service.setAvatar("ada", {
+        buffer: Buffer.from([1, 2, 3]),
+        mimetype: "image/png",
+        size: 3,
+        originalname: "a.png",
+      });
+
+      expect(storageMock.uploadImage).toHaveBeenCalledWith(
+        "avatars",
+        "ada",
+        expect.objectContaining({ mimeType: "image/png", size: 3, originalName: "a.png" }),
+      );
+      expect(doc.avatarKey).toBe("avatars/ada/new.png");
+      expect(doc.save).toHaveBeenCalledTimes(1);
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("avatars/ada/old.png");
+      expect(out.avatarUrl).toBe("https://cdn.example.com/openpra-web/avatars/ada/new.png");
+    });
+
+    it("rejects unsupported MIME types with BadRequestException", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      storageMock.isAllowedMime.mockReturnValueOnce(false);
+      await expect(
+        service.setAvatar("ada", { buffer: Buffer.from([]), mimetype: "image/gif", size: 0, originalname: "x.gif" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(storageMock.uploadImage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("clearAvatar", () => {
+    it("nulls the key and removes the previous object", async () => {
+      const doc = makeUserDoc({ avatarKey: "avatars/ada/x.png" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.clearAvatar("ada");
+      expect(doc.avatarKey).toBe(null);
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("avatars/ada/x.png");
+      expect(out.avatarUrl).toBe(null);
+    });
+  });
+
+  describe("setCover / clearCover", () => {
+    it("setCover stores under the covers/ folder", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      storageMock.uploadImage.mockResolvedValueOnce("covers/ada/c.webp");
+      await service.setCover("ada", { buffer: Buffer.from([]), mimetype: "image/webp", size: 0, originalname: "c.webp" });
+      expect(storageMock.uploadImage).toHaveBeenCalledWith("covers", "ada", expect.any(Object));
+      expect(doc.coverKey).toBe("covers/ada/c.webp");
+    });
+
+    it("clearCover removes the previous object", async () => {
+      const doc = makeUserDoc({ coverKey: "covers/ada/old.png" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.clearCover("ada");
+      expect(doc.coverKey).toBe(null);
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("covers/ada/old.png");
     });
   });
 });

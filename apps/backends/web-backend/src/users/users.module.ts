@@ -5,6 +5,7 @@ import { Project, ProjectSchema } from "../projects/project.schema";
 import { Team, TeamSchema } from "../teams/team.schema";
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
+import { StorageService } from "./storage.service";
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { UsersService } from "./users.service";
     ]),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, StorageService],
 })
 export class UsersModule {}

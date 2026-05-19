@@ -5,14 +5,20 @@ import {
   type MyProfileResponse,
   type Team,
   type UpdateTeamRequest,
-  type UpdateUserProfileRequest,
   type UserProfile,
 } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
 import { ArrowLeftIcon } from "../welcome/icons";
 import { ThemePicker } from "../welcome/themePicker";
 import { useTheme } from "../welcome/useTheme";
-import { getMyProfile, updateMyProfile } from "../users/userApi";
+import {
+  deleteAvatar,
+  deleteCover,
+  getMyProfile,
+  updateMyProfile,
+  uploadAvatar,
+  uploadCover,
+} from "../users/userApi";
 import {
   acceptInvite,
   createTeam,
@@ -29,7 +35,7 @@ import { ContactSection } from "./contactSection";
 import { TeamsSection } from "./teamsSection";
 import { ApiKeysSection } from "./apiKeysSection";
 import { InvitationsSection } from "./invitationsSection";
-import { EditProfileModal } from "./editProfileModal";
+import { EditProfileModal, type EditProfilePayload } from "./editProfileModal";
 import { CreateTeamModal } from "./createTeamModal";
 import { JoinTeamModal } from "./joinTeamModal";
 import { ConfirmLeaveModal } from "./confirmLeaveModal";
@@ -85,18 +91,33 @@ function ProfilePage(): JSX.Element {
     addToast({ id: crypto.randomUUID(), type: "info", message: `${label} — coming soon` });
   }
 
-  function handleEditSubmit(payload: UpdateUserProfileRequest): void {
+  async function handleEditSubmit(payload: EditProfilePayload): Promise<void> {
     setMutating(true);
-    updateMyProfile(payload)
-      .then((res) => {
+    try {
+      let nextProfile: UserProfile | null = null;
+      if (payload.avatarFile !== null) {
+        nextProfile = await uploadAvatar(payload.avatarFile);
+      } else if (payload.removeAvatar) {
+        nextProfile = await deleteAvatar();
+      }
+      if (payload.coverFile !== null) {
+        nextProfile = await uploadCover(payload.coverFile);
+      } else if (payload.removeCover) {
+        nextProfile = await deleteCover();
+      }
+      if (payload.text !== null) {
+        const res = await updateMyProfile(payload.text);
         setData(res);
-        setEditOpen(false);
-        flashSuccess("Profile updated");
-      })
-      .catch((err: unknown) => {
-        flashError((err as { message?: string }).message ?? "Could not save profile");
-      })
-      .finally(() => { setMutating(false); });
+      } else if (nextProfile !== null) {
+        setData((prev) => prev === null ? prev : { ...prev, profile: nextProfile! });
+      }
+      setEditOpen(false);
+      flashSuccess("Profile updated");
+    } catch (err: unknown) {
+      flashError((err as { message?: string }).message ?? "Could not save profile");
+    } finally {
+      setMutating(false);
+    }
   }
 
   function handleCreateTeamSubmit(payload: CreateTeamRequest): void {
@@ -260,7 +281,7 @@ function ProfilePage(): JSX.Element {
         <EditProfileModal
           profile={profile}
           onCancel={() => { if (!mutating) setEditOpen(false); }}
-          onSubmit={handleEditSubmit}
+          onSubmit={(p) => { void handleEditSubmit(p); }}
           pending={mutating}
         />
       )}

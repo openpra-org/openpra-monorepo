@@ -17,6 +17,16 @@ jest.mock("../email.service", () => {
   };
 });
 
+jest.mock("../../users/storage.service", () => ({
+  StorageService: jest.fn().mockImplementation(() => ({
+    onModuleInit: jest.fn(),
+    isAllowedMime: jest.fn().mockReturnValue(true),
+    uploadImage: jest.fn().mockResolvedValue("avatars/test/mocked.png"),
+    deleteByKey: jest.fn().mockResolvedValue(undefined),
+    urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/${key}`)),
+  })),
+}));
+
 describe("Auth (e2e)", () => {
   let app: INestApplication;
   let mongo: MongoMemoryServer;
@@ -194,6 +204,38 @@ describe("Auth (e2e)", () => {
     it("returns 400 on malformed body", async () => {
       const res = await request(httpServer).post("/api/auth/reset-password").send({ token: "" });
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe("GET /api/auth/availability", () => {
+    it("reports username as taken once a user with that name exists", async () => {
+      const res = await request(httpServer).get("/api/auth/availability").query({ username: "ada" });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ usernameAvailable: false });
+    });
+
+    it("reports a fresh username as available", async () => {
+      const res = await request(httpServer).get("/api/auth/availability").query({ username: "totally-new-name" });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ usernameAvailable: true });
+    });
+
+    it("matches email case-insensitively", async () => {
+      const res = await request(httpServer).get("/api/auth/availability").query({ email: "ADA@example.com" });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ emailAvailable: false });
+    });
+
+    it("returns both flags when both query params are present", async () => {
+      const res = await request(httpServer).get("/api/auth/availability").query({ username: "fresh-user", email: "fresh@example.com" });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ usernameAvailable: true, emailAvailable: true });
+    });
+
+    it("returns an empty object when no query params are given", async () => {
+      const res = await request(httpServer).get("/api/auth/availability");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({});
     });
   });
 });

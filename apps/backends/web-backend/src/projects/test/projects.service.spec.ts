@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { elementsForMode } from "interfaces-shared-types";
@@ -11,14 +11,15 @@ import { Team } from "../../teams/team.schema";
 function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
   const deleteOne = jest.fn().mockResolvedValue(undefined);
+  const markModified = jest.fn();
   return {
     _id: new Types.ObjectId().toHexString(),
     name: "Unit 2 — Internal Events Baseline",
     mode: "internal-events",
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
-    collaborators: [],
-    ownerTeamId: null,
+    sharedTeams: [],
+    sharedUsers: [],
     status: {
       POS: "baseline", IE: "baseline", ES: "baseline",
       SC: "not-started", SY: "not-started", HRA: "not-started", DA: "not-started",
@@ -29,6 +30,7 @@ function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string,
     updatedAt: new Date("2026-05-01T12:00:00Z"),
     save,
     deleteOne,
+    markModified,
     ...overrides,
   };
 }
@@ -43,6 +45,7 @@ describe("ProjectsService", () => {
   };
   let userModelMock: {
     findOne: jest.Mock;
+    find: jest.Mock;
   };
   let teamModelMock: {
     findById: jest.Mock;
@@ -56,7 +59,10 @@ describe("ProjectsService", () => {
       findById: jest.fn(),
       create: jest.fn(),
     };
-    userModelMock = { findOne: jest.fn() };
+    userModelMock = {
+      findOne: jest.fn(),
+      find: jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }),
+    };
     teamModelMock = {
       findById: jest.fn(),
       find: jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }),
@@ -74,7 +80,7 @@ describe("ProjectsService", () => {
   });
 
   describe("createProject", () => {
-    it("scaffolds status map with not-started for every element in the mode", async () => {
+    it("scaffolds status map with not-started for every element in the mode and the creator as owner", async () => {
       userModelMock.findOne.mockReturnValue({
         lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
       });
@@ -88,15 +94,13 @@ describe("ProjectsService", () => {
       );
 
       const expected = elementsForMode("external-hazards");
-      const created = projectModelMock.create.mock.calls[0][0] as { status: Record<string, string>; pinned: boolean; state: string };
+      const created = projectModelMock.create.mock.calls[0][0] as { status: Record<string, string>; sharedTeams: unknown[]; sharedUsers: unknown[]; ownerUsername: string };
       expect(Object.keys(created.status)).toHaveLength(expected.length);
       for (const el of expected) expect(created.status[el.code]).toBe("not-started");
-      expect(created.pinned).toBe(false);
-      expect(created.state).toBe("active");
-      expect(result.modeLabel).toBe("External Hazards");
+      expect(created.ownerUsername).toBe("ada");
+      expect(created.sharedTeams).toEqual([]);
+      expect(created.sharedUsers).toEqual([]);
       expect(result.ownerInitials).toBe("AL");
-      expect(result.pinned).toBe(false);
-      expect(result.state).toBe("active");
     });
 
     it("throws NotFoundException when acting user cannot be resolved", async () => {
@@ -147,16 +151,28 @@ describe("ProjectsService", () => {
   });
 
   describe("getSharedProjects", () => {
-    it("returns projects where the user is in the collaborators array", async () => {
-      const doc = makeProjectDoc({ ownerUsername: "chen", ownerFullName: "M. Chen", collaborators: ["ada"] });
-      const exec = jest.fn().mockResolvedValue([doc]);
+    it("returns projects shared with the user directly or via a team they belong to", async () => {
+      const teamId = new Types.ObjectId().toHexString();
+      teamModelMock.find.mockReturnValueOnce({
+        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group", members: ["chen", "ada"] }]),
+      });
+      const sharedViaTeam = makeProjectDoc({
+        ownerUsername: "chen",
+        ownerFullName: "M. Chen",
+        sharedTeams: [{ teamId, role: "editor" }],
+      });
+      const exec = jest.fn().mockResolvedValue([sharedViaTeam]);
       projectModelMock.find.mockReturnValue({ sort: () => ({ exec }) });
 
       const out = await service.getSharedProjects({ username: "ada" });
 
-      expect(projectModelMock.find).toHaveBeenCalledWith({ collaborators: "ada" });
+      const filter = projectModelMock.find.mock.calls[0][0] as Record<string, unknown>;
+      expect(filter["ownerUsername"]).toEqual({ $ne: "ada" });
+      const orClauses = filter["$or"] as Record<string, unknown>[];
+      expect(orClauses).toContainEqual({ "sharedUsers.username": "ada" });
+      expect(orClauses).toContainEqual({ "sharedTeams.teamId": { $in: [teamId] } });
       expect(out.projects).toHaveLength(1);
-      expect(out.projects[0].ownerInitials).toBe("MC");
+      expect(out.projects[0].ownerUsername).toBe("chen");
     });
   });
 
@@ -203,8 +219,8 @@ describe("ProjectsService", () => {
   });
 
   describe("duplicateProject", () => {
-    it("creates a copy with the same mode, owner, and status; name gains ' (copy)' suffix", async () => {
-      const doc = makeProjectDoc({ name: "Original" });
+    it("creates a copy with the same mode + owner; name gains ' (copy)' suffix; shares are not carried", async () => {
+      const doc = makeProjectDoc({ name: "Original", sharedUsers: [{ username: "chen", role: "editor" }] });
       projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       projectModelMock.create.mockImplementation((data: Record<string, unknown>) =>
         Promise.resolve(makeProjectDoc({ ...data })),
@@ -216,15 +232,14 @@ describe("ProjectsService", () => {
       expect(created.name).toBe("Original (copy)");
       expect(created.mode).toBe(doc.mode);
       expect(created.ownerUsername).toBe(doc.ownerUsername);
-      expect(created.collaborators).toEqual([]);
-      expect(created.pinned).toBe(false);
-      expect(created.state).toBe("active");
+      expect(created.sharedTeams).toEqual([]);
+      expect(created.sharedUsers).toEqual([]);
       expect(result.name).toBe("Original (copy)");
     });
   });
 
-  describe("transferToTeam", () => {
-    it("attaches ownerTeamId on an owned project when the user is a member of the team", async () => {
+  describe("shareWithTeam", () => {
+    it("attaches a team share when the user is a member of the team", async () => {
       const doc = makeProjectDoc();
       projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       const teamId = new Types.ObjectId().toHexString();
@@ -237,15 +252,31 @@ describe("ProjectsService", () => {
         }),
       });
       teamModelMock.find.mockReturnValue({
-        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group" }]),
+        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group", members: ["chen", "ada"] }]),
       });
 
-      const result = await service.transferToTeam(String(doc._id), teamId, { username: "ada" });
+      const result = await service.shareWithTeam(String(doc._id), teamId, "editor", { username: "ada" });
 
-      expect(doc.ownerTeamId).toBe(teamId);
-      expect((doc.save as jest.Mock)).toHaveBeenCalled();
-      expect(result.ownerTeamId).toBe(teamId);
-      expect(result.ownerTeamName).toBe("Risk Group");
+      expect(doc.sharedTeams).toEqual([{ teamId, role: "editor" }]);
+      expect(result.sharedTeams[0].teamId).toBe(teamId);
+      expect(result.sharedTeams[0].teamName).toBe("Risk Group");
+      expect(result.sharedTeams[0].role).toBe("editor");
+    });
+
+    it("throws ConflictException when the team is already a share", async () => {
+      const teamId = new Types.ObjectId().toHexString();
+      const doc = makeProjectDoc({ sharedTeams: [{ teamId, role: "viewer" }] });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: teamId,
+          adminUsername: "ada",
+          members: ["ada"],
+        }),
+      });
+      await expect(
+        service.shareWithTeam(String(doc._id), teamId, "editor", { username: "ada" }),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
 
     it("throws ForbiddenException when the acting user is not in the team", async () => {
@@ -255,91 +286,112 @@ describe("ProjectsService", () => {
       teamModelMock.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue({
           _id: teamId,
-          name: "Stranger Team",
           adminUsername: "chen",
           members: ["chen"],
         }),
       });
       await expect(
-        service.transferToTeam(String(doc._id), teamId, { username: "ada" }),
+        service.shareWithTeam(String(doc._id), teamId, "viewer", { username: "ada" }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
+  });
 
-    it("throws NotFoundException when the team id is unknown", async () => {
+  describe("unshareFromTeam", () => {
+    it("removes a team share", async () => {
+      const teamId = new Types.ObjectId().toHexString();
+      const doc = makeProjectDoc({ sharedTeams: [{ teamId, role: "viewer" }] });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.unshareFromTeam(String(doc._id), teamId, { username: "ada" });
+      expect(doc.sharedTeams).toEqual([]);
+    });
+
+    it("throws NotFoundException when the team isn't a share", async () => {
       const doc = makeProjectDoc();
       projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
       await expect(
-        service.transferToTeam(String(doc._id), new Types.ObjectId().toHexString(), { username: "ada" }),
+        service.unshareFromTeam(String(doc._id), new Types.ObjectId().toHexString(), { username: "ada" }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
-  describe("transferToSelf", () => {
-    it("clears ownerTeamId on an owned project", async () => {
+  describe("updateTeamShareRole", () => {
+    it("updates the share role from viewer to editor", async () => {
       const teamId = new Types.ObjectId().toHexString();
-      const doc = makeProjectDoc({ ownerTeamId: teamId });
+      const doc = makeProjectDoc({ sharedTeams: [{ teamId, role: "viewer" }] });
       projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-
-      const result = await service.transferToSelf(String(doc._id), { username: "ada" });
-
-      expect(doc.ownerTeamId).toBeNull();
-      expect((doc.save as jest.Mock)).toHaveBeenCalled();
-      expect(result.ownerTeamId).toBeNull();
-      expect(result.ownerTeamName).toBeNull();
+      const result = await service.updateTeamShareRole(String(doc._id), teamId, "editor", { username: "ada" });
+      expect(doc.sharedTeams[0].role).toBe("editor");
+      expect(result.sharedTeams[0].role).toBe("editor");
     });
   });
 
-  describe("createProject with ownerTeamId", () => {
-    it("validates membership before assigning the team owner", async () => {
+  describe("shareWithUser", () => {
+    it("attaches a user share by username", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       userModelMock.findOne.mockReturnValue({
-        lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
+        lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
       });
-      const teamId = new Types.ObjectId().toHexString();
-      teamModelMock.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue({
-          _id: teamId,
-          name: "Risk Group",
-          adminUsername: "chen",
-          members: ["chen", "ada"],
-        }),
+      userModelMock.find.mockReturnValue({
+        lean: () => Promise.resolve([{ username: "chen", fullName: "M. Chen" }]),
       });
-      teamModelMock.find.mockReturnValue({
-        lean: () => Promise.resolve([{ _id: teamId, name: "Risk Group" }]),
-      });
-      projectModelMock.create.mockImplementation((data: Record<string, unknown>) =>
-        Promise.resolve(makeProjectDoc({ ...data })),
-      );
 
-      const result = await service.createProject(
-        { name: "Team Project", mode: "internal-events", ownerTeamId: teamId },
-        { username: "ada" },
-      );
+      const result = await service.shareWithUser(String(doc._id), "chen", "viewer", { username: "ada" });
 
-      const created = projectModelMock.create.mock.calls[0][0] as { ownerTeamId: string };
-      expect(created.ownerTeamId).toBe(teamId);
-      expect(result.ownerTeamName).toBe("Risk Group");
+      expect(doc.sharedUsers).toEqual([{ username: "chen", role: "viewer" }]);
+      expect(result.sharedUsers[0].username).toBe("chen");
+      expect(result.sharedUsers[0].fullName).toBe("M. Chen");
+      expect(result.sharedUsers[0].role).toBe("viewer");
     });
 
-    it("rejects assignment when the acting user is not in the team", async () => {
+    it("throws BadRequestException when sharing with the owner themselves", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       userModelMock.findOne.mockReturnValue({
         lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }),
       });
-      const teamId = new Types.ObjectId().toHexString();
-      teamModelMock.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue({
-          _id: teamId,
-          name: "Stranger Team",
-          adminUsername: "chen",
-          members: ["chen"],
-        }),
+      await expect(
+        service.shareWithUser(String(doc._id), "ada", "editor", { username: "ada" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws ConflictException when the user is already a share", async () => {
+      const doc = makeProjectDoc({ sharedUsers: [{ username: "chen", role: "viewer" }] });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
       });
       await expect(
-        service.createProject(
-          { name: "Team Project", mode: "internal-events", ownerTeamId: teamId },
-          { username: "ada" },
-        ),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+        service.shareWithUser(String(doc._id), "chen", "editor", { username: "ada" }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("throws NotFoundException when identifier doesn't resolve", async () => {
+      const doc = makeProjectDoc();
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+      await expect(
+        service.shareWithUser(String(doc._id), "ghost", "viewer", { username: "ada" }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("unshareFromUser", () => {
+    it("removes a user share", async () => {
+      const doc = makeProjectDoc({ sharedUsers: [{ username: "chen", role: "viewer" }] });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await service.unshareFromUser(String(doc._id), "chen", { username: "ada" });
+      expect(doc.sharedUsers).toEqual([]);
+    });
+  });
+
+  describe("updateUserShareRole", () => {
+    it("updates the user share role", async () => {
+      const doc = makeProjectDoc({ sharedUsers: [{ username: "chen", role: "viewer" }] });
+      projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const result = await service.updateUserShareRole(String(doc._id), "chen", "editor", { username: "ada" });
+      expect(doc.sharedUsers[0].role).toBe("editor");
+      expect(result.sharedUsers[0].role).toBe("editor");
     });
   });
 

@@ -10,8 +10,6 @@ import {
   deleteProject,
   duplicateProject,
   getOwnedProjects,
-  transferProjectToSelf,
-  transferProjectToTeam,
   updateProject,
 } from "./projectApi";
 import { ProjectsHeader } from "./projectsHeader";
@@ -22,7 +20,7 @@ import { ProjectTable } from "./projectTable";
 import { NoResultsState } from "./noResultsState";
 import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { RenameModal } from "./renameModal";
-import { MoveToTeamModal } from "./moveToTeamModal";
+import { ShareProjectModal } from "./shareProjectModal";
 import { type SortKey } from "./sortMenu";
 import { useViewMode } from "./useViewMode";
 import "./css/projectsPage.css";
@@ -60,7 +58,7 @@ function ProjectsPage(): JSX.Element {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [moveTarget, setMoveTarget] = useState<Project | null>(null);
+  const [shareTarget, setShareTarget] = useState<Project | null>(null);
   const [mutating, setMutating] = useState(false);
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -187,31 +185,9 @@ function ProjectsPage(): JSX.Element {
     flashSuccess(`Project "${project.name}" created`);
   }
 
-  function handleMoveToTeamConfirm(teamId: string): void {
-    if (moveTarget === null) return;
-    setMutating(true);
-    const target = moveTarget;
-    transferProjectToTeam(target.id, teamId)
-      .then((next) => {
-        setProjects((prev) => prev.map((p) => (p.id === next.id ? next : p)));
-        setMoveTarget(null);
-        const teamName = next.ownerTeamName ?? "team";
-        flashSuccess(`Moved "${next.name}" to ${teamName}`);
-      })
-      .catch((err: unknown) => {
-        flashError((err as { message?: string }).message ?? "Could not move project to team");
-      })
-      .finally(() => { setMutating(false); });
-  }
-
-  async function handleMoveToPersonal(project: Project): Promise<void> {
-    try {
-      const next = await transferProjectToSelf(project.id);
-      setProjects((prev) => prev.map((p) => (p.id === next.id ? next : p)));
-      flashSuccess(`Moved "${next.name}" to personal`);
-    } catch (err) {
-      flashError((err as { message?: string }).message ?? "Could not move project to personal");
-    }
+  function handleShareChanged(next: Project): void {
+    setProjects((prev) => prev.map((p) => (p.id === next.id ? next : p)));
+    setShareTarget(next);
   }
 
   function handlersFor(project: Project): {
@@ -220,8 +196,6 @@ function ProjectsPage(): JSX.Element {
     onRename: () => void;
     onDuplicate: () => void;
     onShare: () => void;
-    onMoveToTeam: () => void;
-    onMoveToPersonal: () => void;
     onToggleArchive: () => void;
     onDelete: () => void;
   } {
@@ -230,9 +204,7 @@ function ProjectsPage(): JSX.Element {
       onTogglePin: () => { void handleTogglePin(project); },
       onRename: () => { setRenameTarget(project); },
       onDuplicate: () => { void handleDuplicate(project); },
-      onShare: () => { comingSoon("Share"); },
-      onMoveToTeam: () => { setMoveTarget(project); },
-      onMoveToPersonal: () => { void handleMoveToPersonal(project); },
+      onShare: () => { setShareTarget(project); },
       onToggleArchive: () => { void handleToggleArchive(project); },
       onDelete: () => { setDeleteTarget(project); },
     };
@@ -327,12 +299,13 @@ function ProjectsPage(): JSX.Element {
         />
       )}
 
-      {moveTarget !== null && (
-        <MoveToTeamModal
-          project={moveTarget}
-          onCancel={() => { if (!mutating) setMoveTarget(null); }}
-          onConfirm={handleMoveToTeamConfirm}
-          pending={mutating}
+      {shareTarget !== null && (
+        <ShareProjectModal
+          project={shareTarget}
+          onClose={() => { setShareTarget(null); }}
+          onChanged={handleShareChanged}
+          onError={flashError}
+          onSuccess={flashSuccess}
         />
       )}
     </div>

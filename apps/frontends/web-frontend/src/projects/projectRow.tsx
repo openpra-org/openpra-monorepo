@@ -40,11 +40,11 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
       </div>
       <div className="ap__td" role="cell">
         <span className="chip chip--mode chip--xs">{project.modeLabel}</span>
-        {project.ownerTeamName !== null && (
-          <span className="chip chip--team chip--xs" title={`Owned with team ${project.ownerTeamName}`}>
-            <UsersIcon /> {project.ownerTeamName}
+        {project.sharedTeams.map((s) => (
+          <span key={s.teamId} className="chip chip--team chip--xs" title={`Shared with team ${s.teamName} (${s.role})`}>
+            <UsersIcon /> {s.teamName}
           </span>
-        )}
+        ))}
       </div>
       <div className="ap__td ap__td--progress" role="cell">
         <div className="ap__td-progress">
@@ -54,7 +54,7 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
           <span className="ap__td-pct">{pct}%</span>
         </div>
       </div>
-      <div className="ap__td" role="cell">{project.collaborators.length}</div>
+      <div className="ap__td" role="cell">{project.sharedUsers.length}</div>
       <div className="ap__td ap__td--muted" role="cell">
         {formatRelative(project.updatedAt)}
       </div>

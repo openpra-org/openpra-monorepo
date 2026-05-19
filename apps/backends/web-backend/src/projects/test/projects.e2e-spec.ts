@@ -1,11 +1,8 @@
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
-import { getModelToken } from "@nestjs/mongoose";
-import type { Model } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
 import { AppModule } from "../../app.module";
-import { Project, type ProjectDocument } from "../project.schema";
 
 jest.mock("../../auth/email.service", () => {
   return {
@@ -127,7 +124,7 @@ describe("Projects (e2e)", () => {
     expect(res.body.projects).toEqual([]);
   });
 
-  it("includes projects in /shared when the user is in the collaborators array", async () => {
+  it("includes projects in /shared when the user has been added as a direct collaborator", async () => {
     const ownerToken = await signupAndLogin(httpServer, { username: "owner1", email: "owner1@example.com", fullName: "Marie Curie" });
     const collabToken = await signupAndLogin(httpServer, { username: "collab1", email: "collab1@example.com", fullName: "Niels Bohr" });
 
@@ -137,8 +134,11 @@ describe("Projects (e2e)", () => {
       .send({ name: "Shared Project Alpha", mode: "full-scope" });
     expect(created.status).toBe(201);
 
-    const projectModel = app.get<Model<ProjectDocument>>(getModelToken(Project.name));
-    await projectModel.updateOne({ _id: created.body.id }, { $addToSet: { collaborators: "collab1" } });
+    const share = await request(httpServer)
+      .post(`/api/projects/${created.body.id}/shares/users`)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .send({ identifier: "collab1", role: "editor" });
+    expect(share.status).toBe(200);
 
     const res = await request(httpServer)
       .get("/api/projects/shared")
@@ -148,6 +148,8 @@ describe("Projects (e2e)", () => {
     expect(res.body.projects[0].name).toBe("Shared Project Alpha");
     expect(res.body.projects[0].ownerFullName).toBe("Marie Curie");
     expect(res.body.projects[0].ownerInitials).toBe("MC");
+    expect(res.body.projects[0].sharedUsers[0].username).toBe("collab1");
+    expect(res.body.projects[0].sharedUsers[0].role).toBe("editor");
   });
 
   describe("GET /api/projects", () => {
@@ -310,79 +312,123 @@ describe("Projects (e2e)", () => {
     });
   });
 
-  describe("Project ↔ team ownership", () => {
-    it("creates a project with ownerTeamId when the user is a member of the team", async () => {
-      const owner = await signupAndLogin(httpServer, { username: "to-owner", email: "to-owner@example.com" });
+  describe("Project sharing", () => {
+    it("owner shares a project with a team they belong to; the share is visible in the response", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "sh-owner", email: "sh-owner@example.com" });
       const team = await request(httpServer)
         .post("/api/teams")
         .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Risk Research Group", visibility: "public" });
-      const res = await request(httpServer)
-        .post("/api/projects")
-        .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Team-owned analysis", mode: "internal-events", ownerTeamId: team.body.id });
-      expect(res.status).toBe(201);
-      expect(res.body.ownerTeamId).toBe(team.body.id);
-      expect(res.body.ownerTeamName).toBe("Risk Research Group");
-    });
-
-    it("rejects creation with a team the user does not belong to (403)", async () => {
-      const adminUser = await signupAndLogin(httpServer, { username: "to-admin", email: "to-admin@example.com" });
-      const team = await request(httpServer)
-        .post("/api/teams")
-        .set("Authorization", `Bearer ${adminUser}`)
-        .send({ name: "Locked Team", visibility: "public" });
-      const stranger = await signupAndLogin(httpServer, { username: "to-stranger", email: "to-stranger@example.com" });
-      const res = await request(httpServer)
-        .post("/api/projects")
-        .set("Authorization", `Bearer ${stranger}`)
-        .send({ name: "Sneaky project", mode: "internal-events", ownerTeamId: team.body.id });
-      expect(res.status).toBe(403);
-    });
-
-    it("attaches and detaches a team owner via transfer-to-team and transfer-to-self", async () => {
-      const owner = await signupAndLogin(httpServer, { username: "to-flip", email: "to-flip@example.com" });
-      const team = await request(httpServer)
-        .post("/api/teams")
-        .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Flip Team", visibility: "public" });
+        .send({ name: "Share Team", visibility: "public" });
       const project = await request(httpServer)
         .post("/api/projects")
         .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Flippable Project", mode: "internal-events" });
-      expect(project.body.ownerTeamId).toBeNull();
+        .send({ name: "Shareable Project", mode: "internal-events" });
 
-      const attach = await request(httpServer)
-        .post(`/api/projects/${project.body.id}/transfer-to-team`)
+      const share = await request(httpServer)
+        .post(`/api/projects/${project.body.id}/shares/teams`)
         .set("Authorization", `Bearer ${owner}`)
-        .send({ teamId: team.body.id });
-      expect(attach.status).toBe(200);
-      expect(attach.body.ownerTeamId).toBe(team.body.id);
-      expect(attach.body.ownerTeamName).toBe("Flip Team");
-
-      const detach = await request(httpServer)
-        .post(`/api/projects/${project.body.id}/transfer-to-self`)
-        .set("Authorization", `Bearer ${owner}`);
-      expect(detach.status).toBe(200);
-      expect(detach.body.ownerTeamId).toBeNull();
-      expect(detach.body.ownerTeamName).toBeNull();
+        .send({ teamId: team.body.id, role: "editor" });
+      expect(share.status).toBe(200);
+      expect(share.body.sharedTeams).toHaveLength(1);
+      expect(share.body.sharedTeams[0].teamId).toBe(team.body.id);
+      expect(share.body.sharedTeams[0].teamName).toBe("Share Team");
+      expect(share.body.sharedTeams[0].role).toBe("editor");
     });
 
-    it("returns 403 when a non-owner tries to transfer the project", async () => {
-      const owner = await signupAndLogin(httpServer, { username: "to-prot-owner", email: "to-prot-owner@example.com" });
+    it("team members see a team-shared project in /shared", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "tshare-own", email: "tshare-own@example.com" });
       const team = await request(httpServer)
         .post("/api/teams")
         .set("Authorization", `Bearer ${owner}`)
-        .send({ name: "Protected Team", visibility: "public" });
+        .send({ name: "Visible Team", visibility: "public" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Team-shared Project", mode: "internal-events" });
+      await request(httpServer)
+        .post(`/api/projects/${project.body.id}/shares/teams`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ teamId: team.body.id, role: "viewer" });
+      const member = await signupAndLogin(httpServer, { username: "tshare-mbr", email: "tshare-mbr@example.com" });
+      await request(httpServer)
+        .post(`/api/teams/${team.body.id}/join`)
+        .set("Authorization", `Bearer ${member}`);
+
+      const res = await request(httpServer).get("/api/projects/shared").set("Authorization", `Bearer ${member}`);
+      expect(res.status).toBe(200);
+      expect(res.body.projects.find((p: { id: string }) => p.id === project.body.id)).toBeDefined();
+    });
+
+    it("returns 403 when sharing with a team the owner doesn't belong to", async () => {
+      const adminUser = await signupAndLogin(httpServer, { username: "sh-admin", email: "sh-admin@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${adminUser}`)
+        .send({ name: "Stranger Team", visibility: "public" });
+      const stranger = await signupAndLogin(httpServer, { username: "sh-stranger", email: "sh-stranger@example.com" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${stranger}`)
+        .send({ name: "Stranger Project", mode: "internal-events" });
+      const res = await request(httpServer)
+        .post(`/api/projects/${project.body.id}/shares/teams`)
+        .set("Authorization", `Bearer ${stranger}`)
+        .send({ teamId: team.body.id, role: "viewer" });
+      expect(res.status).toBe(403);
+    });
+
+    it("owner unshares a project from a team", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "us-owner", email: "us-owner@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Unshare Team", visibility: "public" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Unshare Project", mode: "internal-events" });
+      await request(httpServer)
+        .post(`/api/projects/${project.body.id}/shares/teams`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ teamId: team.body.id, role: "editor" });
+
+      const res = await request(httpServer)
+        .delete(`/api/projects/${project.body.id}/shares/teams/${team.body.id}`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(204);
+    });
+
+    it("owner updates a user share role from viewer to editor", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "ur-owner", email: "ur-owner@example.com" });
+      await signupAndLogin(httpServer, { username: "ur-friend", email: "ur-friend@example.com" });
+      const project = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Role Update Project", mode: "internal-events" });
+      await request(httpServer)
+        .post(`/api/projects/${project.body.id}/shares/users`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "ur-friend", role: "viewer" });
+
+      const res = await request(httpServer)
+        .patch(`/api/projects/${project.body.id}/shares/users/ur-friend`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ role: "editor" });
+      expect(res.status).toBe(200);
+      expect(res.body.sharedUsers[0].role).toBe("editor");
+    });
+
+    it("returns 403 when a non-owner tries to share the project", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "sh-prot-owner", email: "sh-prot-owner@example.com" });
       const project = await request(httpServer)
         .post("/api/projects")
         .set("Authorization", `Bearer ${owner}`)
         .send({ name: "Protected Project", mode: "internal-events" });
-      const intruder = await signupAndLogin(httpServer, { username: "to-prot-intr", email: "to-prot-intr@example.com" });
+      const intruder = await signupAndLogin(httpServer, { username: "sh-prot-intr", email: "sh-prot-intr@example.com" });
       const res = await request(httpServer)
-        .post(`/api/projects/${project.body.id}/transfer-to-team`)
+        .post(`/api/projects/${project.body.id}/shares/users`)
         .set("Authorization", `Bearer ${intruder}`)
-        .send({ teamId: team.body.id });
+        .send({ identifier: "owner", role: "viewer" });
       expect(res.status).toBe(403);
     });
   });

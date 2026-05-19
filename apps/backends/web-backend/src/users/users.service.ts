@@ -177,8 +177,8 @@ export class UsersService {
     );
     await this.projectModel.deleteMany({ ownerUsername: username });
     await this.projectModel.updateMany(
-      { collaborators: username },
-      { $pull: { collaborators: username } },
+      { "sharedUsers.username": username },
+      { $pull: { sharedUsers: { username } } },
     );
     await this.storage.deleteByKey(doc.avatarKey);
     await this.storage.deleteByKey(doc.coverKey);

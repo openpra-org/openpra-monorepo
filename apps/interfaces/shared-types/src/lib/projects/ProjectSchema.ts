@@ -4,6 +4,24 @@ import { ProjectStateSchema, ProjectStatusSchema, RiskModeSchema } from "./RiskM
 const ProjectStatusMapSchema = z.record(z.string(), ProjectStatusSchema);
 type ProjectStatusMap = z.infer<typeof ProjectStatusMapSchema>;
 
+const ProjectShareRoleSchema = z.enum(["viewer", "editor"]);
+type ProjectShareRole = z.infer<typeof ProjectShareRoleSchema>;
+
+const ProjectTeamShareSchema = z.object({
+  teamId: z.string(),
+  teamName: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  role: ProjectShareRoleSchema,
+});
+type ProjectTeamShareEntry = z.infer<typeof ProjectTeamShareSchema>;
+
+const ProjectUserShareSchema = z.object({
+  username: z.string(),
+  fullName: z.string(),
+  role: ProjectShareRoleSchema,
+});
+type ProjectUserShareEntry = z.infer<typeof ProjectUserShareSchema>;
+
 const ProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -12,9 +30,8 @@ const ProjectSchema = z.object({
   ownerUsername: z.string(),
   ownerFullName: z.string(),
   ownerInitials: z.string(),
-  ownerTeamId: z.string().nullable(),
-  ownerTeamName: z.string().nullable(),
-  collaborators: z.array(z.string()),
+  sharedTeams: z.array(ProjectTeamShareSchema),
+  sharedUsers: z.array(ProjectUserShareSchema),
   status: ProjectStatusMapSchema,
   progress: z.number().min(0).max(1),
   pinned: z.boolean(),
@@ -26,14 +43,8 @@ type Project = z.infer<typeof ProjectSchema>;
 const CreateProjectRequestSchema = z.object({
   name: z.string().trim().min(3, "Project name must be at least 3 characters"),
   mode: RiskModeSchema,
-  ownerTeamId: z.string().min(1).nullable().optional(),
 });
 type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
-
-const TransferProjectToTeamRequestSchema = z.object({
-  teamId: z.string().min(1, "Team id is required"),
-});
-type TransferProjectToTeamRequest = z.infer<typeof TransferProjectToTeamRequestSchema>;
 
 const UpdateProjectRequestSchema = z
   .object({
@@ -46,6 +57,23 @@ const UpdateProjectRequestSchema = z
     { message: "At least one field is required" },
   );
 type UpdateProjectRequest = z.infer<typeof UpdateProjectRequestSchema>;
+
+const ShareProjectWithTeamRequestSchema = z.object({
+  teamId: z.string().min(1, "Team id is required"),
+  role: ProjectShareRoleSchema,
+});
+type ShareProjectWithTeamRequest = z.infer<typeof ShareProjectWithTeamRequestSchema>;
+
+const ShareProjectWithUserRequestSchema = z.object({
+  identifier: z.string().trim().min(1, "Username or email is required"),
+  role: ProjectShareRoleSchema,
+});
+type ShareProjectWithUserRequest = z.infer<typeof ShareProjectWithUserRequestSchema>;
+
+const UpdateProjectShareRoleRequestSchema = z.object({
+  role: ProjectShareRoleSchema,
+});
+type UpdateProjectShareRoleRequest = z.infer<typeof UpdateProjectShareRoleRequestSchema>;
 
 const RecentProjectResponseSchema = z.object({
   project: ProjectSchema.nullable(),
@@ -64,20 +92,30 @@ type SharedProjectsResponse = z.infer<typeof SharedProjectsResponseSchema>;
 
 export {
   ProjectStatusMapSchema,
+  ProjectShareRoleSchema,
+  ProjectTeamShareSchema,
+  ProjectUserShareSchema,
   ProjectSchema,
   CreateProjectRequestSchema,
   UpdateProjectRequestSchema,
-  TransferProjectToTeamRequestSchema,
+  ShareProjectWithTeamRequestSchema,
+  ShareProjectWithUserRequestSchema,
+  UpdateProjectShareRoleRequestSchema,
   RecentProjectResponseSchema,
   OwnedProjectsResponseSchema,
   SharedProjectsResponseSchema,
 };
 export type {
   ProjectStatusMap,
+  ProjectShareRole,
+  ProjectTeamShareEntry,
+  ProjectUserShareEntry,
   Project,
   CreateProjectRequest,
   UpdateProjectRequest,
-  TransferProjectToTeamRequest,
+  ShareProjectWithTeamRequest,
+  ShareProjectWithUserRequest,
+  UpdateProjectShareRoleRequest,
   RecentProjectResponse,
   OwnedProjectsResponse,
   SharedProjectsResponse,

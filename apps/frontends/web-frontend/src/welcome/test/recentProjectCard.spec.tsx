@@ -11,11 +11,14 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
-    ownerTeamId: null,
-    ownerTeamName: null,
+    sharedTeams: [],
+    sharedUsers: [
+      { username: "b", fullName: "Bob", role: "viewer" },
+      { username: "c", fullName: "Cara", role: "editor" },
+      { username: "d", fullName: "Dan", role: "viewer" },
+    ],
     pinned: false,
     state: "active",
-    collaborators: ["b", "c", "d"],
     status: {
       POS: "baseline", IE: "baseline", ES: "baseline",
       SC: "in-progress", SY: "in-progress",

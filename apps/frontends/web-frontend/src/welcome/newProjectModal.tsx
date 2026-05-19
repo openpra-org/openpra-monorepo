@@ -3,17 +3,13 @@ import {
   type CreateProjectRequest,
   type Project,
   type RiskMode,
-  type Team,
   CreateProjectRequestSchema,
   RISK_MODES,
   elementsForMode,
 } from "interfaces-shared-types";
 import { ArrowRightIcon, CloseIcon } from "./icons";
 import { createProject } from "../projects/projectApi";
-import { getMyTeams } from "../teams/teamsApi";
 import "./css/newProjectModal.css";
-
-const PERSONAL_OWNER = "__personal__";
 
 function NewProjectModal({
   onClose,
@@ -26,8 +22,6 @@ function NewProjectModal({
 }): JSX.Element {
   const [name, setName] = useState("");
   const [mode, setMode] = useState<RiskMode>("internal-events");
-  const [owner, setOwner] = useState<string>(PERSONAL_OWNER);
-  const [teams, setTeams] = useState<Team[]>([]);
   const [nameErr, setNameErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -35,18 +29,6 @@ function NewProjectModal({
   useEffect(() => {
     const id = window.setTimeout(() => { nameRef.current?.focus(); }, 50);
     return () => { window.clearTimeout(id); };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    getMyTeams()
-      .then((res) => {
-        if (cancelled) return;
-        const eligible = res.teams.filter((t) => t.role === "admin" || t.role === "member");
-        setTeams(eligible);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -59,8 +41,7 @@ function NewProjectModal({
 
   function submit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    const ownerTeamId = owner === PERSONAL_OWNER ? null : owner;
-    const candidate: CreateProjectRequest = { name: name.trim(), mode, ownerTeamId };
+    const candidate: CreateProjectRequest = { name: name.trim(), mode };
     const parsed = CreateProjectRequestSchema.safeParse(candidate);
     if (!parsed.success) {
       const issue = parsed.error.issues.find((i) => i.path[0] === "name");
@@ -110,24 +91,6 @@ function NewProjectModal({
                 autoComplete="off"
               />
               {nameErr && <div className="field__error">{nameErr}</div>}
-            </div>
-
-            <div className="field">
-              <label className="field__label" htmlFor="np-owner">Owner</label>
-              <div className="field__hint">
-                Personal projects stay private to you. A team owner keeps your personal access and adds the team for collaboration.
-              </div>
-              <select
-                id="np-owner"
-                className="field__input"
-                value={owner}
-                onChange={(e) => { setOwner(e.target.value); }}
-              >
-                <option value={PERSONAL_OWNER}>Personal</option>
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
             </div>
 
             <div className="field">

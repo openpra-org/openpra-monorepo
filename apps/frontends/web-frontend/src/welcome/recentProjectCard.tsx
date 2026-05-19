@@ -27,7 +27,7 @@ function RecentProjectCard({
               <ClockIcon /> Edited {formatRelative(project.updatedAt)}
             </span>
             <span className="chip chip--soft">
-              <UsersIcon /> {project.collaborators.length} collaborators
+              <UsersIcon /> {project.sharedUsers.length} collaborator{project.sharedUsers.length === 1 ? "" : "s"}
             </span>
           </div>
           <h2 className="recent__title">{project.name}</h2>

@@ -12,9 +12,11 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
-    ownerTeamId: null,
-    ownerTeamName: null,
-    collaborators: ["a", "b"],
+    sharedTeams: [],
+    sharedUsers: [
+      { username: "a", fullName: "Alice", role: "viewer" },
+      { username: "b", fullName: "Bob", role: "editor" },
+    ],
     status: { POS: "baseline", IE: "baseline", ES: "in-progress" },
     progress: 2 / 11,
     pinned: false,
@@ -30,8 +32,6 @@ const noopHandlers = {
   onRename: jest.fn(),
   onDuplicate: jest.fn(),
   onShare: jest.fn(),
-  onMoveToTeam: jest.fn(),
-  onMoveToPersonal: jest.fn(),
   onToggleArchive: jest.fn(),
   onDelete: jest.fn(),
 };
@@ -69,8 +69,19 @@ describe("ProjectCard", () => {
     expect(noopHandlers.onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the team chip when the project is owned by a team", () => {
-    render(<ProjectCard project={makeProject({ ownerTeamId: "t-1", ownerTeamName: "Risk Group" })} {...noopHandlers} />);
+  it("renders a team chip for each team the project is shared with", () => {
+    render(
+      <ProjectCard
+        project={makeProject({
+          sharedTeams: [
+            { teamId: "t-1", teamName: "Risk Group", memberCount: 3, role: "editor" },
+            { teamId: "t-2", teamName: "Reliability Lab", memberCount: 2, role: "viewer" },
+          ],
+        })}
+        {...noopHandlers}
+      />,
+    );
     expect(screen.getByText("Risk Group")).toBeInTheDocument();
+    expect(screen.getByText("Reliability Lab")).toBeInTheDocument();
   });
 });

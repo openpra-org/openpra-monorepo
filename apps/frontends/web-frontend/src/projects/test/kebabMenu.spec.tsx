@@ -12,9 +12,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
-    ownerTeamId: null,
-    ownerTeamName: null,
-    collaborators: [],
+    sharedTeams: [],
+    sharedUsers: [],
     status: { POS: "baseline" },
     progress: 0,
     pinned: false,
@@ -30,8 +29,6 @@ function setup(project: Project) {
   const onRename = jest.fn();
   const onDuplicate = jest.fn();
   const onShare = jest.fn();
-  const onMoveToTeam = jest.fn();
-  const onMoveToPersonal = jest.fn();
   const onToggleArchive = jest.fn();
   const onDelete = jest.fn();
   render(
@@ -42,13 +39,11 @@ function setup(project: Project) {
       onRename={onRename}
       onDuplicate={onDuplicate}
       onShare={onShare}
-      onMoveToTeam={onMoveToTeam}
-      onMoveToPersonal={onMoveToPersonal}
       onToggleArchive={onToggleArchive}
       onDelete={onDelete}
     />,
   );
-  return { onOpen, onTogglePin, onRename, onDuplicate, onShare, onMoveToTeam, onMoveToPersonal, onToggleArchive, onDelete };
+  return { onOpen, onTogglePin, onRename, onDuplicate, onShare, onToggleArchive, onDelete };
 }
 
 describe("KebabMenu", () => {
@@ -91,17 +86,10 @@ describe("KebabMenu", () => {
     expect(handlers.onRename).toHaveBeenCalledTimes(1);
   });
 
-  it("shows 'Move to team' for a personal project", async () => {
-    const handlers = setup(makeProject({ ownerTeamId: null, ownerTeamName: null }));
+  it("invokes onShare when the Share item is clicked", async () => {
+    const handlers = setup(makeProject());
     await userEvent.click(screen.getByRole("button", { name: /project actions/i }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /move to team/i }));
-    expect(handlers.onMoveToTeam).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows 'Move to personal' when the project is team-owned", async () => {
-    const handlers = setup(makeProject({ ownerTeamId: "t-1", ownerTeamName: "Risk Group" }));
-    await userEvent.click(screen.getByRole("button", { name: /project actions/i }));
-    await userEvent.click(screen.getByRole("menuitem", { name: /move to personal/i }));
-    expect(handlers.onMoveToPersonal).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("menuitem", { name: /share/i }));
+    expect(handlers.onShare).toHaveBeenCalledTimes(1);
   });
 });

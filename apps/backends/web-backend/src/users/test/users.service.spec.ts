@@ -248,8 +248,8 @@ describe("UsersService", () => {
       );
       expect(projectModelMock.deleteMany).toHaveBeenCalledWith({ ownerUsername: "ada" });
       expect(projectModelMock.updateMany).toHaveBeenCalledWith(
-        { collaborators: "ada" },
-        { $pull: { collaborators: "ada" } },
+        { "sharedUsers.username": "ada" },
+        { $pull: { sharedUsers: { username: "ada" } } },
       );
       expect(doc.deleteOne).toHaveBeenCalledTimes(1);
     });

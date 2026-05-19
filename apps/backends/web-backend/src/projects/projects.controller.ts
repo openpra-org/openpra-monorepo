@@ -16,12 +16,16 @@ import {
   type OwnedProjectsResponse,
   type Project,
   type RecentProjectResponse,
+  type ShareProjectWithTeamRequest,
+  type ShareProjectWithUserRequest,
   type SharedProjectsResponse,
-  type TransferProjectToTeamRequest,
   type UpdateProjectRequest,
+  type UpdateProjectShareRoleRequest,
   CreateProjectRequestSchema,
-  TransferProjectToTeamRequestSchema,
+  ShareProjectWithTeamRequestSchema,
+  ShareProjectWithUserRequestSchema,
   UpdateProjectRequestSchema,
+  UpdateProjectShareRoleRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
@@ -75,20 +79,66 @@ export class ProjectsController {
     return this.projectsService.duplicateProject(id, { username: req.user!.username });
   }
 
-  @Post(":id/transfer-to-team")
+  @Post(":id/shares/teams")
   @HttpCode(HttpStatus.OK)
-  transferToTeam(
+  shareWithTeam(
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(TransferProjectToTeamRequestSchema)) body: TransferProjectToTeamRequest,
+    @Body(new ZodValidationPipe(ShareProjectWithTeamRequestSchema)) body: ShareProjectWithTeamRequest,
     @Req() req: AuthenticatedRequest,
   ): Promise<Project> {
-    return this.projectsService.transferToTeam(id, body.teamId, { username: req.user!.username });
+    return this.projectsService.shareWithTeam(id, body.teamId, body.role, { username: req.user!.username });
   }
 
-  @Post(":id/transfer-to-self")
+  @Patch(":id/shares/teams/:teamId")
   @HttpCode(HttpStatus.OK)
-  transferToSelf(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Project> {
-    return this.projectsService.transferToSelf(id, { username: req.user!.username });
+  updateTeamShare(
+    @Param("id") id: string,
+    @Param("teamId") teamId: string,
+    @Body(new ZodValidationPipe(UpdateProjectShareRoleRequestSchema)) body: UpdateProjectShareRoleRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Project> {
+    return this.projectsService.updateTeamShareRole(id, teamId, body.role, { username: req.user!.username });
+  }
+
+  @Delete(":id/shares/teams/:teamId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unshareFromTeam(
+    @Param("id") id: string,
+    @Param("teamId") teamId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    await this.projectsService.unshareFromTeam(id, teamId, { username: req.user!.username });
+  }
+
+  @Post(":id/shares/users")
+  @HttpCode(HttpStatus.OK)
+  shareWithUser(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(ShareProjectWithUserRequestSchema)) body: ShareProjectWithUserRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Project> {
+    return this.projectsService.shareWithUser(id, body.identifier, body.role, { username: req.user!.username });
+  }
+
+  @Patch(":id/shares/users/:username")
+  @HttpCode(HttpStatus.OK)
+  updateUserShare(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Body(new ZodValidationPipe(UpdateProjectShareRoleRequestSchema)) body: UpdateProjectShareRoleRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Project> {
+    return this.projectsService.updateUserShareRole(id, username, body.role, { username: req.user!.username });
+  }
+
+  @Delete(":id/shares/users/:username")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unshareFromUser(
+    @Param("id") id: string,
+    @Param("username") username: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<void> {
+    await this.projectsService.unshareFromUser(id, username, { username: req.user!.username });
   }
 
   @Delete(":id")

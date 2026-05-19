@@ -1,12 +1,15 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
   type CreateProjectRequest,
   type OwnedProjectsResponse,
   type Project as ProjectDto,
+  type ProjectShareRole,
   type ProjectStatus,
   type ProjectStatusMap,
+  type ProjectTeamShareEntry,
+  type ProjectUserShareEntry,
   type RecentProjectResponse,
   type RiskMode,
   type SharedProjectsResponse,
@@ -32,11 +35,34 @@ function computeProgress(status: ProjectStatusMap, mode: RiskMode): number {
   return baseline / elements.length;
 }
 
-function toDto(doc: ProjectDocument, teamNameById: Map<string, string>): ProjectDto {
+interface TeamLookup {
+  name: string;
+  memberCount: number;
+}
+
+interface ResolverMaps {
+  teamById: Map<string, TeamLookup>;
+  userByUsername: Map<string, string>;
+}
+
+function toDto(doc: ProjectDocument, maps: ResolverMaps): ProjectDto {
   const status = doc.status;
   const mode = doc.mode;
   const updatedAt = (doc as ProjectDocument & { updatedAt?: Date }).updatedAt ?? new Date();
-  const teamId = doc.ownerTeamId ?? null;
+  const sharedTeams: ProjectTeamShareEntry[] = doc.sharedTeams.map((s) => {
+    const t = maps.teamById.get(s.teamId);
+    return {
+      teamId: s.teamId,
+      teamName: t?.name ?? "(deleted team)",
+      memberCount: t?.memberCount ?? 0,
+      role: s.role,
+    };
+  });
+  const sharedUsers: ProjectUserShareEntry[] = doc.sharedUsers.map((s) => ({
+    username: s.username,
+    fullName: maps.userByUsername.get(s.username) ?? s.username,
+    role: s.role,
+  }));
   return {
     id: String(doc._id),
     name: doc.name,
@@ -45,9 +71,8 @@ function toDto(doc: ProjectDocument, teamNameById: Map<string, string>): Project
     ownerUsername: doc.ownerUsername,
     ownerFullName: doc.ownerFullName,
     ownerInitials: computeInitials(doc.ownerFullName),
-    ownerTeamId: teamId,
-    ownerTeamName: teamId !== null ? (teamNameById.get(teamId) ?? null) : null,
-    collaborators: doc.collaborators,
+    sharedTeams,
+    sharedUsers,
     status,
     progress: computeProgress(status, mode),
     pinned: doc.pinned,
@@ -58,6 +83,11 @@ function toDto(doc: ProjectDocument, teamNameById: Map<string, string>): Project
 
 interface ActingUser {
   username: string;
+}
+
+interface ResolvedUser {
+  username: string;
+  fullName: string;
 }
 
 @Injectable()
@@ -71,10 +101,6 @@ export class ProjectsService {
   async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
     const owner = await this.userModel.findOne({ username: acting.username }).lean();
     if (!owner) throw new NotFoundException("Acting user not found");
-    const requestedTeamId = payload.ownerTeamId ?? null;
-    if (requestedTeamId !== null) {
-      await this.assertTeamAffiliation(requestedTeamId, acting.username);
-    }
     const initialStatus: Record<string, ProjectStatus> = {};
     for (const el of elementsForMode(payload.mode)) initialStatus[el.code] = "not-started";
     const created = await this.projectModel.create({
@@ -82,14 +108,13 @@ export class ProjectsService {
       mode: payload.mode,
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
-      collaborators: [],
-      ownerTeamId: requestedTeamId,
+      sharedTeams: [],
+      sharedUsers: [],
       status: initialStatus,
       pinned: false,
       state: "active",
     });
-    const teamNameById = await this.resolveTeamNames([created]);
-    return toDto(created, teamNameById);
+    return toDto(created, await this.buildMaps([created]));
   }
 
   async getRecentProject(acting: ActingUser): Promise<RecentProjectResponse> {
@@ -98,8 +123,7 @@ export class ProjectsService {
       .sort({ updatedAt: -1 })
       .exec();
     if (doc === null) return { project: null };
-    const teamNameById = await this.resolveTeamNames([doc]);
-    return { project: toDto(doc, teamNameById) };
+    return { project: toDto(doc, await this.buildMaps([doc])) };
   }
 
   async getOwnedProjects(acting: ActingUser): Promise<OwnedProjectsResponse> {
@@ -107,17 +131,27 @@ export class ProjectsService {
       .find({ ownerUsername: acting.username })
       .sort({ updatedAt: -1 })
       .exec();
-    const teamNameById = await this.resolveTeamNames(docs);
-    return { projects: docs.map((d) => toDto(d, teamNameById)) };
+    const maps = await this.buildMaps(docs);
+    return { projects: docs.map((d) => toDto(d, maps)) };
   }
 
   async getSharedProjects(acting: ActingUser): Promise<SharedProjectsResponse> {
+    const myTeams = await this.teamModel
+      .find({ $or: [{ adminUsername: acting.username }, { members: acting.username }] })
+      .lean();
+    const myTeamIds = myTeams.map((t) => String(t._id));
     const docs = await this.projectModel
-      .find({ collaborators: acting.username })
+      .find({
+        ownerUsername: { $ne: acting.username },
+        $or: [
+          { "sharedUsers.username": acting.username },
+          { "sharedTeams.teamId": { $in: myTeamIds } },
+        ],
+      })
       .sort({ updatedAt: -1 })
       .exec();
-    const teamNameById = await this.resolveTeamNames(docs);
-    return { projects: docs.map((d) => toDto(d, teamNameById)) };
+    const maps = await this.buildMaps(docs);
+    return { projects: docs.map((d) => toDto(d, maps)) };
   }
 
   async updateProject(id: string, payload: UpdateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
@@ -126,24 +160,7 @@ export class ProjectsService {
     if (payload.pinned !== undefined) doc.pinned = payload.pinned;
     if (payload.state !== undefined) doc.state = payload.state;
     await doc.save();
-    const teamNameById = await this.resolveTeamNames([doc]);
-    return toDto(doc, teamNameById);
-  }
-
-  async transferToTeam(id: string, teamId: string, acting: ActingUser): Promise<ProjectDto> {
-    const doc = await this.findOwned(id, acting);
-    await this.assertTeamAffiliation(teamId, acting.username);
-    doc.ownerTeamId = teamId;
-    await doc.save();
-    const teamNameById = await this.resolveTeamNames([doc]);
-    return toDto(doc, teamNameById);
-  }
-
-  async transferToSelf(id: string, acting: ActingUser): Promise<ProjectDto> {
-    const doc = await this.findOwned(id, acting);
-    doc.ownerTeamId = null;
-    await doc.save();
-    return toDto(doc, new Map());
+    return toDto(doc, await this.buildMaps([doc]));
   }
 
   async duplicateProject(id: string, acting: ActingUser): Promise<ProjectDto> {
@@ -153,19 +170,83 @@ export class ProjectsService {
       mode: original.mode,
       ownerUsername: original.ownerUsername,
       ownerFullName: original.ownerFullName,
-      collaborators: [],
-      ownerTeamId: original.ownerTeamId ?? null,
+      sharedTeams: [],
+      sharedUsers: [],
       status: { ...original.status },
       pinned: false,
       state: "active",
     });
-    const teamNameById = await this.resolveTeamNames([created]);
-    return toDto(created, teamNameById);
+    return toDto(created, await this.buildMaps([created]));
   }
 
   async deleteProject(id: string, acting: ActingUser): Promise<void> {
     const doc = await this.findOwned(id, acting);
     await doc.deleteOne();
+  }
+
+  async shareWithTeam(id: string, teamId: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    await this.assertTeamAffiliation(teamId, acting.username);
+    if (doc.sharedTeams.some((s) => s.teamId === teamId)) {
+      throw new ConflictException("Project is already shared with that team");
+    }
+    doc.sharedTeams.push({ teamId, role });
+    doc.markModified("sharedTeams");
+    await doc.save();
+    return toDto(doc, await this.buildMaps([doc]));
+  }
+
+  async unshareFromTeam(id: string, teamId: string, acting: ActingUser): Promise<void> {
+    const doc = await this.findOwned(id, acting);
+    const before = doc.sharedTeams.length;
+    doc.sharedTeams = doc.sharedTeams.filter((s) => s.teamId !== teamId);
+    if (doc.sharedTeams.length === before) throw new NotFoundException("Project is not shared with that team");
+    doc.markModified("sharedTeams");
+    await doc.save();
+  }
+
+  async updateTeamShareRole(id: string, teamId: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    const entry = doc.sharedTeams.find((s) => s.teamId === teamId);
+    if (!entry) throw new NotFoundException("Project is not shared with that team");
+    entry.role = role;
+    doc.markModified("sharedTeams");
+    await doc.save();
+    return toDto(doc, await this.buildMaps([doc]));
+  }
+
+  async shareWithUser(id: string, identifier: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    const resolved = await this.resolveByIdentifier(identifier);
+    if (resolved.username === doc.ownerUsername) {
+      throw new BadRequestException("You already own this project");
+    }
+    if (doc.sharedUsers.some((s) => s.username === resolved.username)) {
+      throw new ConflictException("Project is already shared with that user");
+    }
+    doc.sharedUsers.push({ username: resolved.username, role });
+    doc.markModified("sharedUsers");
+    await doc.save();
+    return toDto(doc, await this.buildMaps([doc]));
+  }
+
+  async unshareFromUser(id: string, username: string, acting: ActingUser): Promise<void> {
+    const doc = await this.findOwned(id, acting);
+    const before = doc.sharedUsers.length;
+    doc.sharedUsers = doc.sharedUsers.filter((s) => s.username !== username);
+    if (doc.sharedUsers.length === before) throw new NotFoundException("Project is not shared with that user");
+    doc.markModified("sharedUsers");
+    await doc.save();
+  }
+
+  async updateUserShareRole(id: string, username: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
+    const doc = await this.findOwned(id, acting);
+    const entry = doc.sharedUsers.find((s) => s.username === username);
+    if (!entry) throw new NotFoundException("Project is not shared with that user");
+    entry.role = role;
+    doc.markModified("sharedUsers");
+    await doc.save();
+    return toDto(doc, await this.buildMaps([doc]));
   }
 
   private async findOwned(id: string, acting: ActingUser): Promise<ProjectDocument> {
@@ -184,17 +265,34 @@ export class ProjectsService {
     if (!isMember) throw new ForbiddenException("You are not a member of that team");
   }
 
-  private async resolveTeamNames(docs: ProjectDocument[]): Promise<Map<string, string>> {
-    const ids = new Set<string>();
-    for (const d of docs) {
-      if (d.ownerTeamId !== null && d.ownerTeamId !== undefined) ids.add(d.ownerTeamId);
-    }
-    if (ids.size === 0) return new Map();
-    const teams = await this.teamModel
-      .find({ _id: { $in: Array.from(ids) } })
+  private async resolveByIdentifier(identifier: string): Promise<ResolvedUser> {
+    const normalized = identifier.trim().toLowerCase();
+    const user = await this.userModel
+      .findOne({ $or: [{ username: identifier.trim() }, { email: normalized }] })
       .lean();
-    const out = new Map<string, string>();
-    for (const t of teams) out.set(String(t._id), t.name);
-    return out;
+    if (!user) throw new NotFoundException(`No user found for "${identifier}"`);
+    return { username: user.username, fullName: user.fullName };
+  }
+
+  private async buildMaps(docs: ProjectDocument[]): Promise<ResolverMaps> {
+    const teamIds = new Set<string>();
+    const usernames = new Set<string>();
+    for (const d of docs) {
+      for (const t of d.sharedTeams) teamIds.add(t.teamId);
+      for (const u of d.sharedUsers) usernames.add(u.username);
+    }
+    const teamById = new Map<string, TeamLookup>();
+    if (teamIds.size > 0) {
+      const teams = await this.teamModel.find({ _id: { $in: Array.from(teamIds) } }).lean();
+      for (const t of teams) {
+        teamById.set(String(t._id), { name: t.name, memberCount: t.members.length });
+      }
+    }
+    const userByUsername = new Map<string, string>();
+    if (usernames.size > 0) {
+      const users = await this.userModel.find({ username: { $in: Array.from(usernames) } }).lean();
+      for (const u of users) userByUsername.set(u.username, u.fullName);
+    }
+    return { teamById, userByUsername };
   }
 }

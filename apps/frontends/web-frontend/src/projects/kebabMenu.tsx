@@ -9,7 +9,6 @@ import {
   PinIcon,
   ShareIcon,
   TrashIcon,
-  UsersIcon,
 } from "../welcome/icons";
 import "./css/kebabMenu.css";
 
@@ -20,25 +19,12 @@ interface KebabMenuProps {
   onRename: () => void;
   onDuplicate: () => void;
   onShare: () => void;
-  onMoveToTeam: () => void;
-  onMoveToPersonal: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
 }
 
 function KebabMenu(props: KebabMenuProps): JSX.Element {
-  const {
-    project,
-    onOpen,
-    onTogglePin,
-    onRename,
-    onDuplicate,
-    onShare,
-    onMoveToTeam,
-    onMoveToPersonal,
-    onToggleArchive,
-    onDelete,
-  } = props;
+  const { project, onOpen, onTogglePin, onRename, onDuplicate, onShare, onToggleArchive, onDelete } = props;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -87,17 +73,8 @@ function KebabMenu(props: KebabMenuProps): JSX.Element {
             <CopyIcon /> Duplicate
           </button>
           <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onShare)}>
-            <ShareIcon /> Share
+            <ShareIcon /> Share…
           </button>
-          {project.ownerTeamId === null ? (
-            <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onMoveToTeam)}>
-              <UsersIcon /> Move to team…
-            </button>
-          ) : (
-            <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onMoveToPersonal)}>
-              <UsersIcon /> Move to personal
-            </button>
-          )}
           <div className="kebab__divider" />
           <button type="button" className="kebab__opt" role="menuitem" onClick={pick(onToggleArchive)}>
             <ArchiveIcon /> {isArchived ? "Restore" : "Archive"}

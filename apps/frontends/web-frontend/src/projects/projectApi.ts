@@ -2,6 +2,7 @@ import {
   type CreateProjectRequest,
   type OwnedProjectsResponse,
   type Project,
+  type ProjectShareRole,
   type RecentProjectResponse,
   type SharedProjectsResponse,
   type UpdateProjectRequest,
@@ -85,14 +86,32 @@ async function duplicateProject(id: string): Promise<Project> {
   return ProjectSchema.parse(data);
 }
 
-async function transferProjectToTeam(id: string, teamId: string): Promise<Project> {
-  const data = await postJson(`/${id}/transfer-to-team`, { teamId });
+async function shareProjectWithTeam(id: string, teamId: string, role: ProjectShareRole): Promise<Project> {
+  const data = await postJson(`/${id}/shares/teams`, { teamId, role });
   return ProjectSchema.parse(data);
 }
 
-async function transferProjectToSelf(id: string): Promise<Project> {
-  const data = await postJson(`/${id}/transfer-to-self`, undefined);
+async function updateProjectTeamShare(id: string, teamId: string, role: ProjectShareRole): Promise<Project> {
+  const data = await patchJson(`/${id}/shares/teams/${teamId}`, { role });
   return ProjectSchema.parse(data);
+}
+
+async function unshareProjectFromTeam(id: string, teamId: string): Promise<void> {
+  await request("DELETE", `/${id}/shares/teams/${teamId}`);
+}
+
+async function shareProjectWithUser(id: string, identifier: string, role: ProjectShareRole): Promise<Project> {
+  const data = await postJson(`/${id}/shares/users`, { identifier, role });
+  return ProjectSchema.parse(data);
+}
+
+async function updateProjectUserShare(id: string, username: string, role: ProjectShareRole): Promise<Project> {
+  const data = await patchJson(`/${id}/shares/users/${encodeURIComponent(username)}`, { role });
+  return ProjectSchema.parse(data);
+}
+
+async function unshareProjectFromUser(id: string, username: string): Promise<void> {
+  await request("DELETE", `/${id}/shares/users/${encodeURIComponent(username)}`);
 }
 
 async function deleteProject(id: string): Promise<void> {
@@ -106,7 +125,11 @@ export {
   createProject,
   updateProject,
   duplicateProject,
-  transferProjectToTeam,
-  transferProjectToSelf,
+  shareProjectWithTeam,
+  updateProjectTeamShare,
+  unshareProjectFromTeam,
+  shareProjectWithUser,
+  updateProjectUserShare,
+  unshareProjectFromUser,
   deleteProject,
 };

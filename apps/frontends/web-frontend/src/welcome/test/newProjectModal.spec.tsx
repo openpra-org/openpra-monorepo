@@ -4,22 +4,6 @@ import { NewProjectModal } from "../newProjectModal";
 
 const fetchMock = jest.fn();
 
-function teamsResponse(teams: Array<{ id: string; name: string; role: string }> = []): Response {
-  const body = {
-    teams: teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      organization: "",
-      description: "",
-      visibility: "public",
-      adminUsername: "ada",
-      memberCount: 1,
-      role: t.role,
-    })),
-  };
-  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
-}
-
 function projectResponse(name: string, overrides: Record<string, unknown> = {}): Response {
   return new Response(
     JSON.stringify({
@@ -30,9 +14,8 @@ function projectResponse(name: string, overrides: Record<string, unknown> = {}):
       ownerUsername: "ada",
       ownerFullName: "Ada Lovelace",
       ownerInitials: "AL",
-      ownerTeamId: null,
-      ownerTeamName: null,
-      collaborators: [],
+      sharedTeams: [],
+      sharedUsers: [],
       status: { POS: "not-started" },
       progress: 0,
       pinned: false,
@@ -51,7 +34,6 @@ describe("NewProjectModal", () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
-    fetchMock.mockResolvedValue(teamsResponse([]));
     localStorage.clear();
   });
 
@@ -77,14 +59,10 @@ describe("NewProjectModal", () => {
     await userEvent.type(screen.getByLabelText(/project name/i), "ab");
     await userEvent.click(screen.getByRole("button", { name: /create project/i }));
     expect(await screen.findByText(/must be at least 3 characters/i)).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalledWith(
-      "/api/projects",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("posts to /api/projects with name and mode when submitting a valid form", async () => {
-    fetchMock.mockResolvedValueOnce(teamsResponse([]));
+  it("posts to /api/projects with just name and mode when submitting a valid form", async () => {
     fetchMock.mockResolvedValueOnce(projectResponse("Real Project Name"));
 
     const { onCreated } = renderModal();
@@ -97,34 +75,12 @@ describe("NewProjectModal", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
-    const projectCall = fetchMock.mock.calls.find(([url]) => url === "/api/projects");
-    const body = JSON.parse(projectCall![1].body as string);
-    expect(body).toEqual({ name: "Real Project Name", mode: "internal-events", ownerTeamId: null });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(body).toEqual({ name: "Real Project Name", mode: "internal-events" });
     await waitFor(() => { expect(onCreated).toHaveBeenCalledTimes(1); });
   });
 
-  it("submits ownerTeamId when a team is selected as owner", async () => {
-    fetchMock.mockResolvedValueOnce(teamsResponse([{ id: "team-42", name: "Risk Group", role: "admin" }]));
-    fetchMock.mockResolvedValueOnce(projectResponse("Team Project", { ownerTeamId: "team-42", ownerTeamName: "Risk Group" }));
-
-    renderModal();
-    await userEvent.type(screen.getByLabelText(/project name/i), "Team Project");
-    await waitFor(() => {
-      expect(screen.getByRole("option", { name: "Risk Group" })).toBeInTheDocument();
-    });
-    await userEvent.selectOptions(screen.getByLabelText(/^owner$/i), "team-42");
-    await userEvent.click(screen.getByRole("button", { name: /create project/i }));
-
-    await waitFor(() => {
-      const projectCall = fetchMock.mock.calls.find(([url]) => url === "/api/projects");
-      expect(projectCall).toBeDefined();
-      const body = JSON.parse(projectCall![1].body as string);
-      expect(body).toEqual({ name: "Team Project", mode: "internal-events", ownerTeamId: "team-42" });
-    });
-  });
-
   it("invokes onError when the API rejects creation", async () => {
-    fetchMock.mockResolvedValueOnce(teamsResponse([]));
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ message: "Server exploded" }), {
         status: 500,

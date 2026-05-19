@@ -14,10 +14,11 @@ interface ProjectCardProps {
   onShare: () => void;
   onToggleArchive: () => void;
   onDelete: () => void;
+  readOnly?: boolean;
 }
 
 function ProjectCard(props: ProjectCardProps): JSX.Element {
-  const { project, onOpen } = props;
+  const { project, onOpen, readOnly } = props;
   const elements = elementsForMode(project.mode);
   const atBaseline = elements.filter((e) => project.status[e.code] === "baseline").length;
   const pct = Math.round(project.progress * 100);
@@ -39,6 +40,12 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
       <div className="pcard__top">
         <div className="pcard__chips">
           <span className="chip chip--mode">{project.modeLabel}</span>
+          {project.myRole === "editor" && (
+            <span className="chip chip--role">Editor</span>
+          )}
+          {project.myRole === "viewer" && (
+            <span className="chip chip--role-view">View only</span>
+          )}
           {project.sharedTeams.map((s) => (
             <span key={s.teamId} className="chip chip--team" title={`Shared with team ${s.teamName} (${s.role})`}>
               <UsersIcon /> {s.teamName}
@@ -47,7 +54,7 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
           {project.state === "baseline" && <span className="chip chip--success">Baseline</span>}
           {project.state === "archived" && <span className="chip chip--muted">Archived</span>}
         </div>
-        <KebabMenu {...props} />
+        {readOnly !== true && <KebabMenu {...props} />}
       </div>
 
       <h3 className="pcard__title">

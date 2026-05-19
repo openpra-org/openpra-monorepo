@@ -12,6 +12,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
+    myRole: "owner",
     sharedTeams: [],
     sharedUsers: [
       { username: "a", fullName: "Alice", role: "viewer" },
@@ -67,6 +68,21 @@ describe("ProjectCard", () => {
     render(<ProjectCard project={makeProject()} {...noopHandlers} />);
     await userEvent.click(screen.getByText("Sample Project"));
     expect(noopHandlers.onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the 'View only' chip when myRole is viewer", () => {
+    render(<ProjectCard project={makeProject({ myRole: "viewer" })} {...noopHandlers} />);
+    expect(screen.getByText(/view only/i)).toBeInTheDocument();
+  });
+
+  it("renders the 'Editor' chip when myRole is editor", () => {
+    render(<ProjectCard project={makeProject({ myRole: "editor" })} {...noopHandlers} />);
+    expect(screen.getByText(/^editor$/i)).toBeInTheDocument();
+  });
+
+  it("hides the kebab menu when readOnly is true", () => {
+    render(<ProjectCard project={makeProject({ myRole: "viewer" })} {...noopHandlers} readOnly />);
+    expect(screen.queryByRole("button", { name: /project actions/i })).not.toBeInTheDocument();
   });
 
   it("renders a team chip for each team the project is shared with", () => {

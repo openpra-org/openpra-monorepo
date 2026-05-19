@@ -14,6 +14,7 @@ function projectResponse(name: string, overrides: Record<string, unknown> = {}):
       ownerUsername: "ada",
       ownerFullName: "Ada Lovelace",
       ownerInitials: "AL",
+      myRole: "owner",
       sharedTeams: [],
       sharedUsers: [],
       status: { POS: "not-started" },

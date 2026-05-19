@@ -5,6 +5,7 @@ import {
   type CreateProjectRequest,
   type OwnedProjectsResponse,
   type Project as ProjectDto,
+  type ProjectAccessRole,
   type ProjectShareRole,
   type ProjectStatus,
   type ProjectStatusMap,
@@ -43,9 +44,28 @@ interface TeamLookup {
 interface ResolverMaps {
   teamById: Map<string, TeamLookup>;
   userByUsername: Map<string, string>;
+  myTeamIds: Set<string>;
 }
 
-function toDto(doc: ProjectDocument, maps: ResolverMaps): ProjectDto {
+function rolePriority(role: ProjectAccessRole): number {
+  if (role === "owner") return 3;
+  if (role === "editor") return 2;
+  return 1;
+}
+
+function computeRole(doc: ProjectDocument, viewer: string, myTeamIds: Set<string>): ProjectAccessRole | null {
+  if (doc.ownerUsername === viewer) return "owner";
+  let best: ProjectAccessRole | null = null;
+  const userShare = doc.sharedUsers.find((s) => s.username === viewer);
+  if (userShare) best = userShare.role;
+  for (const ts of doc.sharedTeams) {
+    if (!myTeamIds.has(ts.teamId)) continue;
+    if (best === null || rolePriority(ts.role) > rolePriority(best)) best = ts.role;
+  }
+  return best;
+}
+
+function toDto(doc: ProjectDocument, viewer: string, maps: ResolverMaps): ProjectDto {
   const status = doc.status;
   const mode = doc.mode;
   const updatedAt = (doc as ProjectDocument & { updatedAt?: Date }).updatedAt ?? new Date();
@@ -63,6 +83,7 @@ function toDto(doc: ProjectDocument, maps: ResolverMaps): ProjectDto {
     fullName: maps.userByUsername.get(s.username) ?? s.username,
     role: s.role,
   }));
+  const myRole = computeRole(doc, viewer, maps.myTeamIds) ?? "viewer";
   return {
     id: String(doc._id),
     name: doc.name,
@@ -71,6 +92,7 @@ function toDto(doc: ProjectDocument, maps: ResolverMaps): ProjectDto {
     ownerUsername: doc.ownerUsername,
     ownerFullName: doc.ownerFullName,
     ownerInitials: computeInitials(doc.ownerFullName),
+    myRole,
     sharedTeams,
     sharedUsers,
     status,
@@ -114,7 +136,7 @@ export class ProjectsService {
       pinned: false,
       state: "active",
     });
-    return toDto(created, await this.buildMaps([created]));
+    return toDto(created, acting.username, await this.buildMaps([created], acting.username));
   }
 
   async getRecentProject(acting: ActingUser): Promise<RecentProjectResponse> {
@@ -123,7 +145,7 @@ export class ProjectsService {
       .sort({ updatedAt: -1 })
       .exec();
     if (doc === null) return { project: null };
-    return { project: toDto(doc, await this.buildMaps([doc])) };
+    return { project: toDto(doc, acting.username, await this.buildMaps([doc], acting.username)) };
   }
 
   async getOwnedProjects(acting: ActingUser): Promise<OwnedProjectsResponse> {
@@ -131,27 +153,34 @@ export class ProjectsService {
       .find({ ownerUsername: acting.username })
       .sort({ updatedAt: -1 })
       .exec();
-    const maps = await this.buildMaps(docs);
-    return { projects: docs.map((d) => toDto(d, maps)) };
+    const maps = await this.buildMaps(docs, acting.username);
+    return { projects: docs.map((d) => toDto(d, acting.username, maps)) };
   }
 
   async getSharedProjects(acting: ActingUser): Promise<SharedProjectsResponse> {
-    const myTeams = await this.teamModel
-      .find({ $or: [{ adminUsername: acting.username }, { members: acting.username }] })
-      .lean();
-    const myTeamIds = myTeams.map((t) => String(t._id));
+    const maps = await this.buildSharedMaps(acting.username);
     const docs = await this.projectModel
       .find({
         ownerUsername: { $ne: acting.username },
         $or: [
           { "sharedUsers.username": acting.username },
-          { "sharedTeams.teamId": { $in: myTeamIds } },
+          { "sharedTeams.teamId": { $in: Array.from(maps.myTeamIds) } },
         ],
       })
       .sort({ updatedAt: -1 })
       .exec();
-    const maps = await this.buildMaps(docs);
-    return { projects: docs.map((d) => toDto(d, maps)) };
+    await this.populateMaps(docs, maps);
+    return { projects: docs.map((d) => toDto(d, acting.username, maps)) };
+  }
+
+  async getProject(id: string, acting: ActingUser): Promise<ProjectDto> {
+    if (!isValidObjectId(id)) throw new NotFoundException("Project not found");
+    const doc = await this.projectModel.findById(id).exec();
+    if (!doc) throw new NotFoundException("Project not found");
+    const maps = await this.buildMaps([doc], acting.username);
+    const role = computeRole(doc, acting.username, maps.myTeamIds);
+    if (role === null) throw new NotFoundException("Project not found");
+    return toDto(doc, acting.username, maps);
   }
 
   async updateProject(id: string, payload: UpdateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
@@ -160,7 +189,7 @@ export class ProjectsService {
     if (payload.pinned !== undefined) doc.pinned = payload.pinned;
     if (payload.state !== undefined) doc.state = payload.state;
     await doc.save();
-    return toDto(doc, await this.buildMaps([doc]));
+    return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
   async duplicateProject(id: string, acting: ActingUser): Promise<ProjectDto> {
@@ -176,7 +205,7 @@ export class ProjectsService {
       pinned: false,
       state: "active",
     });
-    return toDto(created, await this.buildMaps([created]));
+    return toDto(created, acting.username, await this.buildMaps([created], acting.username));
   }
 
   async deleteProject(id: string, acting: ActingUser): Promise<void> {
@@ -193,7 +222,7 @@ export class ProjectsService {
     doc.sharedTeams.push({ teamId, role });
     doc.markModified("sharedTeams");
     await doc.save();
-    return toDto(doc, await this.buildMaps([doc]));
+    return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
   async unshareFromTeam(id: string, teamId: string, acting: ActingUser): Promise<void> {
@@ -212,7 +241,7 @@ export class ProjectsService {
     entry.role = role;
     doc.markModified("sharedTeams");
     await doc.save();
-    return toDto(doc, await this.buildMaps([doc]));
+    return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
   async shareWithUser(id: string, identifier: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
@@ -227,7 +256,7 @@ export class ProjectsService {
     doc.sharedUsers.push({ username: resolved.username, role });
     doc.markModified("sharedUsers");
     await doc.save();
-    return toDto(doc, await this.buildMaps([doc]));
+    return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
   async unshareFromUser(id: string, username: string, acting: ActingUser): Promise<void> {
@@ -246,7 +275,7 @@ export class ProjectsService {
     entry.role = role;
     doc.markModified("sharedUsers");
     await doc.save();
-    return toDto(doc, await this.buildMaps([doc]));
+    return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
   private async findOwned(id: string, acting: ActingUser): Promise<ProjectDocument> {
@@ -274,25 +303,36 @@ export class ProjectsService {
     return { username: user.username, fullName: user.fullName };
   }
 
-  private async buildMaps(docs: ProjectDocument[]): Promise<ResolverMaps> {
+  private async buildMaps(docs: ProjectDocument[], viewer: string): Promise<ResolverMaps> {
+    const maps = await this.buildSharedMaps(viewer);
+    await this.populateMaps(docs, maps);
+    return maps;
+  }
+
+  private async buildSharedMaps(viewer: string): Promise<ResolverMaps> {
+    const myTeams = await this.teamModel
+      .find({ $or: [{ adminUsername: viewer }, { members: viewer }] })
+      .lean();
+    const myTeamIds = new Set(myTeams.map((t) => String(t._id)));
+    return { teamById: new Map(), userByUsername: new Map(), myTeamIds };
+  }
+
+  private async populateMaps(docs: ProjectDocument[], maps: ResolverMaps): Promise<void> {
     const teamIds = new Set<string>();
     const usernames = new Set<string>();
     for (const d of docs) {
       for (const t of d.sharedTeams) teamIds.add(t.teamId);
       for (const u of d.sharedUsers) usernames.add(u.username);
     }
-    const teamById = new Map<string, TeamLookup>();
     if (teamIds.size > 0) {
       const teams = await this.teamModel.find({ _id: { $in: Array.from(teamIds) } }).lean();
       for (const t of teams) {
-        teamById.set(String(t._id), { name: t.name, memberCount: t.members.length });
+        maps.teamById.set(String(t._id), { name: t.name, memberCount: t.members.length });
       }
     }
-    const userByUsername = new Map<string, string>();
     if (usernames.size > 0) {
       const users = await this.userModel.find({ username: { $in: Array.from(usernames) } }).lean();
-      for (const u of users) userByUsername.set(u.username, u.fullName);
+      for (const u of users) maps.userByUsername.set(u.username, u.fullName);
     }
-    return { teamById, userByUsername };
   }
 }

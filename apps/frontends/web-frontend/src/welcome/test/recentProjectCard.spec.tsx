@@ -11,6 +11,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ownerUsername: "ada",
     ownerFullName: "Ada Lovelace",
     ownerInitials: "AL",
+    myRole: "owner",
     sharedTeams: [],
     sharedUsers: [
       { username: "b", fullName: "Bob", role: "viewer" },

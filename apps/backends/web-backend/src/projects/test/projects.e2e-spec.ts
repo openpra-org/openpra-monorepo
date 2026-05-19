@@ -432,4 +432,74 @@ describe("Projects (e2e)", () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe("GET /api/projects/:id (ACL)", () => {
+    it("owner can fetch their own project and gets myRole='owner'", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "g-owner", email: "g-owner@example.com" });
+      const created = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Owner Project", mode: "internal-events" });
+      const res = await request(httpServer)
+        .get(`/api/projects/${created.body.id}`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(res.status).toBe(200);
+      expect(res.body.myRole).toBe("owner");
+    });
+
+    it("direct editor share gets myRole='editor'", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "g-ed-own", email: "g-ed-own@example.com" });
+      const friend = await signupAndLogin(httpServer, { username: "g-ed-fr", email: "g-ed-fr@example.com" });
+      const created = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Editor Project", mode: "internal-events" });
+      await request(httpServer)
+        .post(`/api/projects/${created.body.id}/shares/users`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifier: "g-ed-fr", role: "editor" });
+      const res = await request(httpServer)
+        .get(`/api/projects/${created.body.id}`)
+        .set("Authorization", `Bearer ${friend}`);
+      expect(res.status).toBe(200);
+      expect(res.body.myRole).toBe("editor");
+    });
+
+    it("team viewer share gets myRole='viewer' when the user is a team member", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "g-tv-own", email: "g-tv-own@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "View Team", visibility: "public" });
+      const created = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Viewer Project", mode: "internal-events" });
+      await request(httpServer)
+        .post(`/api/projects/${created.body.id}/shares/teams`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ teamId: team.body.id, role: "viewer" });
+      const member = await signupAndLogin(httpServer, { username: "g-tv-mbr", email: "g-tv-mbr@example.com" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${member}`);
+
+      const res = await request(httpServer)
+        .get(`/api/projects/${created.body.id}`)
+        .set("Authorization", `Bearer ${member}`);
+      expect(res.status).toBe(200);
+      expect(res.body.myRole).toBe("viewer");
+    });
+
+    it("returns 404 when the user has no role on the project", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "g-pr-own", email: "g-pr-own@example.com" });
+      const created = await request(httpServer)
+        .post("/api/projects")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Private Project", mode: "internal-events" });
+      const stranger = await signupAndLogin(httpServer, { username: "g-pr-str", email: "g-pr-str@example.com" });
+      const res = await request(httpServer)
+        .get(`/api/projects/${created.body.id}`)
+        .set("Authorization", `Bearer ${stranger}`);
+      expect(res.status).toBe(404);
+    });
+  });
 });

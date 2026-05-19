@@ -6,7 +6,7 @@ import { KebabMenu } from "./kebabMenu";
 import type { ProjectCardProps } from "./projectCard";
 
 function ProjectRow(props: ProjectCardProps): JSX.Element {
-  const { project, onOpen } = props;
+  const { project, onOpen, readOnly } = props;
   const pct = Math.round(project.progress * 100);
 
   function handleKey(e: KeyboardEvent<HTMLDivElement>): void {
@@ -36,6 +36,12 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
           {project.state === "archived" && (
             <span className="chip chip--muted chip--xs">Archived</span>
           )}
+          {project.myRole === "editor" && (
+            <span className="chip chip--role chip--xs">Editor</span>
+          )}
+          {project.myRole === "viewer" && (
+            <span className="chip chip--role-view chip--xs">View only</span>
+          )}
         </div>
       </div>
       <div className="ap__td" role="cell">
@@ -59,7 +65,7 @@ function ProjectRow(props: ProjectCardProps): JSX.Element {
         {formatRelative(project.updatedAt)}
       </div>
       <div className="ap__td ap__td--actions" role="cell">
-        <KebabMenu {...props} />
+        {readOnly !== true && <KebabMenu {...props} />}
       </div>
     </div>
   );

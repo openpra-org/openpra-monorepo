@@ -71,6 +71,11 @@ async function getSharedProjects(): Promise<SharedProjectsResponse> {
   return SharedProjectsResponseSchema.parse(data);
 }
 
+async function getProject(id: string): Promise<Project> {
+  const data = await getJson(`/${id}`);
+  return ProjectSchema.parse(data);
+}
+
 async function createProject(payload: CreateProjectRequest): Promise<Project> {
   const data = await postJson("", payload);
   return ProjectSchema.parse(data);
@@ -122,6 +127,7 @@ export {
   getRecentProject,
   getOwnedProjects,
   getSharedProjects,
+  getProject,
   createProject,
   updateProject,
   duplicateProject,

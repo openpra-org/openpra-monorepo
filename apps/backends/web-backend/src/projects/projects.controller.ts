@@ -54,6 +54,12 @@ export class ProjectsController {
     return this.projectsService.getSharedProjects({ username: req.user!.username });
   }
 
+  @Get(":id")
+  @HttpCode(HttpStatus.OK)
+  getOne(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Project> {
+    return this.projectsService.getProject(id, { username: req.user!.username });
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(

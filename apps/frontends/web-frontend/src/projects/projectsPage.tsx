@@ -5,11 +5,12 @@ import { useToast } from "../toast/toastProvider";
 import { TopBar } from "../welcome/topBar";
 import { EmptyState } from "../welcome/emptyState";
 import { NewProjectModal } from "../welcome/newProjectModal";
-import { PinIcon } from "../welcome/icons";
+import { PinIcon, UsersIcon } from "../welcome/icons";
 import {
   deleteProject,
   duplicateProject,
   getOwnedProjects,
+  getSharedProjects,
   updateProject,
 } from "./projectApi";
 import { ProjectsHeader } from "./projectsHeader";
@@ -48,6 +49,7 @@ function sortProjects(projects: Project[], key: SortKey): Project[] {
 
 function ProjectsPage(): JSX.Element {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [shared, setShared] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -65,8 +67,12 @@ function ProjectsPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    getOwnedProjects()
-      .then((res) => { if (!cancelled) setProjects(res.projects); })
+    Promise.all([getOwnedProjects(), getSharedProjects()])
+      .then(([owned, shared]) => {
+        if (cancelled) return;
+        setProjects(owned.projects);
+        setShared(shared.projects);
+      })
       .catch((err: unknown) => {
         if (cancelled) return;
         const message = (err as { message?: string }).message ?? "Could not load projects";
@@ -111,7 +117,7 @@ function ProjectsPage(): JSX.Element {
   );
 
   const hasFilters = query.trim() !== "" || modeFilter !== "all";
-  const isEmpty = !loading && projects.length === 0;
+  const isEmpty = !loading && projects.length === 0 && shared.length === 0;
 
   function clearFilters(): void {
     setQuery("");
@@ -210,8 +216,33 @@ function ProjectsPage(): JSX.Element {
     };
   }
 
+  function readOnlyHandlersFor(project: Project): {
+    onOpen: () => void;
+    onTogglePin: () => void;
+    onRename: () => void;
+    onDuplicate: () => void;
+    onShare: () => void;
+    onToggleArchive: () => void;
+    onDelete: () => void;
+    readOnly: boolean;
+  } {
+    void project;
+    const noop = (): void => undefined;
+    return {
+      onOpen: () => { comingSoon("Workspace"); },
+      onTogglePin: noop,
+      onRename: noop,
+      onDuplicate: noop,
+      onShare: noop,
+      onToggleArchive: noop,
+      onDelete: noop,
+      readOnly: true,
+    };
+  }
+
   const showPinnedSection = pinned.length > 0;
   const restSectionTitle = showPinnedSection ? "All projects" : null;
+  const showSharedSection = shared.length > 0;
 
   return (
     <div className="wp wp--compact ap">
@@ -248,7 +279,7 @@ function ProjectsPage(): JSX.Element {
         {!loading && !loadError && (
           isEmpty ? (
             <EmptyState onCreate={() => { setNewProjectOpen(true); }} />
-          ) : visible.length === 0 ? (
+          ) : projects.length > 0 && visible.length === 0 ? (
             <NoResultsState onClear={clearFilters} />
           ) : (
             <>
@@ -261,13 +292,24 @@ function ProjectsPage(): JSX.Element {
                   )}
                 </ProjectSection>
               )}
-              <ProjectSection title={restSectionTitle} count={rest.length}>
-                {view === "grid" ? (
-                  <ProjectGrid projects={rest} cardHandlers={handlersFor} />
-                ) : (
-                  <ProjectTable projects={rest} rowHandlers={handlersFor} />
-                )}
-              </ProjectSection>
+              {rest.length > 0 && (
+                <ProjectSection title={restSectionTitle} count={rest.length}>
+                  {view === "grid" ? (
+                    <ProjectGrid projects={rest} cardHandlers={handlersFor} />
+                  ) : (
+                    <ProjectTable projects={rest} rowHandlers={handlersFor} />
+                  )}
+                </ProjectSection>
+              )}
+              {showSharedSection && (
+                <ProjectSection title="Shared with me" count={shared.length} icon={<UsersIcon />}>
+                  {view === "grid" ? (
+                    <ProjectGrid projects={shared} cardHandlers={readOnlyHandlersFor} />
+                  ) : (
+                    <ProjectTable projects={shared} rowHandlers={readOnlyHandlersFor} />
+                  )}
+                </ProjectSection>
+              )}
             </>
           )
         )}

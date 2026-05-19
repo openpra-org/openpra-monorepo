@@ -7,6 +7,9 @@ type ProjectStatusMap = z.infer<typeof ProjectStatusMapSchema>;
 const ProjectShareRoleSchema = z.enum(["viewer", "editor"]);
 type ProjectShareRole = z.infer<typeof ProjectShareRoleSchema>;
 
+const ProjectAccessRoleSchema = z.enum(["owner", "editor", "viewer"]);
+type ProjectAccessRole = z.infer<typeof ProjectAccessRoleSchema>;
+
 const ProjectTeamShareSchema = z.object({
   teamId: z.string(),
   teamName: z.string(),
@@ -30,6 +33,7 @@ const ProjectSchema = z.object({
   ownerUsername: z.string(),
   ownerFullName: z.string(),
   ownerInitials: z.string(),
+  myRole: ProjectAccessRoleSchema,
   sharedTeams: z.array(ProjectTeamShareSchema),
   sharedUsers: z.array(ProjectUserShareSchema),
   status: ProjectStatusMapSchema,
@@ -93,6 +97,7 @@ type SharedProjectsResponse = z.infer<typeof SharedProjectsResponseSchema>;
 export {
   ProjectStatusMapSchema,
   ProjectShareRoleSchema,
+  ProjectAccessRoleSchema,
   ProjectTeamShareSchema,
   ProjectUserShareSchema,
   ProjectSchema,
@@ -108,6 +113,7 @@ export {
 export type {
   ProjectStatusMap,
   ProjectShareRole,
+  ProjectAccessRole,
   ProjectTeamShareEntry,
   ProjectUserShareEntry,
   Project,

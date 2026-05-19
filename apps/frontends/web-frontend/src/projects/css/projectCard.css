@@ -206,6 +206,18 @@
   height: 12px;
 }
 
+.chip--role {
+  background: rgba(46, 125, 79, 0.08);
+  color: var(--color-success);
+  border: 1px solid rgba(46, 125, 79, 0.25);
+}
+
+.chip--role-view {
+  background: var(--color-surface-low);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
 .chip--xs {
   font-size: 11px;
   padding: 2px 8px;

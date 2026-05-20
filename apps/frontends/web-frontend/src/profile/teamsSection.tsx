@@ -82,7 +82,9 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
             return (
               <div key={team.id} className="pf__team-wrap">
                 <div className="pf__team">
-                  <span className="pf__team-glyph" aria-hidden="true">{teamInitials(team.name)}</span>
+                  {team.avatarUrl !== null
+                    ? <img src={team.avatarUrl} alt="" className="pf__team-glyph pf__team-glyph--img" />
+                    : <span className="pf__team-glyph" aria-hidden="true">{teamInitials(team.name)}</span>}
                   <div className="pf__team-body">
                     <h3 className="pf__team-name">{team.name}</h3>
                     <div className="pf__team-meta">

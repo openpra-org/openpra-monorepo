@@ -14,6 +14,7 @@ function makeTeam(overrides: Partial<Team> = {}): Team {
     adminUsername: "chen",
     memberCount: 7,
     role: "member",
+    avatarUrl: null,
     ...overrides,
   };
 }

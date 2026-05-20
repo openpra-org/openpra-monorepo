@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,10 +11,16 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 import {
   type AvailableTeamsResponse,
+  type BulkInviteResponse,
+  type BulkInviteToTeamRequest,
   type CreateTeamRequest,
   type InviteToTeamRequest,
   type MyInvitationsResponse,
@@ -22,6 +29,7 @@ import {
   type TeamDetail,
   type TransferTeamAdminRequest,
   type UpdateTeamRequest,
+  BulkInviteToTeamRequestSchema,
   CreateTeamRequestSchema,
   InviteToTeamRequestSchema,
   TransferTeamAdminRequestSchema,
@@ -30,6 +38,15 @@ import {
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { TeamsService } from "./teams.service";
+
+const TEAM_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+interface UploadedImage {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+  originalname: string;
+}
 
 @Controller("teams")
 @UseGuards(JwtAuthGuard)
@@ -110,6 +127,16 @@ export class TeamsController {
     return this.teamsService.inviteUser(id, body.identifier, req.user!.username);
   }
 
+  @Post(":id/invites/bulk")
+  @HttpCode(HttpStatus.OK)
+  bulkInvite(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(BulkInviteToTeamRequestSchema)) body: BulkInviteToTeamRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<BulkInviteResponse> {
+    return this.teamsService.bulkInvite(id, body.identifiers, req.user!.username);
+  }
+
   @Post(":id/invites/me/accept")
   @HttpCode(HttpStatus.OK)
   acceptInvite(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Team> {
@@ -170,5 +197,26 @@ export class TeamsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Team> {
     return this.teamsService.demoteFromLead(id, username, req.user!.username);
+  }
+
+  @Post(":id/avatar")
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor("file", {
+    storage: memoryStorage(),
+    limits: { fileSize: TEAM_AVATAR_MAX_BYTES },
+  }))
+  uploadAvatar(
+    @Param("id") id: string,
+    @UploadedFile() file: UploadedImage | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Team> {
+    if (file === undefined) throw new BadRequestException("Expected a 'file' field in multipart body");
+    return this.teamsService.setAvatar(id, file, req.user!.username);
+  }
+
+  @Delete(":id/avatar")
+  @HttpCode(HttpStatus.OK)
+  deleteAvatar(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<Team> {
+    return this.teamsService.clearAvatar(id, req.user!.username);
   }
 }

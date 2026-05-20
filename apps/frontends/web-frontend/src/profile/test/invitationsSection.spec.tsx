@@ -13,6 +13,7 @@ function makeInvite(overrides: Partial<Team> = {}): Team {
     adminUsername: "chen",
     memberCount: 3,
     role: "invited",
+    avatarUrl: null,
     ...overrides,
   };
 }

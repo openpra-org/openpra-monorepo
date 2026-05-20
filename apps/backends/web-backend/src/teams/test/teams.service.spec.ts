@@ -7,10 +7,20 @@ import { Team } from "../team.schema";
 import { User } from "../../users/user.schema";
 import { OrgsService } from "../../orgs/orgs.service";
 import { EventBus } from "../../events/event-bus";
+import { StorageService } from "../../users/storage.service";
+
+function futureInvite(username: string, invitedBy = "ada"): { username: string; invitedBy: string; expiresAt: Date } {
+  return { username, invitedBy, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) };
+}
+
+function pastInvite(username: string, invitedBy = "ada"): { username: string; invitedBy: string; expiresAt: Date } {
+  return { username, invitedBy, expiresAt: new Date(Date.now() - 60 * 1000) };
+}
 
 function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
   const deleteOne = jest.fn().mockResolvedValue(undefined);
+  const markModified = jest.fn();
   return {
     _id: new Types.ObjectId().toHexString(),
     name: "Risk & Reliability Research Group",
@@ -20,9 +30,11 @@ function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, un
     adminUsername: "ada",
     members: ["ada"],
     leads: [],
-    invited: [],
+    invites: [],
+    avatarKey: null,
     save,
     deleteOne,
+    markModified,
     ...overrides,
   };
 }
@@ -38,11 +50,12 @@ describe("TeamsService", () => {
     findOne: jest.Mock;
     find: jest.Mock;
   };
+  let storageMock: { urlForKey: jest.Mock; isAllowedMime: jest.Mock; uploadImage: jest.Mock; deleteByKey: jest.Mock };
 
   beforeEach(async () => {
     teamModelMock = {
       create: jest.fn(),
-      find: jest.fn(),
+      find: jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }),
       findById: jest.fn(),
     };
     userModelMock = {
@@ -55,6 +68,12 @@ describe("TeamsService", () => {
       ),
     };
     const eventBusMock = { emit: jest.fn().mockResolvedValue(undefined), subscribe: jest.fn() };
+    storageMock = {
+      urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/${key}`)),
+      isAllowedMime: jest.fn().mockReturnValue(true),
+      uploadImage: jest.fn().mockResolvedValue("team-avatars/x/logo.png"),
+      deleteByKey: jest.fn().mockResolvedValue(undefined),
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         TeamsService,
@@ -62,6 +81,7 @@ describe("TeamsService", () => {
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: OrgsService, useValue: orgsServiceMock },
         { provide: EventBus, useValue: eventBusMock },
+        { provide: StorageService, useValue: storageMock },
       ],
     }).compile();
     service = moduleRef.get(TeamsService);
@@ -80,9 +100,10 @@ describe("TeamsService", () => {
       expect(arg.adminUsername).toBe("ada");
       expect(arg.members).toEqual(["ada"]);
       expect(arg.leads).toEqual([]);
-      expect(arg.invited).toEqual([]);
+      expect(arg.invites).toEqual([]);
       expect(out.role).toBe("admin");
       expect(out.memberCount).toBe(1);
+      expect(out.avatarUrl).toBeNull();
     });
   });
 
@@ -97,8 +118,8 @@ describe("TeamsService", () => {
   });
 
   describe("getMyInvitations", () => {
-    it("returns teams where the user is in invited[] with role='invited'", async () => {
-      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invited: ["ada"], visibility: "private" });
+    it("returns teams where the user has an active invite, with role='invited'", async () => {
+      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invites: [futureInvite("ada", "chen")], visibility: "private" });
       teamModelMock.find.mockReturnValue({ sort: () => ({ exec: jest.fn().mockResolvedValue([doc]) }) });
       const out = await service.getMyInvitations("ada");
       expect(out.teams).toHaveLength(1);
@@ -115,7 +136,7 @@ describe("TeamsService", () => {
       expect(filter["visibility"]).toBe("public");
       expect(filter["adminUsername"]).toEqual({ $ne: "ada" });
       expect(filter["members"]).toEqual({ $ne: "ada" });
-      expect(filter["invited"]).toEqual({ $ne: "ada" });
+      expect(filter["invites.username"]).toEqual({ $ne: "ada" });
       const orClauses = filter["$or"] as { name?: RegExp; organization?: RegExp; description?: RegExp }[];
       expect(orClauses).toHaveLength(3);
       expect(orClauses[0].name?.test("seismic study")).toBe(true);
@@ -136,11 +157,11 @@ describe("TeamsService", () => {
       await expect(service.getTeamDetail(String(doc._id), "ada")).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("returns roster + invited for the admin", async () => {
+    it("returns roster + invited (with invitedBy + expiresAt) for the admin", async () => {
       const doc = makeTeamDoc({
         adminUsername: "ada",
         members: ["ada", "chen"],
-        invited: ["carol"],
+        invites: [futureInvite("carol", "ada")],
         visibility: "private",
       });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
@@ -155,7 +176,26 @@ describe("TeamsService", () => {
       expect(out.members.map((m) => m.username)).toEqual(["ada", "chen"]);
       expect(out.members.map((m) => m.role)).toEqual(["admin", "member"]);
       expect(out.invited.map((m) => m.username)).toEqual(["carol"]);
-      expect(out.invited[0].role).toBe("invited");
+      expect(out.invited[0].invitedBy).toBe("ada");
+      expect(typeof out.invited[0].expiresAt).toBe("string");
+    });
+
+    it("excludes expired invites from the invited list", async () => {
+      const doc = makeTeamDoc({
+        adminUsername: "ada",
+        members: ["ada"],
+        invites: [futureInvite("carol"), pastInvite("dave")],
+        visibility: "private",
+      });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.find.mockImplementation(() => ({
+        lean: () => Promise.resolve([
+          { username: "ada", fullName: "Ada Lovelace" },
+          { username: "carol", fullName: "Carol R" },
+        ]),
+      }));
+      const out = await service.getTeamDetail(String(doc._id), "ada");
+      expect(out.invited.map((m) => m.username)).toEqual(["carol"]);
     });
 
     it("tags lead members with role='lead' on the roster", async () => {
@@ -185,7 +225,7 @@ describe("TeamsService", () => {
         adminUsername: "ada",
         members: ["ada", "chen"],
         leads: ["chen"],
-        invited: ["carol"],
+        invites: [futureInvite("carol")],
         visibility: "private",
       });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
@@ -205,7 +245,7 @@ describe("TeamsService", () => {
       const doc = makeTeamDoc({
         adminUsername: "ada",
         members: ["ada"],
-        invited: ["chen", "bob"],
+        invites: [futureInvite("chen"), futureInvite("bob")],
         visibility: "private",
       });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
@@ -236,8 +276,8 @@ describe("TeamsService", () => {
       await expect(service.joinTeam(String(doc._id), "ada")).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("throws ConflictException when the user has an open invitation", async () => {
-      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invited: ["ada"], visibility: "public" });
+    it("throws ConflictException when the user has an active invitation", async () => {
+      const doc = makeTeamDoc({ adminUsername: "chen", members: ["chen"], invites: [futureInvite("ada", "chen")], visibility: "public" });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.joinTeam(String(doc._id), "ada")).rejects.toBeInstanceOf(ConflictException);
     });
@@ -291,14 +331,14 @@ describe("TeamsService", () => {
   });
 
   describe("inviteUser", () => {
-    it("invites by username and lands the user in invited[]", async () => {
+    it("invites by username and lands the user in invites[]", async () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       userModelMock.findOne.mockReturnValue({
         lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
       });
       const out = await service.inviteUser(String(doc._id), "chen", "ada");
-      expect(doc.invited).toEqual(["chen"]);
+      expect((doc.invites as { username: string }[]).map((i) => i.username)).toEqual(["chen"]);
       expect(out.role).toBe("admin");
     });
 
@@ -313,8 +353,29 @@ describe("TeamsService", () => {
       expect(orFilter.some((c) => c.email === "chen@example.com")).toBe(true);
     });
 
+    it("re-invites (refreshes expiry) when the previous invite has expired", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [pastInvite("chen")] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
+      });
+      await service.inviteUser(String(doc._id), "chen", "ada");
+      const invites = doc.invites as { username: string; expiresAt: Date }[];
+      expect(invites).toHaveLength(1);
+      expect(invites[0].expiresAt.getTime()).toBeGreaterThan(Date.now());
+    });
+
     it("throws ConflictException when the invitee is already a member", async () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockReturnValue({
+        lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
+      });
+      await expect(service.inviteUser(String(doc._id), "chen", "ada")).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("throws ConflictException when the invitee already has an active invite", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [futureInvite("chen")] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       userModelMock.findOne.mockReturnValue({
         lean: () => Promise.resolve({ username: "chen", fullName: "M. Chen" }),
@@ -330,26 +391,59 @@ describe("TeamsService", () => {
     });
   });
 
+  describe("bulkInvite", () => {
+    it("returns a per-identifier status array and only invites resolvable non-members", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], invites: [futureInvite("dave")] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      userModelMock.findOne.mockImplementation((filter: { $or: { username?: string; email?: string }[] }) => {
+        const id = filter.$or[0].username;
+        const known: Record<string, string> = { chen: "M. Chen", dave: "Dave D", bob: "Bob Q" };
+        return { lean: () => Promise.resolve(id !== undefined && id in known ? { username: id, fullName: known[id] } : null) };
+      });
+
+      const out = await service.bulkInvite(String(doc._id), ["bob", "chen", "dave", "ghost"], "ada");
+      const byId = new Map(out.results.map((r) => [r.identifier, r.status]));
+      expect(byId.get("bob")).toBe("invited");
+      expect(byId.get("chen")).toBe("already-member");
+      expect(byId.get("dave")).toBe("already-invited");
+      expect(byId.get("ghost")).toBe("not-found");
+      expect((doc.invites as { username: string }[]).some((i) => i.username === "bob")).toBe(true);
+    });
+
+    it("requires admin or lead", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.bulkInvite(String(doc._id), ["bob"], "chen")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
   describe("acceptInvite / declineInvite", () => {
     it("promotes the invitee to member on accept", async () => {
-      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invited: ["chen"] });
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [futureInvite("chen")] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       const out = await service.acceptInvite(String(doc._id), "chen");
       expect(doc.members).toContain("chen");
-      expect(doc.invited).not.toContain("chen");
+      expect((doc.invites as { username: string }[]).some((i) => i.username === "chen")).toBe(false);
       expect(out.role).toBe("member");
     });
 
-    it("removes from invited on decline without promoting", async () => {
-      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invited: ["chen"] });
+    it("rejects an expired invite with BadRequestException and drops it", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [pastInvite("chen")] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.acceptInvite(String(doc._id), "chen")).rejects.toBeInstanceOf(BadRequestException);
+      expect((doc.invites as { username: string }[]).some((i) => i.username === "chen")).toBe(false);
+    });
+
+    it("removes from invites on decline without promoting", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [futureInvite("chen")] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await service.declineInvite(String(doc._id), "chen");
-      expect(doc.invited).not.toContain("chen");
+      expect((doc.invites as { username: string }[]).some((i) => i.username === "chen")).toBe(false);
       expect(doc.members).not.toContain("chen");
     });
 
-    it("throws NotFoundException when there is no open invitation", async () => {
-      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invited: [] });
+    it("throws NotFoundException when there is no invitation", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada"], invites: [] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.acceptInvite(String(doc._id), "chen")).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -397,7 +491,7 @@ describe("TeamsService", () => {
         lean: () => Promise.resolve({ username: "bob", fullName: "Bob Q" }),
       });
       await service.inviteUser(String(doc._id), "bob", "chen");
-      expect(doc.invited).toEqual(["bob"]);
+      expect((doc.invites as { username: string }[]).map((i) => i.username)).toEqual(["bob"]);
     });
 
     it("forbids a plain member from inviting", async () => {
@@ -462,6 +556,38 @@ describe("TeamsService", () => {
       const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
       teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.promoteToLead(String(doc._id), "chen", "ada")).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe("team avatar", () => {
+    it("admin uploads an avatar and the DTO exposes the URL", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada" });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      storageMock.uploadImage.mockResolvedValueOnce("team-avatars/t/logo.png");
+      const out = await service.setAvatar(
+        String(doc._id),
+        { buffer: Buffer.from([1]), mimetype: "image/png", size: 1, originalname: "l.png" },
+        "ada",
+      );
+      expect(doc.avatarKey).toBe("team-avatars/t/logo.png");
+      expect(out.avatarUrl).toBe("https://cdn.example.com/team-avatars/t/logo.png");
+    });
+
+    it("rejects an avatar upload from a non-admin", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", members: ["ada", "chen"], leads: ["chen"] });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(
+        service.setAvatar(String(doc._id), { buffer: Buffer.from([1]), mimetype: "image/png", size: 1, originalname: "l.png" }, "chen"),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("clears the avatar", async () => {
+      const doc = makeTeamDoc({ adminUsername: "ada", avatarKey: "team-avatars/t/logo.png" });
+      teamModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.clearAvatar(String(doc._id), "ada");
+      expect(doc.avatarKey).toBeNull();
+      expect(out.avatarUrl).toBeNull();
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("team-avatars/t/logo.png");
     });
   });
 });

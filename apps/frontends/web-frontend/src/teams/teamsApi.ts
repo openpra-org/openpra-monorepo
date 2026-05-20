@@ -1,5 +1,7 @@
 import {
   type AvailableTeamsResponse,
+  type BulkInviteResponse,
+  type BulkInviteToTeamRequest,
   type CreateTeamRequest,
   type InviteToTeamRequest,
   type MyInvitationsResponse,
@@ -8,6 +10,7 @@ import {
   type TeamDetail,
   type UpdateTeamRequest,
   AvailableTeamsResponseSchema,
+  BulkInviteResponseSchema,
   MyInvitationsResponseSchema,
   MyTeamsResponseSchema,
   TeamDetailSchema,
@@ -93,6 +96,27 @@ async function inviteToTeam(id: string, payload: InviteToTeamRequest): Promise<T
   return TeamSchema.parse(data);
 }
 
+async function bulkInviteToTeam(id: string, payload: BulkInviteToTeamRequest): Promise<BulkInviteResponse> {
+  const data = await (await call("POST", `/${id}/invites/bulk`, payload)).json();
+  return BulkInviteResponseSchema.parse(data);
+}
+
+async function uploadTeamAvatar(id: string, file: File): Promise<Team> {
+  const token = getToken();
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (token !== null) headers.Authorization = `Bearer ${token}`;
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const response = await fetch(`${TEAMS_BASE}/${id}/avatar`, { method: "POST", headers, body: form });
+  if (!response.ok) throw new Error(await readError(response));
+  return TeamSchema.parse(await response.json());
+}
+
+async function deleteTeamAvatar(id: string): Promise<Team> {
+  const data = await (await call("DELETE", `/${id}/avatar`)).json();
+  return TeamSchema.parse(data);
+}
+
 async function cancelInvite(id: string, username: string): Promise<void> {
   await call("DELETE", `/${id}/invites/${encodeURIComponent(username)}`);
 }
@@ -136,6 +160,9 @@ export {
   joinTeam,
   leaveTeam,
   inviteToTeam,
+  bulkInviteToTeam,
+  uploadTeamAvatar,
+  deleteTeamAvatar,
   cancelInvite,
   acceptInvite,
   declineInvite,

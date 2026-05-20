@@ -36,6 +36,11 @@
   text-transform: uppercase;
 }
 
+.pf__team-glyph--img {
+  background: none;
+  object-fit: cover;
+}
+
 .pf__team-body {
   flex: 1;
   min-width: 0;

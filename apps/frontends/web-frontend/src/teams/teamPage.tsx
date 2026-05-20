@@ -1,7 +1,8 @@
-import { JSX, useEffect, useState, FormEvent } from "react";
+import { JSX, useEffect, useRef, useState, FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   type AuditLogEntry,
+  type BulkInviteResult,
   type Team,
   type TeamDetail,
   type TeamRosterEntry,
@@ -16,8 +17,10 @@ import { EditTeamModal } from "../profile/editTeamModal";
 import { ConfirmDeleteTeamModal } from "../profile/confirmDeleteTeamModal";
 import { UserTypeahead } from "../users/userTypeahead";
 import {
+  bulkInviteToTeam,
   cancelInvite,
   deleteTeam,
+  deleteTeamAvatar,
   demoteFromLead,
   getTeamDetail,
   inviteToTeam,
@@ -26,8 +29,23 @@ import {
   promoteToLead,
   transferTeamAdmin,
   updateTeam,
+  uploadTeamAvatar,
 } from "./teamsApi";
 import "./css/teamPage.css";
+
+function teamInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function expiryLabel(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "expired";
+  const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
+  return days === 1 ? "expires in 1 day" : `expires in ${days} days`;
+}
 
 function roleLabel(role: TeamRosterEntry["role"]): string {
   if (role === "admin") return "Admin";
@@ -53,7 +71,11 @@ function TeamPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [inviteValue, setInviteValue] = useState("");
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkValue, setBulkValue] = useState("");
+  const [bulkResults, setBulkResults] = useState<BulkInviteResult[]>([]);
   const [busy, setBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<string>("");
   const [editOpen, setEditOpen] = useState(false);
@@ -107,6 +129,45 @@ function TeamPage(): JSX.Element {
         return reloadDetail();
       })
       .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not invite"); })
+      .finally(() => { setBusy(false); });
+  }
+
+  function submitBulkInvite(e: FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    const identifiers = bulkValue
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
+    if (identifiers.length === 0) return;
+    setBusy(true);
+    setBulkResults([]);
+    bulkInviteToTeam(teamId, { identifiers })
+      .then((res) => {
+        setBulkResults(res.results);
+        const invited = res.results.filter((r) => r.status === "invited").length;
+        flashSuccess(`Invited ${invited} of ${res.results.length}`);
+        return reloadDetail();
+      })
+      .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not send invitations"); })
+      .finally(() => { setBusy(false); });
+  }
+
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    uploadTeamAvatar(teamId, file)
+      .then((t) => { applyTeam(t); flashSuccess("Team avatar updated"); })
+      .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not upload avatar"); })
+      .finally(() => { setBusy(false); });
+  }
+
+  function handleRemoveAvatar(): void {
+    setBusy(true);
+    deleteTeamAvatar(teamId)
+      .then((t) => { applyTeam(t); flashSuccess("Team avatar removed"); })
+      .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not remove avatar"); })
       .finally(() => { setBusy(false); });
   }
 
@@ -237,10 +298,38 @@ function TeamPage(): JSX.Element {
         {!loading && !loadError && detail !== null && (
           <>
             <header className="tp__header">
-              <h1 className="tp__title">{detail.name}</h1>
-              {detail.organization !== "" && (
-                <p className="tp__org">{detail.organization}</p>
-              )}
+              <div className="tp__identity">
+                <div className="tp__logo-wrap">
+                  {detail.avatarUrl !== null
+                    ? <img src={detail.avatarUrl} alt="" className="tp__logo tp__logo--img" />
+                    : <span className="tp__logo" aria-hidden="true">{teamInitials(detail.name)}</span>}
+                  {isAdmin && (
+                    <div className="tp__logo-actions">
+                      <button type="button" className="tp__logo-edit" onClick={() => { avatarInputRef.current?.click(); }} disabled={busy}>
+                        {detail.avatarUrl !== null ? "Change" : "Add logo"}
+                      </button>
+                      {detail.avatarUrl !== null && (
+                        <button type="button" className="tp__logo-edit" onClick={handleRemoveAvatar} disabled={busy}>
+                          Remove
+                        </button>
+                      )}
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="tp__logo-input"
+                        onChange={handleAvatarFile}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h1 className="tp__title">{detail.name}</h1>
+                  {detail.organization !== "" && (
+                    <p className="tp__org">{detail.organization}</p>
+                  )}
+                </div>
+              </div>
               {detail.description !== "" && (
                 <p className="tp__desc">{detail.description}</p>
               )}
@@ -324,7 +413,7 @@ function TeamPage(): JSX.Element {
                         <span className="tp__avatar" aria-hidden="true">{m.initials}</span>
                         <div className="tp__row-body">
                           <div className="tp__row-name">{m.fullName}</div>
-                          <div className="tp__row-meta">@{m.username}</div>
+                          <div className="tp__row-meta">@{m.username} · {expiryLabel(m.expiresAt)}</div>
                         </div>
                         <span className={roleChipClass("invited")}>Invited</span>
                         <button
@@ -341,19 +430,64 @@ function TeamPage(): JSX.Element {
                   </ul>
                 )}
 
-                <form className="tp__invite" onSubmit={submitInvite} noValidate>
-                  <UserTypeahead
-                    value={inviteValue}
-                    onChange={setInviteValue}
-                    placeholder="username or email"
-                    ariaLabel="Invite by username or email"
-                    disabled={busy}
-                    className="tp__invite-input"
-                  />
-                  <button type="submit" className="btn btn--primary" disabled={busy || inviteValue.trim() === ""}>
-                    Send invite
+                <div className="tp__invite-mode">
+                  <button
+                    type="button"
+                    className={`tp__invite-tab${!bulkMode ? " tp__invite-tab--active" : ""}`}
+                    onClick={() => { setBulkMode(false); }}
+                  >
+                    Invite one
                   </button>
-                </form>
+                  <button
+                    type="button"
+                    className={`tp__invite-tab${bulkMode ? " tp__invite-tab--active" : ""}`}
+                    onClick={() => { setBulkMode(true); }}
+                  >
+                    Invite many
+                  </button>
+                </div>
+
+                {!bulkMode ? (
+                  <form className="tp__invite" onSubmit={submitInvite} noValidate>
+                    <UserTypeahead
+                      value={inviteValue}
+                      onChange={setInviteValue}
+                      placeholder="username or email"
+                      ariaLabel="Invite by username or email"
+                      disabled={busy}
+                      className="tp__invite-input"
+                    />
+                    <button type="submit" className="btn btn--primary" disabled={busy || inviteValue.trim() === ""}>
+                      Send invite
+                    </button>
+                  </form>
+                ) : (
+                  <form className="tp__bulk" onSubmit={submitBulkInvite} noValidate>
+                    <textarea
+                      className="field__input tp__bulk-input"
+                      value={bulkValue}
+                      onChange={(e) => { setBulkValue(e.target.value); }}
+                      placeholder="One username or email per line (or comma-separated)"
+                      rows={4}
+                      disabled={busy}
+                      aria-label="Bulk invite identifiers"
+                    />
+                    <button type="submit" className="btn btn--primary" disabled={busy || bulkValue.trim() === ""}>
+                      Send invitations
+                    </button>
+                  </form>
+                )}
+
+                {bulkResults.length > 0 && (
+                  <ul className="tp__bulk-results">
+                    {bulkResults.map((r) => (
+                      <li key={r.identifier} className={`tp__bulk-result tp__bulk-result--${r.status}`}>
+                        <span>{r.identifier}</span>
+                        <span className="tp__bulk-status">{r.status.replace(/-/g, " ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 

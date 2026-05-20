@@ -298,8 +298,8 @@ describe("UsersService", () => {
 
       expect(adminTeam.deleteOne).toHaveBeenCalledTimes(2);
       expect(teamModelMock.updateMany).toHaveBeenCalledWith(
-        { $or: [{ members: "ada" }, { leads: "ada" }, { invited: "ada" }] },
-        { $pull: { members: "ada", leads: "ada", invited: "ada" } },
+        { $or: [{ members: "ada" }, { leads: "ada" }, { "invites.username": "ada" }] },
+        { $pull: { members: "ada", leads: "ada", invites: { username: "ada" } } },
       );
       expect(projectModelMock.deleteMany).toHaveBeenCalledWith({ ownerUsername: "ada" });
       expect(projectModelMock.updateMany).toHaveBeenCalledWith(

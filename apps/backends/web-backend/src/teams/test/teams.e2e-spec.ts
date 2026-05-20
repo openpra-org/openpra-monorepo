@@ -492,4 +492,62 @@ describe("Teams (e2e)", () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe("Bulk invite + team avatar", () => {
+    it("bulk invites with a per-identifier status array", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "bk-owner", email: "bk-owner@example.com" });
+      await signupAndLogin(httpServer, { username: "bk-a", email: "bk-a@example.com" });
+      await signupAndLogin(httpServer, { username: "bk-b", email: "bk-b@example.com" });
+      const member = await signupAndLogin(httpServer, { username: "bk-member", email: "bk-member@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Bulk Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${member}`);
+
+      const res = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/invites/bulk`)
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ identifiers: ["bk-a", "bk-b", "bk-member", "bk-ghost"] });
+      expect(res.status).toBe(200);
+      const byId = new Map(res.body.results.map((r: { identifier: string; status: string }) => [r.identifier, r.status]));
+      expect(byId.get("bk-a")).toBe("invited");
+      expect(byId.get("bk-b")).toBe("invited");
+      expect(byId.get("bk-member")).toBe("already-member");
+      expect(byId.get("bk-ghost")).toBe("not-found");
+
+      const aToken = await request(httpServer).post("/api/auth/login").send({ identifier: "bk-a", password: "hunter2hunter2" });
+      const inv = await request(httpServer).get("/api/teams/invitations").set("Authorization", `Bearer ${aToken.body.token}`);
+      expect(inv.body.teams).toHaveLength(1);
+    });
+
+    it("admin uploads then clears a team avatar; non-admin is forbidden", async () => {
+      const owner = await signupAndLogin(httpServer, { username: "av-owner", email: "av-owner@example.com" });
+      const member = await signupAndLogin(httpServer, { username: "av-member", email: "av-member@example.com" });
+      const team = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${owner}`)
+        .send({ name: "Avatar Team", visibility: "public" });
+      await request(httpServer).post(`/api/teams/${team.body.id}/join`).set("Authorization", `Bearer ${member}`);
+
+      const upload = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/avatar`)
+        .set("Authorization", `Bearer ${owner}`)
+        .attach("file", Buffer.from([1, 2, 3]), { filename: "logo.png", contentType: "image/png" });
+      expect(upload.status).toBe(200);
+      expect(upload.body.avatarUrl).not.toBeNull();
+
+      const denied = await request(httpServer)
+        .post(`/api/teams/${team.body.id}/avatar`)
+        .set("Authorization", `Bearer ${member}`)
+        .attach("file", Buffer.from([1, 2, 3]), { filename: "logo.png", contentType: "image/png" });
+      expect(denied.status).toBe(403);
+
+      const cleared = await request(httpServer)
+        .delete(`/api/teams/${team.body.id}/avatar`)
+        .set("Authorization", `Bearer ${owner}`);
+      expect(cleared.status).toBe(200);
+      expect(cleared.body.avatarUrl).toBeNull();
+    });
+  });
 });

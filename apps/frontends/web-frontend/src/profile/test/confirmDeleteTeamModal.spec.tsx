@@ -13,6 +13,7 @@ function makeTeam(overrides: Partial<Team> = {}): Team {
     adminUsername: "ada",
     memberCount: 5,
     role: "admin",
+    avatarUrl: null,
     ...overrides,
   };
 }

@@ -15,6 +15,7 @@ const TeamSchema = z.object({
   adminUsername: z.string(),
   memberCount: z.number().int().nonnegative(),
   role: TeamRoleSchema.nullable(),
+  avatarUrl: z.string().nullable(),
 });
 type Team = z.infer<typeof TeamSchema>;
 
@@ -26,9 +27,18 @@ const TeamRosterEntrySchema = z.object({
 });
 type TeamRosterEntry = z.infer<typeof TeamRosterEntrySchema>;
 
+const TeamInviteEntrySchema = z.object({
+  username: z.string(),
+  fullName: z.string(),
+  initials: z.string(),
+  invitedBy: z.string(),
+  expiresAt: z.string(),
+});
+type TeamInviteEntry = z.infer<typeof TeamInviteEntrySchema>;
+
 const TeamDetailSchema = TeamSchema.extend({
   members: z.array(TeamRosterEntrySchema),
-  invited: z.array(TeamRosterEntrySchema),
+  invited: z.array(TeamInviteEntrySchema),
 });
 type TeamDetail = z.infer<typeof TeamDetailSchema>;
 
@@ -57,6 +67,22 @@ const InviteToTeamRequestSchema = z.object({
 });
 type InviteToTeamRequest = z.infer<typeof InviteToTeamRequestSchema>;
 
+const BulkInviteToTeamRequestSchema = z.object({
+  identifiers: z.array(z.string().trim().min(1)).min(1, "At least one identifier is required").max(100),
+});
+type BulkInviteToTeamRequest = z.infer<typeof BulkInviteToTeamRequestSchema>;
+
+const BulkInviteResultSchema = z.object({
+  identifier: z.string(),
+  status: z.enum(["invited", "already-member", "already-invited", "not-found"]),
+});
+type BulkInviteResult = z.infer<typeof BulkInviteResultSchema>;
+
+const BulkInviteResponseSchema = z.object({
+  results: z.array(BulkInviteResultSchema),
+});
+type BulkInviteResponse = z.infer<typeof BulkInviteResponseSchema>;
+
 const TransferTeamAdminRequestSchema = z.object({
   username: z.string().trim().min(1, "Username is required"),
 });
@@ -82,10 +108,14 @@ export {
   TeamVisibilitySchema,
   TeamSchema,
   TeamRosterEntrySchema,
+  TeamInviteEntrySchema,
   TeamDetailSchema,
   CreateTeamRequestSchema,
   UpdateTeamRequestSchema,
   InviteToTeamRequestSchema,
+  BulkInviteToTeamRequestSchema,
+  BulkInviteResultSchema,
+  BulkInviteResponseSchema,
   TransferTeamAdminRequestSchema,
   MyTeamsResponseSchema,
   AvailableTeamsResponseSchema,
@@ -96,10 +126,14 @@ export type {
   TeamVisibility,
   Team,
   TeamRosterEntry,
+  TeamInviteEntry,
   TeamDetail,
   CreateTeamRequest,
   UpdateTeamRequest,
   InviteToTeamRequest,
+  BulkInviteToTeamRequest,
+  BulkInviteResult,
+  BulkInviteResponse,
   TransferTeamAdminRequest,
   MyTeamsResponse,
   AvailableTeamsResponse,

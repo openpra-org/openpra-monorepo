@@ -207,6 +207,14 @@ impl BddPdag {
             .count()
     }
 
+    pub fn num_gates(&self) -> usize {
+        self.nodes
+            .iter()
+            .flatten()
+            .filter(|n| n.is_gate())
+            .count()
+    }
+
     pub fn probability_of(&self, idx: NodeIdx) -> Option<f64> {
         self.probabilities.get(&idx.abs()).copied()
     }
@@ -257,28 +265,11 @@ impl BddPdag {
     }
 
     pub fn compute_ordering_and_modules(&mut self) -> Result<()> {
-        let root = self.root.ok_or_else(|| {
-            PraxisError::Logic("BddPdag: cannot order variables — root not set".to_string())
-        })?;
-
-        let (gate_min, gate_max, modules, order) = {
-            let mut state = DfsState {
-                nodes: &self.nodes,
-                counter: 0,
-                order: Vec::new(),
-                cache: HashMap::new(),
-                gate_min: HashMap::new(),
-                gate_max: HashMap::new(),
-                modules: HashSet::new(),
-            };
-            state.visit(root);
-            (state.gate_min, state.gate_max, state.modules, state.order)
-        };
-
-        self.gate_min_time = gate_min;
-        self.gate_max_time = gate_max;
-        self.module_gates = modules;
-        self.set_variable_order(order);
+        let meta = crate::analysis::width::compute_dfs_metadata(self)?;
+        self.gate_min_time = meta.gate_min_time;
+        self.gate_max_time = meta.gate_max_time;
+        self.module_gates = meta.module_gates;
+        self.set_variable_order(meta.variable_order);
         Ok(())
     }
 
@@ -360,71 +351,6 @@ impl Default for BddPdag {
         Self::new()
     }
 }
-
-struct DfsState<'a> {
-    nodes: &'a Vec<Option<BddPdagNode>>,
-    counter: usize,
-    order: Vec<NodeIdx>,
-    cache: HashMap<NodeIdx, (usize, usize, usize)>,
-    gate_min: HashMap<NodeIdx, usize>,
-    gate_max: HashMap<NodeIdx, usize>,
-    modules: HashSet<NodeIdx>,
-}
-
-impl<'a> DfsState<'a> {
-    fn visit(&mut self, idx: NodeIdx) -> (usize, usize, usize) {
-        let abs_idx: NodeIdx = idx.abs();
-        let abs_usize = abs_idx as usize;
-
-        if let Some(&(mn, mx, _)) = self.cache.get(&abs_idx) {
-            return (mn, mx, 0);
-        }
-
-        match self.nodes.get(abs_usize).and_then(|s| s.as_ref()) {
-            Some(BddPdagNode::Variable { .. }) => {
-                let t = self.counter;
-                self.counter += 1;
-                self.order.push(abs_idx);
-                let result = (t, t, 1);
-                self.cache.insert(abs_idx, result);
-                result
-            }
-
-            Some(BddPdagNode::Gate { operands, .. }) => {
-                let ops: Vec<NodeIdx> = operands.clone();
-                let mut mn = usize::MAX;
-                let mut mx = 0usize;
-                let mut new_vars = 0usize;
-
-                for op in ops {
-                    let (op_mn, op_mx, op_new) = self.visit(op);
-                    if op_mn != usize::MAX {
-                        mn = mn.min(op_mn);
-                        mx = mx.max(op_mx);
-                    }
-                    new_vars += op_new;
-                }
-
-                if new_vars > 0 && mn != usize::MAX && mx - mn + 1 == new_vars {
-                    self.modules.insert(abs_idx);
-                }
-                self.gate_min.insert(abs_idx, mn);
-                self.gate_max.insert(abs_idx, mx);
-
-                let result = (mn, mx, new_vars);
-                self.cache.insert(abs_idx, result);
-                result
-            }
-
-            _ => {
-                let result = (usize::MAX, 0, 0);
-                self.cache.insert(abs_idx, result);
-                result
-            }
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {

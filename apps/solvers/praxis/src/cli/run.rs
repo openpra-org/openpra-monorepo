@@ -279,6 +279,19 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     let parsed_input = parse_any_mef(&input_content)
         .map_err(|e| format!("Failed to parse input file '{}': {}", input_path.display(), e))?;
 
+    if cli.widths_only {
+        let fault_tree_model = match parsed_input {
+            ParsedInput::EventTreeModel(_) => {
+                eprintln!("error: --widths-only is supported for fault-tree inputs only");
+                eprintln!();
+                eprintln!("For more information, try '--help'.");
+                std::process::exit(2);
+            }
+            ParsedInput::FaultTree(fault_tree_model) => fault_tree_model,
+        };
+        return crate::cli::widths::run_widths_only(&cli, &fault_tree_model, verbose);
+    }
+
     let fault_tree_model = match parsed_input {
         ParsedInput::EventTreeModel(event_tree_model) => {
             match cli.algorithm {

@@ -81,6 +81,15 @@ pub struct Args {
     #[arg(long = "optimize")]
     pub optimize: bool,
 
+    #[arg(long = "treewidth", help = "Compute greedy min-fill treewidth upper bound on the incidence graph (per maximal module)")]
+    pub treewidth: bool,
+
+    #[arg(long = "pathwidth", help = "Compute greedy vertex-separation pathwidth upper bound on the incidence graph (per maximal module)")]
+    pub pathwidth: bool,
+
+    #[arg(long = "widths-only", help = "Skip quantification; compute structural width metrics only and exit")]
+    pub widths_only: bool,
+
     #[arg(long = "early-stop")]
     pub early_stop: bool,
 

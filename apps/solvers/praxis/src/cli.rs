@@ -6,3 +6,4 @@ pub mod metadata;
 pub mod optimize;
 pub mod output;
 pub mod run;
+pub mod widths;

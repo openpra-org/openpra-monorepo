@@ -8,3 +8,4 @@ pub mod settings;
 pub mod sil;
 pub mod uncertainty;
 pub mod visualize;
+pub mod width;

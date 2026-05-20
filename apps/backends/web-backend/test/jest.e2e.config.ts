@@ -19,6 +19,7 @@ export default {
   },
   moduleFileExtensions: ["ts", "js"],
   testMatch: ["<rootDir>/src/**/test/*.e2e-spec.ts"],
+  transformIgnorePatterns: ["node_modules/(?!.*(?:otplib|@otplib|@scure|@noble))"],
   testTimeout: 60000,
   maxWorkers: 1,
   moduleNameMapper: {

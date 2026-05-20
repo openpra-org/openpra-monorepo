@@ -14,7 +14,6 @@ function DataSection({
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Data &amp; privacy</h2>
-          <p className="pf__section-sub">Take your data with you, or remove your account entirely.</p>
         </div>
       </div>
       <div className="st__rows">

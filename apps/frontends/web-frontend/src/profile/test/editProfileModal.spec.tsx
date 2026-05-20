@@ -16,6 +16,7 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     linkedin: "",
     initials: "AL",
     memberSince: "March 2026",
+    twoFactorEnabled: false,
     ...overrides,
   };
 }

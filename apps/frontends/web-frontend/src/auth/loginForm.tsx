@@ -20,9 +20,13 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [codeInvalid, setCodeInvalid] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const role = useContext(RoleContext);
-  const { login } = useAuth();
+  const { login, completeTwoFactor } = useAuth();
 
   useEffect(() => {
     if (credentials.identifier && fieldErrors.identifier) setFieldErrors((e) => ({ ...e, identifier: undefined }));
@@ -32,12 +36,38 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
   async function handleLogin(): Promise<void> {
     setInvalid(false);
     try {
-      await login(credentials);
+      const result = await login(credentials);
+      if (result.status === "twoFactorRequired") {
+        setChallengeToken(result.challengeToken);
+        return;
+      }
       UpdateRole(role, getRoles());
       setRedirectToHomepage(true);
     } catch {
       setInvalid(true);
     }
+  }
+
+  async function handleVerifyCode(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    if (challengeToken === null || code.trim().length === 0) return;
+    setCodeInvalid(false);
+    setVerifying(true);
+    try {
+      await completeTwoFactor(challengeToken, code.trim());
+      UpdateRole(role, getRoles());
+      setRedirectToHomepage(true);
+    } catch {
+      setCodeInvalid(true);
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function cancelTwoFactor(): void {
+    setChallengeToken(null);
+    setCode("");
+    setCodeInvalid(false);
   }
 
   function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
@@ -56,6 +86,49 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
   }
 
   if (redirectToHomepage) return <Navigate to="/" replace />;
+
+  if (challengeToken !== null) {
+    return (
+      <div>
+        <div className="login-form__header">
+          <div className="login-form__logo-wrap">
+            <img src={logo} alt="OpenPRA" className="login-form__logo-img" />
+          </div>
+          <h1 className="login-form__title">Two-step verification</h1>
+          <p className="login-form__subtitle">Enter the code from your authenticator app</p>
+        </div>
+
+        <form onSubmit={(e) => { void handleVerifyCode(e); }} noValidate>
+          <div className="login-form__field">
+            <label className="login-form__label" htmlFor="login-2fa-code">Authentication code</label>
+            <input
+              id="login-2fa-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => { setCode(e.target.value); if (codeInvalid) setCodeInvalid(false); }}
+              className={`login-form__input${codeInvalid ? " login-form__input--error" : ""}`}
+              autoFocus
+            />
+            <p className="login-form__hint">6-digit code, or one of your backup codes</p>
+          </div>
+
+          {codeInvalid && <p className="login-form__invalid-msg">Invalid authentication code</p>}
+
+          <button type="submit" className="login-form__submit-btn" disabled={verifying || code.trim().length === 0}>
+            {verifying ? "Verifying…" : "Verify"}
+          </button>
+
+          <p className="login-form__switch-row">
+            <button type="button" onClick={cancelTwoFactor} className="login-form__switch-btn">
+              Back to sign in
+            </button>
+          </p>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <>

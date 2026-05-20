@@ -18,7 +18,8 @@ export class JwtAuthGuard implements CanActivate {
     }
     const token = header.slice(7);
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string; username: string; email: string; roles: string[] }>(token);
+      const payload = await this.jwt.verifyAsync<{ sub: string; username: string; email: string; roles: string[]; tfaPending?: boolean }>(token);
+      if (payload.tfaPending === true) throw new UnauthorizedException();
       req.user = payload;
       return true;
     } catch {

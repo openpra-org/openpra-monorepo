@@ -14,6 +14,7 @@ const UserProfileSchema = z.object({
   memberSince: z.string(),
   avatarUrl: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  twoFactorEnabled: z.boolean(),
 });
 type UserProfile = z.infer<typeof UserProfileSchema>;
 

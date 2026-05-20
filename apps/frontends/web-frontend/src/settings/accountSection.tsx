@@ -10,6 +10,7 @@ function AccountSection({
   onChangeUsername,
   onChangePassword,
   onSetupTfa,
+  onDisableTfa,
   onConnectProvider,
   onDisconnectProvider,
   onSignOutSession,
@@ -20,6 +21,7 @@ function AccountSection({
   onChangeUsername: () => void;
   onChangePassword: () => void;
   onSetupTfa: () => void;
+  onDisableTfa: () => void;
   onConnectProvider: (id: string) => void;
   onDisconnectProvider: (id: string) => void;
   onSignOutSession: (label: string) => void;
@@ -30,7 +32,6 @@ function AccountSection({
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Account &amp; security</h2>
-          <p className="pf__section-sub">How you sign in and protect your account.</p>
         </div>
       </div>
       <div className="st__rows">
@@ -54,7 +55,6 @@ function AccountSection({
         />
         <SettingRow
           label="Password"
-          description="At least 8 characters. We hash with argon2 — your raw password is never stored."
           control={
             <button type="button" className="btn btn--ghost btn--sm" onClick={onChangePassword}>
               <LockIcon /> Change password
@@ -63,19 +63,26 @@ function AccountSection({
         />
         <SettingRow
           label="Two-factor authentication"
-          description="Add a time-based code from your authenticator app at sign-in."
           control={
-            <div className="st__row-pair">
-              <span className="st__pill st__pill--off">Off</span>
-              <button type="button" className="btn btn--primary btn--sm" onClick={onSetupTfa}>
-                Set up
-              </button>
-            </div>
+            profile.twoFactorEnabled ? (
+              <div className="st__row-pair">
+                <span className="st__pill st__pill--on">On</span>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={onDisableTfa}>
+                  Disable
+                </button>
+              </div>
+            ) : (
+              <div className="st__row-pair">
+                <span className="st__pill st__pill--off">Off</span>
+                <button type="button" className="btn btn--primary btn--sm" onClick={onSetupTfa}>
+                  Set up
+                </button>
+              </div>
+            )
           }
         />
         <SettingRow
           label="Connected accounts"
-          description="Link an identity provider to sign in faster."
           stack
           top
           control={
@@ -109,7 +116,6 @@ function AccountSection({
         />
         <SettingRow
           label="Active sessions"
-          description="Where you're currently signed in."
           stack
           top
           control={

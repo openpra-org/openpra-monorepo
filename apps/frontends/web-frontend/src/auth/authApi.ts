@@ -2,6 +2,8 @@ import {
   type AvailabilityResponse,
   type LoginRequest,
   type LoginResponse,
+  type LoginSuccess,
+  type LoginTwoFactorRequest,
   type SignupRequest,
   type SignupResponse,
   type ForgotPasswordRequest,
@@ -10,6 +12,7 @@ import {
   type ResetPasswordResponse,
   AvailabilityResponseSchema,
   LoginResponseSchema,
+  LoginSuccessSchema,
   SignupResponseSchema,
   ForgotPasswordResponseSchema,
   ResetPasswordResponseSchema,
@@ -43,6 +46,13 @@ async function postJson<T>(path: string, body: unknown): Promise<unknown> {
 async function signIn(payload: LoginRequest): Promise<LoginResponse> {
   const data = await postJson<LoginResponse>("/login", payload);
   const parsed = LoginResponseSchema.parse(data);
+  if ("token" in parsed) setToken(parsed.token);
+  return parsed;
+}
+
+async function completeTwoFactor(payload: LoginTwoFactorRequest): Promise<LoginSuccess> {
+  const data = await postJson<LoginSuccess>("/login/2fa", payload);
+  const parsed = LoginSuccessSchema.parse(data);
   setToken(parsed.token);
   return parsed;
 }
@@ -75,4 +85,4 @@ async function checkAvailability(params: { username?: string; email?: string }):
   return AvailabilityResponseSchema.parse(data);
 }
 
-export { signIn, signUp, forgotPassword, resetPassword, checkAvailability };
+export { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, checkAvailability };

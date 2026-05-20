@@ -5,10 +5,18 @@ import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { UsersService } from "../users.service";
 import { StorageService } from "../storage.service";
+import { TwoFactorService } from "../../auth/twoFactor.service";
 import { User } from "../user.schema";
 import { Project } from "../../projects/project.schema";
 import { Team } from "../../teams/team.schema";
 import { OrgsService } from "../../orgs/orgs.service";
+
+interface FakeTwoFactor {
+  enabled: boolean;
+  secret: string | null;
+  pendingSecret: string | null;
+  backupCodes: string[];
+}
 
 interface FakeUser {
   username: string;
@@ -25,6 +33,7 @@ interface FakeUser {
   prefs: {
     notify: { projectShared: boolean; teamInvite: boolean; runFinished: boolean; quantErrors: boolean };
   };
+  twoFactor: FakeTwoFactor;
   avatarKey: string | null;
   coverKey: string | null;
   createdAt: Date;
@@ -54,6 +63,7 @@ function makeUserDoc(overrides: Partial<FakeUser> = {}): FakeUser {
     prefs: {
       notify: { projectShared: true, teamInvite: true, runFinished: true, quantErrors: true },
     },
+    twoFactor: { enabled: false, secret: null, pendingSecret: null, backupCodes: [] },
     avatarKey: null,
     coverKey: null,
     createdAt: new Date("2026-03-12T10:00:00Z"),
@@ -71,6 +81,16 @@ describe("UsersService", () => {
   let teamModelMock: { find: jest.Mock; updateMany: jest.Mock };
   let jwtServiceMock: { signAsync: jest.Mock };
   let storageMock: { isAllowedMime: jest.Mock; uploadImage: jest.Mock; deleteByKey: jest.Mock; urlForKey: jest.Mock };
+  let twoFactorServiceMock: {
+    createSecret: jest.Mock;
+    encrypt: jest.Mock;
+    decrypt: jest.Mock;
+    buildUri: jest.Mock;
+    verifyTotp: jest.Mock;
+    generateBackupCodes: jest.Mock;
+    hashBackupCodes: jest.Mock;
+    findBackupCodeIndex: jest.Mock;
+  };
   let orgsServiceMock: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
@@ -91,6 +111,16 @@ describe("UsersService", () => {
       deleteByKey: jest.fn().mockResolvedValue(undefined),
       urlForKey: jest.fn().mockImplementation((key: string | null) => (key === null ? null : `https://cdn.example.com/openpra-web/${key}`)),
     };
+    twoFactorServiceMock = {
+      createSecret: jest.fn().mockReturnValue("PLAINSECRET"),
+      encrypt: jest.fn().mockImplementation((v: string) => `enc(${v})`),
+      decrypt: jest.fn().mockImplementation((v: string) => v.replace("enc(", "").replace(")", "")),
+      buildUri: jest.fn().mockReturnValue("otpauth://totp/OpenPRA:ada@example.com?secret=PLAINSECRET"),
+      verifyTotp: jest.fn(),
+      generateBackupCodes: jest.fn().mockReturnValue(["aaaaa11111", "bbbbb22222"]),
+      hashBackupCodes: jest.fn().mockResolvedValue(["hashA", "hashB"]),
+      findBackupCodeIndex: jest.fn().mockResolvedValue(-1),
+    };
     orgsServiceMock = {
       findOrCreate: jest.fn().mockImplementation((name: string) =>
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
@@ -104,6 +134,7 @@ describe("UsersService", () => {
         { provide: getModelToken(Team.name), useValue: teamModelMock },
         { provide: JwtService, useValue: jwtServiceMock },
         { provide: StorageService, useValue: storageMock },
+        { provide: TwoFactorService, useValue: twoFactorServiceMock },
         { provide: OrgsService, useValue: orgsServiceMock },
       ],
     }).compile();
@@ -258,6 +289,84 @@ describe("UsersService", () => {
       const doc = makeUserDoc({ passwordHash });
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.changePassword("ada", { currentPassword: "wrong", newPassword: "brand-new-strong" })).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe("two-factor authentication", () => {
+    it("beginTwoFactorSetup stores an encrypted pending secret and returns the otpauth URI", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.beginTwoFactorSetup("ada");
+      expect(twoFactorServiceMock.createSecret).toHaveBeenCalledTimes(1);
+      expect(doc.twoFactor.pendingSecret).toBe("enc(PLAINSECRET)");
+      expect(doc.twoFactor.enabled).toBe(false);
+      expect(out.secret).toBe("PLAINSECRET");
+      expect(out.otpauthUri).toContain("otpauth://");
+      expect(doc.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("beginTwoFactorSetup rejects when 2FA is already enabled", async () => {
+      const doc = makeUserDoc({ twoFactor: { enabled: true, secret: "enc(x)", pendingSecret: null, backupCodes: [] } });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.beginTwoFactorSetup("ada")).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("enableTwoFactor verifies the pending secret, promotes it, and returns backup codes", async () => {
+      const doc = makeUserDoc({ twoFactor: { enabled: false, secret: null, pendingSecret: "enc(PLAINSECRET)", backupCodes: [] } });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      twoFactorServiceMock.verifyTotp.mockResolvedValue(true);
+
+      const out = await service.enableTwoFactor("ada", "123456");
+
+      expect(twoFactorServiceMock.decrypt).toHaveBeenCalledWith("enc(PLAINSECRET)");
+      expect(twoFactorServiceMock.verifyTotp).toHaveBeenCalledWith("PLAINSECRET", "123456");
+      expect(doc.twoFactor.enabled).toBe(true);
+      expect(doc.twoFactor.secret).toBe("enc(PLAINSECRET)");
+      expect(doc.twoFactor.pendingSecret).toBe(null);
+      expect(doc.twoFactor.backupCodes).toEqual(["hashA", "hashB"]);
+      expect(out.backupCodes).toEqual(["aaaaa11111", "bbbbb22222"]);
+    });
+
+    it("enableTwoFactor throws BadRequest when setup was never started", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.enableTwoFactor("ada", "123456")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("enableTwoFactor throws Unauthorized when the code is wrong", async () => {
+      const doc = makeUserDoc({ twoFactor: { enabled: false, secret: null, pendingSecret: "enc(PLAINSECRET)", backupCodes: [] } });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      twoFactorServiceMock.verifyTotp.mockResolvedValue(false);
+      await expect(service.enableTwoFactor("ada", "000000")).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(doc.twoFactor.enabled).toBe(false);
+    });
+
+    it("disableTwoFactor wipes secret and backup codes when the code verifies", async () => {
+      const doc = makeUserDoc({ twoFactor: { enabled: true, secret: "enc(PLAINSECRET)", pendingSecret: null, backupCodes: ["hashA"] } });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      twoFactorServiceMock.verifyTotp.mockResolvedValue(true);
+
+      const out = await service.disableTwoFactor("ada", "123456");
+
+      expect(doc.twoFactor.enabled).toBe(false);
+      expect(doc.twoFactor.secret).toBe(null);
+      expect(doc.twoFactor.backupCodes).toEqual([]);
+      expect(out.detail).toMatch(/disabled/i);
+    });
+
+    it("disableTwoFactor throws Conflict when 2FA is not enabled", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.disableTwoFactor("ada", "123456")).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("disableTwoFactor throws Unauthorized when neither code nor backup matches", async () => {
+      const doc = makeUserDoc({ twoFactor: { enabled: true, secret: "enc(PLAINSECRET)", pendingSecret: null, backupCodes: ["hashA"] } });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      twoFactorServiceMock.verifyTotp.mockResolvedValue(false);
+      twoFactorServiceMock.findBackupCodeIndex.mockResolvedValue(-1);
+      await expect(service.disableTwoFactor("ada", "000000")).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(doc.twoFactor.enabled).toBe(true);
     });
   });
 

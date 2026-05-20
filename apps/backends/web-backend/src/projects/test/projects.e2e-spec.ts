@@ -49,6 +49,7 @@ describe("Projects (e2e)", () => {
     process.env["JWT_EXPIRES_IN"] = "1h";
     process.env["RESEND_API_KEY"] = "re_test";
     process.env["MAIL_FROM"] = "noreply@example.com";
+    process.env["TFA_ENC_KEY"] = "test-encryption-key-for-2fa";
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();

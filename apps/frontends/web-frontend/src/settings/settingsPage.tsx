@@ -17,6 +17,7 @@ import {
   changePassword,
   changeUsername,
   deleteMyAccount,
+  disableTwoFactor,
   getMyProfile,
   getNotificationPrefs,
   updateNotificationPrefs,
@@ -32,6 +33,8 @@ import { ChangeEmailModal } from "./changeEmailModal";
 import { ChangeUsernameModal } from "./changeUsernameModal";
 import { ChangePasswordModal } from "./changePasswordModal";
 import { DeleteAccountModal } from "./deleteAccountModal";
+import { TwoFactorSetupModal } from "./twoFactorSetupModal";
+import { TwoFactorDisableModal } from "./twoFactorDisableModal";
 import { useAppearancePrefs } from "./useAppearancePrefs";
 import { useWorkspaceDefaults } from "./useWorkspaceDefaults";
 import "./css/settingsPage.css";
@@ -53,6 +56,8 @@ function SettingsPage(): JSX.Element {
   const [usernameOpen, setUsernameOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tfaSetupOpen, setTfaSetupOpen] = useState(false);
+  const [tfaDisableOpen, setTfaDisableOpen] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [theme, setTheme] = useTheme();
   const appearance = useAppearancePrefs();
@@ -188,6 +193,25 @@ function SettingsPage(): JSX.Element {
       .finally(() => { setMutating(false); });
   }
 
+  function handleTwoFactorEnabled(): void {
+    setProfile((prev) => (prev === null ? prev : { ...prev, twoFactorEnabled: true }));
+    flashSuccess("Two-factor authentication enabled");
+  }
+
+  function handleDisableTwoFactorConfirm(code: string): void {
+    setMutating(true);
+    disableTwoFactor(code)
+      .then(() => {
+        setProfile((prev) => (prev === null ? prev : { ...prev, twoFactorEnabled: false }));
+        setTfaDisableOpen(false);
+        flashSuccess("Two-factor authentication disabled");
+      })
+      .catch((err: unknown) => {
+        flashError((err as { message?: string }).message ?? "Could not disable two-factor authentication");
+      })
+      .finally(() => { setMutating(false); });
+  }
+
   function handleNotifyToggle(key: keyof NotificationPrefs, next: boolean): void {
     const prev = notify;
     const optimistic = { ...notify, [key]: next };
@@ -225,7 +249,8 @@ function SettingsPage(): JSX.Element {
                 onChangeEmail={() => { setEmailOpen(true); }}
                 onChangeUsername={() => { setUsernameOpen(true); }}
                 onChangePassword={() => { setPasswordOpen(true); }}
-                onSetupTfa={() => { comingSoon("Two-factor authentication"); }}
+                onSetupTfa={() => { setTfaSetupOpen(true); }}
+                onDisableTfa={() => { setTfaDisableOpen(true); }}
                 onConnectProvider={(id) => { comingSoon(`Connect ${id}`); }}
                 onDisconnectProvider={(id) => { comingSoon(`Disconnect ${id}`); }}
                 onSignOutSession={(label) => { comingSoon(`Sign out ${label}`); }}
@@ -288,6 +313,21 @@ function SettingsPage(): JSX.Element {
         <DeleteAccountModal
           onCancel={() => { if (!mutating) setDeleteOpen(false); }}
           onConfirm={handleDeleteAccountConfirm}
+          pending={mutating}
+        />
+      )}
+
+      {tfaSetupOpen && (
+        <TwoFactorSetupModal
+          onClose={() => { setTfaSetupOpen(false); }}
+          onEnabled={handleTwoFactorEnabled}
+        />
+      )}
+
+      {tfaDisableOpen && (
+        <TwoFactorDisableModal
+          onCancel={() => { if (!mutating) setTfaDisableOpen(false); }}
+          onConfirm={handleDisableTwoFactorConfirm}
           pending={mutating}
         />
       )}

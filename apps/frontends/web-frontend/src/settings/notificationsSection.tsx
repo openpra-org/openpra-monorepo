@@ -28,7 +28,6 @@ function NotificationsSection({
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Notifications</h2>
-          <p className="pf__section-sub">Pick what we tell you about. Changes save instantly.</p>
         </div>
       </div>
       <div className="st__rows">

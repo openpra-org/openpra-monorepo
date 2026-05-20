@@ -7,6 +7,7 @@ import { randomBytes, createHash } from "crypto";
 import type {
   LoginRequest,
   LoginResponse,
+  LoginTwoFactorRequest,
   SignupRequest,
   SignupResponse,
   ForgotPasswordRequest,
@@ -16,9 +17,11 @@ import type {
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
+import { TwoFactorService } from "./twoFactor.service";
 import { OrgsService } from "../orgs/orgs.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+const TFA_CHALLENGE_TTL = "5m";
 
 @Injectable()
 export class AuthService {
@@ -26,6 +29,7 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly twoFactorService: TwoFactorService,
     private readonly orgsService: OrgsService,
   ) {}
 
@@ -79,13 +83,52 @@ export class AuthService {
     if (!user) throw new UnauthorizedException("Invalid credentials");
     const valid = await argon2.verify(user.passwordHash, payload.password);
     if (!valid) throw new UnauthorizedException("Invalid credentials");
-    const token = await this.jwtService.signAsync({
+    if (user.twoFactor?.enabled) {
+      const challengeToken = await this.jwtService.signAsync(
+        { sub: String(user._id), tfaPending: true },
+        { expiresIn: TFA_CHALLENGE_TTL },
+      );
+      return { twoFactorRequired: true, challengeToken };
+    }
+    const token = await this.signToken(user);
+    return { token };
+  }
+
+  async loginTwoFactor(payload: LoginTwoFactorRequest): Promise<LoginResponse> {
+    let claims: { sub: string; tfaPending?: boolean };
+    try {
+      claims = await this.jwtService.verifyAsync(payload.challengeToken);
+    } catch {
+      throw new UnauthorizedException("Two-factor session expired, sign in again");
+    }
+    if (claims.tfaPending !== true) throw new UnauthorizedException("Invalid two-factor session");
+    const user = await this.userModel.findById(claims.sub);
+    if (!user || !user.twoFactor?.enabled || user.twoFactor.secret === null) {
+      throw new UnauthorizedException("Invalid two-factor session");
+    }
+    const secret = this.twoFactorService.decrypt(user.twoFactor.secret);
+    let ok = await this.twoFactorService.verifyTotp(secret, payload.code);
+    if (!ok) {
+      const index = await this.twoFactorService.findBackupCodeIndex(user.twoFactor.backupCodes, payload.code);
+      if (index >= 0) {
+        ok = true;
+        user.twoFactor.backupCodes.splice(index, 1);
+        user.markModified("twoFactor");
+        await user.save();
+      }
+    }
+    if (!ok) throw new UnauthorizedException("Invalid authentication code");
+    const token = await this.signToken(user);
+    return { token };
+  }
+
+  private async signToken(user: UserDocument): Promise<string> {
+    return this.jwtService.signAsync({
       sub: String(user._id),
       username: user.username,
       email: user.email,
       roles: user.roles,
     });
-    return { token };
   }
 
   async forgotPassword(payload: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {

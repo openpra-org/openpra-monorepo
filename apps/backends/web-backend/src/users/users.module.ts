@@ -7,6 +7,7 @@ import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { StorageModule } from "./storage.module";
 import { OrgsModule } from "../orgs/orgs.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { OrgsModule } from "../orgs/orgs.module";
     ]),
     OrgsModule,
     StorageModule,
+    AuthModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

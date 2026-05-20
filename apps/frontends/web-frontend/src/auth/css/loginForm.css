@@ -134,6 +134,12 @@
   margin-bottom: 0;
 }
 
+.login-form__hint {
+  font-size: 12px;
+  color: #7a7388;
+  margin: 6px 0 0;
+}
+
 .login-form__invalid-msg {
   margin-top: 12px;
   margin-bottom: 0;
@@ -161,6 +167,11 @@
 
 .login-form__submit-btn:hover {
   background-color: #6a2fa0;
+}
+
+.login-form__submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .login-form__switch-row {

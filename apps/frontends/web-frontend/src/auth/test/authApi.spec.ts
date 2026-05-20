@@ -1,4 +1,4 @@
-import { signIn, signUp, forgotPassword, resetPassword } from "../authApi";
+import { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword } from "../authApi";
 import { getToken } from "../authStorage";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -35,6 +35,36 @@ describe("authApi", () => {
     it("throws with the server message when the response is not ok", async () => {
       fetchMock.mockResolvedValueOnce(jsonResponse(401, { message: "Invalid credentials" }));
       await expect(signIn({ identifier: "ada", password: "wrong" })).rejects.toThrow(/Invalid credentials/);
+      expect(getToken()).toBeNull();
+    });
+
+    it("returns a 2FA challenge and does NOT store a token when 2FA is required", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, { twoFactorRequired: true, challengeToken: "challenge.jwt" }));
+
+      const res = await signIn({ identifier: "ada", password: "secret123" });
+
+      expect(res).toEqual({ twoFactorRequired: true, challengeToken: "challenge.jwt" });
+      expect(getToken()).toBeNull();
+    });
+  });
+
+  describe("completeTwoFactor", () => {
+    it("posts the challenge token and code to /api/auth/login/2fa and stores the returned token", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, { token: "jwt.final" }));
+
+      const res = await completeTwoFactor({ challengeToken: "challenge.jwt", code: "123456" });
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe("/api/auth/login/2fa");
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(init.body as string)).toEqual({ challengeToken: "challenge.jwt", code: "123456" });
+      expect(res.token).toBe("jwt.final");
+      expect(getToken()).toBe("jwt.final");
+    });
+
+    it("throws with the server message and stores nothing when the code is rejected", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(401, { message: "Invalid authentication code" }));
+      await expect(completeTwoFactor({ challengeToken: "challenge.jwt", code: "000000" })).rejects.toThrow(/Invalid authentication code/);
       expect(getToken()).toBeNull();
     });
   });

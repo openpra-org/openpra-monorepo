@@ -112,7 +112,7 @@
 }
 
 .st__row--stack .st__row-control {
-  justify-content: stretch;
+  display: block;
 }
 
 .st__row-pair {

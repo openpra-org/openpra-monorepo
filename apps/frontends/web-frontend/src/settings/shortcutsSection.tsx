@@ -52,7 +52,6 @@ function ShortcutsSection(): JSX.Element {
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Keyboard shortcuts</h2>
-          <p className="pf__section-sub">Available throughout the editor and analysis surfaces.</p>
         </div>
       </div>
       <div className="st__kbd-groups">

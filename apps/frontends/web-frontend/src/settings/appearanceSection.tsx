@@ -44,13 +44,11 @@ function AppearanceSection({
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Appearance &amp; accessibility</h2>
-          <p className="pf__section-sub">Settings on this device only.</p>
         </div>
       </div>
       <div className="st__rows">
         <SettingRow
           label="Theme"
-          description="Light, dark, or follow the system preference."
           control={
             <SegmentedControl
               ariaLabel="Theme"
@@ -74,7 +72,6 @@ function AppearanceSection({
         />
         <SettingRow
           label="Font size"
-          description="Body text size across the app."
           control={
             <Slider
               ariaLabel="Font size"

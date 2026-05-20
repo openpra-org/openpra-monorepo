@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, useAuth } from "../AuthContext";
@@ -17,6 +18,19 @@ function Harness(): JSX.Element {
       <div data-testid="user">{user ? JSON.stringify(user) : "anon"}</div>
       <button onClick={() => { void login({ identifier: "ada", password: "p" }); }}>do-login</button>
       <button onClick={() => { logout(); }}>do-logout</button>
+    </div>
+  );
+}
+
+function TwoFactorHarness(): JSX.Element {
+  const { user, login, completeTwoFactor } = useAuth();
+  const [challenge, setChallenge] = useState<string | null>(null);
+  return (
+    <div>
+      <div data-testid="user">{user ? JSON.stringify(user) : "anon"}</div>
+      <div data-testid="challenge">{challenge ?? "none"}</div>
+      <button onClick={() => { void login({ identifier: "ada", password: "p" }).then((r) => { if (r.status === "twoFactorRequired") setChallenge(r.challengeToken); }); }}>do-login</button>
+      <button onClick={() => { if (challenge !== null) void completeTwoFactor(challenge, "123456"); }}>do-verify</button>
     </div>
   );
 }
@@ -76,6 +90,41 @@ describe("AuthContext", () => {
       </AuthProvider>,
     );
     await userEvent.click(screen.getByText("do-login"));
+    await waitFor(() => {
+      expect(screen.getByTestId("user").textContent).toContain("ada");
+    });
+    expect(localStorage.getItem("id_token")).toBe(token);
+  });
+
+  it("on 2FA-required login, stores no token until completeTwoFactor() succeeds", async () => {
+    const token = makeJwt({
+      username: "ada",
+      email: "ada@example.com",
+      roles: ["member-role"],
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ twoFactorRequired: true, challengeToken: "ch.jwt" }), { status: 200, headers: { "Content-Type": "application/json" } }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ token }), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+
+    render(
+      <AuthProvider>
+        <TwoFactorHarness />
+      </AuthProvider>,
+    );
+
+    await userEvent.click(screen.getByText("do-login"));
+    await waitFor(() => {
+      expect(screen.getByTestId("challenge").textContent).toBe("ch.jwt");
+    });
+    expect(screen.getByTestId("user").textContent).toBe("anon");
+    expect(localStorage.getItem("id_token")).toBeNull();
+
+    await userEvent.click(screen.getByText("do-verify"));
     await waitFor(() => {
       expect(screen.getByTestId("user").textContent).toContain("ada");
     });

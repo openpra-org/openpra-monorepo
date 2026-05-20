@@ -19,6 +19,7 @@ export default {
   },
   moduleFileExtensions: ["ts", "js"],
   testMatch: ["<rootDir>/src/**/test/*.spec.ts"],
+  transformIgnorePatterns: ["node_modules/(?!.*(?:otplib|@otplib|@scure|@noble))"],
   moduleNameMapper: {
     "^interfaces-shared-types$": "<rootDir>/../../interfaces/shared-types/src/index.ts",
     "^interfaces-shared-types/(.*)$": "<rootDir>/../../interfaces/shared-types/src/$1",

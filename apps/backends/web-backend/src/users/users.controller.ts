@@ -27,6 +27,11 @@ import {
   type MyProfileResponse,
   type NotificationPrefs,
   type PublicUserProfile,
+  type TwoFactorDisableRequest,
+  type TwoFactorDisableResponse,
+  type TwoFactorEnableRequest,
+  type TwoFactorEnableResponse,
+  type TwoFactorSetupResponse,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
   type UserProfile,
@@ -34,6 +39,8 @@ import {
   ChangeEmailRequestSchema,
   ChangePasswordRequestSchema,
   ChangeUsernameRequestSchema,
+  TwoFactorDisableRequestSchema,
+  TwoFactorEnableRequestSchema,
   UpdateNotificationPrefsRequestSchema,
   UpdateUserProfileRequestSchema,
 } from "interfaces-shared-types";
@@ -117,6 +124,30 @@ export class UsersController {
   ): Promise<ChangePasswordResponse> {
     await this.usersService.changePassword(req.user!.username, body);
     return { detail: "Password updated" };
+  }
+
+  @Post("me/2fa/setup")
+  @HttpCode(HttpStatus.OK)
+  setupTwoFactor(@Req() req: AuthenticatedRequest): Promise<TwoFactorSetupResponse> {
+    return this.usersService.beginTwoFactorSetup(req.user!.username);
+  }
+
+  @Post("me/2fa/enable")
+  @HttpCode(HttpStatus.OK)
+  enableTwoFactor(
+    @Body(new ZodValidationPipe(TwoFactorEnableRequestSchema)) body: TwoFactorEnableRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<TwoFactorEnableResponse> {
+    return this.usersService.enableTwoFactor(req.user!.username, body.code);
+  }
+
+  @Post("me/2fa/disable")
+  @HttpCode(HttpStatus.OK)
+  disableTwoFactor(
+    @Body(new ZodValidationPipe(TwoFactorDisableRequestSchema)) body: TwoFactorDisableRequest,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<TwoFactorDisableResponse> {
+    return this.usersService.disableTwoFactor(req.user!.username, body.code);
   }
 
   @Get("me/prefs/notifications")

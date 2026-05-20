@@ -5,8 +5,16 @@ import { getModelToken } from "@nestjs/mongoose";
 import * as argon2 from "argon2";
 import { AuthService } from "../auth.service";
 import { EmailService } from "../email.service";
+import { TwoFactorService } from "../twoFactor.service";
 import { User } from "../../users/user.schema";
 import { OrgsService } from "../../orgs/orgs.service";
+
+interface FakeTwoFactor {
+  enabled: boolean;
+  secret: string | null;
+  pendingSecret: string | null;
+  backupCodes: string[];
+}
 
 interface FakeUser {
   _id: string;
@@ -18,6 +26,8 @@ interface FakeUser {
   roles: string[];
   resetTokenHash: string | null;
   resetTokenExpiresAt: Date | null;
+  twoFactor?: FakeTwoFactor;
+  markModified: jest.Mock;
   save: jest.Mock;
 }
 
@@ -32,6 +42,7 @@ function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
     roles: ["member-role"],
     resetTokenHash: null,
     resetTokenExpiresAt: null,
+    markModified: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
   return { ...base, ...overrides };
@@ -43,17 +54,27 @@ describe("AuthService", () => {
     findOne: jest.Mock;
     create: jest.Mock;
   } & ((...args: unknown[]) => unknown);
-  let jwtService: { signAsync: jest.Mock };
+  let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let emailService: { sendPasswordResetEmail: jest.Mock };
+  let twoFactorService: { decrypt: jest.Mock; verifyTotp: jest.Mock; findBackupCodeIndex: jest.Mock };
   let orgsService: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
     userModelMock = Object.assign(jest.fn(), {
       findOne: jest.fn(),
+      findById: jest.fn(),
       create: jest.fn(),
     });
-    jwtService = { signAsync: jest.fn().mockResolvedValue("signed.jwt.token") };
+    jwtService = {
+      signAsync: jest.fn().mockResolvedValue("signed.jwt.token"),
+      verifyAsync: jest.fn(),
+    };
     emailService = { sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined) };
+    twoFactorService = {
+      decrypt: jest.fn(),
+      verifyTotp: jest.fn(),
+      findBackupCodeIndex: jest.fn().mockResolvedValue(-1),
+    };
     orgsService = {
       findOrCreate: jest.fn().mockImplementation((name: string) =>
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
@@ -66,6 +87,7 @@ describe("AuthService", () => {
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: JwtService, useValue: jwtService },
         { provide: EmailService, useValue: emailService },
+        { provide: TwoFactorService, useValue: twoFactorService },
         { provide: OrgsService, useValue: orgsService },
       ],
     }).compile();
@@ -163,6 +185,88 @@ describe("AuthService", () => {
       await expect(service.login({ identifier: "nobody", password: "anything" })).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+    });
+
+    it("returns a 2FA challenge instead of a token when 2FA is enabled", async () => {
+      const hash = await argon2.hash("correct-password");
+      userModelMock.findOne.mockResolvedValue(
+        makeUser({
+          passwordHash: hash,
+          twoFactor: { enabled: true, secret: "enc-secret", pendingSecret: null, backupCodes: [] },
+        }),
+      );
+      jwtService.signAsync.mockResolvedValueOnce("challenge.jwt");
+
+      const out = await service.login({ identifier: "ada", password: "correct-password" });
+
+      expect(out).toEqual({ twoFactorRequired: true, challengeToken: "challenge.jwt" });
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: "507f1f77bcf86cd799439011", tfaPending: true }),
+        expect.objectContaining({ expiresIn: "5m" }),
+      );
+    });
+  });
+
+  describe("loginTwoFactor", () => {
+    it("issues a full token when the TOTP code is valid", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: "507f1f77bcf86cd799439011", tfaPending: true });
+      userModelMock.findById.mockResolvedValue(
+        makeUser({ twoFactor: { enabled: true, secret: "enc-secret", pendingSecret: null, backupCodes: ["hashA"] } }),
+      );
+      twoFactorService.decrypt.mockReturnValue("PLAINSECRET");
+      twoFactorService.verifyTotp.mockResolvedValue(true);
+
+      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "123456" });
+
+      expect(out).toEqual({ token: "signed.jwt.token" });
+      expect(twoFactorService.verifyTotp).toHaveBeenCalledWith("PLAINSECRET", "123456");
+    });
+
+    it("consumes a backup code when the TOTP fails but a backup matches", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: "507f1f77bcf86cd799439011", tfaPending: true });
+      const user = makeUser({
+        twoFactor: { enabled: true, secret: "enc-secret", pendingSecret: null, backupCodes: ["hashA", "hashB"] },
+      });
+      userModelMock.findById.mockResolvedValue(user);
+      twoFactorService.decrypt.mockReturnValue("PLAINSECRET");
+      twoFactorService.verifyTotp.mockResolvedValue(false);
+      twoFactorService.findBackupCodeIndex.mockResolvedValue(1);
+
+      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "backupcode" });
+
+      expect(out).toEqual({ token: "signed.jwt.token" });
+      expect(user.twoFactor?.backupCodes).toEqual(["hashA"]);
+      expect(user.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects when neither the TOTP nor a backup code matches", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: "507f1f77bcf86cd799439011", tfaPending: true });
+      userModelMock.findById.mockResolvedValue(
+        makeUser({ twoFactor: { enabled: true, secret: "enc-secret", pendingSecret: null, backupCodes: [] } }),
+      );
+      twoFactorService.decrypt.mockReturnValue("PLAINSECRET");
+      twoFactorService.verifyTotp.mockResolvedValue(false);
+      twoFactorService.findBackupCodeIndex.mockResolvedValue(-1);
+
+      await expect(
+        service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "000000" }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("rejects when the challenge token is not a pending 2FA token", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sub: "507f1f77bcf86cd799439011" });
+
+      await expect(
+        service.loginTwoFactor({ challengeToken: "full.jwt", code: "123456" }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("rejects when the challenge token fails verification", async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error("expired"));
+
+      await expect(
+        service.loginTwoFactor({ challengeToken: "bad.jwt", code: "123456" }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 

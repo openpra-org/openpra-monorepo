@@ -7,11 +7,41 @@ const LoginRequestSchema = z.object({
 
 type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
-const LoginResponseSchema = z.object({
+const LoginSuccessSchema = z.object({
   token: z.string(),
 });
 
+type LoginSuccess = z.infer<typeof LoginSuccessSchema>;
+
+const LoginChallengeSchema = z.object({
+  twoFactorRequired: z.literal(true),
+  challengeToken: z.string(),
+});
+
+type LoginChallenge = z.infer<typeof LoginChallengeSchema>;
+
+const LoginResponseSchema = z.union([LoginSuccessSchema, LoginChallengeSchema]);
+
 type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
-export { LoginRequestSchema, LoginResponseSchema };
-export type { LoginRequest, LoginResponse };
+const LoginTwoFactorRequestSchema = z.object({
+  challengeToken: z.string().min(1),
+  code: z.string().trim().min(1, "Authentication code is required"),
+});
+
+type LoginTwoFactorRequest = z.infer<typeof LoginTwoFactorRequestSchema>;
+
+export {
+  LoginRequestSchema,
+  LoginSuccessSchema,
+  LoginChallengeSchema,
+  LoginResponseSchema,
+  LoginTwoFactorRequestSchema,
+};
+export type {
+  LoginRequest,
+  LoginSuccess,
+  LoginChallenge,
+  LoginResponse,
+  LoginTwoFactorRequest,
+};

@@ -72,6 +72,22 @@ export class User {
       quantErrors: boolean;
     };
   };
+
+  @Prop({
+    type: Object,
+    default: () => ({
+      enabled: false,
+      secret: null,
+      pendingSecret: null,
+      backupCodes: [],
+    }),
+  })
+  twoFactor!: {
+    enabled: boolean;
+    secret: string | null;
+    pendingSecret: string | null;
+    backupCodes: string[];
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

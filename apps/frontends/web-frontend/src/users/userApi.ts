@@ -8,6 +8,9 @@ import {
   type MyProfileResponse,
   type NotificationPrefs,
   type PublicUserProfile,
+  type TwoFactorDisableResponse,
+  type TwoFactorEnableResponse,
+  type TwoFactorSetupResponse,
   type UpdateNotificationPrefsRequest,
   type UpdateUserProfileRequest,
   type UserProfile,
@@ -18,6 +21,9 @@ import {
   MyProfileResponseSchema,
   NotificationPrefsSchema,
   PublicUserProfileSchema,
+  TwoFactorDisableResponseSchema,
+  TwoFactorEnableResponseSchema,
+  TwoFactorSetupResponseSchema,
   UserProfileSchema,
   UserSearchResponseSchema,
 } from "interfaces-shared-types";
@@ -94,6 +100,21 @@ async function deleteMyAccount(currentPassword: string): Promise<void> {
   await call("DELETE", "/me", { currentPassword });
 }
 
+async function setupTwoFactor(): Promise<TwoFactorSetupResponse> {
+  const data = await (await call("POST", "/me/2fa/setup")).json();
+  return TwoFactorSetupResponseSchema.parse(data);
+}
+
+async function enableTwoFactor(code: string): Promise<TwoFactorEnableResponse> {
+  const data = await (await call("POST", "/me/2fa/enable", { code })).json();
+  return TwoFactorEnableResponseSchema.parse(data);
+}
+
+async function disableTwoFactor(code: string): Promise<TwoFactorDisableResponse> {
+  const data = await (await call("POST", "/me/2fa/disable", { code })).json();
+  return TwoFactorDisableResponseSchema.parse(data);
+}
+
 async function uploadImage(path: string, file: File): Promise<UserProfile> {
   const token = getToken();
   const headers: Record<string, string> = { Accept: "application/json" };
@@ -145,6 +166,9 @@ export {
   getNotificationPrefs,
   updateNotificationPrefs,
   deleteMyAccount,
+  setupTwoFactor,
+  enableTwoFactor,
+  disableTwoFactor,
   uploadAvatar,
   deleteAvatar,
   uploadCover,

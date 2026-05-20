@@ -30,13 +30,11 @@ function WorkspaceSection({
       <div className="pf__section-h">
         <div>
           <h2 className="pf__section-title">Workspace defaults</h2>
-          <p className="pf__section-sub">Applied to new projects. Each project can override these.</p>
         </div>
       </div>
       <div className="st__rows">
         <SettingRow
           label="Default quantification engine"
-          description="Used for new projects unless overridden."
           control={
             <select
               className="st__select"
@@ -52,7 +50,7 @@ function WorkspaceSection({
         />
         <SettingRow
           label="Approximation"
-          description="Cut-set evaluation method."
+          description="Method for evaluating probability from cut sets."
           control={
             <select
               className="st__select"

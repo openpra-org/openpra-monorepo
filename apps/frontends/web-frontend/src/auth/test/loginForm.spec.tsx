@@ -81,6 +81,37 @@ describe("LoginForm", () => {
     expect(sentBody).toEqual({ identifier: "ada", password: "hunter2hunter2" });
   });
 
+  it("shows the two-step verification view and completes the 2FA challenge", async () => {
+    const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+    const body = Buffer.from(JSON.stringify({ username: "ada", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url");
+    const token = `${header}.${body}.sig`;
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ twoFactorRequired: true, challengeToken: "ch.jwt" }), { status: 200, headers: { "Content-Type": "application/json" } }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ token }), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+
+    renderForm();
+    await userEvent.type(screen.getByLabelText(/username \/ email/i), "ada");
+    await userEvent.type(screen.getByLabelText(/^password$/i), "hunter2hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /log in/i }));
+
+    expect(await screen.findByText(/two-step verification/i)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/authentication code/i), "123456");
+    await userEvent.click(screen.getByRole("button", { name: /verify/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/login/2fa",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(secondBody).toEqual({ challengeToken: "ch.jwt", code: "123456" });
+  });
+
   it("shows 'Invalid username or password' when the API rejects", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ message: "Invalid credentials" }), {

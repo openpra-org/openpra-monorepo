@@ -3,6 +3,7 @@ import {
   type AvailabilityResponse,
   type LoginRequest,
   type LoginResponse,
+  type LoginTwoFactorRequest,
   type SignupRequest,
   type SignupResponse,
   type ForgotPasswordRequest,
@@ -10,6 +11,7 @@ import {
   type ResetPasswordRequest,
   type ResetPasswordResponse,
   LoginRequestSchema,
+  LoginTwoFactorRequestSchema,
   SignupRequestSchema,
   ForgotPasswordRequestSchema,
   ResetPasswordRequestSchema,
@@ -31,6 +33,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body(new ZodValidationPipe(LoginRequestSchema)) body: LoginRequest): Promise<LoginResponse> {
     return this.authService.login(body);
+  }
+
+  @Post("login/2fa")
+  @HttpCode(HttpStatus.OK)
+  loginTwoFactor(
+    @Body(new ZodValidationPipe(LoginTwoFactorRequestSchema)) body: LoginTwoFactorRequest,
+  ): Promise<LoginResponse> {
+    return this.authService.loginTwoFactor(body);
   }
 
   @Post("forgot-password")

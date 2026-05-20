@@ -3,6 +3,7 @@ import type { INestApplication } from "@nestjs/common";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
 import { jwtDecode } from "jwt-decode";
+import { generate } from "otplib";
 import { AppModule } from "../../app.module";
 import { EmailService } from "../email.service";
 
@@ -40,6 +41,7 @@ describe("Auth (e2e)", () => {
     process.env["RESEND_API_KEY"] = "re_test";
     process.env["MAIL_FROM"] = "noreply@example.com";
     process.env["APP_BASE_URL"] = "http://localhost:4201";
+    process.env["TFA_ENC_KEY"] = "test-encryption-key-for-2fa";
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -236,6 +238,74 @@ describe("Auth (e2e)", () => {
       const res = await request(httpServer).get("/api/auth/availability");
       expect(res.status).toBe(200);
       expect(res.body).toEqual({});
+    });
+  });
+
+  describe("two-factor login flow", () => {
+    const tina = {
+      fullName: "Tina Two-Factor",
+      email: "tina@example.com",
+      organization: "OpenPRA",
+      username: "tina",
+      password: "hunter2hunter2",
+    };
+
+    it("enrolls TOTP, then requires a code at login and rejects the challenge token on protected routes", async () => {
+      await request(httpServer).post("/api/auth/signup").send(tina);
+
+      const firstLogin = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "tina", password: "hunter2hunter2" });
+      expect(firstLogin.status).toBe(200);
+      const accessToken = firstLogin.body.token as string;
+
+      const setup = await request(httpServer)
+        .post("/api/users/me/2fa/setup")
+        .set("Authorization", `Bearer ${accessToken}`);
+      expect(setup.status).toBe(200);
+      const secret = setup.body.secret as string;
+      expect(typeof secret).toBe("string");
+
+      const enable = await request(httpServer)
+        .post("/api/users/me/2fa/enable")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ code: await generate({ secret }) });
+      expect(enable.status).toBe(200);
+      expect(Array.isArray(enable.body.backupCodes)).toBe(true);
+      expect(enable.body.backupCodes).toHaveLength(10);
+
+      const challenged = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "tina", password: "hunter2hunter2" });
+      expect(challenged.status).toBe(200);
+      expect(challenged.body.twoFactorRequired).toBe(true);
+      expect(challenged.body.token).toBeUndefined();
+      const challengeToken = challenged.body.challengeToken as string;
+
+      const blocked = await request(httpServer)
+        .get("/api/users/me")
+        .set("Authorization", `Bearer ${challengeToken}`);
+      expect(blocked.status).toBe(401);
+
+      const completed = await request(httpServer)
+        .post("/api/auth/login/2fa")
+        .send({ challengeToken, code: await generate({ secret }) });
+      expect(completed.status).toBe(200);
+      expect(typeof completed.body.token).toBe("string");
+      const decoded = jwtDecode<{ username: string }>(completed.body.token);
+      expect(decoded.username).toBe("tina");
+    });
+
+    it("rejects a wrong code at the 2FA step", async () => {
+      const challenged = await request(httpServer)
+        .post("/api/auth/login")
+        .send({ identifier: "tina", password: "hunter2hunter2" });
+      const challengeToken = challenged.body.challengeToken as string;
+
+      const wrong = await request(httpServer)
+        .post("/api/auth/login/2fa")
+        .send({ challengeToken, code: "000000" });
+      expect(wrong.status).toBe(401);
     });
   });
 });

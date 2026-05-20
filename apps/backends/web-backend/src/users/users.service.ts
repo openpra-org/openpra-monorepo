@@ -9,6 +9,9 @@ import type {
   ChangePasswordRequest,
   NotificationPrefs,
   PublicUserProfile,
+  TwoFactorDisableResponse,
+  TwoFactorEnableResponse,
+  TwoFactorSetupResponse,
   UpdateNotificationPrefsRequest,
   UpdateUserProfileRequest,
   UserProfile,
@@ -19,6 +22,7 @@ import { User, type UserDocument } from "./user.schema";
 import { Project, type ProjectDocument } from "../projects/project.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
 import { StorageService } from "./storage.service";
+import { TwoFactorService } from "../auth/twoFactor.service";
 import { OrgsService } from "../orgs/orgs.service";
 
 const AVATAR_FOLDER = "avatars";
@@ -52,6 +56,7 @@ function toDtoWithStorage(doc: UserDocument, storage: StorageService): UserProfi
     memberSince: formatMemberSince(createdAt),
     avatarUrl: storage.urlForKey(doc.avatarKey),
     coverUrl: storage.urlForKey(doc.coverKey),
+    twoFactorEnabled: doc.twoFactor?.enabled ?? false,
   };
 }
 
@@ -112,6 +117,7 @@ export class UsersService {
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     private readonly jwtService: JwtService,
     private readonly storage: StorageService,
+    private readonly twoFactorService: TwoFactorService,
     private readonly orgsService: OrgsService,
   ) {}
 
@@ -205,6 +211,57 @@ export class UsersService {
     }
     doc.passwordHash = await argon2.hash(payload.newPassword);
     await doc.save();
+  }
+
+  async beginTwoFactorSetup(username: string): Promise<TwoFactorSetupResponse> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    if (doc.twoFactor?.enabled) throw new ConflictException("Two-factor authentication is already enabled");
+    const secret = this.twoFactorService.createSecret();
+    doc.twoFactor = { enabled: false, secret: null, pendingSecret: this.twoFactorService.encrypt(secret), backupCodes: [] };
+    doc.markModified("twoFactor");
+    await doc.save();
+    return { otpauthUri: this.twoFactorService.buildUri(secret, doc.email), secret };
+  }
+
+  async enableTwoFactor(username: string, code: string): Promise<TwoFactorEnableResponse> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    if (doc.twoFactor?.enabled) throw new ConflictException("Two-factor authentication is already enabled");
+    const pending = doc.twoFactor?.pendingSecret;
+    if (!pending) throw new BadRequestException("Start two-factor setup first");
+    const secret = this.twoFactorService.decrypt(pending);
+    const valid = await this.twoFactorService.verifyTotp(secret, code);
+    if (!valid) throw new UnauthorizedException("Invalid authentication code");
+    const backupCodes = this.twoFactorService.generateBackupCodes();
+    doc.twoFactor = {
+      enabled: true,
+      secret: pending,
+      pendingSecret: null,
+      backupCodes: await this.twoFactorService.hashBackupCodes(backupCodes),
+    };
+    doc.markModified("twoFactor");
+    await doc.save();
+    return { backupCodes };
+  }
+
+  async disableTwoFactor(username: string, code: string): Promise<TwoFactorDisableResponse> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    if (!doc.twoFactor?.enabled || doc.twoFactor.secret === null) {
+      throw new ConflictException("Two-factor authentication is not enabled");
+    }
+    const secret = this.twoFactorService.decrypt(doc.twoFactor.secret);
+    let valid = await this.twoFactorService.verifyTotp(secret, code);
+    if (!valid) {
+      const index = await this.twoFactorService.findBackupCodeIndex(doc.twoFactor.backupCodes, code);
+      if (index >= 0) valid = true;
+    }
+    if (!valid) throw new UnauthorizedException("Invalid authentication code");
+    doc.twoFactor = { enabled: false, secret: null, pendingSecret: null, backupCodes: [] };
+    doc.markModified("twoFactor");
+    await doc.save();
+    return { detail: "Two-factor authentication disabled" };
   }
 
   async getNotificationPrefs(username: string): Promise<NotificationPrefs> {

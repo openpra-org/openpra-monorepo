@@ -109,16 +109,6 @@ function AccountSection({
                 onConnect={onConnectProvider}
                 onDisconnect={onDisconnectProvider}
               />
-              <ConnectedProviderRow
-                id="orcid"
-                name="ORCID"
-                bg="#a6ce39"
-                initial="O"
-                enabled={false}
-                connected={profile.connectedAccounts.some((c) => c.provider === "orcid")}
-                onConnect={onConnectProvider}
-                onDisconnect={onDisconnectProvider}
-              />
             </div>
           }
         />

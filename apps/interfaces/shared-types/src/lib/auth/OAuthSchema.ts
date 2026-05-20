@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const OAuthProviderSchema = z.enum(["google", "github", "orcid"]);
+const OAuthProviderSchema = z.enum(["google", "github"]);
 
 type OAuthProvider = z.infer<typeof OAuthProviderSchema>;
 

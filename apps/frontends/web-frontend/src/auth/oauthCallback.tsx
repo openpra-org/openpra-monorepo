@@ -16,7 +16,6 @@ function parseHash(): URLSearchParams {
 function providerLabel(provider: string): string {
   if (provider === "google") return "Google";
   if (provider === "github") return "GitHub";
-  if (provider === "orcid") return "ORCID";
   return "this connection";
 }
 

@@ -5,6 +5,7 @@ import logo from "../assets/Logo.png";
 import { BookIcon, CaretIcon, LogoutIcon, SettingsIcon, UserIcon } from "./icons";
 import { ThemePicker } from "./themePicker";
 import { useTheme } from "./useTheme";
+import { NotificationBell } from "../notifications/notificationBell";
 import "./css/topBar.css";
 
 function computeInitials(name: string): string {
@@ -61,6 +62,7 @@ function TopBar(): JSX.Element {
         >
           <BookIcon /><span>Documentation</span>
         </a>
+        <NotificationBell />
         <ThemePicker theme={theme} setTheme={setTheme} />
         <div className="wp__avatar-wrap" ref={wrapRef}>
           <button

@@ -130,6 +130,34 @@
   background: rgba(186, 26, 26, 0.05);
 }
 
+.pf__team-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--color-border);
+  padding: 7px 13px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.pf__team-open:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+
+.pf__team-open svg {
+  width: 13px;
+  height: 13px;
+}
+
 .pf__teams-empty {
   display: flex;
   flex-direction: column;
@@ -176,7 +204,8 @@
   .pf__team {
     flex-wrap: wrap;
   }
-  .pf__team-leave {
+  .pf__team-leave,
+  .pf__team-open {
     margin-left: auto;
   }
 }

@@ -43,7 +43,7 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
         <div>
           <h2 className="pf__section-title">Teams &amp; organizations</h2>
           <p className="pf__section-sub">
-            Groups you belong to. Open a team to see the roster and manage members (admins and leads).
+            Groups you belong to. Open a team to view its roster.
           </p>
         </div>
         {!isEmpty && (
@@ -95,7 +95,7 @@ function TeamsSection(props: TeamsSectionProps): JSX.Element {
                     </div>
                   </div>
                   {canOpen && (
-                    <Link to={`/teams/${team.id}`} className="pf__team-toggle">
+                    <Link to={`/teams/${team.id}`} className="pf__team-open">
                       Open <ArrowRightIcon />
                     </Link>
                   )}

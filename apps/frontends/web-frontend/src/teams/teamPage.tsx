@@ -1,11 +1,13 @@
 import { JSX, useEffect, useState, FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  type AuditLogEntry,
   type Team,
   type TeamDetail,
   type TeamRosterEntry,
   type UpdateTeamRequest,
 } from "interfaces-shared-types";
+import { getTeamAuditLog } from "../notifications/notificationsApi";
 import { useToast } from "../toast/toastProvider";
 import { ArrowLeftIcon, CloseIcon, TrashIcon, UsersIcon } from "../welcome/icons";
 import { useTheme } from "../welcome/useTheme";
@@ -56,6 +58,9 @@ function TeamPage(): JSX.Element {
   const [transferTarget, setTransferTarget] = useState<string>("");
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
+  const [auditLoaded, setAuditLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +204,16 @@ function TeamPage(): JSX.Element {
       .finally(() => { setBusy(false); });
   }
 
+  function toggleAudit(): void {
+    const next = !auditOpen;
+    setAuditOpen(next);
+    if (next && !auditLoaded) {
+      getTeamAuditLog(teamId)
+        .then((res) => { setAuditEntries(res.entries); setAuditLoaded(true); })
+        .catch((err: unknown) => { flashError((err as { message?: string }).message ?? "Could not load activity"); });
+    }
+  }
+
   const myRole = detail?.role ?? null;
   const isAdmin = myRole === "admin";
   const isLead = myRole === "lead";
@@ -339,6 +354,28 @@ function TeamPage(): JSX.Element {
                     Send invite
                   </button>
                 </form>
+              </section>
+            )}
+
+            {isManager && (
+              <section className="tp__section">
+                <button type="button" className="tp__audit-toggle" onClick={toggleAudit} aria-expanded={auditOpen}>
+                  {auditOpen ? "Hide activity log" : "Show activity log"}
+                </button>
+                {auditOpen && (
+                  auditEntries.length === 0 ? (
+                    <p className="tp__empty">No activity recorded yet.</p>
+                  ) : (
+                    <ul className="tp__audit">
+                      {auditEntries.map((entry) => (
+                        <li key={entry.id} className="tp__audit-row">
+                          <span className="tp__audit-summary">{entry.summary}</span>
+                          <span className="tp__audit-time">{new Date(entry.createdAt).toLocaleString()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                )}
               </section>
             )}
           </>

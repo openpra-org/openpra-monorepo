@@ -15,6 +15,7 @@ import type {
 import { Team, type TeamDocument } from "./team.schema";
 import { User, type UserDocument } from "../users/user.schema";
 import { OrgsService } from "../orgs/orgs.service";
+import { EventBus } from "../events/event-bus";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -71,6 +72,7 @@ export class TeamsService {
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly orgsService: OrgsService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async createTeam(payload: CreateTeamRequest, username: string): Promise<TeamDto> {
@@ -156,6 +158,7 @@ export class TeamsService {
     }
     doc.members.push(username);
     await doc.save();
+    await this.eventBus.emit({ type: "team.member_joined", teamId: id, teamName: doc.name, actor: username });
     return toDto(doc, username);
   }
 
@@ -170,6 +173,7 @@ export class TeamsService {
     doc.members = doc.members.filter((u) => u !== username);
     doc.leads = doc.leads.filter((u) => u !== username);
     await doc.save();
+    await this.eventBus.emit({ type: "team.left", teamId: id, teamName: doc.name, actor: username });
   }
 
   async updateTeam(id: string, payload: UpdateTeamRequest, username: string): Promise<TeamDto> {
@@ -199,6 +203,7 @@ export class TeamsService {
     if (!doc.members.includes(acting)) doc.members.push(acting);
     doc.leads = doc.leads.filter((u) => u !== target);
     await doc.save();
+    await this.eventBus.emit({ type: "team.admin_transferred", teamId: id, teamName: doc.name, actor: acting, target });
     return toDto(doc, acting);
   }
 
@@ -209,6 +214,7 @@ export class TeamsService {
     if (doc.leads.includes(target)) throw new ConflictException("User is already a lead");
     doc.leads.push(target);
     await doc.save();
+    await this.eventBus.emit({ type: "team.lead_promoted", teamId: id, teamName: doc.name, actor: acting, target });
     return toDto(doc, acting);
   }
 
@@ -217,6 +223,7 @@ export class TeamsService {
     if (!doc.leads.includes(target)) throw new NotFoundException("User is not a lead");
     doc.leads = doc.leads.filter((u) => u !== target);
     await doc.save();
+    await this.eventBus.emit({ type: "team.lead_demoted", teamId: id, teamName: doc.name, actor: acting, target });
     return toDto(doc, acting);
   }
 
@@ -231,6 +238,7 @@ export class TeamsService {
     }
     doc.invited.push(invitee.username);
     await doc.save();
+    await this.eventBus.emit({ type: "team.invited", teamId: id, teamName: doc.name, actor: acting, target: invitee.username });
     return toDto(doc, acting);
   }
 
@@ -247,6 +255,7 @@ export class TeamsService {
     doc.invited = doc.invited.filter((u) => u !== username);
     doc.members.push(username);
     await doc.save();
+    await this.eventBus.emit({ type: "team.member_joined", teamId: id, teamName: doc.name, actor: username });
     return toDto(doc, username);
   }
 
@@ -268,6 +277,7 @@ export class TeamsService {
     doc.members = doc.members.filter((u) => u !== target);
     doc.leads = doc.leads.filter((u) => u !== target);
     await doc.save();
+    await this.eventBus.emit({ type: "team.kicked", teamId: id, teamName: doc.name, actor: acting, target });
   }
 
   private async findById(id: string): Promise<TeamDocument> {

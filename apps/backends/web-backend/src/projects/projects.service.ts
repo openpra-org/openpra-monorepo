@@ -21,6 +21,7 @@ import {
 import { User, type UserDocument } from "../users/user.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
 import { Project, type ProjectDocument } from "./project.schema";
+import { EventBus } from "../events/event-bus";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -118,6 +119,7 @@ export class ProjectsService {
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
+    private readonly eventBus: EventBus,
   ) {}
 
   async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
@@ -210,18 +212,31 @@ export class ProjectsService {
 
   async deleteProject(id: string, acting: ActingUser): Promise<void> {
     const doc = await this.findOwned(id, acting);
+    const name = doc.name;
     await doc.deleteOne();
+    await this.eventBus.emit({ type: "project.deleted", projectId: id, projectName: name, actor: acting.username });
   }
 
   async shareWithTeam(id: string, teamId: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
     const doc = await this.findOwned(id, acting);
-    await this.assertTeamAffiliation(teamId, acting.username);
+    const team = await this.assertTeamAffiliation(teamId, acting.username);
     if (doc.sharedTeams.some((s) => s.teamId === teamId)) {
       throw new ConflictException("Project is already shared with that team");
     }
     doc.sharedTeams.push({ teamId, role });
     doc.markModified("sharedTeams");
     await doc.save();
+    const teamMembers = Array.from(new Set([team.adminUsername, ...team.members]));
+    await this.eventBus.emit({
+      type: "project.shared_team",
+      projectId: id,
+      projectName: doc.name,
+      actor: acting.username,
+      teamId,
+      teamName: team.name,
+      role,
+      teamMembers,
+    });
     return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
@@ -232,6 +247,15 @@ export class ProjectsService {
     if (doc.sharedTeams.length === before) throw new NotFoundException("Project is not shared with that team");
     doc.markModified("sharedTeams");
     await doc.save();
+    const team = await this.teamModel.findById(teamId).lean();
+    await this.eventBus.emit({
+      type: "project.unshared_team",
+      projectId: id,
+      projectName: doc.name,
+      actor: acting.username,
+      teamId,
+      teamName: team?.name ?? "(deleted team)",
+    });
   }
 
   async updateTeamShareRole(id: string, teamId: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
@@ -256,6 +280,14 @@ export class ProjectsService {
     doc.sharedUsers.push({ username: resolved.username, role });
     doc.markModified("sharedUsers");
     await doc.save();
+    await this.eventBus.emit({
+      type: "project.shared_user",
+      projectId: id,
+      projectName: doc.name,
+      actor: acting.username,
+      target: resolved.username,
+      role,
+    });
     return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
 
@@ -266,6 +298,13 @@ export class ProjectsService {
     if (doc.sharedUsers.length === before) throw new NotFoundException("Project is not shared with that user");
     doc.markModified("sharedUsers");
     await doc.save();
+    await this.eventBus.emit({
+      type: "project.unshared_user",
+      projectId: id,
+      projectName: doc.name,
+      actor: acting.username,
+      target: username,
+    });
   }
 
   async updateUserShareRole(id: string, username: string, role: ProjectShareRole, acting: ActingUser): Promise<ProjectDto> {
@@ -286,12 +325,13 @@ export class ProjectsService {
     return doc;
   }
 
-  private async assertTeamAffiliation(teamId: string, username: string): Promise<void> {
+  private async assertTeamAffiliation(teamId: string, username: string): Promise<TeamDocument> {
     if (!isValidObjectId(teamId)) throw new NotFoundException("Team not found");
     const team = await this.teamModel.findById(teamId).exec();
     if (!team) throw new NotFoundException("Team not found");
     const isMember = team.adminUsername === username || team.members.includes(username);
     if (!isMember) throw new ForbiddenException("You are not a member of that team");
+    return team;
   }
 
   private async resolveByIdentifier(identifier: string): Promise<ResolvedUser> {

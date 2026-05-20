@@ -7,6 +7,7 @@ import { ProjectsService } from "../projects.service";
 import { Project } from "../project.schema";
 import { User } from "../../users/user.schema";
 import { Team } from "../../teams/team.schema";
+import { EventBus } from "../../events/event-bus";
 
 function makeProjectDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
@@ -68,12 +69,14 @@ describe("ProjectsService", () => {
       find: jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }),
     };
 
+    const eventBusMock = { emit: jest.fn().mockResolvedValue(undefined), subscribe: jest.fn() };
     const moduleRef = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { provide: getModelToken(Project.name), useValue: projectModelMock },
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: getModelToken(Team.name), useValue: teamModelMock },
+        { provide: EventBus, useValue: eventBusMock },
       ],
     }).compile();
     service = moduleRef.get(ProjectsService);
@@ -367,6 +370,7 @@ describe("ProjectsService", () => {
       const teamId = new Types.ObjectId().toHexString();
       const doc = makeProjectDoc({ sharedTeams: [{ teamId, role: "viewer" }] });
       projectModelMock.findById.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.findById.mockReturnValue({ lean: () => Promise.resolve({ _id: teamId, name: "Risk Group" }) });
       await service.unshareFromTeam(String(doc._id), teamId, { username: "ada" });
       expect(doc.sharedTeams).toEqual([]);
     });

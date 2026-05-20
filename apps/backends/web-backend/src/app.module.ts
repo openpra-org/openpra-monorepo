@@ -6,6 +6,9 @@ import { OrgsModule } from "./orgs/orgs.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { TeamsModule } from "./teams/teams.module";
 import { UsersModule } from "./users/users.module";
+import { EventsModule } from "./events/events.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { AuditModule } from "./audit/audit.module";
 
 @Module({
   imports: [
@@ -15,11 +18,14 @@ import { UsersModule } from "./users/users.module";
         uri: process.env["MONGO_URI"] ?? "mongodb://127.0.0.1:27017/openpra",
       }),
     }),
+    EventsModule,
     AuthModule,
     UsersModule,
     OrgsModule,
     ProjectsModule,
     TeamsModule,
+    NotificationsModule,
+    AuditModule,
   ],
 })
 export class AppModule {}

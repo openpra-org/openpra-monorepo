@@ -6,6 +6,7 @@ import { TeamsService } from "../teams.service";
 import { Team } from "../team.schema";
 import { User } from "../../users/user.schema";
 import { OrgsService } from "../../orgs/orgs.service";
+import { EventBus } from "../../events/event-bus";
 
 function makeTeamDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
@@ -53,12 +54,14 @@ describe("TeamsService", () => {
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
       ),
     };
+    const eventBusMock = { emit: jest.fn().mockResolvedValue(undefined), subscribe: jest.fn() };
     const moduleRef = await Test.createTestingModule({
       providers: [
         TeamsService,
         { provide: getModelToken(Team.name), useValue: teamModelMock },
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: OrgsService, useValue: orgsServiceMock },
+        { provide: EventBus, useValue: eventBusMock },
       ],
     }).compile();
     service = moduleRef.get(TeamsService);

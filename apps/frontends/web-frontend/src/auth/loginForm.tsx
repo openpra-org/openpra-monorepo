@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { type LoginRequest, LoginRequestSchema } from "interfaces-shared-types";
 import { ForgotPassword } from "./forgotPassword";
 import { oauthStartUrl } from "./authApi";
-import { GoogleIcon } from "../welcome/icons";
+import { GoogleIcon, GitHubIcon } from "../welcome/icons";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useAuth, getRoles } from "./AuthContext";
@@ -195,6 +195,14 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
         >
           <GoogleIcon />
           Continue with Google
+        </button>
+        <button
+          type="button"
+          className="login-form__oauth-btn"
+          onClick={() => { window.location.href = oauthStartUrl("github", "login"); }}
+        >
+          <GitHubIcon />
+          Continue with GitHub
         </button>
 
         {onSwitchToSignup !== undefined && (

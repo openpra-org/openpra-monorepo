@@ -215,6 +215,10 @@
   flex-shrink: 0;
 }
 
+.login-form__oauth-btn + .login-form__oauth-btn {
+  margin-top: 10px;
+}
+
 .login-form__oauth-btn:hover {
   background-color: #f8f1ff;
   border-color: #7939b1;

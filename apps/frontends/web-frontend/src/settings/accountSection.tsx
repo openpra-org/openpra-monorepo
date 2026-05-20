@@ -1,6 +1,6 @@
 import { JSX, ReactNode } from "react";
 import { type UserProfile } from "interfaces-shared-types";
-import { GoogleIcon, LockIcon, MailIcon, UserIcon } from "../welcome/icons";
+import { GoogleIcon, GitHubIcon, LockIcon, MailIcon, UserIcon } from "../welcome/icons";
 import { SettingRow } from "./settingRow";
 import "./css/accountSection.css";
 
@@ -101,9 +101,10 @@ function AccountSection({
               <ConnectedProviderRow
                 id="github"
                 name="GitHub"
-                bg="#1d1d20"
+                bg="#ffffff"
                 initial="G"
-                enabled={false}
+                logo={<GitHubIcon />}
+                enabled
                 connected={profile.connectedAccounts.some((c) => c.provider === "github")}
                 onConnect={onConnectProvider}
                 onDisconnect={onDisconnectProvider}

@@ -4,15 +4,22 @@ describe("OAuthService", () => {
   let service: OAuthService;
   const realFetch = global.fetch;
 
+  function clearProviderEnv(): void {
+    delete process.env["GOOGLE_CLIENT_ID"];
+    delete process.env["GOOGLE_CLIENT_SECRET"];
+    delete process.env["GITHUB_CLIENT_ID"];
+    delete process.env["GITHUB_CLIENT_SECRET"];
+    delete process.env["OAUTH_CALLBACK_BASE"];
+  }
+
   beforeEach(() => {
     service = new OAuthService();
+    clearProviderEnv();
   });
 
   afterEach(() => {
     global.fetch = realFetch;
-    delete process.env["GOOGLE_CLIENT_ID"];
-    delete process.env["GOOGLE_CLIENT_SECRET"];
-    delete process.env["OAUTH_CALLBACK_BASE"];
+    clearProviderEnv();
   });
 
   it("reports google unconfigured without credentials and configured with them", () => {
@@ -59,5 +66,47 @@ describe("OAuthService", () => {
     process.env["GOOGLE_CLIENT_SECRET"] = "secret";
     global.fetch = jest.fn().mockResolvedValueOnce({ ok: false }) as unknown as typeof fetch;
     await expect(service.fetchIdentity("google", "code", "verifier")).rejects.toThrow();
+  });
+
+  describe("github provider", () => {
+    it("reports configured only with github credentials", () => {
+      expect(service.isConfigured("github")).toBe(false);
+      process.env["GITHUB_CLIENT_ID"] = "id";
+      process.env["GITHUB_CLIENT_SECRET"] = "secret";
+      expect(service.isConfigured("github")).toBe(true);
+    });
+
+    it("builds a github authorization URL without google-only params", () => {
+      process.env["GITHUB_CLIENT_ID"] = "gh-client";
+      const url = service.buildAuthorizationUrl("github", "the-state", "the-challenge");
+      expect(url.startsWith("https://github.com/login/oauth/authorize?")).toBe(true);
+      expect(url).toContain("client_id=gh-client");
+      expect(url).toContain("code_challenge=the-challenge");
+      expect(url).not.toContain("access_type");
+      expect(url).not.toContain("prompt=");
+    });
+
+    it("maps the github profile from /user", async () => {
+      process.env["GITHUB_CLIENT_ID"] = "id";
+      process.env["GITHUB_CLIENT_SECRET"] = "secret";
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "gho_x" }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 4242, login: "octo", name: "Octo Cat", email: "Octo@Example.com" }) }) as unknown as typeof fetch;
+
+      const profile = await service.fetchIdentity("github", "code", "verifier");
+      expect(profile).toEqual({ providerUserId: "4242", email: "octo@example.com", displayName: "Octo Cat" });
+    });
+
+    it("falls back to /user/emails when the github profile email is private", async () => {
+      process.env["GITHUB_CLIENT_ID"] = "id";
+      process.env["GITHUB_CLIENT_SECRET"] = "secret";
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "gho_x" }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 7, login: "ghuser", name: null, email: null }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ email: "p@e.com", primary: true, verified: true }]) }) as unknown as typeof fetch;
+
+      const profile = await service.fetchIdentity("github", "code", "verifier");
+      expect(profile).toEqual({ providerUserId: "7", email: "p@e.com", displayName: "ghuser" });
+    });
   });
 });

@@ -171,6 +171,10 @@
   flex-shrink: 0;
 }
 
+.signup-form__oauth-btn + .signup-form__oauth-btn {
+  margin-top: 10px;
+}
+
 .signup-form__oauth-btn:hover {
   background-color: #f8f1ff;
   border-color: #7939b1;

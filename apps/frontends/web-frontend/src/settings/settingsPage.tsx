@@ -197,26 +197,25 @@ function SettingsPage(): JSX.Element {
   }
 
   function handleConnectProvider(id: string): void {
-    if (id !== "google") {
+    if (id !== "google" && id !== "github") {
       comingSoon(`Connect ${id}`);
       return;
     }
-    const token = getToken();
-    window.location.href = oauthStartUrl("google", "link", token ?? undefined);
+    window.location.href = oauthStartUrl(id, "link", getToken() ?? undefined);
   }
 
   function handleDisconnectProvider(id: string): void {
-    if (id !== "google") {
+    if (id !== "google" && id !== "github") {
       comingSoon(`Disconnect ${id}`);
       return;
     }
-    disconnectProvider("google")
+    disconnectProvider(id)
       .then((updated) => {
         setProfile(updated);
-        flashSuccess("Google disconnected");
+        flashSuccess("Connection removed");
       })
       .catch((err: unknown) => {
-        flashError((err as { message?: string }).message ?? "Could not disconnect Google");
+        flashError((err as { message?: string }).message ?? "Could not remove connection");
       });
   }
 

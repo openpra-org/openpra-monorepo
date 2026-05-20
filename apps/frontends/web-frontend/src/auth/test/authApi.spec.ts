@@ -40,10 +40,8 @@ describe("authApi", () => {
   });
 
   describe("signUp", () => {
-    it("posts the signup body to /api/auth/signup then auto-signs in", async () => {
-      fetchMock
-        .mockResolvedValueOnce(jsonResponse(201, { id: "u1", username: "ada", email: "ada@example.com" }))
-        .mockResolvedValueOnce(jsonResponse(200, { token: "jwt.signup" }));
+    it("posts the signup body to /api/auth/signup and does not auto-sign-in", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: "u1", username: "ada", email: "ada@example.com" }));
 
       const res = await signUp({
         fullName: "Ada Lovelace",
@@ -53,20 +51,16 @@ describe("authApi", () => {
         password: "hunter2hunter2",
       });
 
+      expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenNthCalledWith(
         1,
         "/api/auth/signup",
         expect.objectContaining({ method: "POST" }),
       );
-      expect(fetchMock).toHaveBeenNthCalledWith(
-        2,
-        "/api/auth/login",
-        expect.objectContaining({ method: "POST" }),
-      );
-      const loginBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
-      expect(loginBody).toEqual({ identifier: "ada", password: "hunter2hunter2" });
+      const signupBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(signupBody.username).toBe("ada");
       expect(res).toEqual({ id: "u1", username: "ada", email: "ada@example.com" });
-      expect(getToken()).toBe("jwt.signup");
+      expect(getToken()).toBeNull();
     });
 
     it("throws with the server message on signup failure", async () => {

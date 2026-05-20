@@ -5,7 +5,7 @@ import { checkAvailability, signUp } from "./authApi";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useToast } from "../toast/toastProvider";
-import { getRoles } from "./AuthContext";
+import { getRoles, useAuth } from "./AuthContext";
 import logo from "../assets/Logo.png";
 import "./css/signUpForm.css";
 
@@ -43,6 +43,7 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
 
   const role = useContext(RoleContext);
   const { addToast } = useToast();
+  const { login } = useAuth();
 
   function updateField<K extends keyof SignupRequest>(key: K, value: SignupRequest[K]): void {
     setSignup((s) => ({ ...s, [key]: value }));
@@ -100,7 +101,9 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
       return;
     }
     if (usernameTaken || emailTaken) return;
+    const { username, password } = result.data;
     signUp(result.data)
+      .then(() => login({ identifier: username, password }))
       .then(() => {
         UpdateRole(role, getRoles());
         setRedirectToHomepage(true);

@@ -49,9 +49,7 @@ async function signIn(payload: LoginRequest): Promise<LoginResponse> {
 
 async function signUp(payload: SignupRequest): Promise<SignupResponse> {
   const data = await postJson<SignupResponse>("/signup", payload);
-  const parsed = SignupResponseSchema.parse(data);
-  await signIn({ identifier: payload.username, password: payload.password });
-  return parsed;
+  return SignupResponseSchema.parse(data);
 }
 
 async function forgotPassword(payload: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {

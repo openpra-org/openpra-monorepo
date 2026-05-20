@@ -6,6 +6,7 @@ import { ToastProvider } from "../../toast/toastProvider";
 import { ToastContainer } from "../../toast/toastContainer";
 import { RoleContext } from "../../role/roleProvider";
 import { DefaultRole } from "../../role/role";
+import { AuthProvider } from "../AuthContext";
 
 const fetchMock = jest.fn();
 
@@ -45,10 +46,12 @@ function renderForm(onSwitch?: () => void): void {
   render(
     <MemoryRouter>
       <ToastProvider>
-        <RoleContext.Provider value={DefaultRole()}>
-          <SignUpForm onSwitchToLogin={onSwitch} />
-          <ToastContainer />
-        </RoleContext.Provider>
+        <AuthProvider>
+          <RoleContext.Provider value={DefaultRole()}>
+            <SignUpForm onSwitchToLogin={onSwitch} />
+            <ToastContainer />
+          </RoleContext.Provider>
+        </AuthProvider>
       </ToastProvider>
     </MemoryRouter>,
   );

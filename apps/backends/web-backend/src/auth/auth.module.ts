@@ -5,6 +5,7 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { EmailService } from "./email.service";
 import { TwoFactorService } from "./twoFactor.service";
+import { OAuthService } from "./oauth.service";
 import { User, UserSchema } from "../users/user.schema";
 import { OrgsModule } from "../orgs/orgs.module";
 
@@ -21,7 +22,7 @@ import { OrgsModule } from "../orgs/orgs.module";
     OrgsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, EmailService, TwoFactorService],
+  providers: [AuthService, EmailService, TwoFactorService, OAuthService],
   exports: [TwoFactorService],
 })
 export class AuthModule {}

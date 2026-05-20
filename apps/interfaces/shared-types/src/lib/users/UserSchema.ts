@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ConnectedAccountSchema } from "../auth/OAuthSchema";
 
 const UserProfileSchema = z.object({
   username: z.string(),
@@ -15,6 +16,8 @@ const UserProfileSchema = z.object({
   avatarUrl: z.string().nullable(),
   coverUrl: z.string().nullable(),
   twoFactorEnabled: z.boolean(),
+  hasPassword: z.boolean(),
+  connectedAccounts: z.array(ConnectedAccountSchema),
 });
 type UserProfile = z.infer<typeof UserProfileSchema>;
 

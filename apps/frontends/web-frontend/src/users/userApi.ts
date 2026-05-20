@@ -100,6 +100,11 @@ async function deleteMyAccount(currentPassword: string): Promise<void> {
   await call("DELETE", "/me", { currentPassword });
 }
 
+async function disconnectProvider(provider: string): Promise<UserProfile> {
+  const data = await (await call("DELETE", `/me/connections/${provider}`)).json();
+  return UserProfileSchema.parse(data);
+}
+
 async function setupTwoFactor(): Promise<TwoFactorSetupResponse> {
   const data = await (await call("POST", "/me/2fa/setup")).json();
   return TwoFactorSetupResponseSchema.parse(data);
@@ -169,6 +174,7 @@ export {
   setupTwoFactor,
   enableTwoFactor,
   disableTwoFactor,
+  disconnectProvider,
   uploadAvatar,
   deleteAvatar,
   uploadCover,

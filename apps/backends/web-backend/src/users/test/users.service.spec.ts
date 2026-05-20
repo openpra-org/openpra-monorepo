@@ -28,12 +28,13 @@ interface FakeUser {
   altEmail: string;
   phone: string;
   linkedin: string;
-  passwordHash: string;
+  passwordHash: string | null;
   roles: string[];
   prefs: {
     notify: { projectShared: boolean; teamInvite: boolean; runFinished: boolean; quantErrors: boolean };
   };
   twoFactor: FakeTwoFactor;
+  connectedAccounts: { provider: string; providerUserId: string; displayName: string }[];
   avatarKey: string | null;
   coverKey: string | null;
   createdAt: Date;
@@ -64,6 +65,7 @@ function makeUserDoc(overrides: Partial<FakeUser> = {}): FakeUser {
       notify: { projectShared: true, teamInvite: true, runFinished: true, quantErrors: true },
     },
     twoFactor: { enabled: false, secret: null, pendingSecret: null, backupCodes: [] },
+    connectedAccounts: [],
     avatarKey: null,
     coverKey: null,
     createdAt: new Date("2026-03-12T10:00:00Z"),
@@ -367,6 +369,30 @@ describe("UsersService", () => {
       twoFactorServiceMock.findBackupCodeIndex.mockResolvedValue(-1);
       await expect(service.disableTwoFactor("ada", "000000")).rejects.toBeInstanceOf(UnauthorizedException);
       expect(doc.twoFactor.enabled).toBe(true);
+    });
+  });
+
+  describe("disconnectProvider", () => {
+    it("removes a connected provider and returns the updated profile", async () => {
+      const doc = makeUserDoc({ connectedAccounts: [{ provider: "google", providerUserId: "sub-1", displayName: "g" }] });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      const out = await service.disconnectProvider("ada", "google");
+      expect(doc.connectedAccounts).toEqual([]);
+      expect(doc.save).toHaveBeenCalledTimes(1);
+      expect(out.connectedAccounts).toEqual([]);
+    });
+
+    it("throws Conflict when the provider is not linked", async () => {
+      const doc = makeUserDoc();
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.disconnectProvider("ada", "google")).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("refuses to remove the only sign-in method when there is no password", async () => {
+      const doc = makeUserDoc({ passwordHash: null, connectedAccounts: [{ provider: "google", providerUserId: "sub-1", displayName: "g" }] });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      await expect(service.disconnectProvider("ada", "google")).rejects.toBeInstanceOf(ConflictException);
+      expect(doc.connectedAccounts).toHaveLength(1);
     });
   });
 

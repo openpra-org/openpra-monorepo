@@ -72,6 +72,12 @@ async function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswo
   return ResetPasswordResponseSchema.parse(data);
 }
 
+function oauthStartUrl(provider: string, intent: "login" | "signup" | "link", token?: string): string {
+  const params = new URLSearchParams({ intent });
+  if (token !== undefined && token.length > 0) params.set("token", token);
+  return `${AUTH_BASE}/oauth/${provider}/start?${params.toString()}`;
+}
+
 async function checkAvailability(params: { username?: string; email?: string }): Promise<AvailabilityResponse> {
   const search = new URLSearchParams();
   if (params.username !== undefined && params.username.length > 0) search.set("username", params.username);
@@ -85,4 +91,4 @@ async function checkAvailability(params: { username?: string; email?: string }):
   return AvailabilityResponseSchema.parse(data);
 }
 
-export { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, checkAvailability };
+export { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, checkAvailability, oauthStartUrl };

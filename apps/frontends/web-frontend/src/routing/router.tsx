@@ -6,6 +6,7 @@ import { DefaultRole } from "../role/role";
 import { ToastProvider } from "../toast/toastProvider";
 import { ToastContainer } from "../toast/toastContainer";
 import { AuthPage } from "../auth/authPage";
+import { OAuthCallbackPage } from "../auth/oauthCallback";
 import { ResetPasswordPage } from "../auth/resetPassword";
 import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
@@ -28,6 +29,10 @@ const routes: RouteObject[] = [
   {
     path: "/auth/*",
     element: <AuthPage />,
+  },
+  {
+    path: "/oauth/callback",
+    element: <OAuthCallbackPage />,
   },
   {
     path: "/",

@@ -15,6 +15,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   login: (payload: LoginRequest) => Promise<LoginResult>;
   completeTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  adoptSession: () => void;
   logout: () => void;
 }
 
@@ -46,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
     applyToken();
   }, [applyToken]);
 
+  const adoptSession = useCallback((): void => {
+    applyToken();
+  }, [applyToken]);
+
   const logout = useCallback((): void => {
     removeToken();
     setUser(null);
@@ -59,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
     }
   }, [user, logout]);
 
-  return <AuthContext.Provider value={{ user, login, completeTwoFactor, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, login, completeTwoFactor, adoptSession, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

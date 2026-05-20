@@ -130,6 +130,52 @@
   background-color: #6a2fa0;
 }
 
+.signup-form__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #7a7388;
+  font-size: 13px;
+}
+
+.signup-form__divider::before,
+.signup-form__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e3d9f0;
+}
+
+.signup-form__oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background-color: #ffffff;
+  color: #2b2533;
+  border: 1px solid #d9cdec;
+  border-radius: 12px;
+  padding: 13px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.signup-form__oauth-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.signup-form__oauth-btn:hover {
+  background-color: #f8f1ff;
+  border-color: #7939b1;
+}
+
 .signup-form__switch-row {
   text-align: center;
   margin-top: 24px;

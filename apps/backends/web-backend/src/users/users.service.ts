@@ -8,6 +8,7 @@ import type {
   ChangeUsernameRequest,
   ChangePasswordRequest,
   NotificationPrefs,
+  OAuthProvider,
   PublicUserProfile,
   TwoFactorDisableResponse,
   TwoFactorEnableResponse,
@@ -57,6 +58,8 @@ function toDtoWithStorage(doc: UserDocument, storage: StorageService): UserProfi
     avatarUrl: storage.urlForKey(doc.avatarKey),
     coverUrl: storage.urlForKey(doc.coverKey),
     twoFactorEnabled: doc.twoFactor?.enabled ?? false,
+    hasPassword: doc.passwordHash !== null,
+    connectedAccounts: doc.connectedAccounts.map((c) => ({ provider: c.provider as OAuthProvider, displayName: c.displayName })),
   };
 }
 
@@ -173,6 +176,7 @@ export class UsersService {
   async changeEmail(username: string, payload: ChangeEmailRequest): Promise<{ profile: UserProfile; token: string }> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
+    if (doc.passwordHash === null) throw new UnauthorizedException("No password is set on this account");
     const valid = await argon2.verify(doc.passwordHash, payload.currentPassword);
     if (!valid) throw new UnauthorizedException("Current password is incorrect");
     const nextEmail = payload.newEmail.toLowerCase();
@@ -204,6 +208,7 @@ export class UsersService {
   async changePassword(username: string, payload: ChangePasswordRequest): Promise<void> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
+    if (doc.passwordHash === null) throw new UnauthorizedException("No password is set on this account");
     const valid = await argon2.verify(doc.passwordHash, payload.currentPassword);
     if (!valid) throw new UnauthorizedException("Current password is incorrect");
     if (payload.currentPassword === payload.newPassword) {
@@ -264,6 +269,22 @@ export class UsersService {
     return { detail: "Two-factor authentication disabled" };
   }
 
+  async disconnectProvider(username: string, provider: string): Promise<UserProfile> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    const isLinked = doc.connectedAccounts.some((c) => c.provider === provider);
+    if (!isLinked) throw new ConflictException("That connection is not linked");
+    const remaining = doc.connectedAccounts.filter((c) => c.provider !== provider);
+    const credentialsLeft = (doc.passwordHash !== null ? 1 : 0) + remaining.length;
+    if (credentialsLeft === 0) {
+      throw new ConflictException("Set a password before disconnecting your only sign-in method");
+    }
+    doc.connectedAccounts = remaining;
+    doc.markModified("connectedAccounts");
+    await doc.save();
+    return toDtoWithStorage(doc, this.storage);
+  }
+
   async getNotificationPrefs(username: string): Promise<NotificationPrefs> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
@@ -287,6 +308,7 @@ export class UsersService {
   async deleteMyAccount(username: string, currentPassword: string): Promise<void> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
+    if (doc.passwordHash === null) throw new UnauthorizedException("No password is set on this account");
     const valid = await argon2.verify(doc.passwordHash, currentPassword);
     if (!valid) throw new UnauthorizedException("Current password is incorrect");
     const adminTeams = await this.teamModel.find({ adminUsername: username }).exec();

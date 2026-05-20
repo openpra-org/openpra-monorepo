@@ -2,6 +2,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { type LoginRequest, LoginRequestSchema } from "interfaces-shared-types";
 import { ForgotPassword } from "./forgotPassword";
+import { oauthStartUrl } from "./authApi";
+import { GoogleIcon } from "../welcome/icons";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useAuth, getRoles } from "./AuthContext";
@@ -184,6 +186,16 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
         {invalid && <p className="login-form__invalid-msg">Invalid username or password</p>}
 
         <button type="submit" className="login-form__submit-btn">Log In</button>
+
+        <div className="login-form__divider"><span>or</span></div>
+        <button
+          type="button"
+          className="login-form__oauth-btn"
+          onClick={() => { window.location.href = oauthStartUrl("google", "login"); }}
+        >
+          <GoogleIcon />
+          Continue with Google
+        </button>
 
         {onSwitchToSignup !== undefined && (
           <p className="login-form__switch-row">

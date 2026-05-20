@@ -8,6 +8,7 @@ import type {
   LoginRequest,
   LoginResponse,
   LoginTwoFactorRequest,
+  OAuthProvider,
   SignupRequest,
   SignupResponse,
   ForgotPasswordRequest,
@@ -18,10 +19,20 @@ import type {
 import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
 import { TwoFactorService } from "./twoFactor.service";
+import { OAuthService } from "./oauth.service";
 import { OrgsService } from "../orgs/orgs.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const TFA_CHALLENGE_TTL = "5m";
+const OAUTH_STATE_TTL = "10m";
+
+type OAuthIntent = "login" | "signup" | "link";
+
+export type OAuthResult =
+  | { kind: "token"; token: string }
+  | { kind: "twofa"; challengeToken: string }
+  | { kind: "linked"; provider: OAuthProvider }
+  | { kind: "error"; error: string };
 
 @Injectable()
 export class AuthService {
@@ -30,6 +41,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly oauthService: OAuthService,
     private readonly orgsService: OrgsService,
   ) {}
 
@@ -81,14 +93,11 @@ export class AuthService {
       $or: [{ username: payload.identifier }, { email: identifier }],
     });
     if (!user) throw new UnauthorizedException("Invalid credentials");
+    if (user.passwordHash === null) throw new UnauthorizedException("Invalid credentials");
     const valid = await argon2.verify(user.passwordHash, payload.password);
     if (!valid) throw new UnauthorizedException("Invalid credentials");
     if (user.twoFactor?.enabled) {
-      const challengeToken = await this.jwtService.signAsync(
-        { sub: String(user._id), tfaPending: true },
-        { expiresIn: TFA_CHALLENGE_TTL },
-      );
-      return { twoFactorRequired: true, challengeToken };
+      return { twoFactorRequired: true, challengeToken: await this.signChallenge(user) };
     }
     const token = await this.signToken(user);
     return { token };
@@ -120,6 +129,109 @@ export class AuthService {
     if (!ok) throw new UnauthorizedException("Invalid authentication code");
     const token = await this.signToken(user);
     return { token };
+  }
+
+  async oauthStart(provider: string, intent: string, token?: string): Promise<string> {
+    if (!this.oauthService.isConfigured(provider)) {
+      throw new UnauthorizedException("Provider not available");
+    }
+    const normalizedIntent: OAuthIntent = intent === "signup" ? "signup" : intent === "link" ? "link" : "login";
+    let uid: string | null = null;
+    if (normalizedIntent === "link") {
+      if (token === undefined) throw new UnauthorizedException("Missing session");
+      const claims = await this.jwtService.verifyAsync<{ sub: string; tfaPending?: boolean }>(token);
+      if (claims.tfaPending === true) throw new UnauthorizedException("Invalid session");
+      uid = claims.sub;
+    }
+    const verifier = this.oauthService.createCodeVerifier();
+    const state = await this.jwtService.signAsync(
+      { oauth: true, provider, intent: normalizedIntent, uid, verifier },
+      { expiresIn: OAUTH_STATE_TTL },
+    );
+    return this.oauthService.buildAuthorizationUrl(provider, state, this.oauthService.codeChallenge(verifier));
+  }
+
+  async oauthCallback(provider: string, code: string, state: string): Promise<OAuthResult> {
+    let claims: { oauth?: boolean; provider?: string; intent?: OAuthIntent; uid?: string | null; verifier?: string };
+    try {
+      claims = await this.jwtService.verifyAsync(state);
+    } catch {
+      return { kind: "error", error: "expired" };
+    }
+    if (claims.oauth !== true || claims.provider !== provider || claims.verifier === undefined) {
+      return { kind: "error", error: "invalid_state" };
+    }
+    const profile = await this.oauthService.fetchIdentity(provider, code, claims.verifier);
+
+    const linked = await this.userModel.findOne({
+      connectedAccounts: { $elemMatch: { provider, providerUserId: profile.providerUserId } },
+    });
+    if (linked) return this.issueForUser(linked);
+
+    if (claims.intent === "link") {
+      if (claims.uid === undefined || claims.uid === null) return { kind: "error", error: "invalid_state" };
+      const user = await this.userModel.findById(claims.uid);
+      if (!user) return { kind: "error", error: "invalid_state" };
+      user.connectedAccounts = [
+        ...user.connectedAccounts.filter((c) => c.provider !== provider),
+        { provider, providerUserId: profile.providerUserId, displayName: profile.displayName },
+      ];
+      user.markModified("connectedAccounts");
+      await user.save();
+      return { kind: "linked", provider: provider as OAuthProvider };
+    }
+
+    if (claims.intent === "signup") {
+      const existingEmail = await this.userModel.findOne({ email: profile.email }).lean();
+      if (existingEmail) return { kind: "error", error: "email_exists" };
+      const username = await this.deriveUsername(profile.email, profile.displayName);
+      const created = await this.userModel.create({
+        username,
+        email: profile.email,
+        fullName: profile.displayName,
+        organization: "",
+        organizationId: null,
+        passwordHash: null,
+        connectedAccounts: [{ provider, providerUserId: profile.providerUserId, displayName: profile.displayName }],
+        roles: ["member-role"],
+      });
+      return { kind: "token", token: await this.signToken(created) };
+    }
+
+    return { kind: "error", error: "not_linked" };
+  }
+
+  private async issueForUser(user: UserDocument): Promise<OAuthResult> {
+    if (user.twoFactor?.enabled) {
+      return { kind: "twofa", challengeToken: await this.signChallenge(user) };
+    }
+    return { kind: "token", token: await this.signToken(user) };
+  }
+
+  private async deriveUsername(email: string, displayName: string): Promise<string> {
+    const source = email.includes("@") ? email.slice(0, email.indexOf("@")) : displayName;
+    let base = "";
+    for (const ch of source.toLowerCase()) {
+      const code = ch.charCodeAt(0);
+      const ok = (code >= 48 && code <= 57) || (code >= 97 && code <= 122) || ch === "_" || ch === "-";
+      if (ok) base += ch;
+    }
+    if (base.length < 3) base = `user${base}`;
+    base = base.slice(0, 24);
+    let candidate = base;
+    let suffix = 0;
+    while (await this.userModel.findOne({ username: candidate }).lean()) {
+      suffix += 1;
+      candidate = `${base}${suffix}`;
+    }
+    return candidate;
+  }
+
+  private async signChallenge(user: UserDocument): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: String(user._id), tfaPending: true },
+      { expiresIn: TFA_CHALLENGE_TTL },
+    );
   }
 
   private async signToken(user: UserDocument): Promise<string> {

@@ -20,8 +20,14 @@ export class User {
   @Prop({ type: String, default: null, index: true })
   organizationId!: string | null;
 
-  @Prop({ required: true })
-  passwordHash!: string;
+  @Prop({ type: String, default: null })
+  passwordHash!: string | null;
+
+  @Prop({
+    type: [{ provider: String, providerUserId: String, displayName: String }],
+    default: [],
+  })
+  connectedAccounts!: { provider: string; providerUserId: string; displayName: string }[];
 
   @Prop({ type: [String], default: ["member-role"] })
   roles!: string[];

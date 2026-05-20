@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import {
   type AvailabilityResponse,
   type LoginRequest,
@@ -17,7 +18,7 @@ import {
   ResetPasswordRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
-import { AuthService } from "./auth.service";
+import { AuthService, type OAuthResult } from "./auth.service";
 
 @Controller("auth")
 export class AuthController {
@@ -66,5 +67,51 @@ export class AuthController {
     @Query("email") email?: string,
   ): Promise<AvailabilityResponse> {
     return this.authService.checkAvailability(username, email);
+  }
+
+  @Get("oauth/:provider/start")
+  async oauthStart(
+    @Param("provider") provider: string,
+    @Res() res: Response,
+    @Query("intent") intent?: string,
+    @Query("token") token?: string,
+  ): Promise<void> {
+    try {
+      const url = await this.authService.oauthStart(provider, intent ?? "login", token);
+      res.redirect(url);
+    } catch {
+      res.redirect(`${this.frontendBase()}/oauth/callback#error=provider_unavailable&provider=${encodeURIComponent(provider)}`);
+    }
+  }
+
+  @Get("oauth/:provider/callback")
+  async oauthCallback(
+    @Param("provider") provider: string,
+    @Res() res: Response,
+    @Query("code") code?: string,
+    @Query("state") state?: string,
+  ): Promise<void> {
+    const base = this.frontendBase();
+    if (code === undefined || state === undefined) {
+      res.redirect(`${base}/oauth/callback#error=oauth_failed`);
+      return;
+    }
+    try {
+      const result = await this.authService.oauthCallback(provider, code, state);
+      res.redirect(`${base}/oauth/callback#${this.resultFragment(result, provider)}`);
+    } catch {
+      res.redirect(`${base}/oauth/callback#error=oauth_failed`);
+    }
+  }
+
+  private frontendBase(): string {
+    return process.env["APP_BASE_URL"] ?? "http://localhost:4201";
+  }
+
+  private resultFragment(result: OAuthResult, provider: string): string {
+    if (result.kind === "token") return `token=${encodeURIComponent(result.token)}`;
+    if (result.kind === "twofa") return `challenge=${encodeURIComponent(result.challengeToken)}`;
+    if (result.kind === "linked") return `linked=${encodeURIComponent(result.provider)}`;
+    return `error=${encodeURIComponent(result.error)}&provider=${encodeURIComponent(provider)}`;
   }
 }

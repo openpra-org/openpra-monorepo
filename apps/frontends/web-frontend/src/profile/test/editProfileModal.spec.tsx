@@ -17,6 +17,8 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     initials: "AL",
     memberSince: "March 2026",
     twoFactorEnabled: false,
+    hasPassword: true,
+    connectedAccounts: [],
     ...overrides,
   };
 }

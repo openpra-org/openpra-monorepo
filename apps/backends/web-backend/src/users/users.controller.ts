@@ -150,6 +150,15 @@ export class UsersController {
     return this.usersService.disableTwoFactor(req.user!.username, body.code);
   }
 
+  @Delete("me/connections/:provider")
+  @HttpCode(HttpStatus.OK)
+  disconnectProvider(
+    @Param("provider") provider: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<UserProfile> {
+    return this.usersService.disconnectProvider(req.user!.username, provider);
+  }
+
   @Get("me/prefs/notifications")
   @HttpCode(HttpStatus.OK)
   getNotificationPrefs(@Req() req: AuthenticatedRequest): Promise<NotificationPrefs> {

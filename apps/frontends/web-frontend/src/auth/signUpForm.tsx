@@ -1,7 +1,8 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { type SignupRequest, SignupRequestSchema } from "interfaces-shared-types";
-import { checkAvailability, signUp } from "./authApi";
+import { checkAvailability, signUp, oauthStartUrl } from "./authApi";
+import { GoogleIcon } from "../welcome/icons";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useToast } from "../toast/toastProvider";
@@ -203,6 +204,16 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
 
         <button type="submit" className="signup-form__submit-btn" disabled={usernameTaken || emailTaken}>
           Sign Up
+        </button>
+
+        <div className="signup-form__divider"><span>or</span></div>
+        <button
+          type="button"
+          className="signup-form__oauth-btn"
+          onClick={() => { window.location.href = oauthStartUrl("google", "signup"); }}
+        >
+          <GoogleIcon />
+          Sign up with Google
         </button>
 
         {onSwitchToLogin !== undefined && (

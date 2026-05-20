@@ -29,6 +29,15 @@
   text-transform: uppercase;
 }
 
+.st__provider-logo--brand {
+  border: 1px solid var(--color-border);
+}
+
+.st__provider-logo--brand svg {
+  width: 22px;
+  height: 22px;
+}
+
 .st__provider-body {
   flex: 1;
   min-width: 0;

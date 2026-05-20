@@ -1,6 +1,6 @@
-import { JSX } from "react";
+import { JSX, ReactNode } from "react";
 import { type UserProfile } from "interfaces-shared-types";
-import { LockIcon, MailIcon, UserIcon } from "../welcome/icons";
+import { GoogleIcon, LockIcon, MailIcon, UserIcon } from "../welcome/icons";
 import { SettingRow } from "./settingRow";
 import "./css/accountSection.css";
 
@@ -88,18 +88,23 @@ function AccountSection({
           control={
             <div className="st__providers">
               <ConnectedProviderRow
-                id="github"
-                name="GitHub"
-                bg="#1d1d20"
+                id="google"
+                name="Google"
+                bg="#ffffff"
                 initial="G"
+                logo={<GoogleIcon />}
+                enabled
+                connected={profile.connectedAccounts.some((c) => c.provider === "google")}
                 onConnect={onConnectProvider}
                 onDisconnect={onDisconnectProvider}
               />
               <ConnectedProviderRow
-                id="google"
-                name="Google"
-                bg="#4285f4"
+                id="github"
+                name="GitHub"
+                bg="#1d1d20"
                 initial="G"
+                enabled={false}
+                connected={profile.connectedAccounts.some((c) => c.provider === "github")}
                 onConnect={onConnectProvider}
                 onDisconnect={onDisconnectProvider}
               />
@@ -108,6 +113,8 @@ function AccountSection({
                 name="ORCID"
                 bg="#a6ce39"
                 initial="O"
+                enabled={false}
+                connected={profile.connectedAccounts.some((c) => c.provider === "orcid")}
                 onConnect={onConnectProvider}
                 onDisconnect={onDisconnectProvider}
               />
@@ -158,6 +165,9 @@ function ConnectedProviderRow({
   name,
   bg,
   initial,
+  logo,
+  connected,
+  enabled,
   onConnect,
   onDisconnect,
 }: {
@@ -165,22 +175,29 @@ function ConnectedProviderRow({
   name: string;
   bg: string;
   initial: string;
+  logo?: ReactNode;
+  connected: boolean;
+  enabled: boolean;
   onConnect: (id: string) => void;
   onDisconnect: (id: string) => void;
 }): JSX.Element {
-  const connected = false;
+  const hint = connected ? "Connected" : enabled ? "Not connected" : "Coming soon";
   return (
     <div className="st__provider">
-      <span className="st__provider-logo" style={{ background: bg }}>{initial}</span>
+      <span
+        className={`st__provider-logo${logo !== undefined ? " st__provider-logo--brand" : ""}`}
+        style={{ background: bg }}
+      >
+        {logo ?? initial}
+      </span>
       <div className="st__provider-body">
         <div className="st__provider-name">{name}</div>
-        <div className="st__provider-hint">
-          {connected ? <>Connected</> : <>Not connected</>}
-        </div>
+        <div className="st__provider-hint">{hint}</div>
       </div>
       <button
         type="button"
         className="btn btn--ghost btn--sm"
+        disabled={!enabled}
         onClick={() => { (connected ? onDisconnect : onConnect)(id); }}
       >
         {connected ? "Disconnect" : "Connect"}

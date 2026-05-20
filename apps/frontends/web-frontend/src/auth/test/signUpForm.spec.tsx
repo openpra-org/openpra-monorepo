@@ -85,7 +85,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/^email$/i), "ada@example.com");
     await userEvent.type(screen.getByLabelText(/username/i), "ada");
     await userEvent.type(screen.getByLabelText(/^password$/i), "longenough!");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
     expect(await screen.findByText(/full name is required/i)).toBeInTheDocument();
     expect(fetchCalls.some((c) => c.url.includes("/signup"))).toBe(false);
   });
@@ -96,7 +96,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/^email$/i), "not-an-email");
     await userEvent.type(screen.getByLabelText(/username/i), "ada");
     await userEvent.type(screen.getByLabelText(/^password$/i), "longenough!");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
     expect(await screen.findByText(/invalid email format/i)).toBeInTheDocument();
     expect(fetchCalls.some((c) => c.url.includes("/signup"))).toBe(false);
   });
@@ -107,7 +107,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/^email$/i), "ada@example.com");
     await userEvent.type(screen.getByLabelText(/username/i), "ad");
     await userEvent.type(screen.getByLabelText(/^password$/i), "longenough!");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
     expect(await screen.findByText(/username must be at least 3 characters/i)).toBeInTheDocument();
   });
 
@@ -117,7 +117,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/^email$/i), "ada@example.com");
     await userEvent.type(screen.getByLabelText(/username/i), "ada");
     await userEvent.type(screen.getByLabelText(/^password$/i), "short");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
     expect(await screen.findByText(/password must be at least 8 characters/i)).toBeInTheDocument();
   });
 
@@ -142,7 +142,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/organization/i), "OpenPRA");
     await userEvent.type(screen.getByLabelText(/username/i), "ada");
     await userEvent.type(screen.getByLabelText(/^password$/i), "hunter2hunter2");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
 
     await waitFor(() => {
       expect(fetchCalls.some((c) => c.url.includes("/signup") && c.init?.method === "POST")).toBe(true);
@@ -171,7 +171,7 @@ describe("SignUpForm", () => {
     await userEvent.type(screen.getByLabelText(/^email$/i), "ada@example.com");
     await userEvent.type(screen.getByLabelText(/username/i), "ada");
     await userEvent.type(screen.getByLabelText(/^password$/i), "hunter2hunter2");
-    await userEvent.click(screen.getByRole("button", { name: /sign up/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
 
     expect(await screen.findByText(/username already taken/i)).toBeInTheDocument();
   });

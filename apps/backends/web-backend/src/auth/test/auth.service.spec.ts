@@ -6,6 +6,7 @@ import * as argon2 from "argon2";
 import { AuthService } from "../auth.service";
 import { EmailService } from "../email.service";
 import { TwoFactorService } from "../twoFactor.service";
+import { OAuthService } from "../oauth.service";
 import { User } from "../../users/user.schema";
 import { OrgsService } from "../../orgs/orgs.service";
 
@@ -27,6 +28,7 @@ interface FakeUser {
   resetTokenHash: string | null;
   resetTokenExpiresAt: Date | null;
   twoFactor?: FakeTwoFactor;
+  connectedAccounts: { provider: string; providerUserId: string; displayName: string }[];
   markModified: jest.Mock;
   save: jest.Mock;
 }
@@ -42,6 +44,7 @@ function makeUser(overrides: Partial<FakeUser> = {}): FakeUser {
     roles: ["member-role"],
     resetTokenHash: null,
     resetTokenExpiresAt: null,
+    connectedAccounts: [],
     markModified: jest.fn(),
     save: jest.fn().mockResolvedValue(undefined),
   };
@@ -57,6 +60,7 @@ describe("AuthService", () => {
   let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let emailService: { sendPasswordResetEmail: jest.Mock };
   let twoFactorService: { decrypt: jest.Mock; verifyTotp: jest.Mock; findBackupCodeIndex: jest.Mock };
+  let oauthService: { isConfigured: jest.Mock; createCodeVerifier: jest.Mock; codeChallenge: jest.Mock; buildAuthorizationUrl: jest.Mock; fetchIdentity: jest.Mock };
   let orgsService: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
@@ -75,6 +79,13 @@ describe("AuthService", () => {
       verifyTotp: jest.fn(),
       findBackupCodeIndex: jest.fn().mockResolvedValue(-1),
     };
+    oauthService = {
+      isConfigured: jest.fn().mockReturnValue(true),
+      createCodeVerifier: jest.fn().mockReturnValue("verifier"),
+      codeChallenge: jest.fn().mockReturnValue("challenge"),
+      buildAuthorizationUrl: jest.fn().mockReturnValue("https://provider/auth"),
+      fetchIdentity: jest.fn(),
+    };
     orgsService = {
       findOrCreate: jest.fn().mockImplementation((name: string) =>
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
@@ -88,6 +99,7 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: jwtService },
         { provide: EmailService, useValue: emailService },
         { provide: TwoFactorService, useValue: twoFactorService },
+        { provide: OAuthService, useValue: oauthService },
         { provide: OrgsService, useValue: orgsService },
       ],
     }).compile();
@@ -267,6 +279,86 @@ describe("AuthService", () => {
       await expect(
         service.loginTwoFactor({ challengeToken: "bad.jwt", code: "123456" }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe("oauthCallback", () => {
+    const profile = { providerUserId: "sub-1", email: "person@example.com", displayName: "A Person" };
+
+    it("logs in when the provider account is already linked", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue(profile);
+      userModelMock.findOne.mockResolvedValueOnce(makeUser({}));
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
+    });
+
+    it("returns a 2FA challenge when the linked account has 2FA enabled", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue(profile);
+      userModelMock.findOne.mockResolvedValueOnce(
+        makeUser({ twoFactor: { enabled: true, secret: "enc", pendingSecret: null, backupCodes: [] } }),
+      );
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "twofa", challengeToken: "signed.jwt.token" });
+    });
+
+    it("creates an account on signup when the provider account is new", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "signup", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-9", email: "new@example.com", displayName: "New Person" });
+      userModelMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) });
+      userModelMock.create.mockResolvedValue(makeUser({ _id: "new-id", username: "new" }));
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
+      const created = userModelMock.create.mock.calls[0][0] as { passwordHash: string | null; connectedAccounts: { providerUserId: string }[] };
+      expect(created.passwordHash).toBeNull();
+      expect(created.connectedAccounts[0].providerUserId).toBe("sub-9");
+    });
+
+    it("rejects signup when the email already exists", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "signup", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-10", email: "taken@example.com", displayName: "X" });
+      userModelMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce({ lean: () => Promise.resolve({ email: "taken@example.com" }) });
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "error", error: "email_exists" });
+    });
+
+    it("returns not_linked on login when the provider account is unknown", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue(profile);
+      userModelMock.findOne.mockResolvedValueOnce(null);
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "error", error: "not_linked" });
+    });
+
+    it("links the provider to the current user on intent=link", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "link", uid: "u-1", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-42", email: "ada@example.com", displayName: "Ada G" });
+      userModelMock.findOne.mockResolvedValueOnce(null);
+      const linkUser = makeUser({ _id: "u-1", connectedAccounts: [] });
+      userModelMock.findById.mockResolvedValue(linkUser);
+
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "linked", provider: "google" });
+      expect(linkUser.connectedAccounts).toHaveLength(1);
+      expect(linkUser.connectedAccounts[0].providerUserId).toBe("sub-42");
+      expect(linkUser.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns an error when the state token is invalid", async () => {
+      jwtService.verifyAsync.mockRejectedValue(new Error("bad state"));
+      const out = await service.oauthCallback("google", "code", "state");
+      expect(out).toEqual({ kind: "error", error: "expired" });
     });
   });
 

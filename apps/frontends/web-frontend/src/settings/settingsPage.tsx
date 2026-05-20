@@ -9,6 +9,8 @@ import {
 } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
 import { useAuth } from "../auth/AuthContext";
+import { oauthStartUrl } from "../auth/authApi";
+import { getToken } from "../auth/authStorage";
 import { ArrowLeftIcon } from "../welcome/icons";
 import { ThemePicker } from "../welcome/themePicker";
 import { useTheme } from "../welcome/useTheme";
@@ -18,6 +20,7 @@ import {
   changeUsername,
   deleteMyAccount,
   disableTwoFactor,
+  disconnectProvider,
   getMyProfile,
   getNotificationPrefs,
   updateNotificationPrefs,
@@ -193,6 +196,30 @@ function SettingsPage(): JSX.Element {
       .finally(() => { setMutating(false); });
   }
 
+  function handleConnectProvider(id: string): void {
+    if (id !== "google") {
+      comingSoon(`Connect ${id}`);
+      return;
+    }
+    const token = getToken();
+    window.location.href = oauthStartUrl("google", "link", token ?? undefined);
+  }
+
+  function handleDisconnectProvider(id: string): void {
+    if (id !== "google") {
+      comingSoon(`Disconnect ${id}`);
+      return;
+    }
+    disconnectProvider("google")
+      .then((updated) => {
+        setProfile(updated);
+        flashSuccess("Google disconnected");
+      })
+      .catch((err: unknown) => {
+        flashError((err as { message?: string }).message ?? "Could not disconnect Google");
+      });
+  }
+
   function handleTwoFactorEnabled(): void {
     setProfile((prev) => (prev === null ? prev : { ...prev, twoFactorEnabled: true }));
     flashSuccess("Two-factor authentication enabled");
@@ -251,8 +278,8 @@ function SettingsPage(): JSX.Element {
                 onChangePassword={() => { setPasswordOpen(true); }}
                 onSetupTfa={() => { setTfaSetupOpen(true); }}
                 onDisableTfa={() => { setTfaDisableOpen(true); }}
-                onConnectProvider={(id) => { comingSoon(`Connect ${id}`); }}
-                onDisconnectProvider={(id) => { comingSoon(`Disconnect ${id}`); }}
+                onConnectProvider={handleConnectProvider}
+                onDisconnectProvider={handleDisconnectProvider}
                 onSignOutSession={(label) => { comingSoon(`Sign out ${label}`); }}
                 onSignOutOthers={() => { comingSoon("Sign out of other sessions"); }}
               />

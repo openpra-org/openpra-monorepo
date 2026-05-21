@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 
-type Density = "comfortable" | "compact";
-
 interface AppearancePrefs {
-  density: Density;
-  fontSize: number;
   reducedMotion: boolean;
   highContrast: boolean;
   sigFigs: number;
@@ -13,8 +9,6 @@ interface AppearancePrefs {
 const STORAGE_KEY = "openpra.appearance";
 
 const DEFAULT: AppearancePrefs = {
-  density: "comfortable",
-  fontSize: 15,
   reducedMotion: false,
   highContrast: false,
   sigFigs: 4,
@@ -26,8 +20,6 @@ function readStored(): AppearancePrefs {
     if (!raw) return DEFAULT;
     const parsed = JSON.parse(raw) as Partial<AppearancePrefs>;
     return {
-      density: parsed.density === "compact" ? "compact" : "comfortable",
-      fontSize: typeof parsed.fontSize === "number" && parsed.fontSize >= 12 && parsed.fontSize <= 20 ? parsed.fontSize : DEFAULT.fontSize,
       reducedMotion: parsed.reducedMotion === true,
       highContrast: parsed.highContrast === true,
       sigFigs: typeof parsed.sigFigs === "number" && parsed.sigFigs >= 2 && parsed.sigFigs <= 8 ? parsed.sigFigs : DEFAULT.sigFigs,
@@ -37,10 +29,14 @@ function readStored(): AppearancePrefs {
   }
 }
 
+function applyAppearance(prefs: AppearancePrefs): void {
+  const root = document.documentElement;
+  root.setAttribute("data-reduced-motion", prefs.reducedMotion ? "true" : "false");
+  root.setAttribute("data-high-contrast", prefs.highContrast ? "true" : "false");
+}
+
 function useAppearancePrefs(): {
   prefs: AppearancePrefs;
-  setDensity: (d: Density) => void;
-  setFontSize: (n: number) => void;
   setReducedMotion: (v: boolean) => void;
   setHighContrast: (v: boolean) => void;
   setSigFigs: (n: number) => void;
@@ -53,17 +49,16 @@ function useAppearancePrefs(): {
     } catch {
       // storage unavailable — ignore
     }
+    applyAppearance(prefs);
   }, [prefs]);
 
   return {
     prefs,
-    setDensity: (density) => { setPrefs((p) => ({ ...p, density })); },
-    setFontSize: (fontSize) => { setPrefs((p) => ({ ...p, fontSize })); },
     setReducedMotion: (reducedMotion) => { setPrefs((p) => ({ ...p, reducedMotion })); },
     setHighContrast: (highContrast) => { setPrefs((p) => ({ ...p, highContrast })); },
     setSigFigs: (sigFigs) => { setPrefs((p) => ({ ...p, sigFigs })); },
   };
 }
 
-export { useAppearancePrefs, DEFAULT as DEFAULT_APPEARANCE };
-export type { AppearancePrefs, Density };
+export { useAppearancePrefs, applyAppearance, readStored as loadStoredAppearance, DEFAULT as DEFAULT_APPEARANCE };
+export type { AppearancePrefs };

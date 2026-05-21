@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from "react-router-dom";
-import { JSX, ReactElement } from "react";
+import { JSX, ReactElement, useEffect } from "react";
 import { AuthProvider, useAuth } from "../auth/AuthContext";
 import { RoleContext } from "../role/roleProvider";
 import { DefaultRole } from "../role/role";
@@ -14,6 +14,7 @@ import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
 import { UserProfilePage } from "../users/userProfilePage";
+import { applyAppearance, loadStoredAppearance } from "../settings/useAppearancePrefs";
 
 function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   const { user } = useAuth();
@@ -96,6 +97,9 @@ const router = createBrowserRouter(routes, {
 
 function App(): ReactElement {
   const role = DefaultRole();
+  useEffect(() => {
+    applyAppearance(loadStoredAppearance());
+  }, []);
   return (
     <ToastProvider>
       <AuthProvider>

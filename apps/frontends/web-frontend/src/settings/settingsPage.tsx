@@ -33,7 +33,6 @@ import { SettingsSidebar, SETTINGS_NAV_ITEMS } from "./settingsSidebar";
 import { AccountSection } from "./accountSection";
 import { NotificationsSection } from "./notificationsSection";
 import { AppearanceSection } from "./appearanceSection";
-import { WorkspaceSection } from "./workspaceSection";
 import { ShortcutsSection } from "./shortcutsSection";
 import { DataSection } from "./dataSection";
 import { ChangeEmailModal } from "./changeEmailModal";
@@ -43,7 +42,6 @@ import { DeleteAccountModal } from "./deleteAccountModal";
 import { TwoFactorSetupModal } from "./twoFactorSetupModal";
 import { TwoFactorDisableModal } from "./twoFactorDisableModal";
 import { useAppearancePrefs } from "./useAppearancePrefs";
-import { useWorkspaceDefaults } from "./useWorkspaceDefaults";
 import "./css/settingsPage.css";
 
 const DEFAULT_NOTIFY: NotificationPrefs = {
@@ -69,7 +67,6 @@ function SettingsPage(): JSX.Element {
   const [mutating, setMutating] = useState(false);
   const [theme, setTheme] = useTheme();
   const appearance = useAppearancePrefs();
-  const workspace = useWorkspaceDefaults();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -290,7 +287,7 @@ function SettingsPage(): JSX.Element {
         </div>
 
         <h1 className="st__title">Settings</h1>
-        <p className="st__subtitle">Manage your account, preferences, and workspace defaults.</p>
+        <p className="st__subtitle">Manage your account and preferences.</p>
 
         {loadError && <p className="st__load-error">{loadError}</p>}
 
@@ -316,17 +313,9 @@ function SettingsPage(): JSX.Element {
                 theme={theme}
                 setTheme={setTheme}
                 prefs={appearance.prefs}
-                setDensity={appearance.setDensity}
-                setFontSize={appearance.setFontSize}
                 setReducedMotion={appearance.setReducedMotion}
                 setHighContrast={appearance.setHighContrast}
                 setSigFigs={appearance.setSigFigs}
-              />
-              <WorkspaceSection
-                defaults={workspace.defaults}
-                setEngine={workspace.setEngine}
-                setApproximation={workspace.setApproximation}
-                setTruncation={workspace.setTruncation}
               />
               <ShortcutsSection />
               <DataSection

@@ -6,10 +6,8 @@ describe("useAppearancePrefs", () => {
     localStorage.clear();
   });
 
-  it("defaults to comfortable density / fontSize 15 / sigFigs 4", () => {
+  it("defaults to sigFigs 4 / motion + contrast off", () => {
     const { result } = renderHook(() => useAppearancePrefs());
-    expect(result.current.prefs.density).toBe("comfortable");
-    expect(result.current.prefs.fontSize).toBe(15);
     expect(result.current.prefs.sigFigs).toBe(4);
     expect(result.current.prefs.reducedMotion).toBe(false);
     expect(result.current.prefs.highContrast).toBe(false);
@@ -17,18 +15,16 @@ describe("useAppearancePrefs", () => {
 
   it("persists changes to localStorage", () => {
     const { result } = renderHook(() => useAppearancePrefs());
-    act(() => { result.current.setDensity("compact"); });
-    act(() => { result.current.setFontSize(18); });
+    act(() => { result.current.setSigFigs(6); });
     act(() => { result.current.setReducedMotion(true); });
     const stored = JSON.parse(localStorage.getItem("openpra.appearance") ?? "{}");
-    expect(stored.density).toBe("compact");
-    expect(stored.fontSize).toBe(18);
+    expect(stored.sigFigs).toBe(6);
     expect(stored.reducedMotion).toBe(true);
   });
 
-  it("clamps fontSize back to default when stored value is out of range", () => {
-    localStorage.setItem("openpra.appearance", JSON.stringify({ fontSize: 50 }));
+  it("clamps sigFigs back to default when stored value is out of range", () => {
+    localStorage.setItem("openpra.appearance", JSON.stringify({ sigFigs: 99 }));
     const { result } = renderHook(() => useAppearancePrefs());
-    expect(result.current.prefs.fontSize).toBe(15);
+    expect(result.current.prefs.sigFigs).toBe(4);
   });
 });

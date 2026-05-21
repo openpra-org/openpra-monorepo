@@ -3,19 +3,13 @@ import { MonitorIcon, MoonIcon, SunIcon } from "../welcome/icons";
 import { type Theme } from "../welcome/useTheme";
 import { SettingRow } from "./settingRow";
 import { SegmentedControl } from "./segmentedControl";
-import { Slider } from "./slider";
 import { Toggle } from "./toggle";
-import type { AppearancePrefs, Density } from "./useAppearancePrefs";
+import type { AppearancePrefs } from "./useAppearancePrefs";
 
 const THEME_OPTIONS: { id: Theme; label: string; icon: JSX.Element }[] = [
   { id: "light", label: "Light", icon: <SunIcon /> },
   { id: "dark", label: "Dark", icon: <MoonIcon /> },
   { id: "auto", label: "System", icon: <MonitorIcon /> },
-];
-
-const DENSITY_OPTIONS: { id: Density; label: string }[] = [
-  { id: "comfortable", label: "Comfortable" },
-  { id: "compact", label: "Compact" },
 ];
 
 const SIG_FIGS = [2, 3, 4, 5, 6, 7, 8];
@@ -24,8 +18,6 @@ function AppearanceSection({
   theme,
   setTheme,
   prefs,
-  setDensity,
-  setFontSize,
   setReducedMotion,
   setHighContrast,
   setSigFigs,
@@ -33,8 +25,6 @@ function AppearanceSection({
   theme: Theme;
   setTheme: (t: Theme) => void;
   prefs: AppearancePrefs;
-  setDensity: (d: Density) => void;
-  setFontSize: (n: number) => void;
   setReducedMotion: (v: boolean) => void;
   setHighContrast: (v: boolean) => void;
   setSigFigs: (n: number) => void;
@@ -55,31 +45,6 @@ function AppearanceSection({
               options={THEME_OPTIONS}
               value={theme}
               onChange={setTheme}
-            />
-          }
-        />
-        <SettingRow
-          label="Density"
-          description="Spacing between rows and cards."
-          control={
-            <SegmentedControl
-              ariaLabel="Density"
-              options={DENSITY_OPTIONS}
-              value={prefs.density}
-              onChange={setDensity}
-            />
-          }
-        />
-        <SettingRow
-          label="Font size"
-          control={
-            <Slider
-              ariaLabel="Font size"
-              value={prefs.fontSize}
-              min={12}
-              max={20}
-              onChange={setFontSize}
-              suffix="px"
             />
           }
         />

@@ -451,6 +451,27 @@ describe("Users (e2e)", () => {
     });
   });
 
+  describe("GET /api/users/me/export", () => {
+    it("returns the user's data as a JSON attachment without secrets", async () => {
+      const token = await signupAndLogin(httpServer, { username: "exporter", email: "exporter@example.com" });
+      const res = await request(httpServer).get("/api/users/me/export").set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toContain("application/json");
+      expect(res.headers["content-disposition"]).toContain("attachment");
+      expect(res.body.profile.username).toBe("exporter");
+      expect(Array.isArray(res.body.projects)).toBe(true);
+      expect(Array.isArray(res.body.teams)).toBe(true);
+      expect(Array.isArray(res.body.notifications)).toBe(true);
+      expect(typeof res.body.exportedAt).toBe("string");
+      expect(res.text).not.toContain("passwordHash");
+    });
+
+    it("requires authentication", async () => {
+      const res = await request(httpServer).get("/api/users/me/export");
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe("active sessions", () => {
     it("lists sessions, revokes others, and logout invalidates the token", async () => {
       const tokenA = await signupAndLogin(httpServer, { username: "sessie", email: "sessie@example.com" });

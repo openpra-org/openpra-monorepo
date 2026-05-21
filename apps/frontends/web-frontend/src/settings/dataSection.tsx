@@ -19,10 +19,10 @@ function DataSection({
       <div className="st__rows">
         <SettingRow
           label="Export all my data"
-          description="Includes profile, projects, teams, and analysis history. Delivered as a zip via email."
+          description="Downloads a JSON file with your profile, owned projects, team memberships, and notifications."
           control={
             <button type="button" className="btn btn--ghost btn--sm" onClick={onExport}>
-              <DownloadIcon /> Request export
+              <DownloadIcon /> Download my data
             </button>
           }
         />

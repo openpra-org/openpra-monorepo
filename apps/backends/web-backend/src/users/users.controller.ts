@@ -11,11 +11,13 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { memoryStorage } from "multer";
 import {
   type ChangeEmailRequest,
@@ -162,6 +164,16 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ): Promise<UserProfile> {
     return this.usersService.disconnectProvider(req.user!.username, provider);
+  }
+
+  @Get("me/export")
+  async exportData(@Req() req: AuthenticatedRequest, @Res() res: Response): Promise<void> {
+    const username = req.user!.username;
+    const data = await this.usersService.exportMyData(username);
+    const filename = `openpra-export-${username}-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(data, null, 2));
   }
 
   @Get("me/sessions")

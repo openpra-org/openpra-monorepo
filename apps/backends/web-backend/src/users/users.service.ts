@@ -31,6 +31,49 @@ import { OrgsService } from "../orgs/orgs.service";
 
 const AVATAR_FOLDER = "avatars";
 const COVER_FOLDER = "covers";
+const NOTIFICATION_EXPORT_LIMIT = 500;
+
+interface ExportedProject {
+  id: string;
+  name: string;
+  mode: string;
+  pinned: boolean;
+  state: string;
+  status: Record<string, string>;
+  sharedUsers: { username: string; role: string }[];
+  sharedTeams: { teamId: string; role: string }[];
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+interface ExportedTeam {
+  id: string;
+  name: string;
+  role: string;
+}
+
+interface ExportedNotification {
+  type: string;
+  title: string;
+  body: string;
+  link: string | null;
+  actorUsername: string;
+  read: boolean;
+  createdAt: string | null;
+}
+
+interface DataExport {
+  exportedAt: string;
+  profile: UserProfile;
+  notificationPreferences: NotificationPrefs;
+  projects: ExportedProject[];
+  teams: ExportedTeam[];
+  notifications: ExportedNotification[];
+}
+
+function isoOrNull(value: Date | undefined): string | null {
+  return value ? value.toISOString() : null;
+}
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -177,6 +220,59 @@ export class UsersService {
 
   async getMyProjectCount(username: string): Promise<number> {
     return this.projectModel.countDocuments({ ownerUsername: username }).exec();
+  }
+
+  async exportMyData(username: string): Promise<DataExport> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+
+    const ownedProjects = await this.projectModel.find({ ownerUsername: username }).lean();
+    const teams = await this.teamModel
+      .find({ $or: [{ adminUsername: username }, { members: username }, { leads: username }] })
+      .lean();
+    const notifications = await this.notificationModel
+      .find({ recipientUsername: username })
+      .sort({ createdAt: -1 })
+      .limit(NOTIFICATION_EXPORT_LIMIT)
+      .lean();
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: toDtoWithStorage(doc, this.storage),
+      notificationPreferences: doc.prefs.notify,
+      projects: ownedProjects.map((p) => {
+        const stamped = p as typeof p & { createdAt?: Date; updatedAt?: Date };
+        return {
+          id: String(p._id),
+          name: p.name,
+          mode: p.mode,
+          pinned: p.pinned,
+          state: p.state,
+          status: p.status,
+          sharedUsers: p.sharedUsers.map((s) => ({ username: s.username, role: s.role })),
+          sharedTeams: p.sharedTeams.map((s) => ({ teamId: s.teamId, role: s.role })),
+          createdAt: isoOrNull(stamped.createdAt),
+          updatedAt: isoOrNull(stamped.updatedAt),
+        };
+      }),
+      teams: teams.map((t) => ({
+        id: String(t._id),
+        name: t.name,
+        role: t.adminUsername === username ? "admin" : t.leads.includes(username) ? "lead" : "member",
+      })),
+      notifications: notifications.map((n) => {
+        const stamped = n as typeof n & { createdAt?: Date };
+        return {
+          type: n.type,
+          title: n.title,
+          body: n.body,
+          link: n.link,
+          actorUsername: n.actorUsername,
+          read: n.readAt !== null,
+          createdAt: isoOrNull(stamped.createdAt),
+        };
+      }),
+    };
   }
 
   async changeEmail(username: string, payload: ChangeEmailRequest, jti: string): Promise<{ profile: UserProfile; token: string }> {

@@ -108,6 +108,10 @@ async function disconnectProvider(provider: string): Promise<UserProfile> {
   return UserProfileSchema.parse(data);
 }
 
+async function getDataExport(): Promise<string> {
+  return (await call("GET", "/me/export")).text();
+}
+
 async function getSessions(): Promise<SessionListResponse> {
   const data = await (await call("GET", "/me/sessions")).json();
   return SessionListResponseSchema.parse(data);
@@ -193,6 +197,7 @@ export {
   enableTwoFactor,
   disableTwoFactor,
   disconnectProvider,
+  getDataExport,
   getSessions,
   revokeSession,
   revokeOtherSessions,

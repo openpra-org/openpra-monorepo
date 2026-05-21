@@ -22,6 +22,7 @@ import {
   deleteMyAccount,
   disableTwoFactor,
   disconnectProvider,
+  getDataExport,
   getMyProfile,
   getNotificationPrefs,
   getSessions,
@@ -199,6 +200,23 @@ function SettingsPage(): JSX.Element {
       .finally(() => { setMutating(false); });
   }
 
+  function handleExport(): void {
+    getDataExport()
+      .then((text) => {
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `openpra-export-${profile?.username ?? "data"}-${new Date().toISOString().slice(0, 10)}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        flashSuccess("Your data export has downloaded");
+      })
+      .catch((err: unknown) => {
+        flashError((err as { message?: string }).message ?? "Could not export your data");
+      });
+  }
+
   function handleConnectProvider(id: string): void {
     if (id !== "google" && id !== "github") {
       comingSoon(`Connect ${id}`);
@@ -319,7 +337,7 @@ function SettingsPage(): JSX.Element {
               />
               <ShortcutsSection />
               <DataSection
-                onExport={() => { comingSoon("Data export"); }}
+                onExport={handleExport}
                 onDelete={() => { setDeleteOpen(true); }}
               />
             </div>

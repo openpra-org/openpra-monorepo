@@ -1,5 +1,5 @@
 import { JSX, ReactNode } from "react";
-import { type UserProfile } from "interfaces-shared-types";
+import { type SessionInfo, type UserProfile } from "interfaces-shared-types";
 import { GoogleIcon, GitHubIcon, LockIcon, MailIcon, UserIcon } from "../welcome/icons";
 import { SettingRow } from "./settingRow";
 import "./css/accountSection.css";
@@ -13,6 +13,7 @@ function AccountSection({
   onDisableTfa,
   onConnectProvider,
   onDisconnectProvider,
+  sessions,
   onSignOutSession,
   onSignOutOthers,
 }: {
@@ -24,7 +25,8 @@ function AccountSection({
   onDisableTfa: () => void;
   onConnectProvider: (id: string) => void;
   onDisconnectProvider: (id: string) => void;
-  onSignOutSession: (label: string) => void;
+  sessions: SessionInfo[];
+  onSignOutSession: (id: string) => void;
   onSignOutOthers: () => void;
 }): JSX.Element {
   return (
@@ -118,31 +120,14 @@ function AccountSection({
           top
           control={
             <div className="st__sessions">
-              <SessionRow
-                device="MacBook Pro"
-                browser="Safari"
-                location="Raleigh, NC"
-                lastActive="Just now"
-                current
-                onSignOut={() => { onSignOutSession("MacBook Pro"); }}
-              />
-              <SessionRow
-                device="iPhone 15"
-                browser="OpenPRA iOS"
-                location="Raleigh, NC"
-                lastActive="2 hours ago"
-                onSignOut={() => { onSignOutSession("iPhone 15"); }}
-              />
-              <SessionRow
-                device="Lab workstation"
-                browser="Firefox"
-                location="NC State"
-                lastActive="Yesterday"
-                onSignOut={() => { onSignOutSession("Lab workstation"); }}
-              />
-              <button type="button" className="btn btn--ghost btn--sm st__sessions-all" onClick={onSignOutOthers}>
-                Sign out of all other sessions
-              </button>
+              {sessions.map((session) => (
+                <SessionRow key={session.id} session={session} onSignOut={onSignOutSession} />
+              ))}
+              {sessions.some((session) => !session.current) && (
+                <button type="button" className="btn btn--ghost btn--sm st__sessions-all" onClick={onSignOutOthers}>
+                  Sign out of all other sessions
+                </button>
+              )}
             </div>
           }
         />
@@ -198,35 +183,26 @@ function ConnectedProviderRow({
 }
 
 function SessionRow({
-  device,
-  browser,
-  location,
-  lastActive,
-  current,
+  session,
   onSignOut,
 }: {
-  device: string;
-  browser: string;
-  location: string;
-  lastActive: string;
-  current?: boolean;
-  onSignOut: () => void;
+  session: SessionInfo;
+  onSignOut: (id: string) => void;
 }): JSX.Element {
   return (
     <div className="st__session">
       <div className="st__session-body">
         <div className="st__session-head">
-          <span className="st__session-device">{device}</span>
+          <span className="st__session-device">{session.device}</span>
           <span className="st__session-sep">·</span>
-          <span>{browser}</span>
-          {current && <span className="st__session-chip">This device</span>}
+          <span>{session.browser}</span>
         </div>
-        <div className="st__session-meta">
-          {location} · {lastActive}
-        </div>
+        <div className="st__session-meta">{session.lastActive}</div>
       </div>
-      {!current && (
-        <button type="button" className="btn btn--ghost btn--sm" onClick={onSignOut}>
+      {session.current ? (
+        <span className="st__session-chip">This device</span>
+      ) : (
+        <button type="button" className="btn btn--ghost btn--sm" onClick={() => { onSignOut(session.id); }}>
           Sign out
         </button>
       )}

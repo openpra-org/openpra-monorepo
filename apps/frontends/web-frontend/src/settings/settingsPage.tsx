@@ -5,6 +5,7 @@ import {
   type ChangePasswordRequest,
   type ChangeUsernameRequest,
   type NotificationPrefs,
+  type SessionInfo,
   type UserProfile,
 } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
@@ -23,6 +24,9 @@ import {
   disconnectProvider,
   getMyProfile,
   getNotificationPrefs,
+  getSessions,
+  revokeSession,
+  revokeOtherSessions,
   updateNotificationPrefs,
 } from "../users/userApi";
 import { SettingsSidebar, SETTINGS_NAV_ITEMS } from "./settingsSidebar";
@@ -52,6 +56,7 @@ const DEFAULT_NOTIFY: NotificationPrefs = {
 function SettingsPage(): JSX.Element {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [notify, setNotify] = useState<NotificationPrefs>(DEFAULT_NOTIFY);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string>("account");
@@ -72,11 +77,12 @@ function SettingsPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getMyProfile(), getNotificationPrefs()])
-      .then(([profileRes, notifyRes]) => {
+    Promise.all([getMyProfile(), getNotificationPrefs(), getSessions()])
+      .then(([profileRes, notifyRes, sessionsRes]) => {
         if (cancelled) return;
         setProfile(profileRes.profile);
         setNotify(notifyRes);
+        setSessions(sessionsRes.sessions);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -219,6 +225,28 @@ function SettingsPage(): JSX.Element {
       });
   }
 
+  function handleSignOutSession(id: string): void {
+    revokeSession(id)
+      .then((res) => {
+        setSessions(res.sessions);
+        flashSuccess("Signed out of that device");
+      })
+      .catch((err: unknown) => {
+        flashError((err as { message?: string }).message ?? "Could not sign out that device");
+      });
+  }
+
+  function handleSignOutOthers(): void {
+    revokeOtherSessions()
+      .then((res) => {
+        setSessions(res.sessions);
+        flashSuccess("Signed out of all other sessions");
+      })
+      .catch((err: unknown) => {
+        flashError((err as { message?: string }).message ?? "Could not sign out other sessions");
+      });
+  }
+
   function handleTwoFactorEnabled(): void {
     setProfile((prev) => (prev === null ? prev : { ...prev, twoFactorEnabled: true }));
     flashSuccess("Two-factor authentication enabled");
@@ -279,8 +307,9 @@ function SettingsPage(): JSX.Element {
                 onDisableTfa={() => { setTfaDisableOpen(true); }}
                 onConnectProvider={handleConnectProvider}
                 onDisconnectProvider={handleDisconnectProvider}
-                onSignOutSession={(label) => { comingSoon(`Sign out ${label}`); }}
-                onSignOutOthers={() => { comingSoon("Sign out of other sessions"); }}
+                sessions={sessions}
+                onSignOutSession={handleSignOutSession}
+                onSignOutOthers={handleSignOutOthers}
               />
               <NotificationsSection prefs={notify} onToggle={handleNotifyToggle} />
               <AppearanceSection

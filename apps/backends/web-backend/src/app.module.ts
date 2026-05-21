@@ -9,6 +9,7 @@ import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AuditModule } from "./audit/audit.module";
+import { SessionsModule } from "./sessions/sessions.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuditModule } from "./audit/audit.module";
       }),
     }),
     EventsModule,
+    SessionsModule,
     AuthModule,
     UsersModule,
     OrgsModule,

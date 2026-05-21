@@ -16,7 +16,7 @@ import {
   TeamDetailSchema,
   TeamSchema,
 } from "interfaces-shared-types";
-import { getToken } from "../auth/authStorage";
+import { getToken, onUnauthorized } from "../auth/authStorage";
 
 const TEAMS_BASE = "/api/teams";
 
@@ -42,6 +42,7 @@ async function call(method: string, path: string, body?: unknown): Promise<Respo
   const init: RequestInit = { method, headers: authHeaders() };
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await fetch(`${TEAMS_BASE}${path}`, init);
+  if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));
   return response;
 }

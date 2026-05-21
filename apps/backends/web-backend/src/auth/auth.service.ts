@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
 import * as argon2 from "argon2";
-import { randomBytes, createHash } from "crypto";
+import { randomBytes, createHash, randomUUID } from "crypto";
 import type {
   LoginRequest,
   LoginResponse,
@@ -20,11 +20,18 @@ import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
 import { TwoFactorService } from "./twoFactor.service";
 import { OAuthService } from "./oauth.service";
+import { SessionsService } from "../sessions/sessions.service";
 import { OrgsService } from "../orgs/orgs.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const TFA_CHALLENGE_TTL = "5m";
 const OAUTH_STATE_TTL = "10m";
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface RequestContext {
+  userAgent: string;
+  ip: string;
+}
 
 type OAuthIntent = "login" | "signup" | "link";
 
@@ -42,6 +49,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly twoFactorService: TwoFactorService,
     private readonly oauthService: OAuthService,
+    private readonly sessionsService: SessionsService,
     private readonly orgsService: OrgsService,
   ) {}
 
@@ -87,7 +95,7 @@ export class AuthService {
     };
   }
 
-  async login(payload: LoginRequest): Promise<LoginResponse> {
+  async login(payload: LoginRequest, ctx: RequestContext): Promise<LoginResponse> {
     const identifier = payload.identifier.toLowerCase();
     const user = await this.userModel.findOne({
       $or: [{ username: payload.identifier }, { email: identifier }],
@@ -99,11 +107,11 @@ export class AuthService {
     if (user.twoFactor?.enabled) {
       return { twoFactorRequired: true, challengeToken: await this.signChallenge(user) };
     }
-    const token = await this.signToken(user);
+    const token = await this.signToken(user, ctx);
     return { token };
   }
 
-  async loginTwoFactor(payload: LoginTwoFactorRequest): Promise<LoginResponse> {
+  async loginTwoFactor(payload: LoginTwoFactorRequest, ctx: RequestContext): Promise<LoginResponse> {
     let claims: { sub: string; tfaPending?: boolean };
     try {
       claims = await this.jwtService.verifyAsync(payload.challengeToken);
@@ -127,7 +135,7 @@ export class AuthService {
       }
     }
     if (!ok) throw new UnauthorizedException("Invalid authentication code");
-    const token = await this.signToken(user);
+    const token = await this.signToken(user, ctx);
     return { token };
   }
 
@@ -151,7 +159,7 @@ export class AuthService {
     return this.oauthService.buildAuthorizationUrl(provider, state, this.oauthService.codeChallenge(verifier));
   }
 
-  async oauthCallback(provider: string, code: string, state: string): Promise<OAuthResult> {
+  async oauthCallback(provider: string, code: string, state: string, ctx: RequestContext): Promise<OAuthResult> {
     let claims: { oauth?: boolean; provider?: string; intent?: OAuthIntent; uid?: string | null; verifier?: string };
     try {
       claims = await this.jwtService.verifyAsync(state);
@@ -166,7 +174,7 @@ export class AuthService {
     const linked = await this.userModel.findOne({
       connectedAccounts: { $elemMatch: { provider, providerUserId: profile.providerUserId } },
     });
-    if (linked) return this.issueForUser(linked);
+    if (linked) return this.issueForUser(linked, ctx);
 
     if (claims.intent === "link") {
       if (claims.uid === undefined || claims.uid === null) return { kind: "error", error: "invalid_state" };
@@ -195,17 +203,17 @@ export class AuthService {
         connectedAccounts: [{ provider, providerUserId: profile.providerUserId, displayName: profile.displayName }],
         roles: ["member-role"],
       });
-      return { kind: "token", token: await this.signToken(created) };
+      return { kind: "token", token: await this.signToken(created, ctx) };
     }
 
     return { kind: "error", error: "not_linked" };
   }
 
-  private async issueForUser(user: UserDocument): Promise<OAuthResult> {
+  private async issueForUser(user: UserDocument, ctx: RequestContext): Promise<OAuthResult> {
     if (user.twoFactor?.enabled) {
       return { kind: "twofa", challengeToken: await this.signChallenge(user) };
     }
-    return { kind: "token", token: await this.signToken(user) };
+    return { kind: "token", token: await this.signToken(user, ctx) };
   }
 
   private async deriveUsername(email: string, displayName: string): Promise<string> {
@@ -234,13 +242,26 @@ export class AuthService {
     );
   }
 
-  private async signToken(user: UserDocument): Promise<string> {
+  private async signToken(user: UserDocument, ctx: RequestContext): Promise<string> {
+    const jti = randomUUID();
+    await this.sessionsService.create({
+      userId: String(user._id),
+      jti,
+      userAgent: ctx.userAgent,
+      ip: ctx.ip,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    });
     return this.jwtService.signAsync({
       sub: String(user._id),
       username: user.username,
       email: user.email,
       roles: user.roles,
+      jti,
     });
+  }
+
+  async revokeSession(jti: string): Promise<void> {
+    await this.sessionsService.revokeByJti(jti);
   }
 
   async forgotPassword(payload: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {

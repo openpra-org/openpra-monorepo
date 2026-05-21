@@ -173,7 +173,7 @@ export class UsersService {
     return this.projectModel.countDocuments({ ownerUsername: username }).exec();
   }
 
-  async changeEmail(username: string, payload: ChangeEmailRequest): Promise<{ profile: UserProfile; token: string }> {
+  async changeEmail(username: string, payload: ChangeEmailRequest, jti: string): Promise<{ profile: UserProfile; token: string }> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
     if (doc.passwordHash === null) throw new UnauthorizedException("No password is set on this account");
@@ -185,11 +185,11 @@ export class UsersService {
     if (existing) throw new ConflictException("Email already in use");
     doc.email = nextEmail;
     await doc.save();
-    const token = await this.signToken(doc);
+    const token = await this.signToken(doc, jti);
     return { profile: toDtoWithStorage(doc, this.storage), token };
   }
 
-  async changeUsername(username: string, payload: ChangeUsernameRequest): Promise<{ profile: UserProfile; token: string }> {
+  async changeUsername(username: string, payload: ChangeUsernameRequest, jti: string): Promise<{ profile: UserProfile; token: string }> {
     const next = payload.newUsername;
     if (!validateUsernameCharacters(next)) {
       throw new ConflictException("Username may only contain letters, digits, '_', or '-'");
@@ -201,7 +201,7 @@ export class UsersService {
     if (existing) throw new ConflictException("Username already taken");
     doc.username = next;
     await doc.save();
-    const token = await this.signToken(doc);
+    const token = await this.signToken(doc, jti);
     return { profile: toDtoWithStorage(doc, this.storage), token };
   }
 
@@ -387,12 +387,13 @@ export class UsersService {
     return toDtoWithStorage(doc, this.storage);
   }
 
-  private async signToken(doc: UserDocument): Promise<string> {
+  private async signToken(doc: UserDocument, jti: string): Promise<string> {
     return this.jwtService.signAsync({
       sub: String(doc._id),
       username: doc.username,
       email: doc.email,
       roles: doc.roles,
+      jti,
     });
   }
 }

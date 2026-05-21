@@ -6,7 +6,7 @@ import {
   NotificationsResponseSchema,
   UnreadCountResponseSchema,
 } from "interfaces-shared-types";
-import { getToken } from "../auth/authStorage";
+import { getToken, onUnauthorized } from "../auth/authStorage";
 
 function authHeaders(): Record<string, string> {
   const token = getToken();
@@ -28,6 +28,7 @@ async function readError(response: Response): Promise<string> {
 
 async function call(method: string, path: string): Promise<Response> {
   const response = await fetch(path, { method, headers: authHeaders() });
+  if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));
   return response;
 }

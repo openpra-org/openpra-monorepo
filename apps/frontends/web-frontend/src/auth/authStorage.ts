@@ -56,5 +56,12 @@ function isLoggedIn(): boolean {
   return true;
 }
 
-export { getToken, setToken, removeToken, decodeToken, isTokenExpired, getTokenRemainingSeconds, getRoles, isLoggedIn };
+const UNAUTHORIZED_EVENT = "auth:unauthorized";
+
+function onUnauthorized(): void {
+  removeToken();
+  window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+}
+
+export { getToken, setToken, removeToken, decodeToken, isTokenExpired, getTokenRemainingSeconds, getRoles, isLoggedIn, onUnauthorized, UNAUTHORIZED_EVENT };
 export type { JwtPayload };

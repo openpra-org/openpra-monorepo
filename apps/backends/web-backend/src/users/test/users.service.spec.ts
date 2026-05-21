@@ -219,7 +219,7 @@ describe("UsersService", () => {
       userModelMock.findOne
         .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(doc) })
         .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue(null) });
-      const out = await service.changeEmail("ada", { newEmail: "Ada2@example.com", currentPassword: "hunter2hunter2" });
+      const out = await service.changeEmail("ada", { newEmail: "Ada2@example.com", currentPassword: "hunter2hunter2" }, "jti-1");
       expect(doc.email).toBe("ada2@example.com");
       expect(out.profile.email).toBe("ada2@example.com");
       expect(out.token).toBe("signed.jwt.token");
@@ -229,7 +229,7 @@ describe("UsersService", () => {
       const passwordHash = await argon2.hash("hunter2hunter2");
       const doc = makeUserDoc({ passwordHash });
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      await expect(service.changeEmail("ada", { newEmail: "x@y.z", currentPassword: "wrong" })).rejects.toBeInstanceOf(UnauthorizedException);
+      await expect(service.changeEmail("ada", { newEmail: "x@y.z", currentPassword: "wrong" }, "jti-1")).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it("throws ConflictException when the new email is already in use", async () => {
@@ -238,7 +238,7 @@ describe("UsersService", () => {
       userModelMock.findOne
         .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(doc) })
         .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue({ email: "taken@example.com" }) });
-      await expect(service.changeEmail("ada", { newEmail: "Taken@example.com", currentPassword: "hunter2hunter2" })).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.changeEmail("ada", { newEmail: "Taken@example.com", currentPassword: "hunter2hunter2" }, "jti-1")).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
@@ -248,7 +248,7 @@ describe("UsersService", () => {
       userModelMock.findOne
         .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(doc) })
         .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue(null) });
-      const out = await service.changeUsername("ada", { newUsername: "ada-v2" });
+      const out = await service.changeUsername("ada", { newUsername: "ada-v2" }, "jti-1");
       expect(doc.username).toBe("ada-v2");
       expect(out.profile.username).toBe("ada-v2");
       expect(out.token).toBe("signed.jwt.token");
@@ -257,7 +257,7 @@ describe("UsersService", () => {
     it("rejects usernames with disallowed characters without using regex", async () => {
       const doc = makeUserDoc();
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      await expect(service.changeUsername("ada", { newUsername: "has space" })).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.changeUsername("ada", { newUsername: "has space" }, "jti-1")).rejects.toBeInstanceOf(ConflictException);
     });
 
     it("throws ConflictException when the new username is taken", async () => {
@@ -265,7 +265,7 @@ describe("UsersService", () => {
       userModelMock.findOne
         .mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(doc) })
         .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue({ username: "taken" }) });
-      await expect(service.changeUsername("ada", { newUsername: "taken" })).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.changeUsername("ada", { newUsername: "taken" }, "jti-1")).rejects.toBeInstanceOf(ConflictException);
     });
   });
 

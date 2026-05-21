@@ -8,6 +8,7 @@ import {
   type MyProfileResponse,
   type NotificationPrefs,
   type PublicUserProfile,
+  type SessionListResponse,
   type TwoFactorDisableResponse,
   type TwoFactorEnableResponse,
   type TwoFactorSetupResponse,
@@ -21,13 +22,14 @@ import {
   MyProfileResponseSchema,
   NotificationPrefsSchema,
   PublicUserProfileSchema,
+  SessionListResponseSchema,
   TwoFactorDisableResponseSchema,
   TwoFactorEnableResponseSchema,
   TwoFactorSetupResponseSchema,
   UserProfileSchema,
   UserSearchResponseSchema,
 } from "interfaces-shared-types";
-import { getToken, setToken } from "../auth/authStorage";
+import { getToken, setToken, onUnauthorized } from "../auth/authStorage";
 
 const USERS_BASE = "/api/users";
 
@@ -53,6 +55,7 @@ async function call(method: string, path: string, body?: unknown): Promise<Respo
   const init: RequestInit = { method, headers: authHeaders() };
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await fetch(`${USERS_BASE}${path}`, init);
+  if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));
   return response;
 }
@@ -103,6 +106,21 @@ async function deleteMyAccount(currentPassword: string): Promise<void> {
 async function disconnectProvider(provider: string): Promise<UserProfile> {
   const data = await (await call("DELETE", `/me/connections/${provider}`)).json();
   return UserProfileSchema.parse(data);
+}
+
+async function getSessions(): Promise<SessionListResponse> {
+  const data = await (await call("GET", "/me/sessions")).json();
+  return SessionListResponseSchema.parse(data);
+}
+
+async function revokeSession(id: string): Promise<SessionListResponse> {
+  const data = await (await call("DELETE", `/me/sessions/${id}`)).json();
+  return SessionListResponseSchema.parse(data);
+}
+
+async function revokeOtherSessions(): Promise<SessionListResponse> {
+  const data = await (await call("DELETE", "/me/sessions")).json();
+  return SessionListResponseSchema.parse(data);
 }
 
 async function setupTwoFactor(): Promise<TwoFactorSetupResponse> {
@@ -175,6 +193,9 @@ export {
   enableTwoFactor,
   disableTwoFactor,
   disconnectProvider,
+  getSessions,
+  revokeSession,
+  revokeOtherSessions,
   uploadAvatar,
   deleteAvatar,
   uploadCover,

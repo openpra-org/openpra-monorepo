@@ -7,8 +7,11 @@ import { AuthService } from "../auth.service";
 import { EmailService } from "../email.service";
 import { TwoFactorService } from "../twoFactor.service";
 import { OAuthService } from "../oauth.service";
+import { SessionsService } from "../../sessions/sessions.service";
 import { User } from "../../users/user.schema";
 import { OrgsService } from "../../orgs/orgs.service";
+
+const ctx = { userAgent: "jest-agent", ip: "127.0.0.1" };
 
 interface FakeTwoFactor {
   enabled: boolean;
@@ -61,6 +64,7 @@ describe("AuthService", () => {
   let emailService: { sendPasswordResetEmail: jest.Mock };
   let twoFactorService: { decrypt: jest.Mock; verifyTotp: jest.Mock; findBackupCodeIndex: jest.Mock };
   let oauthService: { isConfigured: jest.Mock; createCodeVerifier: jest.Mock; codeChallenge: jest.Mock; buildAuthorizationUrl: jest.Mock; fetchIdentity: jest.Mock };
+  let sessionsService: { create: jest.Mock; revokeByJti: jest.Mock };
   let orgsService: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
@@ -86,6 +90,10 @@ describe("AuthService", () => {
       buildAuthorizationUrl: jest.fn().mockReturnValue("https://provider/auth"),
       fetchIdentity: jest.fn(),
     };
+    sessionsService = {
+      create: jest.fn().mockResolvedValue(undefined),
+      revokeByJti: jest.fn().mockResolvedValue(undefined),
+    };
     orgsService = {
       findOrCreate: jest.fn().mockImplementation((name: string) =>
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
@@ -100,6 +108,7 @@ describe("AuthService", () => {
         { provide: EmailService, useValue: emailService },
         { provide: TwoFactorService, useValue: twoFactorService },
         { provide: OAuthService, useValue: oauthService },
+        { provide: SessionsService, useValue: sessionsService },
         { provide: OrgsService, useValue: orgsService },
       ],
     }).compile();
@@ -168,7 +177,7 @@ describe("AuthService", () => {
       const hash = await argon2.hash("correct-password");
       userModelMock.findOne.mockResolvedValue(makeUser({ passwordHash: hash }));
 
-      const out = await service.login({ identifier: "ada", password: "correct-password" });
+      const out = await service.login({ identifier: "ada", password: "correct-password" }, ctx);
 
       expect(out).toEqual({ token: "signed.jwt.token" });
       expect(jwtService.signAsync).toHaveBeenCalledWith(
@@ -180,21 +189,21 @@ describe("AuthService", () => {
       const hash = await argon2.hash("correct-password");
       userModelMock.findOne.mockResolvedValue(makeUser({ passwordHash: hash }));
 
-      const out = await service.login({ identifier: "ADA@example.com", password: "correct-password" });
+      const out = await service.login({ identifier: "ADA@example.com", password: "correct-password" }, ctx);
       expect(out.token).toBe("signed.jwt.token");
     });
 
     it("throws UnauthorizedException on wrong password", async () => {
       const hash = await argon2.hash("correct-password");
       userModelMock.findOne.mockResolvedValue(makeUser({ passwordHash: hash }));
-      await expect(service.login({ identifier: "ada", password: "wrong" })).rejects.toBeInstanceOf(
+      await expect(service.login({ identifier: "ada", password: "wrong" }, ctx)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
 
     it("throws UnauthorizedException when user is unknown", async () => {
       userModelMock.findOne.mockResolvedValue(null);
-      await expect(service.login({ identifier: "nobody", password: "anything" })).rejects.toBeInstanceOf(
+      await expect(service.login({ identifier: "nobody", password: "anything" }, ctx)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
     });
@@ -209,7 +218,7 @@ describe("AuthService", () => {
       );
       jwtService.signAsync.mockResolvedValueOnce("challenge.jwt");
 
-      const out = await service.login({ identifier: "ada", password: "correct-password" });
+      const out = await service.login({ identifier: "ada", password: "correct-password" }, ctx);
 
       expect(out).toEqual({ twoFactorRequired: true, challengeToken: "challenge.jwt" });
       expect(jwtService.signAsync).toHaveBeenCalledWith(
@@ -228,7 +237,7 @@ describe("AuthService", () => {
       twoFactorService.decrypt.mockReturnValue("PLAINSECRET");
       twoFactorService.verifyTotp.mockResolvedValue(true);
 
-      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "123456" });
+      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "123456" }, ctx);
 
       expect(out).toEqual({ token: "signed.jwt.token" });
       expect(twoFactorService.verifyTotp).toHaveBeenCalledWith("PLAINSECRET", "123456");
@@ -244,7 +253,7 @@ describe("AuthService", () => {
       twoFactorService.verifyTotp.mockResolvedValue(false);
       twoFactorService.findBackupCodeIndex.mockResolvedValue(1);
 
-      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "backupcode" });
+      const out = await service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "backupcode" }, ctx);
 
       expect(out).toEqual({ token: "signed.jwt.token" });
       expect(user.twoFactor?.backupCodes).toEqual(["hashA"]);
@@ -261,7 +270,7 @@ describe("AuthService", () => {
       twoFactorService.findBackupCodeIndex.mockResolvedValue(-1);
 
       await expect(
-        service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "000000" }),
+        service.loginTwoFactor({ challengeToken: "challenge.jwt", code: "000000" }, ctx),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
@@ -269,7 +278,7 @@ describe("AuthService", () => {
       jwtService.verifyAsync.mockResolvedValue({ sub: "507f1f77bcf86cd799439011" });
 
       await expect(
-        service.loginTwoFactor({ challengeToken: "full.jwt", code: "123456" }),
+        service.loginTwoFactor({ challengeToken: "full.jwt", code: "123456" }, ctx),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
@@ -277,7 +286,7 @@ describe("AuthService", () => {
       jwtService.verifyAsync.mockRejectedValue(new Error("expired"));
 
       await expect(
-        service.loginTwoFactor({ challengeToken: "bad.jwt", code: "123456" }),
+        service.loginTwoFactor({ challengeToken: "bad.jwt", code: "123456" }, ctx),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
@@ -290,7 +299,7 @@ describe("AuthService", () => {
       oauthService.fetchIdentity.mockResolvedValue(profile);
       userModelMock.findOne.mockResolvedValueOnce(makeUser({}));
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
     });
 
@@ -301,7 +310,7 @@ describe("AuthService", () => {
         makeUser({ twoFactor: { enabled: true, secret: "enc", pendingSecret: null, backupCodes: [] } }),
       );
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "twofa", challengeToken: "signed.jwt.token" });
     });
 
@@ -314,7 +323,7 @@ describe("AuthService", () => {
         .mockReturnValueOnce({ lean: () => Promise.resolve(null) });
       userModelMock.create.mockResolvedValue(makeUser({ _id: "new-id", username: "new" }));
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
       const created = userModelMock.create.mock.calls[0][0] as { passwordHash: string | null; connectedAccounts: { providerUserId: string }[] };
       expect(created.passwordHash).toBeNull();
@@ -328,7 +337,7 @@ describe("AuthService", () => {
         .mockResolvedValueOnce(null)
         .mockReturnValueOnce({ lean: () => Promise.resolve({ email: "taken@example.com" }) });
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "error", error: "email_exists" });
     });
 
@@ -337,7 +346,7 @@ describe("AuthService", () => {
       oauthService.fetchIdentity.mockResolvedValue(profile);
       userModelMock.findOne.mockResolvedValueOnce(null);
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "error", error: "not_linked" });
     });
 
@@ -348,7 +357,7 @@ describe("AuthService", () => {
       const linkUser = makeUser({ _id: "u-1", connectedAccounts: [] });
       userModelMock.findById.mockResolvedValue(linkUser);
 
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "linked", provider: "google" });
       expect(linkUser.connectedAccounts).toHaveLength(1);
       expect(linkUser.connectedAccounts[0].providerUserId).toBe("sub-42");
@@ -357,7 +366,7 @@ describe("AuthService", () => {
 
     it("returns an error when the state token is invalid", async () => {
       jwtService.verifyAsync.mockRejectedValue(new Error("bad state"));
-      const out = await service.oauthCallback("google", "code", "state");
+      const out = await service.oauthCallback("google", "code", "state", ctx);
       expect(out).toEqual({ kind: "error", error: "expired" });
     });
   });

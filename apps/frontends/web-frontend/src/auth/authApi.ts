@@ -17,7 +17,7 @@ import {
   ForgotPasswordResponseSchema,
   ResetPasswordResponseSchema,
 } from "interfaces-shared-types";
-import { setToken } from "./authStorage";
+import { getToken, setToken } from "./authStorage";
 
 const AUTH_BASE = "/api/auth";
 
@@ -72,6 +72,19 @@ async function resetPassword(payload: ResetPasswordRequest): Promise<ResetPasswo
   return ResetPasswordResponseSchema.parse(data);
 }
 
+async function logout(): Promise<void> {
+  const token = getToken();
+  if (token === null) return;
+  try {
+    await fetch(`${AUTH_BASE}/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+  } catch {
+    // best-effort server revoke; local sign-out proceeds regardless
+  }
+}
+
 function oauthStartUrl(provider: string, intent: "login" | "signup" | "link", token?: string): string {
   const params = new URLSearchParams({ intent });
   if (token !== undefined && token.length > 0) params.set("token", token);
@@ -91,4 +104,4 @@ async function checkAvailability(params: { username?: string; email?: string }):
   return AvailabilityResponseSchema.parse(data);
 }
 
-export { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, checkAvailability, oauthStartUrl };
+export { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, checkAvailability, oauthStartUrl, logout };

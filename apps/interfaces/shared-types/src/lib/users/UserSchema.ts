@@ -145,6 +145,20 @@ const ChangePasswordResponseSchema = z.object({
 });
 type ChangePasswordResponse = z.infer<typeof ChangePasswordResponseSchema>;
 
+const SessionInfoSchema = z.object({
+  id: z.string(),
+  device: z.string(),
+  browser: z.string(),
+  lastActive: z.string(),
+  current: z.boolean(),
+});
+type SessionInfo = z.infer<typeof SessionInfoSchema>;
+
+const SessionListResponseSchema = z.object({
+  sessions: z.array(SessionInfoSchema),
+});
+type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
+
 export {
   UserProfileSchema,
   UpdateUserProfileRequestSchema,
@@ -161,6 +175,8 @@ export {
   ChangeEmailResponseSchema,
   ChangeUsernameResponseSchema,
   ChangePasswordResponseSchema,
+  SessionInfoSchema,
+  SessionListResponseSchema,
 };
 export type {
   UserProfile,
@@ -178,4 +194,6 @@ export type {
   ChangeEmailResponse,
   ChangeUsernameResponse,
   ChangePasswordResponse,
+  SessionInfo,
+  SessionListResponse,
 };

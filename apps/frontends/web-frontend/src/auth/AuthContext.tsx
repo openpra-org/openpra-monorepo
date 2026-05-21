@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { type LoginRequest } from "interfaces-shared-types";
-import { signIn, completeTwoFactor as apiCompleteTwoFactor } from "./authApi";
-import { isLoggedIn, removeToken, getTokenRemainingSeconds, getRoles, decodeToken } from "./authStorage";
+import { signIn, completeTwoFactor as apiCompleteTwoFactor, logout as apiLogout } from "./authApi";
+import { isLoggedIn, removeToken, getTokenRemainingSeconds, getRoles, decodeToken, UNAUTHORIZED_EVENT } from "./authStorage";
 
 interface AuthUser {
   username?: string;
@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
   }, [applyToken]);
 
   const logout = useCallback((): void => {
+    void apiLogout();
     removeToken();
     setUser(null);
   }, []);
@@ -63,6 +64,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
       return () => clearTimeout(id);
     }
   }, [user, logout]);
+
+  useEffect(() => {
+    function handleUnauthorized(): void {
+      setUser(null);
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => { window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized); };
+  }, []);
 
   return <AuthContext.Provider value={{ user, login, completeTwoFactor, adoptSession, logout }}>{children}</AuthContext.Provider>;
 }

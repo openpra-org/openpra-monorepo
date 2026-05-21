@@ -27,6 +27,7 @@ import {
   type MyProfileResponse,
   type NotificationPrefs,
   type PublicUserProfile,
+  type SessionListResponse,
   type TwoFactorDisableRequest,
   type TwoFactorDisableResponse,
   type TwoFactorEnableRequest,
@@ -47,6 +48,7 @@ import {
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { UsersService } from "./users.service";
+import { SessionsService } from "../sessions/sessions.service";
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 const COVER_MAX_BYTES = 10 * 1024 * 1024;
@@ -61,7 +63,10 @@ interface UploadedImage {
 @Controller("users")
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly sessionsService: SessionsService,
+  ) {}
 
   @Get("me")
   @HttpCode(HttpStatus.OK)
@@ -104,7 +109,7 @@ export class UsersController {
     @Body(new ZodValidationPipe(ChangeEmailRequestSchema)) body: ChangeEmailRequest,
     @Req() req: AuthenticatedRequest,
   ): Promise<ChangeEmailResponse> {
-    return this.usersService.changeEmail(req.user!.username, body);
+    return this.usersService.changeEmail(req.user!.username, body, req.user!.jti);
   }
 
   @Patch("me/username")
@@ -113,7 +118,7 @@ export class UsersController {
     @Body(new ZodValidationPipe(ChangeUsernameRequestSchema)) body: ChangeUsernameRequest,
     @Req() req: AuthenticatedRequest,
   ): Promise<ChangeUsernameResponse> {
-    return this.usersService.changeUsername(req.user!.username, body);
+    return this.usersService.changeUsername(req.user!.username, body, req.user!.jti);
   }
 
   @Patch("me/password")
@@ -157,6 +162,29 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ): Promise<UserProfile> {
     return this.usersService.disconnectProvider(req.user!.username, provider);
+  }
+
+  @Get("me/sessions")
+  @HttpCode(HttpStatus.OK)
+  async listSessions(@Req() req: AuthenticatedRequest): Promise<SessionListResponse> {
+    const sessions = await this.sessionsService.listForUser(req.user!.sub, req.user!.jti);
+    return { sessions };
+  }
+
+  @Delete("me/sessions/:id")
+  @HttpCode(HttpStatus.OK)
+  async revokeSession(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<SessionListResponse> {
+    await this.sessionsService.revokeOne(req.user!.sub, id);
+    const sessions = await this.sessionsService.listForUser(req.user!.sub, req.user!.jti);
+    return { sessions };
+  }
+
+  @Delete("me/sessions")
+  @HttpCode(HttpStatus.OK)
+  async revokeOtherSessions(@Req() req: AuthenticatedRequest): Promise<SessionListResponse> {
+    await this.sessionsService.revokeOthers(req.user!.sub, req.user!.jti);
+    const sessions = await this.sessionsService.listForUser(req.user!.sub, req.user!.jti);
+    return { sessions };
   }
 
   @Get("me/prefs/notifications")

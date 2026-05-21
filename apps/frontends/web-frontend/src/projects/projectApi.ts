@@ -11,7 +11,7 @@ import {
   RecentProjectResponseSchema,
   SharedProjectsResponseSchema,
 } from "interfaces-shared-types";
-import { getToken } from "../auth/authStorage";
+import { getToken, onUnauthorized } from "../auth/authStorage";
 
 const PROJECT_BASE = "/api/projects";
 
@@ -37,6 +37,7 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
   const init: RequestInit = { method, headers: authHeaders() };
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await fetch(`${PROJECT_BASE}${path}`, init);
+  if (response.status === 401) { onUnauthorized(); throw new Error("Session expired"); }
   if (!response.ok) throw new Error(await readError(response));
   return response;
 }

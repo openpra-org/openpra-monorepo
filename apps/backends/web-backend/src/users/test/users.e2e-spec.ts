@@ -427,4 +427,30 @@ describe("Users (e2e)", () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe("active sessions", () => {
+    it("lists sessions, revokes others, and logout invalidates the token", async () => {
+      const tokenA = await signupAndLogin(httpServer, { username: "sessie", email: "sessie@example.com" });
+      const secondLogin = await request(httpServer).post("/api/auth/login").send({ identifier: "sessie", password: "hunter2hunter2" });
+      const tokenB = secondLogin.body.token as string;
+
+      const list = await request(httpServer).get("/api/users/me/sessions").set("Authorization", `Bearer ${tokenB}`);
+      expect(list.status).toBe(200);
+      expect(list.body.sessions.length).toBe(2);
+      expect(list.body.sessions.filter((s: { current: boolean }) => s.current).length).toBe(1);
+
+      const revoked = await request(httpServer).delete("/api/users/me/sessions").set("Authorization", `Bearer ${tokenB}`);
+      expect(revoked.status).toBe(200);
+      expect(revoked.body.sessions.length).toBe(1);
+      expect(revoked.body.sessions[0].current).toBe(true);
+
+      const withRevokedToken = await request(httpServer).get("/api/users/me").set("Authorization", `Bearer ${tokenA}`);
+      expect(withRevokedToken.status).toBe(401);
+
+      const logout = await request(httpServer).post("/api/auth/logout").set("Authorization", `Bearer ${tokenB}`);
+      expect(logout.status).toBe(200);
+      const afterLogout = await request(httpServer).get("/api/users/me").set("Authorization", `Bearer ${tokenB}`);
+      expect(afterLogout.status).toBe(401);
+    });
+  });
 });

@@ -6,9 +6,12 @@ import * as argon2 from "argon2";
 import { UsersService } from "../users.service";
 import { StorageService } from "../storage.service";
 import { TwoFactorService } from "../../auth/twoFactor.service";
+import { SessionsService } from "../../sessions/sessions.service";
+import { EventBus } from "../../events/event-bus";
 import { User } from "../user.schema";
 import { Project } from "../../projects/project.schema";
 import { Team } from "../../teams/team.schema";
+import { Notification } from "../../notifications/notification.schema";
 import { OrgsService } from "../../orgs/orgs.service";
 
 interface FakeTwoFactor {
@@ -93,6 +96,9 @@ describe("UsersService", () => {
     hashBackupCodes: jest.Mock;
     findBackupCodeIndex: jest.Mock;
   };
+  let notificationModelMock: { deleteMany: jest.Mock };
+  let sessionsServiceMock: { revokeAllForUser: jest.Mock };
+  let eventBusMock: { emit: jest.Mock };
   let orgsServiceMock: { findOrCreate: jest.Mock };
 
   beforeEach(async () => {
@@ -123,6 +129,9 @@ describe("UsersService", () => {
       hashBackupCodes: jest.fn().mockResolvedValue(["hashA", "hashB"]),
       findBackupCodeIndex: jest.fn().mockResolvedValue(-1),
     };
+    notificationModelMock = { deleteMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(undefined) }) };
+    sessionsServiceMock = { revokeAllForUser: jest.fn().mockResolvedValue(undefined) };
+    eventBusMock = { emit: jest.fn().mockResolvedValue(undefined) };
     orgsServiceMock = {
       findOrCreate: jest.fn().mockImplementation((name: string) =>
         Promise.resolve(name.trim() === "" ? null : { id: "org-id", name: name.trim() }),
@@ -134,9 +143,12 @@ describe("UsersService", () => {
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: getModelToken(Project.name), useValue: projectModelMock },
         { provide: getModelToken(Team.name), useValue: teamModelMock },
+        { provide: getModelToken(Notification.name), useValue: notificationModelMock },
         { provide: JwtService, useValue: jwtServiceMock },
         { provide: StorageService, useValue: storageMock },
         { provide: TwoFactorService, useValue: twoFactorServiceMock },
+        { provide: SessionsService, useValue: sessionsServiceMock },
+        { provide: EventBus, useValue: eventBusMock },
         { provide: OrgsService, useValue: orgsServiceMock },
       ],
     }).compile();
@@ -422,26 +434,78 @@ describe("UsersService", () => {
   });
 
   describe("deleteMyAccount", () => {
-    it("cascades to admin teams + projects + memberships + collaborators", async () => {
+    interface FakeTeam {
+      _id: string;
+      name: string;
+      adminUsername: string;
+      members: string[];
+      leads: string[];
+      avatarKey: string | null;
+      save: jest.Mock;
+      deleteOne: jest.Mock;
+    }
+    function makeTeam(overrides: Partial<FakeTeam> = {}): FakeTeam {
+      return {
+        _id: "team-1",
+        name: "Reactor Team",
+        adminUsername: "ada",
+        members: ["ada"],
+        leads: [],
+        avatarKey: null,
+        save: jest.fn().mockResolvedValue(undefined),
+        deleteOne: jest.fn().mockResolvedValue(undefined),
+        ...overrides,
+      };
+    }
+
+    it("transfers an admin team to the longest-standing lead and cleans up the user", async () => {
       const passwordHash = await argon2.hash("hunter2hunter2");
       const doc = makeUserDoc({ passwordHash });
-      const adminTeam = { deleteOne: jest.fn().mockResolvedValue(undefined) };
+      const team = makeTeam({ members: ["ada", "bob", "carol"], leads: ["bob", "carol"] });
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
-      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([adminTeam, adminTeam]) });
+      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([team]) });
 
       await service.deleteMyAccount("ada", "hunter2hunter2");
 
-      expect(adminTeam.deleteOne).toHaveBeenCalledTimes(2);
-      expect(teamModelMock.updateMany).toHaveBeenCalledWith(
-        { $or: [{ members: "ada" }, { leads: "ada" }, { "invites.username": "ada" }] },
-        { $pull: { members: "ada", leads: "ada", invites: { username: "ada" } } },
-      );
-      expect(projectModelMock.deleteMany).toHaveBeenCalledWith({ ownerUsername: "ada" });
-      expect(projectModelMock.updateMany).toHaveBeenCalledWith(
-        { "sharedUsers.username": "ada" },
-        { $pull: { sharedUsers: { username: "ada" } } },
-      );
+      expect(team.adminUsername).toBe("bob");
+      expect(team.leads).toEqual(["carol"]);
+      expect(team.members).toEqual(["bob", "carol"]);
+      expect(team.save).toHaveBeenCalledTimes(1);
+      expect(team.deleteOne).not.toHaveBeenCalled();
+      expect(eventBusMock.emit).toHaveBeenCalledWith(expect.objectContaining({ type: "team.admin_transferred", target: "bob", actor: "ada" }));
+      expect(sessionsServiceMock.revokeAllForUser).toHaveBeenCalledWith("user-1");
+      expect(notificationModelMock.deleteMany).toHaveBeenCalledWith({ recipientUsername: "ada" });
       expect(doc.deleteOne).toHaveBeenCalledTimes(1);
+    });
+
+    it("transfers to the earliest remaining member when there are no leads", async () => {
+      const passwordHash = await argon2.hash("hunter2hunter2");
+      const doc = makeUserDoc({ passwordHash });
+      const team = makeTeam({ members: ["ada", "bob", "carol"], leads: [] });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([team]) });
+
+      await service.deleteMyAccount("ada", "hunter2hunter2");
+
+      expect(team.adminUsername).toBe("bob");
+      expect(team.deleteOne).not.toHaveBeenCalled();
+    });
+
+    it("deletes the team and its project shares when the admin is the only member", async () => {
+      const passwordHash = await argon2.hash("hunter2hunter2");
+      const doc = makeUserDoc({ passwordHash });
+      const team = makeTeam({ members: ["ada"], leads: [], avatarKey: "teams/t/a.png" });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([team]) });
+
+      await service.deleteMyAccount("ada", "hunter2hunter2");
+
+      expect(team.deleteOne).toHaveBeenCalledTimes(1);
+      expect(storageMock.deleteByKey).toHaveBeenCalledWith("teams/t/a.png");
+      expect(projectModelMock.updateMany).toHaveBeenCalledWith(
+        { "sharedTeams.teamId": "team-1" },
+        { $pull: { sharedTeams: { teamId: "team-1" } } },
+      );
     });
 
     it("throws UnauthorizedException when password is wrong", async () => {
@@ -449,6 +513,17 @@ describe("UsersService", () => {
       const doc = makeUserDoc({ passwordHash });
       userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
       await expect(service.deleteMyAccount("ada", "wrong")).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("deletes a provider-only account without requiring a password", async () => {
+      const doc = makeUserDoc({ passwordHash: null });
+      userModelMock.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(doc) });
+      teamModelMock.find.mockReturnValue({ exec: jest.fn().mockResolvedValue([]) });
+
+      await service.deleteMyAccount("ada", "");
+
+      expect(doc.deleteOne).toHaveBeenCalledTimes(1);
+      expect(sessionsServiceMock.revokeAllForUser).toHaveBeenCalledWith("user-1");
     });
 
     it("also deletes the user's avatar + cover objects from storage", async () => {

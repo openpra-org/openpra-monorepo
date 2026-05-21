@@ -374,6 +374,29 @@ describe("Users (e2e)", () => {
         .send({ currentPassword: "wrong-pass" });
       expect(res.status).toBe(401);
     });
+
+    it("transfers a team to the remaining member when its sole admin deletes their account", async () => {
+      const adminToken = await signupAndLogin(httpServer, { username: "leaver", email: "leaver@example.com" });
+      const created = await request(httpServer)
+        .post("/api/teams")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ name: "Handover Team", visibility: "public" });
+      const teamId = created.body.id as string;
+
+      const memberToken = await signupAndLogin(httpServer, { username: "heir", email: "heir@example.com" });
+      const join = await request(httpServer).post(`/api/teams/${teamId}/join`).set("Authorization", `Bearer ${memberToken}`);
+      expect(join.status).toBe(200);
+
+      const del = await request(httpServer)
+        .delete("/api/users/me")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ currentPassword: "hunter2hunter2" });
+      expect(del.status).toBe(204);
+
+      const team = await request(httpServer).get(`/api/teams/${teamId}`).set("Authorization", `Bearer ${memberToken}`);
+      expect(team.status).toBe(200);
+      expect(team.body.adminUsername).toBe("heir");
+    });
   });
 
   describe("GET /api/users/search", () => {

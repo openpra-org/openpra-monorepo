@@ -22,8 +22,11 @@ import type {
 import { User, type UserDocument } from "./user.schema";
 import { Project, type ProjectDocument } from "../projects/project.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
+import { Notification, type NotificationDocument } from "../notifications/notification.schema";
 import { StorageService } from "./storage.service";
 import { TwoFactorService } from "../auth/twoFactor.service";
+import { SessionsService } from "../sessions/sessions.service";
+import { EventBus } from "../events/event-bus";
 import { OrgsService } from "../orgs/orgs.service";
 
 const AVATAR_FOLDER = "avatars";
@@ -118,9 +121,12 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Project.name) private readonly projectModel: Model<ProjectDocument>,
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
+    @InjectModel(Notification.name) private readonly notificationModel: Model<NotificationDocument>,
     private readonly jwtService: JwtService,
     private readonly storage: StorageService,
     private readonly twoFactorService: TwoFactorService,
+    private readonly sessionsService: SessionsService,
+    private readonly eventBus: EventBus,
     private readonly orgsService: OrgsService,
   ) {}
 
@@ -308,13 +314,35 @@ export class UsersService {
   async deleteMyAccount(username: string, currentPassword: string): Promise<void> {
     const doc = await this.userModel.findOne({ username }).exec();
     if (!doc) throw new NotFoundException("User not found");
-    if (doc.passwordHash === null) throw new UnauthorizedException("No password is set on this account");
-    const valid = await argon2.verify(doc.passwordHash, currentPassword);
-    if (!valid) throw new UnauthorizedException("Current password is incorrect");
+    if (doc.passwordHash !== null) {
+      const valid = await argon2.verify(doc.passwordHash, currentPassword);
+      if (!valid) throw new UnauthorizedException("Current password is incorrect");
+    }
+
     const adminTeams = await this.teamModel.find({ adminUsername: username }).exec();
     for (const team of adminTeams) {
-      await team.deleteOne();
+      const successor = team.leads.find((u) => u !== username) ?? team.members.find((u) => u !== username) ?? null;
+      if (successor === null) {
+        const teamId = String(team._id);
+        const avatarKey = team.avatarKey;
+        await team.deleteOne();
+        await this.storage.deleteByKey(avatarKey);
+        await this.projectModel.updateMany({ "sharedTeams.teamId": teamId }, { $pull: { sharedTeams: { teamId } } });
+      } else {
+        team.adminUsername = successor;
+        team.leads = team.leads.filter((u) => u !== successor && u !== username);
+        team.members = team.members.filter((u) => u !== username);
+        await team.save();
+        await this.eventBus.emit({
+          type: "team.admin_transferred",
+          teamId: String(team._id),
+          teamName: team.name,
+          actor: username,
+          target: successor,
+        });
+      }
     }
+
     await this.teamModel.updateMany(
       { $or: [{ members: username }, { leads: username }, { "invites.username": username }] },
       { $pull: { members: username, leads: username, invites: { username } } },
@@ -324,6 +352,8 @@ export class UsersService {
       { "sharedUsers.username": username },
       { $pull: { sharedUsers: { username } } },
     );
+    await this.sessionsService.revokeAllForUser(String(doc._id));
+    await this.notificationModel.deleteMany({ recipientUsername: username }).exec();
     await this.storage.deleteByKey(doc.avatarKey);
     await this.storage.deleteByKey(doc.coverKey);
     await doc.deleteOne();

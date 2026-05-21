@@ -358,6 +358,7 @@ function SettingsPage(): JSX.Element {
           onCancel={() => { if (!mutating) setDeleteOpen(false); }}
           onConfirm={handleDeleteAccountConfirm}
           pending={mutating}
+          hasPassword={profile?.hasPassword ?? true}
         />
       )}
 

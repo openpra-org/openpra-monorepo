@@ -85,4 +85,8 @@ export class SessionsService {
   async revokeByJti(jti: string): Promise<void> {
     await this.sessionModel.deleteOne({ jti }).exec();
   }
+
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.sessionModel.deleteMany({ userId }).exec();
+  }
 }

@@ -3,6 +3,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { User, UserSchema } from "./user.schema";
 import { Project, ProjectSchema } from "../projects/project.schema";
 import { Team, TeamSchema } from "../teams/team.schema";
+import { Notification, NotificationSchema } from "../notifications/notification.schema";
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { StorageModule } from "./storage.module";
@@ -15,6 +16,7 @@ import { AuthModule } from "../auth/auth.module";
       { name: User.name, schema: UserSchema },
       { name: Project.name, schema: ProjectSchema },
       { name: Team.name, schema: TeamSchema },
+      { name: Notification.name, schema: NotificationSchema },
     ]),
     OrgsModule,
     StorageModule,

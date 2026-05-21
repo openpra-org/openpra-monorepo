@@ -5,7 +5,7 @@ import { DeleteAccountModal } from "../deleteAccountModal";
 describe("DeleteAccountModal", () => {
   it("keeps the Delete button disabled until DELETE is typed AND password is filled", async () => {
     const onConfirm = jest.fn();
-    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={onConfirm} pending={false} />);
+    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={onConfirm} pending={false} hasPassword />);
     const confirmInput = screen.getByLabelText(/type delete to confirm/i);
     const pwInput = screen.getByLabelText(/current password/i);
     const danger = screen.getByRole("button", { name: /delete my account/i });
@@ -19,7 +19,7 @@ describe("DeleteAccountModal", () => {
 
   it("calls onConfirm with the password when submitted", async () => {
     const onConfirm = jest.fn();
-    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={onConfirm} pending={false} />);
+    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={onConfirm} pending={false} hasPassword />);
     await userEvent.type(screen.getByLabelText(/type delete to confirm/i), "DELETE");
     await userEvent.type(screen.getByLabelText(/current password/i), "hunter2hunter2");
     await userEvent.click(screen.getByRole("button", { name: /delete my account/i }));
@@ -27,9 +27,21 @@ describe("DeleteAccountModal", () => {
   });
 
   it("does not enable the button when confirm text is different case", async () => {
-    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={() => undefined} pending={false} />);
+    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={() => undefined} pending={false} hasPassword />);
     await userEvent.type(screen.getByLabelText(/type delete to confirm/i), "delete");
     await userEvent.type(screen.getByLabelText(/current password/i), "hunter2hunter2");
     expect(screen.getByRole("button", { name: /delete my account/i })).toBeDisabled();
+  });
+
+  it("for a provider-only account, needs only DELETE and confirms with no password", async () => {
+    const onConfirm = jest.fn();
+    render(<DeleteAccountModal onCancel={() => undefined} onConfirm={onConfirm} pending={false} hasPassword={false} />);
+    expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument();
+    const danger = screen.getByRole("button", { name: /delete my account/i });
+    expect(danger).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/type delete to confirm/i), "DELETE");
+    expect(danger).toBeEnabled();
+    await userEvent.click(danger);
+    expect(onConfirm).toHaveBeenCalledWith("");
   });
 });

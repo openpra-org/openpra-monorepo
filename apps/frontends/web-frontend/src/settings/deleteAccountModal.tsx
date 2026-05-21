@@ -7,10 +7,12 @@ function DeleteAccountModal({
   onCancel,
   onConfirm,
   pending,
+  hasPassword,
 }: {
   onCancel: () => void;
   onConfirm: (currentPassword: string) => void;
   pending: boolean;
+  hasPassword: boolean;
 }): JSX.Element {
   const [confirmText, setConfirmText] = useState("");
   const [password, setPassword] = useState("");
@@ -29,12 +31,12 @@ function DeleteAccountModal({
     return () => { document.removeEventListener("keydown", onKey); };
   }, [onCancel, pending]);
 
-  const canDelete = confirmText === CONFIRM_TOKEN && password.length > 0 && !pending;
+  const canDelete = confirmText === CONFIRM_TOKEN && (!hasPassword || password.length > 0) && !pending;
 
   function submit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
     if (!canDelete) return;
-    onConfirm(password);
+    onConfirm(hasPassword ? password : "");
   }
 
   return (
@@ -65,7 +67,7 @@ function DeleteAccountModal({
               <ul className="st__danger-list">
                 <li>Your user account and profile</li>
                 <li>All projects you own (collaborators lose access)</li>
-                <li>All teams you admin (members lose access)</li>
+                <li>Teams you admin pass to another member, or are deleted if you're the only one</li>
                 <li>Your memberships in other teams</li>
               </ul>
             </div>
@@ -82,18 +84,20 @@ function DeleteAccountModal({
                 disabled={pending}
               />
             </div>
-            <div className="field">
-              <label className="field__label" htmlFor="da-pw">Current password</label>
-              <input
-                id="da-pw"
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); }}
-                className="field__input"
-                autoComplete="current-password"
-                disabled={pending}
-              />
-            </div>
+            {hasPassword && (
+              <div className="field">
+                <label className="field__label" htmlFor="da-pw">Current password</label>
+                <input
+                  id="da-pw"
+                  type="password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); }}
+                  className="field__input"
+                  autoComplete="current-password"
+                  disabled={pending}
+                />
+              </div>
+            )}
           </div>
           <div className="modal__foot">
             <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={pending}>Cancel</button>

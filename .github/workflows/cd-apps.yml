@@ -170,6 +170,12 @@ jobs:
             "openpra-apps-${{ steps.vars.outputs.branch_slug }}"
           echo "Deployed openpra-apps-${{ steps.vars.outputs.branch_slug }} to https://${{ steps.vars.outputs.host_url }}"
 
+      - name: Roll base-image services onto the loaded images
+        run: |
+          SLUG="${{ steps.vars.outputs.branch_slug }}"
+          docker service update --force --no-resolve-image "openpra-apps-${SLUG}_mongodb"
+          docker service update --force --no-resolve-image "openpra-apps-${SLUG}_minio"
+
       - name: Check deployment status
         run: |
           sleep 30

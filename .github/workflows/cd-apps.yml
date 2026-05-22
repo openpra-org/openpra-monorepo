@@ -79,6 +79,15 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
+      - name: Mirror base images into private registry
+        run: |
+          docker pull mongo:latest
+          docker tag mongo:latest "${REGISTRY}/openpra-apps-mongo:latest"
+          docker push "${REGISTRY}/openpra-apps-mongo:latest"
+          docker pull minio/minio:latest
+          docker tag minio/minio:latest "${REGISTRY}/openpra-apps-minio:latest"
+          docker push "${REGISTRY}/openpra-apps-minio:latest"
+
       - name: Build and push backend image
         uses: docker/build-push-action@v6
         with:
@@ -131,6 +140,8 @@ jobs:
           HOST_URL: ${{ steps.vars.outputs.host_url }}
           IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.branch_slug }}
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.branch_slug }}
+          IMAGE_MONGO: ${{ env.REGISTRY }}/openpra-apps-mongo:latest
+          IMAGE_MINIO: ${{ env.REGISTRY }}/openpra-apps-minio:latest
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.APPS_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.APPS_GOOGLE_CLIENT_SECRET }}

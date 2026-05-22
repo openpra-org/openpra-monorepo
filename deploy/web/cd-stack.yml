@@ -27,7 +27,7 @@ x-base-replicated: &shared-replicated
 
 services:
   mongodb:
-    image: mongo:latest
+    image: ${IMAGE_MONGO}
     networks:
       - app_net
     volumes:
@@ -44,7 +44,7 @@ services:
         max_attempts: 3
 
   minio:
-    image: minio/minio:latest
+    image: ${IMAGE_MINIO}
     command: ["server", "/data", "--console-address", ":9001"]
     networks:
       - app_net

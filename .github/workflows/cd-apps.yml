@@ -1,0 +1,151 @@
+name: "CD: Deploy Web App (apps/)"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - revamp
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: registry.openpra.org
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install dependencies
+        run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
+
+      - name: Build apps
+        env:
+          NX_NO_CLOUD: "true"
+        run: |
+          npx -y pnpm@10.19.0 nx build backends-web-backend --configuration=production
+          npx -y pnpm@10.19.0 nx build frontends-web-frontend --configuration=production
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          BRANCH_SLUG="${GITHUB_REF_NAME}"
+          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
+          echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare backend build context
+        run: |
+          mkdir -p docker-context/web-backend
+          cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
+          cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
+          node -e '
+            const fs = require("fs");
+            const path = "docker-context/web-backend/package.json";
+            const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+            for (const key of ["dependencies", "devDependencies"]) {
+              if (!pkg[key]) continue;
+              for (const [name, version] of Object.entries({ ...pkg[key] })) {
+                if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
+              }
+            }
+            delete pkg.devDependencies;
+            fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
+          '
+          cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
+
+      - name: Prepare frontend build context
+        run: |
+          mkdir -p docker-context/web-frontend/html
+          cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
+          cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
+          cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
+
+      - name: Log in to self-hosted registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/web-backend
+          file: docker-context/web-backend/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.prep.outputs.branch_slug }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/web-frontend
+          file: docker-context/web-frontend/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.branch_slug }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: gaia1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine deployment vars
+        id: vars
+        run: |
+          BRANCH_SLUG="${GITHUB_REF_NAME}"
+          BRANCH_SLUG="${BRANCH_SLUG//\//-}"
+          echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
+          echo "host_url=${BRANCH_SLUG}-dev.openpra.org" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to self-hosted registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Deploy to Docker Swarm
+        env:
+          APP_NAME: openpra-apps-${{ steps.vars.outputs.branch_slug }}
+          HOST_URL: ${{ steps.vars.outputs.host_url }}
+          IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.branch_slug }}
+          IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.branch_slug }}
+          JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.APPS_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.APPS_GOOGLE_CLIENT_SECRET }}
+          GITHUB_CLIENT_ID: ${{ secrets.APPS_GH_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.APPS_GH_CLIENT_SECRET }}
+          RESEND_API_KEY: ${{ secrets.APPS_RESEND_API_KEY }}
+          TFA_ENC_KEY: ${{ secrets.APPS_TFA_ENC_KEY }}
+        run: |
+          docker stack deploy \
+            --with-registry-auth \
+            --compose-file deploy/web/cd-stack.yml \
+            "openpra-apps-${{ steps.vars.outputs.branch_slug }}"
+          echo "Deployed openpra-apps-${{ steps.vars.outputs.branch_slug }} to https://${{ steps.vars.outputs.host_url }}"
+
+      - name: Check deployment status
+        run: |
+          sleep 30
+          docker service ls --filter "label=com.docker.stack.namespace=openpra-apps-${{ steps.vars.outputs.branch_slug }}"

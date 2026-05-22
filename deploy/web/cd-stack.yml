@@ -1,0 +1,152 @@
+version: "3.8"
+
+networks:
+  app_net:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+
+volumes:
+  mongodb_data:
+  minio_data:
+
+x-base-replicated: &shared-replicated
+  mode: replicated
+  update_config:
+    parallelism: 1
+    delay: 5s
+    failure_action: rollback
+    order: stop-first
+    monitor: 60s
+  rollback_config:
+    parallelism: 1
+    delay: 5s
+    failure_action: continue
+    order: stop-first
+
+services:
+  mongodb:
+    image: mongo:latest
+    networks:
+      - app_net
+    volumes:
+      - mongodb_data:/data/db
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    networks:
+      - app_net
+      - traefik-public
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-minio-http.rule=Host(`minio-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-minio-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-minio-http.middlewares=${APP_NAME}-https-redirect"
+        - "traefik.http.routers.${APP_NAME}-minio-http.service=${APP_NAME}-minio"
+        - "traefik.http.routers.${APP_NAME}-minio-https.rule=Host(`minio-${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-minio-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-minio-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-minio-https.service=${APP_NAME}-minio"
+        - "traefik.http.services.${APP_NAME}-minio.loadbalancer.server.port=9000"
+
+  backend:
+    image: ${IMAGE_BACKEND}
+    command: ["node", "main.js"]
+    networks:
+      - app_net
+      - traefik-public
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      MONGO_URI: "mongodb://mongodb:27017/openpra"
+      JWT_SECRET: "${JWT_SECRET?Variable not set}"
+      JWT_EXPIRES_IN: "7d"
+      APP_BASE_URL: "https://${HOST_URL?Variable not set}"
+      OAUTH_CALLBACK_BASE: "https://${HOST_URL?Variable not set}/api"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET}"
+      RESEND_API_KEY: "${RESEND_API_KEY}"
+      MAIL_FROM: "h.h.rasheeq@openpra.org"
+      MAIL_FROM_NAME: "OpenPRA"
+      TFA_ENC_KEY: "${TFA_ENC_KEY?Variable not set}"
+      TFA_ISSUER: "OpenPRA"
+      TFA_TIME_URL: "https://www.google.com/generate_204"
+      MINIO_ENDPOINT: "minio"
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET: "openpra-web"
+      MINIO_PUBLIC_URL: "https://minio-${HOST_URL?Variable not set}"
+    deploy:
+      <<: *shared-replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-backend-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-backend-http.middlewares=${APP_NAME}-https-redirect"
+        - "traefik.http.routers.${APP_NAME}-backend-http.service=${APP_NAME}-backend"
+        - "traefik.http.routers.${APP_NAME}-backend-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${APP_NAME}-backend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-backend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend"
+        - "traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000"
+
+  frontend:
+    image: ${IMAGE_FRONTEND}
+    networks:
+      - app_net
+      - traefik-public
+    deploy:
+      <<: *shared-replicated
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.entrypoints=http"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.middlewares=${APP_NAME}-https-redirect"
+        - "traefik.http.routers.${APP_NAME}-frontend-http.service=${APP_NAME}-frontend"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.rule=Host(`${HOST_URL?Variable not set}`)"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.entrypoints=https"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.tls.certresolver=cloudflare"
+        - "traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend"
+        - "traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.${APP_NAME}-https-redirect.redirectscheme.scheme=https"

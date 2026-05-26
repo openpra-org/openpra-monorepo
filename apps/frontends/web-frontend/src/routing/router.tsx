@@ -10,6 +10,7 @@ import { OAuthCallbackPage } from "../auth/oauthCallback";
 import { ResetPasswordPage } from "../auth/resetPassword";
 import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
+import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -48,6 +49,14 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <ProjectsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/projects/:id",
+    element: (
+      <ProtectedRoute>
+        <ProjectWorkspacePage />
       </ProtectedRoute>
     ),
   },

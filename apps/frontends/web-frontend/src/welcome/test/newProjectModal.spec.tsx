@@ -21,6 +21,8 @@ function projectResponse(name: string, overrides: Record<string, unknown> = {}):
       progress: 0,
       pinned: false,
       state: "active",
+      pageLayout: "modern",
+      version: 1,
       updatedAt: new Date().toISOString(),
       ...overrides,
     }),
@@ -63,7 +65,7 @@ describe("NewProjectModal", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("posts to /api/projects with just name and mode when submitting a valid form", async () => {
+  it("posts to /api/projects with name, mode and the chosen layout when submitting a valid form", async () => {
     fetchMock.mockResolvedValueOnce(projectResponse("Real Project Name"));
 
     const { onCreated } = renderModal();
@@ -77,7 +79,7 @@ describe("NewProjectModal", () => {
       );
     });
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-    expect(body).toEqual({ name: "Real Project Name", mode: "internal-events" });
+    expect(body).toEqual({ name: "Real Project Name", mode: "internal-events", pageLayout: "modern" });
     await waitFor(() => { expect(onCreated).toHaveBeenCalledTimes(1); });
   });
 

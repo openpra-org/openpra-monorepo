@@ -1,0 +1,157 @@
+.layout-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.layout-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-low);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.layout-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.layout-card--checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.layout-card__radio-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.layout-card__preview {
+  display: block;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-to);
+}
+
+.layout-card__wire {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.layout-card__wire-bar {
+  fill: var(--color-bg-from);
+}
+
+.layout-card__wire-h {
+  fill: var(--color-text);
+  opacity: 0.65;
+}
+
+.layout-card__wire-card,
+.layout-card__wire-rail,
+.layout-card__wire-row,
+.layout-card__wire-nav {
+  fill: var(--color-surface);
+  stroke: var(--color-border);
+  stroke-width: 0.6;
+}
+
+.layout-card__wire-rail {
+  fill: var(--color-surface);
+}
+
+.layout-card__wire-rail-active {
+  fill: var(--color-primary-tint);
+  stroke: var(--color-primary);
+  stroke-width: 0.6;
+}
+
+.layout-card__wire-modal {
+  fill: var(--color-surface);
+  stroke: var(--color-primary);
+  stroke-width: 1;
+  filter: drop-shadow(0 4px 8px rgba(29, 25, 43, 0.18));
+}
+
+.layout-card__wire-modal-h {
+  fill: var(--color-text);
+  opacity: 0.7;
+}
+
+.layout-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.layout-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-card__title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.layout-card__tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.layout-card--checked .layout-card__tag {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.layout-card__tick {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.layout-card__tick svg {
+  width: 12px;
+  height: 12px;
+}
+
+.layout-card--checked .layout-card__tick {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+@media (max-width: 560px) {
+  .layout-picker {
+    grid-template-columns: 1fr;
+  }
+}

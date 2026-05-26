@@ -1,6 +1,7 @@
 import { JSX, useEffect, useRef, useState, FormEvent } from "react";
 import {
   type CreateProjectRequest,
+  type PageLayout,
   type Project,
   type RiskMode,
   CreateProjectRequestSchema,
@@ -9,6 +10,7 @@ import {
 } from "interfaces-shared-types";
 import { ArrowRightIcon, CloseIcon } from "./icons";
 import { createProject } from "../projects/projectApi";
+import { LayoutPicker } from "../projects/layoutPicker";
 import "./css/newProjectModal.css";
 
 function NewProjectModal({
@@ -22,6 +24,7 @@ function NewProjectModal({
 }): JSX.Element {
   const [name, setName] = useState("");
   const [mode, setMode] = useState<RiskMode>("internal-events");
+  const [pageLayout, setPageLayout] = useState<PageLayout>("modern");
   const [nameErr, setNameErr] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -41,7 +44,7 @@ function NewProjectModal({
 
   function submit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    const candidate: CreateProjectRequest = { name: name.trim(), mode };
+    const candidate: CreateProjectRequest = { name: name.trim(), mode, pageLayout };
     const parsed = CreateProjectRequestSchema.safeParse(candidate);
     if (!parsed.success) {
       const issue = parsed.error.issues.find((i) => i.path[0] === "name");
@@ -67,9 +70,6 @@ function NewProjectModal({
         <div className="modal__head">
           <div>
             <h2 className="modal__title" id="np-title">Create a new project</h2>
-            <p className="modal__sub">
-              Name your analysis and choose a risk mode. You can configure technical elements inside the project.
-            </p>
           </div>
           <button type="button" className="modal__close" onClick={onClose} aria-label="Close">
             <CloseIcon />
@@ -79,7 +79,7 @@ function NewProjectModal({
           <div className="modal__body">
             <div className="field">
               <label className="field__label" htmlFor="np-name">Project name</label>
-              <div className="field__hint">At least 3 characters. E.g. &quot;Unit 2 — Internal Events Baseline&quot;</div>
+              <div className="field__hint">At least 3 characters.</div>
               <input
                 ref={nameRef}
                 id="np-name"
@@ -121,12 +121,17 @@ function NewProjectModal({
                           <span className="mode__name">{m.name}</span>
                           <span className="mode__count">{count} elements</span>
                         </span>
-                        <p className="mode__desc">{m.desc}</p>
                       </span>
                     </label>
                   );
                 })}
               </div>
+            </div>
+
+            <div className="field">
+              <label className="field__label">Workspace layout</label>
+              <div className="field__hint">You can switch this later from the project workspace.</div>
+              <LayoutPicker value={pageLayout} onChange={setPageLayout} />
             </div>
           </div>
           <div className="modal__foot">

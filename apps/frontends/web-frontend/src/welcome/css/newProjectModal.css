@@ -247,13 +247,6 @@
   border-color: var(--color-primary);
 }
 
-.mode__desc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
 @media (max-width: 560px) {
   .modal__head,
   .modal__body,

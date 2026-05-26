@@ -20,6 +20,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     ],
     pinned: false,
     state: "active",
+    pageLayout: "modern",
+    version: 1,
     status: {
       POS: "baseline", IE: "baseline", ES: "baseline",
       SC: "in-progress", SY: "in-progress",

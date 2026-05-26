@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
-import type { ProjectShareRole, ProjectState, ProjectStatus, ProjectStatusMap, RiskMode } from "interfaces-shared-types";
+import type { PageLayout, ProjectShareRole, ProjectState, ProjectStatus, ProjectStatusMap, RiskMode } from "interfaces-shared-types";
 
 export interface ProjectTeamShare {
   teamId: string;
@@ -48,6 +48,12 @@ export class Project {
 
   @Prop({ type: String, default: "active", index: true })
   state!: ProjectState;
+
+  @Prop({ type: String, default: "modern" })
+  pageLayout!: PageLayout;
+
+  @Prop({ type: Number, default: 1 })
+  version!: number;
 }
 
 export const ProjectSchema = SchemaFactory.createForClass(Project);

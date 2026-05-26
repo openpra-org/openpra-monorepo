@@ -4,6 +4,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AuthModule } from "./auth/auth.module";
 import { OrgsModule } from "./orgs/orgs.module";
 import { ProjectsModule } from "./projects/projects.module";
+import { WorkbooksModule } from "./workbooks/workbooks.module";
 import { TeamsModule } from "./teams/teams.module";
 import { UsersModule } from "./users/users.module";
 import { EventsModule } from "./events/events.module";
@@ -25,6 +26,7 @@ import { SessionsModule } from "./sessions/sessions.module";
     UsersModule,
     OrgsModule,
     ProjectsModule,
+    WorkbooksModule,
     TeamsModule,
     NotificationsModule,
     AuditModule,

@@ -37,9 +37,6 @@ function WelcomePage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  function comingSoon(label: string): void {
-    addToast({ id: crypto.randomUUID(), type: "info", message: `${label} — coming soon` });
-  }
 
   function handleCreated(project: Project): void {
     setRecent(project);
@@ -77,7 +74,7 @@ function WelcomePage(): JSX.Element {
                 {recent !== null && (
                   <RecentProjectCard
                     project={recent}
-                    onContinue={() => { comingSoon("Project workspace"); }}
+                    onContinue={() => { navigate(`/projects/${recent.id}`); }}
                     onViewAll={() => { navigate("/projects"); }}
                   />
                 )}
@@ -95,7 +92,7 @@ function WelcomePage(): JSX.Element {
                       <SharedProjectCard
                         key={p.id}
                         project={p}
-                        onOpen={() => { comingSoon(`Open ${p.name}`); }}
+                        onOpen={() => { navigate(`/projects/${p.id}`); }}
                       />
                     ))}
                   </div>

@@ -82,10 +82,6 @@ function ProjectsPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
-  function comingSoon(label: string): void {
-    addToast({ id: crypto.randomUUID(), type: "info", message: `${label} — coming soon` });
-  }
-
   function flashSuccess(message: string): void {
     addToast({ id: crypto.randomUUID(), type: "success", message });
   }
@@ -206,7 +202,7 @@ function ProjectsPage(): JSX.Element {
     onDelete: () => void;
   } {
     return {
-      onOpen: () => { comingSoon("Workspace"); },
+      onOpen: () => { navigate(`/projects/${project.id}`); },
       onTogglePin: () => { void handleTogglePin(project); },
       onRename: () => { setRenameTarget(project); },
       onDuplicate: () => { void handleDuplicate(project); },
@@ -226,10 +222,9 @@ function ProjectsPage(): JSX.Element {
     onDelete: () => void;
     readOnly: boolean;
   } {
-    void project;
     const noop = (): void => undefined;
     return {
-      onOpen: () => { comingSoon("Workspace"); },
+      onOpen: () => { navigate(`/projects/${project.id}`); },
       onTogglePin: noop,
       onRename: noop,
       onDuplicate: noop,

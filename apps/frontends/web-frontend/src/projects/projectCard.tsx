@@ -82,19 +82,6 @@ function ProjectCard(props: ProjectCardProps): JSX.Element {
         </div>
       </div>
 
-      <div className="pcard__dots" aria-label="Technical element status">
-        {elements.map((e) => {
-          const status = project.status[e.code] ?? "not-started";
-          return (
-            <span
-              key={e.code}
-              className={`pcard__dot pcard__dot--${status}`}
-              title={`${e.code} · ${e.name}`}
-            />
-          );
-        })}
-      </div>
-
       <div className="pcard__foot">
         <span className="pcard__foot-item">
           <ClockIcon /> Edited {formatRelative(project.updatedAt)}

@@ -100,6 +100,8 @@ function toDto(doc: ProjectDocument, viewer: string, maps: ResolverMaps): Projec
     progress: computeProgress(status, mode),
     pinned: doc.pinned,
     state: doc.state,
+    pageLayout: doc.pageLayout ?? "modern",
+    version: doc.version ?? 1,
     updatedAt: updatedAt.toISOString(),
   };
 }
@@ -137,6 +139,7 @@ export class ProjectsService {
       status: initialStatus,
       pinned: false,
       state: "active",
+      pageLayout: payload.pageLayout ?? "modern",
     });
     return toDto(created, acting.username, await this.buildMaps([created], acting.username));
   }
@@ -185,11 +188,22 @@ export class ProjectsService {
     return toDto(doc, acting.username, maps);
   }
 
+  async resolveAccess(id: string, acting: ActingUser): Promise<{ doc: ProjectDocument; role: ProjectAccessRole }> {
+    if (!isValidObjectId(id)) throw new NotFoundException("Project not found");
+    const doc = await this.projectModel.findById(id).exec();
+    if (!doc) throw new NotFoundException("Project not found");
+    const maps = await this.buildSharedMaps(acting.username);
+    const role = computeRole(doc, acting.username, maps.myTeamIds);
+    if (role === null) throw new NotFoundException("Project not found");
+    return { doc, role };
+  }
+
   async updateProject(id: string, payload: UpdateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
     const doc = await this.findOwned(id, acting);
     if (payload.name !== undefined) doc.name = payload.name;
     if (payload.pinned !== undefined) doc.pinned = payload.pinned;
     if (payload.state !== undefined) doc.state = payload.state;
+    if (payload.pageLayout !== undefined) doc.pageLayout = payload.pageLayout;
     await doc.save();
     return toDto(doc, acting.username, await this.buildMaps([doc], acting.username));
   }
@@ -206,6 +220,7 @@ export class ProjectsService {
       status: { ...original.status },
       pinned: false,
       state: "active",
+      pageLayout: original.pageLayout ?? "modern",
     });
     return toDto(created, acting.username, await this.buildMaps([created], acting.username));
   }

@@ -10,6 +10,9 @@ type ProjectShareRole = z.infer<typeof ProjectShareRoleSchema>;
 const ProjectAccessRoleSchema = z.enum(["owner", "editor", "viewer"]);
 type ProjectAccessRole = z.infer<typeof ProjectAccessRoleSchema>;
 
+const PageLayoutSchema = z.enum(["modern", "legacy"]);
+type PageLayout = z.infer<typeof PageLayoutSchema>;
+
 const ProjectTeamShareSchema = z.object({
   teamId: z.string(),
   teamName: z.string(),
@@ -40,6 +43,8 @@ const ProjectSchema = z.object({
   progress: z.number().min(0).max(1),
   pinned: z.boolean(),
   state: ProjectStateSchema,
+  pageLayout: PageLayoutSchema,
+  version: z.number().int().positive(),
   updatedAt: z.string(),
 });
 type Project = z.infer<typeof ProjectSchema>;
@@ -47,6 +52,7 @@ type Project = z.infer<typeof ProjectSchema>;
 const CreateProjectRequestSchema = z.object({
   name: z.string().trim().min(3, "Project name must be at least 3 characters"),
   mode: RiskModeSchema,
+  pageLayout: PageLayoutSchema.optional(),
 });
 type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 
@@ -55,9 +61,14 @@ const UpdateProjectRequestSchema = z
     name: z.string().trim().min(3, "Project name must be at least 3 characters").optional(),
     pinned: z.boolean().optional(),
     state: ProjectStateSchema.optional(),
+    pageLayout: PageLayoutSchema.optional(),
   })
   .refine(
-    (data) => data.name !== undefined || data.pinned !== undefined || data.state !== undefined,
+    (data) =>
+      data.name !== undefined ||
+      data.pinned !== undefined ||
+      data.state !== undefined ||
+      data.pageLayout !== undefined,
     { message: "At least one field is required" },
   );
 type UpdateProjectRequest = z.infer<typeof UpdateProjectRequestSchema>;
@@ -98,6 +109,7 @@ export {
   ProjectStatusMapSchema,
   ProjectShareRoleSchema,
   ProjectAccessRoleSchema,
+  PageLayoutSchema,
   ProjectTeamShareSchema,
   ProjectUserShareSchema,
   ProjectSchema,
@@ -114,6 +126,7 @@ export type {
   ProjectStatusMap,
   ProjectShareRole,
   ProjectAccessRole,
+  PageLayout,
   ProjectTeamShareEntry,
   ProjectUserShareEntry,
   Project,

@@ -22,6 +22,8 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     progress: 2 / 11,
     pinned: false,
     state: "active",
+    pageLayout: "modern",
+    version: 1,
     updatedAt: new Date().toISOString(),
     ...overrides,
   };

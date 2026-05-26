@@ -129,6 +129,7 @@ jobs:
           BRANCH_SLUG="${GITHUB_REF_NAME}"
           BRANCH_SLUG="${BRANCH_SLUG//\//-}"
           echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "host_url=${BRANCH_SLUG}-dev.openpra.org" >> "$GITHUB_OUTPUT"
 
       - name: Log in to self-hosted registry
@@ -151,8 +152,8 @@ jobs:
         env:
           APP_NAME: openpra-apps-${{ steps.vars.outputs.branch_slug }}
           HOST_URL: ${{ steps.vars.outputs.host_url }}
-          IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.branch_slug }}
-          IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.branch_slug }}
+          IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.short_sha }}
+          IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
           IMAGE_MONGO: mongo:latest
           IMAGE_MINIO: minio/minio:latest
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}

@@ -11,6 +11,7 @@ import { ResetPasswordPage } from "../auth/resetPassword";
 import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
 import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
+import { PosDemoPage } from "../pos-demo/posDemoPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -57,6 +58,14 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <ProjectWorkspacePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/pos-demo",
+    element: (
+      <ProtectedRoute>
+        <PosDemoPage />
       </ProtectedRoute>
     ),
   },

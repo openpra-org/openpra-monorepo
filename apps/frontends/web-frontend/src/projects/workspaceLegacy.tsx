@@ -1,22 +1,14 @@
 import { JSX, useMemo, useState } from "react";
-import { type Project, type ToolId, type Workbook, elementsForMode, toolsForElement } from "interfaces-shared-types";
+import { type Project, type Workbook, elementsForMode } from "interfaces-shared-types";
 import { ArrowLeftIcon, ClockIcon, FolderIcon, SettingsIcon } from "../welcome/icons";
 import { formatRelative } from "../welcome/formatRelative";
-import { LegacyToolPane } from "../workbooks/legacyToolPane";
+import { LegacyElementPane } from "../workbooks/legacyElementPane";
 import { KebabMenu } from "./kebabMenu";
 import { elementVisualStatus } from "./elementRow";
 
-function ChevronIcon(): JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18l6-6-6-6" />
-    </svg>
-  );
-}
-
-interface ActiveTool {
-  element: { code: string; name: string };
-  tool: { id: ToolId; name: string };
+interface ActiveElement {
+  code: string;
+  name: string;
 }
 
 function WorkspaceLegacy({
@@ -49,68 +41,33 @@ function WorkspaceLegacy({
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
   const readOnly = project.myRole === "viewer";
 
-  const defaultActive = useMemo<ActiveTool | null>(() => {
-    for (const el of elements) {
-      const tools = toolsForElement(el.code);
-      if (tools.length > 0) {
-        return { element: { code: el.code, name: el.name }, tool: { id: tools[0].id, name: tools[0].name } };
-      }
-    }
-    return null;
-  }, [elements]);
-
-  const [active, setActive] = useState<ActiveTool | null>(defaultActive);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(
-    defaultActive !== null ? { [defaultActive.element.code]: true } : {},
+  const defaultActive = useMemo<ActiveElement | null>(
+    () => (elements.length > 0 ? { code: elements[0].code, name: elements[0].name } : null),
+    [elements],
   );
-
-  function toggle(code: string): void {
-    setExpanded((prev) => ({ ...prev, [code]: !prev[code] }));
-  }
+  const [active, setActive] = useState<ActiveElement | null>(defaultActive);
 
   return (
     <div className="lgl">
-      <aside className="lgl__rail" aria-label="Technical elements and tools">
+      <aside className="lgl__rail" aria-label="Technical elements">
         <div className="lgl__rail-head">
           <span className="lgl__rail-eyebrow">Technical elements</span>
           <span className="lgl__rail-count">{elements.length}</span>
         </div>
         <nav className="lgl__nav">
           {elements.map((el) => {
-            const tools = toolsForElement(el.code);
-            const open = expanded[el.code] === true;
             const vstatus = elementVisualStatus(project.status[el.code]);
+            const isActive = active !== null && active.code === el.code;
             return (
-              <div className={`lgl__elgroup lgl__elgroup--${vstatus}`} key={el.code}>
-                <button type="button" className="lgl__elhead" onClick={() => { toggle(el.code); }} aria-expanded={open}>
-                  <span className={`lgl__elhead-chev${open ? " lgl__elhead-chev--open" : ""}`}><ChevronIcon /></span>
-                  <span className={`lgl__elhead-code lgl__elhead-code--${vstatus}`}>{el.code}</span>
-                  <span className="lgl__elhead-name">{el.name}</span>
-                </button>
-                {open && (
-                  <ul className="lgl__tools">
-                    {tools.length > 0 ? (
-                      tools.map((tool) => {
-                        const isActive = active !== null && active.tool.id === tool.id;
-                        return (
-                          <li key={tool.id}>
-                            <button
-                              type="button"
-                              className={`lgl__tool${isActive ? " lgl__tool--active" : ""}`}
-                              onClick={() => { setActive({ element: { code: el.code, name: el.name }, tool: { id: tool.id, name: tool.name } }); }}
-                            >
-                              <span className="lgl__tool-dot" aria-hidden="true" />
-                              <span className="lgl__tool-name">{tool.name}</span>
-                            </button>
-                          </li>
-                        );
-                      })
-                    ) : (
-                      <li className="lgl__tools-empty">No tools yet</li>
-                    )}
-                  </ul>
-                )}
-              </div>
+              <button
+                type="button"
+                key={el.code}
+                className={`lgl__elhead${isActive ? " lgl__elhead--active" : ""}`}
+                onClick={() => { setActive({ code: el.code, name: el.name }); }}
+              >
+                <span className={`lgl__elhead-code lgl__elhead-code--${vstatus}`}>{el.code}</span>
+                <span className="lgl__elhead-name">{el.name}</span>
+              </button>
             );
           })}
         </nav>
@@ -154,10 +111,9 @@ function WorkspaceLegacy({
         </div>
 
         {active !== null ? (
-          <LegacyToolPane
+          <LegacyElementPane
             projectId={project.id}
-            element={active.element}
-            tool={active.tool}
+            element={active}
             readOnly={readOnly}
             onOpenWorkbook={onOpenWorkbook}
             onError={onError}
@@ -165,7 +121,7 @@ function WorkspaceLegacy({
         ) : (
           <div className="lgl__pane-empty">
             <FolderIcon />
-            <p>Pick a tool from the left to see its workbooks.</p>
+            <p>Pick a technical element from the left to see its workbooks.</p>
           </div>
         )}
       </section>

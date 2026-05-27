@@ -39,6 +39,7 @@ export enum BarrierStatus {
   DEGRADED = "DEGRADED",
   BYPASSED = "BYPASSED",
   DEINERTED = "DEINERTED",
+  DRAINED = "DRAINED",
   OPEN = "OPEN",
 }
 
@@ -132,7 +133,7 @@ export interface RadioactiveSource extends Unique, Named {
 }
 
 export interface RadionuclideTransportBarrier extends Unique, Named {
-  status: BarrierStatus;
+  status?: BarrierStatus;
   monitoringParameters: string[];
   breachCriteria: string[];
 }

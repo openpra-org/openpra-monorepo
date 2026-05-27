@@ -121,7 +121,7 @@ export const RadionuclideTransportBarrierSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string().optional(),
-  status: BarrierStatusSchema,
+  status: BarrierStatusSchema.optional(),
   monitoringParameters: z.array(z.string()),
   breachCriteria: z.array(z.string()),
 });

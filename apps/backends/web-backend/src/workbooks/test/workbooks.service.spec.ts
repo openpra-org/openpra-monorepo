@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { Types } from "mongoose";
@@ -13,9 +13,8 @@ function makeWorkbookDoc(overrides: Record<string, unknown> = {}): Record<string
   return {
     _id: new Types.ObjectId().toHexString(),
     projectId: "proj-1",
-    elementCode: "ES",
-    toolId: "event-tree",
-    name: "ET-LOOP",
+    elementCode: "POS",
+    name: "Aurora-1 POS analysis",
     status: "draft",
     version: 1,
     ownerUsername: "ada",
@@ -51,22 +50,16 @@ describe("WorkbooksService", () => {
   });
 
   describe("listWorkbooks", () => {
-    it("returns workbooks scoped to the project, element and tool with computed initials", async () => {
+    it("returns workbooks scoped to the project and element with computed initials", async () => {
       const exec = jest.fn().mockResolvedValue([makeWorkbookDoc()]);
       workbookModelMock.find.mockReturnValue({ sort: () => ({ exec }) });
 
-      const result = await service.listWorkbooks("proj-1", "ES", "event-tree", { username: "ada" });
+      const result = await service.listWorkbooks("proj-1", "POS", { username: "ada" });
 
       expect(projectsServiceMock.resolveAccess).toHaveBeenCalledWith("proj-1", { username: "ada" });
-      expect(workbookModelMock.find).toHaveBeenCalledWith({ projectId: "proj-1", elementCode: "ES", toolId: "event-tree" });
+      expect(workbookModelMock.find).toHaveBeenCalledWith({ projectId: "proj-1", elementCode: "POS" });
       expect(result.workbooks).toHaveLength(1);
       expect(result.workbooks[0].ownerInitials).toBe("AL");
-    });
-
-    it("rejects a tool that does not belong to the element", async () => {
-      await expect(
-        service.listWorkbooks("proj-1", "SY", "event-tree", { username: "ada" }),
-      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -79,7 +72,7 @@ describe("WorkbooksService", () => {
 
       const result = await service.createWorkbook(
         "proj-1",
-        { elementCode: "SY", toolId: "fault-tree", name: "AFW fault tree" },
+        { elementCode: "POS", name: "Aurora-1 POS analysis" },
         { username: "ada" },
       );
 
@@ -87,21 +80,14 @@ describe("WorkbooksService", () => {
       expect(created.status).toBe("draft");
       expect(created.version).toBe(1);
       expect(created.ownerUsername).toBe("ada");
-      expect(result.name).toBe("AFW fault tree");
+      expect(result.name).toBe("Aurora-1 POS analysis");
     });
 
     it("forbids viewers from creating workbooks", async () => {
       projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "viewer" });
       await expect(
-        service.createWorkbook("proj-1", { elementCode: "SY", toolId: "fault-tree", name: "X" }, { username: "bob" }),
+        service.createWorkbook("proj-1", { elementCode: "POS", name: "X" }, { username: "bob" }),
       ).rejects.toBeInstanceOf(ForbiddenException);
-    });
-
-    it("rejects a tool that does not belong to the element", async () => {
-      userModelMock.findOne.mockReturnValue({ lean: () => Promise.resolve({ username: "ada", fullName: "Ada Lovelace" }) });
-      await expect(
-        service.createWorkbook("proj-1", { elementCode: "ES", toolId: "fault-tree", name: "X" }, { username: "ada" }),
-      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -6,7 +6,6 @@ import {
   type UpdateWorkbookRequest,
   type Workbook as WorkbookDto,
   type WorkbookListResponse,
-  toolBelongsToElement,
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { ProjectsService } from "../projects/projects.service";
@@ -24,7 +23,6 @@ function toDto(doc: WorkbookDocument): WorkbookDto {
     id: String(doc._id),
     projectId: doc.projectId,
     elementCode: doc.elementCode,
-    toolId: doc.toolId,
     name: doc.name,
     status: doc.status,
     version: doc.version,
@@ -48,16 +46,10 @@ export class WorkbooksService {
     private readonly projectsService: ProjectsService,
   ) {}
 
-  async listWorkbooks(
-    projectId: string,
-    elementCode: string,
-    toolId: string,
-    acting: ActingUser,
-  ): Promise<WorkbookListResponse> {
+  async listWorkbooks(projectId: string, elementCode: string, acting: ActingUser): Promise<WorkbookListResponse> {
     await this.projectsService.resolveAccess(projectId, acting);
-    this.assertToolInElement(toolId, elementCode);
     const docs = await this.workbookModel
-      .find({ projectId, elementCode, toolId })
+      .find({ projectId, elementCode })
       .sort({ updatedAt: -1 })
       .exec();
     return { workbooks: docs.map(toDto) };
@@ -66,13 +58,11 @@ export class WorkbooksService {
   async createWorkbook(projectId: string, payload: CreateWorkbookRequest, acting: ActingUser): Promise<WorkbookDto> {
     const { role } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
-    this.assertToolInElement(payload.toolId, payload.elementCode);
     const owner = await this.userModel.findOne({ username: acting.username }).lean();
     if (!owner) throw new NotFoundException("Acting user not found");
     const created = await this.workbookModel.create({
       projectId,
       elementCode: payload.elementCode,
-      toolId: payload.toolId,
       name: payload.name,
       status: "draft",
       version: 1,
@@ -102,12 +92,6 @@ export class WorkbooksService {
     if (role === "viewer") throw new ForbiddenException("You cannot delete workbooks in this project");
     const doc = await this.findScoped(projectId, id);
     await doc.deleteOne();
-  }
-
-  private assertToolInElement(toolId: string, elementCode: string): void {
-    if (!toolBelongsToElement(toolId, elementCode)) {
-      throw new BadRequestException("Tool does not belong to that technical element");
-    }
   }
 
   private async findScoped(projectId: string, id: string): Promise<WorkbookDocument> {

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
-import type { ToolId, WorkbookStatus } from "interfaces-shared-types";
+import type { WorkbookStatus } from "interfaces-shared-types";
 
 export type WorkbookDocument = HydratedDocument<Workbook> & { createdAt: Date; updatedAt: Date };
 
@@ -11,9 +11,6 @@ export class Workbook {
 
   @Prop({ type: String, required: true, index: true })
   elementCode!: string;
-
-  @Prop({ type: String, required: true, index: true })
-  toolId!: ToolId;
 
   @Prop({ type: String, required: true })
   name!: string;

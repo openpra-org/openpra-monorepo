@@ -1,28 +1,26 @@
 import { JSX, FormEvent, useMemo, useState } from "react";
-import { type Workbook, type ToolId } from "interfaces-shared-types";
-import { ArrowRightIcon, FolderIcon, PlusIcon, SearchIcon } from "../welcome/icons";
+import { type Workbook } from "interfaces-shared-types";
+import { FolderIcon, PlusIcon, SearchIcon } from "../welcome/icons";
 import { WorkbookRow } from "./workbookRow";
 import { useWorkbooks } from "./useWorkbooks";
 import "./css/workbooks.css";
 
-interface LegacyToolPaneProps {
+interface LegacyElementPaneProps {
   projectId: string;
   element: { code: string; name: string };
-  tool: { id: ToolId; name: string };
   readOnly: boolean;
   onOpenWorkbook: (workbook: Workbook) => void;
   onError: (message: string) => void;
 }
 
-function LegacyToolPane({
+function LegacyElementPane({
   projectId,
   element,
-  tool,
   readOnly,
   onOpenWorkbook,
   onError,
-}: LegacyToolPaneProps): JSX.Element {
-  const { workbooks, loading, create } = useWorkbooks(projectId, element.code, tool.id, onError);
+}: LegacyElementPaneProps): JSX.Element {
+  const { workbooks, loading, create } = useWorkbooks(projectId, element.code, onError);
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -52,9 +50,7 @@ function LegacyToolPane({
       <div className="lgl__work-head">
         <div className="lgl__work-crumb">
           <span className="lgl__work-crumb-code">{element.code}</span>
-          <span className="lgl__work-crumb-name">{element.name}</span>
-          <ArrowRightIcon />
-          <span className="lgl__work-crumb-tool">{tool.name}</span>
+          <span className="lgl__work-crumb-tool">{element.name}</span>
         </div>
         {!readOnly && !creating && (
           <button type="button" className="btn btn--primary btn--sm" onClick={() => { setCreating(true); }}>
@@ -63,9 +59,9 @@ function LegacyToolPane({
         )}
       </div>
 
-      <h2 className="lgl__work-h">{tool.name}</h2>
+      <h2 className="lgl__work-h">{element.name}</h2>
       <p className="lgl__work-sub">
-        {count} workbook{count === 1 ? "" : "s"} in {tool.name}.
+        {count} workbook{count === 1 ? "" : "s"} in {element.name}.
       </p>
 
       {creating && (
@@ -74,7 +70,7 @@ function LegacyToolPane({
             className="wbnew__input"
             type="text"
             autoFocus
-            placeholder={`Name your ${tool.name.toLowerCase()} workbook…`}
+            placeholder="Name your workbook…"
             value={newName}
             onChange={(e) => { setNewName(e.target.value); }}
           />
@@ -92,7 +88,7 @@ function LegacyToolPane({
         <input
           className="wbsearch__input"
           type="text"
-          placeholder={`Search ${tool.name.toLowerCase()}…`}
+          placeholder="Search workbooks…"
           value={query}
           onChange={(e) => { setQuery(e.target.value); }}
         />
@@ -121,4 +117,4 @@ function LegacyToolPane({
   );
 }
 
-export { LegacyToolPane };
+export { LegacyElementPane };

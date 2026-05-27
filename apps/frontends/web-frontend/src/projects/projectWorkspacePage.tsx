@@ -1,6 +1,6 @@
 import { JSX, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { type Project, type ToolDefinition, type Workbook } from "interfaces-shared-types";
+import { type Project, type Workbook } from "interfaces-shared-types";
 import { useToast } from "../toast/toastProvider";
 import { getProject, updateProject, duplicateProject, deleteProject } from "./projectApi";
 import { ProjectHeader } from "./projectHeader";
@@ -14,11 +14,6 @@ import { ShareProjectModal } from "./shareProjectModal";
 import { WorkbooksPanel } from "../workbooks/workbooksPanel";
 import "./css/projectWorkspace.css";
 
-interface ToolContext {
-  element: { code: string; name: string };
-  tool: ToolDefinition;
-}
-
 function ProjectWorkspacePage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,7 +22,7 @@ function ProjectWorkspacePage(): JSX.Element {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [wbContext, setWbContext] = useState<ToolContext | null>(null);
+  const [wbElement, setWbElement] = useState<{ code: string; name: string } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -60,7 +55,11 @@ function ProjectWorkspacePage(): JSX.Element {
   }
 
   function handleOpenWorkbook(workbook: Workbook): void {
-    flashInfo(`Opening "${workbook.name}" — coming soon`);
+    if (workbook.elementCode === "POS") {
+      navigate("/pos-demo");
+      return;
+    }
+    flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 
   function togglePin(): void {
@@ -148,20 +147,19 @@ function ProjectWorkspacePage(): JSX.Element {
             <div className="pp__pane">
               <ElementsSection
                 project={project}
-                onOpenTool={(element, tool) => { setWbContext({ element, tool }); }}
+                onOpenElement={(element) => { setWbElement(element); }}
               />
             </div>
           </main>
         )
       )}
 
-      {wbContext !== null && project !== null && (
+      {wbElement !== null && project !== null && (
         <WorkbooksPanel
           projectId={project.id}
-          element={wbContext.element}
-          tool={{ id: wbContext.tool.id, name: wbContext.tool.name }}
+          element={wbElement}
           readOnly={project.myRole === "viewer"}
-          onClose={() => { setWbContext(null); }}
+          onClose={() => { setWbElement(null); }}
           onOpenWorkbook={handleOpenWorkbook}
           onError={flashError}
         />

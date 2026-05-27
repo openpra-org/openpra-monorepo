@@ -1,5 +1,5 @@
-import { JSX } from "react";
-import { type ToolDefinition } from "interfaces-shared-types";
+import { JSX, KeyboardEvent } from "react";
+import { ArrowRightIcon } from "../welcome/icons";
 
 type ElementVisualStatus = "complete" | "in-progress" | "not-started";
 
@@ -19,14 +19,25 @@ interface ElementRowProps {
   code: string;
   name: string;
   status: string | undefined;
-  tools: ToolDefinition[];
-  onOpenTool: (tool: ToolDefinition) => void;
+  onOpen: () => void;
 }
 
-function ElementRow({ code, name, status, tools, onOpenTool }: ElementRowProps): JSX.Element {
+function ElementRow({ code, name, status, onOpen }: ElementRowProps): JSX.Element {
   const vstatus = elementVisualStatus(status);
+  function handleKey(e: KeyboardEvent<HTMLElement>): void {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpen();
+    }
+  }
   return (
-    <section className={`erow erow--${vstatus}`}>
+    <section
+      className={`erow erow--${vstatus}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={handleKey}
+    >
       <header className="erow__head">
         <span className="erow__code">{code}</span>
         <h3 className="erow__title" title={name}>{name}</h3>
@@ -34,19 +45,7 @@ function ElementRow({ code, name, status, tools, onOpenTool }: ElementRowProps):
       <div className="erow__track" aria-hidden="true">
         <div className={`erow__track-fill erow__track-fill--${vstatus}`} style={{ width: trackWidth(vstatus) }} />
       </div>
-      {tools.length > 0 ? (
-        <ul className="erow__tools">
-          {tools.map((tool) => (
-            <li key={tool.id}>
-              <button type="button" className="tool-link" onClick={() => { onOpenTool(tool); }}>
-                {tool.name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="erow__empty-tools">No tools yet</p>
-      )}
+      <span className="erow__open">Open workbooks <ArrowRightIcon /></span>
     </section>
   );
 }

@@ -37,8 +37,8 @@ async function request(method: string, path: string, body?: unknown): Promise<Re
   return response;
 }
 
-async function listWorkbooks(projectId: string, elementCode: string, toolId: string): Promise<WorkbookListResponse> {
-  const query = new URLSearchParams({ elementCode, toolId }).toString();
+async function listWorkbooks(projectId: string, elementCode: string): Promise<WorkbookListResponse> {
+  const query = new URLSearchParams({ elementCode }).toString();
   const response = await request("GET", `/${projectId}/workbooks?${query}`);
   return WorkbookListResponseSchema.parse(await response.json());
 }

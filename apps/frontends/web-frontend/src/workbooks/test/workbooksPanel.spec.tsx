@@ -8,8 +8,7 @@ function workbook(name: string, overrides: Record<string, unknown> = {}): Record
   return {
     id: `wb-${name}`,
     projectId: "proj-1",
-    elementCode: "ES",
-    toolId: "event-tree",
+    elementCode: "POS",
     name,
     status: "draft",
     version: 1,
@@ -31,8 +30,7 @@ function listResponse(workbooks: Record<string, unknown>[]): Response {
 
 const PROPS = {
   projectId: "proj-1",
-  element: { code: "ES", name: "Event Sequence Analysis" },
-  tool: { id: "event-tree" as const, name: "Event trees" },
+  element: { code: "POS", name: "Plant Operating State Analysis" },
 };
 
 describe("WorkbooksPanel", () => {
@@ -61,47 +59,47 @@ describe("WorkbooksPanel", () => {
     return { onClose, onOpenWorkbook, onError };
   }
 
-  it("shows the element/tool breadcrumb and loads the workbooks", async () => {
-    fetchMock.mockResolvedValue(listResponse([workbook("ET-LOOP"), workbook("ET-SLOCA")]));
+  it("shows the element breadcrumb and loads the workbooks", async () => {
+    fetchMock.mockResolvedValue(listResponse([workbook("Aurora-1"), workbook("Aurora-2")]));
     renderPanel();
-    expect(screen.getByText("Event Sequence Analysis")).toBeInTheDocument();
-    expect(await screen.findByText("ET-LOOP")).toBeInTheDocument();
-    expect(screen.getByText("ET-SLOCA")).toBeInTheDocument();
+    expect(screen.getAllByText("Plant Operating State Analysis").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Aurora-1")).toBeInTheDocument();
+    expect(screen.getByText("Aurora-2")).toBeInTheDocument();
   });
 
   it("filters the list by the search query", async () => {
-    fetchMock.mockResolvedValue(listResponse([workbook("ET-LOOP"), workbook("ET-SLOCA")]));
+    fetchMock.mockResolvedValue(listResponse([workbook("Aurora-1"), workbook("Aurora-2")]));
     renderPanel();
-    await screen.findByText("ET-LOOP");
-    await userEvent.type(screen.getByPlaceholderText(/search event trees/i), "sloca");
-    expect(screen.queryByText("ET-LOOP")).not.toBeInTheDocument();
-    expect(screen.getByText("ET-SLOCA")).toBeInTheDocument();
+    await screen.findByText("Aurora-1");
+    await userEvent.type(screen.getByPlaceholderText(/search workbooks/i), "aurora-2");
+    expect(screen.queryByText("Aurora-1")).not.toBeInTheDocument();
+    expect(screen.getByText("Aurora-2")).toBeInTheDocument();
   });
 
   it("creates a workbook and prepends it to the list", async () => {
     fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
       if ((init?.method ?? "GET") === "POST") {
         return Promise.resolve(
-          new Response(JSON.stringify(workbook("ET-MLOCA", { id: "wb-new" })), {
+          new Response(JSON.stringify(workbook("Aurora-3", { id: "wb-new" })), {
             status: 201,
             headers: { "Content-Type": "application/json" },
           }),
         );
       }
-      return Promise.resolve(listResponse([workbook("ET-LOOP")]));
+      return Promise.resolve(listResponse([workbook("Aurora-1")]));
     });
     renderPanel();
-    await screen.findByText("ET-LOOP");
+    await screen.findByText("Aurora-1");
     await userEvent.click(screen.getByRole("button", { name: /new workbook/i }));
-    await userEvent.type(screen.getByPlaceholderText(/name your event trees workbook/i), "ET-MLOCA");
+    await userEvent.type(screen.getByPlaceholderText(/name your workbook/i), "Aurora-3");
     await userEvent.click(screen.getByRole("button", { name: /^create$/i }));
-    expect(await screen.findByText("ET-MLOCA")).toBeInTheDocument();
+    expect(await screen.findByText("Aurora-3")).toBeInTheDocument();
   });
 
   it("hides the create affordance for read-only viewers", async () => {
-    fetchMock.mockResolvedValue(listResponse([workbook("ET-LOOP")]));
+    fetchMock.mockResolvedValue(listResponse([workbook("Aurora-1")]));
     renderPanel(true);
-    await screen.findByText("ET-LOOP");
+    await screen.findByText("Aurora-1");
     expect(screen.queryByRole("button", { name: /new workbook/i })).not.toBeInTheDocument();
   });
 });

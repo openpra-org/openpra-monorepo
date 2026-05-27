@@ -1,5 +1,5 @@
 import { JSX, useMemo, useState } from "react";
-import { type Project, type ToolDefinition, elementsForMode, toolsForElement } from "interfaces-shared-types";
+import { type Project, elementsForMode } from "interfaces-shared-types";
 import { ElementRow, elementVisualStatus } from "./elementRow";
 
 type ElementFilter = "all" | "mine" | "in-progress" | "not-started";
@@ -13,10 +13,10 @@ const FILTERS: readonly { key: ElementFilter; label: string }[] = [
 
 function ElementsSection({
   project,
-  onOpenTool,
+  onOpenElement,
 }: {
   project: Project;
-  onOpenTool: (element: { code: string; name: string }, tool: ToolDefinition) => void;
+  onOpenElement: (element: { code: string; name: string }) => void;
 }): JSX.Element {
   const [filter, setFilter] = useState<ElementFilter>("all");
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
@@ -62,8 +62,7 @@ function ElementsSection({
             code={el.code}
             name={el.name}
             status={project.status[el.code]}
-            tools={toolsForElement(el.code)}
-            onOpenTool={(tool) => { onOpenTool({ code: el.code, name: el.name }, tool); }}
+            onOpen={() => { onOpenElement({ code: el.code, name: el.name }); }}
           />
         ))}
         {visible.length === 0 && (

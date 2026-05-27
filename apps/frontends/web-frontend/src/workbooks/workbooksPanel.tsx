@@ -1,6 +1,6 @@
 import { JSX, FormEvent, useEffect, useMemo, useState } from "react";
-import { type Workbook, type WorkbookStatus, type ToolId } from "interfaces-shared-types";
-import { ArrowRightIcon, CloseIcon, FolderIcon, PlusIcon, SearchIcon } from "../welcome/icons";
+import { type Workbook, type WorkbookStatus } from "interfaces-shared-types";
+import { CloseIcon, FolderIcon, PlusIcon, SearchIcon } from "../welcome/icons";
 import { WorkbookRow } from "./workbookRow";
 import { useWorkbooks } from "./useWorkbooks";
 import "./css/workbooks.css";
@@ -12,7 +12,6 @@ const STATUS_ORDER: Record<WorkbookStatus, number> = { "in-progress": 0, draft: 
 interface WorkbooksPanelProps {
   projectId: string;
   element: { code: string; name: string };
-  tool: { id: ToolId; name: string };
   readOnly: boolean;
   onClose: () => void;
   onOpenWorkbook: (workbook: Workbook) => void;
@@ -22,13 +21,12 @@ interface WorkbooksPanelProps {
 function WorkbooksPanel({
   projectId,
   element,
-  tool,
   readOnly,
   onClose,
   onOpenWorkbook,
   onError,
 }: WorkbooksPanelProps): JSX.Element {
-  const { workbooks, loading, create } = useWorkbooks(projectId, element.code, tool.id, onError);
+  const { workbooks, loading, create } = useWorkbooks(projectId, element.code, onError);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("edited");
   const [creating, setCreating] = useState(false);
@@ -73,20 +71,18 @@ function WorkbooksPanel({
 
   return (
     <div className="wbm__backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="wbm" role="dialog" aria-modal="true" aria-label={`${tool.name} workbooks`}>
+      <div className="wbm" role="dialog" aria-modal="true" aria-label={`${element.name} workbooks`}>
         <header className="wbm__head">
           <div className="wbm__crumb">
             <span className="wbm__crumb-code">{element.code}</span>
-            <span className="wbm__crumb-name">{element.name}</span>
-            <ArrowRightIcon />
-            <span className="wbm__crumb-tool">{tool.name}</span>
+            <span className="wbm__crumb-tool">{element.name}</span>
           </div>
           <button type="button" className="wbm__close" onClick={onClose} aria-label="Close"><CloseIcon /></button>
         </header>
 
         <div className="wbm__title-row">
           <div className="wbm__title-block">
-            <h2 className="wbm__title">{tool.name}</h2>
+            <h2 className="wbm__title">{element.name}</h2>
             <p className="wbm__sub">
               {count} workbook{count === 1 ? "" : "s"} · Pick one to open, or start a new analysis.
             </p>
@@ -104,7 +100,7 @@ function WorkbooksPanel({
             <input
               className="wbsearch__input"
               type="text"
-              placeholder={`Search ${tool.name.toLowerCase()}…`}
+              placeholder="Search workbooks…"
               value={query}
               onChange={(e) => { setQuery(e.target.value); }}
             />
@@ -128,7 +124,7 @@ function WorkbooksPanel({
                 className="wbnew__input"
                 type="text"
                 autoFocus
-                placeholder={`Name your ${tool.name.toLowerCase()} workbook…`}
+                placeholder="Name your workbook…"
                 value={newName}
                 onChange={(e) => { setNewName(e.target.value); }}
               />

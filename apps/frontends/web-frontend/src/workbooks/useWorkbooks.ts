@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { type Workbook, type ToolId } from "interfaces-shared-types";
+import { type Workbook } from "interfaces-shared-types";
 import { createWorkbook, listWorkbooks } from "./workbookApi";
 
 interface UseWorkbooks {
@@ -11,7 +11,6 @@ interface UseWorkbooks {
 function useWorkbooks(
   projectId: string,
   elementCode: string,
-  toolId: ToolId,
   onError: (message: string) => void,
 ): UseWorkbooks {
   const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
@@ -20,7 +19,7 @@ function useWorkbooks(
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listWorkbooks(projectId, elementCode, toolId)
+    listWorkbooks(projectId, elementCode)
       .then((res) => { if (!cancelled) setWorkbooks(res.workbooks); })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -28,14 +27,14 @@ function useWorkbooks(
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [projectId, elementCode, toolId, onError]);
+  }, [projectId, elementCode, onError]);
 
   const create = useCallback(
     async (name: string): Promise<void> => {
-      const created = await createWorkbook(projectId, { elementCode, toolId, name });
+      const created = await createWorkbook(projectId, { elementCode, name });
       setWorkbooks((prev) => [created, ...prev]);
     },
-    [projectId, elementCode, toolId],
+    [projectId, elementCode],
   );
 
   return { workbooks, loading, create };

@@ -34,10 +34,9 @@ export class WorkbooksController {
   list(
     @Param("projectId") projectId: string,
     @Query("elementCode") elementCode: string,
-    @Query("toolId") toolId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<WorkbookListResponse> {
-    return this.workbooksService.listWorkbooks(projectId, elementCode, toolId, { username: req.user!.username });
+    return this.workbooksService.listWorkbooks(projectId, elementCode, { username: req.user!.username });
   }
 
   @Post()

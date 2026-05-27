@@ -1,5 +1,5 @@
 {
-  "name": "interfaces-shared-types",
+  "name": "interfaces-mef-types",
   "version": "0.0.1",
   "type": "commonjs",
   "main": "./index.ts",

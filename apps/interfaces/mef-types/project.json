@@ -1,7 +1,7 @@
 {
-  "name": "interfaces-shared-types",
+  "name": "interfaces-mef-types",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/interfaces/shared-types",
+  "sourceRoot": "apps/interfaces/mef-types",
   "projectType": "library",
   "tags": ["scope:shared"],
   "targets": {

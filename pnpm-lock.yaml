@@ -440,6 +440,12 @@ importers:
         specifier: 30.2.0
         version: 30.2.0
 
+  apps/interfaces/mef-types:
+    dependencies:
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+
   apps/interfaces/shared-types:
     dependencies:
       zod:

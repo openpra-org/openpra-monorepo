@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TECHNICAL_ELEMENT_CODES, type TechnicalElementCode } from "mef-types/lib/technical-element";
+import { TECHNICAL_ELEMENT_CODES, type TechnicalElementCode } from "interfaces-mef-types/technical-element";
 
 const ProjectStatusSchema = z.enum(["baseline", "in-progress", "not-started", "na"]);
 type ProjectStatus = z.infer<typeof ProjectStatusSchema>;

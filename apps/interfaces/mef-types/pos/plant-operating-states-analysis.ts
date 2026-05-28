@@ -266,6 +266,7 @@ export interface PlantOperatingStateGroup extends Unique, Named {
   doesNotMaskRiskSignificantContributors: boolean;
   summedDurationHours: number;
   entryFrequency: Frequency | FrequencyWithDistribution;
+  preOperationalAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
 }
 

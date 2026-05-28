@@ -181,7 +181,7 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   );
 
   out.push(heading("References", HeadingLevel.HEADING_1));
-  out.push(bullet("Aurora-1 Design Basis Document — Rev 4"));
+  out.push(bullet("Generic-1 Design Basis Document — Rev 4"));
   out.push(bullet("OP-002 — Startup & shutdown procedure"));
   out.push(bullet("OP-014 — Refuelling sequence"));
   out.push(bullet("EOP-100 — Post-trip cooldown"));

@@ -11,21 +11,22 @@ interface PosStep {
   sub: string;
   status: StepStatus;
   warn?: boolean;
+  terminal?: boolean;
 }
 
 const POS_PROJECT = {
-  projectName: "Aurora-1 — Pre-operational PRA",
+  projectName: "Generic-1 Reactor — Pre-operational PRA",
   projectVersion: 1,
-  workbookName: "POS — design certification baseline",
+  workbookName: "POS Workbook 1",
   workbookOwner: "Aakash Patel",
   workbookOwnerInitials: "AP",
   workbookCreated: "Apr 2, 2026",
   workbookVersion: 2,
   plant: {
-    name: "Aurora-1",
+    name: "Generic-1",
     type: "Sodium-cooled fast reactor (SFR)",
     power: "300 MWt",
-    vendor: "Argent Nuclear",
+    vendor: "Generic Nuclear LLC",
     siteName: "INL — Eastern Idaho",
     coolant: "Liquid sodium (primary), liquid sodium (intermediate), supercritical CO₂ (power conversion)",
   },
@@ -34,15 +35,37 @@ const POS_PROJECT = {
 const POS_STEPS: PosStep[] = [
   { id: "setup", num: "01", label: "Setup", sub: "Plant & profile", status: "complete" },
   { id: "documents", num: "02", label: "Documents", sub: "Design basis & refs", status: "complete" },
-  { id: "evolutions", num: "03", label: "Plant evolutions", sub: "5 defined", status: "complete" },
-  { id: "states", num: "04", label: "Operating states", sub: "9 defined · 1 needs review", status: "in-progress" },
-  { id: "interviews", num: "05", label: "Interviews & walkdowns", sub: "7 logged", status: "complete" },
+  { id: "evolutions", num: "03", label: "Plant Evolutions", sub: "5 defined", status: "complete" },
+  { id: "states", num: "04", label: "Operating States", sub: "9 defined · 1 attention", status: "in-progress" },
+  { id: "interviews", num: "05", label: "Interviews & Walkdowns", sub: "7 logged", status: "complete" },
   { id: "screening", num: "06", label: "Screening", sub: "2 retained · 1 screened", status: "in-progress" },
   { id: "grouping", num: "07", label: "Grouping", sub: "3 groups", status: "in-progress", warn: true },
-  { id: "frequency", num: "08", label: "Frequencies & duration", sub: "8 of 9 complete", status: "in-progress" },
-  { id: "decayheat", num: "09", label: "Decay heat", sub: "6 LPSD states", status: "idle" },
-  { id: "generate", num: "10", label: "Assumptions & generate", sub: "Final review", status: "idle" },
+  { id: "frequency", num: "08", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
+  { id: "decayheat", num: "09", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
+  { id: "draft", num: "10", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
+  { id: "review", num: "11", label: "Review & Approval", sub: "Reviewer comments · sign-off", status: "idle", terminal: true },
 ];
+
+type PosPersona = "preparer" | "reviewer" | "approver";
+
+interface PersonaSpec {
+  id: PosPersona;
+  label: string;
+  tone: "primary" | "external" | "approver";
+  blurb: string;
+}
+
+const PERSONAS: Record<PosPersona, PersonaSpec> = {
+  preparer: { id: "preparer", label: "Preparer", tone: "primary", blurb: "Author of the draft · responds to reviewers and submits for approval" },
+  reviewer: { id: "reviewer", label: "Reviewer", tone: "external", blurb: "View + comment only · marks comments resolved" },
+  approver: { id: "approver", label: "Approver", tone: "approver", blurb: "Final internal sign-off · view + comment only on prior steps" },
+};
+
+const PERSONA_STEPS: Record<PosPersona, string[]> = {
+  preparer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review"],
+  reviewer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat"],
+  approver: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "review"],
+};
 
 interface CapabilityCategory {
   id: string;
@@ -52,8 +75,8 @@ interface CapabilityCategory {
 }
 
 const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
-  { id: "cc-i", name: "CC-I", tag: "Bounding", description: "Coarser methods and bounding assumptions. Good enough for screening studies." },
-  { id: "cc-ii", name: "CC-II", tag: "Plant-specific", description: "More plant-specific data, finer resolution, fewer blanket conservatisms." },
+  { id: "cc-i", name: "CC-I", tag: "Bounding", description: "Coarse scope, simple methods, generic data, and bounding assumptions. Appropriate for general insights and screening studies." },
+  { id: "cc-ii", name: "CC-II", tag: "Plant-specific", description: "Plant-specific data and finer resolution for risk-significant contributors. Bounding assumptions retained only where their impact on results is small." },
 ];
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
@@ -68,6 +91,7 @@ interface ConformanceItem {
   requiredAt: string[];
   stages: ConformanceStage[];
   sr?: string[];
+  linkedNM?: string;
 }
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = [
@@ -85,10 +109,10 @@ const CONFORMANCE_ITEMS: ConformanceItem[] = [
   { id: "iv-eng", section: "Interviews & walkdowns", text: "Interviews with design engineering staff documented", status: "ok", meta: "7 sessions logged", requiredAt: ["cc-ii"], stages: ["pre_operational"], sr: ["POS-A8"] },
 
   { id: "scr-rationale", section: "Screening & grouping", text: "Every screened-out state has a quantitative or qualitative justification", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-B2"] },
-  { id: "grp-bounding", section: "Screening & grouping", text: "Each grouped state's response is bounded by the group's worst-case", status: "warn", meta: "Group RFG: bounding rationale not yet written", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-B6"] },
+  { id: "grp-bounding", section: "Screening & grouping", text: "Each grouped state's response is bounded by the group's worst-case", status: "warn", meta: "Group RFG: bounding rationale not yet written", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-B6"], linkedNM: "NM-028" },
 
-  { id: "freq-dur", section: "Frequencies & duration", text: "Mean duration and entry frequency captured per state", status: "warn", meta: "1 state missing duration basis", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C1", "POS-C2"] },
-  { id: "decay-heat", section: "Frequencies & duration", text: "Decay-heat level characterised for every shutdown / refuelling state", status: "blocked", meta: "0 of 6 LPSD states characterised", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C4"] },
+  { id: "freq-dur", section: "Frequencies & duration", text: "Mean duration and entry frequency captured per state", status: "warn", meta: "1 state missing duration basis", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C1", "POS-C2"], linkedNM: "NM-021" },
+  { id: "decay-heat", section: "Frequencies & duration", text: "Decay-heat level characterised for every shutdown / refuelling state", status: "blocked", meta: "0 of 6 LPSD states characterised", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C4"], linkedNM: "NM-014" },
 
   { id: "doc-uncert", section: "Documentation", text: "Sources of model uncertainty captured", status: "ok", meta: "4 logged", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A12", "POS-D2"] },
   { id: "doc-preop", section: "Documentation", text: "Pre-operational assumptions logged with closure plans", status: "ok", meta: "6 logged · 2 closures pending", requiredAt: ["cc-ii"], stages: ["pre_operational"], sr: ["POS-A13", "POS-D3"] },
@@ -107,7 +131,7 @@ interface CcScore {
 // cards and the right dock both read these so the numbers always agree.
 const CC_SCORES: Record<string, CcScore> = {
   "cc-i": { applicable: 8, met: 7, warn: 1, blocked: 0, na: 0, percent: 88 },
-  "cc-ii": { applicable: 15, met: 11, warn: 3, blocked: 1, na: 1, percent: 73 },
+  "cc-ii": { applicable: 17, met: 12, warn: 3, blocked: 1, na: 1, percent: 71 },
 };
 
 interface PosDocument {
@@ -121,7 +145,7 @@ interface PosDocument {
 }
 
 const POS_DOCUMENTS: PosDocument[] = [
-  { id: "DOC-01", name: "Aurora-1 Design Basis Document — Rev 4", kind: "doc", size: "12.4 MB", uploaded: "Mar 4", extracted: "Operating modes · RCS parameters · Barrier list", linked: 9 },
+  { id: "DOC-01", name: "Generic-1 Design Basis Document — Rev 4", kind: "doc", size: "12.4 MB", uploaded: "Mar 4", extracted: "Operating modes · RCS parameters · Barrier list", linked: 9 },
   { id: "DOC-02", name: "P&ID — Primary sodium loop", kind: "image", size: "2.1 MB", uploaded: "Mar 4", extracted: "Components · valve states", linked: 6 },
   { id: "DOC-03", name: "P&ID — Intermediate heat-transport loop", kind: "image", size: "1.8 MB", uploaded: "Mar 4", extracted: "Components · valve states", linked: 5 },
   { id: "DOC-04", name: "P&ID — Cover-gas system", kind: "image", size: "1.4 MB", uploaded: "Mar 4", extracted: "Vent paths · barriers", linked: 4 },
@@ -162,6 +186,31 @@ const EVOLUTION_UI: Record<string, { durationFraction: number; fromDoc: string }
   "EV-05": { durationFraction: 0.02, fromDoc: "OP-211" },
 };
 
+// hardcoded — workflow-state display catalog (the chrome header pill reads this
+// to format the schema's WorkflowState enum into a human label + tone).
+type WorkflowTone = "draft" | "progress" | "ok" | "external" | "approver";
+
+interface WorkflowStateDisplay {
+  state: string;
+  label: string;
+  tone: WorkflowTone;
+  blurb: string;
+}
+
+const WORKFLOW_STATES_DISPLAY: WorkflowStateDisplay[] = [
+  { state: "DRAFT", label: "Draft", tone: "draft", blurb: "Authors editing" },
+  { state: "INTERNAL_TECHNICAL_REVIEW", label: "Internal technical review", tone: "progress", blurb: "Internal reviewers leaving comments" },
+  { state: "INTERNAL_APPROVAL", label: "Internal approval", tone: "progress", blurb: "Awaiting approver sign-off" },
+  { state: "REVISION_REQUIRED", label: "Revision required", tone: "draft", blurb: "Returned to the preparer for changes" },
+  { state: "AWAITING_EXTERNAL_REVIEW", label: "Approved · ready for external review", tone: "ok", blurb: "Internal sign-off complete" },
+  { state: "FINAL", label: "Final", tone: "ok", blurb: "All workflows closed" },
+  { state: "DEPRECATED", label: "Deprecated", tone: "draft", blurb: "Superseded by a newer workbook" },
+];
+
+function workflowStateDisplay(state: string): WorkflowStateDisplay {
+  return WORKFLOW_STATES_DISPLAY.find((w) => w.state === state) ?? WORKFLOW_STATES_DISPLAY[0];
+}
+
 export {
   type PosStep,
   type StepStatus,
@@ -173,12 +222,20 @@ export {
   type PosDocument,
   type PosWorkflowStatus,
   type PosUiState,
+  type PosPersona,
+  type PersonaSpec,
+  type WorkflowTone,
+  type WorkflowStateDisplay,
   POS_PROJECT,
   POS_STEPS,
+  PERSONAS,
+  PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
   CC_SCORES,
   POS_DOCUMENTS,
   POS_UI_STATE,
   EVOLUTION_UI,
+  WORKFLOW_STATES_DISPLAY,
+  workflowStateDisplay,
 };

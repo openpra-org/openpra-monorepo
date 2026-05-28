@@ -43,6 +43,8 @@ export interface SRConformance {
 
 export type ReviewerRole = "INTERNAL_REVIEWER" | "INTERNAL_APPROVER" | "EXTERNAL_PEER_REVIEWER" | "EXTERNAL_AUDITOR";
 
+export type ReviewCommentSeverity = "MAJOR" | "MINOR" | "OBSERVATION";
+
 export interface ReviewComment extends Unique {
   authorRole: ReviewerRole;
   authorId: string;
@@ -54,6 +56,7 @@ export interface ReviewComment extends Unique {
   resolution?: string;
   resolvedAt?: string;
   resolvedBy?: string;
+  severity?: ReviewCommentSeverity;
 }
 
 export interface CommentCollection {
@@ -67,4 +70,6 @@ export interface ReviewerReference {
   name: string;
   role: ReviewerRole;
   organization?: string;
+  title?: string;
+  qualification?: string;
 }

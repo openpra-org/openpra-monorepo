@@ -33,7 +33,7 @@ import { type BaseModelUncertaintyDocumentation, type PreOperationalAssumption }
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
 
 // hardcoded — entire PlantOperatingStatesAnalysis instance below is demo data
-// for Aurora-1, a 300 MWt sodium-cooled fast reactor. It follows the OpenPRA POS
+// for Generic-1, a 300 MWt sodium-cooled fast reactor. It follows the OpenPRA POS
 // MEF schema so it can be swapped for live data without reshaping. The type
 // annotation guarantees conformance (the Zod mirror asserts schema/type equality).
 
@@ -181,6 +181,7 @@ interface StateSpec {
   meanTimeAfterShutdownHours?: number;
   decayHeatLevelDefined: boolean;
   decayHeatBasis?: string;
+  preOperationalAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
 }
 
@@ -215,7 +216,33 @@ function makeState(spec: StateSpec): PlantOperatingState {
     meanEntryFrequency: spec.meanEntryFrequency,
     decayHeatLevelDefined: spec.decayHeatLevelDefined,
     decayHeatBasis: spec.decayHeatBasis,
+    preOperationalAssumptions: spec.preOperationalAssumptions,
     implementsSrs: spec.implementsSrs,
+  };
+}
+
+function mkAssumption(
+  id: string,
+  affected: string,
+  description: string,
+  influenceOnDefinition: string,
+  source: string,
+  closurePlan: string,
+  riskImpact: ImportanceLevel,
+  owner: string,
+): PreOperationalAssumption {
+  return {
+    uuid: id,
+    assumptionId: id,
+    status: "OPEN",
+    limitations: [],
+    description,
+    influenceOnDefinition,
+    closureBasis: source,
+    plannedClosureActions: [closurePlan],
+    affectedElementIds: [affected],
+    riskImpact,
+    owner,
   };
 }
 
@@ -298,6 +325,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanTimeAfterShutdownHours: 2,
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve at 2 h after shutdown.",
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-03-PA-1",
+        "POS-03",
+        "Mean hot-standby duration of 180 h/yr taken from the assumed equilibrium-cycle plan.",
+        "Mean duration",
+        "Assumed cycle plan (no operating data yet)",
+        "Replace with measured cycle data after the first 3 fuel cycles.",
+        ImportanceLevel.MEDIUM,
+        "A. Patel",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
   }),
   makeState({
@@ -351,6 +390,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanTimeAfterShutdownHours: 168,
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve at 168 h after shutdown.",
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-05-PA-1",
+        "POS-05",
+        "Refuelling cavity-dry duration assumed from vendor refuelling-cycle baseline.",
+        "Mean duration",
+        "Vendor baseline NR-2024-117",
+        "Replace with measured outage data after the first 3 refuelling outages.",
+        ImportanceLevel.MEDIUM,
+        "A. Patel",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-A11", hlr: "A" }],
   }),
   makeState({
@@ -378,6 +429,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanTimeAfterShutdownHours: 240,
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve at 240 h after shutdown.",
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-06-PA-1",
+        "POS-06",
+        "Fuel-handling phase duration assumed from vendor refuelling-cycle baseline.",
+        "Mean duration",
+        "Vendor baseline NR-2024-117",
+        "Replace with measured outage data after the first 3 refuelling outages.",
+        ImportanceLevel.MEDIUM,
+        "A. Patel",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-A11", hlr: "A" }],
   }),
   makeState({
@@ -404,6 +467,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanTimeAfterShutdownHours: 1,
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve immediately post-trip.",
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-07-PA-1",
+        "POS-07",
+        "DRACS passive heat-removal performance taken from prototype-scale test data.",
+        "Decay-heat removal credit",
+        "Prototype-scale test campaign (NR-2023-088)",
+        "Re-baseline after first-of-a-kind integrated DRACS test on Generic-1 (commissioning phase 4).",
+        ImportanceLevel.MEDIUM,
+        "K. Ortega",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
   }),
   makeState({
@@ -429,6 +504,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanEntryFrequency: 0.5,
     meanTimeAfterShutdownHours: 336,
     decayHeatLevelDefined: false,
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-08-PA-1",
+        "POS-08",
+        "IHX maintenance frequency of 0.5/yr taken from generic SFR operating data.",
+        "Entry frequency",
+        "Generic SFR operating data (industry experience)",
+        "Replace with plant-specific maintenance history after 5 years of operation.",
+        ImportanceLevel.MEDIUM,
+        "M. Béland",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-C4", hlr: "C" }],
   }),
   makeState({
@@ -454,6 +541,18 @@ const plantOperatingStates: PlantOperatingState[] = [
     meanEntryFrequency: 2,
     meanTimeAfterShutdownHours: 336,
     decayHeatLevelDefined: false,
+    preOperationalAssumptions: [
+      mkAssumption(
+        "POS-09-PA-1",
+        "POS-09",
+        "Cover-gas vent rate assumed bounded by the design-basis vent-flow limit.",
+        "Radioactive-material release rate",
+        "DBD §6.4 design-basis vent-flow limit",
+        "Confirm with measured vent-rate data during commissioning chemistry tests.",
+        ImportanceLevel.LOW,
+        "A. Patel",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
   }),
 ];
@@ -562,6 +661,18 @@ const plantOperatingStateGroups: PlantOperatingStateGroup[] = [
     doesNotMaskRiskSignificantContributors: false,
     summedDurationHours: 180,
     entryFrequency: 1,
+    preOperationalAssumptions: [
+      mkAssumption(
+        "GRP-RFG-PA-1",
+        "GRP-RFG",
+        "Bounding-state selection for the refuelling group will rely on NM-028 once approved; provisional bounding is by phase-duration only.",
+        "Bounding characteristic",
+        "NM-028 (in review)",
+        "Re-select bounding state after NM-028 v1.0 is released and exercised on pre-op refuelling-sequence data.",
+        ImportanceLevel.MEDIUM,
+        "N. Hartwell",
+      ),
+    ],
     implementsSrs: [{ sr: "POS-B6", hlr: "B" }],
   },
 ];
@@ -697,7 +808,7 @@ const interviewRecords: PlantOperatingStatesAnalysis["interviewRecords"] = [
   { evolutionId: "EV-03", date: "Mar 21, 2026", personnelRoles: ["Refuelling Lead", "Containment Engineer", "Safety Analyst"], method: "WALKDOWN", findings: "Walkdown of fuel-handling path; flagged cover-gas deinerting timing for separate POS.", overlookedEvolutionsIdentified: ["Cover-gas deinerting", "Fuel-transfer staging"] },
   { evolutionId: "EV-04", date: "Mar 28, 2026", personnelRoles: ["Lead Safety Analyst"], method: "INTERVIEW", findings: "Decay-heat profile reviewed; DRACS bypass confirmed as design intent.", overlookedEvolutionsIdentified: [] },
   { evolutionId: "EV-05", date: "Apr 02, 2026", personnelRoles: ["Maintenance Engineer", "I&C Engineer"], method: "TABLETOP", findings: "Maintenance configurations reviewed against IHX outage procedures.", overlookedEvolutionsIdentified: [] },
-  { date: "Apr 08, 2026", personnelRoles: ["Reactor Designer (Argent Nuclear)"], method: "INTERVIEW", findings: "Reviewed cover-gas chemistry implications across all states.", overlookedEvolutionsIdentified: [] },
+  { date: "Apr 08, 2026", personnelRoles: ["Reactor Designer (Generic Nuclear LLC)"], method: "INTERVIEW", findings: "Reviewed cover-gas chemistry implications across all states.", overlookedEvolutionsIdentified: [] },
   { date: "Apr 14, 2026", personnelRoles: ["Configuration Mgmt Lead"], method: "COMPUTERIZED_WALKDOWN", findings: "Walkdown of CAD model — instrumentation locations verified for POS-05/06.", overlookedEvolutionsIdentified: [] },
 ];
 
@@ -738,15 +849,8 @@ const modelUncertainty: BaseModelUncertaintyDocumentation = {
   ],
 };
 
-// ─── Pre-operational assumptions ─────────────────────────────────────────
-const preOperationalAssumptions: PreOperationalAssumption[] = [
-  { uuid: "POA-1", assumptionId: "POA-1", status: "OPEN", limitations: [], description: "As-built instrumentation list matches the Rev 2 design list.", influenceOnDefinition: "Available instrumentation per state.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against as-built records before fuel load.", plannedClosureActions: ["As-built instrumentation walkdown"], affectedElementIds: ["POS-01", "POS-05"] },
-  { uuid: "POA-2", assumptionId: "POA-2", status: "OPEN", limitations: [], description: "DRACS passive capacity meets the lower-bound design value.", influenceOnDefinition: "Post-trip cooldown state success criteria.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "DRACS commissioning test.", plannedClosureActions: ["Commissioning test", "Update success criteria"], affectedElementIds: ["POS-07"] },
-  { uuid: "POA-3", assumptionId: "POA-3", status: "OPEN", limitations: [], description: "Decay-heat levels for maintenance states bounded by vendor curve.", influenceOnDefinition: "Decay-heat characterisation for POS-08/09.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "Characterise LPSD decay heat.", plannedClosureActions: ["Decay-heat characterisation"], affectedElementIds: ["POS-08", "POS-09"] },
-  { uuid: "POA-4", assumptionId: "POA-4", status: "OPEN", limitations: [], description: "Refuelling cover-gas path conforms to OP-014 timing.", influenceOnDefinition: "Barrier status during refuelling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against final refuelling procedure.", plannedClosureActions: ["Procedure review"], affectedElementIds: ["POS-05", "POS-06"] },
-  { uuid: "POA-5", assumptionId: "POA-5", status: "OPEN", limitations: [], description: "Containment deinerting window matches design intent.", influenceOnDefinition: "Containment barrier status during fuel handling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm deinerting procedure.", plannedClosureActions: ["Procedure review"], affectedElementIds: ["POS-06"] },
-  { uuid: "POA-6", assumptionId: "POA-6", status: "OPEN", limitations: [], description: "Upper containment barrier status to be confirmed for cooled-head state.", influenceOnDefinition: "POS-04 barrier characterisation.", riskImpact: ImportanceLevel.LOW, closureBasis: "Enter barrier status for upper containment.", plannedClosureActions: ["Complete barrier-status entry"], affectedElementIds: ["POS-04"] },
-];
+// Per-state and per-group pre-operational assumptions are attached inline to
+// the relevant PlantOperatingState / PlantOperatingStateGroup objects above.
 
 // ─── Documentation ───────────────────────────────────────────────────────
 const documentation: PosDocumentation = {
@@ -784,35 +888,108 @@ const conformanceMatrix: SRConformance[] = [
   { sr: "POS-D3", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["preOperationalAssumptions"], evidence: "Pre-operational assumptions logged with closure plans." },
 ];
 
+const REVIEWERS = [
+  { id: "rev-1", name: "Dr. Nadia Hartwell", role: "INTERNAL_REVIEWER" as const, organization: "Generic Nuclear LLC", title: "Lead Technical Reviewer" },
+  { id: "rev-2", name: "Marc Béland", role: "INTERNAL_REVIEWER" as const, organization: "Generic Nuclear LLC", title: "Independent Reviewer · Systems" },
+  { id: "rev-3", name: "Priya Subramanian", role: "INTERNAL_REVIEWER" as const, organization: "Generic Nuclear LLC", title: "Independent Reviewer · HRA" },
+  { id: "approver-1", name: "Dr. Ji-won Chen", role: "INTERNAL_APPROVER" as const, organization: "Generic Nuclear LLC", title: "Director, Risk Engineering", qualification: "NQA-1 §2 Lead Reviewer (certified 2022, renewal 2025)" },
+];
+
+const REVIEW_COMMENTS = [
+  {
+    uuid: "irc-1",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-1",
+    createdAt: "2026-05-26T10:00:00Z",
+    associatedSr: "pos-define",
+    text: "POS-04 still missing the upper-containment barrier-status entry. The conformance check correctly flags it; please close before this can advance to approval.",
+    resolved: false,
+    severity: "MAJOR" as const,
+  },
+  {
+    uuid: "irc-2",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-2",
+    createdAt: "2026-05-26T11:00:00Z",
+    associatedSr: "grp-bounding",
+    text: "Group RFG (refuelling): the bounding rationale for the fuel-handling phase is not yet written. NM-028 is in review — confirm the method is far enough along to anchor this judgement, otherwise mark RFG as not-yet-bounded for now.",
+    resolved: false,
+    severity: "MAJOR" as const,
+  },
+  {
+    uuid: "irc-3",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-3",
+    createdAt: "2026-05-27T09:00:00Z",
+    associatedSr: "iv-eng",
+    text: "Seven sessions logged is a healthy count. Consider attaching the cover-gas chemistry interview transcript (IV-06) — currently only the finding is captured.",
+    resolved: true,
+    resolution: "Transcript attached to IV-06.",
+    resolvedAt: "2026-05-27T16:00:00Z",
+    resolvedBy: "rev-3",
+    severity: "MINOR" as const,
+  },
+  {
+    uuid: "irc-4",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-1",
+    createdAt: "2026-05-27T14:00:00Z",
+    associatedSr: "decay-heat",
+    text: "Blocking. Six LPSD states must have decay-heat characterisation before this workbook can be approved. NM-014 is approved — run the curve fit and lock the values.",
+    resolved: false,
+    severity: "MAJOR" as const,
+  },
+  {
+    uuid: "irc-5",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-2",
+    createdAt: "2026-05-27T15:00:00Z",
+    associatedSr: "freq-dur",
+    text: "POS-09 (cover-gas adjustment) — duration basis is empty. NM-021 should give you a pre-op estimate; please cite it explicitly.",
+    resolved: false,
+    severity: "MINOR" as const,
+  },
+  {
+    uuid: "irc-6",
+    authorRole: "INTERNAL_REVIEWER" as const,
+    authorId: "rev-3",
+    createdAt: "2026-05-28T06:00:00Z",
+    text: "Cross-references to NM-014 / NM-021 / NM-028 appear inline but are not yet collected in a Methods Used appendix. Recommended for traceability.",
+    resolved: false,
+    severity: "OBSERVATION" as const,
+  },
+];
+
 const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
-  uuid: "POS-AURORA-1",
-  name: "Aurora-1 — Plant Operating States Analysis",
+  uuid: "POS-GENERIC-1",
+  name: "POS Workbook 1",
   type: TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS,
   version: "2",
   created: "2026-04-02",
-  modified: "2026-04-14",
+  modified: "2026-05-28",
   owner: "Aakash Patel",
-  workflowState: "INTERNAL_TECHNICAL_REVIEW",
+  workflowState: "DRAFT",
   workflowHistory: [
-    { state: "DRAFT", enteredAt: "2026-04-02", exitedAt: "2026-04-12", actor: "Aakash Patel" },
-    { state: "INTERNAL_TECHNICAL_REVIEW", enteredAt: "2026-04-12", actor: "Lead Safety Analyst" },
+    { state: "DRAFT", enteredAt: "2026-04-02", actor: "Aakash Patel" },
   ],
   capabilityCategory: "CC-II",
   plantStage: "PRE_OPERATIONAL",
   metadata: {
-    versionInfo: { version: "2", lastUpdated: "2026-04-14", schemaVersion: "0.0.1" },
-    analysisDate: "2026-04-14",
+    versionInfo: { version: "2", lastUpdated: "2026-05-28", schemaVersion: "0.0.1" },
+    analysisDate: "2026-05-28",
     analysts: ["Aakash Patel"],
-    reviewers: [
-      { id: "rev-1", name: "Lead Safety Analyst", role: "INTERNAL_REVIEWER" },
-    ],
+    reviewers: REVIEWERS,
     scope: "Internal events, all plant operating states, full operating cycle.",
     limitations: ["Pre-operational; pending as-built validation."],
-    lastModifiedDate: "2026-04-14",
+    lastModifiedDate: "2026-05-28",
     lastModifiedBy: "Aakash Patel",
   },
   conformanceMatrix,
-  internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
+  internalReviewComments: {
+    comments: REVIEW_COMMENTS,
+    openCount: REVIEW_COMMENTS.filter((c) => !c.resolved).length,
+    resolvedCount: REVIEW_COMMENTS.filter((c) => c.resolved).length,
+  },
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Internal events, all plant operating states, full operating cycle.",
@@ -828,10 +1005,11 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   interviewRecords,
   plantRepresentationAccuracy,
   modelUncertainty,
-  preOperationalAssumptions,
   transitionEvents,
   validationRules,
   documentation,
+  configurationControlRecordId: "cc-2026.04.18-001",
+  newlyDevelopedMethodIds: ["NM-014", "NM-021", "NM-028"],
 };
 
 export { POS_ANALYSIS };

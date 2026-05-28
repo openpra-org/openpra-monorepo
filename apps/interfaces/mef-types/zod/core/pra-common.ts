@@ -6,6 +6,7 @@ import type {
   HlrId,
   PlantStage,
   ReviewComment,
+  ReviewCommentSeverity,
   ReviewerReference,
   ReviewerRole,
   SRConformance,
@@ -61,6 +62,8 @@ export const ReviewerRoleSchema = z.enum([
   "EXTERNAL_AUDITOR",
 ]);
 
+export const ReviewCommentSeveritySchema = z.enum(["MAJOR", "MINOR", "OBSERVATION"]);
+
 export const ReviewCommentSchema = z.object({
   ...UniqueSchema.shape,
   authorRole: ReviewerRoleSchema,
@@ -73,6 +76,7 @@ export const ReviewCommentSchema = z.object({
   resolution: z.string().optional(),
   resolvedAt: z.string().optional(),
   resolvedBy: z.string().optional(),
+  severity: ReviewCommentSeveritySchema.optional(),
 });
 
 export const CommentCollectionSchema = z.object({
@@ -86,6 +90,8 @@ export const ReviewerReferenceSchema = z.object({
   name: z.string(),
   role: ReviewerRoleSchema,
   organization: z.string().optional(),
+  title: z.string().optional(),
+  qualification: z.string().optional(),
 });
 
 type Expect<T extends true> = T;
@@ -100,6 +106,7 @@ type _AssertWorkflowHistoryEntry = Expect<Equal<z.infer<typeof WorkflowHistoryEn
 type _AssertSRReference = Expect<Equal<z.infer<typeof SRReferenceSchema>, SRReference>>;
 type _AssertSRConformance = Expect<Equal<z.infer<typeof SRConformanceSchema>, SRConformance>>;
 type _AssertReviewerRole = Expect<Equal<z.infer<typeof ReviewerRoleSchema>, ReviewerRole>>;
+type _AssertReviewCommentSeverity = Expect<Equal<z.infer<typeof ReviewCommentSeveritySchema>, ReviewCommentSeverity>>;
 type _AssertReviewComment = Expect<Equal<z.infer<typeof ReviewCommentSchema>, ReviewComment>>;
 type _AssertCommentCollection = Expect<Equal<z.infer<typeof CommentCollectionSchema>, CommentCollection>>;
 type _AssertReviewerReference = Expect<Equal<z.infer<typeof ReviewerReferenceSchema>, ReviewerReference>>;

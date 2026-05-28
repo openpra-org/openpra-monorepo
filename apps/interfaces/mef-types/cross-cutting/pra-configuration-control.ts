@@ -52,6 +52,7 @@ export interface ConfigurationControlDocumentation {
 export interface PRAConfigurationControl
   extends TechnicalElement<TechnicalElementTypes.PRA_CONFIGURATION_CONTROL> {
   freezeDate: string;
+  plantConfigurationRevision?: string;
   monitoredChanges: MonitoredChange[];
   praUpdateRecords: PraUpdateRecord[];
   pendingChangeAssessments: PendingChangeImpactAssessment[];

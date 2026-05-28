@@ -276,6 +276,7 @@ export const PlantOperatingStateGroupSchema = z.object({
   doesNotMaskRiskSignificantContributors: z.boolean(),
   summedDurationHours: z.number(),
   entryFrequency: FrequencyValueSchema,
+  preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 

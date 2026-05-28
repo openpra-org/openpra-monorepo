@@ -68,6 +68,7 @@ export const PreOperationalAssumptionSchema = z.object({
   affectedTechnicalElementCodes: z.array(z.string()).optional(),
   potentialAlternatives: z.array(z.string()).optional(),
   sensitivityAnalysis: SensitivityStudySchema.optional(),
+  owner: z.string().optional(),
 });
 
 export const BasePreOperationalAssumptionsDocumentationSchema = z.object({

@@ -12,6 +12,7 @@ import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
 import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
 import { PosDemoPage } from "../pos-demo/posDemoPage";
+import { DemoIdentityProvider } from "../demo/demoIdentity";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -122,8 +123,10 @@ function App(): ReactElement {
     <ToastProvider>
       <AuthProvider>
         <RoleContext.Provider value={role}>
-          <RouterProvider router={router} />
-          <ToastContainer />
+          <DemoIdentityProvider>
+            <RouterProvider router={router} />
+            <ToastContainer />
+          </DemoIdentityProvider>
         </RoleContext.Provider>
       </AuthProvider>
     </ToastProvider>

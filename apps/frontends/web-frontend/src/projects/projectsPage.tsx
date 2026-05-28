@@ -19,6 +19,7 @@ import { ProjectSection } from "./projectSection";
 import { ProjectGrid } from "./projectGrid";
 import { ProjectTable } from "./projectTable";
 import { NoResultsState } from "./noResultsState";
+import { PendingActionsSection } from "./pendingActionsSection";
 import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { RenameModal } from "./renameModal";
 import { ShareProjectModal } from "./shareProjectModal";
@@ -254,6 +255,8 @@ function ProjectsPage(): JSX.Element {
         />
 
         {loadError && <p className="ap__load-error">{loadError}</p>}
+
+        <PendingActionsSection />
 
         {!loading && !loadError && !isEmpty && (
           <ProjectsToolbar

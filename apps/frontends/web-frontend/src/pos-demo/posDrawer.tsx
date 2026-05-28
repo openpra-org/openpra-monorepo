@@ -1,8 +1,9 @@
 import { JSX, useEffect } from "react";
 import { POSIcon } from "./posIcons";
 import { Badge, Stat } from "./posShared";
+import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
-import { statesView, evolutionsView, groupsView, isBarrierBroken } from "./posSelectors";
+import { statesView, evolutionsView, groupsView, isBarrierBroken, preOpsForState, preOpsForGroup } from "./posSelectors";
 
 function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: () => void }): JSX.Element | null {
   if (context.kind === "state") {
@@ -93,6 +94,8 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
               </div>
             </div>
           )}
+
+          <PreopAssumptionCard assumption={preOpsForState(s.id)[0]} />
         </div>
       </>
     );
@@ -174,6 +177,8 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
             <button type="button" className="poschip"><POSIcon.Plus /> Add state</button>
           </div>
         </div>
+
+        <PreopAssumptionCard assumption={preOpsForGroup(g.id)[0]} />
       </div>
     </>
   );

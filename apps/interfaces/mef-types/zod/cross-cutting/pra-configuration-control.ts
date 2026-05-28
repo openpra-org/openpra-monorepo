@@ -68,6 +68,7 @@ export const ConfigurationControlDocumentationSchema = z.object({
 export const PRAConfigurationControlSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.PRA_CONFIGURATION_CONTROL).shape,
   freezeDate: z.string(),
+  plantConfigurationRevision: z.string().optional(),
   monitoredChanges: z.array(MonitoredChangeSchema),
   praUpdateRecords: z.array(PraUpdateRecordSchema),
   pendingChangeAssessments: z.array(PendingChangeImpactAssessmentSchema),

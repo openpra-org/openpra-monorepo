@@ -68,6 +68,7 @@ export interface PreOperationalAssumption extends BaseAssumption {
   affectedTechnicalElementCodes?: string[];
   potentialAlternatives?: string[];
   sensitivityAnalysis?: SensitivityStudy;
+  owner?: string;
 }
 
 export interface BasePreOperationalAssumptionsDocumentation extends Unique, Named {

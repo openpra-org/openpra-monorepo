@@ -1,0 +1,129 @@
+.pendact {
+  --color-external: #4f5b8b;
+  --color-external-soft: rgba(79, 91, 139, 0.10);
+  --color-external-strong: rgba(79, 91, 139, 0.32);
+  --color-approver: #3f6f4a;
+  --color-approver-soft: rgba(63, 111, 74, 0.10);
+  --color-approver-strong: rgba(63, 111, 74, 0.32);
+  margin: 20px 0 28px;
+  padding: 18px 20px;
+  background: var(--color-surface);
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-external);
+}
+[data-theme="dark"] .pendact {
+  --color-external: #a8b3df;
+  --color-external-soft: rgba(168, 179, 223, 0.14);
+  --color-external-strong: rgba(168, 179, 223, 0.32);
+  --color-approver: #82c39a;
+  --color-approver-soft: rgba(130, 195, 154, 0.14);
+  --color-approver-strong: rgba(130, 195, 154, 0.32);
+}
+.pendact--approver { border-left-color: var(--color-approver); }
+
+.pendact__head {
+  margin-bottom: 14px;
+}
+.pendact__eyebrow {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-external);
+  margin-bottom: 4px;
+}
+.pendact--approver .pendact__eyebrow { color: var(--color-approver); }
+
+.pendact__title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin: 0 0 6px;
+}
+
+.pendact__sub {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pendact__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.pendact__card {
+  text-align: left;
+  background: var(--color-surface-low);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.pendact__card:hover {
+  border-color: var(--color-external-strong);
+  transform: translateY(-1px);
+}
+.pendact--approver .pendact__card:hover { border-color: var(--color-approver-strong); }
+
+.pendact__card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pendact__action {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-external-soft);
+  color: var(--color-external);
+}
+.pendact__action--approver { background: var(--color-approver-soft); color: var(--color-approver); }
+
+.pendact__when {
+  font-size: 11.5px;
+  color: var(--color-text-subtle);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.pendact__card-title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pendact__card-project {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.pendact__card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.pendact__from { color: var(--color-text-subtle); }
+.pendact__open {
+  color: var(--color-external);
+  font-weight: 700;
+}
+.pendact--approver .pendact__open { color: var(--color-approver); }

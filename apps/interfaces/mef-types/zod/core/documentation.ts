@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { NamedSchema, UniqueSchema } from "./meta";
-import { ImportanceLevelSchema } from "./shared-patterns";
+import { ImportanceLevelSchema, SensitivityStudySchema } from "./shared-patterns";
 
 export const BaseDesignInformationSchema = z.object({
   sourceId: z.string(),
@@ -60,6 +60,14 @@ export const PreOperationalAssumptionSchema = z.object({
   resolutionPlan: z.string().optional(),
   status: z.enum(["OPEN", "CLOSED", "IN_PROGRESS"]),
   limitations: z.array(z.string()),
+  influenceOnDefinition: z.string(),
+  riskImpact: ImportanceLevelSchema,
+  closureBasis: z.string(),
+  plannedClosureActions: z.array(z.string()),
+  affectedElementIds: z.array(z.string()),
+  affectedTechnicalElementCodes: z.array(z.string()).optional(),
+  potentialAlternatives: z.array(z.string()).optional(),
+  sensitivityAnalysis: SensitivityStudySchema.optional(),
 });
 
 export const BasePreOperationalAssumptionsDocumentationSchema = z.object({

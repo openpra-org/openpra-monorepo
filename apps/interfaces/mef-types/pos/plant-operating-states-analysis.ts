@@ -3,14 +3,8 @@ import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, Frequency, FrequencyWithDistribution } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { ComponentReference } from "../core/component";
-
-export type CapabilityCategory = "CC-I" | "CC-II" | "CC-III";
-
-export type PlantStage = "OPERATIONAL" | "PRE_OPERATIONAL";
-
-export type HlrId = "A" | "B" | "C" | "D";
-
-export type SRStatus = "MET" | "PARTIAL" | "NOT_MET" | "NOT_APPLICABLE" | "PENDING_REVIEW";
+import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
+import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 
 export type ScreeningCriterion = "SCR-1" | "SCR-2" | "SCR-3" | "ALTERNATE";
 
@@ -57,35 +51,11 @@ export enum SafetyFunctionCategory {
   EX_VESSEL_FISSION_PRODUCT_CONTROL = "EX_VESSEL_FISSION_PRODUCT_CONTROL",
 }
 
-export interface SRReference {
-  sr: string;
-  hlr: HlrId;
-}
-
 export interface ParameterRange {
   min: number;
   max: number;
   representative: number;
   units?: string;
-}
-
-export interface ModelUncertainty {
-  source: string;
-  description: string;
-  impact: ImportanceLevel;
-  treatment: string;
-  reasonableAlternatives: string[];
-}
-
-export interface PreOperationalAssumption {
-  description: string;
-  influenceOnDefinition: string;
-  riskImpact: ImportanceLevel;
-  closureBasis: string;
-  plannedClosureActions: string[];
-  affectedPosIds: string[];
-  potentialAlternatives?: string[];
-  sensitivityAnalysis?: SensitivityStudy;
 }
 
 export interface InterviewRecord {
@@ -400,16 +370,6 @@ export interface TransitionEvent extends Unique, Named {
   procedureIds: string[];
 }
 
-export interface PeerReviewFinding {
-  findingId: string;
-  description: string;
-  associatedSr: string;
-  significance: ImportanceLevel;
-  response: string;
-  actions: string[];
-  status: "OPEN" | "CLOSED" | "IN_PROGRESS";
-}
-
 export interface PosDocumentation {
   processDescription: string;
   evolutionSelectionAndDefinitions: string;
@@ -422,32 +382,14 @@ export interface PosDocumentation {
   praTaskInterfaces: string;
   modelUncertaintySources: string;
   asBuiltLimitations: string;
-  peerReviewFindings?: PeerReviewFinding[];
   implementsSrs: SRReference[];
-}
-
-export interface SRConformance {
-  sr: string;
-  hlr: HlrId;
-  capabilityCategory: CapabilityCategory;
-  applicableToStage: PlantStage[];
-  status: SRStatus;
-  satisfiedByElementPaths: string[];
-  evidence: string;
-  reviewNotes?: string;
 }
 
 export interface PlantOperatingStatesAnalysis
   extends TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS> {
-  metadata: {
-    plantName: string;
-    plantStage: PlantStage;
-    capabilityCategory: CapabilityCategory;
-    praScope: string;
-    includesNonInternalHazardGroups: boolean;
-    freezeDate: string;
-    includesAtPowerOperations: boolean;
-  };
+  praScope: string;
+  includesNonInternalHazardGroups: boolean;
+  includesAtPowerOperations: boolean;
 
   plantEvolutions: PlantEvolution[];
   plantOperatingStates: PlantOperatingState[];
@@ -467,7 +409,7 @@ export interface PlantOperatingStatesAnalysis
   interviewRecords?: InterviewRecord[];
   plantRepresentationAccuracy: PlantRepresentationAccuracy;
 
-  modelUncertainties: ModelUncertainty[];
+  modelUncertainty: BaseModelUncertaintyDocumentation;
   preOperationalAssumptions?: PreOperationalAssumption[];
 
   transitionEvents: TransitionEvent[];
@@ -476,7 +418,8 @@ export interface PlantOperatingStatesAnalysis
   validationRules: PosValidationRules;
   documentation: PosDocumentation;
 
-  conformanceMatrix: SRConformance[];
+  configurationControlRecordId?: string;
+  newlyDevelopedMethodIds?: string[];
 }
 
 export const POS_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

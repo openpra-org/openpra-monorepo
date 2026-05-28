@@ -1,5 +1,5 @@
 import { Unique, Named } from "./meta";
-import { ImportanceLevel } from "./shared-patterns";
+import { ImportanceLevel, SensitivityStudy } from "./shared-patterns";
 
 export interface BaseDesignInformation {
   sourceId: string;
@@ -60,6 +60,14 @@ export interface PreOperationalAssumption extends BaseAssumption {
   resolutionPlan?: string;
   status: "OPEN" | "CLOSED" | "IN_PROGRESS";
   limitations: string[];
+  influenceOnDefinition: string;
+  riskImpact: ImportanceLevel;
+  closureBasis: string;
+  plannedClosureActions: string[];
+  affectedElementIds: string[];
+  affectedTechnicalElementCodes?: string[];
+  potentialAlternatives?: string[];
+  sensitivityAnalysis?: SensitivityStudy;
 }
 
 export interface BasePreOperationalAssumptionsDocumentation extends Unique, Named {

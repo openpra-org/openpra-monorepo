@@ -1,6 +1,15 @@
 import { Named, Unique } from "./core/meta";
 import { BaseAssumption } from "./core/documentation";
 import { VersionInfo } from "./core/version";
+import {
+  CapabilityCategory,
+  CommentCollection,
+  PlantStage,
+  ReviewerReference,
+  SRConformance,
+  WorkflowHistoryEntry,
+  WorkflowState,
+} from "./core/pra-common";
 
 export const TECHNICAL_ELEMENT_CODES = {
   POS: "PLANT_OPERATING_STATE_ANALYSIS",
@@ -21,6 +30,8 @@ export const TECHNICAL_ELEMENT_CODES = {
   W: "HIGH WINDS PRA",
   XF: "EXTERNAL_FLOODING_PRA",
   O: "OTHER_HAZARDS_PRA",
+  CC: "PRA_CONFIGURATION_CONTROL",
+  NM: "NEWLY_DEVELOPED_METHOD",
   UNK: "UNKNOWN",
 } as const;
 
@@ -46,14 +57,15 @@ export enum TechnicalElementTypes {
   HIGH_WINDS_PRA = "high-winds-pra",
   EXTERNAL_FLOODING_PRA = "external-flooding-pra",
   OTHER_HAZARDS_PRA = "other-hazards-pra",
+  PRA_CONFIGURATION_CONTROL = "pra-configuration-control",
+  NEWLY_DEVELOPED_METHOD = "newly-developed-method",
 }
 
 export interface TechnicalElementMetadata {
   versionInfo: VersionInfo;
   analysisDate: string;
   analysts: string[];
-  reviewers: string[];
-  approvalStatus: "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+  reviewers: ReviewerReference[];
   scope: string;
   limitations: string[];
   lastModifiedDate: string;
@@ -66,8 +78,6 @@ export interface TechnicalElement<T extends TechnicalElementTypes> extends Uniqu
   created: string;
   modified: string;
   owner?: string;
-  status?: "DRAFT" | "REVIEW" | "APPROVED" | "DEPRECATED";
-  description?: string;
   tags?: string[];
   commonAssumptions?: BaseAssumption[];
   references?: {
@@ -75,4 +85,14 @@ export interface TechnicalElement<T extends TechnicalElementTypes> extends Uniqu
     technicalElementType: TechnicalElementTypes;
     description: string;
   }[];
+
+  workflowState: WorkflowState;
+  workflowHistory: WorkflowHistoryEntry[];
+  capabilityCategory?: CapabilityCategory;
+  plantStage: PlantStage;
+  metadata: TechnicalElementMetadata;
+  conformanceMatrix: SRConformance[];
+  internalReviewComments: CommentCollection;
+  activePeerReviewIds: string[];
+  activeAuditIds: string[];
 }

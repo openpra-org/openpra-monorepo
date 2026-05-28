@@ -8,12 +8,9 @@ import {
   type SubsumedPosRecord,
   type DecayHeatCharacterization,
   type PlantRepresentationAccuracy,
-  type ModelUncertainty,
-  type PreOperationalAssumption,
   type TransitionEvent,
   type PosValidationRules,
   type PosDocumentation,
-  type SRConformance,
   type Instrument,
   type SscOperationalCharacteristic,
   type SafetyFunction,
@@ -23,7 +20,6 @@ import {
   type RadionuclideTransportBarrier,
   type ReactorCoolantSystemParameters,
   type ParameterRange,
-  type SRReference,
   OperatingMode,
   EvolutionType,
   BarrierStatus,
@@ -33,6 +29,8 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type InitiatingEvent } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
+import { type BaseModelUncertaintyDocumentation, type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
+import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
 
 // hardcoded — entire PlantOperatingStatesAnalysis instance below is demo data
 // for Aurora-1, a 300 MWt sodium-cooled fast reactor. It follows the OpenPRA POS
@@ -717,22 +715,37 @@ const plantRepresentationAccuracy: PlantRepresentationAccuracy = {
   implementsSrs: [{ sr: "POS-D1", hlr: "D" }],
 };
 
-// ─── Model uncertainties ─────────────────────────────────────────────────
-const modelUncertainties: ModelUncertainty[] = [
-  { source: "Decay-heat curve", description: "Vendor decay-heat curve carries ±10% uncertainty for early times after shutdown.", impact: ImportanceLevel.MEDIUM, treatment: "Bounding upper curve used pending plant-specific measurement.", reasonableAlternatives: ["Plant-specific decay-heat measurement"] },
-  { source: "Cover-gas activity", description: "Cover-gas activity model based on design estimates.", impact: ImportanceLevel.LOW, treatment: "Conservative activity assumed.", reasonableAlternatives: ["Sampled cover-gas activity"] },
-  { source: "Thermal stratification", description: "Stratification during load-follow not fully resolved.", impact: ImportanceLevel.LOW, treatment: "Bounded by hot-standby envelope.", reasonableAlternatives: ["CFD stratification study"] },
-  { source: "DRACS performance", description: "Passive DRACS capacity based on prototype test data.", impact: ImportanceLevel.MEDIUM, treatment: "Lower-bound capacity assumed.", reasonableAlternatives: ["Plant-specific DRACS commissioning data"] },
-];
+// ─── Model uncertainty (single documentation object per new schema) ──────
+const modelUncertainty: BaseModelUncertaintyDocumentation = {
+  uuid: "POS-MU-1",
+  name: "POS model uncertainty documentation",
+  uncertaintySources: [
+    { source: "Decay-heat curve", impact: "Vendor decay-heat curve carries ±10% uncertainty for early times after shutdown." },
+    { source: "Cover-gas activity", impact: "Cover-gas activity model based on design estimates; conservative activity assumed." },
+    { source: "Thermal stratification", impact: "Stratification during load-follow not fully resolved; bounded by hot-standby envelope." },
+    { source: "DRACS performance", impact: "Passive DRACS capacity based on prototype test data; lower-bound capacity assumed." },
+  ],
+  relatedAssumptions: [
+    { assumption: "Vendor decay-heat curve is bounding for the early post-shutdown window.", basis: "Pending plant-specific measurement." },
+    { assumption: "Cover-gas activity remains within design estimate.", basis: "Design analysis; not yet sampled." },
+    { assumption: "DRACS performance meets prototype-test lower bound.", basis: "Prototype testing; commissioning will close." },
+  ],
+  reasonableAlternatives: [
+    { alternative: "Plant-specific decay-heat measurement", reasonNotSelected: "Not available pre-operation." },
+    { alternative: "Sampled cover-gas activity", reasonNotSelected: "Not available pre-operation." },
+    { alternative: "CFD stratification study", reasonNotSelected: "Not yet performed; bounded conservatively in the meantime." },
+    { alternative: "Plant-specific DRACS commissioning data", reasonNotSelected: "Not yet available." },
+  ],
+};
 
 // ─── Pre-operational assumptions ─────────────────────────────────────────
 const preOperationalAssumptions: PreOperationalAssumption[] = [
-  { description: "As-built instrumentation list matches the Rev 2 design list.", influenceOnDefinition: "Available instrumentation per state.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against as-built records before fuel load.", plannedClosureActions: ["As-built instrumentation walkdown"], affectedPosIds: ["POS-01", "POS-05"] },
-  { description: "DRACS passive capacity meets the lower-bound design value.", influenceOnDefinition: "Post-trip cooldown state success criteria.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "DRACS commissioning test.", plannedClosureActions: ["Commissioning test", "Update success criteria"], affectedPosIds: ["POS-07"] },
-  { description: "Decay-heat levels for maintenance states bounded by vendor curve.", influenceOnDefinition: "Decay-heat characterisation for POS-08/09.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "Characterise LPSD decay heat.", plannedClosureActions: ["Decay-heat characterisation"], affectedPosIds: ["POS-08", "POS-09"] },
-  { description: "Refuelling cover-gas path conforms to OP-014 timing.", influenceOnDefinition: "Barrier status during refuelling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against final refuelling procedure.", plannedClosureActions: ["Procedure review"], affectedPosIds: ["POS-05", "POS-06"] },
-  { description: "Containment deinerting window matches design intent.", influenceOnDefinition: "Containment barrier status during fuel handling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm deinerting procedure.", plannedClosureActions: ["Procedure review"], affectedPosIds: ["POS-06"] },
-  { description: "Upper containment barrier status to be confirmed for cooled-head state.", influenceOnDefinition: "POS-04 barrier characterisation.", riskImpact: ImportanceLevel.LOW, closureBasis: "Enter barrier status for upper containment.", plannedClosureActions: ["Complete barrier-status entry"], affectedPosIds: ["POS-04"] },
+  { uuid: "POA-1", assumptionId: "POA-1", status: "OPEN", limitations: [], description: "As-built instrumentation list matches the Rev 2 design list.", influenceOnDefinition: "Available instrumentation per state.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against as-built records before fuel load.", plannedClosureActions: ["As-built instrumentation walkdown"], affectedElementIds: ["POS-01", "POS-05"] },
+  { uuid: "POA-2", assumptionId: "POA-2", status: "OPEN", limitations: [], description: "DRACS passive capacity meets the lower-bound design value.", influenceOnDefinition: "Post-trip cooldown state success criteria.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "DRACS commissioning test.", plannedClosureActions: ["Commissioning test", "Update success criteria"], affectedElementIds: ["POS-07"] },
+  { uuid: "POA-3", assumptionId: "POA-3", status: "OPEN", limitations: [], description: "Decay-heat levels for maintenance states bounded by vendor curve.", influenceOnDefinition: "Decay-heat characterisation for POS-08/09.", riskImpact: ImportanceLevel.MEDIUM, closureBasis: "Characterise LPSD decay heat.", plannedClosureActions: ["Decay-heat characterisation"], affectedElementIds: ["POS-08", "POS-09"] },
+  { uuid: "POA-4", assumptionId: "POA-4", status: "OPEN", limitations: [], description: "Refuelling cover-gas path conforms to OP-014 timing.", influenceOnDefinition: "Barrier status during refuelling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm against final refuelling procedure.", plannedClosureActions: ["Procedure review"], affectedElementIds: ["POS-05", "POS-06"] },
+  { uuid: "POA-5", assumptionId: "POA-5", status: "OPEN", limitations: [], description: "Containment deinerting window matches design intent.", influenceOnDefinition: "Containment barrier status during fuel handling.", riskImpact: ImportanceLevel.LOW, closureBasis: "Confirm deinerting procedure.", plannedClosureActions: ["Procedure review"], affectedElementIds: ["POS-06"] },
+  { uuid: "POA-6", assumptionId: "POA-6", status: "OPEN", limitations: [], description: "Upper containment barrier status to be confirmed for cooled-head state.", influenceOnDefinition: "POS-04 barrier characterisation.", riskImpact: ImportanceLevel.LOW, closureBasis: "Enter barrier status for upper containment.", plannedClosureActions: ["Complete barrier-status entry"], affectedElementIds: ["POS-04"] },
 ];
 
 // ─── Documentation ───────────────────────────────────────────────────────
@@ -757,17 +770,17 @@ const conformanceMatrix: SRConformance[] = [
   { sr: "POS-A2", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantEvolutions[].reviewedDocumentation"], evidence: "Each evolution traced to design-basis documents." },
   { sr: "POS-A3", hlr: "A", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStates"], evidence: "All states characterised; POS-04 upper-containment barrier entry pending.", reviewNotes: "POS-04 missing barrier-status entry." },
   { sr: "POS-A8", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["interviewRecords"], evidence: "Seven design-engineering interview sessions logged." },
-  { sr: "POS-A9", hlr: "A", capabilityCategory: "CC-III", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantEvolutions[].futureEvolutionReview"], evidence: "Future-evolution review pending for one evolution." },
+  { sr: "POS-A9", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantEvolutions[].futureEvolutionReview"], evidence: "Future-evolution review pending for one evolution." },
   { sr: "POS-A11", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantOperatingStates[].sscOperationalCharacteristics"], evidence: "Required SSC configurations recorded per state." },
-  { sr: "POS-A12", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainties"], evidence: "Four model-uncertainty sources logged." },
+  { sr: "POS-A12", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainty"], evidence: "Four model-uncertainty sources logged." },
   { sr: "POS-A13", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["preOperationalAssumptions"], evidence: "Six pre-operational assumptions logged with closure plans." },
   { sr: "POS-B2", hlr: "B", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["screeningRecords"], evidence: "Each screened-out state has a documented justification." },
-  { sr: "POS-B3", hlr: "B", capabilityCategory: "CC-III", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantOperatingStateGroups[].doesNotMaskRiskSignificantContributors"], evidence: "Grouping does not mask risk-significant contributors." },
+  { sr: "POS-B3", hlr: "B", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantOperatingStateGroups[].doesNotMaskRiskSignificantContributors"], evidence: "Grouping does not mask risk-significant contributors." },
   { sr: "POS-B6", hlr: "B", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStateGroups[].boundingCharacteristics"], evidence: "Bounding rationale pending for the refuelling group.", reviewNotes: "Group RFG bounding rationale not yet written." },
   { sr: "POS-C1", hlr: "C", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStates[].meanDurationHours"], evidence: "Durations and frequencies captured; one state missing duration basis." },
   { sr: "POS-C4", hlr: "C", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "NOT_MET", satisfiedByElementPaths: ["decayHeatCharacterizations"], evidence: "Decay-heat characterisation incomplete for LPSD maintenance states.", reviewNotes: "0 of 6 LPSD states characterised." },
-  { sr: "POS-D1", hlr: "D", capabilityCategory: "CC-III", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["documentation"], evidence: "Inputs traceable to source documents for every claim." },
-  { sr: "POS-D2", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainties"], evidence: "Sources of model uncertainty captured." },
+  { sr: "POS-D1", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["documentation"], evidence: "Inputs traceable to source documents for every claim." },
+  { sr: "POS-D2", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainty"], evidence: "Sources of model uncertainty captured." },
   { sr: "POS-D3", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["preOperationalAssumptions"], evidence: "Pre-operational assumptions logged with closure plans." },
 ];
 
@@ -779,16 +792,32 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   created: "2026-04-02",
   modified: "2026-04-14",
   owner: "Aakash Patel",
-  status: "REVIEW",
+  workflowState: "INTERNAL_TECHNICAL_REVIEW",
+  workflowHistory: [
+    { state: "DRAFT", enteredAt: "2026-04-02", exitedAt: "2026-04-12", actor: "Aakash Patel" },
+    { state: "INTERNAL_TECHNICAL_REVIEW", enteredAt: "2026-04-12", actor: "Lead Safety Analyst" },
+  ],
+  capabilityCategory: "CC-II",
+  plantStage: "PRE_OPERATIONAL",
   metadata: {
-    plantName: "Aurora-1",
-    plantStage: "PRE_OPERATIONAL",
-    capabilityCategory: "CC-II",
-    praScope: "Internal events, all plant operating states, full operating cycle.",
-    includesNonInternalHazardGroups: false,
-    freezeDate: "2026-04-01",
-    includesAtPowerOperations: true,
+    versionInfo: { version: "2", lastUpdated: "2026-04-14", schemaVersion: "0.0.1" },
+    analysisDate: "2026-04-14",
+    analysts: ["Aakash Patel"],
+    reviewers: [
+      { id: "rev-1", name: "Lead Safety Analyst", role: "INTERNAL_REVIEWER" },
+    ],
+    scope: "Internal events, all plant operating states, full operating cycle.",
+    limitations: ["Pre-operational; pending as-built validation."],
+    lastModifiedDate: "2026-04-14",
+    lastModifiedBy: "Aakash Patel",
   },
+  conformanceMatrix,
+  internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
+  activePeerReviewIds: [],
+  activeAuditIds: [],
+  praScope: "Internal events, all plant operating states, full operating cycle.",
+  includesNonInternalHazardGroups: false,
+  includesAtPowerOperations: true,
   plantEvolutions,
   plantOperatingStates,
   plantOperatingStateGroups,
@@ -798,12 +827,11 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   decayHeatCharacterizations,
   interviewRecords,
   plantRepresentationAccuracy,
-  modelUncertainties,
+  modelUncertainty,
   preOperationalAssumptions,
   transitionEvents,
   validationRules,
   documentation,
-  conformanceMatrix,
 };
 
 export { POS_ANALYSIS };

@@ -56,26 +56,26 @@ function frequencyValue(f: number | { value: number }): number {
 
 function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
-  const meta = a.metadata;
-  const stageLabel = meta.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
+  const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
+  const ccLabel = a.capabilityCategory ?? "N/A";
 
   out.push(
     new Paragraph({
-      children: [new TextRun({ text: `${meta.plantName} — ${stageLabel} PRA Model`, bold: true, size: 48 })],
+      children: [new TextRun({ text: `${a.name} — ${stageLabel} PRA Model`, bold: true, size: 48 })],
       spacing: { after: 60 },
     }),
     new Paragraph({
       children: [new TextRun({ text: "Preliminary Plant Operating State Analysis", size: 28, color: "4C4452" })],
       spacing: { after: 120 },
     }),
-    para(`Capability category target: ${meta.capabilityCategory}. Freeze date: ${meta.freezeDate}. Scope: ${meta.praScope}`),
+    para(`Capability category target: ${ccLabel}. Scope: ${a.praScope}`),
     para(final ? "Status: final — all required items satisfied." : "Status: draft — open items flagged inline."),
   );
 
   out.push(heading("Executive summary", HeadingLevel.HEADING_1));
   out.push(
     para(
-      `This document presents the preliminary Plant Operating State (POS) analysis for ${meta.plantName}, prepared during the ${stageLabel.toLowerCase()} stage to support the design certification submittal. ${a.plantOperatingStates.length} plant operating states across ${a.plantEvolutions.length} plant evolutions have been defined, characterised, and reviewed for completeness against the ${meta.capabilityCategory} capability target.`,
+      `This document presents the preliminary Plant Operating State (POS) analysis for ${a.name}, prepared during the ${stageLabel.toLowerCase()} stage to support the design certification submittal. ${a.plantOperatingStates.length} plant operating states across ${a.plantEvolutions.length} plant evolutions have been defined, characterised, and reviewed for completeness against the ${ccLabel} capability target.`,
     ),
   );
 
@@ -83,15 +83,13 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(heading("Purpose", HeadingLevel.HEADING_2));
   out.push(para(a.documentation.processDescription));
   out.push(heading("Scope", HeadingLevel.HEADING_2));
-  out.push(para(meta.praScope));
+  out.push(para(a.praScope));
   out.push(heading("Relationship to other documents", HeadingLevel.HEADING_2));
   out.push(para(a.documentation.praTaskInterfaces));
   out.push(heading("Document layout", HeadingLevel.HEADING_2));
   out.push(para("This report follows the OpenPRA POS template: evolutions, operating states, interviews, screening and grouping, frequencies and durations, decay heat, and references."));
   out.push(heading("Quality assurance", HeadingLevel.HEADING_2));
   out.push(para(a.plantRepresentationAccuracy.basis));
-  out.push(heading("Freeze date", HeadingLevel.HEADING_2));
-  out.push(para(`Plant configuration is frozen as of ${meta.freezeDate}.`));
 
   out.push(heading("Assumptions and limitations", HeadingLevel.HEADING_1));
   out.push(para("Pre-operational assumptions logged with planned closure actions:"));
@@ -101,8 +99,8 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(heading("Sources of model uncertainty", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
-      ["Source", "Description", "Impact", "Treatment"],
-      a.modelUncertainties.map((m) => [m.source, m.description, m.impact, m.treatment]),
+      ["Source", "Impact / treatment"],
+      a.modelUncertainty.uncertaintySources.map((m) => [m.source, m.impact]),
     ),
   );
 
@@ -200,7 +198,7 @@ async function generatePosReport(final: boolean): Promise<void> {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${POS_ANALYSIS.metadata.plantName} — POS Analysis${final ? "" : " (draft)"}.docx`;
+  link.download = `${POS_ANALYSIS.name} — POS Analysis${final ? "" : " (draft)"}.docx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

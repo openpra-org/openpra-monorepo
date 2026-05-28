@@ -120,7 +120,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
           <h3 className="poscard__title">Capability category</h3>
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             const scores = CC_SCORES[c.id];

@@ -21,11 +21,12 @@ import {
   SuccessCriteriaIdSchema,
 } from "../core/shared-patterns";
 import { ComponentReferenceSchema } from "../core/component";
+import {
+  BaseModelUncertaintyDocumentationSchema,
+  PreOperationalAssumptionSchema,
+} from "../core/documentation";
+import { SRReferenceSchema } from "../core/pra-common";
 
-export const CapabilityCategorySchema = z.enum(["CC-I", "CC-II", "CC-III"]);
-export const PlantStageSchema = z.enum(["OPERATIONAL", "PRE_OPERATIONAL"]);
-export const HlrIdSchema = z.enum(["A", "B", "C", "D"]);
-export const SRStatusSchema = z.enum(["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE", "PENDING_REVIEW"]);
 export const ScreeningCriterionSchema = z.enum(["SCR-1", "SCR-2", "SCR-3", "ALTERNATE"]);
 export const SystemStatusSchema = z.enum(["YES", "NO", "STANDBY", "OOS"]);
 
@@ -37,35 +38,11 @@ export const SafetyFunctionCategorySchema = z.enum(SafetyFunctionCategory);
 
 const FrequencyValueSchema = z.union([FrequencySchema, FrequencyWithDistributionSchema]);
 
-export const SRReferenceSchema = z.object({
-  sr: z.string(),
-  hlr: HlrIdSchema,
-});
-
 export const ParameterRangeSchema = z.object({
   min: z.number(),
   max: z.number(),
   representative: z.number(),
   units: z.string().optional(),
-});
-
-export const ModelUncertaintySchema = z.object({
-  source: z.string(),
-  description: z.string(),
-  impact: ImportanceLevelSchema,
-  treatment: z.string(),
-  reasonableAlternatives: z.array(z.string()),
-});
-
-export const PreOperationalAssumptionSchema = z.object({
-  description: z.string(),
-  influenceOnDefinition: z.string(),
-  riskImpact: ImportanceLevelSchema,
-  closureBasis: z.string(),
-  plannedClosureActions: z.array(z.string()),
-  affectedPosIds: z.array(z.string()),
-  potentialAlternatives: z.array(z.string()).optional(),
-  sensitivityAnalysis: SensitivityStudySchema.optional(),
 });
 
 export const InterviewRecordSchema = z.object({
@@ -406,16 +383,6 @@ export const TransitionEventSchema = z.object({
   procedureIds: z.array(z.string()),
 });
 
-export const PeerReviewFindingSchema = z.object({
-  findingId: z.string(),
-  description: z.string(),
-  associatedSr: z.string(),
-  significance: ImportanceLevelSchema,
-  response: z.string(),
-  actions: z.array(z.string()),
-  status: z.enum(["OPEN", "CLOSED", "IN_PROGRESS"]),
-});
-
 export const PosDocumentationSchema = z.object({
   processDescription: z.string(),
   evolutionSelectionAndDefinitions: z.string(),
@@ -428,32 +395,14 @@ export const PosDocumentationSchema = z.object({
   praTaskInterfaces: z.string(),
   modelUncertaintySources: z.string(),
   asBuiltLimitations: z.string(),
-  peerReviewFindings: z.array(PeerReviewFindingSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const SRConformanceSchema = z.object({
-  sr: z.string(),
-  hlr: HlrIdSchema,
-  capabilityCategory: CapabilityCategorySchema,
-  applicableToStage: z.array(PlantStageSchema),
-  status: SRStatusSchema,
-  satisfiedByElementPaths: z.array(z.string()),
-  evidence: z.string(),
-  reviewNotes: z.string().optional(),
 });
 
 export const PlantOperatingStatesAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS).shape,
-  metadata: z.object({
-    plantName: z.string(),
-    plantStage: PlantStageSchema,
-    capabilityCategory: CapabilityCategorySchema,
-    praScope: z.string(),
-    includesNonInternalHazardGroups: z.boolean(),
-    freezeDate: z.string(),
-    includesAtPowerOperations: z.boolean(),
-  }),
+  praScope: z.string(),
+  includesNonInternalHazardGroups: z.boolean(),
+  includesAtPowerOperations: z.boolean(),
   plantEvolutions: z.array(PlantEvolutionSchema),
   plantOperatingStates: z.array(PlantOperatingStateSchema),
   evolutionGroups: z.array(EvolutionGroupSchema).optional(),
@@ -466,16 +415,17 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   hazardGroupReviews: z.array(HazardGroupReviewSchema).optional(),
   interviewRecords: z.array(InterviewRecordSchema).optional(),
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
-  modelUncertainties: z.array(ModelUncertaintySchema),
+  modelUncertainty: BaseModelUncertaintyDocumentationSchema,
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   transitionEvents: z.array(TransitionEventSchema),
   timeVaryingConditions: z.array(TimeVaryingConditionSchema).optional(),
   validationRules: PosValidationRulesSchema,
   documentation: PosDocumentationSchema,
-  conformanceMatrix: z.array(SRConformanceSchema),
+  configurationControlRecordId: z.string().optional(),
+  newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 
 type Expect<T extends true> = T;
-type Equal<A, B> = A extends B ? (B extends A ? true : false) : false;
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 type _AssertPosMirrorsType = Expect<Equal<z.infer<typeof PlantOperatingStatesAnalysisSchema>, PlantOperatingStatesAnalysis>>;

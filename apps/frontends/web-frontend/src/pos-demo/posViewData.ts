@@ -54,7 +54,6 @@ interface CapabilityCategory {
 const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
   { id: "cc-i", name: "CC-I", tag: "Bounding", description: "Coarser methods and bounding assumptions. Good enough for screening studies." },
   { id: "cc-ii", name: "CC-II", tag: "Plant-specific", description: "More plant-specific data, finer resolution, fewer blanket conservatisms." },
-  { id: "cc-iii", name: "CC-III", tag: "Detailed plant-specific", description: "Finest resolution, most plant-specific realism, least reliance on bounding assumptions." },
 ];
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
@@ -72,30 +71,27 @@ interface ConformanceItem {
 }
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = [
-  { id: "evol-set", section: "Plant evolutions", text: "Plant evolutions identified and documented", status: "ok", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A1"] },
-  { id: "evol-design", section: "Plant evolutions", text: "Each evolution traced to design-basis documents", status: "ok", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A2"] },
-  { id: "evol-future", section: "Plant evolutions", text: "Future evolutions reviewed for higher-risk states not yet encountered", status: "warn", meta: "1 evolution pending review", requiredAt: ["cc-iii"], stages: ["operational"], sr: ["POS-A9"] },
+  { id: "evol-set", section: "Plant evolutions", text: "Plant evolutions identified and documented", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A1"] },
+  { id: "evol-design", section: "Plant evolutions", text: "Each evolution traced to design-basis documents", status: "ok", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A2"] },
 
-  { id: "pos-define", section: "Operating states", text: "All operating states fully characterised", status: "warn", meta: "POS-04 missing barrier-status entry", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-sources", section: "Operating states", text: "Ex-core radioactive sources tracked (spent fuel, off-gas, cover gas)", status: "ok", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-instr", section: "Operating states", text: "Available instrumentation listed per state", status: "ok", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-ssc", section: "Operating states", text: "Required SSC configurations recorded per state", status: "ok", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A11"] },
-  { id: "pos-mxcc", section: "Operating states", text: "Operating states are non-overlapping (any plant condition in exactly one)", status: "ok", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"] },
-  { id: "pos-exhaust", section: "Operating states", text: "Operating states are gap-free (cover the full cycle)", status: "ok", meta: "Coverage 100.00 %", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"] },
+  { id: "pos-define", section: "Operating states", text: "All operating states fully characterised", status: "warn", meta: "POS-04 missing barrier-status entry", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A3"] },
+  { id: "pos-sources", section: "Operating states", text: "Ex-core radioactive sources tracked (spent fuel, off-gas, cover gas)", status: "ok", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A3"] },
+  { id: "pos-instr", section: "Operating states", text: "Available instrumentation listed per state", status: "ok", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A3"] },
+  { id: "pos-ssc", section: "Operating states", text: "Required SSC configurations recorded per state", status: "ok", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A11"] },
+  { id: "pos-mxcc", section: "Operating states", text: "Operating states are non-overlapping (any plant condition in exactly one)", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"] },
+  { id: "pos-exhaust", section: "Operating states", text: "Operating states are gap-free (cover the full cycle)", status: "ok", meta: "Coverage 100.00 %", requiredAt: ["cc-i", "cc-ii"], stages: ["both"] },
 
-  { id: "iv-ops", section: "Interviews & walkdowns", text: "Walkdowns and interviews with operations staff documented", status: "na", meta: "Not applicable — plant not yet operating", requiredAt: ["cc-ii", "cc-iii"], stages: ["operational"], sr: ["POS-A4", "POS-A6", "POS-A7"] },
-  { id: "iv-eng", section: "Interviews & walkdowns", text: "Interviews with design engineering staff documented", status: "ok", meta: "7 sessions logged", requiredAt: ["cc-ii", "cc-iii"], stages: ["pre_operational"], sr: ["POS-A8"] },
+  { id: "iv-ops", section: "Interviews & walkdowns", text: "Walkdowns and interviews with operations staff documented", status: "na", meta: "Not applicable — plant not yet operating", requiredAt: ["cc-ii"], stages: ["operational"], sr: ["POS-A4", "POS-A6", "POS-A7"] },
+  { id: "iv-eng", section: "Interviews & walkdowns", text: "Interviews with design engineering staff documented", status: "ok", meta: "7 sessions logged", requiredAt: ["cc-ii"], stages: ["pre_operational"], sr: ["POS-A8"] },
 
-  { id: "scr-rationale", section: "Screening & grouping", text: "Every screened-out state has a quantitative or qualitative justification", status: "ok", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-B2"] },
-  { id: "grp-bounding", section: "Screening & grouping", text: "Each grouped state's response is bounded by the group's worst-case", status: "warn", meta: "Group RFG: bounding rationale not yet written", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-B6"] },
-  { id: "grp-nomask", section: "Screening & grouping", text: "Grouping does not mask any risk-significant contributor", status: "ok", requiredAt: ["cc-iii"], stages: ["both"], sr: ["POS-B3"] },
+  { id: "scr-rationale", section: "Screening & grouping", text: "Every screened-out state has a quantitative or qualitative justification", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-B2"] },
+  { id: "grp-bounding", section: "Screening & grouping", text: "Each grouped state's response is bounded by the group's worst-case", status: "warn", meta: "Group RFG: bounding rationale not yet written", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-B6"] },
 
-  { id: "freq-dur", section: "Frequencies & duration", text: "Mean duration and entry frequency captured per state", status: "warn", meta: "1 state missing duration basis", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-C1", "POS-C2"] },
-  { id: "decay-heat", section: "Frequencies & duration", text: "Decay-heat level characterised for every shutdown / refuelling state", status: "blocked", meta: "0 of 6 LPSD states characterised", requiredAt: ["cc-i", "cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-C4"] },
+  { id: "freq-dur", section: "Frequencies & duration", text: "Mean duration and entry frequency captured per state", status: "warn", meta: "1 state missing duration basis", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C1", "POS-C2"] },
+  { id: "decay-heat", section: "Frequencies & duration", text: "Decay-heat level characterised for every shutdown / refuelling state", status: "blocked", meta: "0 of 6 LPSD states characterised", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C4"] },
 
-  { id: "doc-uncert", section: "Documentation", text: "Sources of model uncertainty captured", status: "ok", meta: "4 logged", requiredAt: ["cc-ii", "cc-iii"], stages: ["both"], sr: ["POS-A12", "POS-D2"] },
-  { id: "doc-preop", section: "Documentation", text: "Pre-operational assumptions logged with closure plans", status: "ok", meta: "6 logged · 2 closures pending", requiredAt: ["cc-ii", "cc-iii"], stages: ["pre_operational"], sr: ["POS-A13", "POS-D3"] },
-  { id: "doc-trace", section: "Documentation", text: "Inputs traceable to source documents for every claim", status: "ok", requiredAt: ["cc-iii"], stages: ["both"], sr: ["POS-D1"] },
+  { id: "doc-uncert", section: "Documentation", text: "Sources of model uncertainty captured", status: "ok", meta: "4 logged", requiredAt: ["cc-ii"], stages: ["both"], sr: ["POS-A12", "POS-D2"] },
+  { id: "doc-preop", section: "Documentation", text: "Pre-operational assumptions logged with closure plans", status: "ok", meta: "6 logged · 2 closures pending", requiredAt: ["cc-ii"], stages: ["pre_operational"], sr: ["POS-A13", "POS-D3"] },
 ];
 
 interface CcScore {
@@ -112,7 +108,6 @@ interface CcScore {
 const CC_SCORES: Record<string, CcScore> = {
   "cc-i": { applicable: 8, met: 7, warn: 1, blocked: 0, na: 0, percent: 88 },
   "cc-ii": { applicable: 15, met: 11, warn: 3, blocked: 1, na: 1, percent: 73 },
-  "cc-iii": { applicable: 18, met: 12, warn: 4, blocked: 1, na: 1, percent: 67 },
 };
 
 interface PosDocument {

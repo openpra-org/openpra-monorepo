@@ -44,7 +44,7 @@ const RISK_MODES: readonly RiskModeDefinition[] = [
   },
 ];
 
-type IncludedCode = Exclude<TechnicalElementCode, "UNK">;
+type IncludedCode = Exclude<TechnicalElementCode, "UNK" | "CC" | "NM">;
 
 const ELEMENT_DISPLAY_NAMES: Readonly<Record<IncludedCode, string>> = {
   POS: "Plant Operating State Analysis",
@@ -96,7 +96,7 @@ interface TechnicalElementDefinition {
 }
 
 const INCLUDED_CODES = (Object.keys(TECHNICAL_ELEMENT_CODES) as TechnicalElementCode[])
-  .filter((c): c is IncludedCode => c !== "UNK");
+  .filter((c): c is IncludedCode => c !== "UNK" && c !== "CC" && c !== "NM");
 
 const ALL_ELEMENTS: readonly TechnicalElementDefinition[] = INCLUDED_CODES.map((code) => {
   const membership = ELEMENT_MODE_MEMBERSHIP[code];

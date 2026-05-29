@@ -1,4 +1,4 @@
-import { JSX, useMemo, useState } from "react";
+import { JSX, useEffect, useMemo, useState } from "react";
 import { POSIcon } from "./posIcons";
 import { Badge, Stat } from "./posShared";
 import {
@@ -13,8 +13,10 @@ import {
 import { type CapabilityCategory, type CcScore } from "./posViewData";
 import { type PosPersona } from "./posViewData";
 import { usePosWorkbook } from "./posWorkbookContext";
+import { useAuth } from "../auth/AuthContext";
 
 interface InternalReviewProps {
+  step: "review" | "approval";
   persona: PosPersona;
   cc: CapabilityCategory;
   scores: CcScore;
@@ -25,6 +27,7 @@ interface InternalReviewProps {
   onSubmitToApproval: () => void;
   onSign: () => void;
   onAction: (msg: string) => void;
+  approvalTableSlot?: import("react").ReactNode;
 }
 
 function bannerVariant(openCount: number, submitted: boolean, approved: boolean): "in_review" | "ready" | "submitted" | "approved" {
@@ -35,9 +38,11 @@ function bannerVariant(openCount: number, submitted: boolean, approved: boolean)
 }
 
 function InternalReviewScreen({
-  persona, cc, scores, comments, submitted, approved,
-  onToggleResolved, onSubmitToApproval, onSign, onAction,
+  step, persona, cc, scores, comments, submitted, approved,
+  onToggleResolved, onSubmitToApproval, onSign, onAction, approvalTableSlot,
 }: InternalReviewProps): JSX.Element {
+  const isApprovalStep = step === "approval";
+  const isReviewStep = step === "review";
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
   const [filter, setFilter] = useState<"all" | "open" | "resolved">(isApprover ? "all" : "open");
@@ -46,7 +51,14 @@ function InternalReviewScreen({
   const allResolved = openCount === 0 && comments.length > 0;
   const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
   const banner = bannerVariant(openCount, submitted, approved);
-  const canApprove = isApprover && allResolved && scores.blocked === 0;
+  const { user } = useAuth();
+  const myUsername = user?.username ?? "";
+  const myOpenComments = comments.filter((c) => c.authorId === myUsername && !c.resolved).length;
+  const myCommentsResolved = myOpenComments === 0;
+  const myCommentCount = comments.filter((c) => c.authorId === myUsername).length;
+  const [ackedNoMore, setAckedNoMore] = useState(false);
+  useEffect(() => { setAckedNoMore(false); }, [myCommentCount]);
+  const canApprove = isApprover && myCommentsResolved && scores.blocked === 0 && ackedNoMore;
   const { pos, cc: ccInstance, nms: nmInstances } = usePosWorkbook();
   const reviewers = internalReviewersView(pos);
   const approver = internalApproverView(pos);
@@ -133,7 +145,7 @@ function InternalReviewScreen({
         </div>
       </div>
 
-      {isPreparer && (
+      {isPreparer && isReviewStep && (
         <div className="poscard">
           <div className="poscard__head">
             <h3 className="poscard__title">Submit for Internal Approval</h3>
@@ -171,7 +183,7 @@ function InternalReviewScreen({
         </div>
       )}
 
-      {isApprover && approver !== null && (
+      {isApprover && isReviewStep && approver !== null && (
         <>
           <div className="posapprove__attest">
             <div className="poscard">
@@ -237,6 +249,20 @@ function InternalReviewScreen({
                   {approved ? "Signed today · stamped at the configuration freeze" : "Signature · today's date will be stamped on click"}
                 </div>
               </div>
+              {!approved && !ackedNoMore && myCommentsResolved && scores.blocked === 0 && (
+                <button
+                  type="button"
+                  className="posnav__btn posnav__btn--ack"
+                  onClick={() => setAckedNoMore(true)}
+                >
+                  ☐ I have no further comments
+                </button>
+              )}
+              {!approved && ackedNoMore && (
+                <div className="posnav__btn--ack-confirmed">
+                  ☑ Confirmed — no further comments. <button type="button" className="posapprove__signhint-link" onClick={() => setAckedNoMore(false)}>undo</button>
+                </div>
+              )}
               <button
                 type="button"
                 className="posnav__btn posnav__btn--primary posapprove__signbtn"
@@ -248,7 +274,11 @@ function InternalReviewScreen({
               </button>
               {!canApprove && !approved && (
                 <p className="posapprove__signhint">
-                  Signature is unlocked once the reviewer has marked every comment resolved.
+                  {myOpenComments > 0
+                    ? `Resolve your ${myOpenComments} open comment${myOpenComments === 1 ? "" : "s"} first.`
+                    : scores.blocked > 0
+                      ? "There are blocking conformance items to address."
+                      : "Click \"I have no further comments\" to confirm before signing."}
                 </p>
               )}
             </div>
@@ -289,6 +319,8 @@ function InternalReviewScreen({
           )}
         </>
       )}
+
+      {isApprovalStep && approvalTableSlot}
     </>
   );
 }
@@ -415,6 +447,8 @@ interface ReviewerDockProps {
 }
 
 function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onToggleResolved, onPostComment, onRequestRevision, canRequestRevision, onSignReview, canSignReview, onAction }: ReviewerDockProps): JSX.Element {
+  const [ackedNoMore, setAckedNoMore] = useState(false);
+  useEffect(() => { setAckedNoMore(false); }, [comments.length]);
   const scopeSections = STEP_SECTION[stepId] ?? [];
   const onThisStep = comments.filter((c) => scopeSections.includes(c.section));
   const stepOpenCount = onThisStep.filter((c) => !c.resolved).length;
@@ -504,7 +538,21 @@ function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onTogg
               </button>
             </div>
             <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {canSignReview && onSignReview !== undefined && (
+              {canSignReview && !ackedNoMore && (
+                <button
+                  type="button"
+                  className="posnav__btn posnav__btn--ack posnav__btn--sm"
+                  onClick={() => setAckedNoMore(true)}
+                >
+                  ☐ I have no further comments
+                </button>
+              )}
+              {canSignReview && ackedNoMore && (
+                <span className="posnav__btn--ack-confirmed posnav__btn--ack-confirmed--inline">
+                  ☑ Confirmed <button type="button" className="posapprove__signhint-link" onClick={() => setAckedNoMore(false)}>undo</button>
+                </span>
+              )}
+              {canSignReview && ackedNoMore && onSignReview !== undefined && (
                 <button
                   type="button"
                   className="posnav__btn posnav__btn--sm posnav__btn--primary"

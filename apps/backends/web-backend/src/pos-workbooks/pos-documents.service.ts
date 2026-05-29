@@ -5,8 +5,9 @@ import { Model } from "mongoose";
 import { randomUUID } from "crypto";
 import { ProjectsService } from "../projects/projects.service";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
-import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
+import { type PosWorkbookRoleName } from "./pos-workbook-role.schema";
 import { PosWorkbookFile, type PosWorkbookDocumentDocument } from "./pos-workbook-document.schema";
+import { PosRolesService } from "./pos-roles.service";
 
 const ALLOWED_MIME_TYPES = new Set<string>([
   "application/pdf",
@@ -50,9 +51,9 @@ export class PosDocumentsService implements OnModuleInit {
 
   constructor(
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
-    @InjectModel(PosWorkbookRole.name) private readonly posRoleModel: Model<PosWorkbookRoleDocument>,
     @InjectModel(PosWorkbookFile.name) private readonly posDocModel: Model<PosWorkbookDocumentDocument>,
     private readonly projectsService: ProjectsService,
+    private readonly posRolesService: PosRolesService,
   ) {}
 
   onModuleInit(): void {
@@ -92,8 +93,8 @@ export class PosDocumentsService implements OnModuleInit {
     if (!wb) throw new NotFoundException("POS workbook not found");
     const { role } = await this.projectsService.resolveAccess(wb.projectId, acting);
     if (requireWrite && role === "viewer") throw new ForbiddenException("You cannot modify documents on this workbook");
-    const roleDocs = await this.posRoleModel.find({ workbookId, username: acting.username }).exec();
-    return { myRoles: roleDocs.map((d) => d.role) };
+    const myRoles = await this.posRolesService.resolveEffectiveRoles(workbookId, acting.username);
+    return { myRoles };
   }
 
   async list(workbookId: string, acting: ActingUser): Promise<PosDocumentEntry[]> {
@@ -111,7 +112,7 @@ export class PosDocumentsService implements OnModuleInit {
 
   async upload(workbookId: string, input: UploadInput, acting: ActingUser): Promise<PosDocumentEntry> {
     const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
-    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can upload documents");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can upload documents");
     if (!ALLOWED_MIME_TYPES.has(input.mimeType)) throw new BadRequestException(`Unsupported file type: ${input.mimeType}`);
     if (input.size > MAX_BYTES) throw new BadRequestException(`File exceeds ${MAX_BYTES} bytes`);
     if (input.size <= 0) throw new BadRequestException("Empty file");
@@ -140,7 +141,7 @@ export class PosDocumentsService implements OnModuleInit {
 
   async remove(workbookId: string, documentId: string, acting: ActingUser): Promise<void> {
     const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
-    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can delete documents");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can delete documents");
     const doc = await this.posDocModel.findOne({ workbookId, documentId }).exec();
     if (!doc) throw new NotFoundException("Document not found");
     try {

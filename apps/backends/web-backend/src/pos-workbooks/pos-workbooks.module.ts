@@ -3,6 +3,7 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { ProjectsModule } from "../projects/projects.module";
 import { ExampleWorkbooksModule } from "../example-workbooks/example-workbooks.module";
 import { User, UserSchema } from "../users/user.schema";
+import { Team, TeamSchema } from "../teams/team.schema";
 import { PosWorkbook, PosWorkbookSchema } from "./pos-workbook.schema";
 import { PosWorkbookRole, PosWorkbookRoleSchema } from "./pos-workbook-role.schema";
 import { PosWorkbookSignoff, PosWorkbookSignoffSchema } from "./pos-workbook-signoff.schema";
@@ -26,6 +27,7 @@ import { PosDocumentsService } from "./pos-documents.service";
       { name: PosWorkbookSignoff.name, schema: PosWorkbookSignoffSchema },
       { name: PosWorkbookFile.name, schema: PosWorkbookFileSchema },
       { name: User.name, schema: UserSchema },
+      { name: Team.name, schema: TeamSchema },
     ]),
     ProjectsModule,
     ExampleWorkbooksModule,

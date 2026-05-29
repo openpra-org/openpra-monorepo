@@ -6,7 +6,7 @@ import { type DrawerContext } from "./posScreens";
 import { statesView, evolutionsView, groupsView, isBarrierBroken, preOpsForState, preOpsForGroup } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 
-function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: () => void }): JSX.Element | null {
+function DrawerContent({ context, onClose, canEdit }: { context: DrawerContext; onClose: () => void; canEdit: boolean }): JSX.Element | null {
   const { pos } = usePosWorkbook();
   if (context.kind === "state") {
     const s = statesView(pos).find((x) => x.id === context.id);
@@ -22,7 +22,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
         </div>
-        <div className="posdrawer__body">
+        <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
           <div className="poscard">
             <div className="poscard__head"><h3 className="poscard__title">Coolant parameters</h3></div>
             <div className="posfield-grid posfield-grid--3">
@@ -98,7 +98,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
           )}
 
           <PreopAssumptionCard assumption={preOpsForState(pos, s.id)[0]} />
-        </div>
+        </fieldset>
       </>
     );
   }
@@ -116,7 +116,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
         </div>
-        <div className="posdrawer__body">
+        <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
           <div className="poscard">
             <div className="poscard__head"><h3 className="poscard__title">Description</h3></div>
             <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55 }}>{e.description}</p>
@@ -147,7 +147,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
               </tbody>
             </table>
           </div>
-        </div>
+        </fieldset>
       </>
     );
   }
@@ -163,7 +163,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
       </div>
-      <div className="posdrawer__body">
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Similarity rationale</h3></div>
           <textarea className="posfield__textarea" defaultValue={g.rationale} style={{ minHeight: 120 }} />
@@ -181,12 +181,12 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
         </div>
 
         <PreopAssumptionCard assumption={preOpsForGroup(pos, g.id)[0]} />
-      </div>
+      </fieldset>
     </>
   );
 }
 
-function Drawer({ context, onClose }: { context: DrawerContext; onClose: () => void }): JSX.Element {
+function Drawer({ context, onClose, canEdit }: { context: DrawerContext; onClose: () => void; canEdit: boolean }): JSX.Element {
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
       if (e.key === "Escape") onClose();
@@ -207,7 +207,7 @@ function Drawer({ context, onClose }: { context: DrawerContext; onClose: () => v
       }}
     >
       <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
+        <DrawerContent context={context} onClose={onClose} canEdit={canEdit} />
       </div>
     </div>
   );

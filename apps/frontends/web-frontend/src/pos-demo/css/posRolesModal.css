@@ -108,9 +108,11 @@
   background: var(--color-border);
 }
 .posroles__row-role--preparer { background: #e0ecff; color: #1d4ed8; }
+.posroles__row-role--co_preparer { background: #ddd6fe; color: #5b21b6; }
 .posroles__row-role--reviewer { background: #fef3c7; color: #92400e; }
 .posroles__row-role--approver { background: #dcfce7; color: #166534; }
 [data-theme="dark"] .posroles__row-role--preparer { background: #1e3a8a; color: #c7d8ff; }
+[data-theme="dark"] .posroles__row-role--co_preparer { background: #4c1d95; color: #ddd6fe; }
 [data-theme="dark"] .posroles__row-role--reviewer { background: #78350f; color: #fde68a; }
 [data-theme="dark"] .posroles__row-role--approver { background: #14532d; color: #bbf7d0; }
 

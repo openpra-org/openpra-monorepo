@@ -4,7 +4,8 @@ import { PosRolesService, type PosRolesResponse } from "./pos-roles.service";
 import type { PosWorkbookRoleName } from "./pos-workbook-role.schema";
 
 interface AssignBody {
-  username: string;
+  username?: string;
+  teamId?: string;
   role: PosWorkbookRoleName;
 }
 
@@ -22,19 +23,35 @@ export class PosRolesController {
   @Post()
   @HttpCode(HttpStatus.OK)
   assign(@Param("id") id: string, @Body() body: AssignBody, @Req() req: AuthenticatedRequest): Promise<PosRolesResponse> {
-    if (typeof body.username !== "string" || body.username.length === 0) throw new BadRequestException("username required");
+    const hasUsername = typeof body.username === "string" && body.username.length > 0;
+    const hasTeam = typeof body.teamId === "string" && body.teamId.length > 0;
+    if (hasUsername === hasTeam) throw new BadRequestException("Specify exactly one of username or teamId");
     if (typeof body.role !== "string") throw new BadRequestException("role required");
-    return this.posRolesService.assign(id, body.username, body.role, { username: req.user!.username });
+    if (hasUsername) {
+      return this.posRolesService.assignUser(id, body.username!, body.role, { username: req.user!.username });
+    }
+    return this.posRolesService.assignTeam(id, body.teamId!, body.role, { username: req.user!.username });
   }
 
-  @Delete(":username/:role")
+  @Delete("user/:username/:role")
   @HttpCode(HttpStatus.OK)
-  unassign(
+  unassignUser(
     @Param("id") id: string,
     @Param("username") username: string,
     @Param("role") role: PosWorkbookRoleName,
     @Req() req: AuthenticatedRequest,
   ): Promise<PosRolesResponse> {
-    return this.posRolesService.unassign(id, username, role, { username: req.user!.username });
+    return this.posRolesService.unassignUser(id, username, role, { username: req.user!.username });
+  }
+
+  @Delete("team/:teamId/:role")
+  @HttpCode(HttpStatus.OK)
+  unassignTeam(
+    @Param("id") id: string,
+    @Param("teamId") teamId: string,
+    @Param("role") role: PosWorkbookRoleName,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PosRolesResponse> {
+    return this.posRolesService.unassignTeam(id, teamId, role, { username: req.user!.username });
   }
 }

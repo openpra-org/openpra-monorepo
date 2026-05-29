@@ -1,7 +1,7 @@
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
 
-type PosWorkbookRoleName = "preparer" | "reviewer" | "approver";
+type PosWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
 interface PosWorkbookResponse {
   workbookId: string;
@@ -13,7 +13,8 @@ interface PosWorkbookResponse {
   updatedAt: string;
 }
 
-interface PosRoleAssignment {
+interface PosUserRoleAssignment {
+  kind: "user";
   username: string;
   fullName: string;
   role: PosWorkbookRoleName;
@@ -21,12 +22,37 @@ interface PosRoleAssignment {
   assignedAt: string;
 }
 
+interface PosTeamRoleAssignment {
+  kind: "team";
+  teamId: string;
+  teamName: string;
+  memberCount: number;
+  role: PosWorkbookRoleName;
+  assignedBy: string;
+  assignedAt: string;
+}
+
+type PosRoleAssignment = PosUserRoleAssignment | PosTeamRoleAssignment;
+
+interface PosEligibleMember {
+  username: string;
+  fullName: string;
+  viaTeamId?: string;
+}
+
+interface PosEligibleTeam {
+  teamId: string;
+  teamName: string;
+  memberCount: number;
+}
+
 interface PosRolesResponse {
   workbookId: string;
   canManage: boolean;
   myRoles: PosWorkbookRoleName[];
   assignments: PosRoleAssignment[];
-  eligibleMembers: { username: string; fullName: string }[];
+  eligibleMembers: PosEligibleMember[];
+  eligibleTeams: PosEligibleTeam[];
 }
 
 async function getPosWorkbook(workbookId: string): Promise<PosWorkbookResponse> {
@@ -41,12 +67,20 @@ async function getPosRoles(workbookId: string): Promise<PosRolesResponse> {
   return fetchJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles`);
 }
 
-async function assignPosRole(workbookId: string, username: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
+async function assignPosUserRole(workbookId: string, username: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
   return postJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles`, { username, role });
 }
 
-async function unassignPosRole(workbookId: string, username: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
-  return deleteJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles/${encodeURIComponent(username)}/${role}`);
+async function assignPosTeamRole(workbookId: string, teamId: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
+  return postJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles`, { teamId, role });
+}
+
+async function unassignPosUserRole(workbookId: string, username: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
+  return deleteJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles/user/${encodeURIComponent(username)}/${role}`);
+}
+
+async function unassignPosTeamRole(workbookId: string, teamId: string, role: PosWorkbookRoleName): Promise<PosRolesResponse> {
+  return deleteJson<PosRolesResponse>(`/api/pos-workbooks/${workbookId}/roles/team/${encodeURIComponent(teamId)}/${role}`);
 }
 
 type PosCommentSeverity = "MAJOR" | "MINOR" | "OBSERVATION";
@@ -59,10 +93,12 @@ async function patchPosComment(workbookId: string, commentUuid: string, body: { 
   return patchJson<PlantOperatingStatesAnalysis>(`/api/pos-workbooks/${workbookId}/comments/${commentUuid}`, body);
 }
 
-type PosSignoffRole = "reviewer" | "approver";
+type PosSignoffRole = "preparer" | "co_preparer" | "reviewer" | "approver";
 
 interface PosWorkflowStatus {
   workflowState: string;
+  preparers: string[];
+  coPreparers: string[];
   reviewers: string[];
   approvers: string[];
   signoffs: { username: string; role: PosSignoffRole; signedAt: string }[];
@@ -87,6 +123,10 @@ async function signPosApproval(workbookId: string): Promise<PlantOperatingStates
 
 async function requestPosRevision(workbookId: string, note: string): Promise<PlantOperatingStatesAnalysis> {
   return postJson<PlantOperatingStatesAnalysis>(`/api/pos-workbooks/${workbookId}/workflow/request-revision`, { note });
+}
+
+async function signPosAs(workbookId: string, role: PosSignoffRole): Promise<PlantOperatingStatesAnalysis> {
+  return postJson<PlantOperatingStatesAnalysis>(`/api/pos-workbooks/${workbookId}/workflow/sign-as`, { role });
 }
 
 interface PosAwaitingMeEntry {
@@ -139,14 +179,17 @@ export {
   getPosWorkbook,
   patchPosWorkbook,
   getPosRoles,
-  assignPosRole,
-  unassignPosRole,
+  assignPosUserRole,
+  assignPosTeamRole,
+  unassignPosUserRole,
+  unassignPosTeamRole,
   postPosComment,
   patchPosComment,
   getPosWorkflowStatus,
   submitPosForReview,
   signPosReview,
   signPosApproval,
+  signPosAs,
   requestPosRevision,
   getPosAwaitingMe,
   loadPosExample,

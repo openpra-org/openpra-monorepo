@@ -41,6 +41,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
+import { useAuth } from "../auth/AuthContext";
 import "./css/posWorkspace.css";
 
 interface StepHeader {
@@ -62,11 +63,16 @@ function headersFor(stepId: string, isApprover: boolean): StepHeader {
     case "decayheat": return { eyebrow: "Step 09", title: "Decay heat", sub: "For every low-power and shutdown state, characterise the decay heat." };
     case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
     case "review": return {
-      eyebrow: "Step 11 · Review & Approval",
-      title: isApprover ? "Internal approval" : "Internal technical review",
+      eyebrow: "Step 11 · Review",
+      title: "Internal technical review",
+      sub: "Reviewers and the approver post comments. The workbook advances to internal approval once every assigned reviewer has signed.",
+    };
+    case "approval": return {
+      eyebrow: "Step 12 · Approval",
+      title: "Internal approval",
       sub: isApprover
-        ? "All steps 1–9 are locked. Review the comment record, leave any closing remarks, then sign and approve."
-        : "Address every reviewer comment. The workbook can only be submitted for approval once the reviewer has marked all comments resolved.",
+        ? "All earlier steps are locked. Review the comment record, leave any closing remarks, then sign and approve."
+        : "Awaiting the approver's signature. All role-holders see the collected signatures here.",
     };
     default: return { eyebrow: "", title: "" };
   }
@@ -364,7 +370,7 @@ interface PosWorkbenchDocuments {
   onDownload: (documentId: string) => Promise<void>;
 }
 
-function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced }: {
+function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced, renderApprovalTable }: {
   data: PosWorkbookData;
   persona: PosPersona;
   setPersona: (p: PosPersona) => void;
@@ -378,6 +384,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   headerMeta: HeaderMeta;
   mefPatch?: import("./useMefPatch").MefPatcher["patch"];
   mefPatchDebounced?: import("./useMefPatch").MefPatcher["patchDebounced"];
+  renderApprovalTable?: () => JSX.Element | null;
 }): JSX.Element {
   const navigate = useNavigate();
   const isReviewer = persona === "reviewer";
@@ -402,6 +409,8 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
 
+  const { user: authUser } = useAuth();
+  const actingUsername = authUser?.username ?? "";
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.pos));
   const [submittedLocal, setSubmittedLocal] = useState(false);
   const [approvedLocal, setApprovedLocal] = useState(false);
@@ -513,7 +522,8 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const scores = ccScore(data.pos, ccId, stage);
   const h = headersFor(stepId, isApprover);
 
-  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced };
+  const canEdit = isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit };
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
@@ -522,7 +532,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
         <DocumentsScreen
           {...screenProps}
           realDocuments={documents?.list}
-          canUpload={documents?.canUpload}
+          canUpload={(documents?.canUpload ?? false) && canEdit}
           onUploadFile={documents?.onUpload}
           onDeleteDocument={documents?.onDelete}
           onDownloadDocument={documents?.onDownload}
@@ -533,11 +543,13 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       case "interviews": return <InterviewsScreen {...screenProps} />;
       case "screening": return <ScreeningScreen {...screenProps} />;
       case "grouping": return <GroupingScreen {...screenProps} />;
-      case "frequency": return <FrequencyScreen />;
+      case "frequency": return <FrequencyScreen canEdit={canEdit} />;
       case "decayheat": return <DecayHeatScreen {...screenProps} />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={handleSubmitDraft} />;
-      case "review": return (
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={handleSubmitDraft} canSubmit={isPreparer} />;
+      case "review":
+      case "approval": return (
         <InternalReviewScreen
+          step={stepId === "approval" ? "approval" : "review"}
           persona={persona}
           cc={cc}
           scores={scores}
@@ -548,6 +560,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           onSubmitToApproval={handleSubmitToApproval}
           onSign={handleSign}
           onAction={flash}
+          approvalTableSlot={stepId === "approval" ? renderApprovalTable?.() : undefined}
         />
       );
       default: return null;
@@ -620,7 +633,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
         )}
       </div>
 
-      {drawer !== null && <Drawer context={drawer} onClose={() => setDrawer(null)} />}
+      {drawer !== null && <Drawer context={drawer} onClose={() => setDrawer(null)} canEdit={canEdit} />}
 
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 
@@ -636,7 +649,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           onRequestRevision={handleRequestRevision}
           canRequestRevision={actions !== undefined && (workflowState === "INTERNAL_TECHNICAL_REVIEW" || workflowState === "INTERNAL_APPROVAL")}
           onSignReview={actions !== undefined && isReviewer ? handleSign : undefined}
-          canSignReview={actions !== undefined && isReviewer && workflowState === "INTERNAL_TECHNICAL_REVIEW"}
+          canSignReview={actions !== undefined && isReviewer && workflowState === "INTERNAL_TECHNICAL_REVIEW" && comments.filter((c) => c.authorId === actingUsername && !c.resolved).length === 0}
           onAction={flash}
         />
       )}

@@ -45,6 +45,7 @@ interface ScreenProps {
   onAction: (msg: string) => void;
   mefPatch?: (mutator: Mutator) => void;
   mefPatchDebounced?: (mutator: Mutator) => void;
+  canEdit: boolean;
 }
 
 function blankPlantIdentity(): PlantIdentity {
@@ -74,51 +75,58 @@ function stageToMef(stage: Stage): MefPlantStage {
   return stage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL";
 }
 
-function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPatchDebounced }: ScreenProps): JSX.Element {
+function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPatchDebounced, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const pi = pos.metadata.plantIdentity ?? blankPlantIdentity();
   const isReal = mefPatch !== undefined;
 
   function onPiChange<K extends keyof PlantIdentity>(key: K, value: PlantIdentity[K]): void {
-    if (mefPatchDebounced === undefined) return;
+    if (!canEdit || mefPatchDebounced === undefined) return;
     mefPatchDebounced((draft) => setPlantIdentityField(draft, key, value));
   }
 
   function onScopeChange(value: string): void {
-    if (mefPatchDebounced === undefined) return;
+    if (!canEdit || mefPatchDebounced === undefined) return;
     mefPatchDebounced((draft) => ({ ...draft, praScope: value }));
   }
 
   function onCcChange(newCcId: string): void {
+    if (!canEdit) return;
     setCcId(newCcId);
     if (mefPatch === undefined) return;
     mefPatch((draft) => ({ ...draft, capabilityCategory: ccIdToMef(newCcId) }));
   }
 
   function onStageChange(newStage: Stage): void {
+    if (!canEdit) return;
     setStage(newStage);
     if (mefPatch === undefined) return;
     mefPatch((draft) => ({ ...draft, plantStage: stageToMef(newStage) }));
   }
 
   function onAtPowerChange(value: boolean): void {
-    if (mefPatch === undefined) return;
+    if (!canEdit || mefPatch === undefined) return;
     mefPatch((draft) => ({ ...draft, includesAtPowerOperations: value }));
   }
 
   function onHazardChange(value: boolean): void {
-    if (mefPatch === undefined) return;
+    if (!canEdit || mefPatch === undefined) return;
     mefPatch((draft) => ({ ...draft, includesNonInternalHazardGroups: value }));
   }
 
   function onLpsdChange(value: boolean): void {
-    if (mefPatch === undefined) return;
+    if (!canEdit || mefPatch === undefined) return;
     mefPatch((draft) => ({ ...draft, includesLPSDOperations: value }));
   }
 
   return (
-    <>
+    <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      {!canEdit && (
+        <div className="poscard" style={{ background: "var(--color-bg-to)" }}>
+          <p className="poscard__sub" style={{ margin: 0 }}>Read-only — switch to <strong>Preparer</strong> view to edit Setup fields. Only preparers and co-preparers may edit during DRAFT or REVISION_REQUIRED states.</p>
+        </div>
+      )}
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Plant identity</h3>
@@ -341,7 +349,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             : <>No configuration control workbook linked yet.</>}
         </p>
       </div>
-    </>
+    </fieldset>
   );
 }
 
@@ -519,7 +527,7 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
   );
 }
 
-function EvolutionsScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
+function EvolutionsScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const evolutions = evolutionsView(pos);
   const totalHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
@@ -535,7 +543,7 @@ function EvolutionsScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
         <div className="poscard__head">
           <h3 className="poscard__title">Plant evolutions</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add evolution — coming soon")}><POSIcon.Plus /> Add evolution</button>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add evolution — coming soon")}><POSIcon.Plus /> Add evolution</button>}
           </div>
         </div>
         <p className="poscard__sub">
@@ -575,7 +583,7 @@ function EvolutionsScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
   );
 }
 
-function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
+function StatesScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const states = statesView(pos);
   const okCount = states.filter((s) => s.status === "ok").length;
@@ -594,7 +602,7 @@ function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
         <div className="poscard__head">
           <h3 className="poscard__title">Operating states</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add operating state — coming soon")}><POSIcon.Plus /> Add state</button>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add operating state — coming soon")}><POSIcon.Plus /> Add state</button>}
           </div>
         </div>
 
@@ -680,7 +688,7 @@ function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
   );
 }
 
-function InterviewsScreen({ onAction }: ScreenProps): JSX.Element {
+function InterviewsScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const interviews = interviewsView(pos);
   const personnelSet = new Set<string>();
@@ -701,7 +709,7 @@ function InterviewsScreen({ onAction }: ScreenProps): JSX.Element {
         <div className="poscard__head">
           <h3 className="poscard__title">Interview &amp; walkdown log</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Log session — coming soon")}><POSIcon.Plus /> Log session</button>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Log session — coming soon")}><POSIcon.Plus /> Log session</button>}
           </div>
         </div>
         <p className="poscard__sub">
@@ -753,7 +761,7 @@ function InterviewsScreen({ onAction }: ScreenProps): JSX.Element {
   );
 }
 
-function ScreeningScreen({ onAction }: ScreenProps): JSX.Element {
+function ScreeningScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const records = screeningView(pos);
   const retained = records.filter((r) => r.retained).length;
@@ -771,7 +779,7 @@ function ScreeningScreen({ onAction }: ScreenProps): JSX.Element {
         <div className="poscard__head">
           <h3 className="poscard__title">Screening decisions</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Propose screening — coming soon")}><POSIcon.Plus /> Propose screening</button>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Propose screening — coming soon")}><POSIcon.Plus /> Propose screening</button>}
           </div>
         </div>
         <p className="poscard__sub">
@@ -804,7 +812,7 @@ function ScreeningScreen({ onAction }: ScreenProps): JSX.Element {
   );
 }
 
-function GroupingScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
+function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const groups = groupsView(pos);
   const bounded = groups.filter((g) => g.status === "ok").length;
@@ -821,7 +829,7 @@ function GroupingScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
       {groups.length === 0 && (
         <div className="poscard">
           <p className="posmuted" style={{ margin: 0 }}>No groups proposed yet.
-            <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: 12 }} onClick={() => onAction("Propose group — coming soon")}><POSIcon.Plus /> Propose group</button>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: 12 }} onClick={() => onAction("Propose group — coming soon")}><POSIcon.Plus /> Propose group</button>}
           </p>
         </div>
       )}
@@ -840,7 +848,7 @@ function GroupingScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
                   Members: {g.members.join(", ")} · Total time {g.durationSum}
                 </div>
               </div>
-              <button type="button" className="posnav__btn" onClick={() => openDrawer({ kind: "group", id: g.id })}>Edit</button>
+              <button type="button" className="posnav__btn" onClick={() => openDrawer({ kind: "group", id: g.id })}>{canEdit ? "Edit" : "View"}</button>
             </div>
             <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, marginBottom: 10 }}>{g.rationale}</div>
             <div className="posrow" style={{ gap: 22, fontSize: 12.5 }}>
@@ -860,7 +868,7 @@ function GroupingScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
   );
 }
 
-function FrequencyScreen(): JSX.Element {
+function FrequencyScreen({ canEdit }: { canEdit: boolean }): JSX.Element {
   const { pos } = usePosWorkbook();
   const states = statesView(pos);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -937,9 +945,9 @@ function FrequencyScreen(): JSX.Element {
                     <tr className="postable__expand-row">
                       <td />
                       <td colSpan={6}>
-                        <div className="postable__expand-body">
+                        <fieldset disabled={!canEdit} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
                           <div className="poscard">
-                            <div className="poscard__head"><h3 className="poscard__title">Edit duration &amp; frequency</h3></div>
+                            <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"}</h3></div>
                             <div className="posfield-grid">
                               <div className="posfield">
                                 <label className="posfield__label">Mean duration</label>
@@ -956,7 +964,7 @@ function FrequencyScreen(): JSX.Element {
                             </div>
                           </div>
                           <PreopAssumptionCard assumption={preops[0]} />
-                        </div>
+                        </fieldset>
                       </td>
                     </tr>
                   )}
@@ -971,7 +979,7 @@ function FrequencyScreen(): JSX.Element {
   );
 }
 
-function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
+function DecayHeatScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const lpsd = statesView(pos).filter((s) => s.mode !== "POWER" && s.retained);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -995,9 +1003,11 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Decay-heat characterisation</h3>
-          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAction("Generate from vendor curves — coming soon")}>
-            <POSIcon.Sparkle /> Generate from curves
-          </button>
+          {canEdit && (
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAction("Generate from vendor curves — coming soon")}>
+              <POSIcon.Sparkle /> Generate from curves
+            </button>
+          )}
         </div>
         {lpsd.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No LPSD states yet.</p>
@@ -1042,9 +1052,9 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
                     <tr className="postable__expand-row">
                       <td />
                       <td colSpan={6}>
-                        <div className="postable__expand-body">
+                        <fieldset disabled={!canEdit} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
                           <div className="poscard">
-                            <div className="poscard__head"><h3 className="poscard__title">Characterise decay heat</h3></div>
+                            <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Characterise decay heat" : "Decay-heat characterisation (read-only)"}</h3></div>
                             <div className="posfield-grid">
                               <div className="posfield">
                                 <label className="posfield__label">Time after shutdown</label>
@@ -1061,7 +1071,7 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
                             </div>
                           </div>
                           <PreopAssumptionCard assumption={preops[0]} />
-                        </div>
+                        </fieldset>
                       </td>
                     </tr>
                   )}
@@ -1082,12 +1092,14 @@ function DraftScreen({
   stage,
   onGenerate,
   onSubmitDraft,
+  canSubmit,
 }: {
   cc: CapabilityCategory;
   scores: CcScore;
   stage: Stage;
   onGenerate: (final: boolean) => void;
   onSubmitDraft: (final: boolean) => void;
+  canSubmit: boolean;
 }): JSX.Element {
   const { pos } = usePosWorkbook();
   const ready = scores.blocked === 0;
@@ -1139,20 +1151,28 @@ function DraftScreen({
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
-          {ready ? (
-            <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.
-            </p>
+          <h3 className="posgen__readout-h">{canSubmit ? "Hand-off to internal review" : "Read-only draft preview"}</h3>
+          {canSubmit ? (
+            ready ? (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.
+              </p>
+            ) : (
+              <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+                {scores.blocked} blocking item{scores.blocked === 1 ? "" : "s"} remain. You may produce a working draft for review, but the workbook cannot reach approval until blockers are resolved.
+              </p>
+            )
           ) : (
             <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              {scores.blocked} blocking item{scores.blocked === 1 ? "" : "s"} remain. You may produce a working draft for review, but the workbook cannot reach approval until blockers are resolved.
+              Only the preparer or a co-preparer can submit the draft for internal review.
             </p>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}>
-              <POSIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
-            </button>
+            {canSubmit && (
+              <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}>
+                <POSIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
+              </button>
+            )}
             <button type="button" className="posnav__btn" onClick={() => onGenerate(ready)}>
               <POSIcon.Download /> Download draft (.docx)
             </button>

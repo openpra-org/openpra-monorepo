@@ -1,6 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { PosWorkflowService, type PosWorkflowStatus } from "./pos-workflow.service";
+import type { PosSignoffRole } from "./pos-workbook-signoff.schema";
+
+const VALID_SIGNOFF_ROLES: PosSignoffRole[] = ["preparer", "co_preparer", "reviewer", "approver"];
+
+interface SignAsBody {
+  role: PosSignoffRole;
+}
 
 interface RequestRevisionBody {
   note?: string;
@@ -45,5 +52,12 @@ export class PosWorkflowController {
   @HttpCode(HttpStatus.OK)
   requestRevision(@Param("id") id: string, @Body() body: RequestRevisionBody, @Req() req: AuthenticatedRequest): Promise<unknown> {
     return this.posWorkflowService.requestRevision(id, body.note ?? "", { username: req.user!.username });
+  }
+
+  @Post(":id/workflow/sign-as")
+  @HttpCode(HttpStatus.OK)
+  signAs(@Param("id") id: string, @Body() body: SignAsBody, @Req() req: AuthenticatedRequest): Promise<unknown> {
+    if (!VALID_SIGNOFF_ROLES.includes(body.role)) throw new BadRequestException("Invalid signoff role");
+    return this.posWorkflowService.signAs(id, body.role, { username: req.user!.username });
   }
 }

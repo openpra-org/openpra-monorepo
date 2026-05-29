@@ -397,6 +397,58 @@
 }
 
 .posnav__btn--ghost { border-color: transparent; color: var(--color-text-muted); }
+.posnav__btn--ack {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-primary-soft, rgba(99, 102, 241, 0.08));
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  width: 100%;
+  justify-content: center;
+  margin: 4px 0;
+}
+.posnav__btn--ack:hover {
+  background: var(--color-primary-focus, rgba(99, 102, 241, 0.15));
+}
+.posnav__btn--ack-confirmed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding: 10px 16px;
+  background: var(--color-primary-soft, rgba(99, 102, 241, 0.08));
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 13px;
+  width: 100%;
+  margin: 4px 0;
+}
+.posnav__btn--ack-confirmed--inline {
+  width: auto;
+  padding: 5px 10px;
+  font-size: 12px;
+  margin: 0;
+}
+.posapprove__signhint-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
 .posnav__btn--sm {
   padding: 5px 10px;
   font-size: 12px;

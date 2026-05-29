@@ -4,8 +4,9 @@ import { Model } from "mongoose";
 import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-states-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
-import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
+import { type PosWorkbookRoleName } from "./pos-workbook-role.schema";
 import { PosWorkbookSignoff, type PosWorkbookSignoffDocument, type PosSignoffRole } from "./pos-workbook-signoff.schema";
+import { PosRolesService } from "./pos-roles.service";
 import { stripNulls } from "./mef-normalize";
 
 interface MefShape {
@@ -25,6 +26,8 @@ export interface PosSignoffEntry {
 
 export interface PosWorkflowStatus {
   workflowState: string;
+  preparers: string[];
+  coPreparers: string[];
   reviewers: string[];
   approvers: string[];
   signoffs: PosSignoffEntry[];
@@ -35,22 +38,21 @@ export interface PosWorkflowStatus {
 export class PosWorkflowService {
   constructor(
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
-    @InjectModel(PosWorkbookRole.name) private readonly posRoleModel: Model<PosWorkbookRoleDocument>,
     @InjectModel(PosWorkbookSignoff.name) private readonly posSignoffModel: Model<PosWorkbookSignoffDocument>,
     private readonly projectsService: ProjectsService,
+    private readonly posRolesService: PosRolesService,
   ) {}
 
   private async loadAuthorize(workbookId: string, acting: ActingUser): Promise<{ wb: PosWorkbookDocument; myRoles: PosWorkbookRoleName[] }> {
     const wb = await this.posWorkbookModel.findOne({ workbookId }).exec();
     if (!wb) throw new NotFoundException("POS workbook not found");
     await this.projectsService.resolveAccess(wb.projectId, acting);
-    const roleDocs = await this.posRoleModel.find({ workbookId, username: acting.username }).exec();
-    return { wb, myRoles: roleDocs.map((d) => d.role) };
+    const myRoles = await this.posRolesService.resolveEffectiveRoles(workbookId, acting.username);
+    return { wb, myRoles };
   }
 
   private async assignedUsernames(workbookId: string, role: PosWorkbookRoleName): Promise<string[]> {
-    const docs = await this.posRoleModel.find({ workbookId, role }).exec();
-    return docs.map((d) => d.username);
+    return this.posRolesService.assignedUsernamesFor(workbookId, role);
   }
 
   private async transition(wb: PosWorkbookDocument, nextState: string, actor: string, note: string): Promise<unknown> {
@@ -74,21 +76,25 @@ export class PosWorkflowService {
   async status(workbookId: string, acting: ActingUser): Promise<PosWorkflowStatus> {
     const { wb, myRoles } = await this.loadAuthorize(workbookId, acting);
     const mef = wb.mef as MefShape;
-    const [reviewers, approvers, signoffs] = await Promise.all([
+    const [preparers, coPreparers, reviewers, approvers, signoffs] = await Promise.all([
+      this.assignedUsernames(workbookId, "preparer"),
+      this.assignedUsernames(workbookId, "co_preparer"),
       this.assignedUsernames(workbookId, "reviewer"),
       this.assignedUsernames(workbookId, "approver"),
       this.posSignoffModel.find({ workbookId }).sort({ createdAt: 1 }).exec(),
     ]);
     let myPending: PosSignoffRole | null = null;
-    if (mef.workflowState === "INTERNAL_TECHNICAL_REVIEW" && myRoles.includes("reviewer")) {
-      const already = signoffs.some((s) => s.username === acting.username && s.role === "reviewer");
-      if (!already) myPending = "reviewer";
-    } else if (mef.workflowState === "INTERNAL_APPROVAL" && myRoles.includes("approver")) {
-      const already = signoffs.some((s) => s.username === acting.username && s.role === "approver");
-      if (!already) myPending = "approver";
+    if (mef.workflowState === "INTERNAL_TECHNICAL_REVIEW") {
+      if (myRoles.includes("approver") && !signoffs.some((s) => s.username === acting.username && s.role === "approver")) myPending = "approver";
+      else if (myRoles.includes("reviewer") && !signoffs.some((s) => s.username === acting.username && s.role === "reviewer")) myPending = "reviewer";
+    } else if (mef.workflowState === "INTERNAL_APPROVAL") {
+      if (myRoles.includes("co_preparer") && !signoffs.some((s) => s.username === acting.username && s.role === "co_preparer")) myPending = "co_preparer";
+      else if (myRoles.includes("preparer") && !signoffs.some((s) => s.username === acting.username && s.role === "preparer")) myPending = "preparer";
     }
     return {
       workflowState: mef.workflowState,
+      preparers,
+      coPreparers,
       reviewers,
       approvers,
       signoffs: signoffs.map((s) => ({ username: s.username, role: s.role, signedAt: s.createdAt.toISOString() })),
@@ -96,9 +102,63 @@ export class PosWorkflowService {
     };
   }
 
+  private async unresolvedCommentsAuthoredBy(wb: PosWorkbookDocument, username: string): Promise<number> {
+    const mef = wb.mef as MefShape & { internalReviewComments?: { comments?: { authorId?: string; resolved?: boolean }[] } };
+    const comments = mef.internalReviewComments?.comments ?? [];
+    return comments.filter((c) => c.authorId === username && c.resolved !== true).length;
+  }
+
+  private async maybeAdvanceFromTechnicalReview(wb: PosWorkbookDocument, workbookId: string, actor: string): Promise<unknown> {
+    const reviewers = await this.assignedUsernames(workbookId, "reviewer");
+    const approvers = await this.assignedUsernames(workbookId, "approver");
+    const signoffs = await this.posSignoffModel.find({ workbookId, role: { $in: ["reviewer", "approver"] } }).exec();
+    const allReviewersSigned = reviewers.every((u) => signoffs.some((s) => s.username === u && s.role === "reviewer"));
+    const allApproversSigned = approvers.every((u) => signoffs.some((s) => s.username === u && s.role === "approver"));
+    if (allReviewersSigned && allApproversSigned) {
+      const preparers = await this.assignedUsernames(workbookId, "preparer");
+      const coPreparers = await this.assignedUsernames(workbookId, "co_preparer");
+      const authorsLeft = preparers.length + coPreparers.length;
+      if (authorsLeft === 0) {
+        return this.transition(wb, "FINAL", actor, "All reviewers and approver signed; no preparer signoffs required");
+      }
+      return this.transition(wb, "INTERNAL_APPROVAL", actor, "All reviewers and approver signed; awaiting preparer signoffs");
+    }
+    return wb.mef;
+  }
+
+  private async maybeAdvanceFromInternalApproval(wb: PosWorkbookDocument, workbookId: string, actor: string): Promise<unknown> {
+    const preparers = await this.assignedUsernames(workbookId, "preparer");
+    const coPreparers = await this.assignedUsernames(workbookId, "co_preparer");
+    const expected = new Set<string>([...preparers, ...coPreparers]);
+    if (expected.size === 0) {
+      return this.transition(wb, "FINAL", actor, "Workbook finalized; no preparer signoffs required");
+    }
+    const signoffs = await this.posSignoffModel.find({ workbookId, role: { $in: ["preparer", "co_preparer"] } }).exec();
+    const signed = new Set<string>(signoffs.map((s) => s.username));
+    const allSigned = Array.from(expected).every((u) => signed.has(u));
+    if (allSigned) {
+      return this.transition(wb, "FINAL", actor, "All preparer and co-preparer signoffs collected; workbook finalized");
+    }
+    return wb.mef;
+  }
+
+  async signAs(workbookId: string, role: PosSignoffRole, acting: ActingUser): Promise<unknown> {
+    if (role === "reviewer") return this.signReview(workbookId, acting);
+    if (role === "approver") return this.signApproval(workbookId, acting);
+    const { wb, myRoles } = await this.loadAuthorize(workbookId, acting);
+    if (role === "preparer" && !myRoles.includes("preparer")) throw new ForbiddenException("You are not a preparer on this workbook");
+    if (role === "co_preparer" && !myRoles.includes("co_preparer")) throw new ForbiddenException("You are not a co-preparer on this workbook");
+    const state = (wb.mef as MefShape).workflowState;
+    if (state !== "INTERNAL_APPROVAL") throw new BadRequestException("Preparer signoffs are collected during internal approval");
+    const existing = await this.posSignoffModel.findOne({ workbookId, username: acting.username, role }).exec();
+    if (existing) throw new BadRequestException(`You already signed off as ${role}`);
+    await this.posSignoffModel.create({ workbookId, username: acting.username, role, workflowState: state });
+    return this.maybeAdvanceFromInternalApproval(wb, workbookId, acting.username);
+  }
+
   async submitForReview(workbookId: string, acting: ActingUser): Promise<unknown> {
     const { wb, myRoles } = await this.loadAuthorize(workbookId, acting);
-    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only a preparer can submit the workbook for review");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only a preparer can submit the workbook for review");
     const state = (wb.mef as MefShape).workflowState;
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new BadRequestException(`Cannot submit for review from state ${state}`);
@@ -114,39 +174,25 @@ export class PosWorkflowService {
     if (!myRoles.includes("reviewer")) throw new ForbiddenException("You are not a reviewer on this workbook");
     const state = (wb.mef as MefShape).workflowState;
     if (state !== "INTERNAL_TECHNICAL_REVIEW") throw new BadRequestException("Workbook is not in internal technical review");
+    const openMine = await this.unresolvedCommentsAuthoredBy(wb, acting.username);
+    if (openMine > 0) throw new BadRequestException(`You have ${openMine} unresolved comment${openMine === 1 ? "" : "s"} to address before signing`);
     const existing = await this.posSignoffModel.findOne({ workbookId, username: acting.username, role: "reviewer" }).exec();
     if (existing) throw new BadRequestException("You already signed off as a reviewer");
     await this.posSignoffModel.create({ workbookId, username: acting.username, role: "reviewer", workflowState: state });
-
-    const reviewers = await this.assignedUsernames(workbookId, "reviewer");
-    const reviewerSignoffs = await this.posSignoffModel.find({ workbookId, role: "reviewer" }).exec();
-    const allSigned = reviewers.every((u) => reviewerSignoffs.some((s) => s.username === u));
-    if (allSigned) {
-      const approvers = await this.assignedUsernames(workbookId, "approver");
-      if (approvers.length === 0) {
-        return this.transition(wb, "FINAL", acting.username, "All reviewers signed; no approvers assigned");
-      }
-      return this.transition(wb, "INTERNAL_APPROVAL", acting.username, "All reviewers signed; advanced to approval");
-    }
-    return wb.mef;
+    return this.maybeAdvanceFromTechnicalReview(wb, workbookId, acting.username);
   }
 
   async signApproval(workbookId: string, acting: ActingUser): Promise<unknown> {
     const { wb, myRoles } = await this.loadAuthorize(workbookId, acting);
     if (!myRoles.includes("approver")) throw new ForbiddenException("You are not an approver on this workbook");
     const state = (wb.mef as MefShape).workflowState;
-    if (state !== "INTERNAL_APPROVAL") throw new BadRequestException("Workbook is not in internal approval");
+    if (state !== "INTERNAL_TECHNICAL_REVIEW") throw new BadRequestException("Approver signoff is collected during internal technical review");
+    const openMine = await this.unresolvedCommentsAuthoredBy(wb, acting.username);
+    if (openMine > 0) throw new BadRequestException(`You have ${openMine} unresolved comment${openMine === 1 ? "" : "s"} to address before signing`);
     const existing = await this.posSignoffModel.findOne({ workbookId, username: acting.username, role: "approver" }).exec();
     if (existing) throw new BadRequestException("You already signed off as an approver");
     await this.posSignoffModel.create({ workbookId, username: acting.username, role: "approver", workflowState: state });
-
-    const approvers = await this.assignedUsernames(workbookId, "approver");
-    const approverSignoffs = await this.posSignoffModel.find({ workbookId, role: "approver" }).exec();
-    const allSigned = approvers.every((u) => approverSignoffs.some((s) => s.username === u));
-    if (allSigned) {
-      return this.transition(wb, "FINAL", acting.username, "All approvers signed; workbook finalized");
-    }
-    return wb.mef;
+    return this.maybeAdvanceFromTechnicalReview(wb, workbookId, acting.username);
   }
 
   async requestRevision(workbookId: string, note: string, acting: ActingUser): Promise<unknown> {
@@ -163,27 +209,33 @@ export class PosWorkflowService {
   }
 
   async awaitingMe(acting: ActingUser): Promise<{ workbookId: string; projectId: string; workflowState: string; pendingAction: string }[]> {
-    const roleDocs = await this.posRoleModel.find({ username: acting.username }).exec();
-    if (roleDocs.length === 0) return [];
-    const workbookIds = Array.from(new Set(roleDocs.map((d) => d.workbookId)));
+    const rolesByWorkbook = await this.posRolesService.workbookIdsAssignedTo(acting.username);
+    if (rolesByWorkbook.size === 0) return [];
+    const workbookIds = Array.from(rolesByWorkbook.keys());
     const wbs = await this.posWorkbookModel.find({ workbookId: { $in: workbookIds } }).exec();
     const signoffs = await this.posSignoffModel.find({ workbookId: { $in: workbookIds }, username: acting.username }).exec();
     const out: { workbookId: string; projectId: string; workflowState: string; pendingAction: string }[] = [];
     for (const wb of wbs) {
-      const myRoles = roleDocs.filter((r) => r.workbookId === wb.workbookId).map((r) => r.role);
+      const myRoles = rolesByWorkbook.get(wb.workbookId) ?? [];
       const state = (wb.mef as MefShape).workflowState;
-      if ((state === "DRAFT" || state === "REVISION_REQUIRED") && myRoles.includes("preparer")) {
-        out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Continue preparing draft" });
+      if (state === "INTERNAL_TECHNICAL_REVIEW") {
+        if (myRoles.includes("approver") && !signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "approver")) {
+          out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Approve and sign" });
+          continue;
+        }
+        if (myRoles.includes("reviewer") && !signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "reviewer")) {
+          out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Review and sign" });
+        }
         continue;
       }
-      if (state === "INTERNAL_TECHNICAL_REVIEW" && myRoles.includes("reviewer")) {
-        const signed = signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "reviewer");
-        if (!signed) out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Review and sign" });
-        continue;
-      }
-      if (state === "INTERNAL_APPROVAL" && myRoles.includes("approver")) {
-        const signed = signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "approver");
-        if (!signed) out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Approve and sign" });
+      if (state === "INTERNAL_APPROVAL") {
+        if (myRoles.includes("co_preparer") && !signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "co_preparer")) {
+          out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Sign as co-preparer" });
+          continue;
+        }
+        if (myRoles.includes("preparer") && !signoffs.some((s) => s.workbookId === wb.workbookId && s.role === "preparer")) {
+          out.push({ workbookId: wb.workbookId, projectId: wb.projectId, workflowState: state, pendingAction: "Sign as preparer" });
+        }
       }
     }
     return out;

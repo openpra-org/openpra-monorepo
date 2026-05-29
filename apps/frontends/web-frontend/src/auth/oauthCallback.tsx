@@ -4,7 +4,7 @@ import { setToken } from "./authStorage";
 import { useAuth, getRoles } from "./AuthContext";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Triplet.png";
 import "./css/loginForm.css";
 import "./css/authPage.css";
 

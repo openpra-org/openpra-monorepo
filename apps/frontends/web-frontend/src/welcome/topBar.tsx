@@ -1,7 +1,7 @@
 import { JSX, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import logo from "../assets/Logo.png";
+import logo from "../assets/OpenPRA.png";
 import { BookIcon, CaretIcon, LogoutIcon, SettingsIcon, UserIcon } from "./icons";
 import { ThemePicker } from "./themePicker";
 import { useTheme } from "./useTheme";

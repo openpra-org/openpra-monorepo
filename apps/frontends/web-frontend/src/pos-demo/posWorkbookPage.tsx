@@ -29,6 +29,8 @@ import { PosLoadExampleModal } from "./posLoadExampleModal";
 import { PosUnloadExampleModal } from "./posUnloadExampleModal";
 import { type PosPersona } from "./posViewData";
 import { useMefPatch } from "./useMefPatch";
+import { useAuth } from "../auth/AuthContext";
+import { PosApprovalTable } from "./posApprovalTable";
 
 interface ExampleSlugResponse {
   slug: string;
@@ -57,6 +59,9 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
 
 function PosWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const actingUsername = user?.username ?? "";
+  const [approvalRefresh, setApprovalRefresh] = useState<number>(0);
   const [data, setData] = useState<PosWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<PosWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +131,7 @@ function PosWorkbookPage(): JSX.Element {
 
   const availablePersonas = useMemo<PosPersona[]>(() => {
     const out: PosPersona[] = [];
-    if (myRoles.includes("preparer")) out.push("preparer");
+    if (myRoles.includes("preparer") || myRoles.includes("co_preparer")) out.push("preparer");
     if (myRoles.includes("reviewer")) out.push("reviewer");
     if (myRoles.includes("approver")) out.push("approver");
     return out;
@@ -172,7 +177,7 @@ function PosWorkbookPage(): JSX.Element {
   const documentsBundle = useMemo(() => {
     if (id === undefined) return undefined;
     const wfState = data?.pos.workflowState ?? "DRAFT";
-    const canUpload = myRoles.includes("preparer") && (wfState === "DRAFT" || wfState === "REVISION_REQUIRED");
+    const canUpload = (myRoles.includes("preparer") || myRoles.includes("co_preparer")) && (wfState === "DRAFT" || wfState === "REVISION_REQUIRED");
     return {
       list: documents,
       canUpload,
@@ -217,7 +222,7 @@ function PosWorkbookPage(): JSX.Element {
   }
 
   const workflowState = data.pos.workflowState;
-  const canLoadExample = myRoles.includes("preparer") && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
+  const canLoadExample = (myRoles.includes("preparer") || myRoles.includes("co_preparer")) && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
@@ -248,6 +253,14 @@ function PosWorkbookPage(): JSX.Element {
         }}
         mefPatch={mefPatch}
         mefPatchDebounced={mefPatchDebounced}
+        renderApprovalTable={() => (
+          <PosApprovalTable
+            workbookId={id}
+            actingUsername={actingUsername}
+            refreshSignal={approvalRefresh}
+            onSigned={() => setApprovalRefresh((n) => n + 1)}
+          />
+        )}
       />
       {rolesOpen && (
         <PosRolesModal

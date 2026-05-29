@@ -6,6 +6,7 @@ import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos
 import { ProjectsService } from "../projects/projects.service";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
 import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
+import { PosRolesService } from "./pos-roles.service";
 import { stripNulls } from "./mef-normalize";
 
 const VALID_SEVERITIES = ["MAJOR", "MINOR", "OBSERVATION"] as const;
@@ -59,11 +60,11 @@ export class PosCommentsService {
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
     @InjectModel(PosWorkbookRole.name) private readonly posRoleModel: Model<PosWorkbookRoleDocument>,
     private readonly projectsService: ProjectsService,
+    private readonly posRolesService: PosRolesService,
   ) {}
 
   private async loadMyRoles(workbookId: string, username: string): Promise<PosWorkbookRoleName[]> {
-    const docs = await this.posRoleModel.find({ workbookId, username }).exec();
-    return docs.map((d) => d.role);
+    return this.posRolesService.resolveEffectiveRoles(workbookId, username);
   }
 
   private async loadAndAuthorize(workbookId: string, acting: ActingUser): Promise<{ wb: PosWorkbookDocument; myRoles: PosWorkbookRoleName[] }> {

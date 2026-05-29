@@ -7,7 +7,7 @@ import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useToast } from "../toast/toastProvider";
 import { getRoles, useAuth } from "./AuthContext";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Triplet.png";
 import "./css/signUpForm.css";
 
 const defaultSignup: SignupRequest = {

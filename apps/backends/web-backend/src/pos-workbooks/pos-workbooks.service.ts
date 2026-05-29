@@ -8,6 +8,7 @@ import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
 import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
 import { PosWorkbookSignoff, type PosWorkbookSignoffDocument } from "./pos-workbook-signoff.schema";
 import { PosDocumentsService } from "./pos-documents.service";
+import { PosRolesService } from "./pos-roles.service";
 import { createBlankPos } from "./blank-pos";
 import { stripNulls } from "./mef-normalize";
 import { healMef } from "./mef-heal";
@@ -47,6 +48,7 @@ export class PosWorkbooksService {
     private readonly projectsService: ProjectsService,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly posDocumentsService: PosDocumentsService,
+    private readonly posRolesService: PosRolesService,
   ) {}
 
   async createBlank(workbookId: string, projectId: string, name: string, ownerUsername: string): Promise<void> {
@@ -56,8 +58,7 @@ export class PosWorkbooksService {
   }
 
   private async loadMyRoles(workbookId: string, username: string): Promise<PosWorkbookRoleName[]> {
-    const docs = await this.posRoleModel.find({ workbookId, username }).exec();
-    return docs.map((d) => d.role);
+    return this.posRolesService.resolveEffectiveRoles(workbookId, username);
   }
 
   async findOne(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
@@ -88,7 +89,7 @@ export class PosWorkbooksService {
     if (!doc) throw new NotFoundException("POS workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can load the example");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can load the example");
     const state = (doc.mef as { workflowState?: string }).workflowState ?? "DRAFT";
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
@@ -114,7 +115,7 @@ export class PosWorkbooksService {
     if (!doc) throw new NotFoundException("POS workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can unload the example");
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unload the example");
     if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) {
       throw new ForbiddenException("This workbook has no prior contents to restore");
     }

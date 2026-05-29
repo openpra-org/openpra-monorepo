@@ -3,7 +3,7 @@ import { HydratedDocument } from "mongoose";
 
 export type PosWorkbookSignoffDocument = HydratedDocument<PosWorkbookSignoff> & { createdAt: Date; updatedAt: Date };
 
-export type PosSignoffRole = "reviewer" | "approver";
+export type PosSignoffRole = "preparer" | "co_preparer" | "reviewer" | "approver";
 
 @Schema({ timestamps: true, collection: "pos_workbook_signoffs" })
 export class PosWorkbookSignoff {

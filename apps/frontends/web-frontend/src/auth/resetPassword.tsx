@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { type ResetPasswordRequest, ResetPasswordRequestSchema } from "interfaces-shared-types";
 import { resetPassword } from "./authApi";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Triplet.png";
 import "./css/resetPassword.css";
 
 function ResetPasswordPage(): JSX.Element {

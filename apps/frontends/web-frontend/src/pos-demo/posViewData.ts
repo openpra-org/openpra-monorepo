@@ -43,7 +43,8 @@ const POS_STEPS: PosStep[] = [
   { id: "frequency", num: "08", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
   { id: "decayheat", num: "09", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
   { id: "draft", num: "10", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
-  { id: "review", num: "11", label: "Review & Approval", sub: "Reviewer comments · sign-off", status: "idle", terminal: true },
+  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "12", label: "Approval", sub: "Sign-off", status: "idle", terminal: true },
 ];
 
 type PosPersona = "preparer" | "reviewer" | "approver";
@@ -62,9 +63,9 @@ const PERSONAS: Record<PosPersona, PersonaSpec> = {
 };
 
 const PERSONA_STEPS: Record<PosPersona, string[]> = {
-  preparer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review"],
-  reviewer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat"],
-  approver: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "review"],
+  preparer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  reviewer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  approver: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
 };
 
 interface CapabilityCategory {

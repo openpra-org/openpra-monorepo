@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { type ForgotPasswordRequest, ForgotPasswordRequestSchema } from "interfaces-shared-types";
 import { forgotPassword } from "./authApi";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Triplet.png";
 import "./css/forgotPassword.css";
 
 interface ForgotPasswordProps {

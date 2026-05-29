@@ -3,15 +3,18 @@ import { HydratedDocument } from "mongoose";
 
 export type PosWorkbookRoleDocument = HydratedDocument<PosWorkbookRole> & { createdAt: Date; updatedAt: Date };
 
-export type PosWorkbookRoleName = "preparer" | "reviewer" | "approver";
+export type PosWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
 @Schema({ timestamps: true, collection: "pos_workbook_roles" })
 export class PosWorkbookRole {
   @Prop({ type: String, required: true, index: true })
   workbookId!: string;
 
-  @Prop({ type: String, required: true, index: true })
-  username!: string;
+  @Prop({ type: String, required: false, index: true })
+  username?: string;
+
+  @Prop({ type: String, required: false, index: true })
+  teamId?: string;
 
   @Prop({ type: String, required: true })
   role!: PosWorkbookRoleName;
@@ -22,4 +25,11 @@ export class PosWorkbookRole {
 
 export const PosWorkbookRoleSchema = SchemaFactory.createForClass(PosWorkbookRole);
 
-PosWorkbookRoleSchema.index({ workbookId: 1, username: 1, role: 1 }, { unique: true });
+PosWorkbookRoleSchema.index(
+  { workbookId: 1, username: 1, role: 1 },
+  { unique: true, partialFilterExpression: { username: { $type: "string" } } },
+);
+PosWorkbookRoleSchema.index(
+  { workbookId: 1, teamId: 1, role: 1 },
+  { unique: true, partialFilterExpression: { teamId: { $type: "string" } } },
+);

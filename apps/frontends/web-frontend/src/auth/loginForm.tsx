@@ -7,7 +7,7 @@ import { GoogleIcon, GitHubIcon } from "../welcome/icons";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useAuth, getRoles } from "./AuthContext";
-import logo from "../assets/Logo.png";
+import logo from "../assets/Triplet.png";
 import "./css/loginForm.css";
 
 interface LoginFieldErrors {

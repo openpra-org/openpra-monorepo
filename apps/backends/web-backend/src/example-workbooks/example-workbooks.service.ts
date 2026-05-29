@@ -1,0 +1,66 @@
+import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
+import { SEEDS, POS_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+
+export interface ExampleWorkbookResponse {
+  slug: string;
+  kind: string;
+  mef: unknown;
+  updatedAt: string;
+}
+
+export interface PosExampleBundle {
+  pos: ExampleWorkbookResponse;
+  configurationControl: ExampleWorkbookResponse;
+  newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+function toResponse(doc: ExampleWorkbookDocument): ExampleWorkbookResponse {
+  return {
+    slug: doc.slug,
+    kind: doc.kind,
+    mef: doc.mef,
+    updatedAt: doc.updatedAt.toISOString(),
+  };
+}
+
+@Injectable()
+export class ExampleWorkbooksService implements OnModuleInit {
+  private readonly logger = new Logger(ExampleWorkbooksService.name);
+
+  constructor(
+    @InjectModel(ExampleWorkbook.name) private readonly exampleModel: Model<ExampleWorkbookDocument>,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    let upserted = 0;
+    for (const seed of SEEDS) {
+      await this.exampleModel.updateOne(
+        { slug: seed.slug },
+        { $set: { slug: seed.slug, kind: seed.kind, mef: seed.mef } },
+        { upsert: true },
+      );
+      upserted += 1;
+    }
+    this.logger.log(`Seeded ${String(upserted)} example workbook${upserted === 1 ? "" : "s"}`);
+  }
+
+  async findBySlug(slug: string): Promise<ExampleWorkbookResponse> {
+    const doc = await this.exampleModel.findOne({ slug }).exec();
+    if (!doc) throw new NotFoundException(`Example workbook "${slug}" not found`);
+    return toResponse(doc);
+  }
+
+  async getPosBundle(): Promise<PosExampleBundle> {
+    const pos = await this.findBySlug(POS_GENERIC_1_SLUG);
+    const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
+    const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
+    return {
+      pos,
+      configurationControl,
+      newlyDevelopedMethods: nmDocs.map(toResponse),
+    };
+  }
+}

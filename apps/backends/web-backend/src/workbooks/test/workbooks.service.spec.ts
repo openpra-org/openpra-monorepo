@@ -6,6 +6,7 @@ import { WorkbooksService } from "../workbooks.service";
 import { Workbook } from "../workbook.schema";
 import { User } from "../../users/user.schema";
 import { ProjectsService } from "../../projects/projects.service";
+import { PosWorkbooksService } from "../../pos-workbooks/pos-workbooks.service";
 
 function makeWorkbookDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   const save = jest.fn().mockResolvedValue(undefined);
@@ -32,11 +33,13 @@ describe("WorkbooksService", () => {
   let workbookModelMock: { find: jest.Mock; findById: jest.Mock; create: jest.Mock };
   let userModelMock: { findOne: jest.Mock };
   let projectsServiceMock: { resolveAccess: jest.Mock };
+  let posWorkbooksServiceMock: { createBlank: jest.Mock };
 
   beforeEach(async () => {
     workbookModelMock = { find: jest.fn(), findById: jest.fn(), create: jest.fn() };
     userModelMock = { findOne: jest.fn() };
     projectsServiceMock = { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "owner" }) };
+    posWorkbooksServiceMock = { createBlank: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -44,6 +47,7 @@ describe("WorkbooksService", () => {
         { provide: getModelToken(Workbook.name), useValue: workbookModelMock },
         { provide: getModelToken(User.name), useValue: userModelMock },
         { provide: ProjectsService, useValue: projectsServiceMock },
+        { provide: PosWorkbooksService, useValue: posWorkbooksServiceMock },
       ],
     }).compile();
     service = moduleRef.get(WorkbooksService);

@@ -9,6 +9,7 @@ import { NewProjectCard } from "./newProjectCard";
 import { NewProjectModal } from "./newProjectModal";
 import { SharedProjectCard } from "./sharedProjectCard";
 import { EmptyState } from "./emptyState";
+import { PosAwaitingMeSection } from "./posAwaitingMeSection";
 import "./css/welcomePage.css";
 
 function WelcomePage(): JSX.Element {
@@ -80,6 +81,8 @@ function WelcomePage(): JSX.Element {
                 )}
                 <NewProjectCard onClick={() => { setModalOpen(true); }} />
               </section>
+
+              <PosAwaitingMeSection />
 
               {hasShared && (
                 <section className="wp__section" aria-label="Shared with you">

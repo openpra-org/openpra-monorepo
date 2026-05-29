@@ -56,7 +56,7 @@ function ProjectWorkspacePage(): JSX.Element {
 
   function handleOpenWorkbook(workbook: Workbook): void {
     if (workbook.elementCode === "POS") {
-      navigate("/pos-demo");
+      navigate(`/pos-workbooks/${workbook.id}`);
       return;
     }
     flashInfo(`"${workbook.name}" — workflow coming soon`);

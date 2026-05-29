@@ -61,6 +61,18 @@ export enum TechnicalElementTypes {
   NEWLY_DEVELOPED_METHOD = "newly-developed-method",
 }
 
+// Additional
+export interface PlantIdentity {
+  name: string;
+  vendor: string;
+  reactorType: string;
+  thermalPower: string;
+  primaryCoolant: string;
+  intermediateCoolant?: string;
+  powerConversionFluid?: string;
+  siteName?: string;
+}
+
 export interface TechnicalElementMetadata {
   versionInfo: VersionInfo;
   analysisDate: string;
@@ -70,6 +82,8 @@ export interface TechnicalElementMetadata {
   limitations: string[];
   lastModifiedDate: string;
   lastModifiedBy: string;
+  // Additional
+  plantIdentity?: PlantIdentity;
 }
 
 export interface TechnicalElement<T extends TechnicalElementTypes> extends Unique, Named {

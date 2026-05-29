@@ -1,0 +1,136 @@
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-states-analysis";
+import { ProjectsService } from "../projects/projects.service";
+import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
+import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
+import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
+import { PosWorkbookSignoff, type PosWorkbookSignoffDocument } from "./pos-workbook-signoff.schema";
+import { PosDocumentsService } from "./pos-documents.service";
+import { createBlankPos } from "./blank-pos";
+import { stripNulls } from "./mef-normalize";
+import { healMef } from "./mef-heal";
+
+export interface PosWorkbookResponse {
+  workbookId: string;
+  projectId: string;
+  ownerUsername: string;
+  mef: unknown;
+  myRoles: PosWorkbookRoleName[];
+  hasPreviousMef: boolean;
+  updatedAt: string;
+}
+
+interface ActingUser {
+  username: string;
+}
+
+function toResponse(doc: PosWorkbookDocument, myRoles: PosWorkbookRoleName[]): PosWorkbookResponse {
+  return {
+    workbookId: doc.workbookId,
+    projectId: doc.projectId,
+    ownerUsername: doc.ownerUsername,
+    mef: doc.mef,
+    myRoles,
+    hasPreviousMef: typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0,
+    updatedAt: doc.updatedAt.toISOString(),
+  };
+}
+
+@Injectable()
+export class PosWorkbooksService {
+  constructor(
+    @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
+    @InjectModel(PosWorkbookRole.name) private readonly posRoleModel: Model<PosWorkbookRoleDocument>,
+    @InjectModel(PosWorkbookSignoff.name) private readonly posSignoffModel: Model<PosWorkbookSignoffDocument>,
+    private readonly projectsService: ProjectsService,
+    private readonly exampleWorkbooksService: ExampleWorkbooksService,
+    private readonly posDocumentsService: PosDocumentsService,
+  ) {}
+
+  async createBlank(workbookId: string, projectId: string, name: string, ownerUsername: string): Promise<void> {
+    const mef = createBlankPos(name, ownerUsername);
+    await this.posWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
+    await this.posRoleModel.create({ workbookId, username: ownerUsername, role: "preparer", assignedBy: ownerUsername });
+  }
+
+  private async loadMyRoles(workbookId: string, username: string): Promise<PosWorkbookRoleName[]> {
+    const docs = await this.posRoleModel.find({ workbookId, username }).exec();
+    return docs.map((d) => d.role);
+  }
+
+  async findOne(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
+    const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("POS workbook not found");
+    await this.projectsService.resolveAccess(doc.projectId, acting);
+    const myRoles = await this.loadMyRoles(workbookId, acting.username);
+    return toResponse(doc, myRoles);
+  }
+
+  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<PosWorkbookResponse> {
+    const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("POS workbook not found");
+    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
+    if (role === "viewer") throw new ForbiddenException("You cannot edit this POS workbook");
+    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(mef));
+    if (!parsed.success) {
+      throw new ForbiddenException(`Invalid POS workbook payload: ${parsed.error.message}`);
+    }
+    doc.mef = parsed.data;
+    await doc.save();
+    const myRoles = await this.loadMyRoles(workbookId, acting.username);
+    return toResponse(doc, myRoles);
+  }
+
+  async loadExample(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
+    const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("POS workbook not found");
+    await this.projectsService.resolveAccess(doc.projectId, acting);
+    const myRoles = await this.loadMyRoles(workbookId, acting.username);
+    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can load the example");
+    const state = (doc.mef as { workflowState?: string }).workflowState ?? "DRAFT";
+    if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
+      throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
+    }
+    const example = await this.exampleWorkbooksService.getPosBundle();
+    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(example.pos.mef));
+    if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
+    const cleaned = {
+      ...parsed.data,
+      workflowState: "DRAFT",
+      workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
+    };
+    doc.previousMefJson = JSON.stringify(doc.mef);
+    doc.mef = cleaned;
+    await doc.save();
+    await this.posSignoffModel.deleteMany({ workbookId }).exec();
+    await this.posDocumentsService.removeAllForWorkbook(workbookId);
+    return toResponse(doc, myRoles);
+  }
+
+  async unloadExample(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
+    const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("POS workbook not found");
+    await this.projectsService.resolveAccess(doc.projectId, acting);
+    const myRoles = await this.loadMyRoles(workbookId, acting.username);
+    if (!myRoles.includes("preparer")) throw new ForbiddenException("Only preparers can unload the example");
+    if (typeof doc.previousMefJson !== "string" || doc.previousMefJson.length === 0) {
+      throw new ForbiddenException("This workbook has no prior contents to restore");
+    }
+    const state = (doc.mef as { workflowState?: string }).workflowState ?? "DRAFT";
+    if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
+      throw new ForbiddenException(`Cannot unload from state ${state}`);
+    }
+    const restored: unknown = JSON.parse(doc.previousMefJson);
+    const restoredObj = restored as { name?: string; owner?: string };
+    const template = createBlankPos(restoredObj.name ?? "POS Workbook", restoredObj.owner ?? acting.username);
+    const healed = healMef(restored, template);
+    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(healed);
+    if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
+    doc.mef = parsed.data;
+    doc.previousMefJson = null;
+    await doc.save();
+    return toResponse(doc, myRoles);
+  }
+}

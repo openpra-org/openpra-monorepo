@@ -47,7 +47,7 @@ const RISK_MODES: readonly RiskModeDefinition[] = [
 type IncludedCode = Exclude<TechnicalElementCode, "UNK" | "CC" | "NM">;
 
 const ELEMENT_DISPLAY_NAMES: Readonly<Record<IncludedCode, string>> = {
-  POS: "Plant Operating State Analysis",
+  POS: "Plant Operating States Analysis",
   IE: "Initiating Event Analysis",
   ES: "Event Sequence Analysis",
   SC: "Success Criteria Development",

@@ -9,6 +9,7 @@ import {
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { ProjectsService } from "../projects/projects.service";
+import { PosWorkbooksService } from "../pos-workbooks/pos-workbooks.service";
 import { Workbook, type WorkbookDocument } from "./workbook.schema";
 
 function computeInitials(fullName: string): string {
@@ -44,6 +45,7 @@ export class WorkbooksService {
     @InjectModel(Workbook.name) private readonly workbookModel: Model<WorkbookDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly projectsService: ProjectsService,
+    private readonly posWorkbooksService: PosWorkbooksService,
   ) {}
 
   async listWorkbooks(projectId: string, elementCode: string, acting: ActingUser): Promise<WorkbookListResponse> {
@@ -69,6 +71,9 @@ export class WorkbooksService {
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
     });
+    if (payload.elementCode === "POS") {
+      await this.posWorkbooksService.createBlank(String(created._id), projectId, payload.name, owner.username);
+    }
     return toDto(created);
   }
 

@@ -11,11 +11,15 @@ import {
   BorderStyle,
 } from "docx";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
-import { POS_ANALYSIS } from "./posData";
 import { formatRange, formatDuration, formatFrequency } from "./posSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
-  return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 } });
+  return new Paragraph({
+    text,
+    heading: level,
+    spacing: { before: 240, after: 120 },
+    pageBreakBefore: level === HeadingLevel.HEADING_1,
+  });
 }
 
 function para(text: string): Paragraph {
@@ -190,19 +194,90 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   return out;
 }
 
-async function generatePosReport(final: boolean): Promise<void> {
+interface TocEntry {
+  title: string;
+  indent: 0 | 1;
+  page: number;
+}
+
+const LINES_PER_PAGE = 38;
+
+function paraLines(text: string | undefined): number {
+  if (text === undefined || text.length === 0) return 1;
+  return Math.max(1, Math.ceil(text.length / 90));
+}
+
+function tableLines(rowCount: number): number {
+  return 1 + Math.max(1, rowCount);
+}
+
+function computePosReportToc(pos: PlantOperatingStatesAnalysis): TocEntry[] {
+  const sections: { title: string; indent: 0 | 1; lines: number }[] = [
+    { title: "Executive summary", indent: 0, lines: 3 + paraLines(pos.praScope) },
+
+    { title: "Introduction", indent: 0, lines: 1 },
+    { title: "Purpose", indent: 1, lines: paraLines(pos.documentation.processDescription) },
+    { title: "Scope", indent: 1, lines: paraLines(pos.praScope) },
+    { title: "Relationship to other documents", indent: 1, lines: paraLines(pos.documentation.praTaskInterfaces) },
+    { title: "Document layout", indent: 1, lines: 3 },
+    { title: "Quality assurance", indent: 1, lines: paraLines(pos.plantRepresentationAccuracy.basis) },
+
+    { title: "Assumptions and limitations", indent: 0, lines: 1 + Math.max(1, (pos.preOperationalAssumptions ?? []).length) },
+    { title: "Sources of model uncertainty", indent: 1, lines: tableLines(pos.modelUncertainty.uncertaintySources.length) },
+
+    { title: "Identify plant operating states and evolutions", indent: 0, lines: 1 },
+    { title: "Plant evolutions", indent: 1, lines: tableLines(pos.plantEvolutions.length) },
+    { title: "Plant operating states", indent: 1, lines: tableLines(pos.plantOperatingStates.length) },
+    { title: "Interviews", indent: 1, lines: tableLines((pos.interviewRecords ?? []).length) },
+
+    { title: "Screening and grouping plant operating states", indent: 0, lines: 1 },
+    { title: "Screening plant operating states", indent: 1, lines: tableLines(pos.screeningRecords.length) },
+    { title: "Grouping plant operating states", indent: 1, lines: tableLines((pos.plantOperatingStateGroups ?? []).length) },
+
+    { title: "Plant operating state frequencies and durations", indent: 0, lines: 1 },
+    { title: "Frequencies and durations analysis", indent: 1, lines: tableLines(pos.plantOperatingStates.length) },
+    { title: "Decay heat levels", indent: 1, lines: tableLines(pos.decayHeatCharacterizations.length) },
+
+    { title: "Conformance summary", indent: 0, lines: tableLines(pos.conformanceMatrix.length) },
+
+    { title: "References", indent: 0, lines: 5 },
+  ];
+
+  const COVER_AND_TOC_PAGES = 1;
+  const out: TocEntry[] = [];
+  let page = COVER_AND_TOC_PAGES + 1;
+  let cursorInPage = 0;
+  let first = true;
+  for (const s of sections) {
+    if (s.indent === 0) {
+      if (!first) {
+        page += 1;
+        cursorInPage = 0;
+      }
+      first = false;
+    } else if (cursorInPage >= LINES_PER_PAGE) {
+      page += 1;
+      cursorInPage = 0;
+    }
+    out.push({ title: s.title, indent: s.indent, page });
+    cursorInPage += s.lines;
+  }
+  return out;
+}
+
+async function generatePosReport(pos: PlantOperatingStatesAnalysis, final: boolean): Promise<void> {
   const doc = new Document({
-    sections: [{ children: buildChildren(POS_ANALYSIS, final) }],
+    sections: [{ children: buildChildren(pos, final) }],
   });
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${POS_ANALYSIS.name} — POS Analysis${final ? "" : " (draft)"}.docx`;
+  link.download = `${pos.name} — POS Analysis${final ? "" : " (draft)"}.docx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
-export { generatePosReport };
+export { generatePosReport, computePosReportToc, type TocEntry };

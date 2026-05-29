@@ -12,6 +12,7 @@ import {
 } from "./posSelectors";
 import { type CapabilityCategory, type CcScore } from "./posViewData";
 import { type PosPersona } from "./posViewData";
+import { usePosWorkbook } from "./posWorkbookContext";
 
 interface InternalReviewProps {
   persona: PosPersona;
@@ -46,10 +47,11 @@ function InternalReviewScreen({
   const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
   const banner = bannerVariant(openCount, submitted, approved);
   const canApprove = isApprover && allResolved && scores.blocked === 0;
-  const reviewers = internalReviewersView();
-  const approver = internalApproverView();
-  const snapshot = ccSnapshotView();
-  const nms = nmViews();
+  const { pos, cc: ccInstance, nms: nmInstances } = usePosWorkbook();
+  const reviewers = internalReviewersView(pos);
+  const approver = internalApproverView(pos);
+  const snapshot = ccSnapshotView(ccInstance);
+  const nms = nmViews(nmInstances);
 
   const filtered = useMemo(() => {
     if (filter === "all") return comments;
@@ -117,7 +119,7 @@ function InternalReviewScreen({
         <p className="poscard__sub">
           {isApprover
             ? "All comments are read-only here. The reviewer has marked them resolved before submission."
-            : "Reply to each comment. Only the reviewer can mark a comment resolved — the workbook can be submitted for approval once they do."}
+            : "Reply to each comment. Only the reviewer can mark a comment resolved. The workbook can be submitted for approval once they do."}
         </p>
         <div className="poscomments">
           {grouped.map(([section, list]) => (
@@ -163,7 +165,7 @@ function InternalReviewScreen({
           </div>
           {!allResolved && (
             <p className="posapprove__signhint" style={{ marginTop: 10 }}>
-              <POSIcon.Lock /> Submission is gated by the reviewer marking comments resolved — not by you.
+              <POSIcon.Lock /> Submission is gated by the reviewer marking comments resolved.
             </p>
           )}
         </div>
@@ -311,6 +313,7 @@ function CommentCard({
   onAction: (msg: string) => void;
   onToggleResolved: (id: string) => void;
 }): JSX.Element {
+  const { nms: nmInstances } = usePosWorkbook();
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
   const sevClass = comment.severity.toLowerCase();
@@ -345,7 +348,7 @@ function CommentCard({
               type="button"
               className="poschip poschip--method"
               onClick={() => {
-                const view = nmViewById(comment.linkedNM!);
+                const view = nmViewById(nmInstances, comment.linkedNM!);
                 onAction(`${view?.id ?? comment.linkedNM} — Newly Developed Method workbook coming soon`);
               }}
             >
@@ -403,14 +406,20 @@ interface ReviewerDockProps {
   stepId: string;
   comments: CommentView[];
   onToggleResolved: (id: string) => void;
+  onPostComment: (text: string, severity: "MAJOR" | "MINOR" | "OBSERVATION") => void;
+  onRequestRevision: () => void;
+  canRequestRevision: boolean;
+  onSignReview?: () => void;
+  canSignReview: boolean;
   onAction: (msg: string) => void;
 }
 
-function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onToggleResolved, onAction }: ReviewerDockProps): JSX.Element {
+function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onToggleResolved, onPostComment, onRequestRevision, canRequestRevision, onSignReview, canSignReview, onAction }: ReviewerDockProps): JSX.Element {
   const scopeSections = STEP_SECTION[stepId] ?? [];
   const onThisStep = comments.filter((c) => scopeSections.includes(c.section));
   const stepOpenCount = onThisStep.filter((c) => !c.resolved).length;
   const [draft, setDraft] = useState("");
+  const [draftSeverity, setDraftSeverity] = useState<"MAJOR" | "MINOR" | "OBSERVATION">("MINOR");
   return (
     <>
       <button
@@ -474,7 +483,12 @@ function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onTogg
               rows={3}
             />
             <div className="posrevdock__composer-foot">
-              <select className="posfield__select" defaultValue="MINOR" style={{ maxWidth: 140 }}>
+              <select
+                className="posfield__select"
+                value={draftSeverity}
+                onChange={(e) => setDraftSeverity(e.target.value as "MAJOR" | "MINOR" | "OBSERVATION")}
+                style={{ maxWidth: 140 }}
+              >
                 <option value="MAJOR">Major</option>
                 <option value="MINOR">Minor</option>
                 <option value="OBSERVATION">Observation</option>
@@ -484,10 +498,30 @@ function ReviewerCommentDock({ open, onToggle, onClose, stepId, comments, onTogg
                 className="posnav__btn posnav__btn--sm posnav__btn--primary"
                 disabled={draft.trim() === ""}
                 style={draft.trim() === "" ? { opacity: 0.5 } : undefined}
-                onClick={() => { onAction("Comment posted"); setDraft(""); }}
+                onClick={() => { onPostComment(draft.trim(), draftSeverity); setDraft(""); }}
               >
                 <POSIcon.Send /> Post comment
               </button>
+            </div>
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {canSignReview && onSignReview !== undefined && (
+                <button
+                  type="button"
+                  className="posnav__btn posnav__btn--sm posnav__btn--primary"
+                  onClick={onSignReview}
+                >
+                  <POSIcon.Check /> Sign review
+                </button>
+              )}
+              {canRequestRevision && (
+                <button
+                  type="button"
+                  className="posnav__btn posnav__btn--sm"
+                  onClick={onRequestRevision}
+                >
+                  <POSIcon.Close /> Request revision (return to preparer)
+                </button>
+              )}
             </div>
           </div>
         </aside>

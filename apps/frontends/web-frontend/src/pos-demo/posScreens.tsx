@@ -1,12 +1,15 @@
-import { Fragment, JSX, useState } from "react";
+import { Fragment, JSX, useRef, useState } from "react";
+import { type PosDocumentEntry } from "./posWorkbookApi";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantIdentity } from "interfaces-mef-types/technical-element";
+import { type CapabilityCategory as MefCapabilityCategory, type PlantStage as MefPlantStage } from "interfaces-mef-types/core/pra-common";
+import { type Mutator } from "./useMefPatch";
 import { POSIcon } from "./posIcons";
 import { Badge, Stat } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import {
   CAPABILITY_CATEGORIES,
-  CC_SCORES,
   POS_DOCUMENTS,
-  POS_PROJECT,
   type CapabilityCategory,
   type CcScore,
 } from "./posViewData";
@@ -18,8 +21,11 @@ import {
   groupsView,
   isBarrierBroken,
   preOpsForState,
+  ccScore,
   type Stage,
 } from "./posSelectors";
+import { usePosWorkbook } from "./posWorkbookContext";
+import { computePosReportToc } from "./posDocx";
 
 // hardcoded — the per-screen summary figures (stat tiles, "still missing" notes,
 // guided-Q&A prose) are static demo copy that mirrors the reference design.
@@ -37,56 +43,176 @@ interface ScreenProps {
   setStage: (s: Stage) => void;
   openDrawer: (ctx: DrawerContext) => void;
   onAction: (msg: string) => void;
+  mefPatch?: (mutator: Mutator) => void;
+  mefPatchDebounced?: (mutator: Mutator) => void;
 }
 
-function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps): JSX.Element {
+function blankPlantIdentity(): PlantIdentity {
+  return { name: "", vendor: "", reactorType: "", thermalPower: "", primaryCoolant: "" };
+}
+
+function setPlantIdentityField<K extends keyof PlantIdentity>(
+  pos: PlantOperatingStatesAnalysis,
+  key: K,
+  value: PlantIdentity[K],
+): PlantOperatingStatesAnalysis {
+  const current = pos.metadata.plantIdentity ?? blankPlantIdentity();
+  return {
+    ...pos,
+    metadata: {
+      ...pos.metadata,
+      plantIdentity: { ...current, [key]: value },
+    },
+  };
+}
+
+function ccIdToMef(ccId: string): MefCapabilityCategory {
+  return ccId === "cc-i" ? "CC-I" : "CC-II";
+}
+
+function stageToMef(stage: Stage): MefPlantStage {
+  return stage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL";
+}
+
+function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPatchDebounced }: ScreenProps): JSX.Element {
+  const { pos } = usePosWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+  const pi = pos.metadata.plantIdentity ?? blankPlantIdentity();
+  const isReal = mefPatch !== undefined;
+
+  function onPiChange<K extends keyof PlantIdentity>(key: K, value: PlantIdentity[K]): void {
+    if (mefPatchDebounced === undefined) return;
+    mefPatchDebounced((draft) => setPlantIdentityField(draft, key, value));
+  }
+
+  function onScopeChange(value: string): void {
+    if (mefPatchDebounced === undefined) return;
+    mefPatchDebounced((draft) => ({ ...draft, praScope: value }));
+  }
+
+  function onCcChange(newCcId: string): void {
+    setCcId(newCcId);
+    if (mefPatch === undefined) return;
+    mefPatch((draft) => ({ ...draft, capabilityCategory: ccIdToMef(newCcId) }));
+  }
+
+  function onStageChange(newStage: Stage): void {
+    setStage(newStage);
+    if (mefPatch === undefined) return;
+    mefPatch((draft) => ({ ...draft, plantStage: stageToMef(newStage) }));
+  }
+
+  function onAtPowerChange(value: boolean): void {
+    if (mefPatch === undefined) return;
+    mefPatch((draft) => ({ ...draft, includesAtPowerOperations: value }));
+  }
+
+  function onHazardChange(value: boolean): void {
+    if (mefPatch === undefined) return;
+    mefPatch((draft) => ({ ...draft, includesNonInternalHazardGroups: value }));
+  }
+
+  function onLpsdChange(value: boolean): void {
+    if (mefPatch === undefined) return;
+    mefPatch((draft) => ({ ...draft, includesLPSDOperations: value }));
+  }
+
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Plant identity</h3>
-          <Badge kind="ok">Verified from design basis</Badge>
         </div>
-        <p className="poscard__sub">Inputs were drawn from the uploaded Design Basis Document (Rev 4). Edit if anything looks wrong.</p>
         <div className="posfield-grid">
           <div className="posfield">
             <label className="posfield__label">Plant name</label>
-            <input className="posfield__input" defaultValue="Generic-1 Reactor" />
+            <input
+              className="posfield__input"
+              placeholder="e.g. Generic-1 Reactor"
+              value={isReal ? pi.name : undefined}
+              defaultValue={!isReal ? pi.name : undefined}
+              onChange={(e) => onPiChange("name", e.target.value)}
+            />
           </div>
           <div className="posfield">
             <label className="posfield__label">Vendor / designer</label>
-            <input className="posfield__input" defaultValue="Generic Nuclear LLC" />
+            <input
+              className="posfield__input"
+              placeholder="e.g. Vendor LLC"
+              value={isReal ? pi.vendor : undefined}
+              defaultValue={!isReal ? pi.vendor : undefined}
+              onChange={(e) => onPiChange("vendor", e.target.value)}
+            />
           </div>
           <div className="posfield">
             <label className="posfield__label">Reactor type</label>
-            <select className="posfield__select" defaultValue="sfr">
-              <option value="sfr">Sodium-cooled fast reactor (SFR)</option>
-              <option value="htgr">High-temperature gas-cooled reactor</option>
-              <option value="msr">Molten salt reactor</option>
-              <option value="lfr">Lead-cooled fast reactor</option>
-              <option value="other">Other (specify)</option>
-            </select>
+            <input
+              className="posfield__input"
+              placeholder="e.g. Sodium-cooled fast reactor (SFR)"
+              value={isReal ? pi.reactorType : undefined}
+              defaultValue={!isReal ? pi.reactorType : undefined}
+              onChange={(e) => onPiChange("reactorType", e.target.value)}
+            />
           </div>
           <div className="posfield">
             <label className="posfield__label">Thermal power</label>
-            <input className="posfield__input" defaultValue="300 MWt" />
+            <input
+              className="posfield__input"
+              placeholder="e.g. 300 MWth"
+              value={isReal ? pi.thermalPower : undefined}
+              defaultValue={!isReal ? pi.thermalPower : undefined}
+              onChange={(e) => onPiChange("thermalPower", e.target.value)}
+            />
           </div>
         </div>
         <div className="posfield-grid posfield-grid--3" style={{ marginTop: 16 }}>
           <div className="posfield">
             <label className="posfield__label">Primary coolant</label>
-            <input className="posfield__input" defaultValue="Liquid sodium" />
+            <input
+              className="posfield__input"
+              placeholder="e.g. Liquid sodium"
+              value={isReal ? pi.primaryCoolant : undefined}
+              defaultValue={!isReal ? pi.primaryCoolant : undefined}
+              onChange={(e) => onPiChange("primaryCoolant", e.target.value)}
+            />
           </div>
           <div className="posfield">
             <label className="posfield__label">Intermediate coolant</label>
-            <input className="posfield__input" defaultValue="Liquid sodium" />
+            <input
+              className="posfield__input"
+              placeholder="e.g. Liquid sodium"
+              value={isReal ? (pi.intermediateCoolant ?? "") : undefined}
+              defaultValue={!isReal ? (pi.intermediateCoolant ?? "") : undefined}
+              onChange={(e) => onPiChange("intermediateCoolant", e.target.value)}
+            />
           </div>
           <div className="posfield">
-            <label className="posfield__label">Power conversion fluid</label>
-            <input className="posfield__input" defaultValue="Supercritical CO₂" />
+            <label className="posfield__label">Power conversion working fluid</label>
+            <input
+              className="posfield__input"
+              placeholder="e.g. supercritical CO₂"
+              value={isReal ? (pi.powerConversionFluid ?? "") : undefined}
+              defaultValue={!isReal ? (pi.powerConversionFluid ?? "") : undefined}
+              onChange={(e) => onPiChange("powerConversionFluid", e.target.value)}
+            />
           </div>
         </div>
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what the analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="Briefly state in-scope hazard groups, operating modes, and explicit exclusions."
+          rows={4}
+          value={isReal ? pos.praScope : undefined}
+          defaultValue={!isReal ? pos.praScope : undefined}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
+        <p className="posfield__hint" style={{ marginTop: 8, marginBottom: 0 }}>
+          <strong>Example:</strong> Internal events at full power; internal floods and internal fires; excludes seismic, high winds, and external floods (covered by external-hazards workbooks).
+        </p>
       </div>
 
       <div className="poscard">
@@ -96,7 +222,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           <label className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === "pre_operational" ? "var(--color-primary)" : undefined }}>
             <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-              <input type="radio" name="stage" value="pre_operational" checked={stage === "pre_operational"} onChange={() => setStage("pre_operational")} />
+              <input type="radio" name="stage" value="pre_operational" checked={stage === "pre_operational"} onChange={() => onStageChange("pre_operational")} />
               <div>
                 <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>Pre-operational</div>
                 <div className="possubtle" style={{ fontSize: 12.5 }}>
@@ -107,11 +233,11 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
           </label>
           <label className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === "operational" ? "var(--color-primary)" : undefined }}>
             <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-              <input type="radio" name="stage" value="operational" checked={stage === "operational"} onChange={() => setStage("operational")} />
+              <input type="radio" name="stage" value="operational" checked={stage === "operational"} onChange={() => onStageChange("operational")} />
               <div>
                 <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>Operational</div>
                 <div className="possubtle" style={{ fontSize: 12.5 }}>
-                  Plant is operating. Expected records: operating history, walkdowns, interviews with operations staff.
+                  Plant is operating. Expected records: as-built and as-operated configuration verification, operating history, walkdowns, and interviews with operations staff.
                 </div>
               </div>
             </div>
@@ -127,13 +253,13 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
-            const scores = CC_SCORES[c.id];
+            const scores = ccScore(pos, c.id, stage);
             return (
               <button
                 key={c.id}
                 type="button"
                 className="poscard"
-                onClick={() => setCcId(c.id)}
+                onClick={() => onCcChange(c.id)}
                 style={{
                   textAlign: "left",
                   cursor: "pointer",
@@ -151,7 +277,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
                 <div className="possubtle" style={{ marginBottom: 10 }}>{c.description}</div>
                 <div className="posrow" style={{ justifyContent: "space-between" }}>
                   <span className="posmono possubtle">{scores.applicable} items required</span>
-                  <span className={`poschip ${active ? "poschip--primary" : ""}`}>{scores.percent}% ready</span>
+                  <span className={`poschip ${active ? "poschip--primary" : ""}`}>{scores.applicable === 0 ? "—" : `${scores.percent}% ready`}</span>
                 </div>
               </button>
             );
@@ -161,40 +287,122 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction }: ScreenProps):
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Freeze date &amp; scope</h3>
+          <h3 className="poscard__title">Plant operations in scope</h3>
         </div>
-        <div className="posfield-grid">
-          <div className="posfield">
-            <label className="posfield__label">Freeze date <span className="posfield__label-opt">(plant configuration as of)</span></label>
-            <input type="date" className="posfield__input" defaultValue="2026-04-01" />
-          </div>
-          <div className="posfield">
-            <label className="posfield__label">Includes at-power operations?</label>
-            <select className="posfield__select" defaultValue="yes">
-              <option value="yes">Yes</option>
-              <option value="no">No (LPSD-only)</option>
-            </select>
-          </div>
-          <div className="posfield posfield-grid--span2">
-            <label className="posfield__label">Hazard groups in scope</label>
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              <span className="poschip poschip--primary">Internal events</span>
-              <span className="poschip">Internal fire</span>
-              <span className="poschip">Internal flooding</span>
-              <span className="poschip">Seismic</span>
-              <button type="button" className="poschip" onClick={() => onAction("Hazard group editor opening…")}><POSIcon.Plus /> Add hazard group</button>
-            </div>
-            <p className="posfield__hint" style={{ marginTop: 10 }}>
-              <strong>Note:</strong> Selecting hazards beyond internal events requires checking that POS definitions are still bounding for each hazard. OpenPRA will guide you in step 4.
-            </p>
-          </div>
+        <p className="poscard__sub">Which plant operating modes does this POS analysis cover?</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={pos.includesAtPowerOperations}
+              onChange={(e) => onAtPowerChange(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              <strong style={{ display: "block", fontSize: 13.5 }}>At-power operations</strong>
+              <span className="possubtle" style={{ fontSize: 12.5 }}>Full-power and load-following operation.</span>
+            </span>
+          </label>
+          <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={pos.includesLPSDOperations ?? false}
+              onChange={(e) => onLpsdChange(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              <strong style={{ display: "block", fontSize: 13.5 }}>Low power and shutdown (LPSD)</strong>
+              <span className="possubtle" style={{ fontSize: 12.5 }}>Startup, shutdown, refueling, cold shutdown, and other non-power evolutions.</span>
+            </span>
+          </label>
         </div>
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Hazard groups in scope</h3>
+        </div>
+        <p className="poscard__sub">Internal events are always in scope for a POS workbook. Check below if the PRA also covers hazards beyond internal events.</p>
+        <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={pos.includesNonInternalHazardGroups}
+            onChange={(e) => onHazardChange(e.target.checked)}
+            style={{ marginTop: 3 }}
+          />
+          <span>
+            <strong style={{ display: "block", fontSize: 13.5 }}>Hazards beyond internal events</strong>
+            <span className="possubtle" style={{ fontSize: 12.5 }}>Internal floods, internal fires, seismic, high winds, external floods, and other external hazards. Each in-scope hazard requires its own workbook downstream; POS definitions must remain bounding for each.</span>
+          </span>
+        </label>
+        <p className="posfield__hint" style={{ marginTop: 14, marginBottom: 0 }}>
+          Configuration freeze date lives in the linked PRA Configuration Control workbook. {pos.configurationControlRecordId !== undefined && pos.configurationControlRecordId.length > 0
+            ? <>Linked: <code className="posmono">{pos.configurationControlRecordId}</code></>
+            : <>No configuration control workbook linked yet.</>}
+        </p>
       </div>
     </>
   );
 }
 
-function DocumentsScreen({ onAction }: ScreenProps): JSX.Element {
+interface DocumentsScreenProps extends ScreenProps {
+  realDocuments?: PosDocumentEntry[];
+  canUpload?: boolean;
+  onUploadFile?: (file: File) => Promise<void>;
+  onDeleteDocument?: (documentId: string) => Promise<void>;
+  onDownloadDocument?: (documentId: string) => Promise<void>;
+}
+
+function pickIconKind(mimeType: string): "sheet" | "image" | "doc" {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "text/csv" || mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "sheet";
+  return "doc";
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onDeleteDocument, onDownloadDocument }: DocumentsScreenProps): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const isReal = realDocuments !== undefined;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const exampleDocs = pos.exampleDocuments ?? [];
+  const showExampleDocs = isReal && realDocuments.length === 0 && exampleDocs.length > 0;
+
+  function pickFile(): void {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0];
+    if (file === undefined || onUploadFile === undefined) return;
+    setUploading(true);
+    onUploadFile(file)
+      .then(() => { onAction("Uploaded — document processing coming soon"); })
+      .catch((err: unknown) => { onAction((err as { message?: string }).message ?? "Upload failed"); })
+      .finally(() => {
+        setUploading(false);
+        if (fileInputRef.current !== null) fileInputRef.current.value = "";
+      });
+  }
+
+  function handleDelete(documentId: string): void {
+    if (onDeleteDocument === undefined) return;
+    onDeleteDocument(documentId)
+      .then(() => onAction("Document removed"))
+      .catch((err: unknown) => onAction((err as { message?: string }).message ?? "Delete failed"));
+  }
+
+  function handleDownload(documentId: string): void {
+    if (onDownloadDocument === undefined) return;
+    onDownloadDocument(documentId)
+      .catch((err: unknown) => onAction((err as { message?: string }).message ?? "Download failed"));
+  }
+
   return (
     <>
       <div className="posupload">
@@ -203,166 +411,196 @@ function DocumentsScreen({ onAction }: ScreenProps): JSX.Element {
           <div className="posupload__copy-title">Drag &amp; drop design documents, P&amp;IDs, procedures, or prior PRAs</div>
           <div className="posupload__copy-sub">OpenPRA reads the contents, identifies relevant inputs, and links them to the right operating-state fields.</div>
         </div>
-        <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Document picker opening…")}>
-          <POSIcon.Upload /> Browse files
-        </button>
+        {isReal ? (
+          <>
+            <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileChange} />
+            <button
+              type="button"
+              className="posnav__btn posnav__btn--primary"
+              onClick={pickFile}
+              disabled={uploading || canUpload !== true}
+            >
+              <POSIcon.Upload /> {uploading ? "Uploading…" : "Browse files"}
+            </button>
+          </>
+        ) : (
+          <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Document picker opening…")}>
+            <POSIcon.Upload /> Browse files
+          </button>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Uploaded documents</h3>
           <div className="posrow" style={{ gap: 12 }}>
-            <Badge kind="ok">{POS_DOCUMENTS.length} files</Badge>
-            <Badge kind="progress">All extracted</Badge>
+            <Badge kind="ok">{(showExampleDocs ? exampleDocs.length : (isReal ? realDocuments.length : POS_DOCUMENTS.length))} files</Badge>
+            {isReal && !showExampleDocs ? <Badge>Processing coming soon</Badge> : <Badge kind="progress">All extracted</Badge>}
           </div>
         </div>
         <div className="posdoc-list">
-          {POS_DOCUMENTS.map((d) => (
-            <div key={d.id} className="posdoc">
-              <div className="posdoc__icon">
-                {d.kind === "sheet" ? <POSIcon.Sheet /> : d.kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
+          {showExampleDocs
+            ? exampleDocs.map((d) => (
+              <div key={d.id} className="posdoc">
+                <div className="posdoc__icon">
+                  {d.kind === "sheet" ? <POSIcon.Sheet /> : d.kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
+                </div>
+                <div className="posdoc__main">
+                  <div className="posdoc__name">{d.name}</div>
+                  <div className="posdoc__meta">{d.sizeLabel} · uploaded {d.uploadedLabel} · linked to {d.linked} field{d.linked === 1 ? "" : "s"}</div>
+                </div>
+                <div className="posdoc__extracted">
+                  <POSIcon.Sparkle /> {d.extracted}
+                </div>
+                <Badge kind="ok">Indexed</Badge>
               </div>
-              <div className="posdoc__main">
-                <div className="posdoc__name">{d.name}</div>
-                <div className="posdoc__meta">{d.size} · uploaded {d.uploaded} · linked to {d.linked} field{d.linked === 1 ? "" : "s"}</div>
+            ))
+            : isReal
+            ? (realDocuments.length === 0
+                ? <p className="posmuted" style={{ padding: "16px 0", margin: 0 }}>No documents uploaded yet.</p>
+                : realDocuments.map((d) => {
+                    const kind = pickIconKind(d.mimeType);
+                    return (
+                      <div key={d.documentId} className="posdoc">
+                        <div className="posdoc__icon">
+                          {kind === "sheet" ? <POSIcon.Sheet /> : kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
+                        </div>
+                        <div className="posdoc__main">
+                          <div className="posdoc__name">{d.filename}</div>
+                          <div className="posdoc__meta">{formatSize(d.size)} · uploaded by @{d.uploadedBy}</div>
+                        </div>
+                        <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => handleDownload(d.documentId)}>
+                          <POSIcon.Eye /> Download
+                        </button>
+                        {canUpload === true && (
+                          <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => handleDelete(d.documentId)}>
+                            <POSIcon.Close /> Remove
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+              )
+            : POS_DOCUMENTS.map((d) => (
+              <div key={d.id} className="posdoc">
+                <div className="posdoc__icon">
+                  {d.kind === "sheet" ? <POSIcon.Sheet /> : d.kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
+                </div>
+                <div className="posdoc__main">
+                  <div className="posdoc__name">{d.name}</div>
+                  <div className="posdoc__meta">{d.size} · uploaded {d.uploaded} · linked to {d.linked} field{d.linked === 1 ? "" : "s"}</div>
+                </div>
+                <div className="posdoc__extracted">
+                  <POSIcon.Sparkle /> {d.extracted}
+                </div>
+                <Badge kind="ok">Indexed</Badge>
+                <button type="button" className="posdoc__more" aria-label="More"><POSIcon.More /></button>
               </div>
-              <div className="posdoc__extracted">
-                <POSIcon.Sparkle /> {d.extracted}
-              </div>
-              <Badge kind="ok">Indexed</Badge>
-              <button type="button" className="posdoc__more" aria-label="More"><POSIcon.More /></button>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
-      <div className="poscard poscard--ghost">
-        <div className="poscard__head">
-          <h3 className="poscard__title">What OpenPRA is still missing</h3>
+      {!isReal && (
+        <div className="poscard poscard--ghost">
+          <div className="poscard__head">
+            <h3 className="poscard__title">What OpenPRA is still missing</h3>
+          </div>
+          <p className="posmuted" style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0 }}>
+            Based on the uploaded set, three field groups have no source document attached:
+          </p>
+          <ul style={{ margin: "12px 0 0", paddingLeft: 22, fontSize: 13.5, lineHeight: 1.75, color: "var(--color-text)" }}>
+            <li>Maintenance configuration document for IHX drained operation (referenced in POS-08)</li>
+            <li>Cover-gas adjustment procedure (referenced in POS-09)</li>
+            <li>Spent-fuel storage layout for ex-core source inventory</li>
+          </ul>
         </div>
-        <p className="posmuted" style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0 }}>
-          Based on the uploaded set, three field groups have no source document attached:
-        </p>
-        <ul style={{ margin: "12px 0 0", paddingLeft: 22, fontSize: 13.5, lineHeight: 1.75, color: "var(--color-text)" }}>
-          <li>Maintenance configuration document for IHX drained operation (referenced in POS-08)</li>
-          <li>Cover-gas adjustment procedure (referenced in POS-09)</li>
-          <li>Spent-fuel storage layout for ex-core source inventory</li>
-        </ul>
-      </div>
+      )}
     </>
   );
 }
 
 function EvolutionsScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
-  const evolutions = evolutionsView();
+  const { pos } = usePosWorkbook();
+  const evolutions = evolutionsView(pos);
+  const totalHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
   return (
     <>
       <div className="posstats">
-        <Stat num="5" cap="Evolutions" sub="From design basis" />
-        <Stat num="9" cap="Operating states" sub="Slice of 5 evolutions" />
-        <Stat num="8,760 h" cap="Cycle coverage" sub="100.00 % covered" kind="ok" />
-        <Stat num="0" cap="Gaps detected" sub="Mutual exclusivity OK" kind="ok" />
+        <Stat num={String(pos.plantEvolutions.length)} cap="Evolutions" />
+        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
+        <Stat num={`${totalHours.toLocaleString("en-US")} h`} cap="Total state hours" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Plant evolutions</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn"><POSIcon.Funnel /> Filter</button>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add evolution…")}><POSIcon.Plus /> Add evolution</button>
+            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add evolution — coming soon")}><POSIcon.Plus /> Add evolution</button>
           </div>
         </div>
         <p className="poscard__sub">
           An evolution is a process the plant goes through (e.g., refuelling, at-power, etc.). Evolutions are sliced into operating states next.
         </p>
-        <table className="postable">
-          <thead>
-            <tr>
-              <th>Evolution</th>
-              <th>States</th>
-              <th>% of cycle</th>
-              <th>Source document</th>
-              <th aria-label="Open" />
-            </tr>
-          </thead>
-          <tbody>
-            {evolutions.map((ev) => (
-              <tr key={ev.id} className="postable__row--clickable" onClick={() => openDrawer({ kind: "evolution", id: ev.id })}>
-                <td>
-                  <div className="postable__name">{ev.name}</div>
-                  <span className="postable__name-sub">{ev.id} · {ev.description}</span>
-                </td>
-                <td className="mono">{ev.statesCount}</td>
-                <td className="mono">{(ev.durationFraction * 100).toFixed(1)} %</td>
-                <td className="mono">{ev.fromDoc}</td>
-                <td><POSIcon.Chevron /></td>
+        {evolutions.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No evolutions defined yet.</p>
+        ) : (
+          <table className="postable">
+            <thead>
+              <tr>
+                <th>Evolution</th>
+                <th>States</th>
+                <th>% of state hours</th>
+                <th>Source document</th>
+                <th aria-label="Open" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {evolutions.map((ev) => (
+                <tr key={ev.id} className="postable__row--clickable" onClick={() => openDrawer({ kind: "evolution", id: ev.id })}>
+                  <td>
+                    <div className="postable__name">{ev.name}</div>
+                    <span className="postable__name-sub">{ev.id} · {ev.description}</span>
+                  </td>
+                  <td className="mono">{ev.statesCount}</td>
+                  <td className="mono">{(ev.durationFraction * 100).toFixed(1)} %</td>
+                  <td className="mono">{ev.fromDoc.length > 0 ? ev.fromDoc : "—"}</td>
+                  <td><POSIcon.Chevron /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );
 }
 
 function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
-  const [showQA, setShowQA] = useState(false);
-  const states = statesView();
+  const { pos } = usePosWorkbook();
+  const states = statesView(pos);
+  const okCount = states.filter((s) => s.status === "ok").length;
+  const warnCount = states.filter((s) => s.status === "warn").length;
+  const draftCount = states.filter((s) => s.status === "draft").length;
   return (
     <>
       <div className="posstats">
-        <Stat num="9" cap="Operating states" sub="Across 5 evolutions" />
-        <Stat num="7" cap="Fully characterised" kind="ok" />
-        <Stat num="1" cap="Needs attention" kind="warn" sub="POS-04 barrier-status" />
-        <Stat num="2" cap="Draft" sub="POS-08, POS-09" />
+        <Stat num={String(states.length)} cap="Operating states" />
+        <Stat num={String(okCount)} cap="Fully characterised" kind="ok" />
+        <Stat num={String(warnCount)} cap="Needs attention" kind={warnCount > 0 ? "warn" : "ok"} />
+        <Stat num={String(draftCount)} cap="Draft" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Operating states</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn" onClick={() => setShowQA(!showQA)}>
-              <POSIcon.Help /> {showQA ? "Hide guided Q&A" : "Guided Q&A"}
-            </button>
-            <button type="button" className="posnav__btn"><POSIcon.Sheet /> Import CSV</button>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add operating state…")}><POSIcon.Plus /> Add state</button>
+            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add operating state — coming soon")}><POSIcon.Plus /> Add state</button>
           </div>
         </div>
 
-        {showQA && (
-          <div style={{ marginBottom: 18, padding: 18, background: "var(--color-primary-soft)", borderRadius: 10, border: "1px solid var(--color-primary-focus)" }}>
-            <div style={{ fontFamily: "'Nunito Sans', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--color-primary)", marginBottom: 10 }}>
-              <POSIcon.Sparkle /> Guided Q&amp;A — OpenPRA asks, you answer
-            </div>
-            <div className="posqa">
-              <div className="posqa__q">
-                <div className="posqa__q-num">1</div>
-                <div>
-                  <p className="posqa__q-text">During hot standby, are both intermediate heat-transport loops in service, or is one in standby?</p>
-                  <p className="posqa__q-hint">Affects whether POS-03 should split into two sub-states.</p>
-                </div>
-              </div>
-              <div className="posqa__a">
-                <textarea defaultValue="Both loops are normally aligned in standby with primary sodium pump A in operation. Loop B is the standby train; switchover takes ~12 min via OP-002 §5.4." />
-                <div className="posqa__a-meta">
-                  <span className="poschip poschip--primary">Linked to POS-03</span>
-                  <span className="possubtle">· Will update barrier &amp; SSC fields automatically</span>
-                </div>
-              </div>
-              <div className="posqa__q">
-                <div className="posqa__q-num">2</div>
-                <div>
-                  <p className="posqa__q-text">In fuel-handling mode (POS-06), is the containment volume deinerted or kept under cover gas?</p>
-                  <p className="posqa__q-hint">Determines whether POS-06 needs a separate radionuclide-transport barrier configuration.</p>
-                </div>
-              </div>
-              <div className="posqa__a">
-                <textarea placeholder="Type your answer…" />
-              </div>
-            </div>
-          </div>
-        )}
-
+        {states.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
+        ) : (
         <table className="postable">
           <thead>
             <tr>
@@ -414,24 +652,27 @@ function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
             ))}
           </tbody>
         </table>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Coverage check</h3>
-          <Badge kind="ok">All conditions covered, no overlaps</Badge>
+          {pos.validationRules.collectiveExhaustivity.allConfigurationsCovered
+            ? <Badge kind="ok">All conditions covered</Badge>
+            : <Badge kind="warn">Coverage incomplete</Badge>}
         </div>
         <p className="poscard__sub">
-          OpenPRA continuously checks that every plant condition belongs to exactly one operating state (non-overlapping) and that the operating states together cover the full operating cycle (no gaps).
+          Mutual exclusivity and collective exhaustivity are checked against the validation rules defined in the MEF.
         </p>
         <div className="posrow" style={{ gap: 22, marginTop: 10 }}>
           <div className="posrow" style={{ gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--c-complete)" }} />
-            <span className="possubtle">Mutual exclusivity verified across 9 states</span>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: pos.validationRules.mutualExclusivity.allConditionsBelongToExactlyOnePos ? "var(--c-complete)" : "var(--color-warning)" }} />
+            <span className="possubtle">Mutual exclusivity {pos.validationRules.mutualExclusivity.allConditionsBelongToExactlyOnePos ? "verified" : "not verified"}</span>
           </div>
           <div className="posrow" style={{ gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--c-complete)" }} />
-            <span className="possubtle">Collective exhaustivity 100.00 % (8,760 h / 8,760 h)</span>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: pos.validationRules.collectiveExhaustivity.allConfigurationsCovered ? "var(--c-complete)" : "var(--color-warning)" }} />
+            <span className="possubtle">Collective exhaustivity {(pos.validationRules.collectiveExhaustivity.coverageFraction * 100).toFixed(2)} %</span>
           </div>
         </div>
       </div>
@@ -440,27 +681,35 @@ function StatesScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
 }
 
 function InterviewsScreen({ onAction }: ScreenProps): JSX.Element {
-  const interviews = interviewsView();
+  const { pos } = usePosWorkbook();
+  const interviews = interviewsView(pos);
+  const personnelSet = new Set<string>();
+  interviews.forEach((iv) => iv.personnel.forEach((p) => personnelSet.add(p)));
+  const mostRecent = interviews.length > 0
+    ? interviews.map((iv) => iv.date).sort().reverse()[0]
+    : "—";
   return (
     <>
       <div className="posstats">
-        <Stat num="7" cap="Sessions logged" />
-        <Stat num="12" cap="Personnel involved" sub="Across 5 roles" />
-        <Stat num="3" cap="Findings actioned" sub="Updated POS definitions" kind="ok" />
-        <Stat num="Apr 14, 2026" cap="Most recent" />
+        <Stat num={String(interviews.length)} cap="Sessions logged" />
+        <Stat num={String(personnelSet.size)} cap="Personnel involved" />
+        <Stat num={String(interviews.reduce((acc, iv) => acc + iv.overlooked, 0))} cap="New states identified" />
+        <Stat num={mostRecent} cap="Most recent" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Interview &amp; walkdown log</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn"><POSIcon.Mic /> Record session</button>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("New interview entry…")}><POSIcon.Plus /> Log session</button>
+            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Log session — coming soon")}><POSIcon.Plus /> Log session</button>
           </div>
         </div>
         <p className="poscard__sub">
           For pre-operational plants, engineering interviews substitute for operations walkdowns.
         </p>
+        {interviews.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No interviews or walkdowns logged yet.</p>
+        ) : (
         <table className="postable">
           <thead>
             <tr>
@@ -498,32 +747,39 @@ function InterviewsScreen({ onAction }: ScreenProps): JSX.Element {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </>
   );
 }
 
 function ScreeningScreen({ onAction }: ScreenProps): JSX.Element {
-  const records = screeningView();
+  const { pos } = usePosWorkbook();
+  const records = screeningView(pos);
+  const retained = records.filter((r) => r.retained).length;
+  const screenedOut = records.filter((r) => !r.retained).length;
   return (
     <>
       <div className="posstats">
-        <Stat num="9" cap="Operating states" />
-        <Stat num="2" cap="Retained explicitly" kind="ok" />
-        <Stat num="1" cap="Screened out" sub="With justification" />
-        <Stat num="6" cap="Default-retained" sub="No screening request" />
+        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
+        <Stat num={String(retained)} cap="Retained explicitly" kind="ok" />
+        <Stat num={String(screenedOut)} cap="Screened out" />
+        <Stat num={String(Math.max(0, pos.plantOperatingStates.length - retained - screenedOut))} cap="Default-retained" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Screening decisions</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Open screening dialog…")}><POSIcon.Plus /> Propose screening</button>
+            <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Propose screening — coming soon")}><POSIcon.Plus /> Propose screening</button>
           </div>
         </div>
         <p className="poscard__sub">
           Screen out a state only with written justification that downstream PRA results stay unchanged.
         </p>
+        {records.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No screening decisions recorded yet.</p>
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {records.map((rec) => (
             <div key={rec.id} className="poscard" style={{ padding: 16 }}>
@@ -542,21 +798,33 @@ function ScreeningScreen({ onAction }: ScreenProps): JSX.Element {
             </div>
           ))}
         </div>
+        )}
       </div>
     </>
   );
 }
 
-function GroupingScreen({ openDrawer }: ScreenProps): JSX.Element {
-  const groups = groupsView();
+function GroupingScreen({ openDrawer, onAction }: ScreenProps): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const groups = groupsView(pos);
+  const bounded = groups.filter((g) => g.status === "ok").length;
+  const pending = groups.filter((g) => g.status !== "ok").length;
   return (
     <>
       <div className="posstats">
-        <Stat num="9" cap="Operating states" />
-        <Stat num="3" cap="Groups proposed" />
-        <Stat num="2" cap="Groups fully bounded" kind="ok" />
-        <Stat num="1" cap="Group needs rationale" kind="warn" sub="GRP-RFG" />
+        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
+        <Stat num={String(groups.length)} cap="Groups proposed" />
+        <Stat num={String(bounded)} cap="Groups fully bounded" kind={bounded > 0 ? "ok" : "warn"} />
+        <Stat num={String(pending)} cap="Groups need rationale" kind={pending > 0 ? "warn" : "ok"} />
       </div>
+
+      {groups.length === 0 && (
+        <div className="poscard">
+          <p className="posmuted" style={{ margin: 0 }}>No groups proposed yet.
+            <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: 12 }} onClick={() => onAction("Propose group — coming soon")}><POSIcon.Plus /> Propose group</button>
+          </p>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
         {groups.map((g) => (
@@ -593,8 +861,9 @@ function GroupingScreen({ openDrawer }: ScreenProps): JSX.Element {
 }
 
 function FrequencyScreen(): JSX.Element {
-  const states = statesView();
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["POS-09"]));
+  const { pos } = usePosWorkbook();
+  const states = statesView(pos);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   function toggle(id: string): void {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -602,23 +871,30 @@ function FrequencyScreen(): JSX.Element {
       return next;
     });
   }
+  const totalStates = pos.plantOperatingStates.length;
+  const durationsEntered = pos.plantOperatingStates.filter((s) => s.meanDurationHours > 0).length;
+  const frequenciesEntered = pos.plantOperatingStates.filter((s) => {
+    const v = typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value;
+    return v > 0;
+  }).length;
+  const totalHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
+  const lpsdCount = pos.plantOperatingStates.filter((s) => s.operatingMode !== "POWER").length;
   return (
     <>
       <div className="posstats">
-        <Stat num="9 / 9" cap="Durations entered" kind="ok" />
-        <Stat num="8 / 9" cap="Frequencies entered" kind="warn" sub="POS-09 pending" />
-        <Stat num="8,760 h" cap="Sum across states" sub="100.00 % of cycle" kind="ok" />
-        <Stat num="6" cap="LPSD states" sub="Decay-heat required in step 9" />
+        <Stat num={`${durationsEntered} / ${totalStates}`} cap="Durations entered" kind={durationsEntered === totalStates && totalStates > 0 ? "ok" : "warn"} />
+        <Stat num={`${frequenciesEntered} / ${totalStates}`} cap="Frequencies entered" kind={frequenciesEntered === totalStates && totalStates > 0 ? "ok" : "warn"} />
+        <Stat num={`${totalHours.toLocaleString("en-US")} h`} cap="Sum across states" />
+        <Stat num={String(lpsdCount)} cap="LPSD states" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Frequencies &amp; durations</h3>
-          <div className="posrow" style={{ gap: 8 }}>
-            <button type="button" className="posnav__btn"><POSIcon.Sheet /> Import from operating data</button>
-            <button type="button" className="posnav__btn"><POSIcon.Sparkle /> Auto-distribute from cycle plan</button>
-          </div>
         </div>
+        {states.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
+        ) : (
         <table className="postable postable--expandable">
           <thead>
             <tr>
@@ -634,7 +910,7 @@ function FrequencyScreen(): JSX.Element {
           <tbody>
             {states.map((s) => {
               const isOpen = expanded.has(s.id);
-              const preops = preOpsForState(s.id);
+              const preops = preOpsForState(pos, s.id);
               return (
                 <Fragment key={s.id}>
                   <tr className="postable__row--clickable" onClick={() => toggle(s.id)}>
@@ -649,9 +925,7 @@ function FrequencyScreen(): JSX.Element {
                     <td className="mono">{s.duration}</td>
                     <td className="mono">{s.frequency}</td>
                     <td>
-                      {s.id === "POS-09"
-                        ? <Badge kind="warn">Basis not documented</Badge>
-                        : <span className="possubtle" style={{ fontSize: 12.5 }}>Cycle plan §4 / Vendor letter NR-2024-117</span>}
+                      <span className="possubtle" style={{ fontSize: 12.5 }}>—</span>
                     </td>
                     <td>
                       {s.hasPreopAssumption
@@ -677,7 +951,7 @@ function FrequencyScreen(): JSX.Element {
                               </div>
                               <div className="posfield posfield-grid--span2">
                                 <label className="posfield__label">Basis</label>
-                                <input className="posfield__input" defaultValue={s.id === "POS-09" ? "" : "Cycle plan §4 / Vendor letter NR-2024-117"} placeholder="Cite the cycle-plan section or vendor letter…" />
+                                <input className="posfield__input" placeholder="Cite the cycle-plan section or vendor letter…" />
                               </div>
                             </div>
                           </div>
@@ -691,14 +965,16 @@ function FrequencyScreen(): JSX.Element {
             })}
           </tbody>
         </table>
+        )}
       </div>
     </>
   );
 }
 
 function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
-  const lpsd = statesView().filter((s) => s.mode !== "POWER" && s.retained);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["POS-07"]));
+  const { pos } = usePosWorkbook();
+  const lpsd = statesView(pos).filter((s) => s.mode !== "POWER" && s.retained);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   function toggle(id: string): void {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -706,22 +982,26 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
       return next;
     });
   }
+  const characterizedIds = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
+  const characterized = lpsd.filter((s) => characterizedIds.has(s.id)).length;
   return (
     <>
       <div className="posstats">
-        <Stat num="6" cap="LPSD states require characterisation" />
-        <Stat num="0" cap="Characterised" kind="block" sub="Blocker for report" />
-        <Stat num="DOC-08" cap="Decay heat source" sub="Vendor curves loaded" />
-        <Stat num="Apr 12, 2026" cap="Last vendor update" />
+        <Stat num={String(lpsd.length)} cap="LPSD states require characterisation" />
+        <Stat num={String(characterized)} cap="Characterised" kind={characterized === lpsd.length && lpsd.length > 0 ? "ok" : (characterized < lpsd.length ? "block" : "ok")} />
+        <Stat num={String(pos.decayHeatCharacterizations.length)} cap="Records on file" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Decay-heat characterisation</h3>
-          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAction("Generating decay-heat from vendor curves…")}>
+          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAction("Generate from vendor curves — coming soon")}>
             <POSIcon.Sparkle /> Generate from curves
           </button>
         </div>
+        {lpsd.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No LPSD states yet.</p>
+        ) : (
         <table className="postable postable--expandable">
           <thead>
             <tr>
@@ -737,7 +1017,7 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
           <tbody>
             {lpsd.map((s) => {
               const isOpen = expanded.has(s.id);
-              const preops = preOpsForState(s.id);
+              const preops = preOpsForState(pos, s.id);
               return (
                 <Fragment key={s.id}>
                   <tr className="postable__row--clickable" onClick={() => toggle(s.id)}>
@@ -790,6 +1070,7 @@ function DecayHeatScreen({ onAction }: ScreenProps): JSX.Element {
             })}
           </tbody>
         </table>
+        )}
       </div>
     </>
   );
@@ -808,62 +1089,24 @@ function DraftScreen({
   onGenerate: (final: boolean) => void;
   onSubmitDraft: (final: boolean) => void;
 }): JSX.Element {
+  const { pos } = usePosWorkbook();
   const ready = scores.blocked === 0;
-  const toc: [string, string][] = [
-    ["Executive summary", "4"],
-    ["Introduction", "5"],
-    ["    Purpose", "5"],
-    ["    Scope", "5"],
-    ["    Relationship to other documents", "5"],
-    ["    Document layout", "5"],
-    ["    Quality assurance", "6"],
-    ["    Freeze date", "6"],
-    ["Assumptions and limitations", "7"],
-    ["Identify plant operating states and evolutions", "9"],
-    ["    Plant evolutions", "10"],
-    ["    Plant operating states", "12"],
-    ["    Interviews", "18"],
-    ["Screening and grouping plant operating states", "20"],
-    ["    Screening plant operating states", "20"],
-    ["    Grouping plant operating states", "22"],
-    ["Plant operating state frequencies and durations", "25"],
-    ["    Frequencies and durations analysis", "25"],
-    ["    Decay heat levels", "27"],
-    ["References", "30"],
-  ];
+  const toc = computePosReportToc(pos);
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
         <div className="posgen__preview-eyebrow">Generated preview · Word output</div>
-        <h1>{POS_PROJECT.workbookName}</h1>
-        <h2>Preliminary Plant Operating State Analysis</h2>
+        <h1>{pos.name}</h1>
+        <h2>Plant Operating States Analysis</h2>
         <h3>Table of contents</h3>
         <div className="posgen__preview-toc">
-          {toc.map(([t, p]) => (
-            <div key={t} className="posgen__preview-toc-row">
-              <span>{t}</span>
-              <span>{p}</span>
+          {toc.map((entry) => (
+            <div key={entry.title} className="posgen__preview-toc-row">
+              <span style={{ paddingLeft: entry.indent === 1 ? 24 : 0 }}>{entry.title}</span>
+              <span>{entry.page}</span>
             </div>
           ))}
         </div>
-        <h3>Executive summary</h3>
-        <p style={{ marginTop: 0 }}>
-          This document presents the preliminary Plant Operating State (POS) analysis for the {POS_PROJECT.plant.name} sodium fast reactor, prepared during the pre-operational stage to support the design certification submittal. Nine plant operating states across five plant evolutions have been defined, characterised, and reviewed for completeness against the {cc.name} ({cc.tag.toLowerCase()}) capability target.
-        </p>
-        <p>
-          {ready
-            ? `All items required at ${cc.name} are satisfied. The set of operating states is mutually exclusive, collectively exhaustive across the assumed operating cycle, and traceable to the design basis.`
-            : `The conformance check identifies ${scores.blocked} blocking item${scores.blocked === 1 ? "" : "s"} and ${scores.warn} item${scores.warn === 1 ? "" : "s"} requiring attention before the report can be considered final at ${cc.name}.`}
-        </p>
-        <h4>1 · Plant evolutions</h4>
-        <p>The plant evolutions identified for {POS_PROJECT.plant.name} are listed below. Each evolution represents a distinct operating process; the operating states defined in §4.2 partition each evolution into intervals of stable plant response.</p>
-        <ol>
-          <li><strong>At-power operations</strong> — full-power and load-follow operation.</li>
-          <li><strong>Planned shutdown to refuelling</strong> — controlled cooldown to refuelling temperature.</li>
-          <li><strong>Refuelling</strong> — in-vessel fuel handling under cover gas.</li>
-          <li><strong>Forced outage (reactor trip)</strong> — post-trip cooldown via DRACS.</li>
-          <li><strong>Maintenance with reactor at zero power</strong> — IHX-loop maintenance configuration.</li>
-        </ol>
       </div>
 
       <div className="posgen__side">
@@ -899,7 +1142,7 @@ function DraftScreen({
           <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           {ready ? (
             <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.
+              Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.
             </p>
           ) : (
             <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>

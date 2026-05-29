@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TechnicalElementTypes } from "../technical-element";
-import type { TechnicalElementMetadata } from "../technical-element";
+import type { PlantIdentity, TechnicalElementMetadata } from "../technical-element";
 import { NamedSchema, UniqueSchema } from "./core/meta";
 import { BaseAssumptionSchema } from "./core/documentation";
 import { VersionInfoSchema } from "./core/version";
@@ -16,6 +16,18 @@ import {
 
 export const TechnicalElementTypesSchema = z.enum(TechnicalElementTypes);
 
+// Additional
+export const PlantIdentitySchema = z.object({
+  name: z.string(),
+  vendor: z.string(),
+  reactorType: z.string(),
+  thermalPower: z.string(),
+  primaryCoolant: z.string(),
+  intermediateCoolant: z.string().optional(),
+  powerConversionFluid: z.string().optional(),
+  siteName: z.string().optional(),
+});
+
 export const TechnicalElementMetadataSchema = z.object({
   versionInfo: VersionInfoSchema,
   analysisDate: z.string(),
@@ -25,6 +37,8 @@ export const TechnicalElementMetadataSchema = z.object({
   limitations: z.array(z.string()),
   lastModifiedDate: z.string(),
   lastModifiedBy: z.string(),
+  // Additional
+  plantIdentity: PlantIdentitySchema.optional(),
 });
 
 export function technicalElementSchema<T extends TechnicalElementTypes>(type: T) {
@@ -63,3 +77,5 @@ type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 type _AssertTechnicalElementMetadata = Expect<Equal<z.infer<typeof TechnicalElementMetadataSchema>, TechnicalElementMetadata>>;
+// Additional
+type _AssertPlantIdentity = Expect<Equal<z.infer<typeof PlantIdentitySchema>, PlantIdentity>>;

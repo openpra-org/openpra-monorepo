@@ -12,7 +12,7 @@ import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
 import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
 import { PosDemoPage } from "../pos-demo/posDemoPage";
-import { DemoIdentityProvider } from "../demo/demoIdentity";
+import { PosWorkbookPage } from "../pos-demo/posWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -63,10 +63,18 @@ const routes: RouteObject[] = [
     ),
   },
   {
-    path: "/pos-demo",
+    path: "/pos-workbooks/example",
     element: (
       <ProtectedRoute>
         <PosDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/pos-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <PosWorkbookPage />
       </ProtectedRoute>
     ),
   },
@@ -123,10 +131,8 @@ function App(): ReactElement {
     <ToastProvider>
       <AuthProvider>
         <RoleContext.Provider value={role}>
-          <DemoIdentityProvider>
-            <RouterProvider router={router} />
-            <ToastContainer />
-          </DemoIdentityProvider>
+          <RouterProvider router={router} />
+          <ToastContainer />
         </RoleContext.Provider>
       </AuthProvider>
     </ToastProvider>

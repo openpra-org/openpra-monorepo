@@ -39,7 +39,7 @@ const POS_STEPS: PosStep[] = [
   { id: "states", num: "04", label: "Operating States", sub: "9 defined · 1 attention", status: "in-progress" },
   { id: "interviews", num: "05", label: "Interviews & Walkdowns", sub: "7 logged", status: "complete" },
   { id: "screening", num: "06", label: "Screening", sub: "2 retained · 1 screened", status: "in-progress" },
-  { id: "grouping", num: "07", label: "Grouping", sub: "3 groups", status: "in-progress", warn: true },
+  { id: "grouping", num: "07", label: "Grouping", sub: "3 groups", status: "in-progress" },
   { id: "frequency", num: "08", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
   { id: "decayheat", num: "09", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
   { id: "draft", num: "10", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
@@ -75,8 +75,8 @@ interface CapabilityCategory {
 }
 
 const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
-  { id: "cc-i", name: "CC-I", tag: "Bounding", description: "Coarse scope, simple methods, generic data, and bounding assumptions. Appropriate for general insights and screening studies." },
-  { id: "cc-ii", name: "CC-II", tag: "Plant-specific", description: "Plant-specific data and finer resolution for risk-significant contributors. Bounding assumptions retained only where their impact on results is small." },
+  { id: "cc-i", name: "CC-I", tag: "Bounding", description: "Coarse scope, simple methods, generic data, and bounding assumptions." },
+  { id: "cc-ii", name: "CC-II", tag: "Plant-specific", description: "Plant-specific data and finer resolution for risk-significant contributors." },
 ];
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";

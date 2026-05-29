@@ -1,18 +1,17 @@
 import {
   type PlantOperatingState,
+  type PlantOperatingStatesAnalysis,
   type ParameterRange,
   BarrierStatus,
 } from "interfaces-mef-types/pos/plant-operating-states-analysis";
-import { POS_ANALYSIS } from "./posData";
-import { CC_SNAPSHOT_INSTANCE, NM_INSTANCES, nmById } from "./posCrossCutting";
+import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
+import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import {
   POS_STEPS,
-  POS_UI_STATE,
-  EVOLUTION_UI,
   CONFORMANCE_ITEMS,
-  CC_SCORES,
   PERSONA_STEPS,
   type ConformanceItem,
+  type ConformanceStatus,
   type PosWorkflowStatus,
   type PosPersona,
   type PosStep,
@@ -123,53 +122,64 @@ function isBarrierBroken(label: string): boolean {
   return broken.some((suffix) => label.endsWith(suffix));
 }
 
-function statesView(): StateView[] {
-  const screenedOut = new Set(POS_ANALYSIS.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
-  return POS_ANALYSIS.plantOperatingStates.map((s) => {
-    const ui = POS_UI_STATE[s.uuid];
-    return {
-      id: s.uuid,
-      name: s.name,
-      evolutionId: s.evolutionId,
-      description: s.description,
-      mode: s.operatingMode,
-      rcs: {
-        temp: formatRange(s.rcsParameters.reactorCoolantTemperature),
-        press: formatRange(s.rcsParameters.coolantPressure),
-        power: formatRange(s.rcsParameters.powerLevel),
-      },
-      sources: s.radioactiveMaterialSources.map((src) => src.name),
-      barriers: barrierLabels(s),
-      duration: `${formatDuration(s.meanDurationHours)} (mean)`,
-      frequency: formatFrequency(typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value),
-      instrumentation: s.availableInstrumentation.length,
-      sscRequired: s.sscOperationalCharacteristics.length,
-      retained: !screenedOut.has(s.uuid),
-      status: ui?.status ?? "ok",
-      statusMessage: ui?.statusMessage,
-      docsLinked: ui?.docsLinked ?? 0,
-      hasPreopAssumption: (s.preOperationalAssumptions ?? []).length > 0,
-    };
-  });
+function deriveStateStatus(s: PlantOperatingState): PosWorkflowStatus {
+  const hasBarriers = s.radionuclideTransportBarriers.length > 0;
+  const hasUnknownBarrier = s.radionuclideTransportBarriers.some((b) => b.status === undefined);
+  const hasDuration = s.meanDurationHours > 0;
+  const freqVal = typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value;
+  const hasFrequency = freqVal > 0;
+  if (!hasBarriers || !hasDuration || !hasFrequency) return "draft";
+  if (hasUnknownBarrier) return "warn";
+  return "ok";
 }
 
-function evolutionsView(): EvolutionView[] {
-  return POS_ANALYSIS.plantEvolutions.map((e) => {
-    const ui = EVOLUTION_UI[e.uuid];
+function statesView(pos: PlantOperatingStatesAnalysis): StateView[] {
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  return pos.plantOperatingStates.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    evolutionId: s.evolutionId,
+    description: s.description,
+    mode: s.operatingMode,
+    rcs: {
+      temp: formatRange(s.rcsParameters.reactorCoolantTemperature),
+      press: formatRange(s.rcsParameters.coolantPressure),
+      power: formatRange(s.rcsParameters.powerLevel),
+    },
+    sources: s.radioactiveMaterialSources.map((src) => src.name),
+    barriers: barrierLabels(s),
+    duration: `${formatDuration(s.meanDurationHours)} (mean)`,
+    frequency: formatFrequency(typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value),
+    instrumentation: s.availableInstrumentation.length,
+    sscRequired: s.sscOperationalCharacteristics.length,
+    retained: !screenedOut.has(s.uuid),
+    status: s.uiStatus ?? deriveStateStatus(s),
+    statusMessage: s.uiStatusMessage,
+    docsLinked: s.docsLinked ?? 0,
+    hasPreopAssumption: (s.preOperationalAssumptions ?? []).length > 0,
+  }));
+}
+
+function evolutionsView(pos: PlantOperatingStatesAnalysis): EvolutionView[] {
+  const stateById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, s] as const));
+  const cycleTotal = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
+  return pos.plantEvolutions.map((e) => {
+    const sumHours = e.plantOperatingStateIds.reduce((acc, id) => acc + (stateById.get(id)?.meanDurationHours ?? 0), 0);
+    const computedFraction = cycleTotal > 0 ? sumHours / cycleTotal : 0;
     return {
       id: e.uuid,
       name: e.name,
       type: e.type,
       description: e.description,
       statesCount: e.plantOperatingStateIds.length,
-      durationFraction: ui?.durationFraction ?? 0,
-      fromDoc: ui?.fromDoc ?? "",
+      durationFraction: e.durationFractionHint ?? computedFraction,
+      fromDoc: e.sourceDocumentRef ?? "",
     };
   });
 }
 
-function groupsView(): GroupView[] {
-  const groups = POS_ANALYSIS.plantOperatingStateGroups ?? [];
+function groupsView(pos: PlantOperatingStatesAnalysis): GroupView[] {
+  const groups = pos.plantOperatingStateGroups ?? [];
   return groups.map((g) => {
     const bounded = g.doesNotMaskRiskSignificantContributors;
     const pending = g.boundingCharacteristics.some((c) => c.startsWith("Pending"));
@@ -187,8 +197,8 @@ function groupsView(): GroupView[] {
   });
 }
 
-function interviewsView(): InterviewView[] {
-  const records = POS_ANALYSIS.interviewRecords ?? [];
+function interviewsView(pos: PlantOperatingStatesAnalysis): InterviewView[] {
+  const records = pos.interviewRecords ?? [];
   return records.map((r, i) => ({
     id: `IV-${String(i + 1).padStart(2, "0")}`,
     date: r.date,
@@ -200,8 +210,8 @@ function interviewsView(): InterviewView[] {
   }));
 }
 
-function screeningView(): ScreeningView[] {
-  return POS_ANALYSIS.screeningRecords.map((r, i) => {
+function screeningView(pos: PlantOperatingStatesAnalysis): ScreeningView[] {
+  return pos.screeningRecords.map((r, i) => {
     const impact = r.retained
       ? r.posId === "POS-05"
         ? "High"
@@ -222,14 +232,33 @@ function stepIndexById(id: string): number {
   return POS_STEPS.findIndex((s) => s.id === id);
 }
 
-function filterConformance(ccId: string, stage: Stage): ConformanceItem[] {
+function srStatusToTone(status: string): ConformanceStatus {
+  if (status === "MET") return "ok";
+  if (status === "PARTIAL") return "warn";
+  if (status === "NOT_MET") return "blocked";
+  if (status === "NOT_APPLICABLE") return "na";
+  return "warn";
+}
+
+function filterConformance(pos: PlantOperatingStatesAnalysis, ccId: string, stage: Stage): ConformanceItem[] {
   const stageKey = stage === "operational" ? "operational" : "pre_operational";
+  const ccUpper = ccId.replace("cc-", "").toUpperCase();
+  const matrixBySr = new Map<string, { status: string }>();
+  for (const entry of pos.conformanceMatrix) {
+    if (entry.capabilityCategory === `CC-${ccUpper}` as never) matrixBySr.set(entry.sr, entry);
+  }
   return CONFORMANCE_ITEMS.filter((it) => it.requiredAt.includes(ccId)).map((it) => {
     const inStage = it.stages.includes("both") || it.stages.includes(stageKey);
-    if (!inStage) {
-      return { ...it, status: "na" as const, meta: "Not applicable to current plant stage" };
-    }
-    return it;
+    if (!inStage) return { ...it, status: "na" as const, meta: "Not applicable to current plant stage" };
+    const srs = it.sr ?? [];
+    if (srs.length === 0) return { ...it, status: "warn" as const, meta: "Awaiting evidence" };
+    const statuses = srs.map((sr) => matrixBySr.get(sr)?.status);
+    if (statuses.every((s) => s === undefined)) return { ...it, status: "warn" as const, meta: "Awaiting evidence" };
+    const tones = statuses.map((s) => s === undefined ? "warn" : srStatusToTone(s));
+    if (tones.includes("blocked")) return { ...it, status: "blocked" as const };
+    if (tones.includes("warn")) return { ...it, status: "warn" as const };
+    if (tones.every((t) => t === "na")) return { ...it, status: "na" as const };
+    return { ...it, status: "ok" as const };
   });
 }
 
@@ -243,13 +272,72 @@ function groupBySection(items: ConformanceItem[]): [string, ConformanceItem[]][]
   return Array.from(sections.entries());
 }
 
-function ccScore(ccId: string): { percent: number; met: number; applicable: number; warn: number; blocked: number; na: number } {
-  return CC_SCORES[ccId] ?? { percent: 0, met: 0, applicable: 0, warn: 0, blocked: 0, na: 0 };
+function ccScore(pos: PlantOperatingStatesAnalysis, ccId: string, stage: Stage): { percent: number; met: number; applicable: number; warn: number; blocked: number; na: number } {
+  const items = filterConformance(pos, ccId, stage);
+  const applicable = items.filter((it) => it.status !== "na").length;
+  const met = items.filter((it) => it.status === "ok").length;
+  const warn = items.filter((it) => it.status === "warn").length;
+  const blocked = items.filter((it) => it.status === "blocked").length;
+  const na = items.filter((it) => it.status === "na").length;
+  const percent = applicable === 0 ? 0 : Math.round((met / applicable) * 100);
+  return { percent, met, applicable, warn, blocked, na };
 }
 
 function stepsForPersona(persona: PosPersona): PosStep[] {
   const ids = PERSONA_STEPS[persona];
   return POS_STEPS.filter((s) => ids.includes(s.id));
+}
+
+function stepsFromMef(pos: PlantOperatingStatesAnalysis, persona: PosPersona, documentCount: number): PosStep[] {
+  const base = stepsForPersona(persona);
+  const pi = pos.metadata.plantIdentity;
+  const setupComplete = pi !== undefined && pi.name.length > 0 && pi.vendor.length > 0 && pi.reactorType.length > 0 && pi.thermalPower.length > 0 && pi.primaryCoolant.length > 0;
+  const setupInProgress = !setupComplete && (pi !== undefined || pos.praScope.length > 0 || pos.capabilityCategory !== undefined);
+
+  const documentsComplete = documentCount > 0;
+
+  const evolutionsComplete = pos.plantEvolutions.length > 0;
+  const statesComplete = pos.plantOperatingStates.length > 0;
+  const interviewsComplete = (pos.interviewRecords ?? []).length > 0;
+  const screeningComplete = pos.screeningRecords.length > 0;
+  const groupingComplete = (pos.plantOperatingStateGroups ?? []).length > 0;
+
+  const allStatesWithDuration = pos.plantOperatingStates.length > 0 && pos.plantOperatingStates.every((s) => s.meanDurationHours > 0);
+  const allStatesWithFreq = pos.plantOperatingStates.length > 0 && pos.plantOperatingStates.every((s) => {
+    const v = typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value;
+    return v > 0;
+  });
+  const frequencyComplete = allStatesWithDuration && allStatesWithFreq;
+
+  const lpsdStates = pos.plantOperatingStates.filter((s) => s.operatingMode !== "POWER");
+  const characterizedSet = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
+  const decayheatComplete = lpsdStates.length > 0 && lpsdStates.every((s) => characterizedSet.has(s.uuid));
+
+  const draftComplete = pos.workflowState !== "DRAFT" && pos.workflowState !== "REVISION_REQUIRED";
+  const reviewComplete = pos.workflowState === "FINAL";
+
+  function status(complete: boolean, inProgress: boolean): "complete" | "in-progress" | "idle" {
+    if (complete) return "complete";
+    if (inProgress) return "in-progress";
+    return "idle";
+  }
+
+  return base.map((s) => {
+    switch (s.id) {
+      case "setup": return { ...s, status: status(setupComplete, setupInProgress) };
+      case "documents": return { ...s, status: status(documentsComplete, false) };
+      case "evolutions": return { ...s, status: status(evolutionsComplete, false) };
+      case "states": return { ...s, status: status(statesComplete, false) };
+      case "interviews": return { ...s, status: status(interviewsComplete, false) };
+      case "screening": return { ...s, status: status(screeningComplete, false) };
+      case "grouping": return { ...s, status: status(groupingComplete, false) };
+      case "frequency": return { ...s, status: status(frequencyComplete, allStatesWithDuration || allStatesWithFreq) };
+      case "decayheat": return { ...s, status: status(decayheatComplete, characterizedSet.size > 0) };
+      case "draft": return { ...s, status: status(draftComplete, false) };
+      case "review": return { ...s, status: status(reviewComplete, pos.workflowState === "INTERNAL_TECHNICAL_REVIEW" || pos.workflowState === "INTERNAL_APPROVAL") };
+      default: return { ...s, status: "idle" as const };
+    }
+  });
 }
 
 interface ReviewerView {
@@ -270,8 +358,8 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function internalReviewersView(): ReviewerView[] {
-  return POS_ANALYSIS.metadata.reviewers
+function internalReviewersView(pos: PlantOperatingStatesAnalysis): ReviewerView[] {
+  return pos.metadata.reviewers
     .filter((r) => r.role === "INTERNAL_REVIEWER")
     .map((r) => ({
       id: r.id,
@@ -283,8 +371,8 @@ function internalReviewersView(): ReviewerView[] {
     }));
 }
 
-function internalApproverView(): ReviewerView | null {
-  const r = POS_ANALYSIS.metadata.reviewers.find((x) => x.role === "INTERNAL_APPROVER");
+function internalApproverView(pos: PlantOperatingStatesAnalysis): ReviewerView | null {
+  const r = pos.metadata.reviewers.find((x) => x.role === "INTERNAL_APPROVER");
   if (r === undefined) return null;
   return {
     id: r.id,
@@ -332,9 +420,9 @@ function relativeFrom(iso: string, now: Date): string {
   return `${d} days ago`;
 }
 
-function commentsView(now: Date = new Date()): CommentView[] {
-  const reviewers = POS_ANALYSIS.metadata.reviewers;
-  return POS_ANALYSIS.internalReviewComments.comments.map((c) => {
+function commentsView(pos: PlantOperatingStatesAnalysis, now: Date = new Date()): CommentView[] {
+  const reviewers = pos.metadata.reviewers;
+  return pos.internalReviewComments.comments.map((c) => {
     const author = reviewers.find((r) => r.id === c.authorId);
     const item = c.associatedSr !== undefined ? CONFORMANCE_ITEMS.find((it) => it.id === c.associatedSr) : undefined;
     return {
@@ -365,15 +453,14 @@ interface CcSnapshotView {
   pendingChanges: number;
 }
 
-function ccSnapshotView(): CcSnapshotView {
-  const inst = CC_SNAPSHOT_INSTANCE;
+function ccSnapshotView(cc: PRAConfigurationControl): CcSnapshotView {
   return {
-    id: inst.uuid,
-    label: inst.name,
-    date: inst.freezeDate,
-    plantRev: inst.plantConfigurationRevision ?? "—",
-    codes: inst.computerCodeControls.length,
-    pendingChanges: inst.pendingChangeAssessments.length,
+    id: cc.uuid,
+    label: cc.name,
+    date: cc.freezeDate,
+    plantRev: cc.plantConfigurationRevision ?? "—",
+    codes: cc.computerCodeControls.length,
+    pendingChanges: cc.pendingChangeAssessments.length,
   };
 }
 
@@ -384,8 +471,8 @@ interface NewlyDevelopedMethodView {
   status: "approved" | "in_review" | "draft";
 }
 
-function nmViews(): NewlyDevelopedMethodView[] {
-  return NM_INSTANCES.map((nm) => {
+function nmViews(nms: NewlyDevelopedMethod[]): NewlyDevelopedMethodView[] {
+  return nms.map((nm) => {
     const hlrs = new Set<string>();
     const collect = (refs: { hlr: string }[]): void => { for (const r of refs) hlrs.add(r.hlr); };
     collect(nm.scopeAndLimitations.implementsSrs);
@@ -405,9 +492,8 @@ function nmViews(): NewlyDevelopedMethodView[] {
   });
 }
 
-function nmViewById(id: string): NewlyDevelopedMethodView | undefined {
-  if (nmById(id) === undefined) return undefined;
-  return nmViews().find((v) => v.id === id);
+function nmViewById(nms: NewlyDevelopedMethod[], id: string): NewlyDevelopedMethodView | undefined {
+  return nmViews(nms).find((v) => v.id === id);
 }
 
 interface PreOpAssumptionView {
@@ -421,8 +507,8 @@ interface PreOpAssumptionView {
   affected: string;
 }
 
-function preOpsForState(stateId: string): PreOpAssumptionView[] {
-  const s = POS_ANALYSIS.plantOperatingStates.find((x) => x.uuid === stateId);
+function preOpsForState(pos: PlantOperatingStatesAnalysis, stateId: string): PreOpAssumptionView[] {
+  const s = pos.plantOperatingStates.find((x) => x.uuid === stateId);
   if (s === undefined || s.preOperationalAssumptions === undefined) return [];
   return s.preOperationalAssumptions.map((a) => ({
     id: a.uuid,
@@ -436,8 +522,8 @@ function preOpsForState(stateId: string): PreOpAssumptionView[] {
   }));
 }
 
-function preOpsForGroup(groupId: string): PreOpAssumptionView[] {
-  const g = (POS_ANALYSIS.plantOperatingStateGroups ?? []).find((x) => x.uuid === groupId);
+function preOpsForGroup(pos: PlantOperatingStatesAnalysis, groupId: string): PreOpAssumptionView[] {
+  const g = (pos.plantOperatingStateGroups ?? []).find((x) => x.uuid === groupId);
   if (g === undefined || g.preOperationalAssumptions === undefined) return [];
   return g.preOperationalAssumptions.map((a) => ({
     id: a.uuid,
@@ -479,6 +565,7 @@ export {
   formatDuration,
   formatFrequency,
   stepsForPersona,
+  stepsFromMef,
   internalReviewersView,
   internalApproverView,
   commentsView,

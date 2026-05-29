@@ -4,12 +4,14 @@ import { Badge, Stat } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
 import { statesView, evolutionsView, groupsView, isBarrierBroken, preOpsForState, preOpsForGroup } from "./posSelectors";
+import { usePosWorkbook } from "./posWorkbookContext";
 
 function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: () => void }): JSX.Element | null {
+  const { pos } = usePosWorkbook();
   if (context.kind === "state") {
-    const s = statesView().find((x) => x.id === context.id);
+    const s = statesView(pos).find((x) => x.id === context.id);
     if (s === undefined) return null;
-    const ev = evolutionsView().find((e) => e.id === s.evolutionId);
+    const ev = evolutionsView(pos).find((e) => e.id === s.evolutionId);
     return (
       <>
         <div className="posdrawer__head">
@@ -95,15 +97,15 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
             </div>
           )}
 
-          <PreopAssumptionCard assumption={preOpsForState(s.id)[0]} />
+          <PreopAssumptionCard assumption={preOpsForState(pos, s.id)[0]} />
         </div>
       </>
     );
   }
   if (context.kind === "evolution") {
-    const e = evolutionsView().find((x) => x.id === context.id);
+    const e = evolutionsView(pos).find((x) => x.id === context.id);
     if (e === undefined) return null;
-    const states = statesView().filter((s) => s.evolutionId === e.id);
+    const states = statesView(pos).filter((s) => s.evolutionId === e.id);
     return (
       <>
         <div className="posdrawer__head">
@@ -149,7 +151,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
       </>
     );
   }
-  const g = groupsView().find((x) => x.id === context.id);
+  const g = groupsView(pos).find((x) => x.id === context.id);
   if (g === undefined) return null;
   return (
     <>
@@ -178,7 +180,7 @@ function DrawerContent({ context, onClose }: { context: DrawerContext; onClose: 
           </div>
         </div>
 
-        <PreopAssumptionCard assumption={preOpsForGroup(g.id)[0]} />
+        <PreopAssumptionCard assumption={preOpsForGroup(pos, g.id)[0]} />
       </div>
     </>
   );

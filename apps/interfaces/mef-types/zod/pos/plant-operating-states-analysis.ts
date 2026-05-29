@@ -222,6 +222,12 @@ export const PlantOperatingStateSchema = z.object({
   riskSignificance: OperatingStateRiskSignificanceSchema.optional(),
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
+  // additional-to-example
+  uiStatus: z.enum(["ok", "warn", "draft"]).optional(),
+  // additional-to-example
+  uiStatusMessage: z.string().optional(),
+  // additional-to-example
+  docsLinked: z.number().optional(),
 });
 
 export const PlantEvolutionSchema = z.object({
@@ -251,6 +257,10 @@ export const PlantEvolutionSchema = z.object({
     .optional(),
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   implementsSrs: z.array(SRReferenceSchema),
+  // additional-to-example
+  sourceDocumentRef: z.string().optional(),
+  // additional-to-example
+  durationFractionHint: z.number().optional(),
 });
 
 export const EvolutionGroupSchema = z.object({
@@ -404,6 +414,8 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   praScope: z.string(),
   includesNonInternalHazardGroups: z.boolean(),
   includesAtPowerOperations: z.boolean(),
+  // Additional
+  includesLPSDOperations: z.boolean().optional(),
   plantEvolutions: z.array(PlantEvolutionSchema),
   plantOperatingStates: z.array(PlantOperatingStateSchema),
   evolutionGroups: z.array(EvolutionGroupSchema).optional(),
@@ -424,6 +436,16 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   documentation: PosDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  // additional-to-example
+  exampleDocuments: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    kind: z.enum(["doc", "sheet", "image"]),
+    sizeLabel: z.string(),
+    uploadedLabel: z.string(),
+    extracted: z.string(),
+    linked: z.number(),
+  })).optional(),
 });
 
 type Expect<T extends true> = T;

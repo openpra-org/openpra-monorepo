@@ -183,6 +183,9 @@ interface StateSpec {
   decayHeatBasis?: string;
   preOperationalAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
+  uiStatus?: "ok" | "warn" | "draft";
+  uiStatusMessage?: string;
+  docsLinked?: number;
 }
 
 function makeState(spec: StateSpec): PlantOperatingState {
@@ -218,6 +221,9 @@ function makeState(spec: StateSpec): PlantOperatingState {
     decayHeatBasis: spec.decayHeatBasis,
     preOperationalAssumptions: spec.preOperationalAssumptions,
     implementsSrs: spec.implementsSrs,
+    uiStatus: spec.uiStatus,
+    uiStatusMessage: spec.uiStatusMessage,
+    docsLinked: spec.docsLinked,
   };
 }
 
@@ -275,6 +281,8 @@ const plantOperatingStates: PlantOperatingState[] = [
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve at full-power operation.",
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-A11", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 4,
   }),
   makeState({
     uuid: "POS-02",
@@ -300,6 +308,8 @@ const plantOperatingStates: PlantOperatingState[] = [
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve scaled to instantaneous power.",
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 3,
   }),
   makeState({
     uuid: "POS-03",
@@ -338,6 +348,8 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 2,
   }),
   makeState({
     uuid: "POS-04",
@@ -364,6 +376,9 @@ const plantOperatingStates: PlantOperatingState[] = [
     decayHeatLevelDefined: true,
     decayHeatBasis: "Vendor decay-heat curve at 24 h after shutdown.",
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
+    uiStatus: "warn",
+    uiStatusMessage: "Barrier-status field for upper containment not yet entered.",
+    docsLinked: 2,
   }),
   makeState({
     uuid: "POS-05",
@@ -403,6 +418,8 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-A11", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 3,
   }),
   makeState({
     uuid: "POS-06",
@@ -442,6 +459,8 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-A11", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 4,
   }),
   makeState({
     uuid: "POS-07",
@@ -480,6 +499,8 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
+    uiStatus: "ok",
+    docsLinked: 2,
   }),
   makeState({
     uuid: "POS-08",
@@ -517,6 +538,9 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }, { sr: "POS-C4", hlr: "C" }],
+    uiStatus: "draft",
+    uiStatusMessage: "Decay-heat level not yet characterised.",
+    docsLinked: 1,
   }),
   makeState({
     uuid: "POS-09",
@@ -554,6 +578,8 @@ const plantOperatingStates: PlantOperatingState[] = [
       ),
     ],
     implementsSrs: [{ sr: "POS-A3", hlr: "A" }],
+    uiStatus: "draft",
+    docsLinked: 1,
   }),
 ];
 
@@ -582,6 +608,8 @@ const plantEvolutions: PlantEvolution[] = [
     reviewedDocumentation: evolutionDocs(["DBD §3.2"]),
     plantOperatingStateIds: ["POS-01", "POS-02"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
+    sourceDocumentRef: "DBD §3.2",
+    durationFractionHint: 0.84,
   },
   {
     uuid: "EV-02",
@@ -592,6 +620,8 @@ const plantEvolutions: PlantEvolution[] = [
     reviewedDocumentation: evolutionDocs(["DBD §3.3", "OP-002"]),
     plantOperatingStateIds: ["POS-03", "POS-04"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
+    sourceDocumentRef: "DBD §3.3 / OP-002",
+    durationFractionHint: 0.05,
   },
   {
     uuid: "EV-03",
@@ -602,6 +632,8 @@ const plantEvolutions: PlantEvolution[] = [
     reviewedDocumentation: evolutionDocs(["DBD §3.4", "OP-014"]),
     plantOperatingStateIds: ["POS-05", "POS-06"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
+    sourceDocumentRef: "DBD §3.4 / OP-014",
+    durationFractionHint: 0.06,
   },
   {
     uuid: "EV-04",
@@ -612,6 +644,8 @@ const plantEvolutions: PlantEvolution[] = [
     reviewedDocumentation: evolutionDocs(["EOP-100"]),
     plantOperatingStateIds: ["POS-07"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }],
+    sourceDocumentRef: "EOP-100",
+    durationFractionHint: 0.03,
   },
   {
     uuid: "EV-05",
@@ -622,6 +656,8 @@ const plantEvolutions: PlantEvolution[] = [
     reviewedDocumentation: evolutionDocs(["OP-211"]),
     plantOperatingStateIds: ["POS-08", "POS-09"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }],
+    sourceDocumentRef: "OP-211",
+    durationFractionHint: 0.02,
   },
 ];
 
@@ -958,6 +994,35 @@ const REVIEW_COMMENTS = [
     resolved: false,
     severity: "OBSERVATION" as const,
   },
+  {
+    uuid: "irc-7",
+    authorRole: "INTERNAL_APPROVER" as const,
+    authorId: "approver-1",
+    createdAt: "2026-05-28T09:30:00Z",
+    associatedSr: "decay-heat",
+    text: "Approver remark — withholding signature until NM-014 decay-heat values are locked across all six LPSD states. Major item irc-4 must close first.",
+    resolved: false,
+    severity: "MAJOR" as const,
+  },
+  {
+    uuid: "irc-8",
+    authorRole: "INTERNAL_APPROVER" as const,
+    authorId: "approver-1",
+    createdAt: "2026-05-28T09:35:00Z",
+    associatedSr: "grp-bounding",
+    text: "Approver remark — agreed with reviewer irc-2 that GRP-RFG bounding rationale needs to be written out. The NM-028 anchoring approach is acceptable in principle but the workbook text must call it out explicitly.",
+    resolved: false,
+    severity: "MINOR" as const,
+  },
+  {
+    uuid: "irc-9",
+    authorRole: "INTERNAL_APPROVER" as const,
+    authorId: "approver-1",
+    createdAt: "2026-05-28T09:40:00Z",
+    text: "Approver remark — overall structure and traceability are sound. Once the two major findings close, this workbook should be ready for sign-off.",
+    resolved: false,
+    severity: "OBSERVATION" as const,
+  },
 ];
 
 const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
@@ -983,6 +1048,16 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
     limitations: ["Pre-operational; pending as-built validation."],
     lastModifiedDate: "2026-05-28",
     lastModifiedBy: "Aakash Patel",
+    plantIdentity: {
+      name: "Generic-1",
+      vendor: "Generic Nuclear LLC",
+      reactorType: "Sodium-cooled fast reactor (SFR)",
+      thermalPower: "300 MWth",
+      primaryCoolant: "Liquid sodium",
+      intermediateCoolant: "Liquid sodium",
+      powerConversionFluid: "Supercritical CO₂",
+      siteName: "INL — Eastern Idaho",
+    },
   },
   conformanceMatrix,
   internalReviewComments: {
@@ -1010,6 +1085,17 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   documentation,
   configurationControlRecordId: "cc-2026.04.18-001",
   newlyDevelopedMethodIds: ["NM-014", "NM-021", "NM-028"],
+  exampleDocuments: [
+    { id: "DOC-01", name: "Generic-1 Design Basis Document — Rev 4", kind: "doc", sizeLabel: "12.4 MB", uploadedLabel: "Mar 4", extracted: "Operating modes · RCS parameters · Barrier list", linked: 9 },
+    { id: "DOC-02", name: "P&ID — Primary sodium loop", kind: "image", sizeLabel: "2.1 MB", uploadedLabel: "Mar 4", extracted: "Components · valve states", linked: 6 },
+    { id: "DOC-03", name: "P&ID — Intermediate heat-transport loop", kind: "image", sizeLabel: "1.8 MB", uploadedLabel: "Mar 4", extracted: "Components · valve states", linked: 5 },
+    { id: "DOC-04", name: "P&ID — Cover-gas system", kind: "image", sizeLabel: "1.4 MB", uploadedLabel: "Mar 4", extracted: "Vent paths · barriers", linked: 4 },
+    { id: "DOC-05", name: "OP-002 — Startup & shutdown procedure", kind: "doc", sizeLabel: "3.2 MB", uploadedLabel: "Mar 6", extracted: "Operating modes · transitions", linked: 4 },
+    { id: "DOC-06", name: "OP-014 — Refuelling sequence", kind: "doc", sizeLabel: "5.6 MB", uploadedLabel: "Mar 6", extracted: "Refuelling activities · barrier status", linked: 3 },
+    { id: "DOC-07", name: "EOP-100 — Post-trip cooldown", kind: "doc", sizeLabel: "2.4 MB", uploadedLabel: "Mar 7", extracted: "DRACS activation · timing", linked: 2 },
+    { id: "DOC-08", name: "Decay-heat curves (vendor)", kind: "sheet", sizeLabel: "92 KB", uploadedLabel: "Mar 11", extracted: "Decay-heat as function of time", linked: 6 },
+    { id: "DOC-09", name: "Instrumentation list — Rev 2", kind: "sheet", sizeLabel: "210 KB", uploadedLabel: "Mar 14", extracted: "Sensor list · safety classification", linked: 9 },
+  ],
 };
 
 export { POS_ANALYSIS };

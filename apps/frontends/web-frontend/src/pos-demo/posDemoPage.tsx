@@ -1,6 +1,9 @@
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDemoIdentity } from "../demo/demoIdentity";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
+import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { fetchJson } from "../api/client";
 import { POSIcon } from "./posIcons";
 import {
   POS_PROJECT,
@@ -10,13 +13,12 @@ import {
   type PosPersona,
   type PosStep,
 } from "./posViewData";
-import { POS_ANALYSIS } from "./posData";
 import {
   stepIndexById,
   filterConformance,
   groupBySection,
   ccScore,
-  stepsForPersona,
+  stepsFromMef,
   commentsView,
   nmViewById,
   type Stage,
@@ -38,6 +40,7 @@ import {
 import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
+import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
 import "./css/posWorkspace.css";
 
 interface StepHeader {
@@ -69,14 +72,41 @@ function headersFor(stepId: string, isApprover: boolean): StepHeader {
   }
 }
 
+interface PosExampleResponse {
+  slug: string;
+  kind: string;
+  mef: unknown;
+  updatedAt: string;
+}
+
+interface PosBundleResponse {
+  pos: PosExampleResponse;
+  configurationControl: PosExampleResponse;
+  newlyDevelopedMethods: PosExampleResponse[];
+}
+
+interface HeaderMeta {
+  projectName: string;
+  workbookName: string;
+  workbookVersion: string;
+  plantIdentity?: { name: string; type: string; power: string; vendor: string };
+}
+
 function WorkspaceHeader({
-  stage, setStage, onBack, persona, workflowState,
+  stage, setStage, onBack, persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta,
 }: {
   stage: Stage;
   setStage: (s: Stage) => void;
   onBack: () => void;
   persona: PosPersona;
+  setPersona: (p: PosPersona) => void;
   workflowState: string;
+  showPersonaPicker: boolean;
+  availablePersonas: PosPersona[];
+  onOpenRoles?: () => void;
+  onLoadExample?: () => void;
+  onUnloadExample?: () => void;
+  headerMeta: HeaderMeta;
 }): JSX.Element {
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
@@ -90,11 +120,11 @@ function WorkspaceHeader({
     <header className={`poshd${isReviewer ? " poshd--external" : ""}${isApprover ? " poshd--approver" : ""}`}>
       <div className="poshd__crumb">
         <button type="button" onClick={onBack}><POSIcon.ArrowL /></button>
-        <button type="button" onClick={onBack}>{POS_PROJECT.projectName}</button>
+        <button type="button" onClick={onBack}>{headerMeta.projectName}</button>
         <POSIcon.Chevron />
-        <span>Plant operating states</span>
+        <span>Plant Operating States Analysis</span>
         <POSIcon.Chevron />
-        <span className="poshd__crumb-current">{POS_PROJECT.workbookName}</span>
+        <span className="poshd__crumb-current">{headerMeta.workbookName}</span>
         {personaPill !== null ? (
           <span className={`poshd__wfstate ${personaPill.cls}`} title={PERSONAS[persona].blurb}>
             <POSIcon.Lock />
@@ -110,37 +140,50 @@ function WorkspaceHeader({
 
       <div className="poshd__spacer" />
 
-      <div className="poshd__identity">
-        <div className="poshd__identity-title">{POS_PROJECT.plant.name}</div>
-        <div className="poshd__identity-meta">
-          {POS_PROJECT.plant.type} <span className="poshd__identity-sep">·</span> {POS_PROJECT.plant.power} <span className="poshd__identity-sep">·</span> {POS_PROJECT.plant.vendor}
+      {headerMeta.plantIdentity !== undefined && (
+        <div className="poshd__identity">
+          <div className="poshd__identity-title">{headerMeta.plantIdentity.name}</div>
+          <div className="poshd__identity-meta">
+            {headerMeta.plantIdentity.type} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.power} <span className="poshd__identity-sep">·</span> {headerMeta.plantIdentity.vendor}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="poshd__spacer" />
 
       <div className="poshd__actions">
-        <div className="poshd__toggle" role="group" aria-label="Plant stage">
-          <button
-            type="button"
-            className={`poshd__toggle-opt${stage === "pre_operational" ? " poshd__toggle-opt--active" : ""}`}
-            onClick={() => setStage("pre_operational")}
-            title="Plant not yet operating"
-          >
-            Pre-operational
+        {showPersonaPicker && availablePersonas.length > 1 && (
+          <label className="poshd__perspective" title="Switch perspective">
+            <span className="poshd__perspective-label">View as</span>
+            <select
+              className="poshd__perspective-select"
+              value={persona}
+              onChange={(e) => setPersona(e.target.value as PosPersona)}
+            >
+              {availablePersonas.includes("preparer") && <option value="preparer">Preparer</option>}
+              {availablePersonas.includes("reviewer") && <option value="reviewer">Reviewer</option>}
+              {availablePersonas.includes("approver") && <option value="approver">Approver</option>}
+            </select>
+          </label>
+        )}
+        {onOpenRoles !== undefined && (
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles">
+            <POSIcon.Settings /> Roles
           </button>
-          <button
-            type="button"
-            className={`poshd__toggle-opt${stage === "operational" ? " poshd__toggle-opt--active" : ""}`}
-            onClick={() => setStage("operational")}
-            title="Plant in operation"
-          >
-            Operational
+        )}
+        {onLoadExample !== undefined && (
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook">
+            <POSIcon.Sparkle /> Load example
           </button>
-        </div>
+        )}
+        {onUnloadExample !== undefined && (
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the workbook contents that existed before the example was loaded">
+            <POSIcon.Close /> Unload example
+          </button>
+        )}
         <span className="poshd__save-pill">
           <span className="poshd__save-pill-dot" />
-          Autosaved · v{POS_PROJECT.workbookVersion}
+          Autosaved · v{headerMeta.workbookVersion}
         </span>
         <button type="button" className="posnav__btn" aria-label="History">
           <POSIcon.History />
@@ -210,18 +253,20 @@ function StepRail({
 }
 
 function ConformanceDock({
-  ccId, stage, onGoToSetup, onClose, onAction,
+  pos, ccId, stage, onGoToSetup, onClose, onAction, nms,
 }: {
+  pos: PlantOperatingStatesAnalysis;
   ccId: string;
   stage: Stage;
   onGoToSetup: () => void;
   onClose: () => void;
   onAction: (msg: string) => void;
+  nms: NewlyDevelopedMethod[];
 }): JSX.Element {
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const items = useMemo(() => filterConformance(ccId, stage), [ccId, stage]);
+  const items = useMemo(() => filterConformance(pos, ccId, stage), [pos, ccId, stage]);
   const sections = useMemo(() => groupBySection(items), [items]);
-  const scores = ccScore(ccId);
+  const scores = ccScore(pos, ccId, stage);
   const dashTotal = 99.9;
   const dash = (scores.percent * dashTotal) / 100;
   return (
@@ -269,7 +314,7 @@ function ConformanceDock({
               </span>
             </div>
             {sectionItems.map((it) => {
-              const nm = it.linkedNM !== undefined ? nmViewById(it.linkedNM) : undefined;
+              const nm = it.linkedNM !== undefined ? nmViewById(nms, it.linkedNM) : undefined;
               return (
                 <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
                   <span className="posdock__item-dot" />
@@ -300,29 +345,75 @@ function ConformanceDock({
   );
 }
 
-function PosDemoPage(): JSX.Element {
+const DEFAULT_PERSONAS: PosPersona[] = ["preparer", "reviewer", "approver"];
+
+interface PosWorkbenchActions {
+  postComment: (text: string, severity: "MAJOR" | "MINOR" | "OBSERVATION", stepId: string) => Promise<void>;
+  toggleResolve: (commentId: string, nextResolved: boolean) => Promise<void>;
+  submitForReview: () => Promise<void>;
+  signReview: () => Promise<void>;
+  signApproval: () => Promise<void>;
+  requestRevision: (note: string) => Promise<void>;
+}
+
+interface PosWorkbenchDocuments {
+  list: import("./posWorkbookApi").PosDocumentEntry[];
+  canUpload: boolean;
+  onUpload: (file: File) => Promise<void>;
+  onDelete: (documentId: string) => Promise<void>;
+  onDownload: (documentId: string) => Promise<void>;
+}
+
+function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced }: {
+  data: PosWorkbookData;
+  persona: PosPersona;
+  setPersona: (p: PosPersona) => void;
+  showPersonaPicker: boolean;
+  availablePersonas?: PosPersona[];
+  onOpenRoles?: () => void;
+  onLoadExample?: () => void;
+  onUnloadExample?: () => void;
+  actions?: PosWorkbenchActions;
+  documents?: PosWorkbenchDocuments;
+  headerMeta: HeaderMeta;
+  mefPatch?: import("./useMefPatch").MefPatcher["patch"];
+  mefPatchDebounced?: import("./useMefPatch").MefPatcher["patchDebounced"];
+}): JSX.Element {
   const navigate = useNavigate();
-  const { current } = useDemoIdentity();
-  const persona = current.persona;
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
 
-  const visibleSteps = useMemo(() => stepsForPersona(persona), [persona]);
+  const documentCount = documents?.list.length ?? 0;
+  const visibleSteps = useMemo(() => stepsFromMef(data.pos, persona, documentCount), [data.pos, persona, documentCount]);
+
+  const mefCcId = data.pos.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
+  const mefStage: Stage = data.pos.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
+  const [ccId, setCcId] = useState<string>(mefCcId);
+  const [stage, setStage] = useState<Stage>(mefStage);
+
+  useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
+  useEffect(() => { setStage(mefStage); }, [mefStage]);
 
   const initialStep = visibleSteps[0]?.id ?? "setup";
   const [stepId, setStepIdState] = useState<string>(initialStep);
-  const [ccId, setCcId] = useState("cc-ii");
-  const [stage, setStage] = useState<Stage>("pre_operational");
   const [dockOpen, setDockOpen] = useState(true);
   const [drawer, setDrawer] = useState<DrawerContext | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
 
-  const [comments, setComments] = useState<CommentView[]>(() => commentsView());
-  const [submitted, setSubmitted] = useState(false);
-  const [approved, setApproved] = useState(false);
+  const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.pos));
+  const [submittedLocal, setSubmittedLocal] = useState(false);
+  const [approvedLocal, setApprovedLocal] = useState(false);
   const [commentDockOpen, setCommentDockOpen] = useState(false);
+
+  useEffect(() => {
+    setComments(commentsView(data.pos));
+  }, [data.pos]);
+
+  const workflowState = data.pos.workflowState;
+  const submitted = actions === undefined ? submittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
+  const approved = actions === undefined ? approvedLocal : workflowState === "FINAL";
 
   useEffect(() => {
     if (visibleSteps.find((s) => s.id === stepId) === undefined) {
@@ -343,7 +434,7 @@ function PosDemoPage(): JSX.Element {
 
   function handleGenerate(final: boolean): void {
     flash(final ? "Generating report…" : "Generating draft report…");
-    generatePosReport(final).catch(() => flash("Could not generate the report"));
+    generatePosReport(data.pos, final).catch(() => flash("Could not generate the report"));
   }
 
   function handleSubmitDraft(ready: boolean): void {
@@ -352,17 +443,37 @@ function PosDemoPage(): JSX.Element {
   }
 
   function handleSubmitToApproval(): void {
-    setSubmitted(true);
+    if (actions !== undefined) {
+      actions.submitForReview()
+        .then(() => flash("Submitted for internal review"))
+        .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not submit"));
+      return;
+    }
+    setSubmittedLocal(true);
     flash("Submitted to internal approval");
   }
 
   function handleSign(): void {
-    setApproved(true);
+    if (actions !== undefined) {
+      const op = persona === "approver" ? actions.signApproval() : actions.signReview();
+      op
+        .then(() => flash(persona === "approver" ? "Approval signed" : "Review signed"))
+        .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not sign"));
+      return;
+    }
+    setApprovedLocal(true);
     flash("Workbook approved · locked from edits");
   }
 
   function toggleResolved(commentId: string): void {
-    if (!isReviewer) return;
+    if (!isReviewer && !isApprover) return;
+    if (actions !== undefined) {
+      const target = comments.find((c) => c.id === commentId);
+      if (target === undefined) return;
+      actions.toggleResolve(commentId, !target.resolved)
+        .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not update comment"));
+      return;
+    }
     setComments((prev) => prev.map((c) => {
       if (c.id !== commentId) return c;
       const becomingResolved = !c.resolved;
@@ -374,20 +485,49 @@ function PosDemoPage(): JSX.Element {
     }));
   }
 
+  function handlePostComment(text: string, severity: "MAJOR" | "MINOR" | "OBSERVATION"): void {
+    if (actions === undefined) {
+      flash("Comment posted (example workbook)");
+      return;
+    }
+    actions.postComment(text, severity, stepId)
+      .then(() => flash("Comment posted"))
+      .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not post comment"));
+  }
+
+  function handleRequestRevision(): void {
+    if (actions === undefined) {
+      flash("Revision requested (example workbook)");
+      return;
+    }
+    actions.requestRevision("")
+      .then(() => flash("Revision requested"))
+      .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not request revision"));
+  }
+
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const step = visibleSteps[idx] ?? visibleSteps[0];
   const prev = visibleSteps[idx - 1];
   const next = visibleSteps[idx + 1];
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const scores = ccScore(ccId);
+  const scores = ccScore(data.pos, ccId, stage);
   const h = headersFor(stepId, isApprover);
 
-  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash };
+  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced };
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
       case "setup": return <SetupScreen {...screenProps} />;
-      case "documents": return <DocumentsScreen {...screenProps} />;
+      case "documents": return (
+        <DocumentsScreen
+          {...screenProps}
+          realDocuments={documents?.list}
+          canUpload={documents?.canUpload}
+          onUploadFile={documents?.onUpload}
+          onDeleteDocument={documents?.onDelete}
+          onDownloadDocument={documents?.onDownload}
+        />
+      );
       case "evolutions": return <EvolutionsScreen {...screenProps} />;
       case "states": return <StatesScreen {...screenProps} />;
       case "interviews": return <InterviewsScreen {...screenProps} />;
@@ -418,7 +558,7 @@ function PosDemoPage(): JSX.Element {
     <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`POS — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
-      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} workflowState={POS_ANALYSIS.workflowState} />
+      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} setPersona={setPersona} workflowState={data.pos.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} />
 
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
         <StepRail stepId={stepId} setStepId={setStepId} persona={persona} visibleSteps={visibleSteps} />
@@ -469,11 +609,13 @@ function PosDemoPage(): JSX.Element {
 
         {dockOpen && (
           <ConformanceDock
+            pos={data.pos}
             ccId={ccId}
             stage={stage}
             onGoToSetup={() => setStepId("setup")}
             onClose={() => setDockOpen(false)}
             onAction={flash}
+            nms={data.nms}
           />
         )}
       </div>
@@ -482,7 +624,7 @@ function PosDemoPage(): JSX.Element {
 
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 
-      {isReviewer && (
+      {(isReviewer || isApprover) && (
         <ReviewerCommentDock
           open={commentDockOpen}
           onToggle={() => setCommentDockOpen((v) => !v)}
@@ -490,6 +632,11 @@ function PosDemoPage(): JSX.Element {
           stepId={stepId}
           comments={comments}
           onToggleResolved={toggleResolved}
+          onPostComment={handlePostComment}
+          onRequestRevision={handleRequestRevision}
+          canRequestRevision={actions !== undefined && (workflowState === "INTERNAL_TECHNICAL_REVIEW" || workflowState === "INTERNAL_APPROVAL")}
+          onSignReview={actions !== undefined && isReviewer ? handleSign : undefined}
+          canSignReview={actions !== undefined && isReviewer && workflowState === "INTERNAL_TECHNICAL_REVIEW"}
           onAction={flash}
         />
       )}
@@ -497,4 +644,52 @@ function PosDemoPage(): JSX.Element {
   );
 }
 
-export { PosDemoPage };
+function PosDemoPage(): JSX.Element {
+  const [data, setData] = useState<PosWorkbookData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [persona, setPersona] = useState<PosPersona>("preparer");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle")
+      .then((res) => {
+        if (cancelled) return;
+        setData({
+          pos: res.pos.mef as PlantOperatingStatesAnalysis,
+          cc: res.configurationControl.mef as PRAConfigurationControl,
+          nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+        });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError((err as { message?: string }).message ?? "Could not load the example workbook");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (error !== null) {
+    return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
+  }
+  if (data === null) {
+    return <div className="posw"><main className="posmain"><p className="pws-status">Loading example workbook…</p></main></div>;
+  }
+
+  return (
+    <PosWorkbookProvider data={data}>
+      <PosWorkbench
+        data={data}
+        persona={persona}
+        setPersona={setPersona}
+        showPersonaPicker={true}
+        headerMeta={{
+          projectName: POS_PROJECT.projectName,
+          workbookName: POS_PROJECT.workbookName,
+          workbookVersion: String(POS_PROJECT.workbookVersion),
+          plantIdentity: POS_PROJECT.plant,
+        }}
+      />
+    </PosWorkbookProvider>
+  );
+}
+
+export { PosDemoPage, PosWorkbench };

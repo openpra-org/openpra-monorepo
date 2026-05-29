@@ -11,6 +11,8 @@ import { EventsModule } from "./events/events.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AuditModule } from "./audit/audit.module";
 import { SessionsModule } from "./sessions/sessions.module";
+import { ExampleWorkbooksModule } from "./example-workbooks/example-workbooks.module";
+import { PosWorkbooksModule } from "./pos-workbooks/pos-workbooks.module";
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { SessionsModule } from "./sessions/sessions.module";
     TeamsModule,
     NotificationsModule,
     AuditModule,
+    ExampleWorkbooksModule,
+    PosWorkbooksModule,
   ],
 })
 export class AppModule {}

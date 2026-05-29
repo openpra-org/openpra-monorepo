@@ -222,6 +222,13 @@ export interface PlantOperatingState extends Unique, Named {
   preOperationalAssumptions?: PreOperationalAssumption[];
 
   implementsSrs: SRReference[];
+
+  // additional-to-example
+  uiStatus?: "ok" | "warn" | "draft";
+  // additional-to-example
+  uiStatusMessage?: string;
+  // additional-to-example
+  docsLinked?: number;
 }
 
 export interface PlantEvolution extends Unique, Named {
@@ -247,6 +254,11 @@ export interface PlantEvolution extends Unique, Named {
   };
   preOperationalAssumptions?: PreOperationalAssumption[];
   implementsSrs: SRReference[];
+
+  // additional-to-example
+  sourceDocumentRef?: string;
+  // additional-to-example
+  durationFractionHint?: number;
 }
 
 export interface EvolutionGroup extends Unique, Named {
@@ -391,6 +403,8 @@ export interface PlantOperatingStatesAnalysis
   praScope: string;
   includesNonInternalHazardGroups: boolean;
   includesAtPowerOperations: boolean;
+  // Additional
+  includesLPSDOperations?: boolean;
 
   plantEvolutions: PlantEvolution[];
   plantOperatingStates: PlantOperatingState[];
@@ -421,6 +435,20 @@ export interface PlantOperatingStatesAnalysis
 
   configurationControlRecordId?: string;
   newlyDevelopedMethodIds?: string[];
+
+  // additional-to-example
+  exampleDocuments?: ExampleDocumentRef[];
+}
+
+// additional-to-example
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
 }
 
 export const POS_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

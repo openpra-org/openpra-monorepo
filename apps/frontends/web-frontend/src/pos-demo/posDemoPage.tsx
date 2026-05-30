@@ -99,7 +99,7 @@ interface HeaderMeta {
 }
 
 function WorkspaceHeader({
-  stage, setStage, onBack, persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta,
+  stage, setStage, onBack, persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, onToggleRail, onToggleDock,
 }: {
   stage: Stage;
   setStage: (s: Stage) => void;
@@ -113,6 +113,8 @@ function WorkspaceHeader({
   onLoadExample?: () => void;
   onUnloadExample?: () => void;
   headerMeta: HeaderMeta;
+  onToggleRail?: () => void;
+  onToggleDock?: () => void;
 }): JSX.Element {
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
@@ -124,6 +126,11 @@ function WorkspaceHeader({
   const wf = workflowStateDisplay(workflowState);
   return (
     <header className={`poshd${isReviewer ? " poshd--external" : ""}${isApprover ? " poshd--approver" : ""}`}>
+      {onToggleRail !== undefined && (
+        <button type="button" className="posw__mobile-toggle" onClick={onToggleRail} aria-label="Open steps">
+          <POSIcon.Layers /> Steps
+        </button>
+      )}
       <div className="poshd__crumb">
         <button type="button" onClick={onBack}><POSIcon.ArrowL /></button>
         <button type="button" onClick={onBack}>{headerMeta.projectName}</button>
@@ -194,24 +201,30 @@ function WorkspaceHeader({
         <button type="button" className="posnav__btn" aria-label="History">
           <POSIcon.History />
         </button>
+        {onToggleDock !== undefined && (
+          <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance">
+            <POSIcon.Eye /> Conformance
+          </button>
+        )}
       </div>
     </header>
   );
 }
 
 function StepRail({
-  stepId, setStepId, persona, visibleSteps,
+  stepId, setStepId, persona, visibleSteps, mobileOpen,
 }: {
   stepId: string;
   setStepId: (id: string) => void;
   persona: PosPersona;
   visibleSteps: PosStep[];
+  mobileOpen: boolean;
 }): JSX.Element {
   const idx = Math.max(0, visibleSteps.findIndex((s) => s.id === stepId));
   const pct = ((idx + 1) / visibleSteps.length) * 100;
   const eyebrow = persona === "reviewer" ? "Reviewer view" : persona === "approver" ? "Approver view" : "Workspace progress";
   return (
-    <aside className="posw__rail" aria-label="POS analysis steps">
+    <aside className={`posw__rail${mobileOpen ? " posw__rail--mobile-open" : ""}`} aria-label="POS analysis steps">
       <div className="posrail__head">
         <span className="posrail__eyebrow">{eyebrow}</span>
         <div className="posrail__progress">
@@ -259,7 +272,7 @@ function StepRail({
 }
 
 function ConformanceDock({
-  pos, ccId, stage, onGoToSetup, onClose, onAction, nms,
+  pos, ccId, stage, onGoToSetup, onClose, onAction, nms, mobileOpen,
 }: {
   pos: PlantOperatingStatesAnalysis;
   ccId: string;
@@ -268,6 +281,7 @@ function ConformanceDock({
   onClose: () => void;
   onAction: (msg: string) => void;
   nms: NewlyDevelopedMethod[];
+  mobileOpen: boolean;
 }): JSX.Element {
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const items = useMemo(() => filterConformance(pos, ccId, stage), [pos, ccId, stage]);
@@ -276,7 +290,7 @@ function ConformanceDock({
   const dashTotal = 99.9;
   const dash = (scores.percent * dashTotal) / 100;
   return (
-    <aside className="posw__dock" aria-label="Conformance checklist">
+    <aside className={`posw__dock${mobileOpen ? " posw__dock--mobile-open" : ""}`} aria-label="Conformance checklist">
       <div className="posdock__head">
         <div className="posdock__title-row">
           <h2 className="posdock__title">Conformance</h2>
@@ -404,7 +418,10 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
 
   const initialStep = visibleSteps[0]?.id ?? "setup";
   const [stepId, setStepIdState] = useState<string>(initialStep);
-  const [dockOpen, setDockOpen] = useState(true);
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
+  const [dockOpen, setDockOpen] = useState(!isMobile);
+  const [railMobileOpen, setRailMobileOpen] = useState(false);
+  const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [drawer, setDrawer] = useState<DrawerContext | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
@@ -433,6 +450,9 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
 
   function setStepId(id: string): void {
     setStepIdState(id);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
   }
 
   function flash(msg: string): void {
@@ -571,10 +591,10 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
     <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`POS — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
-      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} setPersona={setPersona} workflowState={data.pos.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} />
+      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} setPersona={setPersona} workflowState={data.pos.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
 
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
-        <StepRail stepId={stepId} setStepId={setStepId} persona={persona} visibleSteps={visibleSteps} />
+        <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
 
         <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
@@ -626,9 +646,17 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
             ccId={ccId}
             stage={stage}
             onGoToSetup={() => setStepId("setup")}
-            onClose={() => setDockOpen(false)}
+            onClose={() => { setDockOpen(false); setDockMobileOpen(false); }}
             onAction={flash}
             nms={data.nms}
+            mobileOpen={dockMobileOpen}
+          />
+        )}
+        {(railMobileOpen || dockMobileOpen) && (
+          <div
+            className="posw__mobile-scrim"
+            onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }}
+            aria-hidden="true"
           />
         )}
       </div>

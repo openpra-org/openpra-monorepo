@@ -1467,15 +1467,24 @@
   }
   .posdoc__more { align-self: flex-end; }
 
-  /* Step nav: stack primary (Next) on top, secondary (Back) below, both full width */
+  /* Step nav: pin to bottom of viewport so Next is always visible. */
   .posnav {
     display: flex;
     flex-direction: column-reverse;
     align-items: stretch;
     gap: 10px;
+    position: sticky;
+    bottom: 0;
+    margin: 0 -16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)) 16px;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    z-index: 15;
   }
   .posnav > .posnav__btn { justify-content: center; width: 100%; }
   .posnav > .posnav__btn--ghost { display: none; }
+  /* Give content room above the sticky nav so nothing is hidden behind it. */
+  .posmain { padding-bottom: 24px; }
 
   /* Generic row helper wraps */
   .posrow { flex-wrap: wrap; }
@@ -1536,7 +1545,22 @@
 
 /* Touch-only refinements */
 @media (hover: none) and (pointer: coarse) {
-  .posnav__btn:hover { background: var(--color-surface); border-color: var(--color-border); }
+  .posnav__btn:not(.posnav__btn--primary):not(.posnav__btn--ack):hover {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .posnav__btn--primary:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .posw--reviewer .posnav__btn--primary:hover {
+    background: var(--color-external);
+    border-color: var(--color-external);
+  }
+  .posw--approver .posnav__btn--primary:hover {
+    background: var(--color-approver);
+    border-color: var(--color-approver);
+  }
 }
 
 /* ─── Persona color tokens (reviewer / approver) ─────────────────────── */

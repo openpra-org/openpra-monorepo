@@ -179,7 +179,7 @@ const GROUPS: InitiatingEventGroup[] = [
   },
 ];
 
-const COMBO_TEXT = "Seismically-induced sodium fire. A seismic event ruptures a sodium line and ignites a cell fire. Retained as a distinct sequence for Event Sequence Analysis.";
+const COMBO_TEXT = "Seismically-induced sodium fire\nA seismic event ruptures a sodium line and ignites a cell fire. Retained as a distinct sequence for ES.";
 
 const HAZARDS: HazardAnalysis[] = [
   {

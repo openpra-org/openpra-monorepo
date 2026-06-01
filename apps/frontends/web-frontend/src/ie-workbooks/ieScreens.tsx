@@ -795,6 +795,8 @@ function HazardsScreen(): JSX.Element {
             {allCombinations.map((c, i) => {
               const srcIcon = hazardIcon(c.sourceHazard);
               const SrcIco = IEIcon[srcIcon] ?? IEIcon.Flame;
+              const [comboName, ...basisParts] = c.text.split("\n");
+              const comboBasis = basisParts.join(" ");
               return (
                 <div key={i} className="iecombo">
                   <div className="iecombo__chain">
@@ -804,7 +806,8 @@ function HazardsScreen(): JSX.Element {
                     </span>
                   </div>
                   <div className="iecombo__body">
-                    <div className="iecombo__name">{c.text}</div>
+                    <div className="iecombo__name">{comboName}</div>
+                    {comboBasis.length > 0 && <p className="iecombo__basis">{comboBasis}</p>}
                   </div>
                 </div>
               );

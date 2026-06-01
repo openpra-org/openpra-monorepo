@@ -98,6 +98,7 @@ export class IeWorkbooksService {
     };
     doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
+    doc.linkedPosWorkbookId = "example";
     await doc.save();
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.ieDocumentsService.removeAllForWorkbook(workbookId);
@@ -125,6 +126,7 @@ export class IeWorkbooksService {
     if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
     doc.mef = parsed.data;
     doc.previousMefJson = null;
+    doc.linkedPosWorkbookId = null;
     await doc.save();
     return toResponse(doc, myRoles);
   }

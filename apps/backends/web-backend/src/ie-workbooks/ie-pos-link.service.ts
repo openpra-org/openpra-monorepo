@@ -3,9 +3,12 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import { ProjectsService } from "../projects/projects.service";
 import { WorkbookRolesService } from "../workbooks/workbook-roles.service";
+import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { PosWorkbook, type PosWorkbookDocument } from "../pos-workbooks/pos-workbook.schema";
 import { IeWorkbook, type IeWorkbookDocument } from "./ie-workbook.schema";
+
+const EXAMPLE_SENTINEL = "example";
 
 interface ActingUser {
   username: string;
@@ -62,6 +65,7 @@ export class IePosLinkService {
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
     private readonly projectsService: ProjectsService,
     private readonly rolesService: WorkbookRolesService,
+    private readonly exampleWorkbooksService: ExampleWorkbooksService,
   ) {}
 
   private async requireIe(workbookId: string, acting: ActingUser): Promise<IeWorkbookDocument> {
@@ -120,6 +124,11 @@ export class IePosLinkService {
     const ie = await this.requireIe(workbookId, acting);
     if (typeof ie.linkedPosWorkbookId !== "string" || ie.linkedPosWorkbookId.length === 0) {
       return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
+    }
+    if (ie.linkedPosWorkbookId === EXAMPLE_SENTINEL) {
+      const bundle = await this.exampleWorkbooksService.getPosBundle();
+      const { states, sources } = this.collectImported(bundle.pos.mef as PosMefShape);
+      return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: "POS Workbook Example", states, sources };
     }
     const pos = await this.posWorkbookModel.findOne({ workbookId: ie.linkedPosWorkbookId }).exec();
     if (!pos) return { linkedPosWorkbookId: ie.linkedPosWorkbookId, linkedName: null, states: [], sources: [] };

@@ -104,9 +104,9 @@
 .iefreq__track { position: relative; height: 24px; background: var(--color-surface-low); border-radius: 6px; }
 .iefreq__fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 6px; background: var(--color-primary); opacity: 0.55; }
 .iefreq__fill--high { opacity: 1; }
-.iefreq__val { position: absolute; top: 50%; left: 100%; transform: translateY(-50%); padding-left: 8px; font-size: 11.5px; font-family: "JetBrains Mono", monospace; white-space: nowrap; }
-.iefreq__unit { color: var(--color-text-subtle); }
-.iefreq__meta { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.iefreq__val { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--color-text); white-space: nowrap; }
+.iefreq__unit { font-weight: 400; color: var(--color-text-subtle); font-size: 10px; }
+.iefreq__meta { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; white-space: nowrap; font-size: 11.5px; }
 .iefreq__flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--color-text-subtle); }
 .iefreq__flag svg { width: 13px; height: 13px; }
 .iefreq__flag--ok { color: var(--color-success, #2e7d4f); }

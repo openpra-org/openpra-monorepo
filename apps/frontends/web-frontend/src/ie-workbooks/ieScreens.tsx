@@ -62,7 +62,7 @@ function hazardStatusKind(h: HazardAnalysis): "ok" | "draft" | "warn" {
 
 function hazardStatusLabel(h: HazardAnalysis): string {
   if (h.screeningStatus === "SCREENED_OUT") return "Screened";
-  if (h.screeningStatus === "RETAINED") return "Active";
+  if (h.screeningStatus === "RETAINED") return "Ready";
   return "Draft";
 }
 
@@ -729,14 +729,20 @@ function CompletenessScreen(): JSX.Element {
 function HazardsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const hazards: HazardAnalysis[] = ie.hazardAnalyses ?? [];
-  const allCombinations = hazards.flatMap((h) => h.potentialCombinations.map((c) => ({ source: h.name, text: c })));
+  const internal = hazards.filter((h) => h.hazardType === "INTERNAL").length;
+  const external = hazards.filter((h) => h.hazardType === "EXTERNAL").length;
+  const allInducedIds = [...new Set(hazards.flatMap((h) => h.inducedInitiatorIds))];
+  const combinationCount = hazards.reduce((a, h) => a + h.potentialCombinations.length, 0);
+  const allCombinations = hazards.flatMap((h) =>
+    h.potentialCombinations.map((text) => ({ sourceHazard: h, text }))
+  );
   return (
     <>
       <div className="posstats">
-        <Stat num={hazards.length} cap="Hazard analyses" />
-        <Stat num={hazards.filter((h) => h.hazardType === "INTERNAL").length} cap="Internal" />
-        <Stat num={hazards.filter((h) => h.hazardType === "EXTERNAL").length} cap="External" />
-        <Stat num={hazards.reduce((a, h) => a + h.inducedInitiatorIds.length, 0)} cap="Induced initiators" />
+        <Stat num={hazards.length} cap="Hazard analyses" sub={`${internal} internal · ${external} external`} />
+        <Stat num={combinationCount} cap={combinationCount === 1 ? "Combination" : "Combinations"} kind={combinationCount > 0 ? "warn" : "ok"} sub={combinationCount > 0 ? "See below" : "None identified"} />
+        <Stat num={allInducedIds.length} cap="Induced initiators" sub={allInducedIds.length > 0 ? allInducedIds.join(" · ") : "None"} />
+        <Stat num={hazards.length} cap="Interfaces to hazard PRA" sub="One per hazard element" />
       </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Hazard analyses</h3><span className="possubtle">IE-A5(e/f)</span></div>
@@ -760,7 +766,16 @@ function HazardsScreen(): JSX.Element {
                   </div>
                   <p className="iehazard__basis">{h.screeningBasis}</p>
                   <div className="iehazard__foot">
-                    <span className="possubtle" style={{ fontSize: 12 }}>Induces {h.inducedInitiatorIds.length > 0 ? h.inducedInitiatorIds.join(", ") : "none"}</span>
+                    {h.inducedInitiatorIds.length > 0 ? (
+                      <div className="posrow posrow--wrap" style={{ gap: 4 }}>
+                        <span className="possubtle" style={{ fontSize: 11.5 }}>Induces</span>
+                        {h.inducedInitiatorIds.map((id) => (
+                          <span key={id} className="poschip poschip--method" style={{ fontSize: 11 }}><IEIcon.Bolt /> {id}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="possubtle" style={{ fontSize: 12 }}>No induced initiators</span>
+                    )}
                   </div>
                 </div>
               );
@@ -775,14 +790,25 @@ function HazardsScreen(): JSX.Element {
             <h3 className="poscard__title">Hazard combinations</h3>
             <Badge kind="warn">IE-A6</Badge>
           </div>
-          <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6).</p>
+          <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6), a frequent completeness gap.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {allCombinations.map((c, i) => (
-              <div key={i} className="iecombo">
-                <div className="iecombo__source">{c.source}</div>
-                <p className="iecombo__text">{c.text}</p>
-              </div>
-            ))}
+            {allCombinations.map((c, i) => {
+              const srcIcon = hazardIcon(c.sourceHazard);
+              const SrcIco = IEIcon[srcIcon] ?? IEIcon.Flame;
+              return (
+                <div key={i} className="iecombo">
+                  <div className="iecombo__chain">
+                    <span className="iecombo__node">
+                      <span className="iecombo__node-icon"><SrcIco /></span>
+                      {c.sourceHazard.name}
+                    </span>
+                  </div>
+                  <div className="iecombo__body">
+                    <div className="iecombo__name">{c.text}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -11,7 +11,13 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { FrequencyUnit, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
-import { type SRReference } from "interfaces-mef-types/core/pra-common";
+import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
+
+function cm(srCode: string, hlr: SRConformance["hlr"], status: SRConformance["status"], stages: SRConformance["applicableToStage"], evidence: string): SRConformance {
+  return { sr: srCode, hlr, capabilityCategory: "CC-II", applicableToStage: stages, status, satisfiedByElementPaths: [], evidence };
+}
+const PRE: SRConformance["applicableToStage"] = ["PRE_OPERATIONAL"];
+const BOTH: SRConformance["applicableToStage"] = ["OPERATIONAL", "PRE_OPERATIONAL"];
 
 const POS_STATES = ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"];
 
@@ -137,7 +143,38 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
       primaryCoolant: "Sodium",
     },
   },
-  conformanceMatrix: [],
+  conformanceMatrix: [
+    cm("IE-A1",  "A", "MET",            BOTH, "5 systematic methods registered across 7 challenge categories."),
+    cm("IE-A2",  "A", "MET",            BOTH, "Escape mechanisms identified for in-core fuel, cover-gas argon, and spent fuel."),
+    cm("IE-A4",  "A", "MET",            PRE,  "Generic SFR and non-nuclear sodium-loop operating experience reviewed."),
+    cm("IE-A5",  "A", "MET",            BOTH, "All 7 categories covered: transient, RCB breach, interfacing, special, internal hazard, external hazard, human failure."),
+    cm("IE-A6",  "A", "MET",            BOTH, "Seismic x fire combination identified and retained as a distinct sequence."),
+    cm("IE-A8",  "A", "PARTIAL",        BOTH, "Generic SFR OE review complete; HTGR online-refuelling experience review still open."),
+    cm("IE-A9",  "A", "MET",            BOTH, "FMEA completed for 14 main systems and 6 support systems."),
+    cm("IE-A10", "A", "MET",            BOTH, "Initiators tied to mobilisation paths for all three radioactive sources."),
+    cm("IE-A11", "A", "MET",            PRE,  "Comparable SFR and sodium-loop plant experience reviewed."),
+    cm("IE-A12", "A", "MET",            BOTH, "Beyond-design-basis events assessed; no additional initiators identified."),
+    cm("IE-A14", "A", "MET",            PRE,  "Pre-operational similar-plant evidence documented in analysis report."),
+    cm("IE-A15", "A", "MET",            BOTH, "DC power, instrument air, component cooling, service water, HVAC, cover-gas conditioning swept."),
+    cm("IE-A16", "A", "NOT_APPLICABLE", BOTH, "Generic-1 is a single-reactor site; multi-unit initiating events not applicable."),
+    cm("IE-A17", "A", "MET",            BOTH, "Completeness justified via cross-check of MLD, FMEA, HBFT, OE review, and generic catalog."),
+    cm("IE-A18", "A", "MET",            PRE,  "Pre-operational completeness basis documented with closure plan."),
+    cm("IE-B1",  "B", "MET",            BOTH, "Grouping basis documented for all four initiating-event groups."),
+    cm("IE-B2",  "B", "MET",            BOTH, "Bounding initiator identified and justified for each group."),
+    cm("IE-B3",  "B", "MET",            PRE,  "Pre-operational grouping conservatism justified by bounding-case selection."),
+    cm("IE-B4",  "B", "PARTIAL",        BOTH, "3 of 4 groups fully bounded; IEG-LOFA anti-masking check still open."),
+    cm("IE-B5",  "B", "NOT_APPLICABLE", BOTH, "Single-reactor site; multi-unit grouping not applicable."),
+    cm("IE-B6",  "B", "MET",            PRE,  "Grouping conservatism for pre-operational stage documented."),
+    cm("IE-C2",  "C", "MET",            PRE,  "Frequencies derived from NUREG/CR-5750, design-based estimates, and similar-plant data."),
+    cm("IE-C5",  "C", "PARTIAL",        PRE,  "Uncertainty characterised for 8 of 9 quantifications; IEG-LOFA lognormal EF pending."),
+    cm("IE-C7",  "C", "MET",            PRE,  "Pre-operational frequency basis justified for each record."),
+    cm("IE-C8",  "C", "MET",            BOTH, "POS time-fraction weighting applied to 8 of 9 records; seismic uses hazard curve."),
+    cm("IE-C9",  "C", "MET",            BOTH, "Barrier-integrity gate applied before SCR test for all screening decisions."),
+    cm("IE-C10", "C", "MET",            BOTH, "Each screened-out event has a documented SCR justification."),
+    cm("IE-D1",  "D", "MET",            BOTH, "IE analysis process documented in workbook report."),
+    cm("IE-D2",  "D", "PARTIAL",        BOTH, "Major assumptions documented; model uncertainty section still in draft."),
+    cm("IE-D3",  "D", "PARTIAL",        PRE,  "Pre-operational documentation in progress; not yet at final quality level."),
+  ],
   internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
   activePeerReviewIds: [],
   activeAuditIds: [],

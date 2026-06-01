@@ -92,6 +92,42 @@ function categoryById(id: string): CategorySpec | undefined {
   return INITIATOR_CATEGORIES.find((c) => c.id === id);
 }
 
+interface MethodSpec {
+  name: string;
+  icon: string;
+  scope: string;
+  note: string;
+  coverage: string;
+  statusMessage?: string;
+}
+
+const METHOD_REGISTRY: Record<string, MethodSpec> = {
+  MLD:     { name: "Master logic diagram",        icon: "Network", scope: "",                                                              coverage: "All 7 categories",    note: "Heat-removal, reactivity-control, and inventory branches expanded to component level." },
+  FMEA:    { name: "FMEA",                         icon: "Sheet",   scope: "Each system to subsystem / train level (IE-A9, IE-A15)",       coverage: "Transient · Special", note: "Main and support systems swept. HAZOPS overlay on coupled systems." },
+  HBFT:    { name: "Heat-balance fault trees",     icon: "Gauge",   scope: "",                                                              coverage: "Transient · RCB breach", note: "Power-conversion train modelled as a frequency-producing top event." },
+  OEREV:   { name: "Operating-experience review",  icon: "History", scope: "Similar plants & comparable systems (IE-A8, IE-A11, IE-A14)", coverage: "Completeness check",  note: "Generic operating experience and similar-plant data reviewed.", statusMessage: "Experience review for one initiator class still open." },
+  GENLIST: { name: "Generic initiator catalog",    icon: "Doc",     scope: "NUREG/CR-5750 + comparable catalogs",                          coverage: "Seed list",           note: "Generic list filtered for plant-specific applicability." },
+};
+
+function methodSpec(id: string): MethodSpec {
+  return METHOD_REGISTRY[id] ?? { name: id, icon: "Network", scope: "", note: "", coverage: "" };
+}
+
+interface CompletenessCheckMeta {
+  icon: string;
+  detail: string;
+  meta: (cs: { functionalCategoriesCovered: string[]; perSystemSearchPerformed: boolean; perSupportSystemSearchPerformed: boolean; multiReactorEventsAddressed: boolean; radioactiveSourceMechanismsAddressed: boolean }) => string;
+  na?: boolean;
+}
+
+const COMPLETENESS_CHECK_META: CompletenessCheckMeta[] = [
+  { icon: "Layers",    detail: "Transient · RCB breach · interfacing · special · internal-hazard · external-hazard · human-failure", meta: (cs) => `${cs.functionalCategoriesCovered.length} / 7` },
+  { icon: "Sheet",     detail: "FMEA carried to subsystem / train level for all modeled systems (IE-A9).", meta: () => "" },
+  { icon: "Network",   detail: "DC power, instrument air, component cooling, service water, HVAC, cover-gas conditioning (IE-A15).", meta: () => "" },
+  { icon: "Radiation", detail: "Escape mechanisms identified for all radioactive sources and tied to initiators (IE-A2).", meta: () => "" },
+  { icon: "Group",     detail: "Multi-reactor / shared-source event applicability assessed (IE-A16, IE-B5).", meta: () => "" },
+];
+
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
 type Stage = "pre_operational" | "operational";
 
@@ -139,6 +175,8 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   Stage,
+  MethodSpec,
+  CompletenessCheckMeta,
 };
 
 export {
@@ -149,5 +187,8 @@ export {
   CATEGORY_COLORS,
   INITIATOR_CATEGORIES,
   CONFORMANCE_ITEMS,
+  METHOD_REGISTRY,
+  COMPLETENESS_CHECK_META,
   categoryById,
+  methodSpec,
 };

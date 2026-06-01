@@ -11,7 +11,7 @@ import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-t
 import { IEIcon } from "./ieIcons";
 import { Badge, Stat } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
-import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, type CapabilityCategory } from "./ieViewData";
+import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
@@ -37,9 +37,44 @@ function freqToPct(v: number): number {
   return Math.max(2, Math.min(100, ((l - LOG_MIN) / (LOG_MAX - LOG_MIN)) * 100));
 }
 
+const BASIS_LABEL: Record<string, string> = {
+  OPERATING_DATA: "Operating data",
+  GENERIC_DATA: "Generic data",
+  SIMILAR_PLANT_DATA: "Similar-plant",
+  DESIGN_BASED: "Design-based",
+  FAULT_TREE: "Fault tree",
+};
+
+function hazardIcon(h: HazardAnalysis): keyof typeof IEIcon {
+  const text = (h.subcategory ?? h.name).toLowerCase();
+  if (text.includes("fire")) return "Flame";
+  if (text.includes("flood")) return "Wave";
+  if (text.includes("seismic") || text.includes("quake") || text.includes("earthquake")) return "Quake";
+  if (h.hazardType === "EXTERNAL") return "Quake";
+  return "Flame";
+}
+
+function hazardStatusKind(h: HazardAnalysis): "ok" | "draft" | "warn" {
+  if (h.screeningStatus === "SCREENED_OUT") return "draft";
+  if (h.screeningStatus === "RETAINED") return "ok";
+  return "warn";
+}
+
+function hazardStatusLabel(h: HazardAnalysis): string {
+  if (h.screeningStatus === "SCREENED_OUT") return "Screened";
+  if (h.screeningStatus === "RETAINED") return "Active";
+  return "Draft";
+}
+
+function riskFromBarrier(barrier: string | undefined): { label: string; warn: boolean } {
+  if (barrier === "BREACHED" || barrier === "BYPASSED") return { label: "High", warn: true };
+  if (barrier === "DEGRADED") return { label: "Medium", warn: false };
+  return { label: "Low", warn: false };
+}
+
 function CatIcon({ catId, size = 14 }: { catId: string; size?: number }): JSX.Element {
   const cat = categoryById(catId);
-  const Ico = (cat !== undefined && IEIcon[cat.icon] !== undefined) ? IEIcon[cat.icon] : IEIcon.Bolt;
+  const Ico = (cat !== undefined && IEIcon[cat.icon as keyof typeof IEIcon] !== undefined) ? IEIcon[cat.icon as keyof typeof IEIcon] : IEIcon.Bolt;
   return (
     <span style={{ display: "inline-flex", width: size, height: size, color: CATEGORY_COLORS[catId] }}>
       <Ico />
@@ -59,6 +94,7 @@ interface ScreenProps {
   setCcId: (id: string) => void;
   onAction: (msg: string) => void;
 }
+
 function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
   const { ie, posLink } = useIeWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
@@ -85,14 +121,30 @@ function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
         {posLink.sources.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>No sources linked yet. Link a POS workbook on the Operating States step.</p>
         ) : (
-          <table className="postable">
-            <thead><tr><th>Source</th><th>Location</th><th>Barriers</th></tr></thead>
+          <table className="postable iesrc-table">
+            <thead>
+              <tr>
+                <th><div className="iesrc-th">Source <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
+                <th><div className="iesrc-th">Barriers <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
+                <th><div className="iesrc-th">Escape mechanisms <span className="ieprov ieprov--ie ieprov--sm"><IEIcon.Bolt /> IE-A2</span></div></th>
+              </tr>
+            </thead>
             <tbody>
               {posLink.sources.map((s) => (
                 <tr key={s.id}>
-                  <td><div className="postable__name">{s.name}</div></td>
-                  <td className="mono">{s.location}</td>
+                  <td>
+                    <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.name}</div>
+                    <div className="iesrc__sub">{s.location}</div>
+                  </td>
                   <td><div className="posrow posrow--wrap" style={{ gap: 4 }}>{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div></td>
+                  <td>
+                    {(() => {
+                      const count = ie.initiators.filter((init) => init.barrierImpacts.some((bi) => s.barriers.some((b) => b.toLowerCase().includes(bi.barrierId.toLowerCase())))).length;
+                      return count > 0
+                        ? <><span className="iesrc__mech-n">{count}</span> <span className="iesrc__mech-cap">identified</span></>
+                        : <span className="possubtle">—</span>;
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -105,6 +157,7 @@ function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
           <h3 className="poscard__title">Capability category</h3>
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
+        <p className="poscard__sub">Sets how rigorous the search, grouping, and quantification must be.</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
@@ -124,6 +177,7 @@ function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
     </>
   );
 }
+
 function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }): JSX.Element {
   const { ie, posLink } = useIeWorkbook();
   if (posLink.linkedPosWorkbookId === null) {
@@ -132,7 +186,7 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
         <div style={{ display: "inline-flex", width: 32, height: 32, color: "var(--color-primary)", marginBottom: 10 }}><IEIcon.Link /></div>
         <h3 className="poscard__title" style={{ marginBottom: 6 }}>No operating states linked yet</h3>
         <p className="possubtle" style={{ maxWidth: 460, margin: "0 auto 16px" }}>
-          IE works inside the coordinate system POS already defined. Link a POS workbook to import its operating states and sources. Do not retype data that lives upstream.
+          IE works inside the coordinate system POS already defined. Link a POS workbook to import its operating states and sources.
         </p>
         <button type="button" className="posnav__btn posnav__btn--primary" onClick={onOpenLink}>
           <IEIcon.Download /> Import from a POS workbook
@@ -141,6 +195,7 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
     );
   }
   const atPower = posLink.states.filter((s) => s.operatingMode === "POWER").length;
+  const totalHours = posLink.states.reduce((a, s) => a + s.meanDurationHours, 0);
   return (
     <>
       <div className="ieposlink">
@@ -159,19 +214,51 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
         <Stat num={posLink.states.length - atPower} cap="States at LPSD" sub="Shutdown / refuel" />
         <Stat num="IE-C8" cap="Weighting rule" sub="Fraction-of-time applied" />
       </div>
+
+      {totalHours > 0 && (
+        <div className="poscard">
+          <div className="poscard__head">
+            <h3 className="poscard__title">Time fraction across operating states</h3>
+            <span className="possubtle">IE-C8 weighting basis</span>
+          </div>
+          <div className="ietimebar" role="img" aria-label="Time fraction by operating state">
+            {posLink.states.map((s) => {
+              const pct = (s.meanDurationHours / totalHours) * 100;
+              const atP = s.operatingMode === "POWER";
+              return (
+                <div key={s.id} className={`ietimebar__seg${atP ? " ietimebar__seg--power" : ""}`}
+                  style={{ width: `${pct}%` }} title={`${s.id} · ${pct.toFixed(1)}%`}>
+                  {pct > 7 && <span className="ietimebar__seg-label">{pct.toFixed(1)}%</span>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="ietimebar__legend">
+            <span><span className="ietimebar__key ietimebar__key--power" /> At-power</span>
+            <span><span className="ietimebar__key" /> Low-power &amp; shutdown</span>
+          </div>
+        </div>
+      )}
+
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Operating states</h3></div>
+        <div className="poscard__head">
+          <h3 className="poscard__title">Operating states</h3>
+          <span className="possubtle">Linked · edit at source in POS</span>
+        </div>
         <table className="postable">
-          <thead><tr><th>State</th><th>Mode</th><th>Mean duration (h)</th><th>Entry frequency</th><th>Initiators applicable</th></tr></thead>
+          <thead>
+            <tr><th>State</th><th>Mode</th><th>Time fraction</th><th>Mean duration (h)</th><th>Initiators applicable</th></tr>
+          </thead>
           <tbody>
             {posLink.states.map((s) => {
               const count = ie.initiators.filter((i) => i.applicableStates.includes(s.id)).length;
+              const pct = totalHours > 0 ? ((s.meanDurationHours / totalHours) * 100).toFixed(1) : "—";
               return (
                 <tr key={s.id}>
                   <td><div className="postable__name">{s.id}</div><span className="postable__name-sub">{s.name}</span></td>
                   <td className="mono">{s.operatingMode}</td>
+                  <td className="mono">{pct} %</td>
                   <td className="mono">{s.meanDurationHours.toLocaleString("en-US")}</td>
-                  <td className="mono">{s.meanEntryFrequency}</td>
                   <td className="mono">{count}</td>
                 </tr>
               );
@@ -182,11 +269,16 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
     </>
   );
 }
+
 function MethodsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const methodIds = new Set<string>();
   for (const i of ie.initiators) for (const m of i.identificationMethodIds) methodIds.add(m);
-  const byMethod = Array.from(methodIds).map((m) => ({ id: m, count: ie.initiators.filter((i) => i.identificationMethodIds.includes(m)).length }));
+  const byMethod = Array.from(methodIds).map((m) => ({
+    id: m,
+    spec: methodSpec(m),
+    count: ie.initiators.filter((i) => i.identificationMethodIds.includes(m)).length,
+  }));
   return (
     <>
       <div className="posstats">
@@ -199,21 +291,39 @@ function MethodsScreen(): JSX.Element {
         <div className="poscard__head"><h3 className="poscard__title">Systematic search methods</h3></div>
         {byMethod.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
           <div className="iemethod-grid">
-            {byMethod.map((m) => (
-              <div key={m.id} className="iemethod">
-                <div className="iemethod__head">
-                  <span className="iemethod__icon"><IEIcon.Network /></span>
-                  <div className="iemethod__title-block"><div className="iemethod__name">{m.id}</div></div>
+            {byMethod.map((m) => {
+              const Ico = IEIcon[m.spec.icon as keyof typeof IEIcon] ?? IEIcon.Network;
+              return (
+                <div key={m.id} className="iemethod">
+                  <div className="iemethod__head">
+                    <span className="iemethod__icon"><Ico /></span>
+                    <div className="iemethod__title-block">
+                      <div className="iemethod__name">{m.spec.name.length > 0 ? m.spec.name : m.id}</div>
+                    </div>
+                    {m.spec.statusMessage === undefined
+                      ? <Badge kind="ok">Ready</Badge>
+                      : <Badge kind="warn">Needs attention</Badge>}
+                  </div>
+                  {m.spec.scope.length > 0 && <div className="iemethod__scope">{m.spec.scope}</div>}
+                  {m.spec.note.length > 0 && <p className="iemethod__note">{m.spec.note}</p>}
+                  <div className="iemethod__foot">
+                    {m.spec.coverage.length > 0 && <span className="poschip">{m.spec.coverage}</span>}
+                    <span className="poscomment__foot-spacer" />
+                    <span className="posmono possubtle">{m.count} initiators</span>
+                  </div>
+                  {m.spec.statusMessage !== undefined && (
+                    <div className="iewarn-note"><span className="iewarn-note__icon"><IEIcon.Warn /></span><span>{m.spec.statusMessage}</span></div>
+                  )}
                 </div>
-                <div className="iemethod__foot"><span className="posmono possubtle">{m.count} initiators</span></div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
     </>
   );
 }
+
 function IdentifyScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const [activeCat, setActiveCat] = useState<string | null>(null);
@@ -239,6 +349,7 @@ function IdentifyScreen(): JSX.Element {
           <h3 className="poscard__title">Challenge spectrum (IE-A5)</h3>
           <span className="possubtle">Click a category to filter</span>
         </div>
+        <p className="poscard__sub">Every challenge category must be considered (IE-A5).</p>
         <div className="iespectrum">
           <div className="iespectrum__bar" role="img" aria-label="Initiating-event challenge spectrum">
             {INITIATOR_CATEGORIES.map((c) => {
@@ -292,7 +403,11 @@ function IdentifyScreen(): JSX.Element {
                 const barrier = i.barrierImpacts[0]?.state ?? "—";
                 return (
                   <tr key={i.uuid}>
-                    <td><div className="postable__name">{i.uuid} · {i.name}</div>{i.subcategory !== undefined && <span className="postable__name-sub">{i.subcategory}</span>}</td>
+                    <td>
+                      <div className="postable__name">{i.uuid} · {i.name}</div>
+                      {i.subcategory !== undefined && <span className="postable__name-sub">{i.subcategory}</span>}
+                      {(i.preOperationalAssumptions ?? []).length > 0 && <span className="poschip" style={{ marginLeft: 6, fontSize: 11, background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
+                    </td>
                     <td><span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span></td>
                     <td className="mono">{i.applicableStates.length}</td>
                     <td><span className={`poschip${barrier === "INTACT" ? "" : " poschip--warn"}`}>{barrier}</span></td>
@@ -307,15 +422,16 @@ function IdentifyScreen(): JSX.Element {
     </>
   );
 }
+
 function CompletenessScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const cs = ie.completenessSearch;
-  const checks: { label: string; ok: boolean }[] = [
-    { label: "All seven functional categories covered", ok: cs.functionalCategoriesCovered.length >= 7 },
-    { label: "Per-system search performed", ok: cs.perSystemSearchPerformed },
-    { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed },
-    { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed },
-    { label: "Multi-reactor / shared-source events addressed", ok: cs.multiReactorEventsAddressed },
+  const checks: { label: string; ok: boolean; icon: string; detail: string; meta: string }[] = [
+    { label: "All seven functional categories covered", ok: cs.functionalCategoriesCovered.length >= 7, ...COMPLETENESS_CHECK_META[0], meta: COMPLETENESS_CHECK_META[0].meta(cs) },
+    { label: "Per-system search performed", ok: cs.perSystemSearchPerformed, ...COMPLETENESS_CHECK_META[1], meta: COMPLETENESS_CHECK_META[1].meta(cs) },
+    { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed, ...COMPLETENESS_CHECK_META[2], meta: COMPLETENESS_CHECK_META[2].meta(cs) },
+    { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed, ...COMPLETENESS_CHECK_META[3], meta: COMPLETENESS_CHECK_META[3].meta(cs) },
+    { label: "Multi-reactor / shared-source events addressed", ok: cs.multiReactorEventsAddressed, ...COMPLETENESS_CHECK_META[4], meta: COMPLETENESS_CHECK_META[4].meta(cs) },
   ];
   return (
     <>
@@ -326,14 +442,29 @@ function CompletenessScreen(): JSX.Element {
         <Stat num={cs.radioactiveSourceMechanismsAddressed ? "Yes" : "No"} cap="Source mechanisms" />
       </div>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Completeness checks</h3></div>
+        <div className="poscard__head">
+          <h3 className="poscard__title">Completeness checks</h3>
+        </div>
+        <p className="poscard__sub">Audits that the forward search was exhaustive, each check mapped to an SR.</p>
         <div className="iecheck-list">
-          {checks.map((c, i) => (
-            <div key={i} className={`iecheck iecheck--${c.ok ? "ok" : "warn"}`}>
-              <span className="iecheck__icon">{c.ok ? <IEIcon.Check /> : <IEIcon.Warn />}</span>
-              <div className="iecheck__main"><div className="iecheck__label">{c.label}</div></div>
-            </div>
-          ))}
+          {checks.map((c, i) => {
+            const Ico = IEIcon[c.icon as keyof typeof IEIcon] ?? IEIcon.Check;
+            return (
+              <div key={i} className={`iecheck iecheck--${c.ok ? "ok" : "warn"}`}>
+                <span className="iecheck__icon"><Ico /></span>
+                <div className="iecheck__main">
+                  <div className="iecheck__label">{c.label}</div>
+                  {c.detail.length > 0 && <div className="iecheck__detail">{c.detail}</div>}
+                </div>
+                <div className="iecheck__right">
+                  {c.meta.length > 0 && <span className="iecheck__meta">{c.meta}</span>}
+                  {c.ok
+                    ? <span className="iecheck__dot iecheck__dot--ok"><IEIcon.Check /></span>
+                    : <span className="iecheck__dot iecheck__dot--warn"><IEIcon.Warn /></span>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -362,9 +493,11 @@ function CompletenessScreen(): JSX.Element {
     </>
   );
 }
+
 function HazardsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const hazards: HazardAnalysis[] = ie.hazardAnalyses ?? [];
+  const allCombinations = hazards.flatMap((h) => h.potentialCombinations.map((c) => ({ source: h.name, text: c })));
   return (
     <>
       <div className="posstats">
@@ -375,24 +508,56 @@ function HazardsScreen(): JSX.Element {
       </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Hazard analyses</h3><span className="possubtle">IE-A5(e/f)</span></div>
+        <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12).</p>
         {hazards.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard analyses recorded yet.</p> : (
           <div className="iehazard-grid">
-            {hazards.map((h) => (
-              <div key={h.uuid} className="iehazard">
-                <div className="iehazard__head">
-                  <span className="iehazard__icon"><IEIcon.Flame /></span>
-                  <div><div className="iehazard__name">{h.name}</div><div className="iehazard__type">{h.hazardType === "INTERNAL" ? "Internal hazard" : "External hazard"}</div></div>
+            {hazards.map((h) => {
+              const iconName = hazardIcon(h);
+              const Ico = IEIcon[iconName] ?? IEIcon.Flame;
+              const statusKind = hazardStatusKind(h);
+              const statusLabel = hazardStatusLabel(h);
+              return (
+                <div key={h.uuid} className="iehazard">
+                  <div className="iehazard__head">
+                    <span className="iehazard__icon"><Ico /></span>
+                    <div>
+                      <div className="iehazard__name">{h.name}</div>
+                      <div className="iehazard__type">{h.hazardType === "INTERNAL" ? "Internal hazard" : "External hazard"}{h.subcategory.length > 0 ? ` · ${h.subcategory}` : ""}</div>
+                    </div>
+                    <Badge kind={statusKind}>{statusLabel}</Badge>
+                  </div>
+                  <p className="iehazard__basis">{h.screeningBasis}</p>
+                  <div className="iehazard__foot">
+                    <span className="possubtle" style={{ fontSize: 12 }}>Induces {h.inducedInitiatorIds.length > 0 ? h.inducedInitiatorIds.join(", ") : "none"}</span>
+                  </div>
                 </div>
-                <p className="iehazard__basis">{h.screeningBasis}</p>
-                <div className="iehazard__foot"><span className="possubtle">Induces {h.inducedInitiatorIds.join(", ")}</span></div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {allCombinations.length > 0 && (
+        <div className="poscard">
+          <div className="poscard__head">
+            <h3 className="poscard__title">Hazard combinations</h3>
+            <Badge kind="warn">IE-A6</Badge>
+          </div>
+          <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6).</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {allCombinations.map((c, i) => (
+              <div key={i} className="iecombo">
+                <div className="iecombo__source">{c.source}</div>
+                <p className="iecombo__text">{c.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
+
 function GroupingScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const groups: InitiatingEventGroup[] = ie.initiatingEventGroups;
@@ -405,41 +570,66 @@ function GroupingScreen(): JSX.Element {
         <Stat num={groups.length - bounded} cap="Anti-masking open" kind={groups.length - bounded > 0 ? "warn" : "ok"} />
         <Stat num="CC-II" cap="Grouping rule" />
       </div>
+
+      <div className="poscard poscard--ghost">
+        <div className="posrow" style={{ gap: 12, alignItems: "flex-start" }}>
+          <span style={{ display: "inline-flex", width: 20, height: 20, color: "var(--color-text-muted)", flexShrink: 0, marginTop: 1 }}><IEIcon.Branch /></span>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.55 }}>
+            Group events only when they are alike in plant response, success criteria, and timing — or bounded by the worst case. Never group to hide risk-significant sequences.
+          </p>
+        </div>
+      </div>
+
       {groups.length === 0 ? <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.</p></div> : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
-          {groups.map((g) => (
-            <div key={g.uuid} className="poscard">
-              <div className="poscard__head">
-                <div>
-                  <div className="posrow" style={{ gap: 10 }}>
-                    <span className="posmono possubtle">{g.uuid}</span>
-                    <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
-                    {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
+          {groups.map((g) => {
+            const boundingInit = ie.initiators.find((i) => i.uuid === g.boundingInitiatorId);
+            return (
+              <div key={g.uuid} className="poscard">
+                <div className="poscard__head">
+                  <div>
+                    <div className="posrow" style={{ gap: 10 }}>
+                      <span className="posmono possubtle">{g.uuid}</span>
+                      <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
+                      {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
+                    </div>
+                    <div className="possubtle" style={{ marginTop: 6 }}>{g.memberInitiatorIds.length} members · Mean {fmtFreq(g.meanFrequency)} per plant-yr</div>
                   </div>
-                  <div className="possubtle" style={{ marginTop: 6 }}>{g.memberInitiatorIds.length} members · Mean {fmtFreq(g.meanFrequency)} per plant-yr</div>
+                </div>
+                <div className="iegroup__members">
+                  {g.memberInitiatorIds.map((m) => {
+                    const init = ie.initiators.find((i) => i.uuid === m);
+                    const isBounding = m === g.boundingInitiatorId;
+                    return (
+                      <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
+                        {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
+                        {init !== undefined && <CatIcon catId={init.category} size={13} />}
+                        <span className="iegroup__member-id">{m}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, margin: "12px 0 10px" }}>{g.groupingBasis}</div>
+                <div className="iegroup__checks">
+                  <span className={`iegroup__check${g.comparableImpactAcrossMembers ? " iegroup__check--ok" : ""}`}>
+                    {g.comparableImpactAcrossMembers ? <IEIcon.Check /> : <IEIcon.Warn />} Comparable impact across members
+                  </span>
+                  <span className={`iegroup__check${g.groupingDoesNotMaskRiskSignificantSequences ? " iegroup__check--ok" : " iegroup__check--warn"}`}>
+                    {g.groupingDoesNotMaskRiskSignificantSequences ? <IEIcon.Check /> : <IEIcon.Warn />} Does not mask risk-significant sequences
+                  </span>
+                  <span className="iegroup__check">
+                    <IEIcon.Target /> Bounded by {boundingInit?.name ?? g.boundingInitiatorId}
+                  </span>
                 </div>
               </div>
-              <div className="iegroup__members">
-                {g.memberInitiatorIds.map((m) => {
-                  const init = ie.initiators.find((i) => i.uuid === m);
-                  const isBounding = m === g.boundingInitiatorId;
-                  return (
-                    <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
-                      {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
-                      {init !== undefined && <CatIcon catId={init.category} size={13} />}
-                      <span className="iegroup__member-id">{m}</span>
-                    </span>
-                  );
-                })}
-              </div>
-              <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, margin: "12px 0 0" }}>{g.groupingBasis}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
   );
 }
+
 function ScreeningScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const records: InitiatingEventScreeningRecord[] = ie.screeningRecords;
@@ -458,7 +648,7 @@ function ScreeningScreen(): JSX.Element {
         <div className="iegate">
           <div className="iegate__stage"><div className="iegate__stage-num">1</div><div className="iegate__stage-body"><div className="iegate__stage-title">Barrier-integrity precondition (IE-C9a)</div><div className="iegate__stage-sub">Does the event avoid any failure or bypass of a radionuclide transport barrier?</div></div></div>
           <div className="iegate__arrow"><IEIcon.ArrowR /></div>
-          <div className="iegate__stage"><div className="iegate__stage-num">2</div><div className="iegate__stage-body"><div className="iegate__stage-title">SCR test (IE-C9b)</div><div className="iegate__stage-sub">Same impact as a much-higher-frequency event, or detected and corrected before a complicated shutdown.</div></div></div>
+          <div className="iegate__stage"><div className="iegate__stage-num">2</div><div className="iegate__stage-body"><div className="iegate__stage-title">SCR test (IE-C9b)</div><div className="iegate__stage-sub">Either same impact as a much-higher-frequency event (SCR-1/2), or detected &amp; corrected before a complicated shutdown (SCR-3).</div></div></div>
           <div className="iegate__arrow"><IEIcon.ArrowR /></div>
           <div className="iegate__result"><span className="iegate__result-icon"><IEIcon.Check /></span><span>Eligible to screen</span></div>
         </div>
@@ -469,6 +659,8 @@ function ScreeningScreen(): JSX.Element {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {records.map((rec, i) => {
               const target = ie.initiators.find((x) => x.uuid === rec.initiatorOrGroupId);
+              const barrier = target?.barrierImpacts[0]?.state;
+              const risk = riskFromBarrier(barrier);
               return (
                 <div key={i} className={`iescreen${!rec.barrierIntegrityPreconditionMet ? " iescreen--blocked" : ""}`}>
                   <div className="iescreen__head">
@@ -483,6 +675,7 @@ function ScreeningScreen(): JSX.Element {
                       {rec.barrierIntegrityPreconditionMet ? <IEIcon.Check /> : <IEIcon.Close />} Barrier intact
                     </span>
                     {rec.criterion !== undefined ? <span className="poschip poschip--primary">{rec.criterion}</span> : <span className="poschip poschip--warn">No SCR, barrier gate blocks screening</span>}
+                    <span className={`poschip${risk.warn ? " poschip--warn" : ""}`}>Risk: {risk.label}</span>
                   </div>
                   <p className="iescreen__just">{rec.justification}</p>
                 </div>
@@ -494,6 +687,7 @@ function ScreeningScreen(): JSX.Element {
     </>
   );
 }
+
 function FrequencyScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const records: InitiatingEventFrequencyQuantification[] = ie.quantifications;
@@ -503,6 +697,10 @@ function FrequencyScreen(): JSX.Element {
     if (grp !== undefined) return grp.name;
     const init = ie.initiators.find((i) => i.uuid === id);
     return init?.name ?? id;
+  };
+  const isPreop = (id: string): boolean => {
+    const init = ie.initiators.find((i) => i.uuid === id);
+    return (init?.preOperationalAssumptions ?? []).length > 0;
   };
   const weighted = records.filter((r) => r.posTimeFractionApplied).length;
   const ticks = ["1e-6", "1e-5", "1e-4", "1e-3", "1e-2", "1e-1", "1e0"];
@@ -524,20 +722,22 @@ function FrequencyScreen(): JSX.Element {
             {ranked.map((r) => {
               const mean = freqValue(r.meanFrequency);
               const high = r.basis === "FAULT_TREE" || mean >= 1;
+              const preop = isPreop(r.initiatorOrGroupId);
               return (
                 <div key={r.initiatorOrGroupId} className="iefreq__row">
                   <div className="iefreq__label">
                     <span className="iefreq__label-id">{r.initiatorOrGroupId}</span>
                     <span className="iefreq__label-name">{labelFor(r.initiatorOrGroupId)}</span>
+                    {preop && <span className="poschip" style={{ fontSize: 10, padding: "1px 6px", background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
                   </div>
                   <div className="iefreq__track">
                     <div className={`iefreq__fill${high ? " iefreq__fill--high" : ""}`} style={{ width: `${freqToPct(mean)}%` }} />
                     <span className="iefreq__val">{fmtFreq(r.meanFrequency)}<span className="iefreq__unit"> per plant-yr</span></span>
                   </div>
                   <div className="iefreq__meta">
-                    <span className="poschip">{r.basis.replace(/_/g, " ").toLowerCase()}</span>
+                    <span className="poschip">{BASIS_LABEL[r.basis] ?? r.basis}</span>
                     {r.posTimeFractionApplied
-                      ? <span className="iefreq__flag iefreq__flag--ok"><IEIcon.Layers /> weighted</span>
+                      ? <span className="iefreq__flag iefreq__flag--ok"><IEIcon.Clock /> weighted</span>
                       : <span className="iefreq__flag"><IEIcon.Quake /> hazard curve</span>}
                   </div>
                 </div>
@@ -549,6 +749,7 @@ function FrequencyScreen(): JSX.Element {
     </>
   );
 }
+
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   cc: CapabilityCategory;
   scores: CcScore;
@@ -557,6 +758,26 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   canSubmit: boolean;
 }): JSX.Element {
   const ready = scores.blocked === 0;
+  const TOC_ITEMS: [string, string][] = [
+    ["Executive summary", "4"],
+    ["Introduction", "5"],
+    ["    Purpose & scope", "5"],
+    ["    Interfaces (POS upstream · ES / ESQ downstream)", "6"],
+    ["    Quality assurance & freeze date", "6"],
+    ["Sources of radioactive material", "7"],
+    ["Identification of initiating events", "9"],
+    ["    Search methods", "9"],
+    ["    Challenge categories (IE-A5)", "11"],
+    ["    Completeness assessment", "16"],
+    ["    Hazard-induced initiators", "18"],
+    ["Grouping of initiating events", "21"],
+    ["Screening of initiating events", "24"],
+    ["Initiating-event frequencies", "27"],
+    ["    Quantification approach (per-POS weighting)", "27"],
+    ["    Data sources & uncertainty", "30"],
+    ["Model uncertainty & assumptions", "33"],
+    ["References", "36"],
+  ];
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -565,7 +786,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         <h2>Preliminary Initiating Event Analysis</h2>
         <h3>Table of contents</h3>
         <div className="posgen__preview-toc">
-          {[["Executive summary", "4"], ["Sources of radioactive material", "7"], ["Identification of initiating events", "9"], ["Grouping of initiating events", "21"], ["Screening of initiating events", "24"], ["Initiating-event frequencies", "27"], ["Model uncertainty & assumptions", "33"]].map(([t, p], i) => (
+          {TOC_ITEMS.map(([t, p], i) => (
             <div key={i} className="posgen__preview-toc-row"><span>{t}</span><span>{p}</span></div>
           ))}
         </div>
@@ -581,14 +802,22 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         </div>
         <div className="posgen__readout">
           <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
+            {ready
+              ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.</>
+              : <>{scores.warn} item{scores.warn === 1 ? "" : "s"} need{scores.warn === 1 ? "s" : ""} attention. You may produce a working draft, but approval is gated until they are resolved.</>}
+          </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <button type="button" className="posnav__btn posnav__btn--primary" disabled={!canSubmit} style={!canSubmit ? { opacity: 0.5, cursor: "not-allowed" } : undefined} onClick={() => onSubmitDraft(ready)}>
-              <IEIcon.Send /> Submit draft to internal review
-            </button>
+            {canSubmit && (
+              <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}>
+                <IEIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
+              </button>
+            )}
           </div>
         </div>
         <div className="posgen__readout">
           <h3 className="posgen__readout-h">Downstream interfaces</h3>
+          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>This IE list feeds the next elements directly.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span className="poschip poschip--method"><IEIcon.ArrowR /> Event Sequence Analysis (ES)</span>
             <span className="poschip poschip--method"><IEIcon.ArrowR /> Event Sequence Quantification (ESQ)</span>

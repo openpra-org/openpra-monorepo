@@ -109,4 +109,60 @@
 .iecheck--ok .iecheck__icon { color: var(--color-success, #2e7d4f); }
 .iecheck--warn .iecheck__icon { color: var(--color-warning, #b86a00); }
 .iecheck__label { font-weight: 600; font-size: 13.5px; }
-.iecheck__main { flex: 1; }
+.iecheck__detail { font-size: 12px; color: var(--color-text-muted); margin-top: 3px; line-height: 1.45; }
+.iecheck__main { flex: 1; min-width: 0; }
+.iecheck__right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.iecheck__meta { font-size: 12px; color: var(--color-text-muted); font-family: "JetBrains Mono", monospace; }
+.iecheck__dot { display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; }
+.iecheck__dot--ok { color: var(--color-success, #2e7d4f); }
+.iecheck__dot--warn { color: var(--color-warning, #b86a00); }
+.iecheck__dot--na { color: var(--color-text-subtle); font-size: 13px; font-weight: 700; }
+
+/* Time fraction bar */
+.ietimebar { display: flex; width: 100%; height: 28px; border-radius: 7px; overflow: hidden; gap: 2px; margin-bottom: 10px; }
+.ietimebar__seg { position: relative; display: flex; align-items: center; justify-content: center; background: var(--color-surface-low); border: 1px solid var(--color-border); transition: opacity 0.15s; min-width: 2px; }
+.ietimebar__seg--power { background: var(--color-primary); border-color: transparent; }
+.ietimebar__seg-label { font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap; }
+.ietimebar__seg:not(.ietimebar__seg--power) .ietimebar__seg-label { color: var(--color-text-muted); }
+.ietimebar__legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--color-text-muted); }
+.ietimebar__key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; background: var(--color-surface-low); border: 1px solid var(--color-border); vertical-align: middle; }
+.ietimebar__key--power { background: var(--color-primary); border-color: transparent; }
+
+/* Method cards — enriched */
+.iemethod__scope { font-size: 11.5px; color: var(--color-text-subtle); margin: 0 0 6px; line-height: 1.4; }
+.iemethod__note { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.5; margin: 0 0 10px; }
+.iemethod__title-block { flex: 1; min-width: 0; }
+
+/* Warning note (method/group) */
+.iewarn-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; padding: 8px 10px; background: rgba(184,106,0,0.08); border-left: 3px solid var(--color-warning, #b86a00); border-radius: 4px; font-size: 12.5px; color: var(--color-text); }
+.iewarn-note__icon { display: inline-flex; width: 15px; height: 15px; flex-shrink: 0; color: var(--color-warning, #b86a00); margin-top: 1px; }
+
+/* Grouping check rows */
+.iegroup__checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.iegroup__check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted); padding: 4px 9px; border: 1px solid var(--color-border); border-radius: 6px; }
+.iegroup__check svg { width: 13px; height: 13px; flex-shrink: 0; }
+.iegroup__check--ok { color: var(--color-success, #2e7d4f); border-color: rgba(46,125,79,0.3); background: rgba(46,125,79,0.06); }
+.iegroup__check--warn { color: var(--color-warning, #b86a00); border-color: rgba(184,106,0,0.3); background: rgba(184,106,0,0.06); }
+
+/* Ghost hint card */
+.poscard--ghost { background: var(--color-surface-low); border-style: dashed; }
+
+/* Hazard combinations */
+.iecombo { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.iecombo__source { font-size: 11.5px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.iecombo__text { font-size: 13.5px; color: var(--color-text); line-height: 1.55; margin: 0; }
+
+/* Source table */
+.iesrc-table { width: 100%; }
+.iesrc-th { display: flex; align-items: center; gap: 6px; }
+.ieprov { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+.ieprov--sm { font-size: 10px; }
+.ieprov svg { width: 11px; height: 11px; }
+.ieprov { background: rgba(80,80,90,0.08); color: var(--color-text-subtle); }
+.ieprov--ie { background: rgba(121,57,177,0.1); color: var(--color-primary); }
+.iesrc__name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13.5px; }
+.iesrc__icon { display: inline-flex; width: 16px; height: 16px; color: var(--color-primary); }
+.iesrc__sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.iesrc__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.iesrc__mech-n { font-weight: 700; font-size: 15px; color: var(--color-text); }
+.iesrc__mech-cap { font-size: 12px; color: var(--color-text-muted); }

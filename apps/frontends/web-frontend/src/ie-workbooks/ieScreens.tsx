@@ -608,7 +608,6 @@ function IdentifyScreen(): JSX.Element {
                 <button key={c.id} type="button" className={`iespectrum__leg${isActive ? " iespectrum__leg--active" : ""}`} onClick={() => setActiveCat(isActive ? null : c.id)}>
                   <span className="iespectrum__leg-key" style={{ background: CATEGORY_COLORS[c.id] }} />
                   <span className="iespectrum__leg-label">{c.label}</span>
-                  <span className="iespectrum__leg-n">{n}</span>
                 </button>
               );
             })}

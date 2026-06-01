@@ -3,7 +3,7 @@ import { HydratedDocument } from "mongoose";
 
 export type PosWorkbookDocument = HydratedDocument<PosWorkbook> & { createdAt: Date; updatedAt: Date };
 
-@Schema({ timestamps: true, collection: "pos_workbooks" })
+@Schema({ timestamps: true, collection: "pos_workbooks", minimize: false })
 export class PosWorkbook {
   @Prop({ type: String, required: true, unique: true, index: true })
   workbookId!: string;

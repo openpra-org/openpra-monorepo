@@ -13,6 +13,7 @@ import { AuditModule } from "./audit/audit.module";
 import { SessionsModule } from "./sessions/sessions.module";
 import { ExampleWorkbooksModule } from "./example-workbooks/example-workbooks.module";
 import { PosWorkbooksModule } from "./pos-workbooks/pos-workbooks.module";
+import { IeWorkbooksModule } from "./ie-workbooks/ie-workbooks.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PosWorkbooksModule } from "./pos-workbooks/pos-workbooks.module";
     AuditModule,
     ExampleWorkbooksModule,
     PosWorkbooksModule,
+    IeWorkbooksModule,
   ],
 })
 export class AppModule {}

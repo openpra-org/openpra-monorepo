@@ -11,8 +11,10 @@ import { ResetPasswordPage } from "../auth/resetPassword";
 import { WelcomePage } from "../welcome/welcomePage";
 import { ProjectsPage } from "../projects/projectsPage";
 import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
-import { PosDemoPage } from "../pos-demo/posDemoPage";
-import { PosWorkbookPage } from "../pos-demo/posWorkbookPage";
+import { PosDemoPage } from "../pos-workbooks/posDemoPage";
+import { PosWorkbookPage } from "../pos-workbooks/posWorkbookPage";
+import { IeDemoPage } from "../ie-workbooks/ieDemoPage";
+import { IeWorkbookPage } from "../ie-workbooks/ieWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -75,6 +77,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <PosWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ie-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <IeDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ie-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <IeWorkbookPage />
       </ProtectedRoute>
     ),
   },

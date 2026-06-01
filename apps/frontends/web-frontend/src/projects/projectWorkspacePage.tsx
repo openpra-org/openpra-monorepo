@@ -59,6 +59,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/pos-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "IE") {
+      navigate(`/ie-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

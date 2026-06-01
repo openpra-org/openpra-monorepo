@@ -4,11 +4,10 @@ import { Model } from "mongoose";
 import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-states-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
+import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
+import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/workbook-signoff.schema";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
-import { PosWorkbookRole, type PosWorkbookRoleDocument, type PosWorkbookRoleName } from "./pos-workbook-role.schema";
-import { PosWorkbookSignoff, type PosWorkbookSignoffDocument } from "./pos-workbook-signoff.schema";
 import { PosDocumentsService } from "./pos-documents.service";
-import { PosRolesService } from "./pos-roles.service";
 import { createBlankPos } from "./blank-pos";
 import { stripNulls } from "./mef-normalize";
 import { healMef } from "./mef-heal";
@@ -18,7 +17,7 @@ export interface PosWorkbookResponse {
   projectId: string;
   ownerUsername: string;
   mef: unknown;
-  myRoles: PosWorkbookRoleName[];
+  myRoles: WorkbookRoleName[];
   hasPreviousMef: boolean;
   updatedAt: string;
 }
@@ -27,7 +26,7 @@ interface ActingUser {
   username: string;
 }
 
-function toResponse(doc: PosWorkbookDocument, myRoles: PosWorkbookRoleName[]): PosWorkbookResponse {
+function toResponse(doc: PosWorkbookDocument, myRoles: WorkbookRoleName[]): PosWorkbookResponse {
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
@@ -43,22 +42,15 @@ function toResponse(doc: PosWorkbookDocument, myRoles: PosWorkbookRoleName[]): P
 export class PosWorkbooksService {
   constructor(
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
-    @InjectModel(PosWorkbookRole.name) private readonly posRoleModel: Model<PosWorkbookRoleDocument>,
-    @InjectModel(PosWorkbookSignoff.name) private readonly posSignoffModel: Model<PosWorkbookSignoffDocument>,
+    @InjectModel(WorkbookSignoff.name) private readonly signoffModel: Model<WorkbookSignoffDocument>,
     private readonly projectsService: ProjectsService,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly posDocumentsService: PosDocumentsService,
-    private readonly posRolesService: PosRolesService,
+    private readonly rolesService: WorkbookRolesService,
   ) {}
 
-  async createBlank(workbookId: string, projectId: string, name: string, ownerUsername: string): Promise<void> {
-    const mef = createBlankPos(name, ownerUsername);
-    await this.posWorkbookModel.create({ workbookId, projectId, ownerUsername, mef });
-    await this.posRoleModel.create({ workbookId, username: ownerUsername, role: "preparer", assignedBy: ownerUsername });
-  }
-
-  private async loadMyRoles(workbookId: string, username: string): Promise<PosWorkbookRoleName[]> {
-    return this.posRolesService.resolveEffectiveRoles(workbookId, username);
+  private async loadMyRoles(workbookId: string, username: string): Promise<WorkbookRoleName[]> {
+    return this.rolesService.resolveEffectiveRoles(workbookId, username);
   }
 
   async findOne(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
@@ -105,7 +97,7 @@ export class PosWorkbooksService {
     doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = cleaned;
     await doc.save();
-    await this.posSignoffModel.deleteMany({ workbookId }).exec();
+    await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.posDocumentsService.removeAllForWorkbook(workbookId);
     return toResponse(doc, myRoles);
   }

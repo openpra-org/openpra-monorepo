@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_GENERIC_1_SLUG, IE_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -13,6 +13,12 @@ export interface ExampleWorkbookResponse {
 
 export interface PosExampleBundle {
   pos: ExampleWorkbookResponse;
+  configurationControl: ExampleWorkbookResponse;
+  newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+export interface IeExampleBundle {
+  ie: ExampleWorkbookResponse;
   configurationControl: ExampleWorkbookResponse;
   newlyDevelopedMethods: ExampleWorkbookResponse[];
 }
@@ -59,6 +65,17 @@ export class ExampleWorkbooksService implements OnModuleInit {
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return {
       pos,
+      configurationControl,
+      newlyDevelopedMethods: nmDocs.map(toResponse),
+    };
+  }
+
+  async getIeBundle(): Promise<IeExampleBundle> {
+    const ie = await this.findBySlug(IE_GENERIC_1_SLUG);
+    const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
+    const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
+    return {
+      ie,
       configurationControl,
       newlyDevelopedMethods: nmDocs.map(toResponse),
     };

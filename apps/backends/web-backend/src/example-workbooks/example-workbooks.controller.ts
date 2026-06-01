@@ -4,6 +4,7 @@ import {
   ExampleWorkbooksService,
   type ExampleWorkbookResponse,
   type PosExampleBundle,
+  type IeExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -15,6 +16,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getPosBundle(): Promise<PosExampleBundle> {
     return this.exampleWorkbooksService.getPosBundle();
+  }
+
+  @Get("ie-bundle")
+  @HttpCode(HttpStatus.OK)
+  getIeBundle(): Promise<IeExampleBundle> {
+    return this.exampleWorkbooksService.getIeBundle();
   }
 
   @Get(":slug")

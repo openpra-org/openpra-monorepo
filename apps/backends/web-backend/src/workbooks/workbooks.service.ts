@@ -9,8 +9,9 @@ import {
 } from "interfaces-shared-types";
 import { User, type UserDocument } from "../users/user.schema";
 import { ProjectsService } from "../projects/projects.service";
-import { PosWorkbooksService } from "../pos-workbooks/pos-workbooks.service";
 import { Workbook, type WorkbookDocument } from "./workbook.schema";
+import { WorkbookElementRegistry } from "./workbook-element-registry";
+import { WorkbookRolesService } from "./workbook-roles.service";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(" ").filter(Boolean);
@@ -45,7 +46,8 @@ export class WorkbooksService {
     @InjectModel(Workbook.name) private readonly workbookModel: Model<WorkbookDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly projectsService: ProjectsService,
-    private readonly posWorkbooksService: PosWorkbooksService,
+    private readonly elementRegistry: WorkbookElementRegistry,
+    private readonly rolesService: WorkbookRolesService,
   ) {}
 
   async listWorkbooks(projectId: string, elementCode: string, acting: ActingUser): Promise<WorkbookListResponse> {
@@ -71,8 +73,10 @@ export class WorkbooksService {
       ownerUsername: owner.username,
       ownerFullName: owner.fullName,
     });
-    if (payload.elementCode === "POS") {
-      await this.posWorkbooksService.createBlank(String(created._id), projectId, payload.name, owner.username);
+    const adapter = this.elementRegistry.tryGet(payload.elementCode);
+    if (adapter !== undefined) {
+      await adapter.createBlank(String(created._id), projectId, payload.name, owner.username);
+      await this.rolesService.createInitialPreparer(String(created._id), owner.username);
     }
     return toDto(created);
   }

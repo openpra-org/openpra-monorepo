@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument } from "mongoose";
 
-export type ExampleWorkbookKind = "POS" | "CONFIGURATION_CONTROL" | "NEWLY_DEVELOPED_METHOD";
+export type ExampleWorkbookKind = "POS" | "IE" | "CONFIGURATION_CONTROL" | "NEWLY_DEVELOPED_METHOD";
 
 export type ExampleWorkbookDocument = HydratedDocument<ExampleWorkbook> & { createdAt: Date; updatedAt: Date };
 

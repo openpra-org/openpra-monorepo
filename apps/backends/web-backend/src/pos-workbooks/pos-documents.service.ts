@@ -4,10 +4,9 @@ import { Client } from "minio";
 import { Model } from "mongoose";
 import { randomUUID } from "crypto";
 import { ProjectsService } from "../projects/projects.service";
+import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
-import { type PosWorkbookRoleName } from "./pos-workbook-role.schema";
 import { PosWorkbookFile, type PosWorkbookDocumentDocument } from "./pos-workbook-document.schema";
-import { PosRolesService } from "./pos-roles.service";
 
 const ALLOWED_MIME_TYPES = new Set<string>([
   "application/pdf",
@@ -53,7 +52,7 @@ export class PosDocumentsService implements OnModuleInit {
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
     @InjectModel(PosWorkbookFile.name) private readonly posDocModel: Model<PosWorkbookDocumentDocument>,
     private readonly projectsService: ProjectsService,
-    private readonly posRolesService: PosRolesService,
+    private readonly rolesService: WorkbookRolesService,
   ) {}
 
   onModuleInit(): void {
@@ -88,12 +87,12 @@ export class PosDocumentsService implements OnModuleInit {
     }
   }
 
-  private async loadAuthorize(workbookId: string, acting: ActingUser, requireWrite: boolean): Promise<{ myRoles: PosWorkbookRoleName[] }> {
+  private async loadAuthorize(workbookId: string, acting: ActingUser, requireWrite: boolean): Promise<{ myRoles: WorkbookRoleName[] }> {
     const wb = await this.posWorkbookModel.findOne({ workbookId }).exec();
     if (!wb) throw new NotFoundException("POS workbook not found");
     const { role } = await this.projectsService.resolveAccess(wb.projectId, acting);
     if (requireWrite && role === "viewer") throw new ForbiddenException("You cannot modify documents on this workbook");
-    const myRoles = await this.posRolesService.resolveEffectiveRoles(workbookId, acting.username);
+    const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     return { myRoles };
   }
 

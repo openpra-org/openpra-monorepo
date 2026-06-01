@@ -1,0 +1,173 @@
+.posroles-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.posroles-modal {
+  width: min(620px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.posroles__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.posroles__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.posroles__close {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+.posroles__close:hover { background: var(--color-bg-to); color: var(--color-text); }
+
+.posroles__section {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+.posroles__section:last-child { border-bottom: 0; }
+
+.posroles__subtitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.posroles__empty,
+.posroles__status,
+.posroles__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.posroles__hint { margin-top: 12px; }
+.posroles__status { padding: 22px; text-align: center; }
+
+.posroles__error {
+  margin: 0 22px 12px;
+  padding: 8px 12px;
+  background: var(--color-danger-bg, #fde7e9);
+  color: var(--color-danger, #b3261e);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.posroles__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.posroles__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-bg-to);
+  border-radius: 8px;
+}
+
+.posroles__row-name { font-weight: 500; }
+.posroles__row-username { font-size: 12px; color: var(--color-text-muted); }
+.posroles__row-desig { font-size: 12px; color: var(--color-text-muted); font-style: italic; }
+
+.posroles__row-role {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+.posroles__row-role--preparer { background: #e0ecff; color: #1d4ed8; }
+.posroles__row-role--co_preparer { background: #ddd6fe; color: #5b21b6; }
+.posroles__row-role--reviewer { background: #fef3c7; color: #92400e; }
+.posroles__row-role--approver { background: #dcfce7; color: #166534; }
+[data-theme="dark"] .posroles__row-role--preparer { background: #1e3a8a; color: #c7d8ff; }
+[data-theme="dark"] .posroles__row-role--co_preparer { background: #4c1d95; color: #ddd6fe; }
+[data-theme="dark"] .posroles__row-role--reviewer { background: #78350f; color: #fde68a; }
+[data-theme="dark"] .posroles__row-role--approver { background: #14532d; color: #bbf7d0; }
+
+.posroles__row-remove {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.posroles__row-remove:hover:not(:disabled) { background: var(--color-danger-bg, #fde7e9); color: var(--color-danger, #b3261e); }
+.posroles__row-remove:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.posroles__assign {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.posroles__select {
+  flex: 1 1 160px;
+  padding: 8px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.posroles__designation {
+  flex: 1 1 160px;
+  padding: 8px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.posroles__assign-btn {
+  flex: 0 0 auto;
+  background: var(--color-primary);
+  color: #fff;
+  border: 0;
+  padding: 9px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.posroles__assign-btn:hover:not(:disabled) { background: var(--color-primary-hover, var(--color-primary)); }
+.posroles__assign-btn:disabled { opacity: 0.5; cursor: not-allowed; }

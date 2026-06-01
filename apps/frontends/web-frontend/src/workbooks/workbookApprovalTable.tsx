@@ -15,6 +15,7 @@ interface Row {
   fullName: string;
   designation: string | null;
   signedAt: string | null;
+  signatureDataUrl: string | null;
 }
 
 const ACTION_LABEL: Record<WorkbookSignoffRole, string> = {
@@ -36,6 +37,7 @@ function buildRows(status: WorkbookWorkflowStatus): Row[] {
       fullName: h.fullName,
       designation: h.designation,
       signedAt: h.signedAt,
+      signatureDataUrl: h.signatureDataUrl,
     }));
 }
 
@@ -91,7 +93,11 @@ function WorkbookApprovalTable({ workbookId, refreshSignal }: WorkbookApprovalTa
               </td>
               <td className="posapproval__signature">
                 {r.signedAt !== null ? (
-                  <span className="posapproval__sig-name">{r.fullName}</span>
+                  r.signatureDataUrl !== null ? (
+                    <img src={r.signatureDataUrl} alt={`${r.fullName} signature`} className="posapproval__sig-img" />
+                  ) : (
+                    <span className="posapproval__sig-name">{r.fullName}</span>
+                  )
                 ) : (
                   <span className="posapproval__sig-pending">Pending</span>
                 )}

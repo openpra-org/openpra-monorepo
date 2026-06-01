@@ -53,6 +53,7 @@ interface WorkbookRoleHolder {
   fullName: string;
   designation: string | null;
   signedAt: string | null;
+  signatureDataUrl: string | null;
 }
 
 interface WorkbookWorkflowStatus {
@@ -64,6 +65,7 @@ interface WorkbookWorkflowStatus {
   roleHolders: WorkbookRoleHolder[];
   signoffs: { username: string; role: WorkbookSignoffRole; signedAt: string }[];
   myPendingSignoff: WorkbookSignoffRole | null;
+  allReviewersSigned: boolean;
 }
 
 interface WorkbookAwaitingMeEntry {
@@ -113,8 +115,12 @@ async function requestWorkbookRevision(workbookId: string, note: string): Promis
   return postJson<unknown>(`/api/workbooks/${workbookId}/workflow/request-revision`, { note });
 }
 
-async function signWorkbookAs(workbookId: string, role: WorkbookSignoffRole): Promise<unknown> {
-  return postJson<unknown>(`/api/workbooks/${workbookId}/workflow/sign-as`, { role });
+async function signWorkbookAs(workbookId: string, role: WorkbookSignoffRole, signatureDataUrl?: string): Promise<unknown> {
+  return postJson<unknown>(`/api/workbooks/${workbookId}/workflow/sign-as`, { role, signatureDataUrl });
+}
+
+async function submitWorkbookToApprover(workbookId: string): Promise<unknown> {
+  return postJson<unknown>(`/api/workbooks/${workbookId}/workflow/submit-to-approver`, {});
 }
 
 async function postWorkbookComment(workbookId: string, body: { text: string; severity?: WorkbookCommentSeverity; associatedSr?: string; associatedField?: string }): Promise<unknown> {
@@ -141,6 +147,7 @@ export {
   signWorkbookApproval,
   requestWorkbookRevision,
   signWorkbookAs,
+  submitWorkbookToApprover,
   postWorkbookComment,
   patchWorkbookComment,
   getWorkbookAwaitingMe,

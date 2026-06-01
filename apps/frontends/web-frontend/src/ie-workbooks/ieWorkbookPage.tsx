@@ -205,7 +205,7 @@ function IeWorkbookPage(): JSX.Element {
           <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />
         )}
         renderSignCard={() => (
-          <WorkbookSignCard workbookId={id} actingUsername={actingUsername} myOpenComments={data.ie.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length} refreshSignal={approvalRefresh} onSigned={() => setApprovalRefresh((n) => n + 1)} />
+          <WorkbookSignCard workbookId={id} actingUsername={actingUsername} currentPersona={persona} myOpenComments={data.ie.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length} refreshSignal={approvalRefresh} onSigned={() => setApprovalRefresh((n) => n + 1)} />
         )}
         renderRoster={() => (<WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />)}
       />

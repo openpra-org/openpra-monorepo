@@ -184,6 +184,21 @@ async function searchUsers(query: string): Promise<UserSearchResponse> {
   return UserSearchResponseSchema.parse(data);
 }
 
+async function getMySignature(): Promise<{ signatureDataUrl: string | null }> {
+  const data = await (await call("GET", "/me/signature")).json();
+  return data as { signatureDataUrl: string | null };
+}
+
+async function saveMySignature(signatureDataUrl: string): Promise<{ signatureDataUrl: string | null }> {
+  const data = await (await call("PATCH", "/me/signature", { signatureDataUrl })).json();
+  return data as { signatureDataUrl: string | null };
+}
+
+async function clearMySignature(): Promise<{ signatureDataUrl: string | null }> {
+  const data = await (await call("DELETE", "/me/signature")).json();
+  return data as { signatureDataUrl: string | null };
+}
+
 export {
   getMyProfile,
   updateMyProfile,
@@ -207,4 +222,7 @@ export {
   deleteCover,
   getPublicUser,
   searchUsers,
+  getMySignature,
+  saveMySignature,
+  clearMySignature,
 };

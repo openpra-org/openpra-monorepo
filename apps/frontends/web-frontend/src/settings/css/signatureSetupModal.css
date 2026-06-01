@@ -1,0 +1,104 @@
+.sigmodal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.sigmodal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+.sigmodal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sigmodal__title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 4px;
+}
+
+.sigmodal__sub {
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.sigmodal__close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+.sigmodal__close:hover { background: var(--color-surface-low); color: var(--color-text); }
+
+.sigmodal__canvas-wrap {
+  position: relative;
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  cursor: crosshair;
+}
+
+.sigmodal__canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  touch-action: none;
+}
+
+.sigmodal__canvas-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 22px;
+  color: #d0d0d8;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sigmodal__error {
+  font-size: 13.5px;
+  color: var(--color-error);
+  margin: 0;
+}
+
+.sigmodal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sigmodal__foot-right {
+  display: flex;
+  gap: 8px;
+}

@@ -15,6 +15,7 @@ const UserProfileSchema = z.object({
   memberSince: z.string(),
   avatarUrl: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  signatureDataUrl: z.string().nullable(),
   twoFactorEnabled: z.boolean(),
   hasPassword: z.boolean(),
   connectedAccounts: z.array(ConnectedAccountSchema),
@@ -159,6 +160,16 @@ const SessionListResponseSchema = z.object({
 });
 type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 
+const SignatureResponseSchema = z.object({
+  signatureDataUrl: z.string().nullable(),
+});
+type SignatureResponse = z.infer<typeof SignatureResponseSchema>;
+
+const SaveSignatureRequestSchema = z.object({
+  signatureDataUrl: z.string().min(1),
+});
+type SaveSignatureRequest = z.infer<typeof SaveSignatureRequestSchema>;
+
 export {
   UserProfileSchema,
   UpdateUserProfileRequestSchema,
@@ -177,6 +188,8 @@ export {
   ChangePasswordResponseSchema,
   SessionInfoSchema,
   SessionListResponseSchema,
+  SignatureResponseSchema,
+  SaveSignatureRequestSchema,
 };
 export type {
   UserProfile,
@@ -196,4 +209,6 @@ export type {
   ChangePasswordResponse,
   SessionInfo,
   SessionListResponse,
+  SignatureResponse,
+  SaveSignatureRequest,
 };

@@ -30,6 +30,7 @@ interface AssignBody {
 
 interface SignAsBody {
   role: WorkbookSignoffRole;
+  signatureDataUrl?: string;
 }
 
 interface RequestRevisionBody {
@@ -106,21 +107,27 @@ export class WorkbookReviewController {
 
   @Post(":id/workflow/sign-review")
   @HttpCode(HttpStatus.OK)
-  signReview(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<unknown> {
-    return this.workflowService.signReview(id, { username: req.user!.username });
+  signReview(@Param("id") id: string, @Body() body: { signatureDataUrl?: string }, @Req() req: AuthenticatedRequest): Promise<unknown> {
+    return this.workflowService.signReview(id, { username: req.user!.username }, body.signatureDataUrl);
   }
 
   @Post(":id/workflow/sign-approval")
   @HttpCode(HttpStatus.OK)
-  signApproval(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<unknown> {
-    return this.workflowService.signApproval(id, { username: req.user!.username });
+  signApproval(@Param("id") id: string, @Body() body: { signatureDataUrl?: string }, @Req() req: AuthenticatedRequest): Promise<unknown> {
+    return this.workflowService.signApproval(id, { username: req.user!.username }, body.signatureDataUrl);
   }
 
   @Post(":id/workflow/sign-as")
   @HttpCode(HttpStatus.OK)
   signAs(@Param("id") id: string, @Body() body: SignAsBody, @Req() req: AuthenticatedRequest): Promise<unknown> {
     if (!VALID_SIGNOFF_ROLES.includes(body.role)) throw new BadRequestException("Invalid signoff role");
-    return this.workflowService.signAs(id, body.role, { username: req.user!.username });
+    return this.workflowService.signAs(id, body.role, { username: req.user!.username }, body.signatureDataUrl);
+  }
+
+  @Post(":id/workflow/submit-to-approver")
+  @HttpCode(HttpStatus.OK)
+  submitToApprover(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<unknown> {
+    return this.workflowService.submitToApprover(id, { username: req.user!.username });
   }
 
   @Post(":id/workflow/request-revision")

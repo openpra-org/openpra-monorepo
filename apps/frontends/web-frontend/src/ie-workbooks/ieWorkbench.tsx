@@ -31,6 +31,7 @@ import {
 import { InternalReviewScreen, ReviewerCommentDock } from "./ieReview";
 import { useIeWorkbook, type IeWorkbookData } from "./ieWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
+import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/ieScreens.css";
 
@@ -314,12 +315,15 @@ function IeWorkbench({
   const actingUsername = authUser?.username ?? "";
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.ie));
   const [commentDockOpen, setCommentDockOpen] = useState(false);
+  const [demoSubmittedLocal, setDemoSubmittedLocal] = useState(false);
+  const [demoApprovedLocal, setDemoApprovedLocal] = useState(false);
+  const [demoPreparerPhase, setDemoPreparerPhase] = useState(false);
 
   useEffect(() => { setComments(commentsView(data.ie)); }, [data.ie]);
 
   const workflowState = data.ie.workflowState;
-  const submitted = workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL";
-  const approved = workflowState === "FINAL";
+  const submitted = actions === undefined ? demoSubmittedLocal : (workflowState === "INTERNAL_APPROVAL" || workflowState === "FINAL");
+  const approved = actions === undefined ? demoApprovedLocal : workflowState === "FINAL";
 
   useEffect(() => {
     if (visibleSteps.find((s) => s.id === stepId) === undefined) {
@@ -339,7 +343,7 @@ function IeWorkbench({
   }
 
   function handleSubmitToApproval(): void {
-    if (actions === undefined) { flash("Submitted (example workbook)"); return; }
+    if (actions === undefined) { setDemoSubmittedLocal(true); flash("Submitted for internal review (example)"); return; }
     actions.submitForReview().then(() => flash("Submitted for internal review")).catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not submit"));
   }
 
@@ -395,10 +399,22 @@ function IeWorkbench({
           comments={comments}
           submitted={submitted}
           approved={approved}
+          actingUsername={actingUsername}
           onSubmitToApproval={handleSubmitToApproval}
           onAction={flash}
           rosterSlot={stepId === "review" ? renderRoster?.() : undefined}
-          signCardSlot={stepId === "approval" || stepId === "review" ? renderSignCard?.() : undefined}
+          signCardSlot={stepId === "approval" ? (
+            actions === undefined ? (
+              <WorkbookDemoSignCard
+                persona={persona}
+                myOpenComments={comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
+                submitted={submitted}
+                preparerPhase={demoPreparerPhase}
+                onReviewerApproverSigned={() => setDemoPreparerPhase(true)}
+                onPreparerSigned={() => { setDemoApprovedLocal(true); flash("Workbook approved (example)"); }}
+              />
+            ) : renderSignCard?.()
+          ) : undefined}
           approvalTableSlot={stepId === "approval" ? renderApprovalTable?.() : undefined}
         />
       );

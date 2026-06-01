@@ -1,5 +1,5 @@
 import { JSX } from "react";
-import { BellIcon, DatabaseIcon, KeyboardIcon, PaletteIcon, ShieldIcon } from "../welcome/icons";
+import { BellIcon, DatabaseIcon, EditIcon, KeyboardIcon, PaletteIcon, ShieldIcon } from "../welcome/icons";
 import "./css/settingsSidebar.css";
 
 interface NavItem {
@@ -13,6 +13,7 @@ const ITEMS: NavItem[] = [
   { id: "account", label: "Account & security", icon: <ShieldIcon /> },
   { id: "notifications", label: "Notifications", icon: <BellIcon /> },
   { id: "appearance", label: "Appearance", icon: <PaletteIcon /> },
+  { id: "signature", label: "Signature", icon: <EditIcon /> },
   { id: "shortcuts", label: "Shortcuts", icon: <KeyboardIcon /> },
   { id: "data", label: "Data & privacy", icon: <DatabaseIcon />, danger: true },
 ];

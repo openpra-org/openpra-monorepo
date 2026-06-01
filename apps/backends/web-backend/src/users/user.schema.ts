@@ -59,6 +59,9 @@ export class User {
   @Prop({ type: String, default: null })
   coverKey!: string | null;
 
+  @Prop({ type: String, default: null })
+  signatureDataUrl!: string | null;
+
   @Prop({
     type: Object,
     default: () => ({

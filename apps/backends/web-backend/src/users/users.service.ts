@@ -103,6 +103,7 @@ function toDtoWithStorage(doc: UserDocument, storage: StorageService): UserProfi
     memberSince: formatMemberSince(createdAt),
     avatarUrl: storage.urlForKey(doc.avatarKey),
     coverUrl: storage.urlForKey(doc.coverKey),
+    signatureDataUrl: doc.signatureDataUrl ?? null,
     twoFactorEnabled: doc.twoFactor?.enabled ?? false,
     hasPassword: doc.passwordHash !== null,
     connectedAccounts: doc.connectedAccounts.map((c) => ({ provider: c.provider as OAuthProvider, displayName: c.displayName })),
@@ -511,6 +512,28 @@ export class UsersService {
     await doc.save();
     await this.storage.deleteByKey(previousKey);
     return toDtoWithStorage(doc, this.storage);
+  }
+
+  async getSignature(username: string): Promise<{ signatureDataUrl: string | null }> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    return { signatureDataUrl: doc.signatureDataUrl ?? null };
+  }
+
+  async saveSignature(username: string, signatureDataUrl: string): Promise<{ signatureDataUrl: string | null }> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    doc.signatureDataUrl = signatureDataUrl;
+    await doc.save();
+    return { signatureDataUrl: doc.signatureDataUrl };
+  }
+
+  async clearSignature(username: string): Promise<{ signatureDataUrl: string | null }> {
+    const doc = await this.userModel.findOne({ username }).exec();
+    if (!doc) throw new NotFoundException("User not found");
+    doc.signatureDataUrl = null;
+    await doc.save();
+    return { signatureDataUrl: null };
   }
 
   private async signToken(doc: UserDocument, jti: string): Promise<string> {

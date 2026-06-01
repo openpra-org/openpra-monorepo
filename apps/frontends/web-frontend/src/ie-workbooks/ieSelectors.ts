@@ -19,6 +19,7 @@ interface CommentView {
   authorInitials: string;
   authorTitle?: string;
   when: string;
+  createdAt: string;
   associatedSr?: string;
   section: string;
   targetLabel: string;
@@ -123,6 +124,7 @@ function commentsView(ie: InitiatingEventsAnalysis, now: Date = new Date()): Com
       authorInitials: initialsOf(author?.name ?? c.authorId),
       authorTitle: author?.title,
       when: relativeFrom(c.createdAt, now),
+      createdAt: c.createdAt,
       associatedSr: c.associatedSr,
       section: item?.section ?? "Documentation (HLR-IE-D)",
       targetLabel: item?.text ?? "General",

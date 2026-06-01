@@ -36,6 +36,7 @@ import { NotificationsSection } from "./notificationsSection";
 import { AppearanceSection } from "./appearanceSection";
 import { ShortcutsSection } from "./shortcutsSection";
 import { DataSection } from "./dataSection";
+import { SignatureSection } from "./signatureSection";
 import { ChangeEmailModal } from "./changeEmailModal";
 import { ChangeUsernameModal } from "./changeUsernameModal";
 import { ChangePasswordModal } from "./changePasswordModal";
@@ -65,6 +66,7 @@ function SettingsPage(): JSX.Element {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tfaSetupOpen, setTfaSetupOpen] = useState(false);
   const [tfaDisableOpen, setTfaDisableOpen] = useState(false);
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [theme, setTheme] = useTheme();
   const appearance = useAppearancePrefs();
@@ -334,6 +336,14 @@ function SettingsPage(): JSX.Element {
                 setReducedMotion={appearance.setReducedMotion}
                 setHighContrast={appearance.setHighContrast}
                 setSigFigs={appearance.setSigFigs}
+              />
+              <SignatureSection
+                signatureDataUrl={profile.signatureDataUrl ?? null}
+                modalOpen={signatureModalOpen}
+                onOpenModal={() => { setSignatureModalOpen(true); }}
+                onCloseModal={() => { setSignatureModalOpen(false); }}
+                onSaved={(dataUrl) => { setProfile((prev) => (prev === null ? prev : { ...prev, signatureDataUrl: dataUrl })); }}
+                onCleared={() => { setProfile((prev) => (prev === null ? prev : { ...prev, signatureDataUrl: null })); }}
               />
               <ShortcutsSection />
               <DataSection

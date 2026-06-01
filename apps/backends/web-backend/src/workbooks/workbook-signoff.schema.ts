@@ -18,6 +18,9 @@ export class WorkbookSignoff {
 
   @Prop({ type: String, required: true })
   workflowState!: string;
+
+  @Prop({ type: String, default: null })
+  signatureDataUrl!: string | null;
 }
 
 export const WorkbookSignoffSchema = SchemaFactory.createForClass(WorkbookSignoff);

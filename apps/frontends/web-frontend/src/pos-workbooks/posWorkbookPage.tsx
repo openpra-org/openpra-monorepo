@@ -262,6 +262,7 @@ function PosWorkbookPage(): JSX.Element {
           <WorkbookSignCard
             workbookId={id}
             actingUsername={actingUsername}
+            currentPersona={persona}
             myOpenComments={data.pos.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
             onSigned={() => setApprovalRefresh((n) => n + 1)}

@@ -13,6 +13,7 @@ interface InternalReviewProps {
   comments: CommentView[];
   submitted: boolean;
   approved: boolean;
+  actingUsername: string;
   onSubmitToApproval: () => void;
   onAction: (msg: string) => void;
   rosterSlot?: import("react").ReactNode;
@@ -28,39 +29,56 @@ function bannerVariant(openCount: number, submitted: boolean, approved: boolean)
 }
 
 function InternalReviewScreen({
-  step, persona, cc, scores, comments, submitted, approved, onSubmitToApproval, onAction, rosterSlot, signCardSlot, approvalTableSlot,
+  step, persona, cc, scores, comments, submitted, approved, actingUsername, onSubmitToApproval, onAction, rosterSlot, signCardSlot, approvalTableSlot,
 }: InternalReviewProps): JSX.Element {
   const isApprovalStep = step === "approval";
   const isReviewStep = step === "review";
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
-  const [filter, setFilter] = useState<"all" | "open" | "resolved">(isApprover ? "all" : "open");
-  const openCount = comments.filter((c) => !c.resolved).length;
-  const resolvedCount = comments.filter((c) => c.resolved).length;
-  const allResolved = openCount === 0 && comments.length > 0;
-  const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
-  const banner = bannerVariant(openCount, submitted, approved);
+  const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
   const { ie } = useIeWorkbook();
   const reviewerCount = ie.metadata.reviewers.filter((r) => r.role === "INTERNAL_REVIEWER").length;
   const approver = ie.metadata.reviewers.find((r) => r.role === "INTERNAL_APPROVER") ?? null;
   const configSnapshotId = ie.configurationControlRecordId ?? "";
   const methodIds = ie.newlyDevelopedMethodIds ?? [];
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return comments;
-    if (filter === "open") return comments.filter((c) => !c.resolved);
-    return comments.filter((c) => c.resolved);
-  }, [filter, comments]);
+  const reviewerIds = useMemo(() => ie.metadata.reviewers.filter((r) => r.role === "INTERNAL_REVIEWER").map((r) => r.id), [ie.metadata.reviewers]);
+  const approverIds = useMemo(() => ie.metadata.reviewers.filter((r) => r.role === "INTERNAL_APPROVER").map((r) => r.id), [ie.metadata.reviewers]);
+
+  const displayComments = useMemo<CommentView[]>(() => {
+    let base: CommentView[];
+    if (isApprovalStep) {
+      if (persona === "reviewer" || persona === "approver") {
+        base = comments.filter((c) => c.authorId === actingUsername);
+      } else {
+        base = comments.filter((c) => reviewerIds.includes(c.authorId) || approverIds.includes(c.authorId));
+      }
+    } else {
+      base = [...comments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    if (filter === "open") return base.filter((c) => !c.resolved);
+    if (filter === "resolved") return base.filter((c) => c.resolved);
+    return base;
+  }, [comments, isApprovalStep, persona, actingUsername, reviewerIds, approverIds, filter]);
+
+  const openCount = comments.filter((c) => !c.resolved).length;
+  const resolvedCount = comments.filter((c) => c.resolved).length;
+  const allResolved = openCount === 0 && comments.length > 0;
+  const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
+  const banner = bannerVariant(openCount, submitted, approved);
+
+  const displayOpen = displayComments.filter((c) => !c.resolved).length;
+  const displayResolved = displayComments.filter((c) => c.resolved).length;
 
   const grouped = useMemo<[string, CommentView[]][]>(() => {
     const m = new Map<string, CommentView[]>();
-    for (const c of filtered) {
+    for (const c of displayComments) {
       const list = m.get(c.section) ?? [];
       list.push(c);
       m.set(c.section, list);
     }
     return Array.from(m.entries());
-  }, [filtered]);
+  }, [displayComments]);
 
   return (
     <>
@@ -94,49 +112,53 @@ function InternalReviewScreen({
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Review comments</h3>
+          <h3 className="poscard__title">
+            {isApprovalStep
+              ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments")
+              : "All review comments"}
+          </h3>
           <div className="posrow" style={{ gap: 6 }}>
-            <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({comments.length})</button>
-            <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({openCount})</button>
-            <button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({resolvedCount})</button>
+            <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
+            <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({displayOpen})</button>
+            <button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({displayResolved})</button>
           </div>
         </div>
-        <p className="poscard__sub">
-          {isApprover
-            ? "All comments are read-only here. The reviewer has marked them resolved before submission."
-            : "Reply to each comment. Only the reviewer can mark a comment resolved. The workbook can be submitted for approval once they do."}
-        </p>
-        {comments.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No comments yet. Reviewers and the approver leave comments from the dock.</p>
+        {isReviewStep && (
+          <p className="poscard__sub">All comments from all roles, newest first.</p>
+        )}
+        {displayComments.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>
+            {isApprovalStep && (persona === "reviewer" || persona === "approver") ? "You have no comments." : "No comments yet. Reviewers and the approver leave comments from the dock."}
+          </p>
         ) : (
           <div className="poscomments">
             {grouped.map(([section, list]) => (
               <div key={section} className="poscomments__group">
                 <div className="poscomments__group-head">{section}</div>
                 {list.map((c) => (
-                  <div key={c.id} className={`poscomment poscomment--${c.severity.toLowerCase()} poscomment--${c.resolved ? "resolved" : "open"}`}>
-                    <div className="poscomment__avatar">{c.authorInitials}</div>
-                    <div className="poscomment__main">
-                      <div className="poscomment__head">
-                        <span className="poscomment__author">{c.authorName}</span>
-                        {c.authorTitle !== undefined && <span className="poscomment__role">{c.authorTitle}</span>}
-                        <span className="poscomment__when">· {c.when}</span>
-                        <span className="poscomment__spacer" />
-                        {c.severity === "MAJOR" && <span className="posbadge posbadge--block"><span className="posbadge__dot" />Major</span>}
-                        {c.severity === "MINOR" && <span className="posbadge posbadge--warn"><span className="posbadge__dot" />Minor</span>}
-                        {c.severity === "OBSERVATION" && <span className="posbadge"><span className="posbadge__dot" />Observation</span>}
-                        {!c.resolved && <span className="posbadge posbadge--progress"><span className="posbadge__dot" />Open</span>}
-                        {c.resolved && <span className="posbadge posbadge--ok"><span className="posbadge__dot" />Resolved</span>}
+                    <div key={c.id} className={`poscomment poscomment--${c.severity.toLowerCase()} poscomment--${c.resolved ? "resolved" : "open"}`}>
+                      <div className="poscomment__avatar">{c.authorInitials}</div>
+                      <div className="poscomment__main">
+                        <div className="poscomment__head">
+                          <span className="poscomment__author">{c.authorName}</span>
+                          {c.authorTitle !== undefined && <span className="poscomment__role">{c.authorTitle}</span>}
+                          <span className="poscomment__when">· {c.when}</span>
+                          <span className="poscomment__spacer" />
+                          {c.severity === "MAJOR" && <span className="posbadge posbadge--block"><span className="posbadge__dot" />Major</span>}
+                          {c.severity === "MINOR" && <span className="posbadge posbadge--warn"><span className="posbadge__dot" />Minor</span>}
+                          {c.severity === "OBSERVATION" && <span className="posbadge"><span className="posbadge__dot" />Observation</span>}
+                          {!c.resolved && <span className="posbadge posbadge--progress"><span className="posbadge__dot" />Open</span>}
+                          {c.resolved && <span className="posbadge posbadge--ok"><span className="posbadge__dot" />Resolved</span>}
+                        </div>
+                        <div className="poscomment__target">
+                          <span className="possubtle">Anchored to</span>{" "}
+                          <span className="poschip">{c.associatedSr ?? "general"}</span>
+                          <span className="poscomment__target-label"> · {c.targetLabel}</span>
+                        </div>
+                        <p className="poscomment__body">{c.text}</p>
+                        {c.resolution !== undefined && <div className="poscomment__resolution"><strong>Resolved.</strong> {c.resolution}</div>}
                       </div>
-                      <div className="poscomment__target">
-                        <span className="possubtle">Anchored to</span>{" "}
-                        <span className="poschip">{c.associatedSr ?? "general"}</span>
-                        <span className="poscomment__target-label"> · {c.targetLabel}</span>
-                      </div>
-                      <p className="poscomment__body">{c.text}</p>
-                      {c.resolution !== undefined && <div className="poscomment__resolution"><strong>Resolved.</strong> {c.resolution}</div>}
                     </div>
-                  </div>
                 ))}
               </div>
             ))}
@@ -144,9 +166,7 @@ function InternalReviewScreen({
         )}
       </div>
 
-      {isReviewStep && signCardSlot}
-
-      {isPreparer && isReviewStep && (
+      {isPreparer && isReviewStep && ie.workflowState !== "INTERNAL_TECHNICAL_REVIEW" && ie.workflowState !== "INTERNAL_APPROVAL" && ie.workflowState !== "FINAL" && (
         <div className="poscard">
           <div className="poscard__head">
             <h3 className="poscard__title">Submit for Internal Approval</h3>
@@ -173,32 +193,36 @@ function InternalReviewScreen({
           <div className="poscard">
             <div className="poscard__head">
               <h3 className="poscard__title">What is being attested</h3>
-              <Badge kind="progress">Target {cc.name}</Badge>
             </div>
-            <div className="posapprove__attest-grid">
-              <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Capability target</span><span className="posapprove__attest-val"><strong>{cc.name}</strong> · {cc.tag}</span></div>
-              <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Items satisfied</span><span className="posapprove__attest-val posmono">{scores.met} of {scores.applicable}</span></div>
-              <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Review comments</span><span className="posapprove__attest-val posmono">{resolvedCount} of {comments.length} resolved</span></div>
-              <div className="posapprove__attest-row">
-                <span className="posapprove__attest-cap">Configuration snapshot</span>
-                {configSnapshotId.length > 0 ? (
-                  <button type="button" className="posapprove__attest-val poscclink" onClick={() => onAction("Configuration Control workbook — coming soon")}><IEIcon.Lock /> {configSnapshotId}</button>
-                ) : (
-                  <span className="posapprove__attest-val possubtle">Not linked</span>
-                )}
+            <div className="posapprove__attest-with-sign">
+              <div className="posapprove__attest-grid">
+                <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Capability target</span><span className="posapprove__attest-val"><strong>{cc.name}</strong> · {cc.tag}</span></div>
+                <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Items satisfied</span><span className="posapprove__attest-val posmono">{scores.met} of {scores.applicable}</span></div>
+                <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Review comments</span><span className="posapprove__attest-val posmono">{resolvedCount} of {comments.length} resolved</span></div>
+                <div className="posapprove__attest-row">
+                  <span className="posapprove__attest-cap">Configuration snapshot</span>
+                  {configSnapshotId.length > 0 ? (
+                    <button type="button" className="posapprove__attest-val poscclink" onClick={() => onAction("Configuration Control workbook — coming soon")}><IEIcon.Lock /> {configSnapshotId}</button>
+                  ) : (
+                    <span className="posapprove__attest-val possubtle">Not linked</span>
+                  )}
+                </div>
+                <div className="posapprove__attest-row">
+                  <span className="posapprove__attest-cap">Methods invoked</span>
+                  {methodIds.length > 0 ? (
+                    <div className="posrow posrow--wrap" style={{ gap: 6 }}>{methodIds.map((nmId) => <button key={nmId} type="button" className="poschip poschip--method" onClick={() => onAction(`${nmId} — Newly Developed Method workbook coming soon`)}><IEIcon.Bolt /> {nmId}</button>)}</div>
+                  ) : (
+                    <span className="posapprove__attest-val possubtle">None</span>
+                  )}
+                </div>
               </div>
-              <div className="posapprove__attest-row">
-                <span className="posapprove__attest-cap">Methods invoked</span>
-                {methodIds.length > 0 ? (
-                  <div className="posrow posrow--wrap" style={{ gap: 6 }}>{methodIds.map((nmId) => <button key={nmId} type="button" className="poschip poschip--method" onClick={() => onAction(`${nmId} — Newly Developed Method workbook coming soon`)}><IEIcon.Bolt /> {nmId}</button>)}</div>
-                ) : (
-                  <span className="posapprove__attest-val possubtle">None</span>
-                )}
-              </div>
+              {signCardSlot != null && (
+                <div className="posapprove__sign-col">
+                  {signCardSlot}
+                </div>
+              )}
             </div>
           </div>
-
-          {signCardSlot}
 
           {approvalTableSlot}
         </>

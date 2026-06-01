@@ -16,6 +16,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
+import { z } from "zod";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { memoryStorage } from "multer";
@@ -261,5 +262,28 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   async deleteCover(@Req() req: AuthenticatedRequest): Promise<UserProfile> {
     return this.usersService.clearCover(req.user!.username);
+  }
+
+  @Get("me/signature")
+  @HttpCode(HttpStatus.OK)
+  getSignature(@Req() req: AuthenticatedRequest): Promise<{ signatureDataUrl: string | null }> {
+    return this.usersService.getSignature(req.user!.username);
+  }
+
+  @Patch("me/signature")
+  @HttpCode(HttpStatus.OK)
+  async saveSignature(
+    @Body() body: { signatureDataUrl?: string },
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ signatureDataUrl: string | null }> {
+    const parsed = z.object({ signatureDataUrl: z.string().min(1) }).safeParse(body);
+    if (!parsed.success) throw new BadRequestException("signatureDataUrl is required");
+    return this.usersService.saveSignature(req.user!.username, parsed.data.signatureDataUrl);
+  }
+
+  @Delete("me/signature")
+  @HttpCode(HttpStatus.OK)
+  clearSignature(@Req() req: AuthenticatedRequest): Promise<{ signatureDataUrl: string | null }> {
+    return this.usersService.clearSignature(req.user!.username);
   }
 }

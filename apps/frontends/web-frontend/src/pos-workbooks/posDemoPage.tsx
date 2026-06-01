@@ -42,6 +42,7 @@ import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
+import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import "../workbooks/css/workbookWorkspace.css";
 
 interface StepHeader {
@@ -433,6 +434,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const [comments, setComments] = useState<CommentView[]>(() => commentsView(data.pos));
   const [submittedLocal, setSubmittedLocal] = useState(false);
   const [approvedLocal, setApprovedLocal] = useState(false);
+  const [demoPreparerPhase, setDemoPreparerPhase] = useState(false);
   const [commentDockOpen, setCommentDockOpen] = useState(false);
 
   useEffect(() => {
@@ -469,6 +471,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   }
 
   function handleSubmitDraft(ready: boolean): void {
+    if (actions === undefined) setSubmittedLocal(true);
     flash(ready ? "Draft submitted to internal review" : "Working draft submitted with open items");
     setStepId("review");
   }
@@ -567,7 +570,17 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       case "grouping": return <GroupingScreen {...screenProps} />;
       case "frequency": return <FrequencyScreen canEdit={canEdit} />;
       case "decayheat": return <DecayHeatScreen {...screenProps} />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={handleSubmitDraft} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={(ready) => {
+        if (actions !== undefined) {
+          actions.submitForReview()
+            .then(() => { flash("Submitted for internal review"); setStepId("review"); })
+            .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not submit for review"));
+        } else {
+          setSubmittedLocal(true);
+          flash(ready ? "Submitted for internal review" : "Working draft submitted for review");
+          setStepId("review");
+        }
+      }} canSubmit={isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED")} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen
@@ -578,12 +591,24 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           comments={comments}
           submitted={submitted}
           approved={approved}
+          actingUsername={actingUsername}
           onToggleResolved={toggleResolved}
           onSubmitToApproval={handleSubmitToApproval}
           onSign={handleSign}
           onAction={flash}
           rosterSlot={stepId === "review" ? renderRoster?.() : undefined}
-          signCardSlot={stepId === "approval" || stepId === "review" ? renderSignCard?.() : undefined}
+          signCardSlot={stepId === "approval" ? (
+            actions === undefined ? (
+              <WorkbookDemoSignCard
+                persona={persona}
+                myOpenComments={comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
+                submitted={submitted}
+                preparerPhase={demoPreparerPhase}
+                onReviewerApproverSigned={() => setDemoPreparerPhase(true)}
+                onPreparerSigned={() => { setApprovedLocal(true); flash("Workbook approved (example)"); }}
+              />
+            ) : renderSignCard?.()
+          ) : undefined}
           approvalTableSlot={stepId === "approval" ? renderApprovalTable?.() : undefined}
         />
       );

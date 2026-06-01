@@ -392,6 +392,7 @@ interface CommentView {
   authorInitials: string;
   authorTitle?: string;
   when: string;
+  createdAt: string;
   associatedSr?: string;
   section: string;
   targetLabel: string;
@@ -432,6 +433,7 @@ function commentsView(pos: PlantOperatingStatesAnalysis, now: Date = new Date())
       authorInitials: initialsOf(author?.name ?? c.authorId),
       authorTitle: author?.title,
       when: relativeFrom(c.createdAt, now),
+      createdAt: c.createdAt,
       associatedSr: c.associatedSr,
       section: item?.section ?? "Documentation",
       targetLabel: item?.text ?? "General — documentation",

@@ -106,17 +106,17 @@ interface EnrichedSource {
 const SOURCE_ENRICHMENT: Record<string, { state: string; note: string; barriers: string[] }> = {
   "in-core fuel": {
     state: "Operating + decay",
-    note: "Primary in-core fuel inventory present in all operating states.",
+    note: "Mixed-oxide SFR fuel, primary in-vessel inventory.",
     barriers: ["Cladding", "Primary boundary", "Containment"],
   },
   "cover-gas argon": {
     state: "Activated",
-    note: "Ex-core activated cover gas — a non-LWR-specific mobile source.",
+    note: "Ex-core activated gas, a non-LWR-specific mobile source.",
     barriers: ["Cover-gas boundary", "Containment"],
   },
   "spent fuel": {
     state: "Decay",
-    note: "Ex-vessel spent fuel tracked during refuelling and storage states.",
+    note: "Tracked during refuelling and storage states (POS-05/06).",
     barriers: ["Cladding", "Storage cover gas"],
   },
 };
@@ -321,29 +321,31 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
         {posLink.sources.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>No sources yet. Link a POS workbook or add sources manually.</p>
         ) : (
-          <div className="iesource-grid">
-            {buildEnrichedSources(posLink.sources, ie.initiators).map((s) => (
-              <div key={s.baseName} className="iesource">
-                <div className="iesource__head">
-                  <span className="iesource__icon"><IEIcon.Radiation /></span>
-                  <div>
-                    <div className="iesource__name">{s.baseName}</div>
-                    <div className="iesource__state">{s.state}</div>
-                  </div>
-                  {s.mechCount > 0 && (
-                    <span className="poschip poschip--primary" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
-                      {s.mechCount} mechanisms
-                    </span>
-                  )}
-                </div>
-                {s.note.length > 0 && <p className="iesource__note">{s.note}</p>}
-                <div className="iesource__barriers">
-                  <span className="possubtle" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 2 }}>Barriers</span>
-                  {s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}
-                </div>
-              </div>
-            ))}
-          </div>
+          <table className="postable iesrc-table">
+            <thead>
+              <tr>
+                <th><div className="iesrc-th">Source <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
+                <th><div className="iesrc-th">Barriers <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
+                <th><div className="iesrc-th">Escape mechanisms <span className="ieprov ieprov--ie ieprov--sm"><IEIcon.Bolt /> IE-A2</span></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              {buildEnrichedSources(posLink.sources, ie.initiators).map((s) => (
+                <tr key={s.baseName}>
+                  <td>
+                    <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.baseName}</div>
+                    <div className="iesrc__sub">{s.state}{s.note.length > 0 ? ` · ${s.note}` : ""}</div>
+                  </td>
+                  <td><div className="iesrc__chips">{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div></td>
+                  <td>
+                    {s.mechCount > 0
+                      ? <><span className="iesrc__mech-n">{s.mechCount}</span> <span className="iesrc__mech-cap">identified</span></>
+                      : <span className="possubtle">None identified</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 

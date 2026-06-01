@@ -95,6 +95,55 @@ interface ScreenProps {
   onAction: (msg: string) => void;
 }
 
+interface EnrichedSource {
+  baseName: string;
+  state: string;
+  note: string;
+  barriers: string[];
+  mechCount: number;
+}
+
+const SOURCE_ENRICHMENT: Record<string, { state: string; note: string; barriers: string[] }> = {
+  "in-core fuel": {
+    state: "Operating + decay",
+    note: "Primary in-core fuel inventory present in all operating states.",
+    barriers: ["Cladding", "Primary boundary", "Containment"],
+  },
+  "cover-gas argon": {
+    state: "Activated",
+    note: "Ex-core activated cover gas — a non-LWR-specific mobile source.",
+    barriers: ["Cover-gas boundary", "Containment"],
+  },
+  "spent fuel": {
+    state: "Decay",
+    note: "Ex-vessel spent fuel tracked during refuelling and storage states.",
+    barriers: ["Cladding", "Storage cover gas"],
+  },
+};
+
+function sourceBaseName(name: string): string {
+  return name.replace(/\s*\([^)]*\)$/, "").trim();
+}
+
+function buildEnrichedSources(rawSources: { id: string; name: string; location: string; barriers: string[] }[], initiators: InitiatorDefinition[]): EnrichedSource[] {
+  const seen = new Set<string>();
+  const out: EnrichedSource[] = [];
+  for (const s of rawSources) {
+    const base = sourceBaseName(s.name);
+    const key = base.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const enrichKey = Object.keys(SOURCE_ENRICHMENT).find((k) => key.includes(k));
+    const enrich = enrichKey !== undefined ? SOURCE_ENRICHMENT[enrichKey] : undefined;
+    const barriers = enrich?.barriers ?? s.barriers;
+    const mechCount = initiators.filter((init) =>
+      init.barrierImpacts.some((bi) => barriers.some((b) => b.toLowerCase().includes(bi.barrierId.toLowerCase())))
+    ).length;
+    out.push({ baseName: base, state: enrich?.state ?? s.location, note: enrich?.note ?? "", barriers, mechCount });
+  }
+  return out;
+}
+
 interface ScopeScreenProps extends ScreenProps {
   stage: Stage;
   setStage: (s: Stage) => void;
@@ -135,7 +184,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
     return base;
   });
 
-  const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope — IE-A16 applies";
+  const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope";
 
   return (
     <>
@@ -182,7 +231,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
             {siteConfig === "single"
               ? <input id="ie-scope-units" className="iefield__input iefield__input--locked" value="1" readOnly />
               : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={unitCount} onChange={(e) => setUnitCount(e.target.value)} />}
-            {siteConfig === "multi" && <div className="iefield__hint">Number of co-located units (2–6 typical).</div>}
           </div>
 
           {/* Operating modes */}
@@ -273,38 +321,29 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
         {posLink.sources.length === 0 ? (
           <p className="posmuted" style={{ margin: 0 }}>No sources yet. Link a POS workbook or add sources manually.</p>
         ) : (
-          <table className="postable iesrc-table">
-            <thead>
-              <tr>
-                <th><div className="iesrc-th">Source <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
-                <th><div className="iesrc-th">Barriers <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
-                <th><div className="iesrc-th">Escape mechanisms <span className="ieprov ieprov--ie ieprov--sm"><IEIcon.Bolt /> IE-A2</span></div></th>
-              </tr>
-            </thead>
-            <tbody>
-              {posLink.sources.map((s) => {
-                const mechCount = ie.initiators.filter((init) =>
-                  init.barrierImpacts.some((bi) => s.barriers.some((b) => b.toLowerCase().includes(bi.barrierId.toLowerCase())))
-                ).length;
-                return (
-                  <tr key={s.id}>
-                    <td>
-                      <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.name}</div>
-                      <div className="iesrc__sub">{s.location}</div>
-                    </td>
-                    <td>
-                      <div className="iesrc__chips">{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div>
-                    </td>
-                    <td>
-                      {mechCount > 0
-                        ? <><span className="iesrc__mech-n">{mechCount}</span> <span className="iesrc__mech-cap">identified</span></>
-                        : <span className="possubtle">—</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="iesource-grid">
+            {buildEnrichedSources(posLink.sources, ie.initiators).map((s) => (
+              <div key={s.baseName} className="iesource">
+                <div className="iesource__head">
+                  <span className="iesource__icon"><IEIcon.Radiation /></span>
+                  <div>
+                    <div className="iesource__name">{s.baseName}</div>
+                    <div className="iesource__state">{s.state}</div>
+                  </div>
+                  {s.mechCount > 0 && (
+                    <span className="poschip poschip--primary" style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
+                      {s.mechCount} mechanisms
+                    </span>
+                  )}
+                </div>
+                {s.note.length > 0 && <p className="iesource__note">{s.note}</p>}
+                <div className="iesource__barriers">
+                  <span className="possubtle" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.06em", marginRight: 2 }}>Barriers</span>
+                  {s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

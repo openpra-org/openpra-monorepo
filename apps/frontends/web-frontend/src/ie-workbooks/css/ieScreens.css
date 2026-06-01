@@ -141,7 +141,7 @@
 .iefield-grid--span2 { grid-column: span 2; }
 
 .iefield { display: flex; flex-direction: column; gap: 6px; }
-.iefield__labelrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.iefield__labelrow { display: flex; align-items: center; gap: 10px; }
 .iefield__label { font-size: 13px; font-weight: 600; color: var(--color-text); }
 .iefield__hint { font-size: 11.5px; color: var(--color-text-muted); }
 
@@ -271,6 +271,26 @@
 .iecombo { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
 .iecombo__source { font-size: 11.5px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
 .iecombo__text { font-size: 13.5px; color: var(--color-text); line-height: 1.55; margin: 0; }
+
+/* Source cards — matches reference .iesource-grid / .iesource */
+.iesource-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.iesource {
+  border: 1px solid var(--color-border); border-radius: 12px; padding: 14px;
+  background: var(--color-surface); display: flex; flex-direction: column; gap: 10px;
+}
+.iesource__head { display: flex; align-items: center; gap: 10px; }
+.iesource__icon {
+  display: inline-flex; width: 32px; height: 32px; padding: 7px; border-radius: 9px; flex-shrink: 0;
+  color: var(--color-primary); background: var(--color-primary-soft);
+}
+.iesource__icon svg { width: 100%; height: 100%; }
+.iesource__name { font-family: 'Literata', serif; font-weight: 700; font-size: 14.5px; color: var(--color-text); }
+.iesource__state { font-size: 11.5px; color: var(--color-text-subtle); margin-top: 1px; }
+.iesource__note { margin: 0; font-size: 12.5px; color: var(--color-text-muted); line-height: 1.5; }
+.iesource__barriers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+@media (max-width: 900px) { .iesource-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .iesource-grid { grid-template-columns: 1fr; } }
 
 /* Source table — matches reference .iesrc-table / .iesrc__* */
 .iesrc-table { width: 100%; table-layout: fixed; }

@@ -12,6 +12,7 @@ import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { FrequencyUnit, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
+import { type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 
 function cm(srCode: string, hlr: SRConformance["hlr"], status: SRConformance["status"], stages: SRConformance["applicableToStage"], evidence: string): SRConformance {
   return { sr: srCode, hlr, capabilityCategory: "CC-II", applicableToStage: stages, status, satisfiedByElementPaths: [], evidence };
@@ -29,6 +30,21 @@ function freq(value: number): FrequencyWithDistribution {
   return { value, units: FrequencyUnit.PER_PLANT_YEAR };
 }
 
+function preOpAssumption(id: string, description: string): PreOperationalAssumption {
+  return {
+    uuid: `${id}-PA-1`,
+    assumptionId: `PA-${id}`,
+    description,
+    status: "OPEN",
+    limitations: [],
+    influenceOnDefinition: "Frequency estimate relies on pre-operational design-based data",
+    riskImpact: ImportanceLevel.MEDIUM,
+    closureBasis: "Confirm with commissioning test data and initial plant-specific operating experience",
+    plannedClosureActions: ["Confirm at commissioning"],
+    affectedElementIds: [id],
+  };
+}
+
 interface InitiatorSeed {
   id: string;
   name: string;
@@ -44,20 +60,39 @@ interface InitiatorSeed {
   importance: ImportanceLevel;
   groupId?: string;
   basis: string;
+  preop?: string;
 }
 
 const INITIATOR_SEEDS: InitiatorSeed[] = [
-  { id: "IE-01", name: "Loss of offsite power (LOOP)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of AC power", states: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"], method: "GENLIST", trip: "Bus undervoltage", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 3.1e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-TRANS", basis: "Generic LWR/SFR operating experience filtered for plant applicability." },
-  { id: "IE-02", name: "Turbine / sCO2 power-conversion trip", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of power conversion", states: ["POS-01", "POS-02"], method: "HBFT", trip: "Turbine trip signal", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 1.2e0, screening: ScreeningStatus.MERGED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-TRANS", basis: "Heat-balance fault tree on the power-conversion train." },
-  { id: "IE-04", name: "Loss of primary sodium flow", category: InitiatingEventCategory.TRANSIENT, subcategory: "Primary pump trip (ULOF precursor)", states: ["POS-01", "POS-02"], method: "MLD", trip: "Low primary flow", safety: ["Heat removal", "Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 4.5e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-LOFA", basis: "Master logic diagram, flow-to-power branch." },
-  { id: "IE-05", name: "Loss of heat sink (IHX / intermediate loop)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of normal heat removal", states: ["POS-01", "POS-02", "POS-03", "POS-08"], method: "HBFT", trip: "Intermediate-loop low flow", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 2.7e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-LOHS", basis: "Design-based estimate for intermediate-loop faults." },
-  { id: "IE-08", name: "Small primary sodium boundary leak", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Small breach", states: ["POS-01", "POS-03", "POS-04", "POS-07"], method: "MLD", trip: "Sodium leak / level", safety: ["Coolant inventory", "Radionuclide retention"], barrier: BarrierImpactState.BREACHED, frequency: 1.4e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-RCB", basis: "Generic boundary-leak data, sodium-systems adjusted." },
-  { id: "IE-09", name: "Large primary boundary breach (RPV)", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Excessive breach", states: ["POS-01"], method: "MLD", trip: "Rapid level loss", safety: ["Coolant inventory", "Radionuclide retention"], barrier: BarrierImpactState.BREACHED, frequency: 1.0e-6, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-RCB", basis: "Cannot be screened: breaches a radionuclide transport barrier (IE-C9 precondition)." },
-  { id: "IE-11", name: "Cover-gas system breach (bypass)", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Radionuclide bypass", states: ["POS-01", "POS-06", "POS-09"], method: "FMEA", trip: "Cover-gas pressure / activity", safety: ["Radionuclide retention"], barrier: BarrierImpactState.BYPASSED, frequency: 2.2e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "Interfacing-system path bypasses containment, retained regardless of frequency." },
-  { id: "IE-13", name: "Loss of DC bus / instrument power", category: InitiatingEventCategory.SPECIAL, subcategory: "Support-system failure", states: ["POS-01", "POS-03", "POS-04"], method: "FMEA", trip: "Bus undervoltage", safety: ["Heat removal", "Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 1.6e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-TRANS", basis: "Support-system FMEA to train level." },
-  { id: "IE-15", name: "Internal fire (primary sodium cell)", category: InitiatingEventCategory.INTERNAL_HAZARD, subcategory: "Sodium fire", states: ["POS-01", "POS-08"], method: "MLD", trip: "Fire / smoke detection", safety: ["Heat removal", "Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 5.0e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "Frequency developed in the Internal Fire PRA and imported here." },
-  { id: "IE-17", name: "Seismic event (design-basis ground motion)", category: InitiatingEventCategory.EXTERNAL_HAZARD, subcategory: "Seismic", states: ["POS-01"], method: "OEREV", trip: "Seismic trip", safety: ["Heat removal", "Reactivity control", "Coolant inventory"], barrier: BarrierImpactState.DEGRADED, frequency: 1.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "Hazard frequency from the Seismic PRA, combined with sodium fire." },
-  { id: "IE-18", name: "Erroneous RCS drain-down (shutdown)", category: InitiatingEventCategory.HUMAN_FAILURE, subcategory: "At-initiator human failure", states: ["POS-04", "POS-05"], method: "FMEA", trip: "Level deviation", safety: ["Coolant inventory", "Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 4.0e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, basis: "Split-fraction operator contribution per IE-C13, HRA input pending." },
+  // ─── Transients ──────────────────────────────────────────────────────────
+  { id: "IE-01", name: "Loss of offsite power (LOOP)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of AC power", states: ["POS-01","POS-02","POS-03","POS-04","POS-07"], method: "GENLIST", trip: "Bus undervoltage", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 3.1e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
+  { id: "IE-02", name: "Turbine / sCO2 power-conversion trip", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of power conversion", states: ["POS-01","POS-02"], method: "HBFT", trip: "Turbine trip signal", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 1.2e0, screening: ScreeningStatus.MERGED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
+  { id: "IE-03", name: "Spurious reactor trip (scram)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Spurious protection actuation", states: ["POS-01","POS-02"], method: "FMEA", trip: "Spurious RPS trip", safety: ["Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 8.0e-1, screening: ScreeningStatus.MERGED, importance: ImportanceLevel.LOW, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
+  { id: "IE-04", name: "Loss of primary sodium flow", category: InitiatingEventCategory.TRANSIENT, subcategory: "Primary pump trip (ULOF precursor)", states: ["POS-01","POS-02"], method: "MLD", trip: "Low primary flow", safety: ["Heat removal","Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 4.5e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-LOFA", basis: "DESIGN_BASED", preop: "Pump coastdown credit from prototype-scale data, with closure planned at commissioning." },
+  { id: "IE-05", name: "Loss of heat sink (IHX / intermediate loop)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Loss of normal heat removal", states: ["POS-01","POS-02","POS-03","POS-08"], method: "HBFT", trip: "Intermediate-loop low flow", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 2.7e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-LOHS", basis: "DESIGN_BASED" },
+  { id: "IE-06", name: "Reactivity insertion (rod withdrawal)", category: InitiatingEventCategory.TRANSIENT, subcategory: "Transient overpower (TOP)", states: ["POS-01","POS-02","POS-03"], method: "MLD", trip: "High power / high flux", safety: ["Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 9.0e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-LOFA", basis: "DESIGN_BASED" },
+  { id: "IE-07", name: "Loss of feed to power-conversion loop", category: InitiatingEventCategory.TRANSIENT, subcategory: "Secondary inventory loss", states: ["POS-01"], method: "FMEA", trip: "Low PCS inventory", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 3.5e-1, screening: ScreeningStatus.MERGED, importance: ImportanceLevel.LOW, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
+
+  // ─── RCB breaches ────────────────────────────────────────────────────────
+  { id: "IE-08", name: "Small primary sodium boundary leak", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Small breach", states: ["POS-01","POS-03","POS-04","POS-07"], method: "MLD", trip: "Sodium leak / level", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.BREACHED, frequency: 1.4e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-RCB", basis: "GENERIC_DATA" },
+  { id: "IE-09", name: "Large primary boundary breach (RPV)", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Excessive breach", states: ["POS-01"], method: "MLD", trip: "Rapid level loss", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.BREACHED, frequency: 1.0e-6, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, groupId: "IEG-RCB", basis: "DESIGN_BASED" },
+  { id: "IE-10", name: "IHX tube leak (Na-to-Na / Na-to-CO2)", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Heat-exchanger failure", states: ["POS-01","POS-02"], method: "HBFT", trip: "Cover-gas activity / delta-P", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 6.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-RCB", basis: "SIMILAR_PLANT_DATA" },
+
+  // ─── Interfacing-systems breaches ────────────────────────────────────────
+  { id: "IE-11", name: "Cover-gas system breach (bypass)", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Radionuclide bypass", states: ["POS-01","POS-06","POS-09"], method: "FMEA", trip: "Cover-gas pressure / activity", safety: ["Radionuclide retention"], barrier: BarrierImpactState.BYPASSED, frequency: 2.2e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "DESIGN_BASED" },
+  { id: "IE-12", name: "Sodium-CO2 interaction via PCS boundary", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Interfacing reaction", states: ["POS-01","POS-02"], method: "HBFT", trip: "PCS pressure / Na detection", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 3.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-RCB", basis: "DESIGN_BASED" },
+
+  // ─── Special initiators ──────────────────────────────────────────────────
+  { id: "IE-13", name: "Loss of DC bus / instrument power", category: InitiatingEventCategory.SPECIAL, subcategory: "Support-system failure", states: ["POS-01","POS-03","POS-04"], method: "FMEA", trip: "Bus undervoltage", safety: ["Heat removal","Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 1.6e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
+  { id: "IE-14", name: "Loss of component cooling / service water", category: InitiatingEventCategory.SPECIAL, subcategory: "Support-system failure", states: ["POS-01","POS-03"], method: "FMEA", trip: "Cooling-water low flow", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 2.0e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-LOHS", basis: "GENERIC_DATA" },
+
+  // ─── Hazard-induced ──────────────────────────────────────────────────────
+  { id: "IE-15", name: "Internal fire (primary sodium cell)", category: InitiatingEventCategory.INTERNAL_HAZARD, subcategory: "Sodium fire", states: ["POS-01","POS-08"], method: "MLD", trip: "Fire / smoke detection", safety: ["Heat removal","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 5.0e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "DESIGN_BASED" },
+  { id: "IE-16", name: "Internal flood (cooling-water line break)", category: InitiatingEventCategory.INTERNAL_HAZARD, subcategory: "Internal flood", states: ["POS-01"], method: "OEREV", trip: "Area level / sump", safety: ["Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 8.0e-4, screening: ScreeningStatus.SCREENED_OUT, importance: ImportanceLevel.LOW, basis: "SIMILAR_PLANT_DATA" },
+  { id: "IE-17", name: "Seismic event (design-basis ground motion)", category: InitiatingEventCategory.EXTERNAL_HAZARD, subcategory: "Seismic", states: ["POS-01"], method: "OEREV", trip: "Seismic trip", safety: ["Heat removal","Reactivity control","Coolant inventory"], barrier: BarrierImpactState.DEGRADED, frequency: 1.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "DESIGN_BASED" },
+
+  // ─── Human-failure-induced ───────────────────────────────────────────────
+  { id: "IE-18", name: "Erroneous RCS drain-down (shutdown)", category: InitiatingEventCategory.HUMAN_FAILURE, subcategory: "At-initiator human failure", states: ["POS-04","POS-05"], method: "FMEA", trip: "Level deviation", safety: ["Coolant inventory","Heat removal"], barrier: BarrierImpactState.INTACT, frequency: 4.0e-3, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, basis: "DESIGN_BASED", preop: "Split-fraction operator contribution per IE-C13, with HRA input pending." },
 ];
 
 function buildInitiator(seed: InitiatorSeed): InitiatorDefinition {
@@ -78,6 +113,7 @@ function buildInitiator(seed: InitiatorSeed): InitiatorDefinition {
     challengedSafetyFunctions: seed.safety,
     screeningStatus: seed.screening,
     importanceLevel: seed.importance,
+    preOperationalAssumptions: seed.preop ? [preOpAssumption(seed.id, seed.preop)] : undefined,
     implementsSrs: [sr("IE-A5", "A")],
   };
 }
@@ -85,31 +121,145 @@ function buildInitiator(seed: InitiatorSeed): InitiatorDefinition {
 const INITIATORS: InitiatorDefinition[] = INITIATOR_SEEDS.map(buildInitiator);
 
 const GROUPS: InitiatingEventGroup[] = [
-  { uuid: "IEG-TRANS", name: "General transient group", description: "Transients that keep the RCB intact.", memberInitiatorIds: ["IE-01", "IE-02", "IE-13"], groupingBasis: "All keep the RCB intact and demand the same heat-removal and reactivity-control functions. LOOP bounds the group.", boundingInitiatorId: "IE-01", similarMitigationRequirements: ["Heat removal", "Reactivity control"], groupingDoesNotMaskRiskSignificantSequences: true, comparableImpactAcrossMembers: true, challengedSafetyFunctions: ["Heat removal", "Reactivity control"], applicableStates: ["POS-01", "POS-02", "POS-03"], meanFrequency: freq(2.6e0), riskImportance: ImportanceLevel.HIGH, implementsSrs: [sr("IE-B4", "B")] },
-  { uuid: "IEG-LOHS", name: "Loss of heat sink group", description: "Loss of the normal heat-removal path.", memberInitiatorIds: ["IE-05"], groupingBasis: "Events that remove the normal heat-removal path and rely on DRACS as the backup.", boundingInitiatorId: "IE-05", similarMitigationRequirements: ["Heat removal"], groupingDoesNotMaskRiskSignificantSequences: true, comparableImpactAcrossMembers: true, challengedSafetyFunctions: ["Heat removal"], applicableStates: ["POS-01", "POS-02", "POS-03", "POS-08"], meanFrequency: freq(4.7e-2), riskImportance: ImportanceLevel.HIGH, implementsSrs: [sr("IE-B4", "B")] },
-  { uuid: "IEG-LOFA", name: "Loss-of-flow / reactivity group", description: "Challenges to the flow-to-power balance.", memberInitiatorIds: ["IE-04"], groupingBasis: "Loss of primary flow bounds the group for cladding thermal margin.", boundingInitiatorId: "IE-04", similarMitigationRequirements: ["Heat removal", "Reactivity control"], groupingDoesNotMaskRiskSignificantSequences: false, comparableImpactAcrossMembers: true, challengedSafetyFunctions: ["Heat removal", "Reactivity control"], applicableStates: ["POS-01", "POS-02"], meanFrequency: freq(5.4e-2), riskImportance: ImportanceLevel.HIGH, implementsSrs: [sr("IE-B4", "B")] },
-  { uuid: "IEG-RCB", name: "RCB breach group (by size)", description: "Reactor coolant boundary breaches grouped by size.", memberInitiatorIds: ["IE-08", "IE-09"], groupingBasis: "Breaches grouped by size and location. The large breach bounds inventory-loss timing.", boundingInitiatorId: "IE-09", similarMitigationRequirements: ["Coolant inventory", "Radionuclide retention"], groupingDoesNotMaskRiskSignificantSequences: true, comparableImpactAcrossMembers: false, challengedSafetyFunctions: ["Coolant inventory", "Radionuclide retention"], applicableStates: ["POS-01", "POS-03", "POS-04", "POS-07"], meanFrequency: freq(2.3e-3), riskImportance: ImportanceLevel.MEDIUM, implementsSrs: [sr("IE-B4", "B")] },
+  {
+    uuid: "IEG-TRANS", name: "General transient group",
+    description: "Transients that keep the RCB intact and demand the same heat-removal and reactivity-control functions.",
+    memberInitiatorIds: ["IE-01","IE-02","IE-03","IE-07","IE-13"],
+    groupingBasis: "All keep the RCB intact and demand the same heat-removal and reactivity-control functions. LOOP bounds the group (loss of AC).",
+    boundingInitiatorId: "IE-01",
+    similarMitigationRequirements: ["Heat removal","Reactivity control"],
+    groupingDoesNotMaskRiskSignificantSequences: true,
+    comparableImpactAcrossMembers: true,
+    challengedSafetyFunctions: ["Heat removal","Reactivity control"],
+    applicableStates: ["POS-01","POS-02","POS-03","POS-04","POS-07"],
+    meanFrequency: freq(2.6e0), riskImportance: ImportanceLevel.HIGH,
+    implementsSrs: [sr("IE-B4","B")],
+  },
+  {
+    uuid: "IEG-LOHS", name: "Loss of heat sink group",
+    description: "Events that remove the normal heat-removal path and rely on DRACS as the backup.",
+    memberInitiatorIds: ["IE-05","IE-14"],
+    groupingBasis: "Both remove the normal heat-removal path and rely on DRACS as the backup. IHX loss bounds for timing to DRACS actuation.",
+    boundingInitiatorId: "IE-05",
+    similarMitigationRequirements: ["Heat removal"],
+    groupingDoesNotMaskRiskSignificantSequences: true,
+    comparableImpactAcrossMembers: true,
+    challengedSafetyFunctions: ["Heat removal"],
+    applicableStates: ["POS-01","POS-02","POS-03","POS-08"],
+    meanFrequency: freq(4.7e-2), riskImportance: ImportanceLevel.HIGH,
+    implementsSrs: [sr("IE-B4","B")],
+  },
+  {
+    uuid: "IEG-LOFA", name: "Loss-of-flow / reactivity group",
+    description: "Challenges to the flow-to-power balance. Loss of primary flow bounds for cladding thermal margin.",
+    memberInitiatorIds: ["IE-04","IE-06"],
+    groupingBasis: "Both challenge the flow-to-power balance. Loss of primary flow bounds the group for cladding thermal margin.",
+    boundingInitiatorId: "IE-04",
+    similarMitigationRequirements: ["Heat removal","Reactivity control"],
+    groupingDoesNotMaskRiskSignificantSequences: false,
+    comparableImpactAcrossMembers: true,
+    challengedSafetyFunctions: ["Heat removal","Reactivity control"],
+    applicableStates: ["POS-01","POS-02","POS-03"],
+    meanFrequency: freq(5.4e-2), riskImportance: ImportanceLevel.HIGH,
+    implementsSrs: [sr("IE-B4","B")],
+  },
+  {
+    uuid: "IEG-RCB", name: "RCB breach group (by size)",
+    description: "Reactor coolant boundary breaches grouped by size and location.",
+    memberInitiatorIds: ["IE-08","IE-09","IE-10","IE-12"],
+    groupingBasis: "Breaches grouped by size and location. The large breach bounds inventory-loss timing, with sub-groups kept for ES success criteria.",
+    boundingInitiatorId: "IE-09",
+    similarMitigationRequirements: ["Coolant inventory","Radionuclide retention"],
+    groupingDoesNotMaskRiskSignificantSequences: true,
+    comparableImpactAcrossMembers: false,
+    challengedSafetyFunctions: ["Coolant inventory","Radionuclide retention"],
+    applicableStates: ["POS-01","POS-02","POS-03","POS-04","POS-07"],
+    meanFrequency: freq(2.3e-3), riskImportance: ImportanceLevel.MEDIUM,
+    implementsSrs: [sr("IE-B4","B")],
+  },
 ];
 
+const COMBO_TEXT = "Seismically-induced sodium fire. A seismic event ruptures a sodium line and ignites a cell fire. Retained as a distinct sequence for Event Sequence Analysis.";
+
 const HAZARDS: HazardAnalysis[] = [
-  { uuid: "HZ-FIRE", name: "Internal fire", description: "Sodium-cell fire.", hazardType: "INTERNAL", subcategory: "Sodium fire", severityLevels: ["Design-basis"], affectedAreas: ["Primary sodium cell", "Cable spreading room"], radionuclideBarrierIds: ["RCB"], inducingMechanisms: ["Sodium leak ignition"], inducedInitiatorIds: ["IE-15"], potentialCombinations: ["CMB-1"], analysisMethods: ["MLD"], screeningStatus: ScreeningStatus.RETAINED, screeningBasis: "Sodium-fire frequency developed in element F and handed to IE.", implementsSrs: [sr("IE-A5", "A")] },
-  { uuid: "HZ-SEIS", name: "Seismic", description: "Design-basis ground motion.", hazardType: "EXTERNAL", subcategory: "Seismic", severityLevels: ["Design-basis"], affectedAreas: ["Whole plant"], radionuclideBarrierIds: ["RCB"], inducingMechanisms: ["Ground motion"], inducedInitiatorIds: ["IE-17"], potentialCombinations: ["CMB-1"], analysisMethods: ["OEREV"], screeningStatus: ScreeningStatus.RETAINED, screeningBasis: "Design-basis ground-motion fragilities from element S drive initiator IE-17.", implementsSrs: [sr("IE-A6", "A")] },
+  {
+    uuid: "HZ-FIRE", name: "Internal fire",
+    description: "Sodium-cell fire initiated by a sodium leak or ignition event.",
+    hazardType: "INTERNAL", subcategory: "Sodium fire",
+    severityLevels: ["Design-basis"], affectedAreas: ["Primary sodium cell","Cable spreading room"],
+    radionuclideBarrierIds: ["RCB"], inducingMechanisms: ["Sodium leak ignition"],
+    inducedInitiatorIds: ["IE-15"],
+    potentialCombinations: [],
+    analysisMethods: ["MLD"],
+    screeningStatus: ScreeningStatus.RETAINED,
+    screeningBasis: "Sodium-fire frequency developed in element F and handed to IE.",
+    implementsSrs: [sr("IE-A5","A")],
+  },
+  {
+    uuid: "HZ-FLOOD", name: "Internal flood",
+    description: "Cooling-water line break or spray with flooding of plant areas.",
+    hazardType: "INTERNAL", subcategory: "Internal flood",
+    severityLevels: ["Design-basis"], affectedAreas: ["Component-cooling room"],
+    radionuclideBarrierIds: [], inducingMechanisms: ["Cooling-water line break"],
+    inducedInitiatorIds: ["IE-16"],
+    potentialCombinations: [],
+    analysisMethods: ["OEREV"],
+    screeningStatus: ScreeningStatus.SCREENED_OUT,
+    screeningBasis: "Induced initiator IE-16 screened out via SCR-3; slow-developing with administrative detection and correction.",
+    implementsSrs: [sr("IE-A5","A")],
+  },
+  {
+    uuid: "HZ-SEIS", name: "Seismic",
+    description: "Design-basis ground motion driving structural and equipment failures.",
+    hazardType: "EXTERNAL", subcategory: "Seismic",
+    severityLevels: ["Design-basis"], affectedAreas: ["Whole plant"],
+    radionuclideBarrierIds: ["RCB"], inducingMechanisms: ["Ground motion"],
+    inducedInitiatorIds: ["IE-17"],
+    potentialCombinations: [COMBO_TEXT],
+    analysisMethods: ["OEREV"],
+    screeningStatus: ScreeningStatus.RETAINED,
+    screeningBasis: "Design-basis ground-motion fragilities from element S drive initiator IE-17.",
+    implementsSrs: [sr("IE-A6","A")],
+  },
 ];
 
 const SCREENING: InitiatingEventScreeningRecord[] = [
-  { initiatorOrGroupId: "IE-02", retained: false, criterion: "SCR-1", barrierIntegrityPreconditionMet: true, justification: "Same plant impact as the bounding general transient (IE-01) which has a higher frequency. Subsumed into IEG-TRANS.", implementsSrs: [sr("IE-C9", "C")] },
-  { initiatorOrGroupId: "IE-09", retained: true, barrierIntegrityPreconditionMet: false, justification: "Cannot be screened. The event breaches a radionuclide transport barrier, so the IE-C9(a) precondition fails regardless of its frequency. Retained for full analysis.", implementsSrs: [sr("IE-C9", "C")] },
+  {
+    initiatorOrGroupId: "IE-16", retained: false, criterion: "SCR-3",
+    barrierIntegrityPreconditionMet: true,
+    justification: "Slow-developing, with area-level alarms. The leak is isolated administratively well before any forced shutdown. Detection and correction are demonstrated by calculation, so no complicated shutdown occurs.",
+    implementsSrs: [sr("IE-C9","C")],
+  },
+  {
+    initiatorOrGroupId: "IE-07", retained: false, criterion: "SCR-1",
+    barrierIntegrityPreconditionMet: true,
+    justification: "Same plant impact as the bounding general transient (IE-01) which has a much higher frequency. Subsumed into IEG-TRANS.",
+    implementsSrs: [sr("IE-C9","C")],
+  },
+  {
+    initiatorOrGroupId: "IE-03", retained: false, criterion: "SCR-1",
+    barrierIntegrityPreconditionMet: true,
+    justification: "Bounded by, and far less limiting than, the general transient group. Merged for mitigation analysis, with frequency retained in the group total.",
+    implementsSrs: [sr("IE-C9","C")],
+  },
+  {
+    initiatorOrGroupId: "IE-09", retained: true, criterion: undefined,
+    barrierIntegrityPreconditionMet: false,
+    justification: "Cannot be screened. The event breaches a radionuclide transport barrier, so the IE-C9(a) precondition fails regardless of its frequency of 1E-06 per plant-yr. Retained for full analysis.",
+    implementsSrs: [sr("IE-C9","C")],
+  },
 ];
 
 const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
-  { initiatorOrGroupId: "IEG-TRANS", meanFrequency: freq(2.6e0), basis: "GENERIC_DATA", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Generic transient frequencies, plant-calendar-year basis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IEG-LOHS", meanFrequency: freq(4.7e-2), basis: "DESIGN_BASED", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Design-based estimate for intermediate-loop faults.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IEG-LOFA", meanFrequency: freq(5.4e-2), basis: "DESIGN_BASED", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Pump coastdown credit from prototype-scale data.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IEG-RCB", meanFrequency: freq(2.3e-3), basis: "SIMILAR_PLANT_DATA", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Similar-plant boundary-breach data.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IE-11", meanFrequency: freq(2.2e-4), basis: "DESIGN_BASED", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Cover-gas boundary design analysis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IE-15", meanFrequency: freq(5.0e-3), basis: "FAULT_TREE", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Internal Fire PRA fault tree.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IE-17", meanFrequency: freq(1.0e-4), basis: "DESIGN_BASED", plantCalendarYearBasis: true, posTimeFractionApplied: false, dataSourceJustification: "Seismic hazard curve already integrates over time.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8", "C")] },
-  { initiatorOrGroupId: "IE-18", meanFrequency: freq(4.0e-3), basis: "DESIGN_BASED", plantCalendarYearBasis: true, posTimeFractionApplied: true, dataSourceJustification: "Operator drain-down split fraction per IE-C13.", recoveryActionsIncluded: true, implementsSrs: [sr("IE-C8", "C")] },
+  { initiatorOrGroupId: "IEG-TRANS", meanFrequency: freq(2.6e0),  basis: "GENERIC_DATA",       plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Generic transient frequencies from NUREG/CR-5750, plant-calendar-year basis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-LOHS",  meanFrequency: freq(4.7e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-based estimate for intermediate-loop faults.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-LOFA",  meanFrequency: freq(5.4e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Pump coastdown credit from prototype-scale data.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-RCB",   meanFrequency: freq(2.3e-3), basis: "SIMILAR_PLANT_DATA",  plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Similar-plant boundary-breach data, adjusted for sodium systems.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-09",     meanFrequency: freq(1.0e-6), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-basis estimate; cannot be screened due to barrier breach.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-11",     meanFrequency: freq(2.2e-4), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Cover-gas boundary design analysis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-15",     meanFrequency: freq(5.0e-3), basis: "FAULT_TREE",          plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Internal Fire PRA fault tree (element F).", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-17",     meanFrequency: freq(1.0e-4), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: false, dataSourceJustification: "Seismic hazard curve already integrates over time; POS weighting not applicable.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-18",     meanFrequency: freq(4.0e-3), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Operator drain-down split fraction per IE-C13.", recoveryActionsIncluded: true, implementsSrs: [sr("IE-C8","C")] },
 ];
 
 const NOW = "2026-04-22T12:00:00.000Z";
@@ -197,7 +347,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
     perSupportSystemSearchPerformed: true,
     multiReactorEventsAddressed: false,
     radioactiveSourceMechanismsAddressed: true,
-    implementsSrs: [sr("IE-A9", "A"), sr("IE-A15", "A")],
+    implementsSrs: [sr("IE-A9","A"), sr("IE-A15","A")],
   },
   hazardAnalyses: HAZARDS,
   quantifications: QUANTIFICATIONS,
@@ -206,7 +356,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
     processDescription: "Initiating events identified by a structured, systematic process across the seven IE-A5 categories.",
     inputSources: "POS workbook (operating states and sources), generic SFR data, NUREG/CR-5750, EPRI shutdown catalog.",
     appliedMethods: "Master logic diagram, FMEA, heat-balance fault trees, operating-experience review, generic catalog.",
-    resultsSummary: "Eleven initiators identified across all seven challenge categories, grouped into four bounding cases.",
+    resultsSummary: "18 initiators identified across all seven challenge categories, grouped into four bounding cases.",
     functionalCategoriesConsidered: "All seven IE-A5 functional categories considered.",
     plantUniqueInitiatorsSearch: "Sodium-systems and cover-gas faults searched via HAZOPS overlay.",
     stateSpecificInitiatorsSearch: "Each initiator tested in every applicable operating state.",
@@ -220,6 +370,6 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
     modelUncertaintySources: "Pump coastdown credit and operator split fractions identified as uncertainty sources.",
     asBuiltLimitations: "Pre-operational; several assumptions close at commissioning.",
     praTaskInterfaces: "Feeds Event Sequence Analysis (ES) and Event Sequence Quantification (ESQ).",
-    implementsSrs: [sr("IE-D1", "D")],
+    implementsSrs: [sr("IE-D1","D")],
   },
 };

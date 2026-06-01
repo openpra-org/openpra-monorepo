@@ -11,7 +11,7 @@ import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-t
 import { IEIcon } from "./ieIcons";
 import { Badge, Stat } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
-import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
+import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, METHOD_REGISTRY, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
@@ -497,11 +497,21 @@ function MethodsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const methodIds = new Set<string>();
   for (const i of ie.initiators) for (const m of i.identificationMethodIds) methodIds.add(m);
-  const byMethod = Array.from(methodIds).map((m) => ({
-    id: m,
-    spec: methodSpec(m),
-    count: ie.initiators.filter((i) => i.identificationMethodIds.includes(m)).length,
-  }));
+  const registryOrder = Object.keys(METHOD_REGISTRY);
+  const byMethod = Array.from(methodIds)
+    .sort((a, b) => {
+      const ia = registryOrder.indexOf(a);
+      const ib = registryOrder.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    })
+    .map((m) => ({
+      id: m,
+      spec: methodSpec(m),
+      count: ie.initiators.filter((i) => i.identificationMethodIds.includes(m)).length,
+    }));
   return (
     <>
       <div className="posstats">

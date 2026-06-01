@@ -275,7 +275,7 @@ interface IeWorkbenchActions {
 const DEFAULT_PERSONAS: IePersona[] = ["preparer", "reviewer", "approver"];
 
 function IeWorkbench({
-  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster,
+  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster,
 }: {
   data: IeWorkbookData;
   persona: IePersona;
@@ -286,6 +286,7 @@ function IeWorkbench({
   onLoadExample?: () => void;
   onUnloadExample?: () => void;
   onOpenPosLink?: () => void;
+  onStageChange?: (s: Stage) => void;
   actions?: IeWorkbenchActions;
   headerMeta: HeaderMeta;
   renderApprovalTable?: () => JSX.Element | null;
@@ -300,8 +301,14 @@ function IeWorkbench({
   const mefCcId = data.ie.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.ie.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
   const [ccId, setCcId] = useState<string>(mefCcId);
-  const stage = mefStage;
+  const [stage, setStageState] = useState<Stage>(mefStage);
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
+  useEffect(() => { setStageState(mefStage); }, [mefStage]);
+
+  function setStage(s: Stage): void {
+    setStageState(s);
+    onStageChange?.(s);
+  }
 
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
@@ -379,7 +386,7 @@ function IeWorkbench({
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
-      case "scope": return <ScopeScreen {...screenProps} />;
+      case "scope": return <ScopeScreen {...screenProps} stage={stage} setStage={setStage} onOpenLink={() => onOpenPosLink?.()} />;
       case "states": return <StatesScreen {...screenProps} onOpenLink={() => onOpenPosLink?.()} />;
       case "methods": return <MethodsScreen />;
       case "identify": return <IdentifyScreen />;

@@ -187,6 +187,10 @@ function IeWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         onOpenPosLink={canLink ? () => setPosLinkOpen(true) : undefined}
+        onStageChange={(s) => {
+          const newMef = { ...data.ie, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as InitiatingEventsAnalysis;
+          updateIe(newMef);
+        }}
         actions={actions}
         headerMeta={{
           projectName,

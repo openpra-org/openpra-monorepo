@@ -11,7 +11,7 @@ import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-t
 import { IEIcon } from "./ieIcons";
 import { Badge, Stat } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
-import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory } from "./ieViewData";
+import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
@@ -95,31 +95,183 @@ interface ScreenProps {
   onAction: (msg: string) => void;
 }
 
-function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
+interface ScopeScreenProps extends ScreenProps {
+  stage: Stage;
+  setStage: (s: Stage) => void;
+  onOpenLink: () => void;
+}
+
+function FieldToggle({ source, setSource, linked }: { source: "pos" | "manual"; setSource: (s: "pos" | "manual") => void; linked: boolean }): JSX.Element {
+  return (
+    <div className="iefield-toggle">
+      {linked && (
+        <button type="button" className={`iefield-toggle__btn${source === "pos" ? " is-on" : ""}`} onClick={() => setSource("pos")}>
+          <IEIcon.Link /> POS
+        </button>
+      )}
+      <button type="button" className={`iefield-toggle__btn${source === "manual" ? " is-on" : ""}`} onClick={() => setSource("manual")}>
+        Manual
+      </button>
+    </div>
+  );
+}
+
+function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
   const { ie, posLink } = useIeWorkbook();
-  const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const linked = posLink.linkedPosWorkbookId !== null;
+  const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
+  const plantName = ie.metadata.plantIdentity?.name ?? posLink.linkedName ?? "";
+
+  const [plantSource, setPlantSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
+  const [siteConfig, setSiteConfig] = useState<"single" | "multi">("single");
+  const [unitCount, setUnitCount] = useState("2");
+  const [modesSource, setModesSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
+  const [lpsd, setLpsd] = useState<boolean>(() => posLink.states.some((s) => s.operatingMode !== "POWER"));
+  const [hazardsSource, setHazardsSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
+  const [hazards, setHazards] = useState<string[]>(() => {
+    const base = ["Internal events"];
+    if (ie.includesNonInternalHazardGroups) base.push("Internal fire", "Internal flooding", "Seismic");
+    return base;
+  });
+
+  const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope — IE-A16 applies";
+
   return (
     <>
+      {/* ── Scope card ── */}
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Scope of this Initiating Event Analysis</h3>
           {linked ? <Badge kind="ok">Synced from POS</Badge> : <Badge kind="warn">Not linked to POS</Badge>}
         </div>
-        <p className="poscard__sub">{ie.praScope.length > 0 ? ie.praScope : "Describe the PRA scope for this initiating event analysis."}</p>
-        <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-          <span className="poschip">{ie.includesNonInternalHazardGroups ? "Includes non-internal hazard groups" : "Internal events only"}</span>
-          <span className="poschip">{ie.applicablePlantOperatingStates.length} operating states in scope</span>
+        <p className="poscard__sub">
+          {linked
+            ? "Fields marked POS are inherited from the linked workbook. Switch to Manual to override."
+            : "No POS workbook linked yet. Fill fields manually, or link a POS workbook to inherit plant data."}
+        </p>
+        <div className="iefield-grid iefield-grid--3">
+
+          {/* Plant */}
+          <div className="iefield">
+            <div className="iefield__labelrow">
+              <label className="iefield__label" htmlFor="ie-scope-plant">Plant</label>
+              <FieldToggle source={plantSource} setSource={setPlantSource} linked={linked} />
+            </div>
+            <input
+              id="ie-scope-plant"
+              className={`iefield__input${plantSource === "pos" ? " iefield__input--locked" : ""}`}
+              value={plantSource === "pos" ? plantName : plantName}
+              readOnly={plantSource === "pos"}
+              onChange={() => {}}
+            />
+          </div>
+
+          {/* Site configuration */}
+          <div className="iefield">
+            <label className="iefield__label" htmlFor="ie-scope-site">Site configuration</label>
+            <select id="ie-scope-site" className="iefield__select" value={siteConfig} onChange={(e) => setSiteConfig(e.target.value as "single" | "multi")}>
+              <option value="single">Single-unit site</option>
+              <option value="multi">Multi-unit site</option>
+            </select>
+          </div>
+
+          {/* Units at site */}
+          <div className="iefield">
+            <label className="iefield__label" htmlFor="ie-scope-units">Units at site</label>
+            {siteConfig === "single"
+              ? <input id="ie-scope-units" className="iefield__input iefield__input--locked" value="1" readOnly />
+              : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={unitCount} onChange={(e) => setUnitCount(e.target.value)} />}
+            {siteConfig === "multi" && <div className="iefield__hint">Number of co-located units (2–6 typical).</div>}
+          </div>
+
+          {/* Operating modes */}
+          <div className="iefield iefield-grid--span2">
+            <div className="iefield__labelrow">
+              <label className="iefield__label">Operating modes in scope</label>
+              <FieldToggle source={modesSource} setSource={setModesSource} linked={linked} />
+            </div>
+            <div className="iemodes">
+              <span className="iemode iemode--baseline" title="At-power operation is always in scope for a Level 1 PRA.">
+                <IEIcon.Lock /> At-power <span className="iemode__tag">Baseline</span>
+              </span>
+              <button
+                type="button"
+                className={`iemode iemode--toggle ${lpsd ? "is-on" : "is-off"}${modesSource === "pos" ? " iemode--locked" : ""}`}
+                disabled={modesSource === "pos"}
+                onClick={() => { if (modesSource !== "pos") setLpsd(!lpsd); }}
+              >
+                {lpsd ? <IEIcon.Check /> : <IEIcon.Plus />}
+                Low power &amp; shutdown (LPSD)
+                <span className="iemode__state">{lpsd ? "Included" : "Excluded"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Multi-unit IE-A16 */}
+          <div className="iefield">
+            <label className="iefield__label">Multi-unit initiating events (IE-A16)</label>
+            <input className="iefield__input iefield__input--locked" value={multiUnitText} readOnly />
+          </div>
+
+          {/* Hazard groups */}
+          <div className="iefield iefield-grid--span2">
+            <div className="iefield__labelrow">
+              <label className="iefield__label">Hazard groups in scope</label>
+              <FieldToggle source={hazardsSource} setSource={setHazardsSource} linked={linked} />
+            </div>
+            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+              {hazards.map((h, i) => {
+                const isPrimary = i === 0;
+                return (
+                  <span key={h} className={`poschip${isPrimary ? " poschip--primary" : ""}`}>
+                    {h}
+                    {hazardsSource === "manual" && !isPrimary && (
+                      <button
+                        type="button"
+                        className="iechip-x"
+                        title={`Remove ${h}`}
+                        onClick={() => setHazards(hazards.filter((x) => x !== h))}
+                      >
+                        <IEIcon.Close />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+              {hazardsSource === "manual" && (
+                <button type="button" className="poschip" onClick={() => setHazards([...hazards, "New hazard group"])}>
+                  <IEIcon.Plus /> Add
+                </button>
+              )}
+            </div>
+          </div>
+
         </div>
+
+        {!linked && (
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: 12 }}>
+            <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>Link a POS workbook to inherit plant identity, operating states, and radioactive sources.</p>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={onOpenLink}>
+              <IEIcon.Link /> Link POS workbook
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* ── Sources of radioactive material ── */}
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Sources of radioactive material</h3>
-          <span className="possubtle">Imported from POS · escape mechanisms are IE's own work (IE-A2)</span>
+          {!linked && (
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenLink}>
+              <IEIcon.Download /> Import sources from POS
+            </button>
+          )}
         </div>
+        <p className="poscard__sub">For every radioactive source, IE identifies the mechanisms by which an initiating event could mobilise it past its barriers.</p>
         {posLink.sources.length === 0 ? (
-          <p className="posmuted" style={{ margin: 0 }}>No sources linked yet. Link a POS workbook on the Operating States step.</p>
+          <p className="posmuted" style={{ margin: 0 }}>No sources yet. Link a POS workbook or add sources manually.</p>
         ) : (
           <table className="postable iesrc-table">
             <thead>
@@ -130,28 +282,33 @@ function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {posLink.sources.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.name}</div>
-                    <div className="iesrc__sub">{s.location}</div>
-                  </td>
-                  <td><div className="posrow posrow--wrap" style={{ gap: 4 }}>{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div></td>
-                  <td>
-                    {(() => {
-                      const count = ie.initiators.filter((init) => init.barrierImpacts.some((bi) => s.barriers.some((b) => b.toLowerCase().includes(bi.barrierId.toLowerCase())))).length;
-                      return count > 0
-                        ? <><span className="iesrc__mech-n">{count}</span> <span className="iesrc__mech-cap">identified</span></>
-                        : <span className="possubtle">—</span>;
-                    })()}
-                  </td>
-                </tr>
-              ))}
+              {posLink.sources.map((s) => {
+                const mechCount = ie.initiators.filter((init) =>
+                  init.barrierImpacts.some((bi) => s.barriers.some((b) => b.toLowerCase().includes(bi.barrierId.toLowerCase())))
+                ).length;
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.name}</div>
+                      <div className="iesrc__sub">{s.location}</div>
+                    </td>
+                    <td>
+                      <div className="iesrc__chips">{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div>
+                    </td>
+                    <td>
+                      {mechCount > 0
+                        ? <><span className="iesrc__mech-n">{mechCount}</span> <span className="iesrc__mech-cap">identified</span></>
+                        : <span className="possubtle">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
       </div>
 
+      {/* ── Capability category ── */}
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Capability category</h3>
@@ -172,6 +329,31 @@ function ScopeScreen({ ccId, setCcId }: ScreenProps): JSX.Element {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* ── Plant stage ── */}
+      <div className="poscard">
+        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="posrow posrow--wrap" style={{ gap: 12 }}>
+          {([
+            ["pre_operational", "Pre-operational", "Frequencies from generic, design-based, and similar-plant sources (IE-C2). No plant-specific operating history yet."],
+            ["operational", "Operational", "Plant-specific initiating-event history available; Bayesian-updated frequencies applicable (IE-C1/C6)."],
+          ] as [Stage, string, string][]).map(([val, title, body]) => (
+            <label
+              key={val}
+              className="poscard poscard--ghost"
+              style={{ flex: 1, minWidth: 260, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined, boxShadow: stage === val ? "0 0 0 3px var(--color-primary-focus)" : undefined }}
+            >
+              <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
+                <input type="radio" name="ie-plant-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <div>
+                  <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
+                  <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5 }}>{body}</div>
+                </div>
+              </div>
+            </label>
+          ))}
         </div>
       </div>
     </>

@@ -69,7 +69,9 @@ jobs:
       - name: Generate Python API docs (pdoc)
         run: |
           mkdir -p docs/public/api/python/pracciolini docs/public/api/python/saphsolve
+          touch apps/utilities/pracciolini/src/__init__.py
           pdoc --output-directory docs/public/api/python/pracciolini apps/utilities/pracciolini/src 2>&1 || echo "Pracciolini pdoc: see above"
+          rm -f apps/utilities/pracciolini/src/__init__.py
           pdoc --output-directory docs/public/api/python/saphsolve apps/solvers/saphsolve 2>&1 || echo "SAPHSOLVE pdoc: see above"
 
       - name: Build docs site

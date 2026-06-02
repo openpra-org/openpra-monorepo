@@ -102,3 +102,8 @@ __pycache__/
 apps/solvers/xfta/XFTA.pdf
 /resources/
 /plans/
+
+# Generated documentation output (not committed, built at CI time)
+/docs/api/
+/docs/public/api/
+/docs/.tmp/

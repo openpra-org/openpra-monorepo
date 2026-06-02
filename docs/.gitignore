@@ -1,0 +1,5 @@
+.tmp/
+public/api/
+.vitepress/dist/
+.vitepress/cache/
+node_modules/

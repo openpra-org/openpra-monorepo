@@ -55,10 +55,8 @@ function TopBar(): JSX.Element {
       <nav className="wp__topbar-nav" aria-label="Primary">
         <a
           className="wp__nav-link"
-          href="https://docs-dev.openpra.org/"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Documentation (opens in a new tab)"
+          href="/documentation"
+          aria-label="Documentation"
         >
           <BookIcon /><span>Documentation</span>
         </a>

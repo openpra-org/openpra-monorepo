@@ -1,0 +1,17 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "plugin": ["typedoc-plugin-markdown"],
+  "entryPoints": ["../../apps/backends/web-backend/src"],
+  "entryPointStrategy": "expand",
+  "tsconfig": "../../apps/backends/web-backend/tsconfig.app.json",
+  "out": "../api/ts/web-backend",
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "exclude": ["**/node_modules/**", "**/*.spec.ts", "**/*.d.ts"],
+  "entryFileName": "index",
+  "name": "Web Backend",
+  "readme": "stubs/web-backend.md",
+  "skipErrorChecking": true,
+  "logLevel": "Warn"
+}

@@ -37,6 +37,47 @@ jobs:
           npx -y pnpm@10.19.0 nx build backends-web-backend --configuration=production
           npx -y pnpm@10.19.0 nx build frontends-web-frontend --configuration=production
 
+      - name: Install doc generation tools
+        run: |
+          sudo apt-get install -y doxygen graphviz
+          pip install pdoc
+
+      - name: Install docs dependencies
+        run: cd docs && npx -y pnpm@10.19.0 install --no-frozen-lockfile
+
+      - name: Generate TypeScript API docs (TypeDoc)
+        run: |
+          cd docs
+          npx -y pnpm@10.19.0 run generate:ts:mef-types
+          npx -y pnpm@10.19.0 run generate:ts:shared-types
+          npx -y pnpm@10.19.0 run generate:ts:web-backend
+          npx -y pnpm@10.19.0 run generate:ts:web-frontend
+          npx -y pnpm@10.19.0 run generate:ts:praetor
+
+      - name: Generate C++ API docs (SCRAM — Doxygen HTML)
+        run: |
+          mkdir -p docs/public/api/cpp/scram
+          doxygen docs/tools/Doxyfile
+
+      - name: Generate Rust API docs (PRAXIS — cargo doc)
+        run: |
+          mkdir -p docs/public/api/rust/praxis
+          cd apps/solvers/praxis
+          cargo doc --no-deps --target-dir ../../../docs/.tmp/praxis-cargo-doc 2>&1 || echo "cargo doc encountered warnings"
+          cp -r ../../../docs/.tmp/praxis-cargo-doc/doc/. ../../../docs/public/api/rust/praxis/
+
+      - name: Generate Python API docs (pdoc)
+        run: |
+          mkdir -p docs/public/api/python/pracciolini docs/public/api/python/saphsolve
+          pdoc --output-directory docs/public/api/python/pracciolini apps/utilities/pracciolini/src 2>&1 || echo "Pracciolini pdoc: see above"
+          pdoc --output-directory docs/public/api/python/saphsolve apps/solvers/saphsolve 2>&1 || echo "SAPHSOLVE pdoc: see above"
+
+      - name: Build docs site
+        run: |
+          mkdir -p docs/public
+          cp apps/frontends/web-frontend/src/assets/OpenPRA.png docs/public/openpra-logo.png
+          cd docs && npx -y pnpm@10.19.0 run build
+
       - name: Prepare tags
         id: prep
         run: |
@@ -71,6 +112,13 @@ jobs:
           cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
           cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
           cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
+
+      - name: Prepare docs build context
+        run: |
+          mkdir -p docker-context/docs/html
+          cp -r docs/.vitepress/dist/* docker-context/docs/html/
+          cp deploy/web/docs-nginx.conf docker-context/docs/docs-nginx.conf
+          cp deploy/web/docs.Dockerfile docker-context/docs/Dockerfile
 
       - name: Log in to self-hosted registry
         uses: docker/login-action@v3
@@ -116,6 +164,18 @@ jobs:
             ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.branch_slug }}
 
+      - name: Build and push docs image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/docs
+          file: docker-context/docs/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-docs:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-docs:${{ steps.prep.outputs.branch_slug }}
+
   deploy:
     needs: build-and-push
     runs-on: gaia1
@@ -154,6 +214,7 @@ jobs:
           HOST_URL: ${{ steps.vars.outputs.host_url }}
           IMAGE_BACKEND: ${{ env.REGISTRY }}/openpra-apps-web-backend:${{ steps.vars.outputs.short_sha }}
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
+          IMAGE_DOCS: ${{ env.REGISTRY }}/openpra-apps-docs:${{ steps.vars.outputs.short_sha }}
           IMAGE_MONGO: mongo:latest
           IMAGE_MINIO: minio/minio:latest
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}

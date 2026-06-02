@@ -1,0 +1,21 @@
+{
+  "name": "docs-site",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:ts:mef-types": "typedoc --options typedoc/mef-types.json",
+    "generate:ts:shared-types": "typedoc --options typedoc/shared-types.json",
+    "generate:ts:web-backend": "typedoc --options typedoc/web-backend.json",
+    "generate:ts:web-frontend": "typedoc --options typedoc/web-frontend.json",
+    "generate:ts:praetor": "typedoc --options typedoc/praetor.json",
+    "dev": "vitepress dev .",
+    "build": "vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "typedoc": "0.28.19",
+    "typedoc-plugin-markdown": "4.11.0",
+    "vitepress": "1.6.4"
+  }
+}

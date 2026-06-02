@@ -1,0 +1,25 @@
+PROJECT_NAME           = "SCRAM"
+OUTPUT_DIRECTORY       = docs/public/api/cpp/scram
+GENERATE_HTML          = YES
+GENERATE_XML           = NO
+HTML_OUTPUT            = .
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+JAVADOC_AUTOBRIEF      = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
+INTERNAL_DOCS          = NO
+
+RECURSIVE              = YES
+INPUT                  = apps/solvers/scram/src
+FILE_PATTERNS          = *.h *.hpp *.cc *.cpp
+EXCLUDE_PATTERNS       = */build/* */node_modules/* */tests/* */Testing/*
+EXCLUDE_SYMBOLS        = boost::* Napi::* Napi boost
+
+GENERATE_TODOLIST      = NO
+GENERATE_BUGLIST       = NO
+GENERATE_DEPRECATEDLIST= NO

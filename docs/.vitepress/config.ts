@@ -81,7 +81,7 @@ export default defineConfig({
       {
         text: "Tooling",
         items: [
-          { text: "Pracciolini", link: "/api/python/pracciolini/src.html", target: "_blank" },
+          { text: "Pracciolini", link: "/api/python/pracciolini/index.html", target: "_blank" },
           { text: "Benchmarking", link: "/utilities/benchmarking/" },
           { text: "Pracciolini — Knowledge Base", link: "/utilities/pracciolini/knowledge-base" },
         ],

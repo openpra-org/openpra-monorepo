@@ -11,16 +11,4 @@ function Badge({ kind = "draft", children }: { kind?: BadgeKind; children: React
   );
 }
 
-type StatKind = "warn" | "block" | "ok";
-
-function Stat({ num, cap, sub, kind }: { num: ReactNode; cap: string; sub?: string; kind?: StatKind }): JSX.Element {
-  return (
-    <div className={`posstat${kind ? ` posstat--${kind}` : ""}`}>
-      <div className="posstat__num">{num}</div>
-      <div className="posstat__cap">{cap}</div>
-      {sub !== undefined && <div className="posstat__sub">{sub}</div>}
-    </div>
-  );
-}
-
-export { Badge, Stat, type BadgeKind, type StatKind };
+export { Badge, type BadgeKind };

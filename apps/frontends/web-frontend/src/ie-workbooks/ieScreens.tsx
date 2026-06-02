@@ -9,7 +9,7 @@ import {
 } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { IEIcon } from "./ieIcons";
-import { Badge, Stat } from "./ieShared";
+import { Badge } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
 import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, METHOD_REGISTRY, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
@@ -417,7 +417,6 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
       </div>
     );
   }
-  const atPower = posLink.states.filter((s) => s.operatingMode === "POWER").length;
   const totalHours = posLink.states.reduce((a, s) => a + s.meanDurationHours, 0);
   return (
     <>
@@ -430,12 +429,6 @@ function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }):
         <div className="ieposlink__actions">
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenLink}><IEIcon.Refresh /> Re-link</button>
         </div>
-      </div>
-      <div className="posstats">
-        <Stat num={posLink.states.length} cap="Operating states" sub="Imported from POS" />
-        <Stat num={atPower} cap="States at-power" kind="ok" />
-        <Stat num={posLink.states.length - atPower} cap="States at LPSD" sub="Shutdown / refuel" />
-        <Stat num="IE-C8" cap="Weighting rule" sub="Fraction-of-time applied" />
       </div>
 
       {totalHours > 0 && (
@@ -514,12 +507,6 @@ function MethodsScreen(): JSX.Element {
     }));
   return (
     <>
-      <div className="posstats">
-        <Stat num={methodIds.size} cap="Methods registered" />
-        <Stat num={`${ie.completenessSearch.functionalCategoriesCovered.length} / 7`} cap="Categories covered" kind="ok" />
-        <Stat num={ie.initiators.length} cap="Initiators yielded" sub="Before grouping" />
-        <Stat num={ie.initiatingEventGroups.length} cap="Groups" />
-      </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Systematic search methods</h3></div>
         {byMethod.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
@@ -562,21 +549,11 @@ function IdentifyScreen(): JSX.Element {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const initiators = ie.initiators;
   const shown = activeCat !== null ? initiators.filter((i) => i.category === activeCat) : initiators;
-  const retained = initiators.filter((i) => i.screeningStatus === "RETAINED").length;
-  const merged = initiators.filter((i) => i.screeningStatus === "MERGED").length;
-  const screened = initiators.filter((i) => i.screeningStatus === "SCREENED_OUT").length;
   const total = initiators.length;
   const cat = activeCat !== null ? categoryById(activeCat) : undefined;
 
   return (
     <>
-      <div className="posstats">
-        <Stat num={total} cap="Initiators identified" sub="Across 7 categories" />
-        <Stat num={retained} cap="Retained" kind="ok" />
-        <Stat num={merged} cap="Grouped" sub="Bounded by a group" />
-        <Stat num={screened} cap="Screened out" sub="With justification" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Challenge spectrum (IE-A5)</h3>
@@ -667,12 +644,6 @@ function CompletenessScreen(): JSX.Element {
   ];
   return (
     <>
-      <div className="posstats">
-        <Stat num={`${cs.functionalCategoriesCovered.length} / 7`} cap="Functional categories" kind={cs.functionalCategoriesCovered.length >= 7 ? "ok" : "warn"} />
-        <Stat num={cs.perSystemSearchPerformed ? "Yes" : "No"} cap="Per-system sweep" />
-        <Stat num={cs.perSupportSystemSearchPerformed ? "Yes" : "No"} cap="Support-system sweep" />
-        <Stat num={cs.radioactiveSourceMechanismsAddressed ? "Yes" : "No"} cap="Source mechanisms" />
-      </div>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Completeness checks</h3>
@@ -729,21 +700,11 @@ function CompletenessScreen(): JSX.Element {
 function HazardsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const hazards: HazardAnalysis[] = ie.hazardAnalyses ?? [];
-  const internal = hazards.filter((h) => h.hazardType === "INTERNAL").length;
-  const external = hazards.filter((h) => h.hazardType === "EXTERNAL").length;
-  const allInducedIds = [...new Set(hazards.flatMap((h) => h.inducedInitiatorIds))];
-  const combinationCount = hazards.reduce((a, h) => a + h.potentialCombinations.length, 0);
   const allCombinations = hazards.flatMap((h) =>
     h.potentialCombinations.map((text) => ({ sourceHazard: h, text }))
   );
   return (
     <>
-      <div className="posstats">
-        <Stat num={hazards.length} cap="Hazard analyses" sub={`${internal} internal · ${external} external`} />
-        <Stat num={combinationCount} cap={combinationCount === 1 ? "Combination" : "Combinations"} kind={combinationCount > 0 ? "warn" : "ok"} sub={combinationCount > 0 ? "See below" : "None identified"} />
-        <Stat num={allInducedIds.length} cap="Induced initiators" sub={allInducedIds.length > 0 ? allInducedIds.join(" · ") : "None"} />
-        <Stat num={hazards.length} cap="Interfaces to hazard PRA" sub="One per hazard element" />
-      </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Hazard analyses</h3><span className="possubtle">IE-A5(e/f)</span></div>
         <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12).</p>
@@ -822,16 +783,8 @@ function HazardsScreen(): JSX.Element {
 function GroupingScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const groups: InitiatingEventGroup[] = ie.initiatingEventGroups;
-  const bounded = groups.filter((g) => g.groupingDoesNotMaskRiskSignificantSequences).length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={groups.length} cap="Initiating-event groups" />
-        <Stat num={bounded} cap="Fully bounded" kind="ok" />
-        <Stat num={groups.length - bounded} cap="Anti-masking open" kind={groups.length - bounded > 0 ? "warn" : "ok"} />
-        <Stat num="CC-II" cap="Grouping rule" />
-      </div>
-
       <div className="poscard poscard--ghost">
         <div className="posrow" style={{ gap: 12, alignItems: "flex-start" }}>
           <span style={{ display: "inline-flex", width: 20, height: 20, color: "var(--color-text-muted)", flexShrink: 0, marginTop: 1 }}><IEIcon.Branch /></span>
@@ -894,16 +847,8 @@ function GroupingScreen(): JSX.Element {
 function ScreeningScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const records: InitiatingEventScreeningRecord[] = ie.screeningRecords;
-  const screenedOut = records.filter((r) => !r.retained).length;
-  const blocked = records.filter((r) => r.retained && !r.barrierIntegrityPreconditionMet).length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={records.length} cap="Events evaluated" />
-        <Stat num={screenedOut} cap="Screened out" sub="SCR-justified" />
-        <Stat num={blocked} cap="Blocked at barrier gate" kind="block" />
-        <Stat num="IE-C9" cap="Screening rule" sub="Barrier gate + SCR" />
-      </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">The screening gate</h3></div>
         <div className="iegate">
@@ -963,16 +908,9 @@ function FrequencyScreen(): JSX.Element {
     const init = ie.initiators.find((i) => i.uuid === id);
     return (init?.preOperationalAssumptions ?? []).length > 0;
   };
-  const weighted = records.filter((r) => r.posTimeFractionApplied).length;
   const ticks = ["1e-6", "1e-5", "1e-4", "1e-3", "1e-2", "1e-1", "1e0"];
   return (
     <>
-      <div className="posstats">
-        <Stat num={records.length} cap="Quantified events / groups" />
-        <Stat num="plant-yr" cap="Frequency basis" sub="IE-C8 · calendar-year" kind="ok" />
-        <Stat num={`${weighted} / ${records.length}`} cap="POS-time-fraction applied" />
-        <Stat num={ie.initiatingEventGroups.length} cap="Groups quantified" />
-      </div>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Annual frequencies</h3></div>
         {records.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No quantifications yet.</p> : (

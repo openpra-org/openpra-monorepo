@@ -5,7 +5,7 @@ import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { type CapabilityCategory as MefCapabilityCategory, type PlantStage as MefPlantStage } from "interfaces-mef-types/core/pra-common";
 import { type Mutator } from "./useMefPatch";
 import { POSIcon } from "./posIcons";
-import { Badge, Stat } from "./posShared";
+import { Badge } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import {
   CAPABILITY_CATEGORIES,
@@ -530,15 +530,8 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
 function EvolutionsScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const evolutions = evolutionsView(pos);
-  const totalHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(pos.plantEvolutions.length)} cap="Evolutions" />
-        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
-        <Stat num={`${totalHours.toLocaleString("en-US")} h`} cap="Total state hours" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Plant evolutions</h3>
@@ -586,18 +579,8 @@ function EvolutionsScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.E
 function StatesScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const states = statesView(pos);
-  const okCount = states.filter((s) => s.status === "ok").length;
-  const warnCount = states.filter((s) => s.status === "warn").length;
-  const draftCount = states.filter((s) => s.status === "draft").length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(states.length)} cap="Operating states" />
-        <Stat num={String(okCount)} cap="Fully characterised" kind="ok" />
-        <Stat num={String(warnCount)} cap="Needs attention" kind={warnCount > 0 ? "warn" : "ok"} />
-        <Stat num={String(draftCount)} cap="Draft" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Operating states</h3>
@@ -691,20 +674,8 @@ function StatesScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Eleme
 function InterviewsScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const interviews = interviewsView(pos);
-  const personnelSet = new Set<string>();
-  interviews.forEach((iv) => iv.personnel.forEach((p) => personnelSet.add(p)));
-  const mostRecent = interviews.length > 0
-    ? interviews.map((iv) => iv.date).sort().reverse()[0]
-    : "—";
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(interviews.length)} cap="Sessions logged" />
-        <Stat num={String(personnelSet.size)} cap="Personnel involved" />
-        <Stat num={String(interviews.reduce((acc, iv) => acc + iv.overlooked, 0))} cap="New states identified" />
-        <Stat num={mostRecent} cap="Most recent" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Interview &amp; walkdown log</h3>
@@ -764,17 +735,8 @@ function InterviewsScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
 function ScreeningScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const records = screeningView(pos);
-  const retained = records.filter((r) => r.retained).length;
-  const screenedOut = records.filter((r) => !r.retained).length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
-        <Stat num={String(retained)} cap="Retained explicitly" kind="ok" />
-        <Stat num={String(screenedOut)} cap="Screened out" />
-        <Stat num={String(Math.max(0, pos.plantOperatingStates.length - retained - screenedOut))} cap="Default-retained" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Screening decisions</h3>
@@ -815,17 +777,8 @@ function ScreeningScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
 function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const groups = groupsView(pos);
-  const bounded = groups.filter((g) => g.status === "ok").length;
-  const pending = groups.filter((g) => g.status !== "ok").length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(pos.plantOperatingStates.length)} cap="Operating states" />
-        <Stat num={String(groups.length)} cap="Groups proposed" />
-        <Stat num={String(bounded)} cap="Groups fully bounded" kind={bounded > 0 ? "ok" : "warn"} />
-        <Stat num={String(pending)} cap="Groups need rationale" kind={pending > 0 ? "warn" : "ok"} />
-      </div>
-
       {groups.length === 0 && (
         <div className="poscard">
           <p className="posmuted" style={{ margin: 0 }}>No groups proposed yet.
@@ -879,23 +832,8 @@ function FrequencyScreen({ canEdit }: { canEdit: boolean }): JSX.Element {
       return next;
     });
   }
-  const totalStates = pos.plantOperatingStates.length;
-  const durationsEntered = pos.plantOperatingStates.filter((s) => s.meanDurationHours > 0).length;
-  const frequenciesEntered = pos.plantOperatingStates.filter((s) => {
-    const v = typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value;
-    return v > 0;
-  }).length;
-  const totalHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
-  const lpsdCount = pos.plantOperatingStates.filter((s) => s.operatingMode !== "POWER").length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={`${durationsEntered} / ${totalStates}`} cap="Durations entered" kind={durationsEntered === totalStates && totalStates > 0 ? "ok" : "warn"} />
-        <Stat num={`${frequenciesEntered} / ${totalStates}`} cap="Frequencies entered" kind={frequenciesEntered === totalStates && totalStates > 0 ? "ok" : "warn"} />
-        <Stat num={`${totalHours.toLocaleString("en-US")} h`} cap="Sum across states" />
-        <Stat num={String(lpsdCount)} cap="LPSD states" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Frequencies &amp; durations</h3>
@@ -990,16 +928,8 @@ function DecayHeatScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
       return next;
     });
   }
-  const characterizedIds = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
-  const characterized = lpsd.filter((s) => characterizedIds.has(s.id)).length;
   return (
     <>
-      <div className="posstats">
-        <Stat num={String(lpsd.length)} cap="LPSD states require characterisation" />
-        <Stat num={String(characterized)} cap="Characterised" kind={characterized === lpsd.length && lpsd.length > 0 ? "ok" : (characterized < lpsd.length ? "block" : "ok")} />
-        <Stat num={String(pos.decayHeatCharacterizations.length)} cap="Records on file" />
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Decay-heat characterisation</h3>

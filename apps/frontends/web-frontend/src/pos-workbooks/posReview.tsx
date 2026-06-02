@@ -1,9 +1,8 @@
 import { JSX, useMemo, useState } from "react";
 import { POSIcon } from "./posIcons";
-import { Badge, Stat } from "./posShared";
+import { Badge } from "./posShared";
 import {
   internalApproverView,
-  internalReviewersView,
   nmViewById,
   type CommentView,
 } from "./posSelectors";
@@ -46,7 +45,6 @@ function InternalReviewScreen({
   const isPreparer = persona === "preparer";
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
   const { pos } = usePosWorkbook();
-  const reviewers = internalReviewersView(pos);
   const approver = internalApproverView(pos);
   const configSnapshotId = pos.configurationControlRecordId ?? "";
   const methodIds = pos.newlyDevelopedMethodIds ?? [];
@@ -73,7 +71,6 @@ function InternalReviewScreen({
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
   const allResolved = openCount === 0 && comments.length > 0;
-  const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
   const banner = bannerVariant(openCount, submitted, approved);
 
   const displayOpen = displayComments.filter((c) => !c.resolved).length;
@@ -108,13 +105,6 @@ function InternalReviewScreen({
           <span className="posrevbanner__count posrevbanner__count--ok">{resolvedCount} resolved</span>
           {openCount > 0 && <span className="posrevbanner__count posrevbanner__count--warn">{openCount} open</span>}
         </div>
-      </div>
-
-      <div className="posstats">
-        <Stat num={comments.length} cap="Reviewer comments" sub={`${reviewers.length} reviewers`} />
-        <Stat num={openCount} cap="Open" sub={openCount === 0 ? "All addressed" : `${major} major · ${openCount - major} other`} kind={openCount > 0 ? "warn" : "ok"} />
-        <Stat num={resolvedCount} cap="Resolved" kind="ok" />
-        <Stat num={major} cap="Major findings" sub={major > 0 ? "Blocking approval" : "None"} kind={major > 0 ? "block" : "ok"} />
       </div>
 
       {isReviewStep && rosterSlot}

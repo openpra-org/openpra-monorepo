@@ -1,6 +1,6 @@
 import { JSX, useEffect } from "react";
 import { POSIcon } from "./posIcons";
-import { Badge, Stat } from "./posShared";
+import { Badge } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
 import { statesView, evolutionsView, groupsView, isBarrierBroken, preOpsForState, preOpsForGroup } from "./posSelectors";
@@ -59,14 +59,6 @@ function DrawerContent({ context, onClose, canEdit }: { context: DrawerContext; 
                 <span key={b} className={`poschip${isBarrierBroken(b) ? " poschip--warn" : ""}`}>{b}</span>
               ))}
               <button type="button" className="poschip"><POSIcon.Plus /> Add barrier</button>
-            </div>
-          </div>
-
-          <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Available instrumentation &amp; SSCs</h3></div>
-            <div className="posstats" style={{ gridTemplateColumns: "1fr 1fr" }}>
-              <Stat num={s.instrumentation} cap="Instruments available" sub="From DOC-09" />
-              <Stat num={s.sscRequired} cap="SSCs required in this state" sub="From P&IDs" />
             </div>
           </div>
 

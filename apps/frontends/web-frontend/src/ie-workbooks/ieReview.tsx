@@ -1,6 +1,6 @@
 import { JSX, useEffect, useMemo, useState } from "react";
 import { IEIcon } from "./ieIcons";
-import { Badge, Stat } from "./ieShared";
+import { Badge } from "./ieShared";
 import { type CommentView, type CcScore } from "./ieSelectors";
 import { type CapabilityCategory, type IePersona } from "./ieViewData";
 import { useIeWorkbook } from "./ieWorkbookContext";
@@ -37,7 +37,6 @@ function InternalReviewScreen({
   const isPreparer = persona === "preparer";
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("all");
   const { ie } = useIeWorkbook();
-  const reviewerCount = ie.metadata.reviewers.filter((r) => r.role === "INTERNAL_REVIEWER").length;
   const approver = ie.metadata.reviewers.find((r) => r.role === "INTERNAL_APPROVER") ?? null;
   const configSnapshotId = ie.configurationControlRecordId ?? "";
   const methodIds = ie.newlyDevelopedMethodIds ?? [];
@@ -64,7 +63,6 @@ function InternalReviewScreen({
   const openCount = comments.filter((c) => !c.resolved).length;
   const resolvedCount = comments.filter((c) => c.resolved).length;
   const allResolved = openCount === 0 && comments.length > 0;
-  const major = comments.filter((c) => c.severity === "MAJOR" && !c.resolved).length;
   const banner = bannerVariant(openCount, submitted, approved);
 
   const displayOpen = displayComments.filter((c) => !c.resolved).length;
@@ -99,13 +97,6 @@ function InternalReviewScreen({
           <span className="posrevbanner__count posrevbanner__count--ok">{resolvedCount} resolved</span>
           {openCount > 0 && <span className="posrevbanner__count posrevbanner__count--warn">{openCount} open</span>}
         </div>
-      </div>
-
-      <div className="posstats">
-        <Stat num={comments.length} cap="Reviewer comments" sub={`${reviewerCount} reviewers`} />
-        <Stat num={openCount} cap="Open" sub={openCount === 0 ? "All addressed" : `${major} major · ${openCount - major} other`} kind={openCount > 0 ? "warn" : "ok"} />
-        <Stat num={resolvedCount} cap="Resolved" kind="ok" />
-        <Stat num={major} cap="Major findings" sub={major > 0 ? "Blocking approval" : "None"} kind={major > 0 ? "block" : "ok"} />
       </div>
 
       {isReviewStep && rosterSlot}

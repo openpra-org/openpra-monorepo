@@ -23,3 +23,8 @@ EXCLUDE_SYMBOLS        = boost::* Napi::* Napi boost
 GENERATE_TODOLIST      = NO
 GENERATE_BUGLIST       = NO
 GENERATE_DEPRECATEDLIST= NO
+
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = NO
+SOURCE_BROWSER         = NO
+GENERATE_TREEVIEW      = NO

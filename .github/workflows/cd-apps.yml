@@ -39,7 +39,7 @@ jobs:
 
       - name: Install doc generation tools
         run: |
-          sudo apt-get install -y doxygen graphviz
+          sudo apt-get install -y doxygen
           pip install pdoc
 
       - name: Install docs dependencies

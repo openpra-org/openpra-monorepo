@@ -40,7 +40,7 @@ jobs:
       - name: Install doc generation tools
         run: |
           sudo apt-get install -y doxygen
-          pip install pdoc
+          pip install pdoc plotly
 
       - name: Install docs dependencies
         run: cd docs && npx -y pnpm@10.19.0 install --no-frozen-lockfile

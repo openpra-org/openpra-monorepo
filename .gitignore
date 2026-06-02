@@ -105,5 +105,6 @@ apps/solvers/xfta/XFTA.pdf
 
 # Generated documentation output (not committed, built at CI time)
 /docs/api/
-/docs/public/api/
+/docs/public/api/cpp/
+/docs/public/api/rust/
 /docs/.tmp/

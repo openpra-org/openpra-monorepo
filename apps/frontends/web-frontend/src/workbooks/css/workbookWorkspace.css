@@ -687,8 +687,6 @@
   fill: var(--color-text);
   text-anchor: middle;
   dominant-baseline: central;
-  transform: rotate(90deg);
-  transform-origin: center;
 }
 .posdock__gauge-track { stroke: var(--color-border); }
 .posdock__gauge-fill  { stroke: var(--color-primary); transition: stroke-dashoffset 0.4s; }
@@ -1218,8 +1216,46 @@
   .poshd__identity { display: none; }
 }
 @media (max-width: 1100px) {
-  .posw__shell { grid-template-columns: 220px 1fr 0; }
-  .posw__dock { display: none; }
+  /* Remove dock from grid; it becomes an off-canvas overlay */
+  .posw__shell,
+  .posw__shell--dock-closed { grid-template-columns: 220px 1fr; }
+
+  /* Show the Conformance toggle button that lives inside the header actions */
+  .poshd__actions .posw__mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 40px;
+  }
+  .poshd__actions .posw__mobile-toggle svg { width: 16px; height: 16px; }
+
+  /* Dock slides in from the right as an overlay */
+  .posw__dock {
+    display: flex;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(86vw, 360px);
+    z-index: 80;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+  }
+  .posw__dock--mobile-open { transform: translateX(0); }
+
+  /* Draft screen: stack the preview and side panel to prevent horizontal overflow */
+  .posgen { grid-template-columns: 1fr; }
+  .posgen__side { width: 100%; }
 }
 @media (max-width: 900px) {
   .poshd__crumb-current { display: none; }

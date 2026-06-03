@@ -232,7 +232,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
             <svg viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.2" className="posdock__gauge-track" />
               <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.2" className="posdock__gauge-fill" strokeDasharray={`${dash} ${dashTotal}`} strokeLinecap="round" />
-              <text x="18" y="18">{scores.percent}%</text>
+              <text x="18" y="18" transform="rotate(90, 18, 18)">{scores.percent}%</text>
             </svg>
           </div>
           <div className="posdock__gauge-meta">
@@ -311,8 +311,8 @@ function IeWorkbench({
   }
 
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "scope");
-  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
-  const [dockOpen, setDockOpen] = useState(!isMobile);
+  const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
+  const [dockOpen, setDockOpen] = useState(!isNarrow);
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -447,7 +447,7 @@ function IeWorkbench({
             </div>
             <div className="posmain__actions">
               {!dockOpen && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}><IEIcon.Eye /> Show conformance</button>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { setDockOpen(true); setDockMobileOpen(true); }}><IEIcon.Eye /> Show conformance</button>
               )}
               {isPreparer && stepId !== "draft" && stepId !== "review" && (
                 <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setStepId("draft")}>Preview draft <IEIcon.Eye /></button>

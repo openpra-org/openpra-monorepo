@@ -164,7 +164,7 @@
 
 .iefield__select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 30px 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 13.5px;
@@ -173,6 +173,11 @@
   outline: none;
   cursor: pointer;
   box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7388' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
 }
 .iefield__select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
 

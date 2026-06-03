@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { IePosLinkService } from "../ie-pos-link.service";
+import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
 import { ProjectsService } from "../../projects/projects.service";
 import { WorkbookRolesService } from "../../workbooks/workbook-roles.service";
 
@@ -40,6 +41,7 @@ describe("IePosLinkService", () => {
         { provide: getModelToken("PosWorkbook"), useValue: posModel },
         { provide: ProjectsService, useValue: projectsService },
         { provide: WorkbookRolesService, useValue: rolesService },
+        { provide: ExampleWorkbooksService, useValue: {} },
       ],
     }).compile();
 

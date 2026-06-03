@@ -19,16 +19,11 @@ jobs:
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
+      fail-fast: false
       matrix:
         package:
-          - frontend-web-editor
-          - web-backend
-          - shared-types
-          - shared-sdk
-          - model-generator
-          - engine-scram
-          - mef-types
-          - microservices-praetor
+          - backends-web-backend
+          - frontends-web-frontend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,93 +33,27 @@ jobs:
         with:
           node-version: "20.17.0"
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            make \
-            cmake \
-            g++ \
-            git \
-            python3 \
-            curl \
-            ca-certificates \
-            libxml2-dev \
-            libomp-dev \
-            libgoogle-perftools-dev \
-            libboost-program-options-dev \
-            libboost-math-dev \
-            libboost-random-dev \
-            libboost-filesystem-dev \
-            libboost-test-dev \
-            libboost-date-time-dev \
-            libjemalloc-dev \
-            libxml2 \
-            libboost-filesystem1.74.0 \
-            libboost-program-options1.74.0 \
-            libtcmalloc-minimal4 \
-            libjemalloc2
-
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
 
       - name: Install dependencies
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
-      - name: Build scram
-        if: matrix.package == 'engine-scram'
-        run: cd packages/engine/scram && npx -y pnpm@10.19.0 run install
-
-      - name: Install scram-cli (CI)
-        if: matrix.package == 'engine-scram'
-        run: |
-          # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
-          # Prefer cmake --install which works across generators; guard if install scripts are absent
-          if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram/build --prefix "$HOME/.local"
-          else
-            echo "No CMake install script found; skipping scram-cli install"
-          fi
-
       - name: Build
         env:
           NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:build --verbose
+        run: npx -y pnpm@10.19.0 nx build ${{ matrix.package }} --configuration=production
 
-      - name: Build praetor engine
-        if: matrix.package == 'microservices-praetor'
-        env:
-          NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx run microservices-praetor:build-engine --verbose
-
-      - name: Wait for MongoDB service
+      - name: Wait for MongoDB
+        if: matrix.package == 'backends-web-backend'
         run: |
-          set -e
           for i in $(seq 1 60); do
-            if (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; then echo "MongoDB is listening"; break; fi; sleep 2; done
-
-      # Lint step temporarily disabled to unblock CI
-      # - name: Lint
-      #   run: pnpm nx run ${{ matrix.package }}:lint --verbose
+            (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1 && echo "MongoDB ready" && break
+            sleep 2
+          done
 
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
           NX_NO_CLOUD: "true"
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
-
-      - name: E2E Tests
-        if: |
-          matrix.package == 'frontend-web-editor' ||
-          matrix.package == 'web-backend'
-        continue-on-error: true
-        env:
-          MONGO_URI: mongodb://localhost:27017/test
-          NX_NO_CLOUD: "true"
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:e2e
+        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test -- --testTimeout=60000

@@ -231,9 +231,9 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
           <div className="posdock__gauge-circle">
             <svg viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.2" className="posdock__gauge-track" />
-              <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.2" className="posdock__gauge-fill" strokeDasharray={`${dash} ${dashTotal}`} strokeLinecap="round" />
+              <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.2" className="posdock__gauge-fill" strokeDasharray={`${dash} ${dashTotal}`} strokeLinecap="round" transform="rotate(-90, 18, 18)" />
+              <text x="18" y="18" className="posdock__gauge-text">{scores.percent}%</text>
             </svg>
-            <span className="posdock__gauge-label">{scores.percent}%</span>
           </div>
           <div className="posdock__gauge-meta">
             <span className="posdock__gauge-summary">{scores.met} of {scores.applicable} ready</span>

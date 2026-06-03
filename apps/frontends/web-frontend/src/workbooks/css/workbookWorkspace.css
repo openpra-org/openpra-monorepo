@@ -679,18 +679,14 @@
   width: 56px; height: 56px;
   flex-shrink: 0;
 }
-.posdock__gauge-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.posdock__gauge-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.posdock__gauge-circle svg { display: block; width: 100%; height: 100%; }
+.posdock__gauge-text {
   font-family: 'Literata', Georgia, serif;
   font-size: 10.5px;
   font-weight: 700;
-  color: var(--color-text);
-  pointer-events: none;
+  fill: var(--color-text);
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 .posdock__gauge-track { stroke: var(--color-border); }
 .posdock__gauge-fill  { stroke: var(--color-primary); transition: stroke-dashoffset 0.4s; }

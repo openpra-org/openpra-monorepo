@@ -142,6 +142,7 @@
 .iefield-grid--span2 { grid-column: span 2; }
 
 .iefield { display: flex; flex-direction: column; gap: 6px; }
+.iefield-grid--3 > .iefield { justify-content: flex-end; }
 .iefield__labelrow { display: flex; align-items: center; gap: 10px; }
 .iefield__label { font-size: 13px; font-weight: 600; color: var(--color-text); }
 .iefield__hint { font-size: 11.5px; color: var(--color-text-muted); }

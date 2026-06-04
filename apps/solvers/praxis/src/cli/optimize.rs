@@ -59,18 +59,10 @@ pub fn optimize_run_params_for_cpu(
     ram_budget = ram_budget.saturating_sub(ram_reserve);
 
     let denom_ram = bytes_per_bp.saturating_mul(RAM_OVERHEAD_MULTIPLIER);
-    let max_bp_by_ram = if denom_ram == 0 {
-        1
-    } else {
-        ram_budget / denom_ram
-    };
+    let max_bp_by_ram = ram_budget.checked_div(denom_ram).unwrap_or(1);
 
     let per_buffer_cap_bytes = 2048u128 * 1024u128 * 1024u128;
-    let max_bp_by_buffer_cap = if bytes_per_bp == 0 {
-        1
-    } else {
-        per_buffer_cap_bytes / bytes_per_bp
-    };
+    let max_bp_by_buffer_cap = per_buffer_cap_bytes.checked_div(bytes_per_bp).unwrap_or(1);
 
     let max_bp = max_bp_by_ram
         .min(max_bp_by_buffer_cap)

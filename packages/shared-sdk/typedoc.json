@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "out": "docs",
+  "tsconfig": "tsconfig.lib.json",
+  "name": "shared-sdk API",
+  "entryPointStrategy": "expand",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "skipErrorChecking": true,
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

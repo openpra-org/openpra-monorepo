@@ -1,0 +1,23 @@
+# Doxyfile for scram-node C++ docs
+PROJECT_NAME           = "scram-node C++ API"
+OUTPUT_DIRECTORY       = docs/cpp
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+OPTIMIZE_OUTPUT_FOR_C  = NO
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_LOCAL_METHODS  = NO
+INPUT                  = src targets/scram-node targets/scram-cli
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hh *.hpp *.c *.cc *.cpp *.cxx
+INLINE_SOURCES         = NO
+SOURCE_BROWSER         = NO
+GENERATE_TREEVIEW      = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+QUIET                  = YES
+# Try to ignore third-party vendored headers if any
+EXCLUDE_PATTERNS       = */build/* */dist/* */node_modules/*

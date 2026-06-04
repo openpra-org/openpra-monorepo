@@ -1,0 +1,41 @@
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+@Schema({
+  minimize: false,
+  _id: true,
+  versionKey: false,
+  toJSON: {
+    transform: function (doc, ret) {
+      delete ret._id;
+    },
+  },
+})
+export class Fmea {
+  @Prop({ required: false })
+  id: number;
+  @Prop({ required: false })
+  systemsAnalysisId: number;
+  @Prop()
+  title: string;
+  @Prop()
+  description: string;
+  @Prop({ default: [] })
+  columns: {
+    id: string;
+    name: string;
+    type: string;
+    dropdownOptions: {
+      number: number;
+      description: string;
+    }[];
+    computedFrom?: string[];
+    formula?: string;
+  }[];
+  @Prop()
+  rows: {
+    id: string;
+    row_data: Record<string, string>;
+  }[];
+}
+export const FmeaSchema = SchemaFactory.createForClass(Fmea);
+export type FmeaDocument = Fmea & Document;

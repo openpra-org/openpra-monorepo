@@ -1,0 +1,78 @@
+/* You can add global styles to this file, and also import other style files */
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Book.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Bold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Extra-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+@font-face {
+  src: url("/assets/fonts/cereal/Cereal-Black.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
+}
+
+html {
+  font-synthesis: weight style small-caps;
+  font-optical-sizing: auto;
+  -moz-osx-font-smoothing: auto;
+  -webkit-font-smoothing: subpixel-antialiased;
+  font-smooth: always;
+}
+
+#model {
+  margin: 8px;
+  background-color: #343741;
+}
+
+.euiTreeView .euiTreeView {
+  padding-left: 12px !important;
+}
+
+.euiTreeView--withArrows.euiTreeView--compressed .euiTreeView__iconWrapper {
+  margin-left: 0 !important;
+}
+
+.euiTreeView--withArrows.euiTreeView .euiTreeView__iconWrapper {
+  margin-left: 0 !important;
+}
+
+.euiListGroupItem__label {
+  flex-grow: 1 !important;
+}

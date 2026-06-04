@@ -1,0 +1,94 @@
+import { EuiFieldText, EuiFormRow } from "@elastic/eui";
+import React from "react";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
+const UsernameForm = ({
+  signup,
+  setSignup,
+  signupButtonClicked,
+  isValidEmail,
+  setIsValidEmail,
+  isValidUsername,
+  setIsValidUsername,
+  checkEmpty,
+}: {
+  signup: SignUpPropsWithRole;
+  setSignup: (signup: SignUpPropsWithRole) => void;
+  signupButtonClicked: boolean;
+  isValidEmail: boolean;
+  setIsValidEmail: (val: boolean) => void;
+  isValidUsername: boolean;
+  setIsValidUsername: (val: boolean) => void;
+  buttonText: string;
+  checkEmpty: boolean;
+}): JSX.Element => (
+  <>
+    <EuiFormRow
+      isInvalid={!signup.firstName && checkEmpty && signupButtonClicked}
+      error="First name is empty"
+    >
+      <EuiFieldText
+        placeholder="First name"
+        isInvalid={!signup.firstName && checkEmpty && signupButtonClicked}
+        value={signup.firstName}
+        onChange={(e): void => {
+          setSignup({
+            ...signup,
+            firstName: e.target.value,
+          });
+        }}
+      />
+    </EuiFormRow>
+    <EuiFormRow
+      isInvalid={!signup.lastName && checkEmpty && signupButtonClicked}
+      error="Last name is empty"
+    >
+      <EuiFieldText
+        placeholder="Last name"
+        isInvalid={!signup.lastName && checkEmpty && signupButtonClicked}
+        value={signup.lastName}
+        onChange={(e): void => {
+          setSignup({
+            ...signup,
+            lastName: e.target.value,
+          });
+        }}
+      />
+    </EuiFormRow>
+    <EuiFormRow
+      isInvalid={!isValidEmail || (!signup.email && checkEmpty && signupButtonClicked)}
+      helpText={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked ? "" : "Eg. xyz@ncsu.edu"}
+      error="Email invalid or already exists!"
+    >
+      <EuiFieldText
+        placeholder="Email"
+        isInvalid={!isValidEmail || (!signup.email && checkEmpty && signupButtonClicked)}
+        value={signup.email}
+        onChange={(e): void => {
+          setSignup({
+            ...signup,
+            email: e.target.value,
+          });
+          setIsValidEmail(true);
+        }}
+      />
+    </EuiFormRow>
+    <EuiFormRow
+      isInvalid={!isValidUsername || (!signup.username && checkEmpty && signupButtonClicked)}
+      error={`Username ${isValidUsername ? "is invalid!" : "already exists!"}`}
+    >
+      <EuiFieldText
+        placeholder="Username"
+        isInvalid={!isValidUsername || (!signup.username && checkEmpty && signupButtonClicked)}
+        value={signup.username}
+        onChange={(e): void => {
+          setSignup({
+            ...signup,
+            username: e.target.value,
+          });
+          setIsValidUsername(true);
+        }}
+      />
+    </EuiFormRow>
+  </>
+);
+export { UsernameForm };

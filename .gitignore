@@ -90,7 +90,6 @@ __pycache__/
 .claude/
 .mcp.json
 
-packages/
 tools/
 traefik/
 fixtures/

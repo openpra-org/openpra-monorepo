@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="30 -110 230 150" width="16" height="16">
+  <path
+    d="M133.356 218.682c-.163.005 49.259-10.636 49.259-113.345 0-103.72-49.263-113.346-49.259-113.346C212.93 2.38 264.757-12.332 319.522 105.337c-40.836 104.042-94.391 108.981-186.166 113.345Z"
+    fill="#fff"
+    fill-opacity="1"
+    stroke="#0984e3"
+    stroke-width="12"
+    stroke-linejoin="round"
+    style="transform-origin: 50% 50%;"
+    transform="rotate(-90 0 0)"
+  />
+</svg>

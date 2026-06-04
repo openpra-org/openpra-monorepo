@@ -1,0 +1,228 @@
+.node {
+  border: 1px solid #0984e3;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: rgba(0, 0, 0, 0.08) 0 4px 12px;
+  padding: 12px;
+  width: 100px;
+  height: 50px;
+  font-size: 10px;
+  text-align: center;
+  color: #0984e3;
+  cursor: pointer;
+  line-height: 1.15;
+  & textarea {
+    box-shadow: none !important;
+    overflow: hidden;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+  }
+}
+
+.node_container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.node_label {
+  font-size: 10px !important;
+  text-align: center;
+  color: #0984e3 !important;
+  padding: 0 !important;
+  height: 20px !important;
+  margin-top: -10px !important;
+  outline: none;
+  background: none;
+  background-color: unset !important;
+}
+
+.node_label:focus:focus-visible {
+  outline: none;
+  background-image: none;
+  background-color: unset;
+}
+
+.node:hover {
+  background: radial-gradient(circle at 18.7% 37.8%, rgb(252, 252, 252) 0%, rgb(239, 241, 243) 90%);
+}
+
+.content {
+  pointer-events: none;
+}
+
+.handle {
+  visibility: hidden;
+}
+
+.placeholder {
+  width: 160px;
+  background: #fff;
+  border: 1px dashed #bbb;
+  color: #bbb;
+  box-shadow: none;
+}
+
+.line {
+  margin-top: -10px;
+  position: relative;
+  width: 100%;
+  height: 1px;
+  background-color: #0984e3;
+}
+
+.initiating_node {
+  padding-top: 15px;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  & textarea {
+    height: 30px !important;
+  }
+}
+
+.description_node {
+  padding-top: 19px;
+  width: 100px;
+  border-radius: 50%;
+  & textarea {
+    height: 30px !important;
+  }
+}
+
+.end_state_node_container {
+  display: inline-block;
+  position: relative;
+  width: 70px;
+  height: 50px;
+}
+
+.end_state_node {
+  border: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding-top: 15px;
+  padding-left: 8px;
+  padding-right: 8px;
+  clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
+  & textarea {
+    height: 40px !important;
+  }
+}
+
+.end_state_node_border {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  border: 9px solid #0984e3; /* Border style */
+  clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
+}
+
+.functional_node {
+  padding-top: 15px;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  width: 75px;
+  & textarea {
+    height: 40px !important;
+  }
+}
+
+.inter_state_node_container {
+  display: inline-block;
+  position: relative;
+  width: 90px;
+  height: 50px;
+}
+
+.inter_state_node {
+  border: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding-top: 15px;
+  padding-left: 15px;
+  padding-right: 15px;
+  clip-path: polygon(0 50%, 25% 100%, 75% 100%, 100% 50%, 75% 0, 25% 0);
+  & textarea {
+    height: 40px !important;
+  }
+}
+
+.inter_state_node_border {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  border: 14px solid #0984e3; /* Border style */
+  clip-path: polygon(0 50%, 25% 100%, 75% 100%, 100% 50%, 75% 0, 25% 0);
+}
+
+.undeveloped_node_container {
+  display: inline-block;
+  position: relative;
+  width: 100px;
+  height: 50px;
+}
+
+.undeveloped_node {
+  border: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding-top: 23px;
+  padding-left: 15px;
+  padding-right: 15px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  & textarea {
+    height: 25px !important;
+  }
+}
+
+.undeveloped_node_border {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  border: 18px solid #0984e3; /* Border style */
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.transfer_state_node_container {
+  display: inline-block;
+  position: relative;
+  width: 100px;
+  height: 50px;
+  overflow: hidden;
+}
+
+.transfer_state_node {
+  border: 1px solid #0984e3;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding-top: 22px;
+  padding-left: 3px;
+  clip-path: polygon(0% 25%, 50% 25%, 50% 0%, 100% 50%, 50% 100%, 50% 75%, 0% 75%);
+  & textarea {
+    height: 25px !important;
+  }
+}
+
+.transfer_state_node_border {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 1px);
+  height: calc(100% + 2px);
+  border: 18px solid #0984e3; /* Border style */
+  clip-path: polygon(0% 24.5%, 49.5% 24.5%, 49.5% -1%, 102% 50%, 49.5% 101%, 49.5% 75.5%, 0% 75.5%);
+}

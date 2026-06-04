@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opsa-mef>
+  <analysis-results>
+    <fault-tree-analysis name="nus9601">
+      <probability>
+        <top-event-probability>0.00000981</top-event-probability>
+        <statistics>
+          <gates-analyzed>1622</gates-analyzed>
+          <basic-events-count>1567</basic-events-count>
+        </statistics>
+      </probability>
+      <monte-carlo-analysis>
+        <run-config>
+          <engine>dpmc</engine>
+          <target>fault-tree</target>
+          <backend-requested>cuda</backend-requested>
+          <backend-used>cuda</backend-used>
+          <seed>847</seed>
+          <num-trials-requested>1000000000</num-trials-requested>
+          <dpmc-params t="100" b="125" p="1250" omega="64"/>
+        </run-config>
+        <probability-estimate>0.00000981</probability-estimate>
+        <std-dev>0.0031320765912904976</std-dev>
+        <confidence-interval>
+          <lower>0.000009615871881739407</lower>
+          <upper>0.000010004128118260592</upper>
+        </confidence-interval>
+        <statistics>
+          <num-trials>1000000000</num-trials>
+          <successes>9810</successes>
+          <peak-vram-mib>7058.21484375</peak-vram-mib>
+        </statistics>
+      </monte-carlo-analysis>
+    </fault-tree-analysis>
+  </analysis-results>
+</opsa-mef>

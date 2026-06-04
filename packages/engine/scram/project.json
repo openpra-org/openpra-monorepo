@@ -1,0 +1,55 @@
+{
+  "name": "engine-scram",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["!{projectRoot}/**/*.spec.tsx"]
+  },
+  "targets": {
+    "install": {
+      "dependsOn": ["build"]
+    },
+    "build": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "install"
+      }
+    },
+    "clean": {},
+    "distclean": {},
+    "build-deps": {},
+    "tidy": {},
+    "format": {},
+    "coverage": {},
+    "debug": {},
+    "release": {},
+    "sanitize": {},
+    "test": {
+      "inputs": ["default"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "dependsOn": ["build"],
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "packages/engine/scram/jest.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/engine/scram/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/tests/**/*.{ts,js}"]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter scram-node run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  },
+  "sourceRoot": "packages/engine/scram/src",
+  "projectType": "library",
+  "tags": []
+}

@@ -1,0 +1,49 @@
+{
+  "name": "shared-sdk",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/shared-sdk/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter shared-sdk run docs",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/docs"]
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter shared-sdk run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/shared-sdk",
+        "main": "packages/shared-sdk/src/index.ts",
+        "tsConfig": "packages/shared-sdk/tsconfig.lib.json",
+        "assets": ["packages/shared-sdk/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/shared-sdk/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/shared-sdk/jest.config.ts"
+      }
+    }
+  }
+}

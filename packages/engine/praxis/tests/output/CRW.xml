@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+  <information>
+    <software name="praxis" version="0.1.0"/>
+    <model-features>
+      <gates>7775</gates>
+      <basic-events>641</basic-events>
+    </model-features>
+  </information>
+  <results>
+    <event-tree-monte-carlo>
+      <event-tree id="CRW">
+        <initiating-event id="CRW-IE">
+          <frequency>1</frequency>
+        </initiating-event>
+        <monte-carlo-analysis>
+          <run-config>
+            <engine>dpmc</engine>
+            <target>event-tree</target>
+            <backend-requested>cuda</backend-requested>
+            <backend-used>cuda</backend-used>
+            <seed>847</seed>
+            <num-trials-requested>100000000000</num-trials-requested>
+            <dpmc-params t="10000" b="1250" p="125" omega="64"/>
+          </run-config>
+          <statistics>
+            <num-trials>100000000000</num-trials>
+          </statistics>
+          <sequences>
+            <sequence id="S131">
+              <frequency-estimate>0.00000000096</frequency-estimate>
+              <successes>96</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S132">
+              <frequency-estimate>0.00000000098</frequency-estimate>
+              <successes>98</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S133">
+              <frequency-estimate>0.0000000021</frequency-estimate>
+              <successes>210</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S134">
+              <frequency-estimate>0.00000010584</frequency-estimate>
+              <successes>10584</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S135">
+              <frequency-estimate>0.00000002793</frequency-estimate>
+              <successes>2793</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S136">
+              <frequency-estimate>0.00927153701</frequency-estimate>
+              <successes>927153701</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S137">
+              <frequency-estimate>0.02045506738</frequency-estimate>
+              <successes>2045506738</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+            <sequence id="S138">
+              <frequency-estimate>0.96951211613</frequency-estimate>
+              <successes>96951211613</successes>
+              <num-trials>100000000000</num-trials>
+            </sequence>
+          </sequences>
+        </monte-carlo-analysis>
+      </event-tree>
+    </event-tree-monte-carlo>
+  </results>
+</report>

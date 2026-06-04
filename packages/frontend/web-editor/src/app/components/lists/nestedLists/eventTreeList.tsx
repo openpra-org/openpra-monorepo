@@ -1,0 +1,20 @@
+import { UseGlobalStore } from "../../../zustand/Store";
+import { NestedModelListZustand } from "./templateList/nestedModelListZustand";
+function EventTreeList(): JSX.Element {
+  const EventTrees = UseGlobalStore.use.NestedModels().EventSequenceAnalysis.EventTrees;
+  const SetEventTrees = UseGlobalStore.use.SetEventTrees();
+  const AddEventTree = UseGlobalStore.use.AddEventTree();
+  const DeleteEventTree = UseGlobalStore.use.DeleteEventTree();
+  const EditEventTree = UseGlobalStore.use.EditEventTree();
+  return (
+    <NestedModelListZustand
+      NestedModelList={EventTrees}
+      GetNestedModel={SetEventTrees}
+      DeleteNestedModel={DeleteEventTree}
+      EditNestedModel={EditEventTree}
+      AddNestedModel={AddEventTree}
+      name="event-tree"
+    />
+  );
+}
+export { EventTreeList };

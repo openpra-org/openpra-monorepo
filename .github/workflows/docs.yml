@@ -3,14 +3,19 @@ name: "Docs: Unified TypeScript + C++"
 on:
   push:
     branches:
-      - main
+      - "**"
     paths:
       - "packages/docs-md/**"
       - "packages/mef-types/**"
-      - "packages/shared-types/**"
       - "packages/shared-sdk/**"
       - "packages/frontend/web-editor/src/utils/**"
       - "packages/engine/scram/**"
+      - "apps/interfaces/shared-types/**"
+      - "apps/backends/web-backend/**"
+      - "apps/frontends/web-frontend/**"
+      - "apps/microservices/praetor/**"
+      - "apps/solvers/praxis/**"
+      - "apps/utilities/pracciolini/**"
       - ".github/workflows/docs.yml"
       - ".dockerignore"
       - "pnpm-workspace.yaml"
@@ -28,7 +33,7 @@ jobs:
     concurrency:
       group: docs-${{ github.ref }}
       cancel-in-progress: true
-    runs-on: monorepo-runner
+    runs-on: gaia1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,6 +66,34 @@ jobs:
           sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 
+      - name: Ensure Rust toolchain
+        run: |
+          if ! command -v cargo &>/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Install Python doc tools
+        run: pip install pdoc plotly
+
+      - name: Generate Rust API docs (PRAXIS — cargo doc)
+        run: |
+          mkdir -p packages/docs-md/public/api/rust/praxis
+          cd apps/solvers/praxis
+          cargo doc --no-deps --target-dir ../../../packages/docs-md/.tmp/praxis-cargo-doc 2>&1 || echo "cargo doc encountered warnings"
+          cp -r ../../../packages/docs-md/.tmp/praxis-cargo-doc/doc/. ../../../packages/docs-md/public/api/rust/praxis/
+
+      - name: Generate Python API docs (pracciolini — pdoc)
+        run: |
+          mkdir -p packages/docs-md/public/api/python/pracciolini
+          (cd apps/utilities/pracciolini/src && \
+            PYTHONPATH=. pdoc --output-directory ../../../../packages/docs-md/public/api/python/pracciolini \
+              convert ftap ftap_verifier jsinp jsinp_verifier model \
+              openpsa_verifier openpsa_xml parse_ftrex_log parse_praxis_log \
+              parse_saphsolve_log parse_scram_log parse_xfta_log parse_zebra_log \
+              plot_benchmark_results s2ml s2ml_verifier 2>&1) \
+          || echo "Pracciolini pdoc failed — committed baseline will be used"
+
       - name: Build unified Markdown docs (VitePress)
         # Nx Cloud temporarily disabled — retain config here for quick re-enable
         env:
@@ -79,24 +112,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Determine branch-based domain and image tag
+      - name: Determine image tag
         id: vars
         run: |
           BRANCH_NAME="${{ github.ref_name }}"
-          # Sanitize branch name for domain (replace / with -)
           SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
 
           if [ "$BRANCH_NAME" = "main" ]; then
-            DOMAIN="docs-dev.openpra.org"
-            IMAGE_TAG="latest"
+            echo "image_tag=latest" >> $GITHUB_OUTPUT
           else
-            DOMAIN="${SANITIZED_BRANCH}-docs-dev.openpra.org"
-            IMAGE_TAG="${SANITIZED_BRANCH}"
+            echo "image_tag=${SANITIZED_BRANCH}" >> $GITHUB_OUTPUT
           fi
 
-          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
-          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+          echo "sanitized_branch=${SANITIZED_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Login to self-hosted registry
         uses: docker/login-action@v3
@@ -121,20 +149,26 @@ jobs:
 
       - name: Deploy to Docker Swarm
         run: |
-          DOMAIN="${{ steps.vars.outputs.domain }}"
+          BRANCH_NAME="${{ github.ref_name }}"
           IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
-          STACK_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
-          BRANCH_SLUG="${{ steps.vars.outputs.sanitized_branch }}"
+          SANITIZED_BRANCH="${{ steps.vars.outputs.sanitized_branch }}"
 
-          # Export variables for docker stack
           export IMAGE_DOCS="registry.openpra.org/openpra-docs:${IMAGE_TAG}"
-          export DOMAIN="${DOMAIN}"
-          export BRANCH_SLUG="${BRANCH_SLUG}"
 
-          # Deploy stack with registry auth
-          docker stack deploy \
-            --with-registry-auth \
-            --compose-file docker/docs-stack.yml \
-            ${STACK_NAME}
-
-          echo "Documentation deployed to https://${DOMAIN}"
+          if [ "$BRANCH_NAME" = "main" ]; then
+            export DOMAIN="docs-dev.openpra.org"
+            export BRANCH_SLUG="main"
+            docker stack deploy \
+              --with-registry-auth \
+              --compose-file docker/docs-stack.yml \
+              docs-main
+            echo "Documentation deployed to https://docs-dev.openpra.org"
+          else
+            export APP_NAME="openpra-apps-${SANITIZED_BRANCH}"
+            export HOST_URL="${SANITIZED_BRANCH}-dev.openpra.org"
+            docker stack deploy \
+              --with-registry-auth \
+              --compose-file docker/docs-branch-stack.yml \
+              "${APP_NAME}"
+            echo "Documentation deployed to https://${HOST_URL}/documentation"
+          fi

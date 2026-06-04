@@ -1,26 +1,35 @@
 import tseslint from 'typescript-eslint';
-import tsdocPlugin from 'eslint-plugin-tsdoc';
-import { createTsCanaryConfig } from '../../../tools/eslint/flat/presets.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const relDir = path.relative(process.cwd(), __dirname) || '.';
-export default tseslint.config(...createTsCanaryConfig({
-    tseslint,
-    tsdoc: tsdocPlugin,
-    tsconfigRootDir: __dirname,
-    projectTsconfigs: ['./tsconfig.eslint.json']
-}), {
-    files: [`${relDir}/**/*.{ts,tsx}`],
-    rules: {
-        '@typescript-eslint/no-unused-vars': [
-            'error',
-            {
-                argsIgnorePattern: '^_',
-                varsIgnorePattern: '^_',
-                caughtErrors: 'all',
-                caughtErrorsIgnorePattern: '^_'
+const dirPattern = relDir === '.' ? '' : `${relDir}/`;
+
+export default tseslint.config(
+    {
+        ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts']
+    },
+    {
+        files: [`${dirPattern}**/*.{ts,tsx}`],
+        plugins: { '@typescript-eslint': tseslint.plugin },
+        languageOptions: {
+            parser: tseslint.parser,
+            parserOptions: {
+                project: ['./tsconfig.eslint.json'],
+                tsconfigRootDir: __dirname
             }
-        ]
+        },
+        rules: {
+            '@typescript-eslint/no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrors: 'all',
+                    caughtErrorsIgnorePattern: '^_'
+                }
+            ]
+        }
     }
-});
+);

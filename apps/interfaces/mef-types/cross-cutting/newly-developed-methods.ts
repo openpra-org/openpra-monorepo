@@ -1,4 +1,3 @@
-import { Named, Unique } from "../core/meta";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 

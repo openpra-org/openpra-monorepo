@@ -15,7 +15,6 @@ import { PosDemoPage } from "../pos-workbooks/posDemoPage";
 import { PosWorkbookPage } from "../pos-workbooks/posWorkbookPage";
 import { IeDemoPage } from "../ie-workbooks/ieDemoPage";
 import { IeWorkbookPage } from "../ie-workbooks/ieWorkbookPage";
-import { EsWorkbookPage } from "../es-workbooks/esWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -94,14 +93,6 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <IeWorkbookPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/es-workbooks/:id",
-    element: (
-      <ProtectedRoute>
-        <EsWorkbookPage />
       </ProtectedRoute>
     ),
   },

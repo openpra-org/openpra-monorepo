@@ -525,7 +525,6 @@ fn convert_parsed_to_openpra_model(
                         json!(fault_tree.element().id()),
                     ),
                 ]),
-                ..SystemDefinition::default()
             });
 
             if let Some(system_definition) = system_definitions.last_mut() {
@@ -623,7 +622,6 @@ fn convert_parsed_to_openpra_model(
                             "sourceFaultTreeId".to_string(),
                             json!(fault_tree_id),
                         )]),
-                        ..SystemsCcfGroup::default()
                     });
                 }
             }
@@ -1672,6 +1670,7 @@ fn collect_reachable_event_tree_ids(
     ordered
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_terminal_leaves(
     root_event_tree_id: &str,
     current_event_tree_id: &str,

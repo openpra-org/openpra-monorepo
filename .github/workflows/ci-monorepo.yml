@@ -1,4 +1,4 @@
-name: "CI: Monorepo — Build & Test"
+name: "CI: Apps — Build, Test, Lint & Type-Check"
 
 on:
   push:
@@ -9,8 +9,13 @@ on:
       - "**"
 
 jobs:
-  build-and-test:
+  nx-apps:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ci-nx-apps-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    env:
+      NX_NO_CLOUD: "true"
     services:
       mongo:
         image: mongo:6
@@ -18,12 +23,6 @@ jobs:
           - 27017:27017
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - backends-web-backend
-          - frontends-web-frontend
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,12 +39,9 @@ jobs:
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
       - name: Build
-        env:
-          NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx build ${{ matrix.package }} --configuration=production
+        run: npx -y pnpm@10.19.0 nx run-many -t build --projects=backends-web-backend,frontends-web-frontend,praetor
 
       - name: Wait for MongoDB
-        if: matrix.package == 'backends-web-backend'
         run: |
           for i in $(seq 1 60); do
             (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1 && echo "MongoDB ready" && break
@@ -55,5 +51,41 @@ jobs:
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
-          NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test -- --testTimeout=60000
+        run: |
+          npx -y pnpm@10.19.0 nx run-many -t test --projects=backends-web-backend,frontends-web-frontend -- --testTimeout=60000
+          npx -y pnpm@10.19.0 nx run praetor:test
+
+      - name: Lint
+        run: npx -y pnpm@10.19.0 nx run-many -t lint --projects=backends-web-backend,frontends-web-frontend,interfaces-mef-types,interfaces-shared-types
+
+      - name: Type-check
+        run: npx -y pnpm@10.19.0 nx run-many -t typecheck --projects=backends-web-backend,frontends-web-frontend,praetor,interfaces-mef-types,interfaces-shared-types
+
+  rust-praxis:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-rust-praxis-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: apps/solvers/praxis
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Type-check
+        run: cargo check
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+      - name: Build
+        run: cargo build

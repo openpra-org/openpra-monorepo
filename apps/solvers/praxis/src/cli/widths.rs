@@ -16,8 +16,8 @@ pub fn run_widths_only(
     fault_tree: &FaultTree,
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let compute_treewidth = cli.treewidth || (!cli.treewidth && !cli.pathwidth);
-    let compute_pathwidth = cli.pathwidth || (!cli.treewidth && !cli.pathwidth);
+    let compute_treewidth = cli.treewidth || !cli.pathwidth;
+    let compute_pathwidth = cli.pathwidth || !cli.treewidth;
 
     if verbose {
         eprintln!("Building PDAG from fault tree: {}", fault_tree.element().id());

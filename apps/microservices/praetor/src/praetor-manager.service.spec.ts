@@ -25,13 +25,15 @@ describe('PraetorManagerService', () => {
     describe('getJobTypes', () => {
         it('should return job types message', () => {
             expect(service.getJobTypes()).toEqual({
-                message: 'return the types of jobs',
+                services: [
+                    { name: 'SCRAM Quantify', endpoint: '/q/scram' },
+                    { name: 'SCRAM Adaptive Quantify', endpoint: '/q/scram/adaptive' },
+                    { name: 'SaphSolve Quantify', endpoint: '/q/saphsolve/quantify' },
+                    { name: 'SaphSolve Execute', endpoint: '/q/saphsolve/execute' },
+                    { name: 'FTREX Quantify', endpoint: '/q/ftrex/quantify' },
+                    { name: 'FTREX Execute', endpoint: '/q/ftrex/execute' },
+                ],
             });
-        });
-    });
-    describe('createJob', () => {
-        it('should return create job message', () => {
-            expect(service.createJob()).toEqual({ message: 'create a new job' });
         });
     });
     describe('getJobs', () => {

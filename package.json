@@ -31,6 +31,7 @@
     "@nx/node": "22.0.1",
     "@nx/playwright": "22.0.1",
     "@nx/react": "22.0.1",
+    "@nx/vitest": "22.1.0",
     "@nx/webpack": "22.0.1",
     "@playwright/test": "1.56.1",
     "@pmmmwh/react-refresh-webpack-plugin": "0.6.1",
@@ -42,10 +43,13 @@
     "@swc/jest": "0.2.39",
     "@testing-library/react": "16.3.0",
     "@tsconfig/recommended": "^1.0.10",
+    "@types/amqplib": "0.10.8",
+    "@types/express": "4.17.21",
     "@types/jest": "30.0.0",
     "@types/node": "20.9.0",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.0",
+    "@types/uuid": "9.0.4",
     "amqp-connection-manager": "4.1.14",
     "amqplib": "0.10.9",
     "argon2": "0.44.0",
@@ -90,9 +94,13 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.46.2",
     "typia": "9.7.2",
+    "unplugin-swc": "1.5.9",
     "url-loader": "4.1.1"
   },
   "dependencies": {
+    "@nestjs/swagger": "11.2.1",
+    "minio": "8.0.6",
+    "uuid": "9.0.1",
     "xlsx": "0.18.5"
   },
   "scripts": {

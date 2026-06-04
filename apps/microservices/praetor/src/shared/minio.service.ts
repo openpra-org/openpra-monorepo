@@ -149,7 +149,7 @@ export class MinioService implements OnModuleInit {
             if (objectsList.length === 0) {
                 throw new Error(`No input data found for ID: ${inputId}`);
             }
-            const objectName = objectsList[0].name;
+            const objectName = objectsList[0].name!;
             const dataStream = await this.minioClient.getObject(this.inputBucket, objectName);
             const chunks: Uint8Array[] = [];
             for await (const chunk of dataStream) {
@@ -196,7 +196,7 @@ export class MinioService implements OnModuleInit {
             if (objectsList.length === 0) {
                 throw new Error(`No output data found for ID: ${outputId}`);
             }
-            const objectName = objectsList[0].name;
+            const objectName = objectsList[0].name!;
             const dataStream = await this.minioClient.getObject(this.outputBucket, objectName);
             const chunks: Uint8Array[] = [];
             for await (const chunk of dataStream) {
@@ -220,7 +220,7 @@ export class MinioService implements OnModuleInit {
                 objectsList.push(obj);
             }
             for (const obj of objectsList) {
-                await this.minioClient.removeObject(this.inputBucket, obj.name);
+                await this.minioClient.removeObject(this.inputBucket, obj.name!);
             }
             this.logger.log(`Deleted input data for ID: ${inputId}`);
         } catch (error) {
@@ -238,7 +238,7 @@ export class MinioService implements OnModuleInit {
                 objectsList.push(obj);
             }
             for (const obj of objectsList) {
-                await this.minioClient.removeObject(this.outputBucket, obj.name);
+                await this.minioClient.removeObject(this.outputBucket, obj.name!);
             }
             this.logger.log(`Deleted output data for ID: ${outputId}`);
         } catch (error) {

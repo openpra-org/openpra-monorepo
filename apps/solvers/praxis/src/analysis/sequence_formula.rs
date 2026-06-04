@@ -9,7 +9,6 @@
 ///
 /// The formula is stored as a root `NodeIdx` inside a shared `BddPdag`,
 /// ready to be consumed by the BDD engine (Phase 5) or ZBDD engine (Phase 7).
-
 use std::collections::{HashMap, HashSet};
 
 use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, NodeIdx};

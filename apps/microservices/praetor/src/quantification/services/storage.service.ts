@@ -164,7 +164,7 @@ export class StorageService {
         }
         aggregatedResult.results.initiatingEvents = Array.from(ieMap.values());
         for (const res of sequenceResults) {
-            if (res.results.sumOfProducts.length > 0) {
+            if ((res.results.sumOfProducts?.length ?? 0) > 0) {
                 aggregatedResult.results.sumOfProducts = res.results.sumOfProducts;
                 break;
             }

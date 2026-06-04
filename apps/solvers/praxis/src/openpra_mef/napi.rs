@@ -170,6 +170,7 @@ fn cut_set_prob_from_ids(
     product
 }
 
+#[allow(clippy::too_many_arguments)]
 fn combine_and_prune_cut_sets(
     left: Vec<crate::algorithms::mocus::CutSet>,
     right: Vec<crate::algorithms::mocus::CutSet>,
@@ -289,6 +290,7 @@ fn cut_set_to_i32(
     out
 }
 
+#[allow(clippy::too_many_arguments)]
 fn adaptive_cut_sets_for_sequence(
     model: &crate::core::model::Model,
     event_tree_library: &HashMap<String, crate::core::event_tree::EventTree>,
@@ -600,9 +602,9 @@ fn adaptive_cut_sets_for_sequence(
     let mut stop_mcub_relative_error: Option<f64> = None;
     let mut stop_mcub_partial: Option<f64> = None;
 
-    for (ix, (score, cs)) in ranked.iter().cloned().take(stop_after).enumerate() {
+    for (ix, (score, cs)) in ranked.iter().take(stop_after).enumerate() {
         retained_cut_sets.push(cs.clone());
-        let cs_i32 = cut_set_to_i32(&cs, &mut event_index, &mut probs_i32, &prob_by_event_id);
+        let cs_i32 = cut_set_to_i32(cs, &mut event_index, &mut probs_i32, &prob_by_event_id);
         let p_cs = crate::analysis::approximations::cut_set_probability(&cs_i32, &probs_i32);
         retained_i32.push(cs_i32);
 
@@ -621,7 +623,7 @@ fn adaptive_cut_sets_for_sequence(
             }
         }
 
-        if score < eta {
+        if *score < eta {
             stop_after = ix + 1;
             stop_reason = "belowEta".to_string();
             break;
@@ -1939,7 +1941,7 @@ pub fn convert_openpsa_xml_batch_to_openpra_json_contract(input: &str) -> Result
             )
             .with_hint("Provide XML content for each file entry");
 
-            let counts = diagnostic_counts(&[diagnostic.clone()]);
+            let counts = diagnostic_counts(std::slice::from_ref(&diagnostic));
             results.push(json!({
                 "index": index,
                 "fileId": file_id,
@@ -2137,6 +2139,7 @@ fn payload_limits_json() -> serde_json::Value {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_metadata_json(
     backend: &str,
     seed: u64,

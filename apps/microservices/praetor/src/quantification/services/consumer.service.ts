@@ -336,7 +336,6 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         const rawApprox = sumOfProducts?.approximateProbability ??
             sumOfProducts?.probability ??
             cutSets?.approximateProbability ??
-            cutSets?.probability ??
             sequence?.approximateProbability ??
             sequence?.probability ??
             sequence?.value;

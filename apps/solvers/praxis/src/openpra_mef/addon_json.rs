@@ -379,11 +379,13 @@ fn build_praxis_engine_objects(
 
             let sequence_groups = group_sequences_by_source_event_tree(&event_tree_id, &sequences_for_ie);
             for (group_event_tree_id, group_sequences) in sequence_groups {
-                if !event_tree_library.contains_key(&group_event_tree_id) {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    event_tree_library.entry(group_event_tree_id)
+                {
                     let praxis_event_tree =
-                        build_event_tree_for_initiator(&group_event_tree_id, &group_sequences)?;
+                        build_event_tree_for_initiator(e.key(), &group_sequences)?;
                     praxis_event_tree.validate()?;
-                    event_tree_library.insert(group_event_tree_id, praxis_event_tree);
+                    e.insert(praxis_event_tree);
                 }
             }
             initiating_events.push(ie);

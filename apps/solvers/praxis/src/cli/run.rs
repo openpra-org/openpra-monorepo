@@ -250,15 +250,13 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(2);
     }
 
-    if input_format == ResolvedFormat::Xml && output_format != ResolvedFormat::Xml {
-        if output_format != ResolvedFormat::Json {
-            eprintln!(
-                "error: format mismatch: XML input supports '--output-format xml' or '--output-format json' (or '--output-format auto')"
-            );
-            eprintln!();
-            eprintln!("For more information, try '--help'.");
-            std::process::exit(2);
-        }
+    if input_format == ResolvedFormat::Xml && output_format != ResolvedFormat::Xml && output_format != ResolvedFormat::Json {
+        eprintln!(
+            "error: format mismatch: XML input supports '--output-format xml' or '--output-format json' (or '--output-format auto')"
+        );
+        eprintln!();
+        eprintln!("For more information, try '--help'.");
+        std::process::exit(2);
     }
 
     if input_format == ResolvedFormat::Json {

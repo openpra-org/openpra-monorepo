@@ -577,7 +577,7 @@ fn run_pre_event_tree_impl(
     }
 
     // Approximation from MOCUS cut sets (ZBDD handles its own approximation above)
-    if cli.algorithm == Algorithm::Mocus {
+    if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {
         if let Some(ref cut_sets) = computed_cut_sets {
             let mut event_probs: std::collections::HashMap<i32, f64> =
                 std::collections::HashMap::new();

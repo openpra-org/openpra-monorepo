@@ -72,6 +72,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
+          source "$HOME/.cargo/env"
           rustup toolchain install nightly --no-self-update
           cargo install cargo-docs-md --version 0.2.4
 

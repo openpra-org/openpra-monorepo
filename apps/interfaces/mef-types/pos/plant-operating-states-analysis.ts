@@ -3,7 +3,7 @@ import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, Frequency, FrequencyWithDistribution } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { ComponentReference } from "../core/component";
-import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
+import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 
 export type ScreeningCriterion = "SCR-1" | "SCR-2" | "SCR-3" | "ALTERNATE";
@@ -211,6 +211,7 @@ export interface PlantOperatingState extends Unique, Named {
 
   meanDurationHours: number;
   meanTimeAfterShutdownHours?: number;
+  durationAndCycleTimingBasis?: string;
   meanEntryFrequency: Frequency | FrequencyWithDistribution;
   decayHeatLevelDefined: boolean;
   decayHeatBasis?: string;
@@ -327,19 +328,6 @@ export interface DecayHeatCharacterization {
   timeAfterShutdownHours: number;
   basis: string;
   isLpsd: boolean;
-  implementsSrs: SRReference[];
-}
-
-export interface PlantRepresentationAccuracy {
-  scope: "OPERATING" | "PRE_OPERATIONAL";
-  accuracy: ImportanceLevel;
-  basis: string;
-  detailConsistentWithPlant: boolean;
-  sufficientForRiskSignificantContributors: boolean;
-  sufficiencyJustification: string;
-  highConfidenceAreas: string[];
-  lowerConfidenceAreas: string[];
-  improvementPlans: string[];
   implementsSrs: SRReference[];
 }
 

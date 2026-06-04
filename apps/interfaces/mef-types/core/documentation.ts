@@ -1,5 +1,19 @@
 import { Unique, Named } from "./meta";
 import { ImportanceLevel, SensitivityStudy } from "./shared-patterns";
+import { SRReference } from "./pra-common";
+
+export interface PlantRepresentationAccuracy {
+  scope: "OPERATING" | "PRE_OPERATIONAL";
+  accuracy: ImportanceLevel;
+  basis: string;
+  detailConsistentWithPlant: boolean;
+  sufficientForRiskSignificantContributors: boolean;
+  sufficiencyJustification: string;
+  highConfidenceAreas: string[];
+  lowerConfidenceAreas: string[];
+  improvementPlans: string[];
+  implementsSrs: SRReference[];
+}
 
 export interface BaseDesignInformation {
   sourceId: string;

@@ -1,7 +1,7 @@
 import { Unique, Named } from "../core/meta";
 import { InitiatingEvent, Frequency, FrequencyWithDistribution } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
-import { PreOperationalAssumption } from "../core/documentation";
+import { PreOperationalAssumption, BaseModelUncertaintyDocumentation, PlantRepresentationAccuracy } from "../core/documentation";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 
@@ -63,6 +63,33 @@ export interface ModuleImpact {
   timing?: string;
 }
 
+export interface SourceEscapeMechanism {
+  sourceId: string;
+  mechanisms: string[];
+  hazardGroupsConsidered: string[];
+  implementsSrs: SRReference[];
+}
+
+export interface IdentificationReview {
+  reviewType: "INTERVIEW" | "EVALUATION";
+  date: string;
+  personnelRoles: string[];
+  findings: string;
+  overlookedInitiatorsIdentified: string[];
+  implementsSrs: SRReference[];
+}
+
+export interface InterfacingSystemBreachFeatures {
+  pathwayConfiguration: string;
+  valveTypesAndFailureModes: string[];
+  reliefValveProvisions: string;
+  otherComponentBehavior?: string[];
+  protectiveInterlocks: string[];
+  testAndMaintenancePractices?: string[];
+  detectionMeans?: string[];
+  implementsSrs: SRReference[];
+}
+
 export interface InitiatorDefinition extends InitiatingEvent {
   category: InitiatingEventCategory;
   subcategory?: string;
@@ -76,6 +103,7 @@ export interface InitiatorDefinition extends InitiatingEvent {
   mitigatingSystems: MitigatingSystemDemand[];
   barrierImpacts: BarrierImpact[];
   moduleImpacts?: ModuleImpact[];
+  interfacingSystemFeatures?: InterfacingSystemBreachFeatures;
 
   challengedSafetyFunctions: SafetyFunctionReference[];
 
@@ -116,6 +144,7 @@ export interface InitiatingEventGroup extends Unique, Named {
   comparableImpactAcrossMembers: boolean;
   challengedSafetyFunctions: SafetyFunctionReference[];
   applicableStates: PlantOperatingStateReference[];
+  affectedReactorOrSourceCombinations?: string[];
   meanFrequency?: Frequency | FrequencyWithDistribution;
   riskImportance?: ImportanceLevel;
   implementsSrs: SRReference[];
@@ -131,10 +160,37 @@ export interface InitiatingEventFrequencyQuantification {
   dataExclusionJustification?: string;
   otherReactorDataJustification?: string;
   recoveryActionsIncluded: boolean;
+  recoveryActionJustifications?: string[];
+  plantSpecificRecoveryInfoUsed?: boolean;
   faultTreeDetails?: {
     modelId: string;
     topEvent: string;
     modifications: string[];
+    quantifiesFrequencyNotProbability: boolean;
+    hfeContributionsIncluded: boolean;
+    hfeExclusionBasis?: string;
+    componentFailureCombinationsIncluded: boolean;
+  };
+  operatorContribution?: {
+    controlRoomContributionEstimated: boolean;
+    operatorSplitFraction?: number;
+    hardwareSplitFraction?: number;
+    basis: string;
+  };
+  genericDataComparison?: {
+    performed: boolean;
+    differencesExplanation?: string;
+  };
+  rareEventTreatment?: {
+    industryGenericDataUsed: boolean;
+    plantSpecificAugmentation?: string;
+    expertJudgmentUsed: boolean;
+    expertJudgmentBasis?: string;
+  };
+  uncertaintyCharacterization?: {
+    riskSignificant: boolean;
+    method: string;
+    probabilisticRepresentationProvided: boolean;
   };
   sensitivityStudies?: SensitivityStudy[];
   implementsSrs: SRReference[];
@@ -169,6 +225,8 @@ export interface IeCompletenessSearch {
   functionalCategoriesCovered: InitiatingEventCategory[];
   perSystemSearchPerformed: boolean;
   perSupportSystemSearchPerformed: boolean;
+  multipleFailureInitiatorsIncluded: boolean;
+  temporaryAlignmentsConsidered: boolean;
   multiReactorEventsAddressed: boolean;
   radioactiveSourceMechanismsAddressed: boolean;
   implementsSrs: SRReference[];
@@ -206,11 +264,15 @@ export interface InitiatingEventsAnalysis
   initiatingEventGroups: InitiatingEventGroup[];
 
   completenessSearch: IeCompletenessSearch;
+  sourceMechanisms: SourceEscapeMechanism[];
+  identificationReviews: IdentificationReview[];
+  plantRepresentationAccuracy: PlantRepresentationAccuracy;
   hazardAnalyses?: HazardAnalysis[];
 
   quantifications: InitiatingEventFrequencyQuantification[];
   screeningRecords: InitiatingEventScreeningRecord[];
 
+  modelUncertainty: BaseModelUncertaintyDocumentation;
   preOperationalAssumptions?: PreOperationalAssumption[];
   documentation: IeDocumentation;
 
@@ -253,6 +315,15 @@ export const IE_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }>
   "IE-C8": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
   "IE-C9": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
   "IE-C10": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C11": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C12": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C13": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C14": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C15": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C16": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C17": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C18": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
+  "IE-C19": { hlr: "C", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
   "IE-D1": { hlr: "D", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
   "IE-D2": { hlr: "D", stages: ["OPERATIONAL", "PRE_OPERATIONAL"] },
   "IE-D3": { hlr: "D", stages: ["PRE_OPERATIONAL"] },

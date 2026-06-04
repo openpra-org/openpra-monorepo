@@ -127,7 +127,7 @@ const COMPLETENESS_CHECK_META: CompletenessCheckMeta[] = [
   { icon: "Radiation", detail: "Escape mechanisms identified for all radioactive sources and tied to initiators (IE-A2).", meta: () => "" },
   { icon: "Group",     detail: "Multi-reactor / shared-source event applicability assessed (IE-A16, IE-B5).", meta: () => "" },
   { icon: "Branch",    detail: "Multiple-failure initiators — common cause, dependent-failure combinations, and correlated hardware failures — included in the identification search (IE-A9).", meta: () => "" },
-  { icon: "Wrench",    detail: "Temporary plant alignments, maintenance configurations, and surveillance testing evolutions assessed as potential initiating-event precursors (IE-A9).", meta: () => "" },
+  { icon: "Settings",  detail: "Temporary plant alignments, maintenance configurations, and surveillance testing evolutions assessed as potential initiating-event precursors (IE-A9).", meta: () => "" },
 ];
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";

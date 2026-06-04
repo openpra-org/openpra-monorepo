@@ -5,6 +5,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 fn praxis_binary() -> Option<PathBuf> {
     let candidates = [
+        PathBuf::from("target/debug/praxis-cli"),
+        PathBuf::from("target/debug/praxis"),
+        PathBuf::from("target/release/praxis-cli"),
+        PathBuf::from("target/release/praxis"),
         PathBuf::from("target/debug/praxis-cli.exe"),
         PathBuf::from("target/debug/praxis.exe"),
         PathBuf::from("target/release/praxis-cli.exe"),

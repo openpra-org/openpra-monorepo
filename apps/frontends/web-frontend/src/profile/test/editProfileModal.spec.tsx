@@ -62,7 +62,11 @@ describe("EditProfileModal", () => {
         pending={false}
       />,
     );
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole("textbox", { name: /^name$/i }));
+    });
     const alt = screen.getByLabelText(/alternate email/i);
+    await userEvent.click(alt);
     await userEvent.type(alt, "not-an-email");
     await userEvent.click(screen.getByRole("button", { name: /save changes/i }));
     expect(await screen.findByText(/invalid email format/i)).toBeInTheDocument();

@@ -7,7 +7,6 @@ import {
   type PosSeparationRecord,
   type SubsumedPosRecord,
   type DecayHeatCharacterization,
-  type PlantRepresentationAccuracy,
   type TransitionEvent,
   type PosValidationRules,
   type PosDocumentation,
@@ -29,7 +28,7 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type InitiatingEvent } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
-import { type BaseModelUncertaintyDocumentation, type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
+import { type BaseModelUncertaintyDocumentation, type PlantRepresentationAccuracy, type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
 
 // hardcoded — entire PlantOperatingStatesAnalysis instance below is demo data

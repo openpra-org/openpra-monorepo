@@ -5,6 +5,9 @@ import {
   type HazardAnalysis,
   type InitiatingEventFrequencyQuantification,
   type InitiatingEventScreeningRecord,
+  type SourceEscapeMechanism,
+  type IdentificationReview,
+  type InterfacingSystemBreachFeatures,
   InitiatingEventCategory,
   BarrierImpactState,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
@@ -12,7 +15,7 @@ import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { FrequencyUnit, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { type SRConformance, type SRReference } from "interfaces-mef-types/core/pra-common";
-import { type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
+import { type BaseModelUncertaintyDocumentation, type PlantRepresentationAccuracy, type PreOperationalAssumption } from "interfaces-mef-types/core/documentation";
 
 function cm(srCode: string, hlr: SRConformance["hlr"], status: SRConformance["status"], stages: SRConformance["applicableToStage"], evidence: string): SRConformance {
   return { sr: srCode, hlr, capabilityCategory: "CC-II", applicableToStage: stages, status, satisfiedByElementPaths: [], evidence };
@@ -61,6 +64,7 @@ interface InitiatorSeed {
   groupId?: string;
   basis: string;
   preop?: string;
+  interfacingFeatures?: InterfacingSystemBreachFeatures;
 }
 
 const INITIATOR_SEEDS: InitiatorSeed[] = [
@@ -79,8 +83,29 @@ const INITIATOR_SEEDS: InitiatorSeed[] = [
   { id: "IE-10", name: "IHX tube leak (Na-to-Na / Na-to-CO2)", category: InitiatingEventCategory.RCB_BREACH, subcategory: "Heat-exchanger failure", states: ["POS-01","POS-02"], method: "HBFT", trip: "Cover-gas activity / delta-P", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 6.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-RCB", basis: "SIMILAR_PLANT_DATA" },
 
   // ─── Interfacing-systems breaches ────────────────────────────────────────
-  { id: "IE-11", name: "Cover-gas system breach (bypass)", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Radionuclide bypass", states: ["POS-01","POS-06","POS-09"], method: "FMEA", trip: "Cover-gas pressure / activity", safety: ["Radionuclide retention"], barrier: BarrierImpactState.BYPASSED, frequency: 2.2e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "DESIGN_BASED" },
-  { id: "IE-12", name: "Sodium-CO2 interaction via PCS boundary", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Interfacing reaction", states: ["POS-01","POS-02"], method: "HBFT", trip: "PCS pressure / Na detection", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 3.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-RCB", basis: "DESIGN_BASED" },
+  { id: "IE-11", name: "Cover-gas system breach (bypass)", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Radionuclide bypass", states: ["POS-01","POS-06","POS-09"], method: "FMEA", trip: "Cover-gas pressure / activity", safety: ["Radionuclide retention"], barrier: BarrierImpactState.BYPASSED, frequency: 2.2e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "DESIGN_BASED",
+    interfacingFeatures: {
+      pathwayConfiguration: "Cover-gas conditioning and cleanup system connected via vessel head penetrations.",
+      valveTypesAndFailureModes: ["Manual isolation valves — fail open on loss of power", "Check valves — fail closed on demand"],
+      reliefValveProvisions: "Pressure-relief valves on cover-gas supply line set at design-basis pressure; fail-safe to vent.",
+      otherComponentBehavior: ["Rupture disc on cover-gas return line provides backup overpressure protection."],
+      protectiveInterlocks: ["Cover-gas pressure-high signal trips cover-gas makeup", "Activity-high signal isolates cover-gas return"],
+      testAndMaintenancePractices: ["Isolation-valve stroke testing per OP-240 (monthly)", "Pressure-relief setpoint verification annually"],
+      detectionMeans: ["Cover-gas activity monitors", "Differential-pressure sensors on penetrations"],
+      implementsSrs: [{ sr: "IE-A5", hlr: "A" }],
+    },
+  },
+  { id: "IE-12", name: "Sodium-CO2 interaction via PCS boundary", category: InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH, subcategory: "Interfacing reaction", states: ["POS-01","POS-02"], method: "HBFT", trip: "PCS pressure / Na detection", safety: ["Coolant inventory","Radionuclide retention"], barrier: BarrierImpactState.DEGRADED, frequency: 3.0e-4, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-RCB", basis: "DESIGN_BASED",
+    interfacingFeatures: {
+      pathwayConfiguration: "Supercritical-CO₂ power-conversion loop interfaces with intermediate sodium loop via IHX tubes.",
+      valveTypesAndFailureModes: ["IHX tube — stress-corrosion or fatigue failure", "Isolation valves on CO₂ side — fail closed on demand"],
+      reliefValveProvisions: "Sodium-side relief on IHX discharges to dump tank; CO₂-side relief prevents overpressure propagation.",
+      protectiveInterlocks: ["CO₂ pressure-high in sodium side trips CO₂ compressor", "Sodium level low in intermediate loop triggers isolation"],
+      testAndMaintenancePractices: ["IHX tube inspection per OP-212 (each outage)"],
+      detectionMeans: ["CO₂ impurity monitors in sodium loop", "Differential-pressure sensors across IHX"],
+      implementsSrs: [{ sr: "IE-A5", hlr: "A" }],
+    },
+  },
 
   // ─── Special initiators ──────────────────────────────────────────────────
   { id: "IE-13", name: "Loss of DC bus / instrument power", category: InitiatingEventCategory.SPECIAL, subcategory: "Support-system failure", states: ["POS-01","POS-03","POS-04"], method: "FMEA", trip: "Bus undervoltage", safety: ["Heat removal","Reactivity control"], barrier: BarrierImpactState.INTACT, frequency: 1.6e-2, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, groupId: "IEG-TRANS", basis: "GENERIC_DATA" },
@@ -110,6 +135,7 @@ function buildInitiator(seed: InitiatorSeed): InitiatorDefinition {
     tripParameters: [{ parameter: seed.trip, setpoint: 0, uncertainty: 0, basis: seed.basis }],
     mitigatingSystems: seed.safety.map((fn) => ({ systemId: `SYS-${fn.replace(/\s+/g, "-").toUpperCase()}`, function: fn, successCriteriaIds: [], dependencies: [] })),
     barrierImpacts: [{ barrierId: "RCB", state: seed.barrier, timing: "At initiation", mechanism: seed.subcategory }],
+    interfacingSystemFeatures: seed.interfacingFeatures,
     challengedSafetyFunctions: seed.safety,
     screeningStatus: seed.screening,
     importanceLevel: seed.importance,
@@ -251,15 +277,50 @@ const SCREENING: InitiatingEventScreeningRecord[] = [
 ];
 
 const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
-  { initiatorOrGroupId: "IEG-TRANS", meanFrequency: freq(2.6e0),  basis: "GENERIC_DATA",       plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Generic transient frequencies from NUREG/CR-5750, plant-calendar-year basis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IEG-LOHS",  meanFrequency: freq(4.7e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-based estimate for intermediate-loop faults.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IEG-LOFA",  meanFrequency: freq(5.4e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Pump coastdown credit from prototype-scale data.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IEG-RCB",   meanFrequency: freq(2.3e-3), basis: "SIMILAR_PLANT_DATA",  plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Similar-plant boundary-breach data, adjusted for sodium systems.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IE-09",     meanFrequency: freq(1.0e-6), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-basis estimate; cannot be screened due to barrier breach.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-TRANS", meanFrequency: freq(2.6e0),  basis: "GENERIC_DATA",       plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Generic transient frequencies from NUREG/CR-5750, plant-calendar-year basis.", recoveryActionsIncluded: false, genericDataComparison: { performed: true, differencesExplanation: "Confirmed in calculation IE-FREQ-01; no adjustment required for SFR-specific grid interface." }, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-LOHS",  meanFrequency: freq(4.7e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-based estimate for intermediate-loop faults.", recoveryActionsIncluded: false, uncertaintyCharacterization: { riskSignificant: true, method: "Lognormal distribution with EF = 3; propagated from design-basis thermal-hydraulic uncertainty.", probabilisticRepresentationProvided: true }, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-LOFA",  meanFrequency: freq(5.4e-2), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Pump coastdown credit from prototype-scale data.", recoveryActionsIncluded: false, rareEventTreatment: { industryGenericDataUsed: false, expertJudgmentUsed: true, expertJudgmentBasis: "Prototype-scale test campaign NR-2023-088; expert judgment applied to extrapolate full-scale pump coastdown from test data." }, uncertaintyCharacterization: { riskSignificant: true, method: "Lognormal EF = 5 pending commissioning data; large uncertainty from prototype extrapolation.", probabilisticRepresentationProvided: false }, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IEG-RCB",   meanFrequency: freq(2.3e-3), basis: "SIMILAR_PLANT_DATA",  plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Similar-plant boundary-breach data, adjusted for sodium systems.", otherReactorDataJustification: "EFR and BN-600 piping-failure data adjusted for SFR primary-boundary wall thickness and weld count per IE-FREQ-03.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  { initiatorOrGroupId: "IE-09",     meanFrequency: freq(1.0e-6), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Design-basis estimate; cannot be screened due to barrier breach.", recoveryActionsIncluded: false, uncertaintyCharacterization: { riskSignificant: true, method: "Order-of-magnitude engineering judgment; formal probabilistic treatment deferred to ESQ.", probabilisticRepresentationProvided: false }, implementsSrs: [sr("IE-C8","C")] },
   { initiatorOrGroupId: "IE-11",     meanFrequency: freq(2.2e-4), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Cover-gas boundary design analysis.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IE-15",     meanFrequency: freq(5.0e-3), basis: "FAULT_TREE",          plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Internal Fire PRA fault tree (element F).", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
+  {
+    initiatorOrGroupId: "IE-15",
+    meanFrequency: freq(5.0e-3),
+    basis: "FAULT_TREE",
+    plantCalendarYearBasis: true,
+    posTimeFractionApplied: true,
+    dataSourceJustification: "Internal Fire PRA fault tree (element F).",
+    recoveryActionsIncluded: false,
+    faultTreeDetails: {
+      modelId: "FT-IE-FIRE-01",
+      topEvent: "Sodium-cell fire initiating event frequency (per plant-yr)",
+      modifications: ["Fire-frequency estimate transferred from Internal Fire PRA element F model."],
+      quantifiesFrequencyNotProbability: true,
+      hfeContributionsIncluded: false,
+      hfeExclusionBasis: "Ignition frequency is hardware-driven; operator contribution captured separately in element F HFE model.",
+      componentFailureCombinationsIncluded: true,
+    },
+    implementsSrs: [sr("IE-C8","C")],
+  },
   { initiatorOrGroupId: "IE-17",     meanFrequency: freq(1.0e-4), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: false, dataSourceJustification: "Seismic hazard curve already integrates over time; POS weighting not applicable.", recoveryActionsIncluded: false, implementsSrs: [sr("IE-C8","C")] },
-  { initiatorOrGroupId: "IE-18",     meanFrequency: freq(4.0e-3), basis: "DESIGN_BASED",        plantCalendarYearBasis: true, posTimeFractionApplied: true,  dataSourceJustification: "Operator drain-down split fraction per IE-C13.", recoveryActionsIncluded: true, implementsSrs: [sr("IE-C8","C")] },
+  {
+    initiatorOrGroupId: "IE-18",
+    meanFrequency: freq(4.0e-3),
+    basis: "DESIGN_BASED",
+    plantCalendarYearBasis: true,
+    posTimeFractionApplied: true,
+    dataSourceJustification: "Operator drain-down split fraction per IE-C13.",
+    recoveryActionsIncluded: true,
+    recoveryActionJustifications: ["Operator recovery credit included per ASME/ANS RA-S-1.4 IE-C14; credit limited to detection and correct identification only."],
+    plantSpecificRecoveryInfoUsed: false,
+    operatorContribution: {
+      controlRoomContributionEstimated: true,
+      operatorSplitFraction: 0.05,
+      hardwareSplitFraction: 0.95,
+      basis: "Conservative pre-operational split fraction per IE-C13; formal HRA split fraction pending completion of HRA programme.",
+    },
+    implementsSrs: [sr("IE-C8","C")],
+  },
 ];
 
 const NOW = "2026-04-22T12:00:00.000Z";
@@ -420,13 +481,85 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
     ],
     perSystemSearchPerformed: true,
     perSupportSystemSearchPerformed: true,
+    multipleFailureInitiatorsIncluded: true,
+    temporaryAlignmentsConsidered: true,
     multiReactorEventsAddressed: false,
     radioactiveSourceMechanismsAddressed: true,
     implementsSrs: [sr("IE-A9","A"), sr("IE-A15","A")],
   },
+  sourceMechanisms: [
+    {
+      sourceId: "IN_CORE_FUEL",
+      mechanisms: ["Cladding breach", "Primary-boundary breach", "Cover-gas bypass"],
+      hazardGroupsConsidered: ["Transient", "RCB breach", "Interfacing breach", "Seismic", "Internal fire"],
+      implementsSrs: [sr("IE-A2","A")],
+    },
+    {
+      sourceId: "COVER_GAS_ARGON",
+      mechanisms: ["Cover-gas system failure", "Cover-gas bypass", "Vent-path inadvertent opening"],
+      hazardGroupsConsidered: ["Interfacing breach", "Special initiators", "Human failure"],
+      implementsSrs: [sr("IE-A2","A")],
+    },
+    {
+      sourceId: "SPENT_FUEL",
+      mechanisms: ["Ex-vessel storage breach", "Fuel-transfer path failure during refuelling"],
+      hazardGroupsConsidered: ["RCB breach", "Refuelling-mode initiators"],
+      implementsSrs: [sr("IE-A2","A")],
+    },
+  ] satisfies SourceEscapeMechanism[],
+  identificationReviews: [
+    {
+      reviewType: "INTERVIEW",
+      date: "2026-03-15",
+      personnelRoles: ["Lead Reactor Engineer", "Senior Safety Analyst"],
+      findings: "Confirmed completeness of transient and RCB-breach categories. Identified sodium-CO₂ interaction as a distinct interfacing-systems initiator not previously captured in the generic catalog.",
+      overlookedInitiatorsIdentified: ["IE-12: Sodium-CO₂ interaction via PCS boundary"],
+      implementsSrs: [sr("IE-A8","A")],
+    },
+    {
+      reviewType: "EVALUATION",
+      date: "2026-04-01",
+      personnelRoles: ["External PRA Reviewer", "Design Engineer"],
+      findings: "Independent review of generic SFR catalog against plant-specific system list. No additional initiators identified beyond those already captured in the analysis.",
+      overlookedInitiatorsIdentified: [],
+      implementsSrs: [sr("IE-A11","A")],
+    },
+  ] satisfies IdentificationReview[],
   hazardAnalyses: HAZARDS,
   quantifications: QUANTIFICATIONS,
   screeningRecords: SCREENING,
+  plantRepresentationAccuracy: {
+    scope: "PRE_OPERATIONAL",
+    accuracy: ImportanceLevel.MEDIUM,
+    basis: "Analysis built from design-basis documents, vendor data, and generic SFR operating experience; not yet validated against as-built plant configuration.",
+    detailConsistentWithPlant: true,
+    sufficientForRiskSignificantContributors: true,
+    sufficiencyJustification: "Risk-significant initiators (LOOP, LOCA, LOHS, interfacing breach) are characterised at design-basis detail. Pre-operational assumptions track areas pending commissioning data.",
+    highConfidenceAreas: ["At-power initiating-event categories", "Barrier breach initiators", "Hazard-induced initiators"],
+    lowerConfidenceAreas: ["Operator split fractions (IE-18)", "Pump coastdown credit (IE-04)", "HTGR online-refuelling operating experience"],
+    improvementPlans: ["Replace generic pump coastdown credit with Generic-1 commissioning test data.", "Complete HTGR operating-experience review by Q3 2027.", "Finalise HRA split fraction for IE-18 before fuel load."],
+    implementsSrs: [sr("IE-D2","D")],
+  } satisfies PlantRepresentationAccuracy,
+  modelUncertainty: {
+    uuid: "ie-mu-1",
+    name: "IE model uncertainty documentation",
+    uncertaintySources: [
+      { source: "Pump coastdown credit (IE-04)", impact: "Credit assumed from prototype-scale test data; overestimated credit would increase the effective ULOF frequency estimate." },
+      { source: "Operator split fraction (IE-18)", impact: "Pre-operational split fraction applied; overestimate of operator reliability would under-state the human-induced drain-down frequency." },
+      { source: "Generic data applicability to Generic-1 grid interface", impact: "Transient frequencies from NUREG/CR-5750 may not fully reflect SFR-specific grid configuration; confirmed no adjustment required in IE-FREQ-01." },
+      { source: "HTGR online-refuelling operating experience", impact: "Review incomplete; potential overlooked initiators remain possible for refuelling states." },
+    ],
+    relatedAssumptions: [
+      { assumption: "Pump coastdown credit meets prototype-test lower bound.", basis: "Prototype-scale test campaign NR-2023-088; to be confirmed at Generic-1 commissioning phase 4." },
+      { assumption: "Operator split fraction for IE-18 is conservative.", basis: "Conservative pre-operational estimate per IE-C13; formal HRA pending programme completion." },
+      { assumption: "Generic SFR transient frequencies are applicable to Generic-1 grid interface.", basis: "Confirmed in calculation IE-FREQ-01; no frequency adjustment required." },
+    ],
+    reasonableAlternatives: [
+      { alternative: "Plant-specific pump coastdown test data", reasonNotSelected: "Not available pre-operation; commissioning will provide the closing basis." },
+      { alternative: "Formal HRA split fraction for IE-18", reasonNotSelected: "HRA programme not yet complete; conservative pre-op estimate used as interim." },
+      { alternative: "HTGR online-refuelling frequency data", reasonNotSelected: "Operating-experience review open; target closure Q3 2027." },
+    ],
+  } satisfies BaseModelUncertaintyDocumentation,
   documentation: {
     processDescription: "Initiating events identified by a structured, systematic process across the seven IE-A5 categories.",
     inputSources: "POS workbook (operating states and sources), generic SFR data, NUREG/CR-5750, EPRI shutdown catalog.",

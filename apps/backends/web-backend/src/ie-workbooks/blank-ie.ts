@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 
 export function createBlankIe(name: string, owner: string): InitiatingEventsAnalysis {
   const now = new Date().toISOString();
@@ -39,12 +40,35 @@ export function createBlankIe(name: string, owner: string): InitiatingEventsAnal
       functionalCategoriesCovered: [],
       perSystemSearchPerformed: false,
       perSupportSystemSearchPerformed: false,
+      multipleFailureInitiatorsIncluded: false,
+      temporaryAlignmentsConsidered: false,
       multiReactorEventsAddressed: false,
       radioactiveSourceMechanismsAddressed: false,
       implementsSrs: [],
     },
+    sourceMechanisms: [],
+    identificationReviews: [],
+    plantRepresentationAccuracy: {
+      scope: "PRE_OPERATIONAL",
+      accuracy: ImportanceLevel.LOW,
+      basis: "",
+      detailConsistentWithPlant: false,
+      sufficientForRiskSignificantContributors: false,
+      sufficiencyJustification: "",
+      highConfidenceAreas: [],
+      lowerConfidenceAreas: [],
+      improvementPlans: [],
+      implementsSrs: [],
+    },
     quantifications: [],
     screeningRecords: [],
+    modelUncertainty: {
+      uuid: randomUUID(),
+      name: "IE model uncertainty documentation",
+      uncertaintySources: [],
+      relatedAssumptions: [],
+      reasonableAlternatives: [],
+    },
     documentation: {
       processDescription: "",
       inputSources: "",

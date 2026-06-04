@@ -6,7 +6,6 @@ import {
   type InitiatingEventFrequencyQuantification,
   type InitiatingEventScreeningRecord,
   type HazardAnalysis,
-  type SourceEscapeMechanism,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
 import { IEIcon } from "./ieIcons";
@@ -143,15 +142,6 @@ function buildEnrichedSources(rawSources: { id: string; name: string; location: 
     out.push({ baseName: base, state: enrich?.state ?? s.location, note: enrich?.note ?? "", barriers, mechCount });
   }
   return out;
-}
-
-function mechanismsForSource(sourceMechanisms: SourceEscapeMechanism[], baseName: string): string[] {
-  const key = baseName.toLowerCase().replace(/[-]+/g, " ");
-  const match = sourceMechanisms.find((sm) => {
-    const normalized = sm.sourceId.toLowerCase().replace(/_/g, " ");
-    return key.includes(normalized) || normalized.split(" ").every((w) => key.includes(w));
-  });
-  return match?.mechanisms ?? [];
 }
 
 interface ScopeScreenProps extends ScreenProps {
@@ -348,19 +338,9 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
                   </td>
                   <td><div className="iesrc__chips">{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div></td>
                   <td>
-                    {(() => {
-                      const mechs = mechanismsForSource(ie.sourceMechanisms, s.baseName);
-                      if (mechs.length > 0) {
-                        return (
-                          <div className="iesrc__chips">
-                            {mechs.map((m, mi) => <span key={mi} className="poschip poschip--method">{m}</span>)}
-                          </div>
-                        );
-                      }
-                      return s.mechCount > 0
-                        ? <><span className="iesrc__mech-n">{s.mechCount}</span> <span className="iesrc__mech-cap">identified</span></>
-                        : <span className="possubtle">None identified</span>;
-                    })()}
+                    {s.mechCount > 0
+                      ? <><span className="iesrc__mech-n">{s.mechCount}</span> <span className="iesrc__mech-cap">identified</span></>
+                      : <span className="possubtle">None identified</span>}
                   </td>
                 </tr>
               ))}
@@ -636,7 +616,6 @@ function IdentifyScreen(): JSX.Element {
                       <div className="postable__name">{i.uuid} · {i.name}</div>
                       {i.subcategory !== undefined && <span className="postable__name-sub">{i.subcategory}</span>}
                       {(i.preOperationalAssumptions ?? []).length > 0 && <span className="poschip" style={{ marginLeft: 6, fontSize: 11, background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
-                      {i.interfacingSystemFeatures !== undefined && <span className="poschip poschip--method" style={{ marginLeft: 6, fontSize: 11 }}><IEIcon.Network /> Pathway mapped</span>}
                     </td>
                     <td><span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span></td>
                     <td className="mono">{i.applicableStates.length}</td>
@@ -662,8 +641,6 @@ function CompletenessScreen(): JSX.Element {
     { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed, ...COMPLETENESS_CHECK_META[2], meta: COMPLETENESS_CHECK_META[2].meta(cs) },
     { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed, ...COMPLETENESS_CHECK_META[3], meta: COMPLETENESS_CHECK_META[3].meta(cs) },
     { label: "Multi-reactor / shared-source events addressed", ok: cs.multiReactorEventsAddressed, ...COMPLETENESS_CHECK_META[4], meta: COMPLETENESS_CHECK_META[4].meta(cs) },
-    { label: "Multiple-failure initiators included", ok: cs.multipleFailureInitiatorsIncluded, ...COMPLETENESS_CHECK_META[5], meta: COMPLETENESS_CHECK_META[5].meta(cs) },
-    { label: "Temporary alignments and configurations considered", ok: cs.temporaryAlignmentsConsidered, ...COMPLETENESS_CHECK_META[6], meta: COMPLETENESS_CHECK_META[6].meta(cs) },
   ];
   return (
     <>
@@ -716,38 +693,6 @@ function CompletenessScreen(): JSX.Element {
           </table>
         </div>
       </div>
-
-      {ie.identificationReviews.length > 0 && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Identification reviews</h3>
-            <span className="possubtle">IE-A8 · IE-A11</span>
-          </div>
-          <p className="poscard__sub">Formal interviews and independent evaluations performed to confirm completeness and surface overlooked initiators.</p>
-          <table className="postable">
-            <thead>
-              <tr><th>Type</th><th>Date</th><th>Personnel</th><th>Findings</th><th>Overlooked initiators</th></tr>
-            </thead>
-            <tbody>
-              {ie.identificationReviews.map((rev, i) => (
-                <tr key={i}>
-                  <td><span className="poschip">{rev.reviewType === "INTERVIEW" ? "Interview" : "Evaluation"}</span></td>
-                  <td className="mono">{rev.date}</td>
-                  <td className="possubtle" style={{ fontSize: 12.5 }}>{rev.personnelRoles.join(", ")}</td>
-                  <td style={{ fontSize: 12.5, color: "var(--color-text)", lineHeight: 1.5 }}>{rev.findings}</td>
-                  <td>
-                    {rev.overlookedInitiatorsIdentified.length > 0
-                      ? rev.overlookedInitiatorsIdentified.map((o, j) => (
-                          <div key={j} className="possubtle" style={{ fontSize: 12 }}><IEIcon.Warn /> {o}</div>
-                        ))
-                      : <span className="possubtle" style={{ fontSize: 12 }}>None</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </>
   );
 }
@@ -993,19 +938,6 @@ function FrequencyScreen(): JSX.Element {
                     {r.posTimeFractionApplied
                       ? <span className="iefreq__flag iefreq__flag--ok"><IEIcon.Clock /> weighted</span>
                       : <span className="iefreq__flag"><IEIcon.Quake /> hazard curve</span>}
-                    {r.faultTreeDetails !== undefined && (
-                      <span className="poschip poschip--method">
-                        <IEIcon.Network /> {r.faultTreeDetails.modelId}{r.faultTreeDetails.hfeContributionsIncluded ? " · HFE" : ""}
-                      </span>
-                    )}
-                    {r.operatorContribution !== undefined && r.operatorContribution.operatorSplitFraction !== undefined && (
-                      <span className="poschip poschip--method">
-                        <IEIcon.Person /> {(r.operatorContribution.operatorSplitFraction * 100).toFixed(0)}% op.
-                      </span>
-                    )}
-                    {r.recoveryActionsIncluded && (
-                      <span className="poschip poschip--ok-soft"><IEIcon.Check /> Recovery</span>
-                    )}
                   </div>
                 </div>
               );

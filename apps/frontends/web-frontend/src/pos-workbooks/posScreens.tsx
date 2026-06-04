@@ -884,37 +884,23 @@ function FrequencyScreen({ canEdit }: { canEdit: boolean }): JSX.Element {
                       <td />
                       <td colSpan={6}>
                         <fieldset disabled={!canEdit} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
-                          {(() => {
-                            const mefState = pos.plantOperatingStates.find((st) => st.uuid === s.id);
-                            return (
-                              <div className="poscard">
-                                <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"}</h3></div>
-                                <div className="posfield-grid">
-                                  <div className="posfield">
-                                    <label className="posfield__label">Mean duration</label>
-                                    <input className="posfield__input" defaultValue={s.duration} />
-                                  </div>
-                                  <div className="posfield">
-                                    <label className="posfield__label">Entry frequency</label>
-                                    <input className="posfield__input" defaultValue={s.frequency} />
-                                  </div>
-                                  <div className="posfield posfield-grid--span2">
-                                    <label className="posfield__label">Basis</label>
-                                    <input className="posfield__input" placeholder="Cite the cycle-plan section or vendor letter…" />
-                                  </div>
-                                  <div className="posfield posfield-grid--span2">
-                                    <label className="posfield__label" htmlFor={`pos-dur-timing-${s.id}`}>Duration and cycle timing basis</label>
-                                    <input
-                                      id={`pos-dur-timing-${s.id}`}
-                                      className="posfield__input"
-                                      defaultValue={mefState?.durationAndCycleTimingBasis ?? ""}
-                                      placeholder="Describe the source for the duration and cycle-timing estimates (cycle plan, vendor schedule, commissioning data)…"
-                                    />
-                                  </div>
-                                </div>
+                          <div className="poscard">
+                            <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"}</h3></div>
+                            <div className="posfield-grid">
+                              <div className="posfield">
+                                <label className="posfield__label">Mean duration</label>
+                                <input className="posfield__input" defaultValue={s.duration} />
                               </div>
-                            );
-                          })()}
+                              <div className="posfield">
+                                <label className="posfield__label">Entry frequency</label>
+                                <input className="posfield__input" defaultValue={s.frequency} />
+                              </div>
+                              <div className="posfield posfield-grid--span2">
+                                <label className="posfield__label">Basis</label>
+                                <input className="posfield__input" placeholder="Cite the cycle-plan section or vendor letter…" />
+                              </div>
+                            </div>
+                          </div>
                           <PreopAssumptionCard assumption={preops[0]} />
                         </fieldset>
                       </td>

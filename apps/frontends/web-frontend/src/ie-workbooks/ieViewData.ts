@@ -1,4 +1,4 @@
-import { IE_SR_CATALOG, InitiatingEventCategory, type IeCompletenessSearch } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { IE_SR_CATALOG, InitiatingEventCategory } from "interfaces-mef-types/ie/initiating-event-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -116,7 +116,7 @@ function methodSpec(id: string): MethodSpec {
 interface CompletenessCheckMeta {
   icon: string;
   detail: string;
-  meta: (cs: IeCompletenessSearch) => string;
+  meta: (cs: { functionalCategoriesCovered: string[]; perSystemSearchPerformed: boolean; perSupportSystemSearchPerformed: boolean; multiReactorEventsAddressed: boolean; radioactiveSourceMechanismsAddressed: boolean }) => string;
   na?: boolean;
 }
 
@@ -126,8 +126,6 @@ const COMPLETENESS_CHECK_META: CompletenessCheckMeta[] = [
   { icon: "Network",   detail: "DC power, instrument air, component cooling, service water, HVAC, cover-gas conditioning (IE-A15).", meta: () => "" },
   { icon: "Radiation", detail: "Escape mechanisms identified for all radioactive sources and tied to initiators (IE-A2).", meta: () => "" },
   { icon: "Group",     detail: "Multi-reactor / shared-source event applicability assessed (IE-A16, IE-B5).", meta: () => "" },
-  { icon: "Branch",    detail: "Multiple-failure initiators — common cause, dependent-failure combinations, and correlated hardware failures — included in the identification search (IE-A9).", meta: () => "" },
-  { icon: "Settings",  detail: "Temporary plant alignments, maintenance configurations, and surveillance testing evolutions assessed as potential initiating-event precursors (IE-A9).", meta: () => "" },
 ];
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
@@ -185,15 +183,6 @@ const IE_SR_DESCRIPTIONS: Record<string, string> = {
   "IE-C8":  "POS time-fraction weighting applied",
   "IE-C9":  "Screening criteria applied with barrier-integrity gate",
   "IE-C10": "Screening decision justified for each screened event",
-  "IE-C11": "Fault-tree model quantifies frequency (not probability)",
-  "IE-C12": "HFE contributions to initiating-event frequency addressed",
-  "IE-C13": "Operator contribution to initiating-event frequency estimated",
-  "IE-C14": "Recovery actions included in frequency quantification where credited",
-  "IE-C15": "Plant-specific recovery information used when available",
-  "IE-C16": "Rare-event treatment applied for low-frequency initiators",
-  "IE-C17": "Generic data comparison performed for all quantifications",
-  "IE-C18": "Uncertainty characterised for risk-significant initiating-event frequencies",
-  "IE-C19": "Component failure combinations included in fault-tree frequency models",
   "IE-D1":  "Initiating event analysis process documented",
   "IE-D2":  "Assumptions and limitations documented",
   "IE-D3":  "Pre-operational documentation meets PRA quality standards",

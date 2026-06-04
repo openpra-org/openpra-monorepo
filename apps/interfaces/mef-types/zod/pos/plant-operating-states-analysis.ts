@@ -23,6 +23,7 @@ import {
 import { ComponentReferenceSchema } from "../core/component";
 import {
   BaseModelUncertaintyDocumentationSchema,
+  PlantRepresentationAccuracySchema,
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
@@ -214,6 +215,7 @@ export const PlantOperatingStateSchema = z.object({
   successCriteriaIds: z.array(SuccessCriteriaIdSchema),
   meanDurationHours: z.number(),
   meanTimeAfterShutdownHours: z.number().optional(),
+  durationAndCycleTimingBasis: z.string().optional(),
   meanEntryFrequency: FrequencyValueSchema,
   decayHeatLevelDefined: z.boolean(),
   decayHeatBasis: z.string().optional(),
@@ -335,19 +337,6 @@ export const DecayHeatCharacterizationSchema = z.object({
   timeAfterShutdownHours: z.number(),
   basis: z.string(),
   isLpsd: z.boolean(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
-export const PlantRepresentationAccuracySchema = z.object({
-  scope: z.enum(["OPERATING", "PRE_OPERATIONAL"]),
-  accuracy: ImportanceLevelSchema,
-  basis: z.string(),
-  detailConsistentWithPlant: z.boolean(),
-  sufficientForRiskSignificantContributors: z.boolean(),
-  sufficiencyJustification: z.string(),
-  highConfidenceAreas: z.array(z.string()),
-  lowerConfidenceAreas: z.array(z.string()),
-  improvementPlans: z.array(z.string()),
   implementsSrs: z.array(SRReferenceSchema),
 });
 

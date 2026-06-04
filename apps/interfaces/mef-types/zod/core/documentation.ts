@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { NamedSchema, UniqueSchema } from "./meta";
 import { ImportanceLevelSchema, SensitivityStudySchema } from "./shared-patterns";
+import { SRReferenceSchema } from "./pra-common";
+import type { PlantRepresentationAccuracy } from "../../core/documentation";
 
 export const BaseDesignInformationSchema = z.object({
   sourceId: z.string(),
@@ -119,3 +121,21 @@ export const BaseTraceabilityDocumentationSchema = z.object({
     )
     .optional(),
 });
+
+export const PlantRepresentationAccuracySchema = z.object({
+  scope: z.enum(["OPERATING", "PRE_OPERATIONAL"]),
+  accuracy: ImportanceLevelSchema,
+  basis: z.string(),
+  detailConsistentWithPlant: z.boolean(),
+  sufficientForRiskSignificantContributors: z.boolean(),
+  sufficiencyJustification: z.string(),
+  highConfidenceAreas: z.array(z.string()),
+  lowerConfidenceAreas: z.array(z.string()),
+  improvementPlans: z.array(z.string()),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+type Expect<T extends true> = T;
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+type _AssertPlantRepresentationAccuracy = Expect<Equal<z.infer<typeof PlantRepresentationAccuracySchema>, PlantRepresentationAccuracy>>;

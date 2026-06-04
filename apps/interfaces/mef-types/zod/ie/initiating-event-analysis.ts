@@ -18,7 +18,11 @@ import {
   SensitivityStudySchema,
   SuccessCriteriaIdSchema,
 } from "../core/shared-patterns";
-import { PreOperationalAssumptionSchema } from "../core/documentation";
+import {
+  BaseModelUncertaintyDocumentationSchema,
+  PlantRepresentationAccuracySchema,
+  PreOperationalAssumptionSchema,
+} from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
 
 export const InitiatingEventCategorySchema = z.enum(InitiatingEventCategory);
@@ -65,6 +69,33 @@ export const ModuleImpactSchema = z.object({
   timing: z.string().optional(),
 });
 
+export const SourceEscapeMechanismSchema = z.object({
+  sourceId: z.string(),
+  mechanisms: z.array(z.string()),
+  hazardGroupsConsidered: z.array(z.string()),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const IdentificationReviewSchema = z.object({
+  reviewType: z.enum(["INTERVIEW", "EVALUATION"]),
+  date: z.string(),
+  personnelRoles: z.array(z.string()),
+  findings: z.string(),
+  overlookedInitiatorsIdentified: z.array(z.string()),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const InterfacingSystemBreachFeaturesSchema = z.object({
+  pathwayConfiguration: z.string(),
+  valveTypesAndFailureModes: z.array(z.string()),
+  reliefValveProvisions: z.string(),
+  otherComponentBehavior: z.array(z.string()).optional(),
+  protectiveInterlocks: z.array(z.string()),
+  testAndMaintenancePractices: z.array(z.string()).optional(),
+  detectionMeans: z.array(z.string()).optional(),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
 export const InitiatorDefinitionSchema = z.object({
   ...InitiatingEventSchema.shape,
   category: InitiatingEventCategorySchema,
@@ -79,6 +110,7 @@ export const InitiatorDefinitionSchema = z.object({
   mitigatingSystems: z.array(MitigatingSystemDemandSchema),
   barrierImpacts: z.array(BarrierImpactSchema),
   moduleImpacts: z.array(ModuleImpactSchema).optional(),
+  interfacingSystemFeatures: InterfacingSystemBreachFeaturesSchema.optional(),
 
   challengedSafetyFunctions: z.array(z.string()),
 
@@ -122,6 +154,7 @@ export const InitiatingEventGroupSchema = z.object({
   comparableImpactAcrossMembers: z.boolean(),
   challengedSafetyFunctions: z.array(z.string()),
   applicableStates: z.array(z.string()),
+  affectedReactorOrSourceCombinations: z.array(z.string()).optional(),
   meanFrequency: FrequencyValueSchema.optional(),
   riskImportance: ImportanceLevelSchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
@@ -137,11 +170,46 @@ export const InitiatingEventFrequencyQuantificationSchema = z.object({
   dataExclusionJustification: z.string().optional(),
   otherReactorDataJustification: z.string().optional(),
   recoveryActionsIncluded: z.boolean(),
+  recoveryActionJustifications: z.array(z.string()).optional(),
+  plantSpecificRecoveryInfoUsed: z.boolean().optional(),
   faultTreeDetails: z
     .object({
       modelId: z.string(),
       topEvent: z.string(),
       modifications: z.array(z.string()),
+      quantifiesFrequencyNotProbability: z.boolean(),
+      hfeContributionsIncluded: z.boolean(),
+      hfeExclusionBasis: z.string().optional(),
+      componentFailureCombinationsIncluded: z.boolean(),
+    })
+    .optional(),
+  operatorContribution: z
+    .object({
+      controlRoomContributionEstimated: z.boolean(),
+      operatorSplitFraction: z.number().optional(),
+      hardwareSplitFraction: z.number().optional(),
+      basis: z.string(),
+    })
+    .optional(),
+  genericDataComparison: z
+    .object({
+      performed: z.boolean(),
+      differencesExplanation: z.string().optional(),
+    })
+    .optional(),
+  rareEventTreatment: z
+    .object({
+      industryGenericDataUsed: z.boolean(),
+      plantSpecificAugmentation: z.string().optional(),
+      expertJudgmentUsed: z.boolean(),
+      expertJudgmentBasis: z.string().optional(),
+    })
+    .optional(),
+  uncertaintyCharacterization: z
+    .object({
+      riskSignificant: z.boolean(),
+      method: z.string(),
+      probabilisticRepresentationProvided: z.boolean(),
     })
     .optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
@@ -179,6 +247,8 @@ export const IeCompletenessSearchSchema = z.object({
   functionalCategoriesCovered: z.array(InitiatingEventCategorySchema),
   perSystemSearchPerformed: z.boolean(),
   perSupportSystemSearchPerformed: z.boolean(),
+  multipleFailureInitiatorsIncluded: z.boolean(),
+  temporaryAlignmentsConsidered: z.boolean(),
   multiReactorEventsAddressed: z.boolean(),
   radioactiveSourceMechanismsAddressed: z.boolean(),
   implementsSrs: z.array(SRReferenceSchema),
@@ -214,9 +284,13 @@ export const InitiatingEventsAnalysisSchema = z.object({
   hazardInducedInitiators: z.array(HazardInducedInitiatorSchema).optional(),
   initiatingEventGroups: z.array(InitiatingEventGroupSchema),
   completenessSearch: IeCompletenessSearchSchema,
+  sourceMechanisms: z.array(SourceEscapeMechanismSchema),
+  identificationReviews: z.array(IdentificationReviewSchema),
+  plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
   hazardAnalyses: z.array(HazardAnalysisSchema).optional(),
   quantifications: z.array(InitiatingEventFrequencyQuantificationSchema),
   screeningRecords: z.array(InitiatingEventScreeningRecordSchema),
+  modelUncertainty: BaseModelUncertaintyDocumentationSchema,
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   documentation: IeDocumentationSchema,
   configurationControlRecordId: z.string().optional(),

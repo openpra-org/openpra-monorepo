@@ -19,7 +19,7 @@
     "ts:markdown:shared-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../apps/interfaces/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../../../packages/docs-md/api/ts/shared-types --json ../../../packages/docs-md/api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.lib.json --options ../../../packages/docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-types --json api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig ../../apps/interfaces/shared-types/tsconfig.lib.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/interfaces/shared-types/src"
       }
     },
     "ts:markdown:mef-types": {
@@ -73,19 +73,19 @@
     "ts:markdown:web-backend": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../apps/backends/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../../../packages/docs-md/api/ts/web-backend --json ../../../packages/docs-md/api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.app.json --options ../../../packages/docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-backend --json api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig ../../apps/backends/web-backend/tsconfig.app.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/backends/web-backend/src"
       }
     },
     "ts:markdown:web-frontend": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../apps/frontends/web-frontend && typedoc --plugin typedoc-plugin-markdown --out ../../../packages/docs-md/api/ts/web-frontend --json ../../../packages/docs-md/api/ts/web-frontend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.app.json --options ../../../packages/docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-frontend --json api/ts/web-frontend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig ../../apps/frontends/web-frontend/tsconfig.app.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/frontends/web-frontend/src"
       }
     },
     "ts:markdown:praetor": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../apps/microservices/praetor && typedoc --plugin typedoc-plugin-markdown --out ../../../packages/docs-md/api/ts/praetor --json ../../../packages/docs-md/api/ts/praetor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.build.json --options ../../../packages/docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/praetor --json api/ts/praetor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig ../../apps/microservices/praetor/tsconfig.build.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/microservices/praetor/src"
       }
     },
     "ts:markdown:scram-node": {

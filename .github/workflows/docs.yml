@@ -66,33 +66,36 @@ jobs:
           sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 
-      - name: Ensure Rust toolchain
+      - name: Install Rust nightly and cargo-docs-md
         run: |
-          if ! command -v cargo &>/dev/null; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          if ! command -v rustup &>/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
+          rustup toolchain install nightly --no-self-update
+          cargo install cargo-docs-md --version 0.2.4
 
       - name: Install Python doc tools
-        run: pip install pdoc plotly
+        run: python3 -m pip install lazydocs==0.4.8
 
-      - name: Generate Rust API docs (PRAXIS — cargo doc)
+      - name: Generate Rust API docs (PRAXIS — cargo-docs-md)
         run: |
-          mkdir -p packages/docs-md/public/api/rust/praxis
+          mkdir -p packages/docs-md/api/rust/praxis
           cd apps/solvers/praxis
-          cargo doc --no-deps --target-dir ../../../packages/docs-md/.tmp/praxis-cargo-doc 2>&1 || echo "cargo doc encountered warnings"
-          cp -r ../../../packages/docs-md/.tmp/praxis-cargo-doc/doc/. ../../../packages/docs-md/public/api/rust/praxis/
+          RUSTDOCFLAGS='-Z unstable-options --output-format json' cargo +nightly doc --no-deps 2>&1 || echo "cargo doc encountered warnings"
+          cargo docs-md --dir target/doc/ -o ../../../packages/docs-md/api/rust/praxis/
 
-      - name: Generate Python API docs (pracciolini — pdoc)
+      - name: Generate Python API docs (pracciolini — lazydocs)
         run: |
-          mkdir -p packages/docs-md/public/api/python/pracciolini
+          mkdir -p packages/docs-md/api/python/pracciolini
           (cd apps/utilities/pracciolini/src && \
-            PYTHONPATH=. pdoc --output-directory ../../../../packages/docs-md/public/api/python/pracciolini \
+            PYTHONPATH=. python3 -m lazydocs --output-path ../../../../packages/docs-md/api/python/pracciolini \
+              --no-watermark \
               convert ftap ftap_verifier jsinp jsinp_verifier model \
               openpsa_verifier openpsa_xml parse_ftrex_log parse_praxis_log \
               parse_saphsolve_log parse_scram_log parse_xfta_log parse_zebra_log \
               plot_benchmark_results s2ml s2ml_verifier 2>&1) \
-          || echo "Pracciolini pdoc failed — committed baseline will be used"
+          || echo "Pracciolini lazydocs failed — committed baseline will be used"
 
       - name: Build unified Markdown docs (VitePress)
         # Nx Cloud temporarily disabled — retain config here for quick re-enable

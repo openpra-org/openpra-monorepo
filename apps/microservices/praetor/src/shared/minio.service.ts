@@ -10,9 +10,7 @@ export interface JobMetadata {
     jobId?: string;
     inputId?: string;
     outputId?: string;
-    childJobs?: string[];
-    completedSequences?: string[];
-    status?: 'processing' | 'pending' | 'running' | 'partial' | 'completed' | 'failed';
+    status?: 'pending' | 'running' | 'completed' | 'failed';
     error?: string;
     sentAt?: number;
     receivedAt?: number;
@@ -26,29 +24,6 @@ export interface JobMetadata {
         totalSeconds?: number;
         probability?: number;
         products?: number;
-        originalProducts?: number;
-        exactProbability?: number;
-        approximateProbability?: number;
-        relativeError?: number;
-    };
-    adaptiveResult?: {
-        converged: boolean;
-        finalCutOff: number;
-        finalEstimate?: number | null;
-        finalRelativeError?: number | null;
-        withinConfidenceInterval?: boolean;
-        baselineEstimator: 'monteCarlo' | 'bdd';
-        baselineMean: number;
-        baselineLower: number;
-        baselineUpper: number;
-        convergenceHistory?: Array<{
-            cutOff: number;
-            zbddEstimate: number;
-            converged: boolean;
-            reason?: string;
-            relativeError: number;
-            withinConfidenceInterval: boolean;
-        }>;
     };
 }
 
@@ -295,63 +270,6 @@ export class MinioService implements OnModuleInit {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`Failed to update job metadata: ${message}`);
             throw new Error(`Failed to update job metadata: ${message}`);
-        }
-    }
-
-    async markSequenceCompleted(parentJobId: string, sequenceJobId: string): Promise<void> {
-        const markerKey = `job-${parentJobId}/completed/${sequenceJobId}.marker`;
-        try {
-            await this.minioClient.putObject(
-                this.jobsBucket,
-                markerKey,
-                Buffer.from('1', 'utf8'),
-                undefined,
-                {
-                    'Content-Type': 'text/plain',
-                    'X-Parent-Job-ID': parentJobId,
-                    'X-Sequence-Job-ID': sequenceJobId,
-                },
-            );
-            this.logger.debug(`Marked sequence ${sequenceJobId} completed for parent ${parentJobId}`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to mark sequence completion for parent ${parentJobId}: ${message}`);
-            throw new Error(`Failed to mark sequence completion: ${message}`);
-        }
-    }
-
-    async getCompletedSequenceCount(parentJobId: string): Promise<number> {
-        const prefix = `job-${parentJobId}/completed/`;
-        try {
-            let count = 0;
-            const stream = this.minioClient.listObjects(this.jobsBucket, prefix, true);
-            for await (const _ of stream) {
-                count += 1;
-            }
-            return count;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to count completed sequences for parent ${parentJobId}: ${message}`);
-            throw new Error(`Failed to count completed sequences: ${message}`);
-        }
-    }
-
-    async listCompletedSequences(parentJobId: string): Promise<string[]> {
-        const prefix = `job-${parentJobId}/completed/`;
-        try {
-            const result: string[] = [];
-            const stream = this.minioClient.listObjects(this.jobsBucket, prefix, true);
-            for await (const obj of stream) {
-                const name = obj.name;
-                const lastPart = name.substring(name.lastIndexOf('/') + 1);
-                const seqId = lastPart.replace(/\.marker$/, '');
-                if (seqId) result.push(seqId);
-            }
-            return result;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to list completed sequences for parent ${parentJobId}: ${message}`);
-            throw new Error(`Failed to list completed sequences: ${message}`);
         }
     }
 

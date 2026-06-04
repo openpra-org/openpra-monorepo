@@ -8,7 +8,6 @@ export class PraetorManagerService {
         return {
             services: [
                 { name: 'SCRAM Quantify', endpoint: '/q/scram' },
-                { name: 'SCRAM Adaptive Quantify', endpoint: '/q/scram/adaptive' },
                 { name: 'SaphSolve Quantify', endpoint: '/q/saphsolve/quantify' },
                 { name: 'SaphSolve Execute', endpoint: '/q/saphsolve/execute' },
                 { name: 'FTREX Quantify', endpoint: '/q/ftrex/quantify' },
@@ -25,12 +24,6 @@ export class PraetorManagerService {
     }
     public async getRunningJobs(): Promise<{ jobs: JobMetadata[] }> {
         return this.getJobs('running');
-    }
-    public async getProcessingJobs(): Promise<{ jobs: JobMetadata[] }> {
-        return this.getJobs('processing');
-    }
-    public async getPartialJobs(): Promise<{ jobs: JobMetadata[] }> {
-        return this.getJobs('partial');
     }
     public async getCompletedJobs(): Promise<{ jobs: JobMetadata[] }> {
         return this.getJobs('completed');

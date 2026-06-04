@@ -11,6 +11,7 @@ tmp
 node_modules
 .pnpm-store
 /hyperfine
+docker-context
 
 .project
 .classpath
@@ -59,8 +60,6 @@ lerna-debug.log*
 .jwt-open-secret
 
 **/coverage/**/*
-/packages/frontend/web-editor/e2e/.auth/
-
 fixtures/temp_input
 fixtures/models/ENT
 fixtures/models/aralia-fault-tree-dataset
@@ -91,13 +90,13 @@ __pycache__/
 .claude/
 .mcp.json
 
-/packages/docs-md/api/
-/packages/docs-md/.tmp/
-/packages/docs-md/.vitepress/dist/
-/packages/docs-md/.vitepress/.temp/
-/packages/docs-md/.vitepress/cache/
-/packages/docs-md/packages/**/api/
-/packages/docs-md/mef-elements/
+packages/
+tools/
+traefik/
+fixtures/
+registry/
+docker-compose.yml
+docker-compose.infra.yml
 
 apps/solvers/xfta/XFTA.pdf
 /resources/

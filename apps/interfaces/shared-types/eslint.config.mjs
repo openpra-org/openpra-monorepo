@@ -9,7 +9,7 @@ export default tseslint.config(...createTsCanaryConfig({
     tseslint,
     tsdoc: tsdocPlugin,
     tsconfigRootDir: __dirname,
-    projectTsconfigs: ['./tsconfig.lib.json']
+    projectTsconfigs: ['./tsconfig.eslint.json']
 }), {
     files: [`${relDir}/**/*.{ts,tsx}`],
     rules: {

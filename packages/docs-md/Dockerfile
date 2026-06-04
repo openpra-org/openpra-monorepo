@@ -1,5 +1,5 @@
 # Multi-stage build for VitePress documentation
-FROM node:20 AS builder
+FROM registry.openpra.org/node:20 AS builder
 
 WORKDIR /app
 
@@ -43,7 +43,7 @@ ENV NX_NO_CLOUD=true
 RUN pnpm nx run docs-md:site:build --no-cloud
 
 # Production stage - serve with nginx
-FROM nginx:alpine
+FROM registry.openpra.org/nginx:alpine
 
 # Copy built documentation
 COPY --from=builder /app/packages/docs-md/.vitepress/dist /usr/share/nginx/html

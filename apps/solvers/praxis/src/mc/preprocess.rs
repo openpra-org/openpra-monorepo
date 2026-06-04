@@ -43,12 +43,9 @@ pub fn preprocess_for_mc(pdag: &mut Pdag) -> Result<()> {
                     connective: Connective::Not,
                     operands,
                     ..
-                } => {
-                    if operands.len() == 1 {
-                        // NOT(x) becomes complemented edge to x.
-                        bypass_gate(pdag, idx, -operands[0])?;
-                        changed = true;
-                    }
+                } if operands.len() == 1 => {
+                    bypass_gate(pdag, idx, -operands[0])?;
+                    changed = true;
                 }
                 _ => {}
             }

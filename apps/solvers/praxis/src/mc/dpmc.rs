@@ -1233,7 +1233,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
         let built = self.build_dpmc(params)?;
 
-        let max_events = vrt.is_max_events.min(built.soa.event_nodes.len()).max(0);
+        let max_events = vrt.is_max_events.min(built.soa.event_nodes.len());
         let selected = Self::pick_event_ords_by_rarity(&built.event_probabilities, max_events);
 
         let mut proposal_thresholds = built.thresholds.clone();

@@ -13,7 +13,7 @@ const explorerEnabled = !(
 export default defineConfig({
   base,
   title: "OpenPRA Documentation",
-  description: "Unified docs for OpenPRA (TypeScript + C++)",
+  description: "Unified docs for OpenPRA (TypeScript + C++ + Rust + Python)",
   srcDir: ".",
   outDir: ".vitepress/dist",
   lastUpdated: true,
@@ -61,7 +61,6 @@ export default defineConfig({
       {
         text: "Guides",
         items: [
-          { text: "Dev Container", link: "/guides/dev-container.html" },
           { text: "Building", link: "/guides/building.html" },
           { text: "Testing", link: "/guides/testing.html" },
           { text: "Contributing", link: "/guides/contributing.html" },
@@ -70,18 +69,12 @@ export default defineConfig({
       {
         text: "TS API",
         items: [
-          { text: "Web Editor", link: "/api/ts/web-editor/README.html" },
-          { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
-          ...((
-            fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md"))
-          ) ?
-            [{ text: "MEF Schema", link: "/api/ts/mef-schema/README.html" }]
-          : []),
-          { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
-          { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
+          { text: "Web Frontend", link: "/api/ts/web-frontend/README.html" },
+          { text: "Praetor", link: "/api/ts/praetor/README.html" },
+          { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
         ],
       },
       {
@@ -92,6 +85,8 @@ export default defineConfig({
           { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
         ],
       },
+      { text: "Rust API", link: "/api/rust/praxis/index.html" },
+      { text: "Python API", link: "/api/python/pracciolini/index.html" },
     ],
     sidebar: {
       "/stack/": [
@@ -149,34 +144,9 @@ export default defineConfig({
         {
           text: "Guides",
           items: [
-            { text: "Dev Container", link: "/guides/dev-container.html" },
             { text: "Building", link: "/guides/building.html" },
             { text: "Testing", link: "/guides/testing.html" },
             { text: "Contributing", link: "/guides/contributing.html" },
-          ],
-        },
-      ],
-      "/api/ts/web-editor/": [
-        {
-          text: "Web Editor",
-          items: [
-            { text: "Index", link: "/api/ts/web-editor/README.html" },
-            { text: "Modules", link: "/api/ts/web-editor/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-editor/_explore/index.html" }]
-            : []),
-          ],
-        },
-      ],
-      "/api/ts/shared-sdk/": [
-        {
-          text: "Shared SDK",
-          items: [
-            { text: "Index", link: "/api/ts/shared-sdk/README.html" },
-            { text: "Modules", link: "/api/ts/shared-sdk/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/shared-sdk/_explore/index.html" }]
-            : []),
           ],
         },
       ],
@@ -210,30 +180,38 @@ export default defineConfig({
           items: [{ text: "Index", link: "/api/mef/openpra-mef/index.html" }],
         },
       ],
-      ...(fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md")) ?
+      "/api/ts/web-backend/": [
         {
-          "/api/ts/mef-schema/": [
-            {
-              text: "MEF Schema",
-              items: [
-                { text: "Index", link: "/api/ts/mef-schema/README.html" },
-                { text: "Modules", link: "/api/ts/mef-schema/modules.html" },
-                ...(explorerEnabled ?
-                  [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-schema/_explore/index.html" }]
-                : []),
-              ],
-            },
-          ],
-        }
-      : {}),
-      "/api/ts/model-generator/": [
-        {
-          text: "Model Generator",
+          text: "Web Backend (NestJS)",
           items: [
-            { text: "Index", link: "/api/ts/model-generator/README.html" },
-            { text: "Modules", link: "/api/ts/model-generator/modules.html" },
+            { text: "Index", link: "/api/ts/web-backend/README.html" },
+            { text: "Modules", link: "/api/ts/web-backend/modules.html" },
             ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/model-generator/_explore/index.html" }]
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-backend/_explore/index.html" }]
+            : []),
+          ],
+        },
+      ],
+      "/api/ts/web-frontend/": [
+        {
+          text: "Web Frontend",
+          items: [
+            { text: "Index", link: "/api/ts/web-frontend/README.html" },
+            { text: "Modules", link: "/api/ts/web-frontend/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-frontend/_explore/index.html" }]
+            : []),
+          ],
+        },
+      ],
+      "/api/ts/praetor/": [
+        {
+          text: "Praetor",
+          items: [
+            { text: "Index", link: "/api/ts/praetor/README.html" },
+            { text: "Modules", link: "/api/ts/praetor/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/praetor/_explore/index.html" }]
             : []),
           ],
         },
@@ -247,18 +225,6 @@ export default defineConfig({
           ],
         },
       ],
-      "/api/ts/web-backend/": [
-        {
-          text: "Web Backend (NestJS)",
-          items: [
-            { text: "Index", link: "/api/ts/web-backend/README.html" },
-            { text: "Modules", link: "/api/ts/web-backend/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-backend/_explore/index.html" }]
-            : []),
-          ],
-        },
-      ],
       "/api/cpp-doxybook2/": [
         {
           text: "C++ API",
@@ -267,6 +233,18 @@ export default defineConfig({
             { text: "Files", link: "/api/cpp-doxybook2/index_files.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
           ],
+        },
+      ],
+      "/api/rust/praxis/": [
+        {
+          text: "PRAXIS (Rust)",
+          items: [{ text: "Index", link: "/api/rust/praxis/index.html" }],
+        },
+      ],
+      "/api/python/pracciolini/": [
+        {
+          text: "pracciolini (Python)",
+          items: [{ text: "Index", link: "/api/python/pracciolini/index.html" }],
         },
       ],
     },
@@ -290,28 +268,21 @@ export default defineConfig({
           const rootPkg = fs.existsSync(rootPkgPath) ? readJson(rootPkgPath) : {};
           const replacements: Record<string, string> = {};
           if (idPosix.endsWith("/stack/frontend-overview.md")) {
-            const fePkgPath = path.resolve(repoRoot, "packages/frontend/web-editor/package.json");
+            const fePkgPath = path.resolve(repoRoot, "apps/frontends/web-frontend/package.json");
             const fePkg = fs.existsSync(fePkgPath) ? readJson(fePkgPath) : {};
             replacements["react"] = fePkg?.dependencies?.react ?? "N/A";
-            replacements["typescript"] =
-              rootPkg?.devDependencies?.typescript ?? fePkg?.devDependencies?.typescript ?? "N/A";
-            replacements["eui"] = fePkg?.dependencies?.["@elastic/eui"] ?? "N/A";
+            replacements["typescript"] = rootPkg?.devDependencies?.typescript ?? "N/A";
             replacements["reactRouter"] = fePkg?.dependencies?.["react-router-dom"] ?? "N/A";
-            replacements["swr"] = fePkg?.dependencies?.swr ?? "N/A";
+            replacements["zustand"] = fePkg?.dependencies?.zustand ?? "N/A";
+            replacements["zod"] = fePkg?.dependencies?.zod ?? "N/A";
             replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
           } else if (idPosix.endsWith("/stack/backend-overview.md")) {
-            const bePkgPath = path.resolve(repoRoot, "packages/web-backend/package.json");
+            const bePkgPath = path.resolve(repoRoot, "apps/backends/web-backend/package.json");
             const bePkg = fs.existsSync(bePkgPath) ? readJson(bePkgPath) : {};
             replacements["nest"] =
               bePkg?.dependencies?.["@nestjs/core"] ?? bePkg?.dependencies?.["@nestjs/common"] ?? "N/A";
             replacements["mongoose"] = bePkg?.dependencies?.mongoose ?? "N/A";
             replacements["typescript"] = rootPkg?.devDependencies?.typescript ?? "N/A";
-            replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
-          } else if (idPosix.endsWith("/stack/engine-overview.md")) {
-            const enPkgPath = path.resolve(repoRoot, "packages/engine/scram-node/package.json");
-            const enPkg = fs.existsSync(enPkgPath) ? readJson(enPkgPath) : {};
-            replacements["cmakeJs"] = enPkg?.dependencies?.["cmake-js"] ?? "N/A";
-            replacements["nodeAddonApi"] = enPkg?.dependencies?.["node-addon-api"] ?? "N/A";
             replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
           }
           let next = code.replace(/<script\s+setup>[^]*?<\/script>\s*/g, "");

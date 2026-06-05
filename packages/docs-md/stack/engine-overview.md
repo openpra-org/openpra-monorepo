@@ -1,31 +1,25 @@
 # Engine Overview
 
-<script setup>
-import rootPkg from '../../../package.json'
-import enPkg from '../../engine/scram-node/package.json'
-const nxVersion = rootPkg.devDependencies?.nx ?? 'N/A'
-const cmakeJs = enPkg.dependencies?.['cmake-js'] ?? 'N/A'
-const nodeAddonApi = enPkg.dependencies?.['node-addon-api'] ?? 'N/A'
-</script>
-
-This guide provides a quick orientation to the engine and how its docs are organized.
+This guide provides a quick orientation to the solver engines and how their docs are organized.
 
 ## Projects
 
-- Engine scram-node: Node.js wrappers around the SCRAM probabilistic risk analysis engine (C++)
-  - Docs (C++): [Classes index](api/cpp-doxybook2/index_classes.html)
-  - Docs (C++): [Files index](api/cpp-doxybook2/index_files.html)
-  - Docs (C++): [Namespaces index](api/cpp-doxybook2/index_namespaces.html)
+- PRAXIS (Rust): primary probabilistic risk analysis solver
+  - Docs: [PRAXIS API](/api/rust/praxis/index.html)
+- SCRAM (C++): fault tree analysis engine with Node.js bindings
+  - Docs (C++): [Classes index](/api/cpp-doxybook2/index_classes.html)
+  - Docs (C++): [Files index](/api/cpp-doxybook2/index_files.html)
+  - Docs (C++): [Namespaces index](/api/cpp-doxybook2/index_namespaces.html)
+  - Docs (TS bindings): [scram-node API](/api/ts/scram-node/README.html)
 
 ## Tech stack
 
-- C++ SCRAM engine with Node.js bindings (scram-node)
-- CMake (system)
-- cmake-js {{ cmakeJs }}
-- node-addon-api {{ nodeAddonApi }}
-- Nx {{ nxVersion }} for orchestration; pnpm for package management
+- PRAXIS: Rust (nightly), compiled to a native binary
+- SCRAM: C++ engine with Node.js bindings via node-addon-api and cmake-js
+- Nx for orchestration; pnpm for package management
 
 ## Conventions
 
 - C++ docs focus on the public API; internal and third-party namespaces are excluded from navigation.
-- Source lives under the monorepo `packages/engine/scram-node` wrapper; underlying engine components are documented via C++ API pages.
+- PRAXIS API docs are generated with cargo-docs-md from rustdoc JSON output.
+- Source for SCRAM lives under `packages/engine/scram`; PRAXIS lives under `apps/solvers/praxis`.

@@ -2,29 +2,32 @@
 
 Run unit and integration tests across the monorepo with Nx.
 
-## Run tests (all)
+## Run all tests
 
 ```bash
 pnpm nx run-many -t test
 ```
 
-## Run tests (single package)
+## Run tests for a single package
 
 ```bash
-# Backend (NestJS)
-pnpm nx test web-backend
+# Web backend (NestJS)
+pnpm nx test backends-web-backend
 
-# Microservice
-yarn nx test raptor
+# Web frontend
+pnpm nx test frontends-web-frontend
 
-# Frontend
-yarn nx test frontend-web-editor
+# Praetor microservice
+pnpm nx test microservices-praetor
+
+# Shared types
+pnpm nx test interfaces-shared-types
 ```
 
 Pass extra Jest flags after `--`:
 
 ```bash
-pnpm nx test web-backend -- --test-timeout=60000 --runInBand
+pnpm nx test backends-web-backend -- --test-timeout=60000 --runInBand
 ```
 
 ## Linting
@@ -33,15 +36,11 @@ pnpm nx test web-backend -- --test-timeout=60000 --runInBand
 pnpm nx run-many -t lint
 ```
 
-## Debian 12 (OpenSSL 3) and mongodb-memory-server
+## Notes
 
-On Debian 12/bookworm (including the Dev Container), `mongodb-memory-server` may not run due to OpenSSL 1.1 binaries. Our Jest setups detect this and prefer a real MongoDB via `MONGO_URI` when available.
-
-Set `MONGO_URI` explicitly if needed:
+- Backend tests use `mongodb-memory-server` by default. Set `MONGO_URI` to point at a real MongoDB instance if needed:
 
 ```bash
 export MONGO_URI="mongodb://127.0.0.1:27017/test"
-pnpm nx test web-backend -- --test-timeout=60000
+pnpm nx test backends-web-backend -- --test-timeout=60000
 ```
-
-See also the project README for details and per-package READMEs for any test-specific notes.

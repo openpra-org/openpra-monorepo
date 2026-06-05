@@ -2,48 +2,43 @@
 
 How to build OpenPRA packages using Nx and pnpm.
 
-## Build all packages
+## Build all
 
 ```bash
 pnpm nx run-many -t build
 ```
 
-## Build individual packages
-
-Examples:
+## Build individual targets
 
 ```bash
-# Frontend web app (React)
-pnpm nx build frontend-web-editor
+# Web frontend (React)
+pnpm nx build frontends-web-frontend
 
-# Backend (NestJS)
-pnpm nx build web-backend
+# Web backend (NestJS)
+pnpm nx build backends-web-backend
 
-# Microservice (Raptor)
-pnpm nx build raptor
+# Praetor microservice
+pnpm nx build microservices-praetor
 
 # Shared libraries
-a) pnpm nx build shared-types
-b) pnpm nx build shared-sdk
-c) pnpm nx build mef-types
+pnpm nx build interfaces-shared-types
+pnpm nx build interfaces-mef-types
 ```
 
 ## Serve (dev mode)
 
 ```bash
 # Serve all
-yarn nx run-many -t serve --all
-# or
-pnpm nx run-many -t serve --all
+pnpm nx run-many -t serve
 
 # Serve individual
-pnpm nx serve frontend-web-editor
-pnpm nx serve web-backend
+pnpm nx serve frontends-web-frontend
+pnpm nx serve backends-web-backend
 ```
 
 ## Docs site
 
-Build the unified documentation site (TypeScript + C++):
+Build the unified documentation site:
 
 ```bash
 pnpm nx run docs-md:site:build --no-cloud
@@ -55,9 +50,8 @@ Preview locally:
 pnpm nx run docs-md:site:dev --no-cloud
 ```
 
-The static site is emitted to `packages/docs-md/.vitepress/dist` and published by GitHub Pages (see `.github/workflows/docs.yml`).
+The static site is emitted to `packages/docs-md/.vitepress/dist`.
 
 ## Notes
 
-- Production images use dependencies from the root `pnpm-lock.yaml`; server apps (e.g., web-backend, job-broker) don’t generate pruned lockfiles in `dist/`.
-- Nx Cloud is optional; local caching works fine. If you see 401 messages about Nx Cloud, you can ignore them locally.
+- Nx Cloud is optional; local caching works fine. If you see 401 messages about Nx Cloud, ignore them locally.

@@ -195,7 +195,7 @@ jobs:
               docs-main
             echo "Documentation deployed to https://docs-dev.openpra.org"
           else
-            export APP_NAME="openpra-apps-${SANITIZED_BRANCH}"
+            export APP_NAME="openpra-docs-${SANITIZED_BRANCH}"
             export HOST_URL="${SANITIZED_BRANCH}-dev.openpra.org"
             docker stack deploy \
               --with-registry-auth \

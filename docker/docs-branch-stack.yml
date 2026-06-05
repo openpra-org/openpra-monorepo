@@ -45,4 +45,5 @@ services:
         - "traefik.http.routers.${APP_NAME}-docs-https.service=${APP_NAME}-docs"
         - "traefik.http.services.${APP_NAME}-docs.loadbalancer.server.port=80"
         - "traefik.http.middlewares.${APP_NAME}-docs-strip.stripprefix.prefixes=/documentation"
+        - "traefik.http.middlewares.${APP_NAME}-https-redirect.redirectscheme.scheme=https"
         - "traefik.http.middlewares.gzip.compress=true"

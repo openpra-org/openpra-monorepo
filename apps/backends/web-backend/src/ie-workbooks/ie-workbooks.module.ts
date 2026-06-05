@@ -27,6 +27,6 @@ import { IeMefAdapter } from "./ie-mef-adapter";
   ],
   controllers: [IeWorkbooksController, IeDocumentsController, IePosLinkController],
   providers: [IeWorkbooksService, IeDocumentsService, IePosLinkService, IeMefAdapter],
-  exports: [IeWorkbooksService, IeDocumentsService],
+  exports: [IeWorkbooksService, IeDocumentsService, MongooseModule],
 })
 export class IeWorkbooksModule {}

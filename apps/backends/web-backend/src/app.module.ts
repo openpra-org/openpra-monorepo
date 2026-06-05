@@ -14,6 +14,7 @@ import { SessionsModule } from "./sessions/sessions.module";
 import { ExampleWorkbooksModule } from "./example-workbooks/example-workbooks.module";
 import { PosWorkbooksModule } from "./pos-workbooks/pos-workbooks.module";
 import { IeWorkbooksModule } from "./ie-workbooks/ie-workbooks.module";
+import { EsWorkbooksModule } from "./es-workbooks/es-workbooks.module";
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { IeWorkbooksModule } from "./ie-workbooks/ie-workbooks.module";
     ExampleWorkbooksModule,
     PosWorkbooksModule,
     IeWorkbooksModule,
+    EsWorkbooksModule,
   ],
 })
 export class AppModule {}

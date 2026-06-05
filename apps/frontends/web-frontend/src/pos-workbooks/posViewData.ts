@@ -1,6 +1,8 @@
 // hardcoded — presentation-only data for the POS demo. These are workflow / UI
-// concerns (step progress, uploaded source files, dock checklist copy in plant
-// language, per-state workflow status) that have no home in the POS MEF schema.
+// concerns (step progress, uploaded source files, per-state workflow status) that
+// have no home in the POS MEF schema.
+
+import { POS_SR_CATALOG } from "interfaces-mef-types/pos/plant-operating-states-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 
@@ -95,29 +97,70 @@ interface ConformanceItem {
   linkedNM?: string;
 }
 
-const CONFORMANCE_ITEMS: ConformanceItem[] = [
-  { id: "evol-set", section: "Plant evolutions", text: "Plant evolutions identified and documented", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A1"] },
-  { id: "evol-design", section: "Plant evolutions", text: "Each evolution traced to design-basis documents", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A2"] },
+const HLR_SECTION: Record<string, string> = {
+  A: "Operating-state definition (HLR-POS-A)",
+  B: "Screening & grouping (HLR-POS-B)",
+  C: "Frequencies & duration (HLR-POS-C)",
+  D: "Documentation (HLR-POS-D)",
+};
 
-  { id: "pos-define", section: "Operating states", text: "All operating states fully characterised", status: "warn", meta: "POS-04 missing barrier-status entry", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-sources", section: "Operating states", text: "Ex-core radioactive sources tracked (spent fuel, off-gas, cover gas)", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-instr", section: "Operating states", text: "Available instrumentation listed per state", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A3"] },
-  { id: "pos-ssc", section: "Operating states", text: "Required SSC configurations recorded per state", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A11"] },
-  { id: "pos-mxcc", section: "Operating states", text: "Operating states are non-overlapping (any plant condition in exactly one)", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"] },
-  { id: "pos-exhaust", section: "Operating states", text: "Operating states are gap-free (cover the full cycle)", status: "ok", meta: "Coverage 100.00 %", requiredAt: ["cc-i", "cc-ii"], stages: ["both"] },
+const POS_SR_DESCRIPTIONS: Record<string, string> = {
+  "POS-A1": "Representative set of plant evolutions identified (at-power, controlled & forced outages, refuelling)",
+  "POS-A2": "Plant/design documentation reviewed per evolution (modes, RCB config, RCS parameters, barriers)",
+  "POS-A3": "Exclusive operating states defined to cover each evolution by unique parameter combinations",
+  "POS-A4": "Operating plants: state delineation consistent with the as-built / as-operated plant",
+  "POS-A5": "Pre-operational: state delineation consistent with available design information",
+  "POS-A6": "Operating plants: known future evolutions reviewed so state selections stay valid",
+  "POS-A7": "Operating plants: plant personnel interviewed for overlooked past or future evolutions",
+  "POS-A8": "Pre-operational: engineering staff interviewed to confirm the state selection represents the as-designed plant",
+  "POS-A9": "State conditions let the remaining PRA elements proceed and capture risk-significant contributors",
+  "POS-A10": "State conditions reviewed to stay sufficient for any in-scope hazard groups beyond internal events",
+  "POS-A11": "SSCs and their desired operational characteristics needed in each state identified",
+  "POS-A12": "Model-uncertainty sources, assumptions & alternatives in state definition identified",
+  "POS-A13": "Pre-operational: assumptions from missing as-built / as-operated detail in state definitions logged",
+  "POS-B1": "Plant evolutions grouped into representative evolutions, bounded by worst-case impact",
+  "POS-B2": "States retained unless screened out by SCR-1/2/3; any alternate criteria justified",
+  "POS-B3": "Similar states grouped without masking risk-significant contributors or insights",
+  "POS-B4": "States with different plant-response impacts or higher release potential kept separate",
+  "POS-B5": "Demand-based and time-based initiator states separated to avoid averaging short demands",
+  "POS-B6": "Grouped states take the most severe / constraining characteristics of any member",
+  "POS-B7": "Model-uncertainty sources, assumptions & alternatives in screening / grouping identified",
+  "POS-B8": "Pre-operational: assumptions from missing as-built detail in screening / grouping identified",
+  "POS-C1": "Mean duration and mean time after shutdown calculated for each state",
+  "POS-C2": "Pre-operational: basis provided for the assumed mean duration and time-in-cycle of each state",
+  "POS-C3": "State-group durations summed; grouped entry frequencies handled per POS-B1",
+  "POS-C4": "LPSD decay-heat level calculated per state for success criteria and operator timing",
+  "POS-C5": "Operating plants: future plans / schedules reviewed so assumed decay-heat & durations stay valid",
+  "POS-D1": "POS process documented (inputs, methods, results) with full SR traceability",
+  "POS-D2": "Model-uncertainty sources, assumptions & alternatives documented (POS-A12, B7)",
+  "POS-D3": "Pre-operational: assumptions & limitations from missing as-built detail documented",
+};
 
-  { id: "iv-ops", section: "Interviews & walkdowns", text: "Walkdowns and interviews with operations staff documented", status: "na", meta: "Not applicable — plant not yet operating", requiredAt: ["cc-i", "cc-ii"], stages: ["operational"], sr: ["POS-A4", "POS-A6", "POS-A7"] },
-  { id: "iv-eng", section: "Interviews & walkdowns", text: "Interviews with design engineering staff documented", status: "ok", meta: "7 sessions logged", requiredAt: ["cc-i", "cc-ii"], stages: ["pre_operational"], sr: ["POS-A8"] },
+const POS_SR_LINKED_NM: Record<string, string> = {
+  "POS-B6": "NM-028",
+  "POS-C1": "NM-021",
+  "POS-C4": "NM-014",
+};
 
-  { id: "scr-rationale", section: "Screening & grouping", text: "Every screened-out state has a quantitative or qualitative justification", status: "ok", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-B2"] },
-  { id: "grp-bounding", section: "Screening & grouping", text: "Each grouped state's response is bounded by the group's worst-case", status: "warn", meta: "Group RFG: bounding rationale not yet written", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-B6"], linkedNM: "NM-028" },
+function buildConformanceItems(): ConformanceItem[] {
+  return Object.entries(POS_SR_CATALOG).map(([code, meta]) => {
+    const stages = meta.stages.map((s): ConformanceStage => (s === "OPERATIONAL" ? "operational" : "pre_operational"));
+    const item: ConformanceItem = {
+      id: code,
+      section: HLR_SECTION[meta.hlr] ?? `HLR-POS-${meta.hlr}`,
+      text: `POS - ${code.slice("POS-".length)}: ${POS_SR_DESCRIPTIONS[code] ?? code}`,
+      status: "warn",
+      requiredAt: ["cc-i", "cc-ii"],
+      stages,
+      sr: [code],
+    };
+    const nm = POS_SR_LINKED_NM[code];
+    if (nm !== undefined) item.linkedNM = nm;
+    return item;
+  });
+}
 
-  { id: "freq-dur", section: "Frequencies & duration", text: "Mean duration and entry frequency captured per state", status: "warn", meta: "1 state missing duration basis", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C1", "POS-C2"], linkedNM: "NM-021" },
-  { id: "decay-heat", section: "Frequencies & duration", text: "Decay-heat level characterised for every shutdown / refuelling state", status: "blocked", meta: "0 of 6 LPSD states characterised", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-C4"], linkedNM: "NM-014" },
-
-  { id: "doc-uncert", section: "Documentation", text: "Sources of model uncertainty captured", status: "ok", meta: "4 logged", requiredAt: ["cc-i", "cc-ii"], stages: ["both"], sr: ["POS-A12", "POS-D2"] },
-  { id: "doc-preop", section: "Documentation", text: "Pre-operational assumptions logged with closure plans", status: "ok", meta: "6 logged · 2 closures pending", requiredAt: ["cc-i", "cc-ii"], stages: ["pre_operational"], sr: ["POS-A13", "POS-D3"] },
-];
+const CONFORMANCE_ITEMS: ConformanceItem[] = buildConformanceItems();
 
 interface CcScore {
   applicable: number;

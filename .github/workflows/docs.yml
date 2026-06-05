@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
@@ -58,7 +58,6 @@ jobs:
 
       - name: Install Doxybook2
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip
           curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
           sudo unzip -o doxybook2.zip -d /usr/local
@@ -127,32 +126,46 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to self-hosted registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.openpra.org
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      - name: Build and push Docker image
+      - name: Build Docker image (no push)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: packages/docs-md/Dockerfile
-          push: true
+          push: false
+          load: true
           tags: |
             registry.openpra.org/openpra-docs:${{ steps.vars.outputs.image_tag }}
             registry.openpra.org/openpra-docs:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      - name: Save Docker image as artifact
+        run: |
+          docker save \
+            registry.openpra.org/openpra-docs:${{ steps.vars.outputs.image_tag }} \
+            registry.openpra.org/openpra-docs:${{ github.sha }} \
+            | gzip > docs-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-image
+          path: docs-image.tar.gz
+          retention-days: 1
 
   deploy:
-    needs: build-and-push
+    needs: build
     runs-on: gaia1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-image
+
+      - name: Load Docker image
+        run: docker load < docs-image.tar.gz
+
       - name: Login to self-hosted registry
         uses: docker/login-action@v3
         with:
@@ -160,11 +173,16 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
+      - name: Push to registry
+        run: |
+          docker push registry.openpra.org/openpra-docs:${{ needs.build.outputs.image_tag }}
+          docker push registry.openpra.org/openpra-docs:${{ github.sha }}
+
       - name: Deploy to Docker Swarm
         run: |
           BRANCH_NAME="${{ github.ref_name }}"
-          IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
-          SANITIZED_BRANCH="${{ needs.build-and-push.outputs.sanitized_branch }}"
+          IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
+          SANITIZED_BRANCH="${{ needs.build.outputs.sanitized_branch }}"
 
           export IMAGE_DOCS="registry.openpra.org/openpra-docs:${IMAGE_TAG}"
 

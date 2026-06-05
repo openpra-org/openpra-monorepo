@@ -17,19 +17,19 @@ hero:
       link: /mef-elements/index.html
     - theme: alt
       text: Quickstart
-      link: /guides/dev-container.html
+      link: /guides/building.html
 
 features:
   - title: MEF Technical Elements
     details: Explore structured PRA documentation for MEF elements with canonical URLs and ordered navigation.
   - title: TypeScript-based Stack
-    details: Microservices, Backend, Web Editor, Shared SDK, Shared Types.
-  - title: C++ SCRAM Engine
-    details: Main system that performs risk analyses through Boolean evaluations.
+    details: NestJS backend, React frontend, Praetor microservice, shared types.
+  - title: Solver Engines
+    details: PRAXIS (Rust) primary solver and SCRAM (C++) with scram-node bindings.
   - title: Unified, Nx-driven
     details: Nx orchestrates builds, sanitization, and link checks.
   - title: Verified-by-default
     details: Schema-based generated documentation for each technical element.
   - title: Dev-friendly
-    details: Local search, dev container, and explore-by-folder indexes.
+    details: Local search and explore-by-folder indexes.
 ---

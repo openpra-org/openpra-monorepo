@@ -73,7 +73,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         const executionStartTime = Date.now();
         const result = await this.performQuantification(nodeQuantRequest);
         const executionTime = (Date.now() - executionStartTime) / 1000;
-        const outputId = await this.storeQuantificationResult(jobId, result);
+        await this.storeQuantificationResult(jobId, result);
         let analysisSeconds: number | undefined;
         let totalSeconds: number | undefined;
         let probability: number | undefined;
@@ -96,7 +96,6 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         }
         await this.minioService.updateJobMetadata(jobId, {
             status: 'completed',
-            outputId: outputId,
             stats: {
                 idleTime,
                 executionTime,
@@ -131,7 +130,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
             typeof (result as QuantifyModelFileResult).path === 'string'
         );
     }
-    private async storeQuantificationResult(jobId: string, result: QuantifyModelResult): Promise<string> {
+    private async storeQuantificationResult(jobId: string, result: QuantifyModelResult): Promise<void> {
         if (this.isFileResult(result)) {
             const reportPath = result.path;
             try {
@@ -140,7 +139,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                     : String(result.size ?? 'unknown');
                 this.logger.debug(`Uploading streamed report for job ${jobId} from ${reportPath} (size=${sizeLabel} bytes)`);
                 const stream = createReadStream(reportPath);
-                const outputId = await this.minioService.storeOutputData(stream, jobId);
+                await this.minioService.storeOutputData(stream, jobId);
                 try {
                     await fsPromises.unlink(reportPath);
                 }
@@ -148,7 +147,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
                     const unlinkMessage = unlinkErr instanceof Error ? unlinkErr.message : String(unlinkErr);
                     this.logger.warn(`Failed to delete temporary report ${reportPath}: ${unlinkMessage}`);
                 }
-                return outputId;
+                return;
             }
             catch (streamErr) {
                 this.logger.error(`Unable to stream report file ${reportPath} for job ${jobId}: ${String(streamErr)}`);
@@ -157,7 +156,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
         }
         const payload = JSON.stringify(result);
         const outputStream = Readable.from([payload]);
-        return this.minioService.storeOutputData(outputStream, jobId);
+        await this.minioService.storeOutputData(outputStream, jobId);
     }
     async onApplicationShutdown(): Promise<void> {
         try {

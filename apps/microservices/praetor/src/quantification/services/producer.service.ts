@@ -23,9 +23,9 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
     public async createAndQueueQuant(quantRequest: NodeQuantRequest): Promise<string> {
         const jobId = uuidv4();
         quantRequest._id = jobId;
-        const inputId = await this.minioService.storeInputData(quantRequest);
+        await this.minioService.storeInputData(quantRequest, jobId);
         const sentAt = Date.now();
-        await this.minioService.createJobMetadata(jobId, inputId, { sentAt });
+        await this.minioService.createJobMetadata(jobId, { sentAt });
         const modelsData = JSON.stringify(quantRequest);
         try {
             this.logger.debug('Queueing the quantification job');

@@ -2,14 +2,11 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
 import { Readable } from 'stream';
-import { v4 as uuidv4 } from 'uuid';
 import { EnvVarKeys } from '../../config/env_vars.config';
 import type { NodeQuantRequest } from '../common/types/quantify-request';
 
 export interface JobMetadata {
     jobId?: string;
-    inputId?: string;
-    outputId?: string;
     status?: 'pending' | 'running' | 'completed' | 'failed';
     error?: string;
     sentAt?: number;
@@ -95,18 +92,16 @@ export class MinioService implements OnModuleInit {
         }
     }
 
-    async storeInputData(inputData: string | NodeQuantRequest): Promise<string> {
-        const inputId = uuidv4();
-        const objectName = `input-${inputId}-${Date.now()}.json`;
+    async storeInputData(inputData: string | NodeQuantRequest, jobId: string): Promise<void> {
+        const objectName = `input-${jobId}-${Date.now()}.json`;
         try {
             const inputDataString = typeof inputData === 'string' ? inputData : JSON.stringify(inputData);
             const inputDataBuffer = Buffer.from(inputDataString, 'utf8');
             await this.minioClient.putObject(this.inputBucket, objectName, inputDataBuffer, inputDataBuffer.length, {
                 'Content-Type': 'application/json',
-                'X-Input-ID': inputId,
+                'X-Job-ID': jobId,
             });
-            this.logger.log(`Stored input data with ID: ${inputId}`);
-            return inputId;
+            this.logger.log(`Stored input data for job: ${jobId}`);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`Failed to store input data: ${message}`);
@@ -140,20 +135,17 @@ export class MinioService implements OnModuleInit {
         }
     }
 
-    async storeOutputData(outputData: string | Readable, inputId: string): Promise<string> {
-        const outputId = uuidv4();
-        const objectName = `output-${outputId}-${Date.now()}.json`;
+    async storeOutputData(outputData: string | Readable, jobId: string): Promise<void> {
+        const objectName = `output-${jobId}-${Date.now()}.json`;
         try {
             const stream = typeof outputData === 'string'
                 ? Readable.from([outputData])
                 : outputData;
             await this.minioClient.putObject(this.outputBucket, objectName, stream, undefined, {
                 'Content-Type': 'application/json',
-                'X-Output-ID': outputId,
-                'X-Input-ID': inputId,
+                'X-Job-ID': jobId,
             });
-            this.logger.log(`Stored output data with ID: ${outputId}`);
-            return outputId;
+            this.logger.log(`Stored output data for job: ${jobId}`);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`Failed to store output data: ${message}`);
@@ -187,46 +179,9 @@ export class MinioService implements OnModuleInit {
         }
     }
 
-    async deleteInputData(inputId: string): Promise<void> {
-        try {
-            const objectsList: Minio.BucketItem[] = [];
-            const stream = this.minioClient.listObjects(this.inputBucket, `input-${inputId}-`, true);
-            for await (const obj of stream) {
-                objectsList.push(obj);
-            }
-            for (const obj of objectsList) {
-                await this.minioClient.removeObject(this.inputBucket, obj.name!);
-            }
-            this.logger.log(`Deleted input data for ID: ${inputId}`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to delete input data for ID ${inputId}: ${message}`);
-            throw new Error(`Failed to delete input data: ${message}`);
-        }
-    }
-
-    async deleteOutputData(outputId: string): Promise<void> {
-        try {
-            const objectsList: Minio.BucketItem[] = [];
-            const stream = this.minioClient.listObjects(this.outputBucket, `output-${outputId}-`, true);
-            for await (const obj of stream) {
-                objectsList.push(obj);
-            }
-            for (const obj of objectsList) {
-                await this.minioClient.removeObject(this.outputBucket, obj.name!);
-            }
-            this.logger.log(`Deleted output data for ID: ${outputId}`);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to delete output data for ID ${outputId}: ${message}`);
-            throw new Error(`Failed to delete output data: ${message}`);
-        }
-    }
-
-    async createJobMetadata(jobId: string, inputId: string, initialData?: Partial<JobMetadata>): Promise<void> {
+    async createJobMetadata(jobId: string, initialData?: Partial<JobMetadata>): Promise<void> {
         const metadata: JobMetadata = {
             jobId,
-            inputId,
             status: 'pending',
             ...initialData,
         };
@@ -287,32 +242,6 @@ export class MinioService implements OnModuleInit {
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`Failed to retrieve job metadata for ID ${jobId}: ${message}`);
             throw new Error(`Failed to retrieve job metadata: ${message}`);
-        }
-    }
-
-    async getAllJobMetadata(): Promise<JobMetadata[]> {
-        try {
-            const jobs: JobMetadata[] = [];
-            const stream = this.minioClient.listObjects(this.jobsBucket, 'job-', true);
-            for await (const obj of stream) {
-                try {
-                    const dataStream = await this.minioClient.getObject(this.jobsBucket, obj.name);
-                    const chunks: Uint8Array[] = [];
-                    for await (const chunk of dataStream) {
-                        chunks.push(chunk);
-                    }
-                    const data = Buffer.concat(chunks).toString('utf8');
-                    jobs.push(JSON.parse(data) as JobMetadata);
-                } catch (error) {
-                    const message = error instanceof Error ? error.message : String(error);
-                    this.logger.warn(`Failed to parse job metadata from ${obj.name}: ${message}`);
-                }
-            }
-            return jobs;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Failed to retrieve all job metadata: ${message}`);
-            throw new Error(`Failed to retrieve all job metadata: ${message}`);
         }
     }
 

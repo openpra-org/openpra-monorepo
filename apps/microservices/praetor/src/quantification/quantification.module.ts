@@ -7,7 +7,6 @@ import { StorageService } from './services/storage.service';
     imports: [QueueModule],
     controllers: [ScramController],
     providers: [ProducerService, StorageService],
-    exports: [StorageService],
 })
 export class QuantificationModule {
 }

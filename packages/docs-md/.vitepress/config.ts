@@ -235,18 +235,44 @@ export default defineConfig({
           ],
         },
       ],
-      "/api/rust/praxis/": [
-        {
-          text: "PRAXIS (Rust)",
-          items: [{ text: "Index", link: "/api/rust/praxis/index.html" }],
-        },
-      ],
-      "/api/python/pracciolini/": [
-        {
-          text: "pracciolini (Python)",
-          items: [{ text: "Index", link: "/api/python/pracciolini/index.html" }],
-        },
-      ],
+      "/api/rust/praxis/": (() => {
+        const dirOf = path.dirname(fileURLToPath(import.meta.url));
+        const root = path.resolve(dirOf, "../../..", "packages/docs-md/api/rust/praxis");
+        const items: Array<{
+          text: string;
+          link: string;
+        }> = [{ text: "Overview", link: "/api/rust/praxis/index.html" }];
+        if (fs.existsSync(root)) {
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (entry.isDirectory()) {
+              if (fs.existsSync(path.resolve(root, entry.name, "index.md"))) {
+                items.push({ text: entry.name, link: `/api/rust/praxis/${entry.name}/index.html` });
+              }
+            } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md") {
+              const base = entry.name.slice(0, -3);
+              items.push({ text: base, link: `/api/rust/praxis/${base}.html` });
+            }
+          }
+        }
+        return [{ text: "PRAXIS (Rust)", items }];
+      })(),
+      "/api/python/pracciolini/": (() => {
+        const dirOf = path.dirname(fileURLToPath(import.meta.url));
+        const root = path.resolve(dirOf, "../../..", "packages/docs-md/api/python/pracciolini");
+        const items: Array<{
+          text: string;
+          link: string;
+        }> = [{ text: "Overview", link: "/api/python/pracciolini/index.html" }];
+        if (fs.existsSync(root)) {
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "index.md") {
+              const base = entry.name.slice(0, -3);
+              items.push({ text: base, link: `/api/python/pracciolini/${base}.html` });
+            }
+          }
+        }
+        return [{ text: "pracciolini (Python)", items }];
+      })(),
     },
   },
   vite: {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from "react";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 

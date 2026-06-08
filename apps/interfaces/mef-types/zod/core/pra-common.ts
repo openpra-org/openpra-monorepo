@@ -18,7 +18,7 @@ import type {
 
 export const CapabilityCategorySchema = z.enum(["CC-I", "CC-II"]);
 export const PlantStageSchema = z.enum(["OPERATIONAL", "PRE_OPERATIONAL"]);
-export const HlrIdSchema = z.enum(["A", "B", "C", "D", "E", "F"]);
+export const HlrIdSchema = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I"]);
 export const SRStatusSchema = z.enum(["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE", "PENDING_REVIEW"]);
 
 export const WorkflowStateSchema = z.enum([
@@ -26,7 +26,8 @@ export const WorkflowStateSchema = z.enum([
   "INTERNAL_TECHNICAL_REVIEW",
   "INTERNAL_APPROVAL",
   "REVISION_REQUIRED",
-  "AWAITING_EXTERNAL_REVIEW",
+  "EXTERNAL_PEER_REVIEW",
+  "EXTERNAL_AUDIT",
   "FINAL",
   "DEPRECATED",
 ]);

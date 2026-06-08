@@ -1,5 +1,5 @@
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 
 type PosWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 

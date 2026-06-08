@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { patchPosWorkbook } from "./posWorkbookApi";
 
 type Mutator = (draft: PlantOperatingStatesAnalysis) => PlantOperatingStatesAnalysis;

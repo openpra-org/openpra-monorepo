@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 

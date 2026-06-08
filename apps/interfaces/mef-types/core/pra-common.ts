@@ -4,7 +4,7 @@ export type CapabilityCategory = "CC-I" | "CC-II";
 
 export type PlantStage = "OPERATIONAL" | "PRE_OPERATIONAL";
 
-export type HlrId = "A" | "B" | "C" | "D" | "E" | "F";
+export type HlrId = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I";
 
 export type SRStatus = "MET" | "PARTIAL" | "NOT_MET" | "NOT_APPLICABLE" | "PENDING_REVIEW";
 
@@ -13,7 +13,8 @@ export type WorkflowState =
   | "INTERNAL_TECHNICAL_REVIEW"
   | "INTERNAL_APPROVAL"
   | "REVISION_REQUIRED"
-  | "AWAITING_EXTERNAL_REVIEW"
+  | "EXTERNAL_PEER_REVIEW"
+  | "EXTERNAL_AUDIT"
   | "FINAL"
   | "DEPRECATED";
 

@@ -1,4 +1,5 @@
-import { type EventSequenceAnalysis, EndState, DependencyType } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequenceAnalysis, DependencyType } from "interfaces-mef-types/es/event-sequence-analysis";
+import { EndState } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { ccScore, filterConformance, commentsView, stepsFromMef, eventTreesView, dependenciesView } from "../esSelectors";
 

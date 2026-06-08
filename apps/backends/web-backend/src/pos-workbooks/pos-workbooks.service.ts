@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-states-analysis";
+import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-state-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";

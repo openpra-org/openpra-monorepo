@@ -53,3 +53,8 @@ export interface InitiatingEvent extends BaseEvent {
   eventType: "INITIATING";
   frequency: Frequency | FrequencyWithDistribution;
 }
+
+export enum EndState {
+  SUCCESSFUL_MITIGATION = "SUCCESSFUL_MITIGATION",
+  RADIONUCLIDE_RELEASE = "RADIONUCLIDE_RELEASE",
+}

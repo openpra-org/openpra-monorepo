@@ -1,5 +1,5 @@
 import { Unique, Named } from "../core/meta";
-import { Frequency, FrequencyWithDistribution } from "../core/events";
+import { Frequency, FrequencyWithDistribution, EndState } from "../core/events";
 import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
@@ -18,11 +18,6 @@ export type EventSequenceFamilyReference = string;
 export type SequenceDesignatorId = string;
 
 export type SystemStatus = "SUCCESS" | "FAILURE";
-
-export enum EndState {
-  SUCCESSFUL_MITIGATION = "SUCCESSFUL_MITIGATION",
-  RADIONUCLIDE_RELEASE = "RADIONUCLIDE_RELEASE",
-}
 
 export enum DependencyType {
   FUNCTIONAL = "FUNCTIONAL",

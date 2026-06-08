@@ -24,7 +24,7 @@ import {
   BarrierStatus,
   SourceLocation,
   SafetyFunctionCategory,
-} from "interfaces-mef-types/pos/plant-operating-states-analysis";
+} from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type InitiatingEvent } from "interfaces-mef-types/core/events";
 import { ImportanceLevel, ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";

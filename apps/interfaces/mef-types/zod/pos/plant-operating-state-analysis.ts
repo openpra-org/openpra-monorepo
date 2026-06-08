@@ -5,8 +5,8 @@ import {
   OperatingMode,
   SafetyFunctionCategory,
   SourceLocation,
-} from "../../pos/plant-operating-states-analysis";
-import type { PlantOperatingStatesAnalysis } from "../../pos/plant-operating-states-analysis";
+} from "../../pos/plant-operating-state-analysis";
+import type { PlantOperatingStatesAnalysis } from "../../pos/plant-operating-state-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import {

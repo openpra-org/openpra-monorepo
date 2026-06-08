@@ -2,7 +2,7 @@
 // concerns (step progress, uploaded source files, per-state workflow status) that
 // have no home in the POS MEF schema.
 
-import { POS_SR_CATALOG } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { POS_SR_CATALOG } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 
 type StepStatus = "complete" | "in-progress" | "idle";
 

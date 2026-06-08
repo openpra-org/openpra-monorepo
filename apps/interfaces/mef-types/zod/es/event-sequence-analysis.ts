@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { BarrierImpactState, DependencyType, EndState } from "../../es/event-sequence-analysis";
+import { BarrierImpactState, DependencyType } from "../../es/event-sequence-analysis";
+import { EndState } from "../../core/events";
 import type { EventSequenceAnalysis } from "../../es/event-sequence-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";

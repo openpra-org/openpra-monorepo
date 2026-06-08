@@ -10,7 +10,7 @@ import {
   WidthType,
   BorderStyle,
 } from "docx";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { formatRange, formatDuration, formatFrequency } from "./posSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {

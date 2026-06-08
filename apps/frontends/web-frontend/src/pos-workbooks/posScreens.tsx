@@ -1,6 +1,6 @@
 import { Fragment, JSX, useRef, useState } from "react";
 import { type PosDocumentEntry } from "./posWorkbookApi";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-states-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { type CapabilityCategory as MefCapabilityCategory, type PlantStage as MefPlantStage } from "interfaces-mef-types/core/pra-common";
 import { type Mutator } from "./useMefPatch";

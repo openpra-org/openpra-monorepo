@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-states-analysis";
+import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-state-analysis";
 import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
 import { createBlankPos } from "./blank-pos";

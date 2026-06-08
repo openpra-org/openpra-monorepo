@@ -218,6 +218,41 @@ const ES_RELEASE_CATEGORIES: ReleaseCategorySpec[] = [
   { id: "RC-3", name: "Intact-confinement leakage", tone: "warn", timing: "Very late (> 72 h)", magnitude: "Small", scrubbed: true, chars: ["Design-leakage only", "Full filtration + plate-out", "No barrier breach beyond cladding"], desc: "Only design-basis confinement leakage occurs — the worst-case small release for sequences that lose cooling but keep all outer barriers.", msReady: false },
 ];
 
+type LbeClassId = "AOO" | "DBE" | "BDBE";
+
+interface LbeClassSpec {
+  id: LbeClassId;
+  label: string;
+  name: string;
+  band: string;
+  tone: EndStateTone;
+}
+
+const ES_LBE_CLASSES: Record<LbeClassId, LbeClassSpec> = {
+  AOO: { id: "AOO", label: "AOO", name: "Anticipated operational occurrence", band: "≥ 1E-2 /yr", tone: "ok" },
+  DBE: { id: "DBE", label: "DBE", name: "Design basis event", band: "1E-4 to 1E-2 /yr", tone: "warn" },
+  BDBE: { id: "BDBE", label: "BDBE", name: "Beyond design basis event", band: "5E-7 to 1E-4 /yr", tone: "block" },
+};
+
+interface LicensingBasisEvent {
+  id: string;
+  name: string;
+  basis: string;
+  releaseCategoryId?: string;
+  meanFrequency: number;
+  lbeClass: LbeClassId;
+}
+
+const ES_LICENSING_BASIS_EVENTS: LicensingBasisEvent[] = [
+  { id: "LBE-1", name: "General transient, mitigated to safe state", basis: "EST-01 · ESF-OK", meanFrequency: 2.55, lbeClass: "AOO" },
+  { id: "LBE-2", name: "Loss of flow, mitigated to safe state", basis: "ESF-01 · ESF-OK", meanFrequency: 5.3e-2, lbeClass: "AOO" },
+  { id: "LBE-3", name: "Sodium boundary leak, isolated and mitigated", basis: "ESR-01 · ESF-OK", meanFrequency: 2.2e-3, lbeClass: "DBE" },
+  { id: "LBE-4", name: "Cover-gas breach, isolated and mitigated", basis: "ESG-01 · ESF-OK", meanFrequency: 2.1e-4, lbeClass: "DBE" },
+  { id: "LBE-5", name: "DHR failure, late filtered release", basis: "ESF-LATE", releaseCategoryId: "RC-2", meanFrequency: 5.1e-5, lbeClass: "BDBE" },
+  { id: "LBE-6", name: "Unprotected transient (ATWS) release", basis: "ESF-ATWS", releaseCategoryId: "RC-1", meanFrequency: 2.7e-5, lbeClass: "BDBE" },
+  { id: "LBE-7", name: "Confinement failure, early release", basis: "ESF-EARLY", releaseCategoryId: "RC-1", meanFrequency: 5.4e-6, lbeClass: "BDBE" },
+];
+
 interface TimelineMilestone {
   t: number;
   label: string;
@@ -419,6 +454,9 @@ export type {
   DependencyTypeSpec,
   ScreeningLabel,
   FeActor,
+  LbeClassId,
+  LbeClassSpec,
+  LicensingBasisEvent,
 };
 
 export {
@@ -444,4 +482,6 @@ export {
   ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
   ES_SCREENING_LABELS,
+  ES_LBE_CLASSES,
+  ES_LICENSING_BASIS_EVENTS,
 };

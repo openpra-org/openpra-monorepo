@@ -11,6 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { ES_LBE_CLASSES, ES_LICENSING_BASIS_EVENTS } from "./esViewData";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -71,7 +72,9 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
+  const trees = a.eventTrees ?? [];
   const deps = (a.dependencyModels?.functionalDependencies ?? []).flatMap((m) => m.dependencies);
+  const doc = a.documentation;
 
   out.push(
     new Paragraph({ children: [new TextRun({ text: `${a.name} — ${stageLabel} PRA Model`, bold: true, size: 48 })], spacing: { after: 60 } }),
@@ -81,67 +84,102 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   );
 
   out.push(heading("Executive summary", HeadingLevel.HEADING_1));
-  out.push(para(`This document presents the preliminary Event Sequence (ES) analysis for ${a.name}, prepared during the ${stageLabel.toLowerCase()} stage. ${a.eventSequences.length} event sequences across ${(a.eventTrees ?? []).length} event trees have been delineated and grouped into ${a.eventSequenceFamilies.length} sequence families against the ${ccLabel} capability target.`));
+  out.push(para(`This document presents the preliminary Event Sequence (ES) analysis for ${a.name}, prepared during the ${stageLabel.toLowerCase()} stage. ${a.eventSequences.length} event sequences across ${trees.length} event trees have been delineated and grouped into ${a.eventSequenceFamilies.length} sequence families against the ${ccLabel} capability target.`));
 
   out.push(heading("Introduction", HeadingLevel.HEADING_1));
   out.push(heading("Purpose", HeadingLevel.HEADING_2));
-  out.push(para(a.documentation.processDescription));
+  out.push(para(doc.processDescription));
   out.push(heading("Scope", HeadingLevel.HEADING_2));
   out.push(para(a.praScope));
-  out.push(heading("Relationship to other tasks", HeadingLevel.HEADING_2));
-  out.push(para(a.documentation.praTaskInterfaces));
+  out.push(heading("Relationship to other documents", HeadingLevel.HEADING_2));
+  out.push(para(doc.praTaskInterfaces));
+  out.push(heading("Document layout", HeadingLevel.HEADING_2));
+  out.push(para("This report covers the assumptions and limitations, the initiating events selected for analysis, event sequence development, event sequence analysis for each mode and state, and the preliminary point-estimate licensing basis events, followed by the supporting references."));
   out.push(heading("Quality assurance", HeadingLevel.HEADING_2));
   out.push(para(a.plantResponseAnalysisAccuracy.basis));
+  out.push(heading("Freeze date", HeadingLevel.HEADING_2));
+  out.push(para(`Model version ${a.version}. Analysis date: ${a.metadata.analysisDate}.`));
 
-  out.push(heading("Scope & safety functions", HeadingLevel.HEADING_1));
-  out.push(para(`Operating states in scope: ${a.scopeDefinition.plantOperatingStateIds.length}. Initiating events in scope: ${a.scopeDefinition.initiatingEventIds.length}.`));
-  out.push(heading("Radioactive sources", HeadingLevel.HEADING_2));
-  for (const s of a.scopeDefinition.radioactiveMaterialSources) out.push(bullet(s));
-  out.push(heading("Radionuclide transport barriers", HeadingLevel.HEADING_2));
-  for (const b of a.scopeDefinition.radionuclideBarriers) out.push(bullet(b));
-  out.push(heading("Key safety functions", HeadingLevel.HEADING_2));
-  for (const f of a.keySafetyFunctions) out.push(bullet(f));
+  out.push(heading("Assumptions & limitations", HeadingLevel.HEADING_1));
+  out.push(para(doc.asBuiltLimitations));
+  for (const l of a.metadata.limitations) out.push(bullet(l));
 
-  out.push(heading("Event sequences", HeadingLevel.HEADING_1));
+  out.push(heading("Initiating events selected for ES analysis", HeadingLevel.HEADING_1));
+  out.push(para(doc.posInitiatorSequenceLinkage));
+  out.push(dataTable(
+    ["Initiating event", "Event tree", "Operating state", "Mission time"],
+    trees.map((t) => [t.initiatingEventId, t.name, t.plantOperatingStateId ?? "—", `${t.missionTime ?? "—"} ${t.missionTimeUnits ?? ""}`.trim()]),
+  ));
+
+  out.push(heading("Event sequence development", HeadingLevel.HEADING_1));
+  out.push(heading("General framework of ES models", HeadingLevel.HEADING_2));
+  out.push(para(doc.sequenceDelineation));
+  out.push(heading("Event sequence end states", HeadingLevel.HEADING_2));
+  out.push(para(doc.endStateAndReleaseCategoryDefinitions));
+  out.push(para(doc.intermediateEndStatesAndTransfers));
+  out.push(heading("Implementation of the framework", HeadingLevel.HEADING_2));
+  out.push(para(doc.deterministicAnalysesUsed));
+  out.push(para(doc.operatorActionsRepresentation));
+  out.push(heading("Response of plant systems & structures", HeadingLevel.HEADING_2));
+  out.push(para(doc.plantResponseAnalysisBasis));
+  out.push(dataTable(
+    ["Event tree", "Initiator", "State", "Mission time", "Sequences"],
+    trees.map((t) => [t.name, t.initiatingEventId, t.plantOperatingStateId ?? "—", `${t.missionTime ?? "—"} ${t.missionTimeUnits ?? ""}`.trim(), String(Object.keys(t.sequences).length)]),
+  ));
+  out.push(heading("Source term characteristics", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Release category", "Sequences", "Mean freq", "Characteristics"],
+    (a.releaseCategoryMappings ?? []).map((m) => [m.releaseCategoryId, String(m.eventSequenceIds.length), fmtFreq(m.meanFrequency), m.commonCharacteristics.join("; ")]),
+  ));
+  out.push(heading("Event sequence development models", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["ID", "Sequence", "Initiator", "State", "End state", "Release", "Family", "Mean freq"],
     a.eventSequences.map((s) => [s.uuid, s.name, s.initiatingEventId, s.plantOperatingStateId, endStateLabel(String(s.endState)), s.releaseCategoryId ?? "—", s.sequenceFamilyId ?? "—", fmtFreq(s.meanFrequency)]),
   ));
 
-  out.push(heading("Dependencies", HeadingLevel.HEADING_1));
+  out.push(heading("Event sequence analysis for mode & state", HeadingLevel.HEADING_1));
+  out.push(heading("Common elements (scope, success criteria, mitigation)", HeadingLevel.HEADING_2));
+  out.push(para(`Operating states in scope: ${a.scopeDefinition.plantOperatingStateIds.length}. Initiating events in scope: ${a.scopeDefinition.initiatingEventIds.length}.`));
+  out.push(para(doc.successCriteriaBases));
+  out.push(para(doc.keySafetyFunctionsIdentification));
+  for (const f of a.keySafetyFunctions) out.push(bullet(f));
   out.push(dataTable(
-    ["Type", "Dependent", "Depends upon", "Importance"],
-    deps.map((d) => [String(d.dependencyType), d.dependentElement, d.dependedUponElement, d.importanceLevel !== undefined ? String(d.importanceLevel) : "—"]),
+    ["Event tree", "Initiator", "Safety design mitigation strategy"],
+    trees.map((t) => [t.name, t.initiatingEventId, t.mitigationStrategy ?? "—"]),
   ));
-
-  out.push(heading("End states & release categories", HeadingLevel.HEADING_1));
-  out.push(dataTable(
-    ["Release category", "Sequences", "Mean freq", "Characteristics"],
-    (a.releaseCategoryMappings ?? []).map((m) => [m.releaseCategoryId, String(m.eventSequenceIds.length), fmtFreq(m.meanFrequency), m.commonCharacteristics.join("; ")]),
-  ));
-
-  out.push(heading("Sequence families", HeadingLevel.HEADING_1));
+  out.push(heading("Key assumptions & uncertainties", HeadingLevel.HEADING_2));
+  out.push(para(doc.modelUncertaintySources));
+  if (a.modelUncertainty.uncertaintySources.length > 0) {
+    out.push(dataTable(
+      ["Source", "Impact / treatment"],
+      a.modelUncertainty.uncertaintySources.map((m) => [m.source, m.impact]),
+    ));
+  }
+  out.push(heading("Event sequence quantification", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["ID", "Family", "End state", "Release", "Members", "Mean freq"],
     a.eventSequenceFamilies.map((f) => [f.uuid, f.name, endStateLabel(String(f.endState)), (f.releaseCategoryIds ?? []).join(", ") || "—", String(f.memberSequenceIds.length), fmtFreq(f.meanFrequency)]),
   ));
-
-  out.push(heading("Screening", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["Sequence", "Disposition", "Criterion", "Basis"],
     a.screeningRecords.map((r) => [r.sequenceId, r.retained ? "Retained" : "Screened out", r.criterion ?? "—", r.justification]),
   ));
-
-  out.push(heading("Model uncertainty & assumptions", HeadingLevel.HEADING_1));
+  out.push(heading("Event sequence models", HeadingLevel.HEADING_2));
+  out.push(para(doc.dependencyTreatment));
   out.push(dataTable(
-    ["Source", "Impact / treatment"],
-    a.modelUncertainty.uncertaintySources.map((m) => [m.source, m.impact]),
+    ["Type", "Dependent", "Depends upon", "Importance"],
+    deps.map((d) => [String(d.dependencyType), d.dependentElement, d.dependedUponElement, d.importanceLevel !== undefined ? String(d.importanceLevel) : "—"]),
   ));
-
-  out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["SR", "HLR", "Category", "Status", "Evidence"],
     a.conformanceMatrix.map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
+  ));
+
+  out.push(heading("Preliminary point-estimate licensing basis events", HeadingLevel.HEADING_1));
+  out.push(para("Each sequence family is placed into a preliminary licensing-basis-event class by its point-estimate frequency, pending the full ESQ uncertainty quantification."));
+  out.push(dataTable(
+    ["LBE", "Source family", "RC", "Point estimate", "Class"],
+    ES_LICENSING_BASIS_EVENTS.map((lbe) => [`${lbe.id}: ${lbe.name}`, lbe.basis, lbe.releaseCategoryId ?? "Safe state", fmtFreq(lbe.meanFrequency), ES_LBE_CLASSES[lbe.lbeClass].label]),
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));

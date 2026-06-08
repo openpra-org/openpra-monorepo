@@ -283,6 +283,7 @@ export interface EventTree extends Unique, Named {
   };
   transfers?: Record<string, EventTreeTransfer>;
   description?: string;
+  mitigationStrategy?: string;
   missionTime?: number;
   missionTimeUnits?: string;
   implementsSrs: SRReference[];

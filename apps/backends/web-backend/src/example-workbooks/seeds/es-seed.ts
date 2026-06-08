@@ -127,6 +127,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-LOHS", name: "Loss of heat sink", initiatingEventId: "IEG-LOHS", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "Normal heat removal through the intermediate loop is lost at power; the reactor must trip and decay heat reach another sink before cladding limits are passed.",
+      mitigationStrategy: "The reactor trips on the protection signal, then passive DRACS removes decay heat by natural circulation, with confinement as the final barrier.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS / inherent" },
         SDHR: { uuid: "SDHR", name: "Shutdown heat removal", label: "SDHR", order: 1, description: "Intermediate loop" },
@@ -153,6 +154,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-RCB", name: "Small primary sodium boundary leak", initiatingEventId: "IEG-RCB", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "A small leak in the primary sodium boundary that must be found and isolated, the reactor tripped, and decay heat removed while the guard vessel holds the sodium.",
+      mitigationStrategy: "The reactor trips and the affected line is isolated, then passive decay-heat removal continues while confinement retains any release.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS" },
         ISOL: { uuid: "ISOL", name: "Leak isolation", label: "ISOL", order: 1, description: "Detect + isolate" },
@@ -181,6 +183,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-LOFA", name: "Loss of primary sodium flow (ULOF)", initiatingEventId: "IEG-LOFA", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "A primary pump trip or coastdown upsets the flow-to-power balance, requiring natural circulation before cladding limits are reached.",
+      mitigationStrategy: "The reactor trips and natural circulation establishes, with inherent reactivity feedback credited where the trip fails.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS / inherent" },
         NC: { uuid: "NC", name: "Natural circulation", label: "NC", order: 1, description: "Primary loop" },
@@ -209,6 +212,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-TRANS", name: "General transient", initiatingEventId: "IEG-TRANS", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "A plant upset that keeps the reactor coolant boundary intact, such as a loss of offsite power or turbine trip, where the reactor must trip and decay heat reach a sink.",
+      mitigationStrategy: "The reactor trips and the normal or passive decay-heat path removes heat, with confinement holding any release.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS / inherent" },
         SDHR: { uuid: "SDHR", name: "Shutdown heat removal", label: "SDHR", order: 1, description: "Intermediate loop" },
@@ -235,6 +239,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-CGAS", name: "Cover-gas system breach", initiatingEventId: "IE-11", plantOperatingStateId: "POS-01",
       missionTime: 48, missionTimeUnits: "h",
       description: "A cover-gas-system breach opens a containment-bypass path for the activated-argon source that must be isolated while confinement holds.",
+      mitigationStrategy: "The reactor trips and the cover-gas path is isolated, then filtration and confinement limit the activity release.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS" },
         ISOL: { uuid: "ISOL", name: "Cover-gas isolation", label: "ISOL", order: 1, description: "Isolate the path" },
@@ -258,6 +263,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-FIRE", name: "Internal sodium fire", initiatingEventId: "IE-15", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "A sodium leak in the primary cell ignites and must be suppressed, the reactor tripped, and decay heat removed while confinement holds, with frequency from the Internal Fire PRA.",
+      mitigationStrategy: "The cell is isolated and the fire suppressed, the reactor trips, and passive decay-heat removal continues behind confinement.",
       functionalEvents: {
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 0, description: "RPS" },
         SUPP: { uuid: "SUPP", name: "Fire suppression", label: "SUPP", order: 1, description: "Detect + suppress" },
@@ -284,6 +290,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-SEIS", name: "Seismic event", initiatingEventId: "IE-17", plantOperatingStateId: "POS-01",
       missionTime: 72, missionTimeUnits: "h",
       description: "A design-basis earthquake where the reactor coolant boundary must stay intact, the reactor must trip, and decay heat must be removed, with hazard frequency from the Seismic PRA.",
+      mitigationStrategy: "Seismically qualified protection trips the reactor and passive decay-heat removal continues, with confinement credited where equipment is lost.",
       functionalEvents: {
         STRUCT: { uuid: "STRUCT", name: "Boundary intact", label: "STRUCT", order: 0, description: "Survives ground motion" },
         RT: { uuid: "RT", name: "Reactor trip", label: "RT", order: 1, description: "Seismic trip" },
@@ -310,6 +317,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       uuid: "ET-DRAIN", name: "Erroneous RCS drain-down", initiatingEventId: "IE-18", plantOperatingStateId: "POS-04",
       missionTime: 48, missionTimeUnits: "h",
       description: "During shutdown an operator error starts draining the primary sodium, which must be caught and inventory restored before the core uncovers, then decay heat removed.",
+      mitigationStrategy: "The operator restores inventory on the level alarm, the reactor stays shut down, and passive decay-heat removal is maintained.",
       functionalEvents: {
         DETECT: { uuid: "DETECT", name: "Detect & stop", label: "DETECT", order: 0, description: "Level alarm + action" },
         MAKEUP: { uuid: "MAKEUP", name: "Restore level", label: "MAKEUP", order: 1, description: "Make-up to core" },

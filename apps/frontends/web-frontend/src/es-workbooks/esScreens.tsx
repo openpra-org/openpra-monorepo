@@ -15,6 +15,8 @@ import {
   ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
   ES_SCREENING_LABELS,
+  ES_LBE_CLASSES,
+  ES_LICENSING_BASIS_EVENTS,
   feActor,
   ES_FE_ACTOR_META,
   type Stage,
@@ -747,6 +749,12 @@ function SequencesScreen(): JSX.Element {
           <span><span className="possubtle">Mission time</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{tree.missionTime ?? "—"} {tree.missionTimeUnits ?? ""}</strong></span>
           <span><span className="possubtle">Sequences</span> <strong style={{ color: "var(--color-text)" }}>{tree.sequences.length}</strong> <span className="possubtle">({okN} safe · {relN} release)</span></span>
         </div>
+        {tree.mitigationStrategy !== undefined && (
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12, padding: "10px 12px", background: "var(--color-surface-2, var(--color-surface-low))", borderRadius: 8, borderLeft: "3px solid var(--color-primary)" }}>
+            <span className="possubtle" style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", marginTop: 1 }}>Safety design mitigation strategy</span>
+            <span style={{ fontSize: 12.5, color: "var(--color-text)", lineHeight: 1.45 }}>{tree.mitigationStrategy}</span>
+          </div>
+        )}
         <p className="possubtle" style={{ fontSize: 11.5, marginTop: 8, marginBottom: 0 }}>Sequence frequencies are summed across the {tree.applicableStates.length} state{tree.applicableStates.length === 1 ? "" : "s"} where this initiator occurs, with IE having already applied the per-state time weighting (IE-C8).</p>
       </div>
 
@@ -1373,6 +1381,42 @@ function QuantScreen(): JSX.Element {
         ) : <p className="possubtle" style={{ margin: 0 }}>No release families to quantify.</p>}
       </div>
 
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Preliminary point-estimate licensing basis events</h3>
+          <ESProvenanceChip kind="es">ES → LBE · point estimate</ESProvenanceChip>
+        </div>
+        <p className="poscard__sub">Each sequence family is placed into a preliminary licensing-basis-event class by its point-estimate frequency, pending the full ESQ uncertainty quantification.</p>
+        <table className="postable">
+          <thead>
+            <tr>
+              <th>LBE</th>
+              <th>Source family</th>
+              <th>RC</th>
+              <th style={{ textAlign: "right" }}>Point est. (/yr)</th>
+              <th>Class</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ES_LICENSING_BASIS_EVENTS.map((lbe) => {
+              const cls = ES_LBE_CLASSES[lbe.lbeClass];
+              return (
+                <tr key={lbe.id}>
+                  <td><div className="postable__name">{lbe.id}</div><span className="postable__name-sub">{lbe.name}</span></td>
+                  <td><span className="posmono possubtle" style={{ fontSize: 11.5 }}>{lbe.basis}</span></td>
+                  <td>{lbe.releaseCategoryId !== undefined
+                    ? <span className={`estree__seq-rcpill estree__seq-rcpill--${rcTone(lbe.releaseCategoryId)}`}>{lbe.releaseCategoryId}</span>
+                    : <span className="poschip">Safe state</span>}</td>
+                  <td style={{ textAlign: "right" }}><span className="posmono" style={{ fontWeight: 700 }}>{fmtExp(lbe.meanFrequency)}</span></td>
+                  <td><Badge kind={cls.tone}>{cls.label}</Badge></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <p className="possubtle" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>Classes follow the LMP frequency bands: AOO at or above 1E-2/yr, DBE from 1E-4 to 1E-2/yr, and BDBE from 5E-7 to 1E-4/yr. The bands firm up once ESQ returns the mean frequencies and uncertainty.</p>
+      </div>
+
       {esqResults.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
@@ -1421,22 +1465,30 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   const { es } = useEsWorkbook();
   const ready = scores.blocked === 0;
   const TOC_ITEMS: [string, string][] = [
-    ["Executive summary", "4"],
-    ["Introduction", "5"],
-    ["    Purpose & scope", "5"],
-    ["    Interfaces (IE · POS upstream · ESQ / MS downstream)", "6"],
-    ["    Quality assurance & freeze date", "6"],
-    ["Scope, sources & key safety functions", "7"],
-    ["Event-sequence development", "10"],
-    ["    Sequences by initiating event", "10"],
-    ["    Functional-event ordering & timing", "16"],
-    ["Dependencies", "19"],
-    ["End states & release categories", "24"],
-    ["Sequence families", "27"],
-    ["Screening of event sequences", "30"],
-    ["Hand-off to ESQ", "32"],
-    ["Model uncertainty & assumptions", "35"],
-    ["References", "38"],
+    ["Executive summary", "5"],
+    ["Introduction", "6"],
+    ["    Purpose", "6"],
+    ["    Scope", "6"],
+    ["    Relationship to other documents", "6"],
+    ["    Document layout", "6"],
+    ["    Quality assurance", "6"],
+    ["    Freeze date", "6"],
+    ["Assumptions & limitations", "7"],
+    ["Initiating events selected for ES analysis", "8"],
+    ["Event sequence development", "9"],
+    ["    General framework of ES models", "9"],
+    ["    Event sequence end states", "9"],
+    ["    Implementation of the framework", "9"],
+    ["    Response of plant systems & structures", "9"],
+    ["    Source term characteristics", "9"],
+    ["    Event sequence development models", "9"],
+    ["Event sequence analysis for mode & state", "10"],
+    ["    Common elements (scope, success criteria, mitigation)", "10"],
+    ["    Key assumptions & uncertainties", "10"],
+    ["    Event sequence quantification", "10"],
+    ["    Event sequence models", "10"],
+    ["Preliminary point-estimate licensing basis events", "11"],
+    ["References", "12"],
   ];
   return (
     <div className="posgen">

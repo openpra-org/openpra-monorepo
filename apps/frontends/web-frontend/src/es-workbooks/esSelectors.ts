@@ -407,6 +407,7 @@ interface EventTreeView {
   missionTime?: number;
   missionTimeUnits?: string;
   description?: string;
+  mitigationStrategy?: string;
   ieFreq?: number;
   applicableStates: string[];
   functionalEvents: FeView[];
@@ -480,6 +481,7 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
       missionTime: tree.missionTime,
       missionTimeUnits: tree.missionTimeUnits,
       description: tree.description,
+      mitigationStrategy: tree.mitigationStrategy,
       ieFreq: ieFreq > 0 ? ieFreq : undefined,
       applicableStates: Array.from(memberStates),
       functionalEvents: fes.map((fe) => ({ id: fe.uuid, label: fe.label ?? fe.name, sub: fe.description ?? "", scId: ES_FE_SC_MAP[fe.uuid] })),

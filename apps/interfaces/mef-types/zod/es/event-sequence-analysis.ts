@@ -298,6 +298,7 @@ export const EventTreeSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  mitigationStrategy: z.string().optional(),
   label: z.string().optional(),
   initiatingEventId: z.string(),
   plantOperatingStateId: z.string().optional(),

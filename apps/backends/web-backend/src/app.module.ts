@@ -15,6 +15,7 @@ import { ExampleWorkbooksModule } from "./example-workbooks/example-workbooks.mo
 import { PosWorkbooksModule } from "./pos-workbooks/pos-workbooks.module";
 import { IeWorkbooksModule } from "./ie-workbooks/ie-workbooks.module";
 import { EsWorkbooksModule } from "./es-workbooks/es-workbooks.module";
+import { ScWorkbooksModule } from "./sc-workbooks/sc-workbooks.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { EsWorkbooksModule } from "./es-workbooks/es-workbooks.module";
     PosWorkbooksModule,
     IeWorkbooksModule,
     EsWorkbooksModule,
+    ScWorkbooksModule,
   ],
 })
 export class AppModule {}

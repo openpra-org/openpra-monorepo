@@ -6,6 +6,7 @@ import {
   type PosExampleBundle,
   type IeExampleBundle,
   type EsExampleBundle,
+  type ScExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -29,6 +30,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getEsBundle(): Promise<EsExampleBundle> {
     return this.exampleWorkbooksService.getEsBundle();
+  }
+
+  @Get("sc-bundle")
+  @HttpCode(HttpStatus.OK)
+  getScBundle(): Promise<ScExampleBundle> {
+    return this.exampleWorkbooksService.getScBundle();
   }
 
   @Get(":slug")

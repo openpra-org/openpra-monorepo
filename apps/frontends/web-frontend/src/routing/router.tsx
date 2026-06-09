@@ -17,6 +17,8 @@ import { IeDemoPage } from "../ie-workbooks/ieDemoPage";
 import { IeWorkbookPage } from "../ie-workbooks/ieWorkbookPage";
 import { EsDemoPage } from "../es-workbooks/esDemoPage";
 import { EsWorkbookPage } from "../es-workbooks/esWorkbookPage";
+import { ScDemoPage } from "../sc-workbooks/scDemoPage";
+import { ScWorkbookPage } from "../sc-workbooks/scWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -111,6 +113,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <EsWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sc-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <ScDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sc-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <ScWorkbookPage />
       </ProtectedRoute>
     ),
   },

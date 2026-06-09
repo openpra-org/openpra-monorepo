@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { DataAnalysis } from "../../da/data-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
-import { BasicEventSchema, DistributionTypeSchema, FrequencyUnitSchema } from "../core/events";
+import { BasicEventSchema, FrequencyUnitSchema, ParameterDistributionSchema } from "../core/events";
 import { SensitivityStudySchema, SuccessCriteriaIdSchema } from "../core/shared-patterns";
 import {
   BaseAssumptionSchema,
@@ -23,8 +23,7 @@ export const ParameterTypeSchema = z.enum([
 export const DetectabilityLevelSchema = z.enum(["HIGH", "MEDIUM", "LOW", "NONE"]);
 
 export const ProbabilityModelSchema = z.object({
-  distribution: DistributionTypeSchema,
-  parameters: z.record(z.string(), z.number()),
+  distribution: ParameterDistributionSchema,
   source: z.enum(["ESTIMATED", "MANUAL", "DEFAULT"]).optional(),
   estimationDetails: z
     .object({
@@ -63,42 +62,6 @@ export const ComponentBasicEventSchema = z.object({
   failureMode: z.string(),
   probabilityModel: ProbabilityModelSchema,
   isTemplate: z.boolean(),
-  saphireAttributes: z
-    .object({
-      templateUseFlags: z.object({
-        componentId: z.boolean(),
-        system: z.boolean(),
-        train: z.boolean(),
-        type: z.boolean(),
-        failureMode: z.boolean(),
-        location: z.boolean(),
-        eventType: z.boolean(),
-        description: z.boolean(),
-        models: z.boolean(),
-        phases: z.boolean(),
-        notes: z.boolean(),
-        references: z.boolean(),
-        categories: z.array(z.boolean()),
-      }),
-      alternateDescriptions: z
-        .object({
-          short: z.string().optional(),
-          long: z.string().optional(),
-          technical: z.string().optional(),
-          graphical: z.string().optional(),
-        })
-        .optional(),
-      componentId: z.string().optional(),
-      train: z.string().optional(),
-      systemId: z.string().optional(),
-      location: z.string().optional(),
-      eventType: z.string().optional(),
-      categories: z.array(z.string()).optional(),
-      notes: z.string().optional(),
-      references: z.array(z.string()).optional(),
-      phaseApplicability: z.record(z.string(), z.boolean()).optional(),
-    })
-    .optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -107,14 +70,6 @@ export const ComponentBasicEventInstanceSchema = z.object({
   componentReference: z.string(),
   templateReference: z.string(),
   probabilityAdjustments: z.record(z.string(), z.number()).optional(),
-  saphireInstanceAttributes: z
-    .object({
-      componentId: z.string().optional(),
-      train: z.string().optional(),
-      systemId: z.string().optional(),
-      location: z.string().optional(),
-    })
-    .optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -154,8 +109,7 @@ export const DataSourceSchema = z.object({
 });
 
 export const UncertaintySchema = z.object({
-  distribution: DistributionTypeSchema,
-  parameters: z.record(z.string(), z.number()),
+  distribution: ParameterDistributionSchema,
   modelUncertaintySources: z.array(z.string()).optional(),
   riskImplications: z
     .object({
@@ -183,15 +137,13 @@ export const BayesianUpdateSchema = z.object({
   convergenceCriteria: z.number().optional(),
   prior: z
     .object({
-      distribution: DistributionTypeSchema,
-      parameters: z.record(z.string(), z.number()),
+      distribution: ParameterDistributionSchema,
       source: z.string().optional(),
     })
     .optional(),
   posterior: z
     .object({
-      distribution: DistributionTypeSchema,
-      parameters: z.record(z.string(), z.number()),
+      distribution: ParameterDistributionSchema,
     })
     .optional(),
   posteriorReasonablenessCheck: z

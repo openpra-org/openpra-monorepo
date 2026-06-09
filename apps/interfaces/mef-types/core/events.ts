@@ -13,7 +13,85 @@ export enum DistributionType {
   BETA = "beta",
   GAMMA = "gamma",
   POINT_ESTIMATE = "point_estimate",
+  LOGNORMAL_TIME = "lognormal_time",
 }
+
+export interface LognormalDistribution {
+  type: DistributionType.LOGNORMAL;
+  median: number;
+  errorFactor: number;
+}
+
+export interface BetaDistribution {
+  type: DistributionType.BETA;
+  alpha: number;
+  betaParam: number;
+}
+
+export interface NormalDistribution {
+  type: DistributionType.NORMAL;
+  mean: number;
+  stdDev: number;
+}
+
+export interface UniformDistribution {
+  type: DistributionType.UNIFORM;
+  lower: number;
+  upper: number;
+}
+
+export interface ExponentialDistribution {
+  type: DistributionType.EXPONENTIAL;
+  failureRate: number;
+}
+
+export interface WeibullDistribution {
+  type: DistributionType.WEIBULL;
+  scale: number;
+  shape: number;
+  location: number;
+}
+
+export interface GammaDistribution {
+  type: DistributionType.GAMMA;
+  shape: number;
+  rate: number;
+}
+
+export interface LognormalTimeDistribution {
+  type: DistributionType.LOGNORMAL_TIME;
+  mean: number;
+  stdDev: number;
+}
+
+export interface PointEstimateDistribution {
+  type: DistributionType.POINT_ESTIMATE;
+  value: number;
+}
+
+export interface BinomialDistribution {
+  type: DistributionType.BINOMIAL;
+  probability: number;
+  trials: number;
+}
+
+export interface PoissonDistribution {
+  type: DistributionType.POISSON;
+  rate: number;
+}
+
+export type ParameterDistribution =
+  | LognormalDistribution
+  | BetaDistribution
+  | NormalDistribution
+  | UniformDistribution
+  | ExponentialDistribution
+  | WeibullDistribution
+  | GammaDistribution
+  | LognormalTimeDistribution
+  | PointEstimateDistribution
+  | BinomialDistribution
+  | PoissonDistribution;
 
 export interface FrequencyWithDistribution {
   value: Frequency;

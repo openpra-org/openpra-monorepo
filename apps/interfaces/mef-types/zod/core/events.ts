@@ -1,10 +1,89 @@
 import { z } from "zod";
 import { DistributionType, FrequencyUnit } from "../../core/events";
+import type { ParameterDistribution } from "../../core/events";
 import { NamedSchema, UniqueSchema } from "./meta";
 
 export const FrequencySchema = z.number();
 
 export const DistributionTypeSchema = z.enum(DistributionType);
+
+export const LognormalDistributionSchema = z.object({
+  type: z.literal(DistributionType.LOGNORMAL),
+  median: z.number(),
+  errorFactor: z.number(),
+});
+
+export const BetaDistributionSchema = z.object({
+  type: z.literal(DistributionType.BETA),
+  alpha: z.number(),
+  betaParam: z.number(),
+});
+
+export const NormalDistributionSchema = z.object({
+  type: z.literal(DistributionType.NORMAL),
+  mean: z.number(),
+  stdDev: z.number(),
+});
+
+export const UniformDistributionSchema = z.object({
+  type: z.literal(DistributionType.UNIFORM),
+  lower: z.number(),
+  upper: z.number(),
+});
+
+export const ExponentialDistributionSchema = z.object({
+  type: z.literal(DistributionType.EXPONENTIAL),
+  failureRate: z.number(),
+});
+
+export const WeibullDistributionSchema = z.object({
+  type: z.literal(DistributionType.WEIBULL),
+  scale: z.number(),
+  shape: z.number(),
+  location: z.number(),
+});
+
+export const GammaDistributionSchema = z.object({
+  type: z.literal(DistributionType.GAMMA),
+  shape: z.number(),
+  rate: z.number(),
+});
+
+export const LognormalTimeDistributionSchema = z.object({
+  type: z.literal(DistributionType.LOGNORMAL_TIME),
+  mean: z.number(),
+  stdDev: z.number(),
+});
+
+export const PointEstimateDistributionSchema = z.object({
+  type: z.literal(DistributionType.POINT_ESTIMATE),
+  value: z.number(),
+});
+
+export const BinomialDistributionSchema = z.object({
+  type: z.literal(DistributionType.BINOMIAL),
+  probability: z.number(),
+  trials: z.number(),
+});
+
+export const PoissonDistributionSchema = z.object({
+  type: z.literal(DistributionType.POISSON),
+  rate: z.number(),
+});
+
+export const ParameterDistributionSchema = z.discriminatedUnion("type", [
+  LognormalDistributionSchema,
+  BetaDistributionSchema,
+  NormalDistributionSchema,
+  UniformDistributionSchema,
+  ExponentialDistributionSchema,
+  WeibullDistributionSchema,
+  GammaDistributionSchema,
+  LognormalTimeDistributionSchema,
+  PointEstimateDistributionSchema,
+  BinomialDistributionSchema,
+  PoissonDistributionSchema,
+]);
 
 export const FrequencyUnitSchema = z.enum(FrequencyUnit);
 
@@ -46,3 +125,10 @@ export const InitiatingEventSchema = z.object({
   eventType: z.literal("INITIATING"),
   frequency: z.union([FrequencySchema, FrequencyWithDistributionSchema]),
 });
+
+type Expect<T extends true> = T;
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+type _AssertParameterDistributionMirrorsType = Expect<
+  Equal<z.infer<typeof ParameterDistributionSchema>, ParameterDistribution>
+>;

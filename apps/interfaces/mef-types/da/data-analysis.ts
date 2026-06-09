@@ -1,6 +1,6 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
-import { BasicEvent, FrequencyUnit, DistributionType } from "../core/events";
+import { BasicEvent, FrequencyUnit, ParameterDistribution } from "../core/events";
 import { SuccessCriteriaId, SensitivityStudy } from "../core/shared-patterns";
 import { BaseAssumption, BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { ComponentReference, ComponentTypeReference } from "../core/component";
@@ -22,8 +22,7 @@ export type ParameterType =
 export type DetectabilityLevel = "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
 export interface ProbabilityModel {
-  distribution: DistributionType;
-  parameters: Record<string, number>;
+  distribution: ParameterDistribution;
   source?: "ESTIMATED" | "MANUAL" | "DEFAULT";
   estimationDetails?: {
     dataPointReferences: string[];
@@ -53,39 +52,6 @@ export interface ComponentBasicEvent extends BasicEvent {
   failureMode: string;
   probabilityModel: ProbabilityModel;
   isTemplate: boolean;
-  // solver-specific
-  saphireAttributes?: {
-    templateUseFlags: {
-      componentId: boolean;
-      system: boolean;
-      train: boolean;
-      type: boolean;
-      failureMode: boolean;
-      location: boolean;
-      eventType: boolean;
-      description: boolean;
-      models: boolean;
-      phases: boolean;
-      notes: boolean;
-      references: boolean;
-      categories: boolean[];
-    };
-    alternateDescriptions?: {
-      short?: string;
-      long?: string;
-      technical?: string;
-      graphical?: string;
-    };
-    componentId?: string;
-    train?: string;
-    systemId?: string;
-    location?: string;
-    eventType?: string;
-    categories?: string[];
-    notes?: string;
-    references?: string[];
-    phaseApplicability?: Record<string, boolean>;
-  };
   implementsSrs: SRReference[];
 }
 
@@ -93,13 +59,6 @@ export interface ComponentBasicEventInstance extends Unique {
   componentReference: ComponentReference;
   templateReference: string;
   probabilityAdjustments?: Record<string, number>;
-  // solver-specific
-  saphireInstanceAttributes?: {
-    componentId?: string;
-    train?: string;
-    systemId?: string;
-    location?: string;
-  };
   implementsSrs: SRReference[];
 }
 
@@ -134,8 +93,7 @@ export interface DataSource {
 }
 
 export interface Uncertainty {
-  distribution: DistributionType;
-  parameters: Record<string, number>;
+  distribution: ParameterDistribution;
   modelUncertaintySources?: string[];
   riskImplications?: {
     affectedMetrics: string[];
@@ -156,13 +114,11 @@ export interface BayesianUpdate {
   method: string;
   convergenceCriteria?: number;
   prior?: {
-    distribution: DistributionType;
-    parameters: Record<string, number>;
+    distribution: ParameterDistribution;
     source?: string;
   };
   posterior?: {
-    distribution: DistributionType;
-    parameters: Record<string, number>;
+    distribution: ParameterDistribution;
   };
   posteriorReasonablenessCheck?: {
     evidenceStage: "PLANT_SPECIFIC" | "TECHNOLOGY_SPECIFIC";

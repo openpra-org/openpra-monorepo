@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SystemsAnalysis } from "../../sy/systems-analysis";
-import { DependencyType, FailureModeType, FaultTreeNodeType } from "../../sy/systems-analysis";
+import { DependencyType, FailureModeType } from "../../sy/systems-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
 import { BasicEventSchema, DistributionTypeSchema } from "../core/events";
@@ -15,10 +15,7 @@ import { SRReferenceSchema } from "../core/pra-common";
 
 export const SyDependencyTypeSchema = z.enum(DependencyType);
 export const SyFailureModeTypeSchema = z.enum(FailureModeType);
-export const FaultTreeNodeTypeSchema = z.enum(FaultTreeNodeType);
 export const ComponentStateSchema = z.enum(["operational", "degraded", "failed", "recovering", "maintenance"]);
-export const FaultTreeNodeProbabilityTypeSchema = z.enum(["constant", "distribution", "bayesian_network_link"]);
-export const FaultTreeNodeEventTypeSchema = z.enum(["on_demand", "during_operation"]);
 
 export const SystemBasicEventSchema = z.object({
   ...BasicEventSchema.shape,
@@ -30,15 +27,6 @@ export const SystemBasicEventSchema = z.object({
   meanTimeToRepair: z.number().optional(),
   probabilityModelRef: z.string().optional(),
   dataAnalysisBasicEventRef: z.string().optional(),
-  expression: z
-    .object({
-      value: z.number().optional(),
-      parameter: z.string().optional(),
-      formula: z.string().optional(),
-      type: z.enum(["constant", "parameter", "formula"]).optional(),
-    })
-    .optional(),
-  unit: z.string().optional(),
   attributes: z
     .array(
       z.object({
@@ -47,7 +35,6 @@ export const SystemBasicEventSchema = z.object({
       }),
     )
     .optional(),
-  role: z.enum(["public", "private", "interface"]).optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -181,135 +168,6 @@ export const SystemConfirmationRecordSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const LognormalDistributionSchema = z.object({
-  type: z.literal("lognormal"),
-  median: z.number(),
-  errorFactor: z.number(),
-});
-
-export const BetaDistributionSchema = z.object({
-  type: z.literal("beta"),
-  alpha: z.number(),
-  betaParam: z.number(),
-});
-
-export const NormalDistributionSchema = z.object({
-  type: z.literal("normal"),
-  mean: z.number(),
-  stdDev: z.number(),
-});
-
-export const UniformDistributionSchema = z.object({
-  type: z.literal("uniform"),
-  lower: z.number(),
-  upper: z.number(),
-});
-
-export const ExponentialDistributionSchema = z.object({
-  type: z.literal("exponential"),
-  failureRate: z.number(),
-});
-
-export const WeibullDistributionSchema = z.object({
-  type: z.literal("weibull"),
-  scale: z.number(),
-  shape: z.number(),
-  location: z.number(),
-});
-
-export const GammaDistributionSchema = z.object({
-  type: z.literal("gamma"),
-  shape: z.number(),
-  rate: z.number(),
-});
-
-export const LognormalTimeDistributionSchema = z.object({
-  type: z.literal("lognormal_time"),
-  mean: z.number(),
-  stdDev: z.number(),
-});
-
-export const FaultTreeDistributionSchema = z.union([
-  LognormalDistributionSchema,
-  BetaDistributionSchema,
-  NormalDistributionSchema,
-  UniformDistributionSchema,
-  ExponentialDistributionSchema,
-  WeibullDistributionSchema,
-  GammaDistributionSchema,
-  LognormalTimeDistributionSchema,
-]);
-
-export const FaultTreeNodeSchema = z.object({
-  uuid: z.string(),
-  nodeType: FaultTreeNodeTypeSchema,
-  name: z.string(),
-  description: z.string().optional(),
-  inputs: z.array(z.string()).optional(),
-  condition: z.string().optional(),
-  probability: z.number().optional(),
-  basicEventReference: z.string().optional(),
-  dataAnalysisBasicEventRef: z.string().optional(),
-  usesDataAnalysisReference: z.boolean().optional(),
-  humanActionReference: z.string().optional(),
-  houseEventValue: z.boolean().optional(),
-  transferTreeId: z.string().optional(),
-  sourceNodeId: z.string().optional(),
-  specialEventValue: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
-  initiatingEventRef: z.string().optional(),
-  kValue: z.number().optional(),
-  probabilityType: FaultTreeNodeProbabilityTypeSchema.optional(),
-  eventType: FaultTreeNodeEventTypeSchema.optional(),
-  probabilityDistribution: FaultTreeDistributionSchema.optional(),
-  bayesianNetworkRef: z
-    .object({
-      networkId: z.number(),
-      nodeId: z.string().optional(),
-    })
-    .optional(),
-  position: z
-    .object({
-      x: z.number(),
-      y: z.number(),
-    })
-    .optional(),
-});
-
-export const FaultTreeSchema = z.object({
-  uuid: z.string(),
-  name: z.string(),
-  systemReference: z.string(),
-  description: z.string(),
-  topEventId: z.string(),
-  topEventReference: z.string().optional(),
-  nodes: z.record(z.string(), FaultTreeNodeSchema),
-  minimalCutSets: z.array(z.array(z.string())).optional(),
-  topEventProbability: z.number().optional(),
-  quantificationSettings: z
-    .object({
-      method: z.enum(["mincut", "exact", "rare-event", "mcub"]).optional(),
-      truncationLimit: z.number().optional(),
-      maxOrder: z.number().optional(),
-    })
-    .optional(),
-  assumptions: z.array(z.string()).optional(),
-  saphireCompatibility: z
-    .object({
-      saphireFieldMappings: z.array(z.record(z.string(), z.string())).optional(),
-      openPsaFieldMappings: z.record(z.string(), z.string()).optional(),
-    })
-    .optional(),
-  attributes: z
-    .array(
-      z.object({
-        name: z.string(),
-        value: z.string(),
-      }),
-    )
-    .optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
-
 export const SystemLogicModelSchema = z.object({
   uuid: z.string(),
   systemReference: z.string(),
@@ -326,7 +184,6 @@ export const SystemLogicModelSchema = z.object({
     )
     .optional(),
   nomenclature: z.record(z.string(), z.string()).optional(),
-  faultTree: FaultTreeSchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -428,25 +285,6 @@ export const SystemDefinitionSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const MinimalCutSetSchema = z.object({
-  events: z.array(z.string()),
-  order: z.number(),
-  eventProbabilities: z.record(z.string(), z.number()),
-  probability: z.number(),
-  importance: z.number().optional(),
-  truncationStatus: z.enum(["included", "truncated"]).optional(),
-  truncationJustification: z.string().optional(),
-  faultTreeReference: z.string(),
-  systemReference: z.string(),
-  validationStatus: z
-    .object({
-      isValidated: z.boolean(),
-      validationDate: z.string().optional(),
-      validationIssues: z.array(z.string()).optional(),
-    })
-    .optional(),
-});
-
 export const SystemDependencySchema = z.object({
   uuid: z.string(),
   description: z.string().optional(),
@@ -542,16 +380,6 @@ export const CommonCauseFailureGroupSchema = z.object({
         dataType: z.enum(["plant-specific", "generic", "expert-judgment"]),
       }),
     )
-    .optional(),
-  quantificationMapping: z
-    .object({
-      openPsaMapping: z
-        .object({
-          modelType: z.enum(["beta-factor", "MGL", "alpha-factor", "phi-factor"]),
-          factorMappings: z.record(z.string(), z.string()).optional(),
-        })
-        .optional(),
-    })
     .optional(),
   attributes: z
     .array(
@@ -791,7 +619,6 @@ export const SystemsAnalysisSchema = z.object({
   systemDefinitions: z.array(SystemDefinitionSchema),
   systemToSafetyFunctionMappings: z.array(SystemToSafetyFunctionMappingSchema),
   systemLogicModels: z.array(SystemLogicModelSchema),
-  faultTrees: z.array(FaultTreeSchema).optional(),
   systemBasicEvents: z.array(SystemBasicEventSchema).optional(),
   variableSuccessCriteria: z.array(VariableSuccessCriterionSchema).optional(),
   systemConfirmationRecords: z.array(SystemConfirmationRecordSchema).optional(),

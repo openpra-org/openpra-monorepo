@@ -43,21 +43,10 @@ export interface SystemBasicEvent extends BasicEvent {
   meanTimeToRepair?: number;
   probabilityModelRef?: string;
   dataAnalysisBasicEventRef?: string;
-  // solver-specific
-  expression?: {
-    value?: number;
-    parameter?: string;
-    formula?: string;
-    type?: "constant" | "parameter" | "formula";
-  };
-  // solver-specific
-  unit?: "bool" | "int" | "float" | "hours" | "hours-1" | "years" | "years-1" | "fit" | "demands" | string;
   attributes?: {
     name: string;
     value: string;
   }[];
-  // solver-specific
-  role?: "public" | "private" | "interface";
   implementsSrs: SRReference[];
 }
 
@@ -238,7 +227,6 @@ export interface SystemLogicModel extends Unique {
     resolution: string;
   }[];
   nomenclature?: Record<string, string>;
-  faultTree?: FaultTree;
   implementsSrs: SRReference[];
 }
 
@@ -259,163 +247,6 @@ export interface PassiveSystemsTreatment extends Unique, Named {
   relevantPhysicalPhenomena?: string[];
   uncertaintyEvaluation?: string;
   implementsSrs: SRReference[];
-}
-
-export enum FaultTreeNodeType {
-  AND_GATE = "AND_GATE",
-  OR_GATE = "OR_GATE",
-  NOT_GATE = "NOT_GATE",
-  INHIBIT_GATE = "INHIBIT_GATE",
-  ATLEAST_GATE = "ATLEAST_GATE",
-  BASIC_EVENT = "BASIC_EVENT",
-  INTERMEDIATE_EVENT = "INTERMEDIATE_EVENT",
-  UNDEVELOPED_EVENT = "UNDEVELOPED_EVENT",
-  HOUSE_EVENT = "HOUSE_EVENT",
-  TRUE_EVENT = "TRUE_EVENT",
-  FALSE_EVENT = "FALSE_EVENT",
-  PASS_EVENT = "PASS_EVENT",
-  INIT_EVENT = "INIT_EVENT",
-  TRANSFER_IN = "TRANSFER_IN",
-  TRANSFER_OUT = "TRANSFER_OUT",
-}
-
-export type FaultTreeNodeProbabilityType = "constant" | "distribution" | "bayesian_network_link";
-
-export type FaultTreeNodeEventType = "on_demand" | "during_operation";
-
-export interface LognormalDistribution {
-  type: "lognormal";
-  median: number;
-  errorFactor: number;
-}
-
-export interface BetaDistribution {
-  type: "beta";
-  alpha: number;
-  betaParam: number;
-}
-
-export interface NormalDistribution {
-  type: "normal";
-  mean: number;
-  stdDev: number;
-}
-
-export interface UniformDistribution {
-  type: "uniform";
-  lower: number;
-  upper: number;
-}
-
-export interface ExponentialDistribution {
-  type: "exponential";
-  failureRate: number;
-}
-
-export interface WeibullDistribution {
-  type: "weibull";
-  scale: number;
-  shape: number;
-  location: number;
-}
-
-export interface GammaDistribution {
-  type: "gamma";
-  shape: number;
-  rate: number;
-}
-
-export interface LognormalTimeDistribution {
-  type: "lognormal_time";
-  mean: number;
-  stdDev: number;
-}
-
-export type FaultTreeDistribution =
-  | LognormalDistribution
-  | BetaDistribution
-  | NormalDistribution
-  | UniformDistribution
-  | ExponentialDistribution
-  | WeibullDistribution
-  | GammaDistribution
-  | LognormalTimeDistribution;
-
-export interface FaultTreeNode extends Unique {
-  nodeType: FaultTreeNodeType;
-  name: string;
-  description?: string;
-  inputs?: string[];
-  condition?: string;
-  probability?: number;
-  basicEventReference?: string;
-  dataAnalysisBasicEventRef?: string;
-  usesDataAnalysisReference?: boolean;
-  humanActionReference?: HumanActionReference;
-  houseEventValue?: boolean;
-  transferTreeId?: string;
-  sourceNodeId?: string;
-  specialEventValue?: string | number | boolean | null;
-  initiatingEventRef?: string;
-  kValue?: number;
-  probabilityType?: FaultTreeNodeProbabilityType;
-  eventType?: FaultTreeNodeEventType;
-  probabilityDistribution?: FaultTreeDistribution;
-  bayesianNetworkRef?: {
-    networkId: number;
-    nodeId?: string;
-  };
-  // solver-specific
-  position?: {
-    x: number;
-    y: number;
-  };
-}
-
-export interface FaultTree extends Unique, Named {
-  systemReference: SystemReference;
-  description: string;
-  topEventId: string;
-  topEventReference?: string;
-  nodes: Record<string, FaultTreeNode>;
-  // solver-specific
-  minimalCutSets?: string[][];
-  // solver-specific
-  topEventProbability?: number;
-  // solver-specific
-  quantificationSettings?: {
-    method?: "mincut" | "exact" | "rare-event" | "mcub";
-    truncationLimit?: number;
-    maxOrder?: number;
-  };
-  assumptions?: string[];
-  // solver-specific
-  saphireCompatibility?: {
-    saphireFieldMappings?: Record<string, string>[];
-    openPsaFieldMappings?: Record<string, string>;
-  };
-  attributes?: {
-    name: string;
-    value: string;
-  }[];
-  implementsSrs: SRReference[];
-}
-
-export interface MinimalCutSet {
-  events: string[];
-  order: number;
-  eventProbabilities: Record<string, number>;
-  probability: number;
-  importance?: number;
-  truncationStatus?: "included" | "truncated";
-  truncationJustification?: string;
-  faultTreeReference: string;
-  systemReference: SystemReference;
-  validationStatus?: {
-    isValidated: boolean;
-    validationDate?: string;
-    validationIssues?: string[];
-  };
 }
 
 export interface SystemDependency extends Unique {
@@ -490,13 +321,6 @@ export interface CommonCauseFailureGroup extends Unique, Named {
     description: string;
     dataType: "plant-specific" | "generic" | "expert-judgment";
   }[];
-  // solver-specific
-  quantificationMapping?: {
-    openPsaMapping?: {
-      modelType: "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
-      factorMappings?: Record<string, string>;
-    };
-  };
   attributes?: {
     name: string;
     value: string;
@@ -694,7 +518,6 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
   systemDefinitions: SystemDefinition[];
   systemToSafetyFunctionMappings: SystemToSafetyFunctionMapping[];
   systemLogicModels: SystemLogicModel[];
-  faultTrees?: FaultTree[];
   systemBasicEvents?: SystemBasicEvent[];
 
   variableSuccessCriteria?: VariableSuccessCriterion[];

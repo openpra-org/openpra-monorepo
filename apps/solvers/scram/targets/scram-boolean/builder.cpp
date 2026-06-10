@@ -123,6 +123,7 @@ BuiltModel BuildModel(const BooleanModel& boolean_model,
   // treats it as a top event; the rest of the reachable graph is shared
   // through formula pointers rather than fault-tree membership.
   auto register_root = [&](NodeId root_id) {
+    if (built.root_gates.count(root_id)) return;
     auto gate = gates.find(root_id);
     if (gate == gates.end()) return;
     auto fault_tree =

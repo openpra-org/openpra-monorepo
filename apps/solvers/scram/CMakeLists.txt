@@ -322,8 +322,6 @@ if(BUILD_TESTS)
   # Add Catch2 CMake modules to path
   list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-  # Ensure Catch2 is available before including tests
-  find_package(Catch2 REQUIRED)
   include(CTest)
   include(Catch)
   enable_testing()

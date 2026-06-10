@@ -67,28 +67,30 @@ Not yet produced:
   product with one IE frequency. `frequency` (Σ of sequence frequencies) is the
   meaningful release-category metric in that case. [inc 4]
 
-## Assumptions needing CI / Linux-GCC verification
+## Behaviour notes & remaining unverified assumptions
 
-- **Single-gate fault tree per root** — each root (FT top / sequence
-  `expressionNodeId` / end-state `aggregationNodeId`) is added as the sole gate
-  of its own `mef::FaultTree` + `CollectTopEvents()`; the reachable cone is
-  reached via formula pointers, not FT membership. Unverified that SCRAM
-  permits this. [inc 2]
+- **Single-gate fault tree per root** — VERIFIED (Linux/GCC, Ubuntu 24.04
+  container): each root is the sole gate of its own `mef::FaultTree` +
+  `CollectTopEvents()`, the cone reached via formula pointers; `RiskAnalysis`
+  quantifies it correctly (OR smoke test = exact 0.28). [inc 2; verified]
 - **Roots must be gates** — a root that is not a GATE node is skipped (only
   gates become `top_events`). [inc 2]
-- **CCF factor levels** — MGL `beta`/`gamma`/`delta` mapped to levels 2/3/4…;
-  alpha/phi factors iterated in map (sorted-key) order. SCRAM's exact per-model
-  level expectation may need adjustment. [inc 2]
+- **CCF factor levels** — STILL UNVERIFIED at runtime: MGL
+  `beta`/`gamma`/`delta` mapped to levels 2/3/4…; alpha/phi factors iterated in
+  map (sorted-key) order. The CCF path compiles but no test exercises
+  expansion through `RiskAnalysis` yet. [inc 2]
 
 ## Testing
 
+- Build + test verified on Linux/GCC (Ubuntu 24.04, Ninja, Release): full
+  configure, core + `scram-boolean` + `scram-boolean-test` compile clean, and
+  `ctest` passes 1/1 (6 assertions). The dev machine itself cannot build the
+  core (MSVC flag issue), so local verification stays container-based.
 - Coverage is one smoke test (`tests/scram_boolean_test.cpp`: OR of two basic
   events → exact BDD probability). Comprehensive fixtures are deferred:
   AND/ATLEAST/NOT gates, MOCUS/ZBDD/approximation paths, CCF expansion,
   sequences + IE frequency, end-state aggregation, house events, and
   importance/uncertainty outputs. [inc 5]
-- Not yet run anywhere — no local C++ build on the dev machine (MSVC core flag
-  issue + no g++/clang++); first compile + `ctest` run is CI / Linux-GCC. [inc 5]
 
 # Part B — Missing in SCRAM the engine (toward a complete solver)
 

@@ -1,5 +1,5 @@
-export type BooleanNodeId = string;
-export type BasicEventId = string;
+export type BooleanNodeId = number;
+export type BasicEventId = number;
 
 export enum BooleanOperator {
   AND = "AND",
@@ -31,46 +31,52 @@ export interface BooleanGateNode {
   operator: BooleanOperator;
   inputs: BooleanNodeId[];
   k?: number;
-  name?: string;
 }
 
 export interface BooleanBasicEventNode {
   id: BooleanNodeId;
   kind: BooleanNodeKind.BASIC_EVENT;
   basicEventId: BasicEventId;
-  name?: string;
 }
 
 export interface BooleanHouseEventNode {
   id: BooleanNodeId;
   kind: BooleanNodeKind.HOUSE_EVENT;
-  name?: string;
 }
 
 export type BooleanNode = BooleanGateNode | BooleanBasicEventNode | BooleanHouseEventNode;
 
 export interface BooleanTree {
-  id: string;
+  id: number;
   name?: string;
   topNodeId: BooleanNodeId;
   systemReference?: string;
 }
 
 export interface BooleanSequence {
-  id: string;
+  id: number;
   name?: string;
   initiatingEventId: BasicEventId;
   expressionNodeId: BooleanNodeId;
-  endState?: string;
+  endStateId?: number;
   eventSequenceReference?: string;
   plantOperatingStateReference?: string;
 }
 
+export interface EndStateNode {
+  id: number;
+  name?: string;
+  sequenceIds: number[];
+  aggregationNodeId?: BooleanNodeId;
+  releaseCategoryReference?: string;
+}
+
 export interface BooleanModel {
-  id: string;
+  id: number;
   name?: string;
   nodes: Record<BooleanNodeId, BooleanNode>;
   faultTrees: BooleanTree[];
   sequences?: BooleanSequence[];
+  endStates?: EndStateNode[];
   houseEventIds?: BooleanNodeId[];
 }

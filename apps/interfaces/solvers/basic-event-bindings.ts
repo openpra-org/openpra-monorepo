@@ -17,7 +17,7 @@ export interface HouseEventStateBinding {
 }
 
 export interface BasicEventBindingTable {
-  id: string;
+  id: number;
   name?: string;
   bindings: BasicEventBinding[];
   houseEventStates?: HouseEventStateBinding[];

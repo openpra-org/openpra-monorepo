@@ -50,10 +50,11 @@ export interface QuantificationSettings {
 }
 
 export interface QuantificationRequest {
-  id: string;
+  id: number;
   name?: string;
-  booleanModelRef: string;
-  bindingTableRef: string;
+  booleanModelRef: number;
+  bindingTableRef: number;
+  ccfGroupTableRef?: number;
   settings: QuantificationSettings;
   modelVersionRef?: string;
   configurationControlRecordId?: string;

@@ -76,7 +76,7 @@ export interface ImportanceMeasureResult {
 }
 
 export interface SensitivityResultEntry {
-  studyId: string;
+  studyId: number;
   variedItem: string;
   baselineValue?: number;
   perturbedValue?: number;
@@ -84,13 +84,13 @@ export interface SensitivityResultEntry {
 }
 
 export interface SafetyIntegrityLevelResult {
-  faultTreeId: string;
+  faultTreeId: number;
   averageProbability?: number;
   silBand?: number;
 }
 
 export interface FaultTreeQuantification {
-  faultTreeId: string;
+  faultTreeId: number;
   topNodeId: BooleanNodeId;
   topEventProbability?: ProbabilityResult;
   cutSets?: CutSetResult;
@@ -99,13 +99,22 @@ export interface FaultTreeQuantification {
 }
 
 export interface SequenceQuantification {
-  sequenceId: string;
+  sequenceId: number;
   initiatingEventId: BasicEventId;
-  endState?: string;
+  endStateId?: number;
   frequency?: number;
   probability?: ProbabilityResult;
   cutSets?: CutSetResult;
   uncertainty?: UncertaintyResult;
+}
+
+export interface EndStateQuantification {
+  endStateId: number;
+  name?: string;
+  frequency?: number;
+  probability?: ProbabilityResult;
+  uncertainty?: UncertaintyResult;
+  contributingSequenceIds?: number[];
 }
 
 export interface InitiatingEventQuantification {
@@ -115,9 +124,9 @@ export interface InitiatingEventQuantification {
 }
 
 export interface QuantificationResult {
-  id: string;
-  requestRef: string;
-  booleanModelRef: string;
+  id: number;
+  requestRef: number;
+  booleanModelRef: number;
   modelVersionRef?: string;
   solverName: SolverTarget;
   solverVersion?: string;
@@ -129,6 +138,7 @@ export interface QuantificationResult {
   faultTrees?: FaultTreeQuantification[];
   initiatingEvents?: InitiatingEventQuantification[];
   sumOfProducts?: SequenceQuantification[];
+  endStates?: EndStateQuantification[];
 
   importance?: ImportanceMeasureResult[];
   uncertainty?: UncertaintyResult;

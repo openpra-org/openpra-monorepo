@@ -23,6 +23,8 @@ import { SyDemoPage } from "../sy-workbooks/syDemoPage";
 import { SyWorkbookPage } from "../sy-workbooks/syWorkbookPage";
 import { HrDemoPage } from "../hr-workbooks/hrDemoPage";
 import { HrWorkbookPage } from "../hr-workbooks/hrWorkbookPage";
+import { DaDemoPage } from "../da-workbooks/daDemoPage";
+import { DaWorkbookPage } from "../da-workbooks/daWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -165,6 +167,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <HrWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/da-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <DaDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/da-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <DaWorkbookPage />
       </ProtectedRoute>
     ),
   },

@@ -19,6 +19,8 @@ import { EsDemoPage } from "../es-workbooks/esDemoPage";
 import { EsWorkbookPage } from "../es-workbooks/esWorkbookPage";
 import { ScDemoPage } from "../sc-workbooks/scDemoPage";
 import { ScWorkbookPage } from "../sc-workbooks/scWorkbookPage";
+import { SyDemoPage } from "../sy-workbooks/syDemoPage";
+import { SyWorkbookPage } from "../sy-workbooks/syWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -129,6 +131,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <ScWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sy-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <SyDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sy-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <SyWorkbookPage />
       </ProtectedRoute>
     ),
   },

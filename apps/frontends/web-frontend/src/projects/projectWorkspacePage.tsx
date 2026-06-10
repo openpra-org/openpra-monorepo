@@ -71,6 +71,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/sc-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "SY") {
+      navigate(`/sy-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

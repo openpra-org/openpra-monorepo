@@ -21,6 +21,8 @@ import { ScDemoPage } from "../sc-workbooks/scDemoPage";
 import { ScWorkbookPage } from "../sc-workbooks/scWorkbookPage";
 import { SyDemoPage } from "../sy-workbooks/syDemoPage";
 import { SyWorkbookPage } from "../sy-workbooks/syWorkbookPage";
+import { HrDemoPage } from "../hr-workbooks/hrDemoPage";
+import { HrWorkbookPage } from "../hr-workbooks/hrWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -147,6 +149,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <SyWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <HrDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <HrWorkbookPage />
       </ProtectedRoute>
     ),
   },

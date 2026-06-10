@@ -8,6 +8,7 @@ import {
   type EsExampleBundle,
   type ScExampleBundle,
   type SyExampleBundle,
+  type HrExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -43,6 +44,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getSyBundle(): Promise<SyExampleBundle> {
     return this.exampleWorkbooksService.getSyBundle();
+  }
+
+  @Get("hr-bundle")
+  @HttpCode(HttpStatus.OK)
+  getHrBundle(): Promise<HrExampleBundle> {
+    return this.exampleWorkbooksService.getHrBundle();
   }
 
   @Get(":slug")

@@ -1,18 +1,3 @@
-This package contains C++ addons for the SCRAM engine.
-
-# Installation
-```shell
-nx build engine-scram-node
-```
-
-# Run Commands
-Checkout [`package.json`](./package.json), to see what kind of commands you can run. Here is an example:
-
-```bash
-nx run engine-scram-node:test
-nx run 
-```
-
 # SCRAM Engine: Complete Workflow Documentation
 
 ## Overview

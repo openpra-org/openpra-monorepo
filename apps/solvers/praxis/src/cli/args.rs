@@ -3,12 +3,6 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    #[arg(long = "input-format", value_enum, default_value_t = InputFormat::Auto)]
-    pub input_format: InputFormat,
-
-    #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Auto)]
-    pub output_format: OutputFormat,
-
     #[arg(long = "analysis", value_enum, default_value_t = Analysis::ProbabilityOnly)]
     pub analysis: Analysis,
 
@@ -160,18 +154,4 @@ pub enum Backend {
     Cpu,
     Cuda,
     Wgpu,
-}
-
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputFormat {
-    Auto,
-    Xml,
-    Json,
-}
-
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OutputFormat {
-    Auto,
-    Xml,
-    Json,
 }

@@ -34,8 +34,6 @@ mod cli_event_tree_mc;
 mod cli_event_tree_mc_xml_output;
 #[path = "integration/cli/cli_mc_xml_output.rs"]
 mod cli_mc_xml_output;
-#[path = "integration/cli/cli_format_matrix.rs"]
-mod cli_format_matrix;
 #[path = "integration/cli/cli_mocus.rs"]
 mod cli_mocus;
 #[path = "integration/cli/cli_test.rs"]
@@ -68,17 +66,6 @@ mod unary_gate_mc;
 
 #[path = "integration/workflow/full_pra_workflow.rs"]
 mod full_pra_workflow;
-#[path = "integration/workflow/openpra_json_parity.rs"]
-mod openpra_json_parity;
-#[path = "integration/workflow/openpra_json_circular_refs.rs"]
-mod openpra_json_circular_refs;
-#[path = "integration/workflow/openpsa_xml_converter_section6.rs"]
-mod openpsa_xml_converter_section6;
-#[path = "integration/workflow/openpsa_xml_collect_expression_roundtrip.rs"]
-mod openpsa_xml_collect_expression_roundtrip;
-
-#[path = "integration/workflow/openpsa_xml_event_tree_library_roundtrip.rs"]
-mod openpsa_xml_event_tree_library_roundtrip;
 #[path = "integration/workflow/us1_simple_fta.rs"]
 mod us1_simple_fta;
 #[path = "integration/workflow/us2_xml_cli.rs"]

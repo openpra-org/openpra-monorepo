@@ -1,102 +1,11 @@
-use crate::cli::args::{Algorithm, Args, Backend, InputFormat, OutputFormat, Vrt};
+use crate::cli::args::{Algorithm, Args, Backend, Vrt};
 use crate::cli::event_tree;
 use crate::cli::fault_tree;
-use crate::cli::output::{write_text_output, writer_stdout, writer_vec};
-use praxis::openpra_mef::contracts::ResolveMode;
-use praxis::openpra_mef::serialize::json_contract_in::render_openpra_contract_value;
-use praxis::openpra_mef::napi::{
-    quantify_openpra_json_contract, validate_openpra_json_contract,
-};
-use praxis::openpra_mef::addon_openpsa_xml::parse_openpsa_xml_with_mode;
+use crate::cli::output::{writer_stdout, writer_vec};
 use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::io::parser::{parse_any_mef, ParsedInput};
 use praxis::io::serializer::{write_results, write_results_with_monte_carlo};
 use std::fs;
-use std::path::Path;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResolvedFormat {
-    Xml,
-    Json,
-}
-
-fn resolve_input_format(path: &Path, content: &str, configured: InputFormat) -> ResolvedFormat {
-    match configured {
-        InputFormat::Xml => ResolvedFormat::Xml,
-        InputFormat::Json => ResolvedFormat::Json,
-        InputFormat::Auto => {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                match ext.to_ascii_lowercase().as_str() {
-                    "json" => return ResolvedFormat::Json,
-                    "xml" => return ResolvedFormat::Xml,
-                    _ => {}
-                }
-            }
-
-            if let Some(first) = content.chars().find(|c| !c.is_whitespace()) {
-                if matches!(first, '{' | '[') {
-                    return ResolvedFormat::Json;
-                }
-            }
-
-            ResolvedFormat::Xml
-        }
-    }
-}
-
-fn resolve_output_format(configured: OutputFormat, input: ResolvedFormat) -> ResolvedFormat {
-    match configured {
-        OutputFormat::Auto => input,
-        OutputFormat::Xml => ResolvedFormat::Xml,
-        OutputFormat::Json => ResolvedFormat::Json,
-    }
-}
-
-fn run_openpra_json(cli: &Args, json_content: &str) -> Result<(), Box<dyn std::error::Error>> {
-    if cli.algorithm != Algorithm::MonteCarlo && !cli.validate {
-        eprintln!(
-            "error: OpenPRA JSON inputs currently require '--algorithm monte-carlo' (or use '--validate' only)"
-        );
-        eprintln!();
-        eprintln!("For more information, try '--help'.");
-        std::process::exit(2);
-    }
-
-    let output_json = if cli.validate {
-        validate_openpra_json_contract(json_content)?
-    } else {
-        quantify_openpra_json_contract(json_content, ResolveMode::Compatible)?
-    };
-
-    write_text_output(cli.output_file.as_ref(), &output_json)?;
-    Ok(())
-}
-
-fn run_openpsa_xml_convert_to_openpra_json(
-    cli: &Args,
-    xml_content: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let bundle = parse_openpsa_xml_with_mode(xml_content, ResolveMode::Compatible)
-        .map_err(|err| format!("OpenPSA XML conversion failed: {err}"))?;
-
-    let Some(model) = bundle.model.as_ref() else {
-        return Err("OpenPSA XML conversion did not yield an OpenPRA model".into());
-    };
-
-    if bundle
-        .diagnostics
-        .iter()
-        .any(|d| d.severity == praxis::openpra_mef::Severity::Error)
-    {
-        return Err("OpenPSA XML conversion produced error diagnostics".into());
-    }
-
-    let contract_value = render_openpra_contract_value(model);
-    let rendered = serde_json::to_string_pretty(&contract_value)
-        .map_err(|err| format!("Failed to serialize OpenPRA JSON: {err}"))?;
-    write_text_output(cli.output_file.as_ref(), &rendered)?;
-    Ok(())
-}
 
 pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     let verbose = cli.verbosity > 0;
@@ -237,35 +146,6 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let input_content = fs::read_to_string(&input_path)
         .map_err(|e| format!("Failed to read file '{}': {}", input_path.display(), e))?;
-
-    let input_format = resolve_input_format(&input_path, &input_content, cli.input_format);
-    let output_format = resolve_output_format(cli.output_format, input_format);
-
-    if input_format == ResolvedFormat::Json && output_format != ResolvedFormat::Json {
-        eprintln!(
-            "error: format mismatch: JSON input requires '--output-format json' (or '--output-format auto')"
-        );
-        eprintln!();
-        eprintln!("For more information, try '--help'.");
-        std::process::exit(2);
-    }
-
-    if input_format == ResolvedFormat::Xml && output_format != ResolvedFormat::Xml && output_format != ResolvedFormat::Json {
-        eprintln!(
-            "error: format mismatch: XML input supports '--output-format xml' or '--output-format json' (or '--output-format auto')"
-        );
-        eprintln!();
-        eprintln!("For more information, try '--help'.");
-        std::process::exit(2);
-    }
-
-    if input_format == ResolvedFormat::Json {
-        return run_openpra_json(&cli, &input_content);
-    }
-
-    if output_format == ResolvedFormat::Json {
-        return run_openpsa_xml_convert_to_openpra_json(&cli, &input_content);
-    }
 
     if verbose {
         eprintln!("Loading input file: {}", input_path.display());

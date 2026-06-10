@@ -41,6 +41,9 @@ mod cli_test;
 #[path = "integration/cli/cli_xml_output_shape.rs"]
 mod cli_xml_output_shape;
 
+#[path = "integration/boolean/quantify_boolean.rs"]
+mod quantify_boolean;
+
 #[path = "integration/core/ccf_integration.rs"]
 mod ccf_integration;
 

@@ -10,6 +10,7 @@ import {
   type SyExampleBundle,
   type HrExampleBundle,
   type DaExampleBundle,
+  type EsqExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -57,6 +58,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getDaBundle(): Promise<DaExampleBundle> {
     return this.exampleWorkbooksService.getDaBundle();
+  }
+
+  @Get("esq-bundle")
+  @HttpCode(HttpStatus.OK)
+  getEsqBundle(): Promise<EsqExampleBundle> {
+    return this.exampleWorkbooksService.getEsqBundle();
   }
 
   @Get(":slug")

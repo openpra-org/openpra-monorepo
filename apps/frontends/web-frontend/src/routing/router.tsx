@@ -25,6 +25,8 @@ import { HrDemoPage } from "../hr-workbooks/hrDemoPage";
 import { HrWorkbookPage } from "../hr-workbooks/hrWorkbookPage";
 import { DaDemoPage } from "../da-workbooks/daDemoPage";
 import { DaWorkbookPage } from "../da-workbooks/daWorkbookPage";
+import { EsqDemoPage } from "../esq-workbooks/esqDemoPage";
+import { EsqWorkbookPage } from "../esq-workbooks/esqWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -183,6 +185,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <DaWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/esq-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <EsqDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/esq-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <EsqWorkbookPage />
       </ProtectedRoute>
     ),
   },

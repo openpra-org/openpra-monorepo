@@ -27,6 +27,8 @@ import { DaDemoPage } from "../da-workbooks/daDemoPage";
 import { DaWorkbookPage } from "../da-workbooks/daWorkbookPage";
 import { EsqDemoPage } from "../esq-workbooks/esqDemoPage";
 import { EsqWorkbookPage } from "../esq-workbooks/esqWorkbookPage";
+import { MsDemoPage } from "../ms-workbooks/msDemoPage";
+import { MsWorkbookPage } from "../ms-workbooks/msWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -201,6 +203,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <EsqWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ms-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <MsDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ms-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <MsWorkbookPage />
       </ProtectedRoute>
     ),
   },

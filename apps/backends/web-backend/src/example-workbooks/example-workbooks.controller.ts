@@ -11,6 +11,7 @@ import {
   type HrExampleBundle,
   type DaExampleBundle,
   type EsqExampleBundle,
+  type MsExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -64,6 +65,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getEsqBundle(): Promise<EsqExampleBundle> {
     return this.exampleWorkbooksService.getEsqBundle();
+  }
+
+  @Get("ms-bundle")
+  @HttpCode(HttpStatus.OK)
+  getMsBundle(): Promise<MsExampleBundle> {
+    return this.exampleWorkbooksService.getMsBundle();
   }
 
   @Get(":slug")

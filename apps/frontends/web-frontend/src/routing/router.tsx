@@ -29,6 +29,8 @@ import { EsqDemoPage } from "../esq-workbooks/esqDemoPage";
 import { EsqWorkbookPage } from "../esq-workbooks/esqWorkbookPage";
 import { MsDemoPage } from "../ms-workbooks/msDemoPage";
 import { MsWorkbookPage } from "../ms-workbooks/msWorkbookPage";
+import { RcDemoPage } from "../rc-workbooks/rcDemoPage";
+import { RcWorkbookPage } from "../rc-workbooks/rcWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -219,6 +221,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <MsWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/rc-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <RcDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/rc-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <RcWorkbookPage />
       </ProtectedRoute>
     ),
   },

@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_GENERIC_1_SLUG, IE_GENERIC_1_SLUG, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_GENERIC_1_SLUG, IE_GENERIC_1_SLUG, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -61,6 +61,12 @@ export interface EsqExampleBundle {
 
 export interface MsExampleBundle {
   ms: ExampleWorkbookResponse;
+  configurationControl: ExampleWorkbookResponse;
+  newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+export interface RcExampleBundle {
+  rc: ExampleWorkbookResponse;
   configurationControl: ExampleWorkbookResponse;
   newlyDevelopedMethods: ExampleWorkbookResponse[];
 }
@@ -195,6 +201,17 @@ export class ExampleWorkbooksService implements OnModuleInit {
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return {
       ms,
+      configurationControl,
+      newlyDevelopedMethods: nmDocs.map(toResponse),
+    };
+  }
+
+  async getRcBundle(): Promise<RcExampleBundle> {
+    const rc = await this.findBySlug(RC_GENERIC_1_SLUG);
+    const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
+    const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
+    return {
+      rc,
       configurationControl,
       newlyDevelopedMethods: nmDocs.map(toResponse),
     };

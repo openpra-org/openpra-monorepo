@@ -21,6 +21,7 @@ import { HrWorkbooksModule } from "./hr-workbooks/hr-workbooks.module";
 import { DaWorkbooksModule } from "./da-workbooks/da-workbooks.module";
 import { EsqWorkbooksModule } from "./esq-workbooks/esq-workbooks.module";
 import { MsWorkbooksModule } from "./ms-workbooks/ms-workbooks.module";
+import { RcWorkbooksModule } from "./rc-workbooks/rc-workbooks.module";
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MsWorkbooksModule } from "./ms-workbooks/ms-workbooks.module";
     DaWorkbooksModule,
     EsqWorkbooksModule,
     MsWorkbooksModule,
+    RcWorkbooksModule,
   ],
 })
 export class AppModule {}

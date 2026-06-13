@@ -1,0 +1,305 @@
+/* riScreens.css — Risk Integration workspace.
+   Self-contained: the RI accent tokens and ri-* classes, plus the reused
+   cross-element classes (essec eyebrow, eswarn note, hrnote, hrempty) and the
+   load-example modal, so the workbook needs only this file plus the shared
+   workbookWorkspace chrome.
+
+   RI is the loop-closer, the terminal element that totals the whole standard.
+   Four accent tones sit beside the violet primary. An indigo marks the frequency
+   jaw from ESQ. A teal marks the consequence jaw from RC. An amber marks the
+   target and the judgment. A red marks the aggregation honesty, the place where
+   a conservative total can mislead. */
+
+:root {
+  --ri-freq: #4f6bd6;   --ri-freq-ink: #3a52b4;
+  --ri-cons: #2f8a7a;   --ri-cons-ink: #1f6b5e;
+  --ri-target: #c08a2e; --ri-target-ink: #9c6a18;
+  --ri-aggr: #c44d4d;   --ri-aggr-ink: #b73b3b;
+}
+[data-theme="dark"] {
+  --ri-freq: #8ea0e6;   --ri-freq-ink: #aab8ee;
+  --ri-cons: #5fb8a6;   --ri-cons-ink: #82d2c2;
+  --ri-target: #dcb066; --ri-target-ink: #e8c98c;
+  --ri-aggr: #e08a8a;   --ri-aggr-ink: #eaa0a0;
+}
+
+/* ─── Reused: section eyebrow, warn strip, info note, empty state ─────────── */
+.essec { font-family: "Nunito Sans", sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary); margin-bottom: 6px; }
+.eswarn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: rgba(196, 122, 24, 0.08); border-left: 3px solid var(--color-warning); border-radius: 6px; font-size: 12px; color: var(--color-text); line-height: 1.45; }
+.eswarn__icon { color: var(--color-warning); flex-shrink: 0; display: inline-flex; }
+.eswarn__icon svg { width: 15px; height: 15px; }
+.hrnote { display: flex; gap: 9px; align-items: flex-start; padding: 11px 14px; border-radius: 10px; background: var(--color-surface-low); border: 1px dashed var(--color-border-strong); font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+.hrnote svg { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
+.hrempty { padding: 28px 18px; text-align: center; }
+.hrempty__title { font-family: "Literata", Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
+.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
+
+/* ─── Load-example modal (rilink) ────────────────────────────────────────── */
+.rilink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
+.rilink { width: min(560px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: 0 24px 60px rgba(29, 25, 43, 0.28); overflow: hidden; }
+.rilink__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
+.rilink__eyebrow { display: flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-primary); }
+.rilink__eyebrow svg { width: 13px; height: 13px; }
+.rilink__title { margin: 4px 0 0; font-family: "Literata", serif; font-size: 18px; color: var(--color-text); }
+.rilink__close { display: inline-flex; padding: 6px; border: none; background: transparent; color: var(--color-text-subtle); cursor: pointer; border-radius: 8px; }
+.rilink__close svg { width: 18px; height: 18px; }
+.rilink__close:hover { background: var(--color-surface-low); }
+.rilink__body { padding: 18px 20px; overflow-y: auto; }
+.rilink__foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border); }
+
+/* ─── Shared card primitives ─────────────────────────────────────────────── */
+.ricard {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 11px;
+}
+.ricard--freq { border-top: 3px solid var(--ri-freq); }
+.ricard--cons { border-top: 3px solid var(--ri-cons); }
+.ricard--target { border-top: 3px solid var(--ri-target); }
+.ricard--aggr { border-top: 3px solid var(--ri-aggr); }
+.ricard__badge { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
+.ricard__badge svg { width: 17px; height: 17px; }
+.ricard__badge--freq { background: rgba(79,107,214,0.12); color: var(--ri-freq-ink); }
+.ricard__badge--cons { background: rgba(47,138,122,0.12); color: var(--ri-cons-ink); }
+.rigrid--2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 860px) { .rigrid--2 { grid-template-columns: 1fr 1fr; } }
+
+/* ─── Rail HLR badge (RI has four HLRs, A to D) ──────────────────────────── */
+.rihlr {
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.04em; padding: 1px 6px; border-radius: 5px; white-space: nowrap;
+  background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border);
+}
+.rihlr--a { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
+.rihlr--b { background: rgba(196,77,77,0.12); color: var(--ri-aggr-ink); border-color: transparent; }
+.rihlr--c { background: rgba(79,107,214,0.13); color: var(--ri-freq-ink); border-color: transparent; }
+.rihlr--d { background: rgba(47,138,122,0.12); color: var(--ri-cons-ink); border-color: transparent; }
+
+/* ─── Provenance chip ────────────────────────────────────────────────────── */
+.riprov { display: inline-flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 700; color: var(--color-text-subtle); padding: 3px 8px; border-radius: 6px; background: var(--color-surface-low); border: 1px solid var(--color-border); white-space: nowrap; }
+.riprov svg { width: 11px; height: 11px; }
+
+/* ─── The risk equation, the convergence (RI-B1) ─────────────────────────── */
+.rieq { display: flex; align-items: stretch; gap: 10px; flex-wrap: wrap; }
+.rieq__term { flex: 1; min-width: 150px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; border-top: 3px solid var(--color-border-strong); }
+.rieq__term--freq { border-top-color: var(--ri-freq); }
+.rieq__term--cons { border-top-color: var(--ri-cons); }
+.rieq__term--risk { border-top-color: var(--color-primary); background: var(--color-primary-soft); }
+.rieq__cap { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.rieq__val { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 19px; font-weight: 700; color: var(--color-text); }
+.rieq__sub { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; }
+.rieq__src { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; font-weight: 700; color: var(--color-text-subtle); margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); }
+.rieq__op { display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 24px; font-weight: 700; color: var(--color-text-subtle); flex-shrink: 0; min-width: 24px; }
+@media (max-width: 720px) { .rieq__op { transform: rotate(90deg); padding: 4px 0; } }
+
+/* ─── Compiled family inputs (RI-B1, the two pipelines closing) ──────────── */
+.rifam { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 980px) { .rifam { grid-template-columns: 1fr 1fr; } }
+.rifam__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; border-left: 4px solid var(--ri-freq); cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+.rifam__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgba(121,57,177,0.10); }
+.rifam__card--low { border-left-color: var(--color-border-strong); }
+.rifam__head { display: flex; align-items: flex-start; gap: 10px; }
+.rifam__head-main { flex: 1; min-width: 0; }
+.rifam__id { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--ri-freq-ink); }
+.rifam__name { font-size: 12.5px; font-weight: 700; color: var(--color-text); line-height: 1.3; margin-top: 2px; }
+.rifam__sig { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.rifam__sig--high { background: rgba(196,77,77,0.14); color: var(--ri-aggr-ink); }
+.rifam__sig--medium { background: rgba(192,138,46,0.16); color: var(--ri-target-ink); }
+.rifam__sig--low { background: var(--color-surface-low); color: var(--color-text-subtle); }
+.rifam__jaws { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rifam__jaw { display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; border-radius: 9px; background: var(--color-surface-low); }
+.rifam__jaw-k { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; color: var(--color-text-subtle); }
+.rifam__jaw-k svg { width: 11px; height: 11px; }
+.rifam__jaw--freq .rifam__jaw-k { color: var(--ri-freq-ink); }
+.rifam__jaw--cons .rifam__jaw-k { color: var(--ri-cons-ink); }
+.rifam__jaw-v { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; font-weight: 700; color: var(--color-text); }
+.rifam__jaw-u { font-size: 9.5px; color: var(--color-text-subtle); }
+
+/* ─── Consequence measures (RI-A1) ───────────────────────────────────────── */
+.rimeasure { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 860px) { .rimeasure { grid-template-columns: 1fr 1fr 1fr; } }
+.rimeasure__cell { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--ri-cons); }
+.rimeasure__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(47,138,122,0.12); color: var(--ri-cons-ink); }
+.rimeasure__icon svg { width: 16px; height: 16px; }
+.rimeasure__main { min-width: 0; }
+.rimeasure__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rimeasure__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
+
+/* ─── The application fork (RI-A2 vs A3) ─────────────────────────────────── */
+.riapp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .riapp { grid-template-columns: 1fr; } }
+.riapp__opt { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.12s, box-shadow 0.12s; border-top: 3px solid var(--color-border-strong); text-align: left; font: inherit; color: inherit; }
+.riapp__opt--active { border-color: var(--color-primary); border-top-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.riapp__opt-head { display: flex; align-items: center; gap: 10px; }
+.riapp__opt-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.riapp__opt-icon svg { width: 17px; height: 17px; }
+.riapp__opt-name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.riapp__opt-tag { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-subtle); margin-top: 1px; }
+.riapp__opt-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.riapp__opt-meta { font-size: 11px; color: var(--color-primary); display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); font-weight: 700; }
+.riapp__opt-meta svg { width: 13px; height: 13px; }
+.riapp__opt-sr { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; font-weight: 700; color: var(--color-text-subtle); }
+
+/* ─── The reporting floors (RI-A4, A5) ───────────────────────────────────── */
+.rifloor { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .rifloor { grid-template-columns: 1fr; } }
+.rifloor__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 15px 17px; display: flex; flex-direction: column; gap: 7px; border-top: 3px solid var(--ri-target); }
+.rifloor__cap { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ri-target-ink); }
+.rifloor__val { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 22px; font-weight: 700; color: var(--color-text); }
+.rifloor__val-unit { font-size: 12px; color: var(--color-text-subtle); }
+.rifloor__note { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
+.rifloor__basis { font-size: 10.5px; color: var(--color-text-subtle); margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); }
+
+/* ─── Risk-significance thresholds by level (RI-A2/A3) ───────────────────── */
+.ricrit { display: flex; flex-direction: column; gap: 7px; }
+.ricrit__row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); border-left: 3px solid var(--color-primary); }
+@media (max-width: 720px) { .ricrit__row { grid-template-columns: 1fr; gap: 6px; } }
+.ricrit__main { min-width: 0; }
+.ricrit__label { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.ricrit__label-note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.ricrit__val { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--color-primary); white-space: normal; padding: 3px 10px; border-radius: 999px; background: var(--color-primary-soft); text-align: center; }
+
+/* ─── The frequency-consequence plot (RI-B2, the signature picture) ──────── */
+.rifc__plot { position: relative; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; min-width: 0; max-width: 660px; width: 100%; }
+.rifc__svg { width: 100% !important; height: auto !important; display: block; overflow: visible; aspect-ratio: 4 / 3; }
+.rifc__axis { stroke: var(--color-border-strong); stroke-width: 1.5; }
+.rifc__grid { stroke: var(--color-border); stroke-width: 1; stroke-dasharray: 3 4; }
+.rifc__target { stroke: var(--ri-target); stroke-width: 2.5; stroke-dasharray: 8 6; }
+.rifc__pt { stroke: var(--color-surface); stroke-width: 2; }
+.rifc__pt--high { fill: var(--ri-aggr); }
+.rifc__pt--medium { fill: var(--ri-target); }
+.rifc__pt--low { fill: var(--ri-cons); }
+.rifc__lab { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; fill: var(--color-text-muted); }
+.rifc__lab--target { fill: var(--ri-target-ink); font-weight: 700; }
+.rifc__axlab { font-family: 'Nunito Sans', system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: var(--color-text-subtle); }
+.rifc__legend { display: flex; flex-direction: column; gap: 7px; }
+.rifc__legend--top { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; gap: 8px 18px; margin-bottom: 12px; }
+.rifc__center { display: flex; justify-content: center; }
+.rifc__legend-item { display: flex; align-items: center; gap: 9px; font-size: 11.5px; font-weight: 600; color: var(--color-text); white-space: nowrap; }
+.rifc__legend-dot { width: 11px; height: 11px; border-radius: 999px; flex-shrink: 0; }
+.rifc__legend-dot--high { background: var(--ri-aggr); }
+.rifc__legend-dot--medium { background: var(--ri-target); }
+.rifc__legend-dot--low { background: var(--ri-cons); }
+.rifc__legend-dot--target { background: transparent; border: 2px dashed var(--ri-target); }
+
+/* ─── The exceedance-frequency curve (RI-B2c, the CCDF) ──────────────────── */
+.riccdf__svg { width: 100% !important; height: auto !important; display: block; overflow: visible; aspect-ratio: 43 / 25; }
+.riccdf__axis { stroke: var(--color-border-strong); stroke-width: 1.5; }
+.riccdf__grid { stroke: var(--color-border); stroke-width: 1; stroke-dasharray: 3 4; }
+.riccdf__curve { fill: none; stroke: var(--ri-freq); stroke-width: 2.5; }
+.riccdf__pt { fill: var(--ri-freq); }
+.riccdf__lab { font-family: 'Nunito Sans', system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: var(--color-text-subtle); }
+
+/* ─── Calculation approach chips (RI-B2 a/b/c) ───────────────────────────── */
+.riapproach { display: flex; flex-wrap: wrap; gap: 8px; }
+.riapproach__chip { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; padding: 7px 13px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.riapproach__chip--on { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
+.riapproach__chip svg { width: 14px; height: 14px; }
+.riapproach__chip-cc { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 8.5px; font-weight: 700; opacity: 0.75; }
+
+/* ─── The integrated-risk readout (RI-B2, the single number) ─────────────── */
+.risum { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 860px) { .risum { grid-template-columns: 1fr 1fr; } }
+.risum__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 15px 17px; display: flex; flex-direction: column; gap: 6px; border-top: 3px solid var(--color-primary); }
+.risum__cap { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.risum__val { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 24px; font-weight: 700; color: var(--color-text); line-height: 1; }
+.risum__unit { font-size: 11px; color: var(--color-text-subtle); }
+.risum__bar { display: flex; align-items: center; gap: 9px; margin-top: 4px; }
+.risum__bar-track { flex: 1; height: 7px; border-radius: 4px; background: var(--color-surface-low); overflow: hidden; }
+.risum__bar-fill { height: 100%; border-radius: 4px; background: var(--ri-cons); }
+.risum__status { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.risum__status--compliant { background: rgba(47,138,122,0.14); color: var(--ri-cons-ink); }
+.risum__status--margin { background: rgba(192,138,46,0.16); color: var(--ri-target-ink); }
+
+/* ─── Aggregation honesty (RI-B3, the signature anti-distortion panel) ───── */
+.riaggr { display: flex; flex-direction: column; gap: 8px; }
+.riaggr__row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 11px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--ri-aggr); }
+@media (max-width: 760px) { .riaggr__row { grid-template-columns: 1fr; gap: 7px; } }
+.riaggr__main { min-width: 0; }
+.riaggr__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.riaggr__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.riaggr__model { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; text-align: center; }
+.riaggr__model--realistic { background: rgba(47,138,122,0.14); color: var(--ri-cons-ink); }
+.riaggr__model--conservative { background: rgba(196,77,77,0.14); color: var(--ri-aggr-ink); }
+.riaggr__contrib { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; font-weight: 700; color: var(--color-text); white-space: nowrap; }
+.riaggr__bar { height: 6px; border-radius: 3px; background: var(--ri-aggr); opacity: 0.55; margin-top: 5px; }
+
+/* ─── Anti-masking review (RI-B5 and C2) ─────────────────────────────────── */
+.rimask { display: flex; flex-direction: column; gap: 9px; }
+.rimask__row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 11px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); }
+@media (max-width: 720px) { .rimask__row { grid-template-columns: 1fr; gap: 6px; } }
+.rimask__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-surface-low); color: var(--color-text-subtle); }
+.rimask__icon svg { width: 16px; height: 16px; }
+.rimask__row--flag .rimask__icon { background: rgba(192,138,46,0.14); color: var(--ri-target-ink); }
+.rimask__main { min-width: 0; }
+.rimask__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rimask__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.rimask__state { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.rimask__state--clear { background: rgba(47,138,122,0.14); color: var(--ri-cons-ink); }
+.rimask__state--reopened { background: rgba(192,138,46,0.16); color: var(--ri-target-ink); }
+
+/* ─── Significant contributors roll-up (RI-B6) ───────────────────────────── */
+.ricontrib { display: flex; flex-direction: column; gap: 8px; }
+.ricontrib__row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); border-left: 3px solid var(--color-primary); }
+.ricontrib__rank { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 700; color: var(--color-primary); }
+.ricontrib__main { min-width: 0; }
+.ricontrib__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.ricontrib__basis { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.ricontrib__kind { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; background: var(--color-surface-low); color: var(--color-text-subtle); }
+
+/* ─── The master uncertainty register (RI-C1, the screening ledger) ──────── */
+.riledger { border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; }
+.riledger__row { display: grid; grid-template-columns: 64px 1fr 1.3fr; align-items: stretch; }
+@media (max-width: 760px) { .riledger__row { grid-template-columns: 56px 1fr; } .riledger__impact { display: none; } }
+.riledger__row:not(:last-child) { border-bottom: 1px solid var(--color-border); }
+.riledger__row--head { background: var(--color-surface-low); }
+.riledger__el { display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--ri-freq-ink); border-right: 1px solid var(--color-border); }
+.riledger__row--head .riledger__el { color: var(--color-text-subtle); }
+.riledger__source { padding: 10px 13px; border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+.riledger__source-name { font-weight: 700; font-size: 12px; color: var(--color-text); }
+.riledger__source-tag { font-size: 9.5px; color: var(--color-text-subtle); display: inline-flex; align-items: center; gap: 5px; }
+.riledger__source-tag svg { width: 11px; height: 11px; }
+.riledger__impact { padding: 10px 13px; font-size: 11px; color: var(--color-text-muted); line-height: 1.45; display: flex; align-items: center; }
+.riledger__head-cell { padding: 9px 13px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-subtle); display: flex; align-items: center; }
+.riledger__screened { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; color: var(--ri-target-ink); }
+.riledger__screened svg { width: 11px; height: 11px; }
+
+/* ─── The propagation fork (RI-C4, the grand unification) ────────────────── */
+.riprop { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-low); padding: 16px; display: grid; grid-template-columns: 1fr auto 1.1fr; gap: 16px; align-items: center; }
+@media (max-width: 880px) { .riprop { grid-template-columns: 1fr; } }
+.riprop__sources { display: flex; flex-direction: column; gap: 8px; }
+.riprop__src { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 9px; background: var(--color-surface); border: 1px solid var(--color-border); }
+.riprop__src-icon { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; background: rgba(79,107,214,0.12); color: var(--ri-freq-ink); }
+.riprop__src-icon svg { width: 14px; height: 14px; }
+.riprop__src-main { min-width: 0; }
+.riprop__src-name { font-weight: 700; font-size: 11.5px; color: var(--color-text); }
+.riprop__src-from { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9px; color: var(--color-text-subtle); }
+.riprop__arrow { display: flex; align-items: center; justify-content: center; color: var(--color-text-subtle); }
+.riprop__arrow svg { width: 26px; height: 26px; }
+@media (max-width: 880px) { .riprop__arrow { transform: rotate(90deg); } }
+.riprop__out { display: flex; flex-direction: column; gap: 8px; }
+.riprop__out-cap { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.riprop__dist { height: 9px; border-radius: 4px; background: linear-gradient(90deg, rgba(79,107,214,0.12), rgba(79,107,214,0.5), rgba(79,107,214,0.12)); position: relative; }
+.riprop__dist-mean { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; background: var(--ri-freq); border-radius: 2px; }
+.riprop__scale { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: var(--color-text-muted); }
+.riprop__level { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--ri-freq-ink); }
+.riprop__level svg { width: 13px; height: 13px; }
+
+/* ─── The feedback dispatch (RI-D, the loop closer) ──────────────────────── */
+.rifeed { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 860px) { .rifeed { grid-template-columns: 1fr 1fr; } }
+.rifeed__card { display: flex; align-items: flex-start; gap: 11px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--color-primary); }
+.rifeed__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.rifeed__icon svg { width: 16px; height: 16px; }
+.rifeed__main { flex: 1; min-width: 0; }
+.rifeed__el { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.rifeed__el-name { font-weight: 700; font-size: 12.5px; color: var(--color-text); flex: 1; min-width: 0; line-height: 1.3; }
+.rifeed__el-code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; font-weight: 700; color: var(--color-text-subtle); flex-shrink: 0; margin-top: 2px; }
+.rifeed__msg { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 3px; }
+.rifeed__sig { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; margin-top: 6px; }
+.rifeed__sig svg { width: 12px; height: 12px; }
+.rifeed__sig--high { color: var(--ri-aggr-ink); }
+.rifeed__sig--medium { color: var(--ri-target-ink); }
+.rifeed__sig--low { color: var(--color-text-subtle); }
+
+/* ─── Drawer SR chip row (shared with the prior elements) ────────────────── */
+.posdrawer__srs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }

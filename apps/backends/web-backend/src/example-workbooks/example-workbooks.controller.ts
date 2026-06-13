@@ -13,6 +13,7 @@ import {
   type EsqExampleBundle,
   type MsExampleBundle,
   type RcExampleBundle,
+  type RiExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -78,6 +79,12 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getRcBundle(): Promise<RcExampleBundle> {
     return this.exampleWorkbooksService.getRcBundle();
+  }
+
+  @Get("ri-bundle")
+  @HttpCode(HttpStatus.OK)
+  getRiBundle(): Promise<RiExampleBundle> {
+    return this.exampleWorkbooksService.getRiBundle();
   }
 
   @Get(":slug")

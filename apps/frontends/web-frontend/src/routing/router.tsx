@@ -31,6 +31,8 @@ import { MsDemoPage } from "../ms-workbooks/msDemoPage";
 import { MsWorkbookPage } from "../ms-workbooks/msWorkbookPage";
 import { RcDemoPage } from "../rc-workbooks/rcDemoPage";
 import { RcWorkbookPage } from "../rc-workbooks/rcWorkbookPage";
+import { RiDemoPage } from "../ri-workbooks/riDemoPage";
+import { RiWorkbookPage } from "../ri-workbooks/riWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -237,6 +239,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <RcWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ri-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <RiDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ri-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <RiWorkbookPage />
       </ProtectedRoute>
     ),
   },

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::core::ccf::CcfGroup;
 use crate::core::element::Element;
 use crate::core::event::{BasicEvent, HouseEvent};
-use crate::core::gate::Gate;
+use crate::core::gate::{Formula, Gate};
 use crate::{MefError, PraxisError, Result};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -142,21 +142,36 @@ impl FaultTree {
 
     pub fn expand_ccf_groups(&mut self, base_probabilities: &HashMap<String, f64>) -> Result<()> {
         let mut expanded_events = Vec::new();
+        let mut member_ccbes: HashMap<String, Vec<String>> = HashMap::new();
 
-        // Expand all CCF groups
         for (id, ccf_group) in &self.ccf_groups {
             let base_prob = base_probabilities.get(id).ok_or_else(|| {
                 PraxisError::Logic(format!("Missing base probability for CCF group '{}'", id))
             })?;
 
-            let events = ccf_group.expand(*base_prob)?;
-            expanded_events.extend(events);
+            for ccf_event in ccf_group.expand(*base_prob)? {
+                for member in &ccf_event.failed_members {
+                    member_ccbes
+                        .entry(member.clone())
+                        .or_default()
+                        .push(ccf_event.id.clone());
+                }
+                expanded_events.push(ccf_event);
+            }
         }
 
-        // Add expanded events to the fault tree
         for ccf_event in expanded_events {
             let basic_event = BasicEvent::new(ccf_event.id, ccf_event.probability)?;
             self.add_basic_event(basic_event)?;
+        }
+
+        for (member, ccbe_ids) in member_ccbes {
+            self.basic_events.remove(&member);
+            let mut gate = Gate::new(member.clone(), Formula::Or)?;
+            for ccbe_id in ccbe_ids {
+                gate.add_operand(ccbe_id);
+            }
+            self.gates.insert(member, gate);
         }
 
         Ok(())
@@ -166,10 +181,9 @@ impl FaultTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::ccf::CcfModel;
+    use crate::core::ccf::{CcfModel, TestingScheme};
     use crate::core::gate::Formula;
 
-    // T060-T062: FaultTree::new() tests
     #[test]
     fn test_fault_tree_new_basic() {
         let ft = FaultTree::new("FT1", "TopGate").unwrap();
@@ -215,7 +229,6 @@ mod tests {
         );
     }
 
-    // T063-T065: FaultTree::add_gate() tests
     #[test]
     fn test_add_gate_success() {
         let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
@@ -300,7 +313,6 @@ mod tests {
         assert_eq!(retrieved.operands()[1], "E2");
     }
 
-    // T066-T068: FaultTree::top_event() tests
     #[test]
     fn test_top_event_access() {
         let ft = FaultTree::new("FT1", "TopGate").unwrap();
@@ -313,7 +325,6 @@ mod tests {
         let top = ft.top_event();
         assert_eq!(top, "TopGate");
 
-        // Verify it's a reference to internal data
         assert_eq!(top.len(), 7);
     }
 
@@ -327,7 +338,6 @@ mod tests {
         assert_ne!(ft1.top_event(), ft2.top_event());
     }
 
-    // Additional integration tests
     #[test]
     fn test_add_basic_event_success() {
         let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
@@ -364,13 +374,11 @@ mod tests {
     fn test_fault_tree_with_all_elements() {
         let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
 
-        // Add gates
         ft.add_gate(Gate::new("TopGate".to_string(), Formula::And).unwrap())
             .unwrap();
         ft.add_gate(Gate::new("G1".to_string(), Formula::Or).unwrap())
             .unwrap();
 
-        // Add basic events
         ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.01).unwrap())
             .unwrap();
         ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.02).unwrap())
@@ -378,7 +386,6 @@ mod tests {
         ft.add_basic_event(BasicEvent::new("E3".to_string(), 0.03).unwrap())
             .unwrap();
 
-        // Add house event
         ft.add_house_event(HouseEvent::new("H1".to_string(), false).unwrap())
             .unwrap();
 
@@ -401,8 +408,6 @@ mod tests {
         assert_eq!(cloned.gates().len(), ft.gates().len());
         assert_eq!(cloned.basic_events().len(), ft.basic_events().len());
     }
-
-    // CCF Integration Tests
 
     #[test]
     fn test_add_ccf_group_success() {
@@ -446,7 +451,10 @@ mod tests {
         let ccf = CcfGroup::new(
             "Valves",
             vec!["V1".to_string(), "V2".to_string()],
-            CcfModel::AlphaFactor(vec![0.7, 0.3]),
+            CcfModel::AlphaFactor {
+                factors: vec![0.7, 0.3],
+                scheme: TestingScheme::NonStaggered,
+            },
         )
         .unwrap();
 
@@ -475,10 +483,8 @@ mod tests {
 
         ft.expand_ccf_groups(&base_probs).unwrap();
 
-        // Beta-Factor with 2 members creates 3 events
         assert_eq!(ft.basic_events().len(), 3);
 
-        // Check independent events
         let indep1 = ft.get_basic_event("Pumps-indep-1");
         assert!(indep1.is_some());
         assert!((indep1.unwrap().probability() - 0.08).abs() < 1e-9);
@@ -487,7 +493,6 @@ mod tests {
         assert!(indep2.is_some());
         assert!((indep2.unwrap().probability() - 0.08).abs() < 1e-9);
 
-        // Check common event
         let common = ft.get_basic_event("Pumps-common");
         assert!(common.is_some());
         assert!((common.unwrap().probability() - 0.02).abs() < 1e-9);
@@ -499,7 +504,10 @@ mod tests {
         let ccf = CcfGroup::new(
             "Valves",
             vec!["V1".to_string(), "V2".to_string()],
-            CcfModel::AlphaFactor(vec![0.6, 0.4]),
+            CcfModel::AlphaFactor {
+                factors: vec![0.6, 0.4],
+                scheme: TestingScheme::NonStaggered,
+            },
         )
         .unwrap();
 
@@ -510,18 +518,15 @@ mod tests {
 
         ft.expand_ccf_groups(&base_probs).unwrap();
 
-        // Alpha-Factor with 2 members creates 3 events
         assert_eq!(ft.basic_events().len(), 3);
 
-        // Check k=1 events: 0.6 * 0.05 / 2 = 0.015
         let alpha1_1 = ft.get_basic_event("Valves-alpha-1-1");
         assert!(alpha1_1.is_some());
-        assert!((alpha1_1.unwrap().probability() - 0.015).abs() < 1e-9);
+        assert!((alpha1_1.unwrap().probability() - (0.6 / 1.4) * 0.05).abs() < 1e-9);
 
-        // Check k=2 event: 0.4 * 0.05 / 1 = 0.02
         let alpha2_1 = ft.get_basic_event("Valves-alpha-2-1");
         assert!(alpha2_1.is_some());
-        assert!((alpha2_1.unwrap().probability() - 0.02).abs() < 1e-9);
+        assert!((alpha2_1.unwrap().probability() - 2.0 * (0.4 / 1.4) * 0.05).abs() < 1e-9);
     }
 
     #[test]
@@ -530,36 +535,57 @@ mod tests {
         let ccf = CcfGroup::new(
             "Motors",
             vec!["M1".to_string(), "M2".to_string()],
-            CcfModel::Mgl(vec![0.06, 0.04]),
+            CcfModel::Mgl(vec![0.2]),
         )
         .unwrap();
 
         ft.add_ccf_group(ccf).unwrap();
 
         let mut base_probs = HashMap::new();
-        base_probs.insert("Motors".to_string(), 0.1); // Not used by MGL
+        base_probs.insert("Motors".to_string(), 0.1);
 
         ft.expand_ccf_groups(&base_probs).unwrap();
 
-        // MGL with 2 members creates 3 events
         assert_eq!(ft.basic_events().len(), 3);
 
-        // Check k=1 events: Q₁ / 2 = 0.06 / 2 = 0.03
         let mgl1_1 = ft.get_basic_event("Motors-mgl-1-1");
         assert!(mgl1_1.is_some());
-        assert!((mgl1_1.unwrap().probability() - 0.03).abs() < 1e-9);
+        assert!((mgl1_1.unwrap().probability() - 0.08).abs() < 1e-9);
 
-        // Check k=2 event: Q₂ / 1 = 0.04
         let mgl2_1 = ft.get_basic_event("Motors-mgl-2-1");
         assert!(mgl2_1.is_some());
-        assert!((mgl2_1.unwrap().probability() - 0.04).abs() < 1e-9);
+        assert!((mgl2_1.unwrap().probability() - 0.02).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_expand_ccf_rewires_members_into_or_gates() {
+        let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
+        ft.add_ccf_group(
+            CcfGroup::new(
+                "Pumps",
+                vec!["P1".to_string(), "P2".to_string()],
+                CcfModel::BetaFactor(0.2),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+        let mut base_probs = HashMap::new();
+        base_probs.insert("Pumps".to_string(), 0.1);
+        ft.expand_ccf_groups(&base_probs).unwrap();
+
+        assert!(ft.get_basic_event("P1").is_none());
+        let p1 = ft.get_gate("P1").expect("member P1 should be an OR gate");
+        assert_eq!(p1.formula(), &Formula::Or);
+        assert!(p1.operands().contains(&"Pumps-indep-1".to_string()));
+        assert!(p1.operands().contains(&"Pumps-common".to_string()));
+        assert!(!p1.operands().contains(&"Pumps-indep-2".to_string()));
     }
 
     #[test]
     fn test_expand_multiple_ccf_groups() {
         let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
 
-        // Add two CCF groups
         let ccf1 = CcfGroup::new(
             "Pumps",
             vec!["P1".to_string(), "P2".to_string()],
@@ -583,14 +609,11 @@ mod tests {
 
         ft.expand_ccf_groups(&base_probs).unwrap();
 
-        // Both groups expanded: 3 + 3 = 6 events
         assert_eq!(ft.basic_events().len(), 6);
 
-        // Check pump events
         assert!(ft.get_basic_event("Pumps-indep-1").is_some());
         assert!(ft.get_basic_event("Pumps-common").is_some());
 
-        // Check valve events
         assert!(ft.get_basic_event("Valves-indep-1").is_some());
         assert!(ft.get_basic_event("Valves-common").is_some());
     }
@@ -607,7 +630,7 @@ mod tests {
 
         ft.add_ccf_group(ccf).unwrap();
 
-        let base_probs = HashMap::new(); // Empty - missing "Pumps"
+        let base_probs = HashMap::new();
 
         let result = ft.expand_ccf_groups(&base_probs);
         assert!(result.is_err());
@@ -617,11 +640,9 @@ mod tests {
     fn test_expand_ccf_groups_with_existing_events() {
         let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
 
-        // Add a regular basic event first
         ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.01).unwrap())
             .unwrap();
 
-        // Add CCF group
         let ccf = CcfGroup::new(
             "Pumps",
             vec!["P1".to_string(), "P2".to_string()],
@@ -636,7 +657,6 @@ mod tests {
 
         ft.expand_ccf_groups(&base_probs).unwrap();
 
-        // 1 original + 3 from CCF = 4 events
         assert_eq!(ft.basic_events().len(), 4);
         assert!(ft.get_basic_event("E1").is_some());
         assert!(ft.get_basic_event("Pumps-indep-1").is_some());
@@ -681,11 +701,9 @@ mod tests {
 
         ft.add_ccf_group(ccf).unwrap();
 
-        // Get mutable reference and verify it exists
         let ccf_mut = ft.get_ccf_group_mut("Pumps");
         assert!(ccf_mut.is_some());
 
-        // Verify immutable access still works
         assert!(ft.get_ccf_group("Pumps").is_some());
     }
 }

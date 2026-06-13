@@ -1,10 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::boolean::contract::{
     BasicEventBinding, BasicEventBindingTable, BasicEventId, BooleanModel, BooleanNode,
-    BooleanOperator, CcfGroupTable, CcfParameterModel, NodeId, ParameterDistribution,
+    BooleanOperator, CcfGroupTable, CcfParameterModel, CcfTestingScheme, NodeId,
+    ParameterDistribution,
 };
-use crate::core::ccf::{CcfGroup, CcfModel};
+use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
 use crate::core::event::{BasicEvent, Distribution, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
@@ -240,6 +241,15 @@ fn attach_ccf_groups(fault_tree: &mut FaultTree, table: &CcfGroupTable) -> Resul
     Ok(())
 }
 
+fn ordered_by_level(map: &BTreeMap<String, f64>) -> Vec<f64> {
+    let mut entries: Vec<(usize, f64)> = map
+        .iter()
+        .filter_map(|(key, value)| key.parse::<usize>().ok().map(|level| (level, *value)))
+        .collect();
+    entries.sort_by_key(|(level, _)| *level);
+    entries.into_iter().map(|(_, value)| value).collect()
+}
+
 fn to_ccf_model(model: &CcfParameterModel) -> (CcfModel, f64) {
     match model {
         CcfParameterModel::BetaFactor {
@@ -260,21 +270,28 @@ fn to_ccf_model(model: &CcfParameterModel) -> (CcfModel, f64) {
             if let Some(delta) = delta {
                 factors.push(*delta);
             }
-            factors.extend(additional_factors.values().copied());
+            factors.extend(ordered_by_level(additional_factors));
             (CcfModel::Mgl(factors), *total_failure_probability)
         }
         CcfParameterModel::AlphaFactor {
             alpha_factors,
             total_failure_probability,
+            testing_scheme,
         } => (
-            CcfModel::AlphaFactor(alpha_factors.values().copied().collect()),
+            CcfModel::AlphaFactor {
+                factors: ordered_by_level(alpha_factors),
+                scheme: match testing_scheme {
+                    Some(CcfTestingScheme::Staggered) => TestingScheme::Staggered,
+                    _ => TestingScheme::NonStaggered,
+                },
+            },
             *total_failure_probability,
         ),
         CcfParameterModel::PhiFactor {
             phi_factors,
             total_failure_probability,
         } => (
-            CcfModel::PhiFactor(phi_factors.values().copied().collect()),
+            CcfModel::PhiFactor(ordered_by_level(phi_factors)),
             *total_failure_probability,
         ),
     }

@@ -2,7 +2,7 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 use std::io::BufRead;
 
-use crate::core::ccf::{CcfGroup, CcfModel};
+use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
 use crate::core::event::BasicEvent;
 use crate::core::event_tree::{EventTree, InitiatingEvent};
 use crate::core::fault_tree::FaultTree;
@@ -12,57 +12,57 @@ use crate::error::{MefError, Result};
 
 #[derive(Debug)]
 pub enum ParsedInput {
-  FaultTree(FaultTree),
-  EventTreeModel(crate::io::event_tree_parser::EventTreeModel),
+    FaultTree(FaultTree),
+    EventTreeModel(crate::io::event_tree_parser::EventTreeModel),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MefKind {
-  FaultTree,
-  EventTree,
+    FaultTree,
+    EventTree,
 }
 
 fn detect_mef_kind(xml: &str) -> Result<MefKind> {
-  let mut reader = Reader::from_str(xml);
-  reader.trim_text(true);
+    let mut reader = Reader::from_str(xml);
+    reader.trim_text(true);
 
-  let mut buf = Vec::new();
-  let mut saw_fault_tree = false;
+    let mut buf = Vec::new();
+    let mut saw_fault_tree = false;
 
-  loop {
-    match reader.read_event_into(&mut buf) {
-      Ok(Event::Start(e)) | Ok(Event::Empty(e)) => match e.name().as_ref() {
-        b"define-event-tree" | b"define-initiating-event" => return Ok(MefKind::EventTree),
-        b"define-fault-tree" => saw_fault_tree = true,
-        _ => {}
-      },
-      Ok(Event::Eof) => break,
-      Err(e) => {
-        return Err(MefError::Validity(format!("XML parse error: {e}")).into());
-      }
-      _ => {}
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => match e.name().as_ref() {
+                b"define-event-tree" | b"define-initiating-event" => return Ok(MefKind::EventTree),
+                b"define-fault-tree" => saw_fault_tree = true,
+                _ => {}
+            },
+            Ok(Event::Eof) => break,
+            Err(e) => {
+                return Err(MefError::Validity(format!("XML parse error: {e}")).into());
+            }
+            _ => {}
+        }
+        buf.clear();
     }
-    buf.clear();
-  }
 
-  if saw_fault_tree {
-    Ok(MefKind::FaultTree)
-  } else {
-    Err(MefError::Validity(
-      "Input XML does not contain <define-fault-tree> or <define-event-tree>".to_string(),
-    )
-    .into())
-  }
+    if saw_fault_tree {
+        Ok(MefKind::FaultTree)
+    } else {
+        Err(MefError::Validity(
+            "Input XML does not contain <define-fault-tree> or <define-event-tree>".to_string(),
+        )
+        .into())
+    }
 }
 
 pub fn parse_any_mef(xml: &str) -> Result<ParsedInput> {
-  match detect_mef_kind(xml)? {
-    MefKind::EventTree => {
-      let parsed = crate::io::event_tree_parser::parse_event_tree_model_full(xml)?;
-      Ok(ParsedInput::EventTreeModel(parsed))
+    match detect_mef_kind(xml)? {
+        MefKind::EventTree => {
+            let parsed = crate::io::event_tree_parser::parse_event_tree_model_full(xml)?;
+            Ok(ParsedInput::EventTreeModel(parsed))
+        }
+        MefKind::FaultTree => Ok(ParsedInput::FaultTree(parse_fault_tree(xml)?)),
     }
-    MefKind::FaultTree => Ok(ParsedInput::FaultTree(parse_fault_tree(xml)?)),
-  }
 }
 
 pub fn parse_element<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<BasicEvent> {
@@ -124,9 +124,6 @@ pub fn parse_element<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<B
     BasicEvent::new(name.to_string(), prob)
 }
 
-/// Parse a gate element from XML
-///
-/// Parses `<define-gate name="G1"><and><basic-event name="E1"/></and></define-gate>`
 pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Gate> {
     let mut formula = None;
     let mut operands = Vec::new();
@@ -265,25 +262,6 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Gate
     Ok(gate)
 }
 
-/// Parse a CCF (Common Cause Failure) group from XML
-///
-/// Parses `<define-CCF-group name="CCF1" model="beta-factor">...</define-CCF-group>`
-///
-/// # Expected XML structure
-/// ```xml
-/// <define-CCF-group name="Pumps" model="beta-factor">
-///   <members>
-///     <basic-event name="Pump1"/>
-///     <basic-event name="Pump2"/>
-///   </members>
-///   <distribution>
-///     <float value="0.1"/>
-///   </distribution>
-///   <factor level="2">
-///     <float value="0.2"/>
-///   </factor>
-/// </define-CCF-group>
-/// ```
 pub fn parse_ccf_group<R: BufRead>(
     reader: &mut Reader<R>,
     name: &str,
@@ -300,7 +278,6 @@ pub fn parse_ccf_group<R: BufRead>(
                 let tag_name = e.name();
                 match tag_name.as_ref() {
                     b"basic-event" => {
-                        // Parse member basic event name
                         for attr in e.attributes() {
                             let attr = attr.map_err(|e| {
                                 MefError::Validity(format!("Invalid attribute: {}", e))
@@ -318,7 +295,6 @@ pub fn parse_ccf_group<R: BufRead>(
                         }
                     }
                     b"float" => {
-                        // Parse float value (for distribution or factor)
                         for attr in e.attributes() {
                             let attr = attr.map_err(|e| {
                                 MefError::Validity(format!("Invalid attribute: {}", e))
@@ -336,8 +312,6 @@ pub fn parse_ccf_group<R: BufRead>(
                                     ))
                                 })?;
 
-                                // Check if we're in distribution or factor context
-                                // We'll track this based on whether we've seen distribution yet
                                 if distribution_value.is_none() && factors.is_empty() {
                                     distribution_value = Some(value);
                                 } else {
@@ -346,11 +320,7 @@ pub fn parse_ccf_group<R: BufRead>(
                             }
                         }
                     }
-                    b"factor" => {
-                        // Factor element - the float will be parsed in the next iteration
-                        // We can extract the level attribute here if needed
-                        // For now, we just parse factors in order
-                    }
+                    b"factor" => {}
                     _ => {}
                 }
             }
@@ -378,7 +348,6 @@ pub fn parse_ccf_group<R: BufRead>(
         buf.clear();
     }
 
-    // Validate required elements
     if members.is_empty() {
         return Err(MefError::Validity(format!(
             "CCF group {} must have at least one member",
@@ -387,7 +356,6 @@ pub fn parse_ccf_group<R: BufRead>(
         .into());
     }
 
-    // Create the appropriate CCF model based on model_type
     let model = match model_type.to_lowercase().as_str() {
         "beta-factor" => {
             if factors.is_empty() {
@@ -407,7 +375,10 @@ pub fn parse_ccf_group<R: BufRead>(
                 ))
                 .into());
             }
-            CcfModel::AlphaFactor(factors)
+            CcfModel::AlphaFactor {
+                factors,
+                scheme: TestingScheme::NonStaggered,
+            }
         }
         "mgl" => {
             if factors.is_empty() {
@@ -438,10 +409,8 @@ pub fn parse_ccf_group<R: BufRead>(
         }
     };
 
-    // Create CCF group
     let mut ccf_group = CcfGroup::new(name, members, model)?;
 
-    // Add distribution if present
     if let Some(dist_value) = distribution_value {
         ccf_group = ccf_group.with_distribution(dist_value.to_string());
     }
@@ -624,7 +593,6 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 mod tests {
     use super::*;
 
-    // T116-T118: parse_element() tests
     #[test]
     fn test_parse_element_basic() {
         let xml = r#"<define-basic-event name="E1"><float value="0.5"/></define-basic-event>"#;
@@ -683,7 +651,6 @@ mod tests {
         }
     }
 
-    // T119-T121: parse_gate() tests
     #[test]
     fn test_parse_gate_and() {
         let xml = r#"<define-gate name="G1"><and><basic-event name="E1"/><basic-event name="E2"/></and></define-gate>"#;
@@ -746,7 +713,6 @@ mod tests {
         }
     }
 
-    // T122-T124: parse_fault_tree() tests
     #[test]
     fn test_parse_fault_tree_simple_and() {
         let xml = r#"<?xml version="1.0"?>
@@ -843,8 +809,6 @@ mod tests {
         assert!(matches!(gate.formula(), Formula::Xor));
     }
 
-    // T261: CCF parsing tests
-
     #[test]
     fn test_parse_ccf_beta_factor() {
         let xml = r#"<?xml version="1.0"?>
@@ -929,7 +893,9 @@ mod tests {
         assert_eq!(ccf.members.len(), 3);
 
         match &ccf.model {
-            CcfModel::AlphaFactor(alphas) => {
+            CcfModel::AlphaFactor {
+                factors: alphas, ..
+            } => {
                 assert_eq!(alphas.len(), 3);
                 assert_eq!(alphas[0], 0.7);
                 assert_eq!(alphas[1], 0.2);
@@ -962,9 +928,6 @@ mod tests {
       <float value="0.1"/>
     </distribution>
     <factors>
-      <factor level="1">
-        <float value="0.05"/>
-      </factor>
       <factor level="2">
         <float value="0.2"/>
       </factor>
@@ -983,10 +946,9 @@ mod tests {
 
         match &ccf.model {
             CcfModel::Mgl(factors) => {
-                assert_eq!(factors.len(), 3);
-                assert_eq!(factors[0], 0.05);
-                assert_eq!(factors[1], 0.2);
-                assert_eq!(factors[2], 0.1);
+                assert_eq!(factors.len(), 2);
+                assert_eq!(factors[0], 0.2);
+                assert_eq!(factors[1], 0.1);
             }
             _ => panic!("Expected MGL model"),
         }
@@ -1042,7 +1004,6 @@ mod tests {
 
     #[test]
     fn test_parse_ccf_from_beta_factor_xml() {
-        // Test with actual beta_factor_ccf.xml structure
         let xml = r#"<?xml version="1.0"?>
 <opsa-mef>
   <define-fault-tree name="BetaFactorCCF">
@@ -1080,7 +1041,6 @@ mod tests {
 
     #[test]
     fn test_parse_ccf_error_no_model() {
-        // Missing model attribute should error
         let xml = r#"<?xml version="1.0"?>
 <opsa-mef>
   <define-fault-tree name="Test">
@@ -1206,27 +1166,6 @@ mod tests {
     }
 }
 
-/// Parse event tree model from XML
-///
-/// This is a simplified event tree parser that extracts:
-/// - Model with fault trees
-/// - Initiating events  
-/// - Event trees with functional events and sequences
-///
-/// # Example XML structure
-/// ```xml
-/// <opsa-mef>
-///   <define-fault-tree name="FT1">...</define-fault-tree>
-///   <define-initiating-event name="IE1">
-///     <float value="0.001"/>
-///   </define-initiating-event>
-///   <define-event-tree name="ET1">
-///     <initial-state>
-///       <sequence name="SEQ1"/>
-///     </initial-state>
-///   </define-event-tree>
-/// </opsa-mef>
-/// ```
 pub fn parse_event_tree_model(xml: &str) -> Result<(Model, Vec<InitiatingEvent>, Vec<EventTree>)> {
     let parsed = crate::io::event_tree_parser::parse_event_tree_model_full(xml)?;
     Ok((parsed.model, parsed.initiating_events, parsed.event_trees))

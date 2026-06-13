@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { CcfModelType } from "../ccf-groups";
+import { CcfModelType, CcfTestingScheme } from "../ccf-groups";
 import { BasicEventIdSchema } from "./boolean-logic";
 import type { CcfGroupTable } from "../ccf-groups";
 
 export const CcfModelTypeSchema = z.enum(CcfModelType);
+
+export const CcfTestingSchemeSchema = z.enum(CcfTestingScheme);
 
 export const BetaFactorModelSchema = z.object({
   modelType: z.literal(CcfModelType.BETA_FACTOR),
@@ -24,6 +26,7 @@ export const AlphaFactorModelSchema = z.object({
   modelType: z.literal(CcfModelType.ALPHA_FACTOR),
   alphaFactors: z.record(z.string(), z.number()),
   totalFailureProbability: z.number(),
+  testingScheme: CcfTestingSchemeSchema.optional(),
 });
 
 export const PhiFactorModelSchema = z.object({

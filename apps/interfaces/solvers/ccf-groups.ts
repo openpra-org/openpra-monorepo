@@ -7,6 +7,11 @@ export enum CcfModelType {
   PHI_FACTOR = "PHI_FACTOR",
 }
 
+export enum CcfTestingScheme {
+  NON_STAGGERED = "NON_STAGGERED",
+  STAGGERED = "STAGGERED",
+}
+
 export interface BetaFactorModel {
   modelType: CcfModelType.BETA_FACTOR;
   beta: number;
@@ -26,6 +31,7 @@ export interface AlphaFactorModel {
   modelType: CcfModelType.ALPHA_FACTOR;
   alphaFactors: Record<string, number>;
   totalFailureProbability: number;
+  testingScheme?: CcfTestingScheme;
 }
 
 export interface PhiFactorModel {

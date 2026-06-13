@@ -146,6 +146,13 @@ pub struct BasicEventBindingTable {
     pub house_event_states: Vec<HouseEventStateBinding>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CcfTestingScheme {
+    #[default]
+    NonStaggered,
+    Staggered,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum CcfParameterModel {
     BetaFactor {
@@ -162,6 +169,7 @@ pub enum CcfParameterModel {
     AlphaFactor {
         alpha_factors: BTreeMap<String, f64>,
         total_failure_probability: f64,
+        testing_scheme: Option<CcfTestingScheme>,
     },
     PhiFactor {
         phi_factors: BTreeMap<String, f64>,

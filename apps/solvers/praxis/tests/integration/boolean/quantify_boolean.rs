@@ -1,7 +1,8 @@
 use praxis::boolean::contract::{
     Approximation, BasicEventBinding, BasicEventBindingTable, BasicEventId, BooleanModel,
-    BooleanNode, BooleanOperator, BooleanSequence, BooleanTree, CcfGroupTable, EndStateNode,
-    NodeId, ParameterDistribution, QuantificationSettings, SolverTarget,
+    BooleanNode, BooleanOperator, BooleanSequence, BooleanTree, CcfGroup, CcfGroupTable,
+    CcfParameterModel, EndStateNode, NodeId, ParameterDistribution, QuantificationSettings,
+    SolverTarget,
 };
 use praxis::boolean::quantify::quantify;
 
@@ -419,4 +420,55 @@ fn sil_band_derives_from_probability() {
     assert_eq!(sils.len(), 1);
     assert_eq!(sils[0].sil_band, Some(3));
     assert!((sils[0].average_probability.unwrap() - 5e-4).abs() < 1e-15);
+}
+
+#[test]
+fn ccf_beta_factor_raises_and_gate_probability() {
+    let mut model = BooleanModel {
+        id: 1,
+        ..Default::default()
+    };
+    model
+        .nodes
+        .insert(1, gate(1, BooleanOperator::And, vec![2, 3]));
+    model.nodes.insert(2, basic(2, 10));
+    model.nodes.insert(3, basic(3, 11));
+    model.fault_trees.push(fault_tree_entry(100, 1));
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![binding(10, 0.1), binding(11, 0.1)],
+        ..Default::default()
+    };
+    let ccf = CcfGroupTable {
+        id: 1,
+        boolean_model_ref: 1,
+        groups: vec![CcfGroup {
+            id: 5,
+            name: None,
+            member_basic_event_ids: vec![10, 11],
+            model: CcfParameterModel::BetaFactor {
+                beta: 0.1,
+                total_failure_probability: 0.1,
+            },
+            data_analysis_ccf_parameter_ref: None,
+        }],
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        ccf: Some(true),
+        ..Default::default()
+    };
+
+    let result = quantify(&model, &bindings, &ccf, &settings).unwrap();
+    let probability = result.fault_trees.unwrap()[0]
+        .top_event_probability
+        .clone()
+        .unwrap();
+
+    let common = 0.01;
+    let indep = 0.09;
+    let expected = common + indep * indep - common * indep * indep;
+    assert!((probability.value - expected).abs() < 1e-9);
+
+    assert!(probability.value > 0.018);
 }

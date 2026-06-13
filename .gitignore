@@ -107,3 +107,6 @@ apps/solvers/xfta/XFTA.pdf
 /docs/public/api/cpp/
 /docs/public/api/rust/
 /docs/.tmp/
+
+# Local one-off comment-removal utility (not part of the codebase)
+/strip-comments.mjs

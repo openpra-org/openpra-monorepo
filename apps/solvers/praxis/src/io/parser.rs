@@ -1,5 +1,7 @@
-use quick_xml::events::Event;
+use quick_xml::events::{BytesStart, Event};
+use quick_xml::name::QName;
 use quick_xml::Reader;
+use std::collections::HashMap;
 use std::io::BufRead;
 
 use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
@@ -9,6 +11,8 @@ use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
 use crate::core::model::Model;
 use crate::error::{MefError, Result};
+use crate::expression::expr::{inverse_normal_cdf, LOGNORMAL_EF_QUANTILE};
+use crate::expression::{EvalContext, Expr};
 
 #[derive(Debug)]
 pub enum ParsedInput {
@@ -66,62 +70,462 @@ pub fn parse_any_mef(xml: &str) -> Result<ParsedInput> {
 }
 
 pub fn parse_element<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<BasicEvent> {
-    let mut probability = None;
-    let mut buf = Vec::new();
+    let value = parse_named_expression(reader, "define-basic-event")?;
+    let empty = HashMap::new();
+    let ctx = EvalContext::constant(&empty, 1.0);
+    let nominal = value.evaluate(&ctx)?;
+    build_basic_event(name, nominal, value)
+}
 
+fn build_basic_event(name: &str, nominal: f64, value: Expr) -> Result<BasicEvent> {
+    let clamped = nominal.clamp(0.0, 1.0);
+    if matches!(value, Expr::Constant(_)) {
+        BasicEvent::new(name.to_string(), clamped)
+    } else {
+        BasicEvent::with_value(name.to_string(), clamped, value)
+    }
+}
+
+fn qname_string(name: QName) -> Result<String> {
+    Ok(std::str::from_utf8(name.as_ref())
+        .map_err(|_| MefError::Validity("invalid UTF-8 in element name".to_string()))?
+        .to_string())
+}
+
+fn owned_attrs(element: &BytesStart) -> Result<Vec<(String, String)>> {
+    let mut out = Vec::new();
+    for attr in element.attributes() {
+        let attr = attr.map_err(|err| MefError::Validity(format!("invalid attribute: {}", err)))?;
+        let key = std::str::from_utf8(attr.key.as_ref())
+            .map_err(|_| MefError::Validity("invalid UTF-8 in attribute name".to_string()))?
+            .to_string();
+        let value = std::str::from_utf8(&attr.value)
+            .map_err(|_| MefError::Validity("invalid UTF-8 in attribute value".to_string()))?
+            .to_string();
+        out.push((key, value));
+    }
+    Ok(out)
+}
+
+fn find_attr<'a>(attrs: &'a [(String, String)], key: &str) -> Option<&'a str> {
+    attrs
+        .iter()
+        .find(|(k, _)| k == key)
+        .map(|(_, v)| v.as_str())
+}
+
+fn attr_f64(attrs: &[(String, String)], key: &str, element: &str) -> Result<f64> {
+    let raw = find_attr(attrs, key).ok_or_else(|| {
+        MefError::Validity(format!("<{}> is missing the '{}' attribute", element, key))
+    })?;
+    raw.parse::<f64>().map_err(|_| {
+        MefError::Validity(format!(
+            "<{}> has an invalid {} value '{}'",
+            element, key, raw
+        ))
+        .into()
+    })
+}
+
+fn attr_str<'a>(attrs: &'a [(String, String)], key: &str, element: &str) -> Result<&'a str> {
+    find_attr(attrs, key).ok_or_else(|| {
+        MefError::Validity(format!("<{}> is missing the '{}' attribute", element, key)).into()
+    })
+}
+
+fn take_one(mut children: Vec<Expr>, element: &str) -> Result<Box<Expr>> {
+    if children.len() != 1 {
+        return Err(
+            MefError::Validity(format!("<{}> requires exactly one argument", element)).into(),
+        );
+    }
+    Ok(Box::new(children.pop().unwrap()))
+}
+
+fn take_two(mut children: Vec<Expr>, element: &str) -> Result<(Box<Expr>, Box<Expr>)> {
+    if children.len() != 2 {
+        return Err(
+            MefError::Validity(format!("<{}> requires exactly two arguments", element)).into(),
+        );
+    }
+    let second = Box::new(children.pop().unwrap());
+    let first = Box::new(children.pop().unwrap());
+    Ok((first, second))
+}
+
+fn take_three(mut children: Vec<Expr>, element: &str) -> Result<(Box<Expr>, Box<Expr>, Box<Expr>)> {
+    if children.len() != 3 {
+        return Err(
+            MefError::Validity(format!("<{}> requires exactly three arguments", element)).into(),
+        );
+    }
+    let third = Box::new(children.pop().unwrap());
+    let second = Box::new(children.pop().unwrap());
+    let first = Box::new(children.pop().unwrap());
+    Ok((first, second, third))
+}
+
+type FourArguments = (Box<Expr>, Box<Expr>, Box<Expr>, Box<Expr>);
+
+fn take_four(mut children: Vec<Expr>, element: &str) -> Result<FourArguments> {
+    if children.len() != 4 {
+        return Err(
+            MefError::Validity(format!("<{}> requires exactly four arguments", element)).into(),
+        );
+    }
+    let fourth = Box::new(children.pop().unwrap());
+    let third = Box::new(children.pop().unwrap());
+    let second = Box::new(children.pop().unwrap());
+    let first = Box::new(children.pop().unwrap());
+    Ok((first, second, third, fourth))
+}
+
+fn require_nonempty(children: Vec<Expr>, element: &str) -> Result<Vec<Expr>> {
+    if children.is_empty() {
+        return Err(
+            MefError::Validity(format!("<{}> requires at least one argument", element)).into(),
+        );
+    }
+    Ok(children)
+}
+
+fn make_expr(name: &str, attrs: &[(String, String)], children: Vec<Expr>) -> Result<Expr> {
+    match name {
+        "float" | "int" => Ok(Expr::Constant(attr_f64(attrs, "value", name)?)),
+        "bool" => {
+            let raw = attr_str(attrs, "value", name)?;
+            let truth = matches!(raw, "true" | "1");
+            Ok(Expr::Constant(if truth { 1.0 } else { 0.0 }))
+        }
+        "parameter" => Ok(Expr::Parameter(attr_str(attrs, "name", name)?.to_string())),
+        "system-mission-time" => Ok(Expr::MissionTime),
+        "pi" => Ok(Expr::Pi),
+        "raw-data" => rawdata_leaf(attrs),
+
+        "add" => Ok(Expr::Add(require_nonempty(children, name)?)),
+        "sub" => Ok(Expr::Sub(require_nonempty(children, name)?)),
+        "mul" => Ok(Expr::Mul(require_nonempty(children, name)?)),
+        "div" => Ok(Expr::Div(require_nonempty(children, name)?)),
+        "min" => Ok(Expr::Min(require_nonempty(children, name)?)),
+        "max" => Ok(Expr::Max(require_nonempty(children, name)?)),
+        "mean" => Ok(Expr::Mean(require_nonempty(children, name)?)),
+        "pow" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Pow(a, b))
+        }
+        "mod" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Mod(a, b))
+        }
+
+        "neg" => Ok(Expr::Neg(take_one(children, name)?)),
+        "abs" => Ok(Expr::Abs(take_one(children, name)?)),
+        "sqrt" => Ok(Expr::Sqrt(take_one(children, name)?)),
+        "exp" => Ok(Expr::Exp(take_one(children, name)?)),
+        "ln" => Ok(Expr::Ln(take_one(children, name)?)),
+        "log10" => Ok(Expr::Log10(take_one(children, name)?)),
+        "sin" => Ok(Expr::Sin(take_one(children, name)?)),
+        "cos" => Ok(Expr::Cos(take_one(children, name)?)),
+        "tan" => Ok(Expr::Tan(take_one(children, name)?)),
+        "asin" => Ok(Expr::Asin(take_one(children, name)?)),
+        "acos" => Ok(Expr::Acos(take_one(children, name)?)),
+        "atan" => Ok(Expr::Atan(take_one(children, name)?)),
+        "sinh" => Ok(Expr::Sinh(take_one(children, name)?)),
+        "cosh" => Ok(Expr::Cosh(take_one(children, name)?)),
+        "tanh" => Ok(Expr::Tanh(take_one(children, name)?)),
+        "floor" => Ok(Expr::Floor(take_one(children, name)?)),
+        "ceil" => Ok(Expr::Ceil(take_one(children, name)?)),
+
+        "and" => Ok(Expr::And(require_nonempty(children, name)?)),
+        "or" => Ok(Expr::Or(require_nonempty(children, name)?)),
+        "not" => Ok(Expr::Not(take_one(children, name)?)),
+        "eq" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Eq(a, b))
+        }
+        "ne" | "neq" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Ne(a, b))
+        }
+        "lt" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Lt(a, b))
+        }
+        "gt" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Gt(a, b))
+        }
+        "le" | "leq" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Le(a, b))
+        }
+        "ge" | "geq" => {
+            let (a, b) = take_two(children, name)?;
+            Ok(Expr::Ge(a, b))
+        }
+        "ite" | "if" => {
+            let (a, b, c) = take_three(children, name)?;
+            Ok(Expr::Ite(a, b, c))
+        }
+
+        "exponential" => {
+            let (lambda, time) = take_two(children, name)?;
+            Ok(Expr::Exponential { lambda, time })
+        }
+        "GLM" | "glm" => {
+            let (gamma, lambda, mu, time) = take_four(children, name)?;
+            Ok(Expr::Glm {
+                gamma,
+                lambda,
+                mu,
+                time,
+            })
+        }
+        "Weibull" | "weibull" => {
+            let (scale, shape, t0, time) = take_four(children, name)?;
+            Ok(Expr::Weibull {
+                scale,
+                shape,
+                t0,
+                time,
+            })
+        }
+
+        "uniform-deviate" => {
+            let (lower, upper) = take_two(children, name)?;
+            Ok(Expr::UniformDeviate { lower, upper })
+        }
+        "normal-deviate" => {
+            let (mean, sigma) = take_two(children, name)?;
+            Ok(Expr::NormalDeviate { mean, sigma })
+        }
+        "lognormal-deviate" => lognormal_deviate_expr(children),
+        "gamma-deviate" => {
+            let (shape, rate) = take_two(children, name)?;
+            Ok(Expr::GammaDeviate { shape, rate })
+        }
+        "beta-deviate" => {
+            let (alpha, beta) = take_two(children, name)?;
+            Ok(Expr::BetaDeviate { alpha, beta })
+        }
+        "triangular-deviate" => {
+            let (lower, mode, upper) = take_three(children, name)?;
+            Ok(Expr::TriangularDeviate { lower, mode, upper })
+        }
+
+        "histogram" => Err(MefError::Validity(
+            "<histogram> in XML is not yet supported; supply it through the Boolean contract expression form".to_string(),
+        )
+        .into()),
+
+        other => Err(
+            MefError::Validity(format!("unsupported expression element <{}>", other)).into(),
+        ),
+    }
+}
+
+fn lognormal_deviate_expr(children: Vec<Expr>) -> Result<Expr> {
+    if children.len() != 2 && children.len() != 3 {
+        return Err(MefError::Validity(
+            "<lognormal-deviate> requires (mean, error-factor) or (mean, error-factor, level)"
+                .to_string(),
+        )
+        .into());
+    }
+    let level = if children.len() == 3 {
+        let empty = HashMap::new();
+        let ctx = EvalContext::constant(&empty, 1.0);
+        children[2].evaluate(&ctx)?
+    } else {
+        0.95
+    };
+    let z = if (level - 0.95).abs() < 1e-12 {
+        LOGNORMAL_EF_QUANTILE
+    } else {
+        inverse_normal_cdf(level)
+    };
+    let mean = children[0].clone();
+    let error_factor = children[1].clone();
+    let sigma = Expr::Div(vec![Expr::Ln(Box::new(error_factor)), Expr::Constant(z)]);
+    let mu = Expr::Sub(vec![
+        Expr::Ln(Box::new(mean)),
+        Expr::Div(vec![
+            Expr::Mul(vec![sigma.clone(), sigma.clone()]),
+            Expr::Constant(2.0),
+        ]),
+    ]);
+    Ok(Expr::LognormalDeviate {
+        mu: Box::new(mu),
+        sigma: Box::new(sigma),
+    })
+}
+
+fn rawdata_leaf(attrs: &[(String, String)]) -> Result<Expr> {
+    let failures = attr_f64(attrs, "failures", "raw-data")?;
+    let prior = match find_attr(attrs, "prior") {
+        Some("uniform") => 1.0,
+        Some("jeffreys") | None => 0.5,
+        Some(other) => {
+            return Err(MefError::Validity(format!("unknown raw-data prior '{}'", other)).into())
+        }
+    };
+    if let Some(raw) = find_attr(attrs, "demands") {
+        let demands = raw.parse::<f64>().map_err(|_| {
+            MefError::Validity(format!("raw-data has an invalid demands value '{}'", raw))
+        })?;
+        if failures > demands {
+            return Err(
+                MefError::Validity("raw-data: failures cannot exceed demands".to_string()).into(),
+            );
+        }
+        Ok(Expr::beta(failures + prior, demands - failures + prior))
+    } else if let Some(raw) = find_attr(attrs, "hours") {
+        let hours = raw.parse::<f64>().map_err(|_| {
+            MefError::Validity(format!("raw-data has an invalid hours value '{}'", raw))
+        })?;
+        if hours <= 0.0 {
+            return Err(MefError::Validity(
+                "raw-data: exposure hours must be positive".to_string(),
+            )
+            .into());
+        }
+        Ok(Expr::gamma(failures + prior, hours))
+    } else {
+        Err(MefError::Validity("raw-data requires either 'demands' or 'hours'".to_string()).into())
+    }
+}
+
+fn is_metadata(name: &str) -> bool {
+    matches!(name, "label" | "attributes" | "attribute")
+}
+
+fn skip_subtree<R: BufRead>(reader: &mut Reader<R>, tag: &str) -> Result<()> {
+    let mut depth = 1usize;
+    let mut buf = Vec::new();
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) if e.name().as_ref() == b"float" => {
-                for attr in e.attributes() {
-                    let attr = attr.map_err(|e| {
-                        MefError::Validity(format!("Invalid attribute in {}: {}", name, e))
-                    })?;
-
-                    if attr.key.as_ref() == b"value" {
-                        let value_str = std::str::from_utf8(&attr.value).map_err(|_| {
-                            MefError::Validity(format!(
-                                "Invalid UTF-8 in value attribute for {}",
-                                name
-                            ))
-                        })?;
-
-                        probability = Some(value_str.parse::<f64>().map_err(|_| {
-                            MefError::Validity(format!(
-                                "Invalid probability value '{}' for {}",
-                                value_str, name
-                            ))
-                        })?);
+            Ok(Event::Start(e)) => {
+                if qname_string(e.name())? == tag {
+                    depth += 1;
+                }
+            }
+            Ok(Event::End(e)) => {
+                if qname_string(e.name())? == tag {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
                     }
                 }
             }
-            Ok(Event::End(e)) if e.name().as_ref() == b"define-basic-event" => {
-                break;
+            Ok(Event::Eof) => {
+                return Err(
+                    MefError::Validity(format!("unexpected EOF while skipping <{}>", tag)).into(),
+                );
+            }
+            Err(e) => {
+                return Err(MefError::Validity(format!(
+                    "XML parse error while skipping <{}>: {}",
+                    tag, e
+                ))
+                .into());
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+    Ok(())
+}
+
+fn read_expr_children<R: BufRead>(reader: &mut Reader<R>, parent: &str) -> Result<Vec<Expr>> {
+    let mut children = Vec::new();
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) => {
+                let name = qname_string(e.name())?;
+                let attrs = owned_attrs(&e)?;
+                children.push(make_expr(&name, &attrs, Vec::new())?);
+            }
+            Ok(Event::Start(e)) => {
+                let name = qname_string(e.name())?;
+                let attrs = owned_attrs(&e)?;
+                let nested = read_expr_children(reader, &name)?;
+                children.push(make_expr(&name, &attrs, nested)?);
+            }
+            Ok(Event::End(e)) => {
+                if qname_string(e.name())? == parent {
+                    break;
+                }
             }
             Ok(Event::Eof) => {
                 return Err(MefError::Validity(format!(
-                    "Unexpected EOF while parsing basic event {}",
-                    name
+                    "unexpected EOF inside expression <{}>",
+                    parent
+                ))
+                .into());
+            }
+            Err(e) => {
+                return Err(MefError::Validity(format!(
+                    "XML parse error in expression <{}>: {}",
+                    parent, e
+                ))
+                .into());
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+    Ok(children)
+}
+
+fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> Result<Expr> {
+    let mut value: Option<Expr> = None;
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) => {
+                let name = qname_string(e.name())?;
+                if !is_metadata(&name) && value.is_none() {
+                    let attrs = owned_attrs(&e)?;
+                    value = Some(make_expr(&name, &attrs, Vec::new())?);
+                }
+            }
+            Ok(Event::Start(e)) => {
+                let name = qname_string(e.name())?;
+                if is_metadata(&name) {
+                    skip_subtree(reader, &name)?;
+                } else if value.is_none() {
+                    let attrs = owned_attrs(&e)?;
+                    let nested = read_expr_children(reader, &name)?;
+                    value = Some(make_expr(&name, &attrs, nested)?);
+                } else {
+                    skip_subtree(reader, &name)?;
+                }
+            }
+            Ok(Event::End(e)) => {
+                if qname_string(e.name())? == closing {
+                    break;
+                }
+            }
+            Ok(Event::Eof) => {
+                return Err(MefError::Validity(format!(
+                    "unexpected EOF while parsing <{}>",
+                    closing
                 ))
                 .into());
             }
             Err(e) => {
                 return Err(
-                    MefError::Validity(format!("XML parse error in {}: {}", name, e)).into(),
+                    MefError::Validity(format!("XML parse error in <{}>: {}", closing, e)).into(),
                 );
             }
             _ => {}
         }
         buf.clear();
     }
-
-    let prob = probability.ok_or_else(|| {
-        MefError::Validity(format!(
-            "Missing probability value for basic event {}",
-            name
-        ))
-    })?;
-
-    BasicEvent::new(name.to_string(), prob)
+    value.ok_or_else(|| {
+        MefError::Validity(format!("<{}> does not contain a value expression", closing)).into()
+    })
 }
 
 pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Gate> {
@@ -425,7 +829,8 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
     let mut ft_name = None;
     let mut top_gate = None;
     let mut gates = Vec::new();
-    let mut basic_events = Vec::new();
+    let mut basic_event_values: Vec<(String, Expr)> = Vec::new();
+    let mut parameters: Vec<(String, Expr)> = Vec::new();
     let mut ccf_groups = Vec::new();
     let mut buf = Vec::new();
 
@@ -502,9 +907,37 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                         }
 
                         if let Some(name) = event_name {
-                            let event = parse_element(&mut reader, &name)?;
-                            basic_events.push(event);
+                            let value = parse_named_expression(&mut reader, "define-basic-event")?;
+                            basic_event_values.push((name, value));
                         }
+                    }
+                    b"define-parameter" => {
+                        let mut parameter_name = None;
+                        for attr in e.attributes() {
+                            let attr = attr.map_err(|e| {
+                                MefError::Validity(format!("Invalid attribute: {}", e))
+                            })?;
+
+                            if attr.key.as_ref() == b"name" {
+                                parameter_name = Some(
+                                    std::str::from_utf8(&attr.value)
+                                        .map_err(|_| {
+                                            MefError::Validity(
+                                                "Invalid UTF-8 in parameter name".to_string(),
+                                            )
+                                        })?
+                                        .to_string(),
+                                );
+                            }
+                        }
+
+                        let name = parameter_name.ok_or_else(|| {
+                            MefError::Validity(
+                                "define-parameter must have a 'name' attribute".to_string(),
+                            )
+                        })?;
+                        let value = parse_named_expression(&mut reader, "define-parameter")?;
+                        parameters.push((name, value));
                     }
                     b"define-CCF-group" => {
                         let mut ccf_name = None;
@@ -577,7 +1010,26 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
         ft.add_gate(gate)?;
     }
 
-    for event in basic_events {
+    let mut parameter_map = HashMap::new();
+    for (name, value) in &parameters {
+        parameter_map.insert(name.clone(), value.clone());
+    }
+
+    let mission_time = ft.mission_time();
+    let mut built_events = Vec::with_capacity(basic_event_values.len());
+    {
+        let ctx = EvalContext::constant(&parameter_map, mission_time);
+        for (name, value) in basic_event_values {
+            let nominal = value.evaluate(&ctx)?;
+            built_events.push(build_basic_event(&name, nominal, value)?);
+        }
+    }
+
+    for (name, value) in parameters {
+        ft.set_parameter(name, value);
+    }
+
+    for event in built_events {
         ft.add_basic_event(event)?;
     }
 
@@ -1163,6 +1615,90 @@ mod tests {
             }
             _ => panic!("Expected PhiFactor model"),
         }
+    }
+
+    fn single_event_fault_tree(event_body: &str, extra: &str) -> String {
+        format!(
+            r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="ft">
+    <define-gate name="top">
+      <or>
+        <basic-event name="A"/>
+      </or>
+    </define-gate>
+    <define-basic-event name="A">{event_body}</define-basic-event>
+    {extra}
+  </define-fault-tree>
+</opsa-mef>"#
+        )
+    }
+
+    #[test]
+    fn parses_exponential_failure_model() {
+        let xml = single_event_fault_tree(
+            r#"<exponential><float value="0.001"/><float value="100.0"/></exponential>"#,
+            "",
+        );
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        let expected = 1.0 - (-0.001f64 * 100.0).exp();
+        assert!((event.probability() - expected).abs() < 1e-9);
+        assert!(event.value().is_some());
+    }
+
+    #[test]
+    fn parses_lognormal_deviate_mean_matches_input() {
+        let xml = single_event_fault_tree(
+            r#"<lognormal-deviate><float value="0.01"/><float value="3.0"/></lognormal-deviate>"#,
+            "",
+        );
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        assert!((event.probability() - 0.01).abs() < 1e-9);
+        assert!(event.value().is_some());
+    }
+
+    #[test]
+    fn parses_define_parameter_and_reference() {
+        let xml = single_event_fault_tree(
+            r#"<parameter name="lambda"/>"#,
+            r#"<define-parameter name="lambda"><float value="0.002"/></define-parameter>"#,
+        );
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        assert!((event.probability() - 0.002).abs() < 1e-12);
+        assert!(event.value().is_some());
+        assert!(ft.parameters().contains_key("lambda"));
+    }
+
+    #[test]
+    fn parses_raw_data_jeffreys_posterior_mean() {
+        let xml = single_event_fault_tree(r#"<raw-data failures="2" demands="1000"/>"#, "");
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        assert!((event.probability() - 2.5 / 1001.0).abs() < 1e-12);
+        assert!(event.value().is_some());
+    }
+
+    #[test]
+    fn parses_nested_arithmetic_expression() {
+        let xml =
+            single_event_fault_tree(r#"<mul><float value="0.5"/><float value="0.2"/></mul>"#, "");
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        assert!((event.probability() - 0.1).abs() < 1e-12);
+        assert!(event.value().is_some());
+    }
+
+    #[test]
+    fn skips_label_before_expression() {
+        let xml =
+            single_event_fault_tree(r#"<label>a description</label><float value="0.3"/>"#, "");
+        let ft = parse_fault_tree(&xml).unwrap();
+        let event = ft.get_basic_event("A").unwrap();
+        assert_eq!(event.probability(), 0.3);
+        assert!(event.value().is_none());
     }
 }
 

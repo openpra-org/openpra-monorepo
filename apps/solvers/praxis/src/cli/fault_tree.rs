@@ -1,7 +1,5 @@
 use crate::cli::args::{Algorithm, Analysis, Approximation, Args, Backend, Vrt as CliVrt};
-use crate::cli::metadata::{
-    display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata,
-};
+use crate::cli::metadata::{display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata};
 use crate::cli::optimize::{
     estimate_fault_tree_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
@@ -9,8 +7,8 @@ use praxis::algorithms::bdd_engine::Bdd as BddEngine;
 use praxis::algorithms::bdd_pdag::BddPdag;
 use praxis::algorithms::mocus::{CutSet, Mocus};
 use praxis::algorithms::zbdd_engine::ZbddEngine;
-use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
 use praxis::mc::core::{ConvergenceSettings, VrtMode, VrtSettings};
+use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
 use praxis::mc::DpMonteCarloAnalysis;
 
 #[cfg(feature = "cuda")]
@@ -37,10 +35,6 @@ pub enum FaultTreePreOutcome {
     ExitOk,
     Continue(Box<FaultTreePreState>),
 }
-
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
 
 fn build_pdag_and_bdd(
     fault_tree: &praxis::core::fault_tree::FaultTree,
@@ -75,12 +69,7 @@ fn enumerate_cut_sets(
         .collect()
 }
 
-fn print_cut_sets_summary(
-    label: &str,
-    ft_id: &str,
-    cut_sets: &[CutSet],
-    verbosity_level: u32,
-) {
+fn print_cut_sets_summary(label: &str, ft_id: &str, cut_sets: &[CutSet], verbosity_level: u32) {
     println!("\n=== {} Minimal Cut Sets ===", label);
     println!("Fault Tree: {}", ft_id);
     println!("Total cut sets: {}", cut_sets.len());
@@ -108,14 +97,6 @@ fn print_cut_sets_summary(
     }
     println!("==============================\n");
 }
-
-// ---------------------------------------------------------------------------
-// ZBDD Workflow 1 — no approximation, no limits upfront
-//
-// Sweep BDD → cache exact probability.
-// Build full ZBDD → show metadata → prompt user for limits.
-// Filter existing ZBDD in-graph → materialize last.
-// ---------------------------------------------------------------------------
 
 fn zbdd_wf1_no_approx_no_limits(
     cli: &Args,
@@ -146,19 +127,16 @@ fn zbdd_wf1_no_approx_no_limits(
     let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag);
 
     if cli.print || verbosity_level > 0 {
-        print_cut_sets_summary("ZBDD", fault_tree.element().id(), &cut_sets, verbosity_level);
+        print_cut_sets_summary(
+            "ZBDD",
+            fault_tree.element().id(),
+            &cut_sets,
+            verbosity_level,
+        );
     }
 
     Ok((cut_sets, exact_prob))
 }
-
-// ---------------------------------------------------------------------------
-// ZBDD Workflow 2 — approximation, no limits upfront
-//
-// Build full ZBDD → compute approximate probability → show metadata
-// → prompt for limits → filter in-graph → recompute approximate probability
-// → materialize last.
-// ---------------------------------------------------------------------------
 
 fn zbdd_wf2_approx_no_limits(
     cli: &Args,
@@ -195,19 +173,16 @@ fn zbdd_wf2_approx_no_limits(
     let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag);
 
     if cli.print || verbosity_level > 0 {
-        print_cut_sets_summary("ZBDD", fault_tree.element().id(), &cut_sets, verbosity_level);
+        print_cut_sets_summary(
+            "ZBDD",
+            fault_tree.element().id(),
+            &cut_sets,
+            verbosity_level,
+        );
     }
 
     Ok((cut_sets, final_prob))
 }
-
-// ---------------------------------------------------------------------------
-// ZBDD Workflow 3 — no approximation, limits upfront
-//
-// Sweep BDD → cache exact probability.
-// Build ZBDD with on-the-fly discard (limits baked into conversion).
-// Materialize last. No metadata shown.
-// ---------------------------------------------------------------------------
 
 fn zbdd_wf3_no_approx_limits(
     cli: &Args,
@@ -229,19 +204,16 @@ fn zbdd_wf3_no_approx_limits(
     let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag);
 
     if cli.print || verbosity_level > 0 {
-        print_cut_sets_summary("ZBDD", fault_tree.element().id(), &cut_sets, verbosity_level);
+        print_cut_sets_summary(
+            "ZBDD",
+            fault_tree.element().id(),
+            &cut_sets,
+            verbosity_level,
+        );
     }
 
     Ok((cut_sets, exact_prob))
 }
-
-// ---------------------------------------------------------------------------
-// ZBDD Workflow 4 — approximation, limits upfront
-//
-// Build ZBDD with on-the-fly discard (limits baked into conversion).
-// Compute approximate probability from the already-pruned ZBDD.
-// Materialize last. No metadata shown.
-// ---------------------------------------------------------------------------
 
 fn zbdd_wf4_approx_limits(
     cli: &Args,
@@ -264,15 +236,16 @@ fn zbdd_wf4_approx_limits(
     let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag);
 
     if cli.print || verbosity_level > 0 {
-        print_cut_sets_summary("ZBDD", fault_tree.element().id(), &cut_sets, verbosity_level);
+        print_cut_sets_summary(
+            "ZBDD",
+            fault_tree.element().id(),
+            &cut_sets,
+            verbosity_level,
+        );
     }
 
     Ok((cut_sets, approx_prob))
 }
-
-// ---------------------------------------------------------------------------
-// Shared ZBDD utilities
-// ---------------------------------------------------------------------------
 
 fn apply_zbdd_filters(
     zbdd: &mut ZbddEngine,
@@ -301,10 +274,6 @@ fn compute_approx(
         None => f64::NAN,
     }
 }
-
-// ---------------------------------------------------------------------------
-// Main pre-event-tree implementation
-// ---------------------------------------------------------------------------
 
 fn run_pre_event_tree_impl(
     cli: &Args,
@@ -382,7 +351,6 @@ fn run_pre_event_tree_impl(
             basic_events_count: fault_tree.basic_events().len(),
         };
 
-    // BDD exact probability
     if cli.algorithm == Algorithm::Bdd {
         if verbose {
             eprintln!("Computing top event probability using BDD...");
@@ -416,7 +384,9 @@ fn run_pre_event_tree_impl(
             println!("{}", dot_content);
         }
         if praxis::analysis::visualize::graphviz_available() {
-            let out_path = cli.visualize_out_dir.join(format!("{}.svg", fault_tree.element().id()));
+            let out_path = cli
+                .visualize_out_dir
+                .join(format!("{}.svg", fault_tree.element().id()));
             if let Err(e) = praxis::analysis::visualize::save_svg(&dot_content, &out_path) {
                 eprintln!("Warning: Failed to save SVG visualization: {}", e);
             } else if verbose {
@@ -429,7 +399,6 @@ fn run_pre_event_tree_impl(
 
     let mut computed_cut_sets: Option<Vec<CutSet>> = None;
 
-    // MOCUS cut sets
     let needs_mocus_cut_sets = cli.approximation.is_some()
         || matches!(
             cli.analysis,
@@ -517,7 +486,6 @@ fn run_pre_event_tree_impl(
         }
     }
 
-    // ZBDD — 4 independent workflows dispatched here
     if cli.algorithm == Algorithm::Zbdd {
         if verbose {
             eprintln!("\nRunning ZBDD analysis...");
@@ -576,7 +544,6 @@ fn run_pre_event_tree_impl(
         let _ = pdag;
     }
 
-    // Approximation from MOCUS cut sets (ZBDD handles its own approximation above)
     if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {
         if let Some(ref cut_sets) = computed_cut_sets {
             let mut event_probs: std::collections::HashMap<i32, f64> =
@@ -713,15 +680,16 @@ pub fn run_post_event_tree(
 
         let backend = cli.backend.unwrap_or(Backend::Cpu);
         let auto_cuda_num_trials = !cli.optimize
-            && matches!((cli.iterations, cli.batches, cli.bitpacks_per_batch), (None, None, None))
+            && matches!(
+                (cli.iterations, cli.batches, cli.bitpacks_per_batch),
+                (None, None, None)
+            )
             && matches!(backend, Backend::Cuda);
 
         let explicit_params: Option<RunParams> = if cli.optimize || auto_cuda_num_trials {
             let node_count = estimate_fault_tree_nodes(&fault_tree);
             Some(match backend {
-                Backend::Cpu => {
-                    optimize_run_params_for_cpu(node_count, cli.seed)?
-                }
+                Backend::Cpu => optimize_run_params_for_cpu(node_count, cli.seed)?,
                 Backend::Cuda => {
                     optimize_run_params_for_cuda(cli.num_trials as usize, node_count, cli.seed)?
                 }
@@ -833,7 +801,11 @@ pub fn run_post_event_tree(
                 let result = if vrt.mode == VrtMode::None {
                     mc_analysis.run_cpu_with_watch_and_convergence(cli.watch, convergence)?
                 } else {
-                    mc_analysis.run_cpu_with_watch_convergence_and_vrt(cli.watch, convergence, vrt)?
+                    mc_analysis.run_cpu_with_watch_convergence_and_vrt(
+                        cli.watch,
+                        convergence,
+                        vrt,
+                    )?
                 };
                 if verbose {
                     eprintln!("CPU execution time: {:.3}s", start.elapsed().as_secs_f64());
@@ -856,12 +828,13 @@ pub fn run_post_event_tree(
                             )
                             .into());
                         }
-                        mc_analysis.run_gpu_with_run_params_with_watch_and_convergence::<CudaRuntime>(
-                            &device,
-                            params,
-                            cli.watch,
-                            convergence,
-                        )?
+                        mc_analysis
+                            .run_gpu_with_run_params_with_watch_and_convergence::<CudaRuntime>(
+                                &device,
+                                params,
+                                cli.watch,
+                                convergence,
+                            )?
                     } else {
                         if vrt.mode == VrtMode::None {
                             mc_analysis.run_gpu_with_watch_and_convergence::<CudaRuntime>(
@@ -910,12 +883,13 @@ pub fn run_post_event_tree(
                             )
                             .into());
                         }
-                        mc_analysis.run_gpu_with_run_params_with_watch_and_convergence::<WgpuRuntime>(
-                            &device,
-                            params,
-                            cli.watch,
-                            convergence,
-                        )?
+                        mc_analysis
+                            .run_gpu_with_run_params_with_watch_and_convergence::<WgpuRuntime>(
+                                &device,
+                                params,
+                                cli.watch,
+                                convergence,
+                            )?
                     } else {
                         if vrt.mode == VrtMode::None {
                             mc_analysis.run_gpu_with_watch_and_convergence::<WgpuRuntime>(
@@ -971,9 +945,7 @@ pub fn run_post_event_tree(
             delta: cli.early_stop.then_some(cli.delta),
             burn_in: cli.early_stop.then_some(cli.burn_in),
             confidence: cli.early_stop.then_some(cli.confidence),
-            policy: cli
-                .early_stop
-                .then_some("wald-linear+log10".to_string()),
+            policy: cli.early_stop.then_some("wald-linear+log10".to_string()),
         });
 
         if verbose {
@@ -1009,7 +981,6 @@ pub fn run_post_event_tree(
             println!("======================================\n");
         }
     }
-
 
     if cli.analysis == Analysis::Uncertainty {
         if verbose {
@@ -1135,7 +1106,6 @@ pub fn run_post_event_tree(
             eprintln!("SIL metrics computed successfully");
         }
     }
-
 
     if cli.analysis == Analysis::Ccf
         && !fault_tree.ccf_groups().is_empty()

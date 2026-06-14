@@ -42,10 +42,10 @@ fn test_uncertainty_normal_distributions() {
 fn test_uncertainty_lognormal_distributions() {
     let mut ft = FaultTree::new("LogNormalTest", "TopEvent").unwrap();
 
-    let e1 = BasicEvent::with_value("E1".to_string(), 0.1, Expr::lognormal(0.1_f64.ln(), 0.5))
-        .unwrap();
-    let e2 = BasicEvent::with_value("E2".to_string(), 0.2, Expr::lognormal(0.2_f64.ln(), 0.3))
-        .unwrap();
+    let e1 =
+        BasicEvent::with_value("E1".to_string(), 0.1, Expr::lognormal(0.1_f64.ln(), 0.5)).unwrap();
+    let e2 =
+        BasicEvent::with_value("E2".to_string(), 0.2, Expr::lognormal(0.2_f64.ln(), 0.3)).unwrap();
 
     ft.add_basic_event(e1).unwrap();
     ft.add_basic_event(e2).unwrap();
@@ -173,6 +173,40 @@ fn test_uncertainty_convergence() {
 
     assert!(result_100.num_samples() == 100);
     assert!(result_2000.num_samples() == 2000);
+}
+
+#[test]
+fn test_uncertainty_from_parsed_xml_expressions() {
+    let xml = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="ft">
+    <define-gate name="top">
+      <or>
+        <basic-event name="A"/>
+        <basic-event name="B"/>
+      </or>
+    </define-gate>
+    <define-basic-event name="A">
+      <lognormal-deviate><float value="0.01"/><float value="3.0"/></lognormal-deviate>
+    </define-basic-event>
+    <define-basic-event name="B">
+      <exponential><parameter name="lambda"/><system-mission-time/></exponential>
+    </define-basic-event>
+    <define-parameter name="lambda"><float value="0.001"/></define-parameter>
+  </define-fault-tree>
+</opsa-mef>"#;
+
+    let ft = praxis::io::parser::parse_fault_tree(xml).unwrap();
+
+    let event_a = ft.get_basic_event("A").unwrap();
+    assert!((event_a.probability() - 0.01).abs() < 1e-9);
+    let event_b = ft.get_basic_event("B").unwrap();
+    assert!((event_b.probability() - (1.0 - (-0.001f64).exp())).abs() < 1e-9);
+
+    let result = propagate_uncertainty(&ft, 2000, Some(2024)).unwrap();
+    assert!(result.mean() > 0.0);
+    assert!(result.sigma() > 0.0);
+    assert!(result.error_factor() > 1.0);
 }
 
 #[test]

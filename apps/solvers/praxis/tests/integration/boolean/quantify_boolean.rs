@@ -1,10 +1,12 @@
 use praxis::boolean::contract::{
-    Approximation, BasicEventBinding, BasicEventBindingTable, BasicEventId, BooleanModel,
-    BooleanNode, BooleanOperator, BooleanSequence, BooleanTree, CcfGroup, CcfGroupTable,
-    CcfParameterModel, EndStateNode, NodeId, ParameterDistribution, QuantificationSettings,
-    SolverTarget,
+    Approximation, BasicEventBinding, BasicEventBindingTable, BasicEventId, BasicEventValue,
+    BooleanModel, BooleanNode, BooleanOperator, BooleanSequence, BooleanTree, CcfGroup,
+    CcfGroupTable, CcfParameterModel, EndStateNode, Exposure, NodeId, QuantificationSettings,
+    RateBasis, RawDataPrior, RawDataSpec, SolverTarget, SummaryCentral, SummaryFamily, SummarySpec,
+    SummarySpread,
 };
 use praxis::boolean::quantify::quantify;
+use praxis::expression::Expr;
 
 fn gate(id: NodeId, operator: BooleanOperator, inputs: Vec<NodeId>) -> BooleanNode {
     BooleanNode::Gate {
@@ -31,7 +33,7 @@ fn basic(id: NodeId, basic_event_id: BasicEventId) -> BooleanNode {
 fn binding(basic_event_id: BasicEventId, probability: f64) -> BasicEventBinding {
     BasicEventBinding {
         basic_event_id,
-        point_probability: Some(probability),
+        value: BasicEventValue::Probability(probability),
         ..Default::default()
     }
 }
@@ -372,11 +374,7 @@ fn uncertainty_propagates_normal_distribution() {
         id: 1,
         bindings: vec![BasicEventBinding {
             basic_event_id: 1,
-            point_probability: Some(0.3),
-            distribution: Some(ParameterDistribution::Normal {
-                mean: 0.3,
-                std_dev: 0.05,
-            }),
+            value: BasicEventValue::Expression(Expr::normal(0.3, 0.05)),
             ..Default::default()
         }],
         ..Default::default()
@@ -471,4 +469,155 @@ fn ccf_beta_factor_raises_and_gate_probability() {
     assert!((probability.value - expected).abs() < 1e-9);
 
     assert!(probability.value > 0.018);
+}
+
+fn value_binding(basic_event_id: BasicEventId, value: BasicEventValue) -> BasicEventBinding {
+    BasicEventBinding {
+        basic_event_id,
+        value,
+        ..Default::default()
+    }
+}
+
+fn one_event_model() -> BooleanModel {
+    let mut model = BooleanModel {
+        id: 1,
+        ..Default::default()
+    };
+    model
+        .nodes
+        .insert(1, gate(1, BooleanOperator::Or, vec![2]));
+    model.nodes.insert(2, basic(2, 10));
+    model.fault_trees.push(fault_tree_entry(100, 1));
+    model
+}
+
+fn top_probability(
+    model: &BooleanModel,
+    bindings: &BasicEventBindingTable,
+    settings: &QuantificationSettings,
+) -> f64 {
+    let result = quantify(model, bindings, &CcfGroupTable::default(), settings).unwrap();
+    result.fault_trees.unwrap()[0]
+        .top_event_probability
+        .clone()
+        .unwrap()
+        .value
+}
+
+#[test]
+fn rate_per_hour_resolves_to_exponential() {
+    let model = one_event_model();
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![value_binding(
+            10,
+            BasicEventValue::Rate {
+                rate: 1.0e-3,
+                basis: RateBasis::PerHour,
+                mission_time: None,
+            },
+        )],
+        ..Default::default()
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        mission_time: Some(100.0),
+        ..Default::default()
+    };
+    let p = top_probability(&model, &bindings, &settings);
+    let expected = 1.0 - (-1.0e-3f64 * 100.0).exp();
+    assert!((p - expected).abs() < 1e-9);
+}
+
+#[test]
+fn rate_per_demand_is_point_probability() {
+    let model = one_event_model();
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![value_binding(
+            10,
+            BasicEventValue::Rate {
+                rate: 0.02,
+                basis: RateBasis::PerDemand,
+                mission_time: None,
+            },
+        )],
+        ..Default::default()
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        ..Default::default()
+    };
+    let p = top_probability(&model, &bindings, &settings);
+    assert!((p - 0.02).abs() < 1e-12);
+}
+
+#[test]
+fn summary_mean_error_factor_lognormal_uses_given_mean() {
+    let model = one_event_model();
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![value_binding(
+            10,
+            BasicEventValue::Summary(SummarySpec {
+                central: SummaryCentral::Mean(0.01),
+                spread: SummarySpread::ErrorFactor(3.0),
+                family: SummaryFamily::Lognormal,
+            }),
+        )],
+        ..Default::default()
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        ..Default::default()
+    };
+    let p = top_probability(&model, &bindings, &settings);
+    assert!((p - 0.01).abs() < 1e-9);
+}
+
+#[test]
+fn raw_data_demands_uses_jeffreys_posterior_mean() {
+    let model = one_event_model();
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![value_binding(
+            10,
+            BasicEventValue::RawData(RawDataSpec {
+                failures: 2.0,
+                exposure: Exposure::Demands(1000.0),
+                prior: RawDataPrior::Jeffreys,
+            }),
+        )],
+        ..Default::default()
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        ..Default::default()
+    };
+    let p = top_probability(&model, &bindings, &settings);
+    let expected = (2.0 + 0.5) / (1000.0 + 1.0);
+    assert!((p - expected).abs() < 1e-9);
+}
+
+#[test]
+fn expression_resolves_named_parameter() {
+    let model = one_event_model();
+    let mut parameters = std::collections::HashMap::new();
+    parameters.insert("q".to_string(), Expr::Constant(0.05));
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![value_binding(
+            10,
+            BasicEventValue::Expression(Expr::Parameter("q".to_string())),
+        )],
+        parameters,
+        ..Default::default()
+    };
+    let settings = QuantificationSettings {
+        bdd: Some(true),
+        ..Default::default()
+    };
+    let p = top_probability(&model, &bindings, &settings);
+    assert!((p - 0.05).abs() < 1e-9);
 }

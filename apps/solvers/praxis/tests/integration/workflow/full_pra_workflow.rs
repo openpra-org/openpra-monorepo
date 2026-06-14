@@ -3,7 +3,8 @@ use praxis::algorithms::bdd_pdag::BddPdag;
 use praxis::algorithms::mocus::Mocus;
 use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::analysis::importance::ImportanceAnalysis;
-use praxis::core::event::{BasicEvent, Distribution};
+use praxis::core::event::BasicEvent;
+use praxis::expression::Expr;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
 use praxis::mc::DpMonteCarloAnalysis;
@@ -38,34 +39,22 @@ fn test_full_pra_workflow_comprehensive() {
     ft.add_gate(pump_c_gate).unwrap();
 
     ft.add_basic_event(
-        BasicEvent::with_distribution(
-            "PUMP_A_MOTOR".to_string(),
-            0.01,
-            Distribution::LogNormal(0.01, 0.003),
-        )
-        .unwrap(),
+        BasicEvent::with_value("PUMP_A_MOTOR".to_string(), 0.01, Expr::lognormal(0.01, 0.003))
+            .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_A_VALVE".to_string(), 0.005).unwrap())
         .unwrap();
     ft.add_basic_event(
-        BasicEvent::with_distribution(
-            "PUMP_B_MOTOR".to_string(),
-            0.01,
-            Distribution::LogNormal(0.01, 0.003),
-        )
-        .unwrap(),
+        BasicEvent::with_value("PUMP_B_MOTOR".to_string(), 0.01, Expr::lognormal(0.01, 0.003))
+            .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_B_VALVE".to_string(), 0.005).unwrap())
         .unwrap();
     ft.add_basic_event(
-        BasicEvent::with_distribution(
-            "PUMP_C_TURBINE".to_string(),
-            0.02,
-            Distribution::Normal(0.02, 0.005),
-        )
-        .unwrap(),
+        BasicEvent::with_value("PUMP_C_TURBINE".to_string(), 0.02, Expr::normal(0.02, 0.005))
+            .unwrap(),
     )
     .unwrap();
     ft.add_basic_event(BasicEvent::new("PUMP_C_VALVE".to_string(), 0.005).unwrap())

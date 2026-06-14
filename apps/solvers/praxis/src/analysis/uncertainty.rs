@@ -193,8 +193,9 @@ impl UncertaintyAnalysis {
 /// # Examples
 /// ```
 /// use praxis::core::fault_tree::FaultTree;
-/// use praxis::core::event::{BasicEvent, Distribution};
+/// use praxis::core::event::BasicEvent;
 /// use praxis::core::gate::{Gate, Formula};
+/// use praxis::expression::Expr;
 /// use praxis::analysis::uncertainty::propagate_uncertainty;
 ///
 /// let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
@@ -202,11 +203,7 @@ impl UncertaintyAnalysis {
 /// gate.add_operand("E1".to_string());
 /// ft.add_gate(gate).unwrap();
 ///
-/// let event = BasicEvent::with_distribution(
-///     "E1".to_string(),
-///     0.1,
-///     Distribution::Normal(0.1, 0.02)
-/// ).unwrap();
+/// let event = BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).unwrap();
 /// ft.add_basic_event(event).unwrap();
 ///
 /// let analysis = propagate_uncertainty(&ft, 1000, Some(42)).unwrap();
@@ -217,6 +214,7 @@ pub fn propagate_uncertainty(
     num_trials: usize,
     seed: Option<u64>,
 ) -> Result<UncertaintyAnalysis, PraxisError> {
+    use crate::expression::EvalContext;
     use crate::mc::prng::initialize_rng;
 
     if num_trials == 0 {
@@ -228,14 +226,17 @@ pub fn propagate_uncertainty(
     let mut samples = Vec::with_capacity(num_trials);
     let mut rng = initialize_rng(seed);
 
-    // Run Monte Carlo trials with sampled distributions
+    let ctx = EvalContext::new(
+        fault_tree.parameters(),
+        fault_tree.mission_time(),
+        fault_tree.mission_time(),
+    );
+
     for _ in 0..num_trials {
-        // Create a temporary fault tree with sampled probabilities
         let mut sampled_ft = fault_tree.clone();
 
-        // Sample probability for each basic event
         for (event_id, event) in fault_tree.basic_events() {
-            let sampled_prob = event.sample_probability(&mut rng);
+            let sampled_prob = event.sample_probability(&ctx, &mut rng);
 
             // Update the event in the sampled fault tree
             if let Some(sampled_event) = sampled_ft.get_basic_event_mut(event_id) {
@@ -452,7 +453,8 @@ mod tests {
 
     #[test]
     fn test_propagate_uncertainty_with_distributions() {
-        use crate::core::event::{BasicEvent, Distribution};
+        use crate::core::event::BasicEvent;
+        use crate::expression::Expr;
         use crate::core::fault_tree::FaultTree;
         use crate::core::gate::{Formula, Gate};
 
@@ -464,14 +466,12 @@ mod tests {
         ft.add_gate(gate).unwrap();
 
         ft.add_basic_event(
-            BasicEvent::with_distribution("E1".to_string(), 0.1, Distribution::Normal(0.1, 0.02))
-                .unwrap(),
+            BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).unwrap(),
         )
         .unwrap();
 
         ft.add_basic_event(
-            BasicEvent::with_distribution("E2".to_string(), 0.2, Distribution::Normal(0.2, 0.03))
-                .unwrap(),
+            BasicEvent::with_value("E2".to_string(), 0.2, Expr::normal(0.2, 0.03)).unwrap(),
         )
         .unwrap();
 
@@ -489,7 +489,8 @@ mod tests {
 
     #[test]
     fn test_propagate_uncertainty_uniform_distribution() {
-        use crate::core::event::{BasicEvent, Distribution};
+        use crate::core::event::BasicEvent;
+        use crate::expression::Expr;
         use crate::core::fault_tree::FaultTree;
         use crate::core::gate::{Formula, Gate};
 
@@ -499,8 +500,7 @@ mod tests {
         ft.add_gate(gate).unwrap();
 
         ft.add_basic_event(
-            BasicEvent::with_distribution("E1".to_string(), 0.5, Distribution::Uniform(0.4, 0.6))
-                .unwrap(),
+            BasicEvent::with_value("E1".to_string(), 0.5, Expr::uniform(0.4, 0.6)).unwrap(),
         )
         .unwrap();
 
@@ -526,7 +526,8 @@ mod tests {
 
     #[test]
     fn test_propagate_uncertainty_reproducible() {
-        use crate::core::event::{BasicEvent, Distribution};
+        use crate::core::event::BasicEvent;
+        use crate::expression::Expr;
         use crate::core::fault_tree::FaultTree;
         use crate::core::gate::{Formula, Gate};
 
@@ -536,8 +537,7 @@ mod tests {
         ft.add_gate(gate).unwrap();
 
         ft.add_basic_event(
-            BasicEvent::with_distribution("E1".to_string(), 0.1, Distribution::Normal(0.1, 0.02))
-                .unwrap(),
+            BasicEvent::with_value("E1".to_string(), 0.1, Expr::normal(0.1, 0.02)).unwrap(),
         )
         .unwrap();
 

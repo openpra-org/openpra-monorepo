@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
+use crate::expression::Expr;
+
 pub type NodeId = i64;
 pub type BasicEventId = i64;
 
@@ -69,66 +71,83 @@ pub struct BooleanModel {
     pub house_event_ids: Vec<NodeId>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ParameterDistribution {
-    Lognormal {
-        median: f64,
-        error_factor: f64,
-    },
-    Beta {
-        alpha: f64,
-        beta_param: f64,
-    },
-    Normal {
-        mean: f64,
-        std_dev: f64,
-    },
-    Uniform {
-        lower: f64,
-        upper: f64,
-    },
-    Exponential {
-        failure_rate: f64,
-    },
-    Weibull {
-        scale: f64,
-        shape: f64,
-        location: f64,
-    },
-    Gamma {
-        shape: f64,
-        rate: f64,
-    },
-    LognormalTime {
-        mean: f64,
-        std_dev: f64,
-    },
-    PointEstimate {
-        value: f64,
-    },
-    Binomial {
-        probability: f64,
-        trials: f64,
-    },
-    Poisson {
-        rate: f64,
-    },
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RateBasis {
+    #[default]
+    PerDemand,
+    PerHour,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SummaryCentral {
+    Mean(f64),
+    Median(f64),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SummarySpread {
+    ErrorFactor(f64),
+    StdDev(f64),
+    Percentiles { p05: f64, p95: f64 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum BasicEventValueModel {
+pub enum SummaryFamily {
     #[default]
-    Probability,
-    RatePerHour,
-    RatePerDemand,
+    Lognormal,
+    Normal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SummarySpec {
+    pub central: SummaryCentral,
+    pub spread: SummarySpread,
+    pub family: SummaryFamily,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Exposure {
+    Demands(f64),
+    Hours(f64),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RawDataPrior {
+    #[default]
+    Jeffreys,
+    Uniform,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RawDataSpec {
+    pub failures: f64,
+    pub exposure: Exposure,
+    pub prior: RawDataPrior,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BasicEventValue {
+    Probability(f64),
+    Rate {
+        rate: f64,
+        basis: RateBasis,
+        mission_time: Option<f64>,
+    },
+    Summary(SummarySpec),
+    RawData(RawDataSpec),
+    Expression(Expr),
+}
+
+impl Default for BasicEventValue {
+    fn default() -> Self {
+        BasicEventValue::Probability(0.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct BasicEventBinding {
     pub basic_event_id: BasicEventId,
-    pub value_model: BasicEventValueModel,
-    pub point_probability: Option<f64>,
-    pub distribution: Option<ParameterDistribution>,
+    pub value: BasicEventValue,
     pub data_analysis_parameter_ref: Option<String>,
 }
 
@@ -144,6 +163,7 @@ pub struct BasicEventBindingTable {
     pub name: Option<String>,
     pub bindings: Vec<BasicEventBinding>,
     pub house_event_states: Vec<HouseEventStateBinding>,
+    pub parameters: HashMap<String, Expr>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

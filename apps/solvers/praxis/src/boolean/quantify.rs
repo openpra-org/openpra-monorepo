@@ -365,7 +365,7 @@ pub fn quantify(
     settings: &QuantificationSettings,
 ) -> Result<QuantificationResult> {
     let resolved = resolve(settings);
-    let index = BindingIndex::new(bindings);
+    let index = BindingIndex::new(bindings, settings.mission_time.unwrap_or(1.0));
 
     let mut result = QuantificationResult {
         boolean_model_ref: model.id,

@@ -1019,7 +1019,7 @@ pub fn run_post_event_tree(
         let has_distributions = fault_tree
             .basic_events()
             .values()
-            .any(|event| event.distribution().is_some());
+            .any(|event| event.value().is_some());
 
         if !has_distributions {
             eprintln!("\nWarning: No probability distributions defined for basic events.");

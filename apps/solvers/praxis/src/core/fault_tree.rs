@@ -4,6 +4,7 @@ use crate::core::ccf::CcfGroup;
 use crate::core::element::Element;
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::gate::{Formula, Gate};
+use crate::expression::Expr;
 use crate::{MefError, PraxisError, Result};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,6 +15,8 @@ pub struct FaultTree {
     basic_events: HashMap<String, BasicEvent>,
     house_events: HashMap<String, HouseEvent>,
     ccf_groups: HashMap<String, CcfGroup>,
+    parameters: HashMap<String, Expr>,
+    mission_time: f64,
 }
 
 impl FaultTree {
@@ -25,7 +28,25 @@ impl FaultTree {
             basic_events: HashMap::new(),
             house_events: HashMap::new(),
             ccf_groups: HashMap::new(),
+            parameters: HashMap::new(),
+            mission_time: 1.0,
         })
+    }
+
+    pub fn parameters(&self) -> &HashMap<String, Expr> {
+        &self.parameters
+    }
+
+    pub fn set_parameter(&mut self, name: String, value: Expr) {
+        self.parameters.insert(name, value);
+    }
+
+    pub fn mission_time(&self) -> f64 {
+        self.mission_time
+    }
+
+    pub fn set_mission_time(&mut self, mission_time: f64) {
+        self.mission_time = mission_time;
     }
 
     pub fn element(&self) -> &Element {

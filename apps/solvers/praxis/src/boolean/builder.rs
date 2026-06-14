@@ -1,14 +1,16 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::boolean::contract::{
-    BasicEventBinding, BasicEventBindingTable, BasicEventId, BooleanModel, BooleanNode,
-    BooleanOperator, CcfGroupTable, CcfParameterModel, CcfTestingScheme, NodeId,
-    ParameterDistribution,
+    BasicEventBinding, BasicEventBindingTable, BasicEventId, BasicEventValue, BooleanModel,
+    BooleanNode, BooleanOperator, CcfGroupTable, CcfParameterModel, CcfTestingScheme, Exposure,
+    NodeId, RateBasis, RawDataPrior, RawDataSpec, SummaryCentral, SummaryFamily, SummarySpec,
+    SummarySpread,
 };
 use crate::core::ccf::{CcfGroup, CcfModel, TestingScheme};
-use crate::core::event::{BasicEvent, Distribution, HouseEvent};
+use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::{Formula, Gate};
+use crate::expression::{EvalContext, Expr};
 use crate::{PraxisError, Result};
 
 const LOGNORMAL_EF_QUANTILE: f64 = 1.6448536269514722;
@@ -34,10 +36,12 @@ pub fn numeric_basic_event_id(operand_id: &str) -> Option<BasicEventId> {
 pub struct BindingIndex<'a> {
     bindings: HashMap<BasicEventId, &'a BasicEventBinding>,
     house_states: HashMap<NodeId, bool>,
+    parameters: &'a HashMap<String, Expr>,
+    mission_time: f64,
 }
 
 impl<'a> BindingIndex<'a> {
-    pub fn new(table: &'a BasicEventBindingTable) -> Self {
+    pub fn new(table: &'a BasicEventBindingTable, mission_time: f64) -> Self {
         let mut bindings = HashMap::new();
         for binding in &table.bindings {
             bindings.insert(binding.basic_event_id, binding);
@@ -49,28 +53,30 @@ impl<'a> BindingIndex<'a> {
         BindingIndex {
             bindings,
             house_states,
+            parameters: &table.parameters,
+            mission_time,
         }
+    }
+
+    pub fn parameters(&self) -> &HashMap<String, Expr> {
+        self.parameters
+    }
+
+    pub fn mission_time(&self) -> f64 {
+        self.mission_time
+    }
+
+    pub fn resolve(&self, basic_event_id: BasicEventId) -> Result<(f64, Option<Expr>)> {
+        let Some(binding) = self.bindings.get(&basic_event_id) else {
+            return Ok((0.0, None));
+        };
+        resolve_value(&binding.value, self.parameters, self.mission_time)
     }
 
     pub fn nominal_probability(&self, basic_event_id: BasicEventId) -> f64 {
-        let Some(binding) = self.bindings.get(&basic_event_id) else {
-            return 0.0;
-        };
-        if let Some(p) = binding.point_probability {
-            return p.clamp(0.0, 1.0);
-        }
-        binding
-            .distribution
-            .as_ref()
-            .map(|d| distribution_mean(d).clamp(0.0, 1.0))
+        self.resolve(basic_event_id)
+            .map(|(nominal, _)| nominal.clamp(0.0, 1.0))
             .unwrap_or(0.0)
-    }
-
-    pub fn distribution(&self, basic_event_id: BasicEventId) -> Option<Distribution> {
-        self.bindings
-            .get(&basic_event_id)
-            .and_then(|binding| binding.distribution.as_ref())
-            .and_then(praxis_distribution)
     }
 
     pub fn house_state(&self, node_id: NodeId) -> bool {
@@ -78,45 +84,112 @@ impl<'a> BindingIndex<'a> {
     }
 
     pub fn initiating_frequency(&self, basic_event_id: BasicEventId) -> Option<f64> {
-        self.bindings
-            .get(&basic_event_id)
-            .and_then(|binding| binding.point_probability)
+        let binding = self.bindings.get(&basic_event_id)?;
+        resolve_value(&binding.value, self.parameters, self.mission_time)
+            .ok()
+            .map(|(nominal, _)| nominal)
     }
 }
 
-fn distribution_mean(distribution: &ParameterDistribution) -> f64 {
-    match distribution {
-        ParameterDistribution::Lognormal {
-            median,
-            error_factor,
-        } => {
-            let mu = median.ln();
-            let sigma = error_factor.ln() / LOGNORMAL_EF_QUANTILE;
-            (mu + sigma * sigma / 2.0).exp()
+fn resolve_value(
+    value: &BasicEventValue,
+    parameters: &HashMap<String, Expr>,
+    mission_time: f64,
+) -> Result<(f64, Option<Expr>)> {
+    let ctx = EvalContext::new(parameters, mission_time, mission_time);
+    match value {
+        BasicEventValue::Probability(p) => Ok((*p, None)),
+        BasicEventValue::Rate {
+            rate,
+            basis,
+            mission_time: mt,
+        } => match basis {
+            RateBasis::PerDemand => Ok((*rate, None)),
+            RateBasis::PerHour => {
+                let time = mt.map(Expr::Constant).unwrap_or(Expr::MissionTime);
+                let expr = Expr::Exponential {
+                    lambda: Box::new(Expr::Constant(*rate)),
+                    time: Box::new(time),
+                };
+                let nominal = expr.evaluate(&ctx)?;
+                Ok((nominal, Some(expr)))
+            }
+        },
+        BasicEventValue::Summary(spec) => {
+            let expr = summary_to_expr(spec)?;
+            let nominal = expr.evaluate(&ctx)?;
+            Ok((nominal, Some(expr)))
         }
-        ParameterDistribution::Normal { mean, .. } => *mean,
-        ParameterDistribution::Uniform { lower, upper } => (lower + upper) / 2.0,
-        ParameterDistribution::PointEstimate { value } => *value,
-        _ => 0.0,
+        BasicEventValue::RawData(spec) => {
+            let expr = rawdata_to_expr(spec)?;
+            let nominal = expr.evaluate(&ctx)?;
+            Ok((nominal, Some(expr)))
+        }
+        BasicEventValue::Expression(expr) => {
+            let nominal = expr.evaluate(&ctx)?;
+            Ok((nominal, Some(expr.clone())))
+        }
     }
 }
 
-fn praxis_distribution(distribution: &ParameterDistribution) -> Option<Distribution> {
-    match distribution {
-        ParameterDistribution::Normal { mean, std_dev } => {
-            Some(Distribution::Normal(*mean, *std_dev))
+fn summary_to_expr(spec: &SummarySpec) -> Result<Expr> {
+    match spec.family {
+        SummaryFamily::Lognormal => {
+            let sigma = match spec.spread {
+                SummarySpread::ErrorFactor(ef) => ef.ln() / LOGNORMAL_EF_QUANTILE,
+                SummarySpread::StdDev(sd) => sd,
+                SummarySpread::Percentiles { p05, p95 } => {
+                    (p95 / p05).ln() / (2.0 * LOGNORMAL_EF_QUANTILE)
+                }
+            };
+            let mu = match spec.central {
+                SummaryCentral::Median(median) => median.ln(),
+                SummaryCentral::Mean(mean) => mean.ln() - sigma * sigma / 2.0,
+            };
+            Ok(Expr::lognormal(mu, sigma))
         }
-        ParameterDistribution::Lognormal {
-            median,
-            error_factor,
-        } => Some(Distribution::LogNormal(
-            median.ln(),
-            error_factor.ln() / LOGNORMAL_EF_QUANTILE,
-        )),
-        ParameterDistribution::Uniform { lower, upper } => {
-            Some(Distribution::Uniform(*lower, *upper))
+        SummaryFamily::Normal => {
+            let sigma = match spec.spread {
+                SummarySpread::StdDev(sd) => sd,
+                SummarySpread::Percentiles { p05, p95 } => {
+                    (p95 - p05) / (2.0 * LOGNORMAL_EF_QUANTILE)
+                }
+                SummarySpread::ErrorFactor(_) => {
+                    return Err(PraxisError::Logic(
+                        "error factor is not defined for a normal summary".to_string(),
+                    ))
+                }
+            };
+            let mean = match spec.central {
+                SummaryCentral::Mean(mean) | SummaryCentral::Median(mean) => mean,
+            };
+            Ok(Expr::normal(mean, sigma))
         }
-        _ => None,
+    }
+}
+
+fn rawdata_to_expr(spec: &RawDataSpec) -> Result<Expr> {
+    let prior = match spec.prior {
+        RawDataPrior::Jeffreys => 0.5,
+        RawDataPrior::Uniform => 1.0,
+    };
+    match spec.exposure {
+        Exposure::Demands(n) => {
+            if spec.failures > n {
+                return Err(PraxisError::Logic(
+                    "raw data: failures cannot exceed demands".to_string(),
+                ));
+            }
+            Ok(Expr::beta(spec.failures + prior, n - spec.failures + prior))
+        }
+        Exposure::Hours(t) => {
+            if t <= 0.0 {
+                return Err(PraxisError::Logic(
+                    "raw data: exposure time must be positive".to_string(),
+                ));
+            }
+            Ok(Expr::gamma(spec.failures + prior, t))
+        }
     }
 }
 
@@ -154,6 +227,10 @@ pub fn build_root_fault_tree(
     }
 
     let mut fault_tree = FaultTree::new(fault_tree_id, gate_operand_id(root_node_id))?;
+    fault_tree.set_mission_time(bindings.mission_time());
+    for (name, expr) in bindings.parameters() {
+        fault_tree.set_parameter(name.clone(), expr.clone());
+    }
     let mut visited: HashSet<NodeId> = HashSet::new();
     let mut added_basic: HashSet<BasicEventId> = HashSet::new();
     let mut stack = vec![root_node_id];
@@ -191,11 +268,12 @@ pub fn build_root_fault_tree(
             }
             BooleanNode::BasicEvent { basic_event_id, .. } => {
                 if added_basic.insert(*basic_event_id) {
+                    let (nominal, value_expr) = bindings.resolve(*basic_event_id)?;
                     let mut basic_event = BasicEvent::new(
                         basic_event_operand_id(*basic_event_id),
-                        bindings.nominal_probability(*basic_event_id),
+                        nominal.clamp(0.0, 1.0),
                     )?;
-                    basic_event.set_distribution(bindings.distribution(*basic_event_id));
+                    basic_event.set_value(value_expr);
                     fault_tree.add_basic_event(basic_event)?;
                 }
             }
@@ -318,7 +396,7 @@ mod tests {
     fn binding(basic_event_id: BasicEventId, probability: f64) -> BasicEventBinding {
         BasicEventBinding {
             basic_event_id,
-            point_probability: Some(probability),
+            value: BasicEventValue::Probability(probability),
             ..Default::default()
         }
     }
@@ -344,7 +422,7 @@ mod tests {
     #[test]
     fn builds_or_tree_with_prefixed_ids() {
         let (model, table) = or_model();
-        let index = BindingIndex::new(&table);
+        let index = BindingIndex::new(&table, 1.0);
         let fault_tree =
             build_root_fault_tree(&model, &index, &CcfGroupTable::default(), "ft1", 1, false)
                 .unwrap();
@@ -379,7 +457,7 @@ mod tests {
             bindings: vec![binding(10, 0.5)],
             ..Default::default()
         };
-        let index = BindingIndex::new(&table);
+        let index = BindingIndex::new(&table, 1.0);
         let fault_tree =
             build_root_fault_tree(&model, &index, &CcfGroupTable::default(), "ft1", 1, false)
                 .unwrap();
@@ -406,7 +484,7 @@ mod tests {
             }],
             ..Default::default()
         };
-        let index = BindingIndex::new(&table);
+        let index = BindingIndex::new(&table, 1.0);
         let fault_tree =
             build_root_fault_tree(&model, &index, &CcfGroupTable::default(), "ft1", 1, false)
                 .unwrap();
@@ -416,7 +494,7 @@ mod tests {
     #[test]
     fn non_gate_root_is_rejected() {
         let (model, table) = or_model();
-        let index = BindingIndex::new(&table);
+        let index = BindingIndex::new(&table, 1.0);
         let result =
             build_root_fault_tree(&model, &index, &CcfGroupTable::default(), "ft1", 2, false);
         assert!(result.is_err());
@@ -425,7 +503,7 @@ mod tests {
     #[test]
     fn beta_factor_ccf_expands_events() {
         let (model, table) = or_model();
-        let index = BindingIndex::new(&table);
+        let index = BindingIndex::new(&table, 1.0);
         let ccf = CcfGroupTable {
             id: 1,
             boolean_model_ref: 1,

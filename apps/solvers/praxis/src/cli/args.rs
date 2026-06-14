@@ -141,6 +141,7 @@ pub enum Analysis {
     Ccf,
     Sil,
     Uncertainty,
+    Importance,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

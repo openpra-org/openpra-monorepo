@@ -291,6 +291,19 @@ fn run_pre_event_tree_impl(
         }
     }
 
+    if let Some(mission_time) = cli.mission_time {
+        fault_tree.set_mission_time(mission_time);
+        fault_tree
+            .reevaluate_basic_event_probabilities()
+            .map_err(|e| format!("Failed to apply mission time: {}", e))?;
+        if verbose {
+            eprintln!(
+                "Applied mission time {} (re-evaluated time-dependent basic events)",
+                mission_time
+            );
+        }
+    }
+
     if cli.analysis == Analysis::Ccf && !fault_tree.ccf_groups().is_empty() {
         if verbose {
             eprintln!("Expanding CCF groups...");
@@ -993,9 +1006,10 @@ pub fn run_post_event_tree(
             .any(|event| event.value().is_some());
 
         if !has_distributions {
-            eprintln!("\nWarning: No probability distributions defined for basic events.");
-            eprintln!("Uncertainty analysis requires events to have distributions (Normal, LogNormal, or Uniform).");
-            eprintln!("Example: <basic-event name=\"E1\" distribution=\"normal\" mu=\"0.01\" sigma=\"0.002\" />\n");
+            eprintln!("\nWarning: No probability distributions defined for basic events; every sample returns the point estimate.");
+            eprintln!("Give a basic event a stochastic expression so uncertainty can propagate, for example:");
+            eprintln!("  <define-basic-event name=\"E1\"><lognormal-deviate><float value=\"0.01\"/><float value=\"3\"/></lognormal-deviate></define-basic-event>");
+            eprintln!("  <define-basic-event name=\"E2\"><normal-deviate><float value=\"0.01\"/><float value=\"0.002\"/></normal-deviate></define-basic-event>\n");
         }
 
         match praxis::analysis::uncertainty::propagate_uncertainty(
@@ -1052,6 +1066,59 @@ pub fn run_post_event_tree(
                     eprintln!("Uncertainty quantification failed");
                 }
             }
+        }
+    }
+
+    if cli.analysis == Analysis::Importance {
+        if verbose {
+            eprintln!("Computing importance measures...");
+        }
+
+        let nominal = praxis::analysis::fault_tree::FaultTreeAnalysis::new(&fault_tree)
+            .and_then(|fta| fta.analyze())
+            .map(|r| r.top_event_probability)
+            .map_err(|e| {
+                format!(
+                    "Importance analysis could not compute the baseline probability: {}",
+                    e
+                )
+            })?;
+
+        let records = praxis::analysis::importance::ImportanceAnalysis::new(&fault_tree, nominal)
+            .and_then(|ia| ia.analyze())
+            .map_err(|e| format!("Importance analysis failed: {}", e))?;
+
+        result.top_event_probability = nominal;
+
+        if cli.print || verbose {
+            println!("\n=== Importance Measures ===");
+            println!("Top event probability: {:.6e}", nominal);
+            println!("Basic events ranked by Birnbaum importance: {}", records.len());
+            println!();
+            println!(
+                "{:<24} {:>13} {:>13} {:>13} {:>10} {:>10}",
+                "Event", "Birnbaum", "Criticality", "Fussell-Ves", "RAW", "RRW"
+            );
+            println!("{}", "-".repeat(87));
+            for record in &records {
+                println!(
+                    "{:<24} {:>13.4e} {:>13.4e} {:>13.4e} {:>10.4} {:>10.4}",
+                    record.event_id,
+                    record.factors.mif,
+                    record.factors.cif,
+                    record.factors.dif,
+                    record.factors.raw,
+                    record.factors.rrw
+                );
+            }
+            println!();
+            println!("Birnbaum: dQ/dq (marginal). Criticality: contribution to current risk.");
+            println!("Fussell-Vesely: fraction of risk involving the event. RAW/RRW: achievement/reduction worth.");
+            println!("===========================\n");
+        }
+
+        if verbose {
+            eprintln!("Importance measures computed successfully");
         }
     }
 

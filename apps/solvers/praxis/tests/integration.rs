@@ -40,6 +40,8 @@ mod cli_mocus;
 mod cli_test;
 #[path = "integration/cli/cli_xml_output_shape.rs"]
 mod cli_xml_output_shape;
+#[path = "integration/cli/cli_importance_output.rs"]
+mod cli_importance_output;
 
 #[path = "integration/boolean/quantify_boolean.rs"]
 mod quantify_boolean;

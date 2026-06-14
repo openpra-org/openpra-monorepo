@@ -4,7 +4,7 @@ use crate::core::ccf::CcfGroup;
 use crate::core::element::Element;
 use crate::core::event::{BasicEvent, HouseEvent};
 use crate::core::gate::{Formula, Gate};
-use crate::expression::Expr;
+use crate::expression::{EvalContext, Expr};
 use crate::{MefError, PraxisError, Result};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,6 +47,28 @@ impl FaultTree {
 
     pub fn set_mission_time(&mut self, mission_time: f64) {
         self.mission_time = mission_time;
+    }
+
+    pub fn reevaluate_basic_event_probabilities(&mut self) -> Result<()> {
+        let parameters = self.parameters.clone();
+        let mission_time = self.mission_time;
+        let ctx = EvalContext::constant(&parameters, mission_time);
+
+        let mut updates = Vec::new();
+        for (id, event) in &self.basic_events {
+            if let Some(expr) = event.value() {
+                let nominal = expr.evaluate(&ctx)?.clamp(0.0, 1.0);
+                updates.push((id.clone(), nominal));
+            }
+        }
+
+        for (id, nominal) in updates {
+            if let Some(event) = self.basic_events.get_mut(&id) {
+                event.set_probability(nominal)?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn element(&self) -> &Element {
@@ -708,6 +730,45 @@ mod tests {
         assert_eq!(groups.len(), 2);
         assert!(groups.contains_key("Group1"));
         assert!(groups.contains_key("Group2"));
+    }
+
+    #[test]
+    fn test_reevaluate_applies_mission_time() {
+        let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
+        let expr = Expr::Exponential {
+            lambda: Box::new(Expr::Constant(0.001)),
+            time: Box::new(Expr::MissionTime),
+        };
+        let nominal_at_one = 1.0 - (-0.001f64).exp();
+        ft.add_basic_event(BasicEvent::with_value("E1".to_string(), nominal_at_one, expr).unwrap())
+            .unwrap();
+        ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
+            .unwrap();
+
+        ft.set_mission_time(100.0);
+        ft.reevaluate_basic_event_probabilities().unwrap();
+
+        let expected = 1.0 - (-0.001f64 * 100.0).exp();
+        assert!((ft.get_basic_event("E1").unwrap().probability() - expected).abs() < 1e-12);
+        assert_eq!(ft.get_basic_event("E2").unwrap().probability(), 0.2);
+    }
+
+    #[test]
+    fn test_reevaluate_resolves_parameters() {
+        let mut ft = FaultTree::new("FT1", "TopGate").unwrap();
+        ft.set_parameter("lambda".to_string(), Expr::Constant(0.002));
+        let expr = Expr::Exponential {
+            lambda: Box::new(Expr::Parameter("lambda".to_string())),
+            time: Box::new(Expr::MissionTime),
+        };
+        ft.add_basic_event(BasicEvent::with_value("E1".to_string(), 0.0, expr).unwrap())
+            .unwrap();
+
+        ft.set_mission_time(50.0);
+        ft.reevaluate_basic_event_probabilities().unwrap();
+
+        let expected = 1.0 - (-0.002f64 * 50.0).exp();
+        assert!((ft.get_basic_event("E1").unwrap().probability() - expected).abs() < 1e-12);
     }
 
     #[test]

@@ -113,3 +113,55 @@ fn test_cli_mission_time_drives_exponential() {
         "mission time should raise the probability (default {default_p}, mt {mission_time_p})"
     );
 }
+
+#[test]
+fn test_cli_time_resolved_sil() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let input_path = std::env::temp_dir().join(format!("praxis_sil_{unique}.xml"));
+    let xml = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="sil">
+    <define-gate name="top"><or><basic-event name="A"/></or></define-gate>
+    <define-basic-event name="A">
+      <exponential><float value="0.0001"/><system-mission-time/></exponential>
+    </define-basic-event>
+  </define-fault-tree>
+</opsa-mef>"#;
+    fs::write(&input_path, xml).expect("write temp xml");
+
+    let output = Command::new(praxis_binary())
+        .arg(&input_path)
+        .arg("--analysis")
+        .arg("sil")
+        .arg("--mission-time")
+        .arg("1000")
+        .arg("--time-step")
+        .arg("200")
+        .arg("--print")
+        .output()
+        .expect("Failed to execute praxis");
+
+    let _ = fs::remove_file(&input_path);
+
+    assert!(output.status.success(), "command should succeed");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Time-Resolved Probability"),
+        "missing Q(t) table in: {stdout}"
+    );
+    assert!(
+        stdout.contains("Average Probability of Failure on Demand"),
+        "missing PFD average"
+    );
+    assert!(
+        stdout.contains("Assessed SIL Level (by PFD): SIL 1"),
+        "expected SIL 1 in: {stdout}"
+    );
+    assert!(
+        stdout.contains("Fraction of mission time"),
+        "missing band distribution"
+    );
+}

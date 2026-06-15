@@ -6,6 +6,7 @@ pub mod importance;
 pub mod prime_implicants;
 pub mod settings;
 pub mod sil;
+pub mod time_resolved;
 pub mod uncertainty;
 pub mod visualize;
 pub mod width;

@@ -1127,14 +1127,37 @@ pub fn run_post_event_tree(
             eprintln!("Computing SIL metrics...");
         }
 
-        let sil = praxis::analysis::sil::Sil::from_probability(result.top_event_probability);
+        let sil = if let Some(step) = cli.time_step {
+            let mission_end = fault_tree.mission_time();
+            let times = praxis::analysis::time_resolved::time_grid(mission_end, step)
+                .map_err(|e| format!("Failed to build the time grid: {}", e))?;
+            let series = praxis::analysis::time_resolved::quantify_over_time(&fault_tree, &times)
+                .map_err(|e| format!("Time-resolved quantification failed: {}", e))?;
+
+            if cli.print || verbose {
+                println!("\n=== Time-Resolved Probability ===");
+                println!(
+                    "Mission time: {:.6e}   Step: {:.6e}   Points: {}",
+                    mission_end,
+                    step,
+                    series.len()
+                );
+                println!();
+                println!("{:>16}  {:>16}", "time", "P(top)");
+                println!("{}", "-".repeat(34));
+                for (probability, t) in &series {
+                    println!("{:>16.6e}  {:>16.6e}", t, probability);
+                }
+                println!("=================================\n");
+            }
+
+            praxis::analysis::sil::Sil::from_time_series(&series)
+        } else {
+            praxis::analysis::sil::Sil::from_probability(result.top_event_probability)
+        };
 
         if cli.print || verbose {
             println!("\n=== Safety Integrity Level (SIL) Metrics ===");
-            println!(
-                "Top event probability: {:.6e}",
-                result.top_event_probability
-            );
             println!();
             println!(
                 "Average Probability of Failure on Demand (PFD): {:.6e}",
@@ -1146,26 +1169,27 @@ pub fn run_post_event_tree(
             );
             println!();
             println!("SIL Classification (IEC 61508):");
-            println!("  SIL 4: PFD < 10⁻⁵ (1e-5)   | PFH < 10⁻⁹ (1e-9)");
-            println!("  SIL 3: PFD < 10⁻⁴ (1e-4)   | PFH < 10⁻⁸ (1e-8)");
-            println!("  SIL 2: PFD < 10⁻³ (1e-3)   | PFH < 10⁻⁷ (1e-7)");
-            println!("  SIL 1: PFD < 10⁻² (1e-2)   | PFH < 10⁻⁶ (1e-6)");
-            println!("  None:  PFD ≥ 10⁻² (0.01)   | PFH ≥ 10⁻⁶ (1e-6)");
+            println!("  SIL 4: PFD [1e-5, 1e-4)   | PFH [1e-9, 1e-8)");
+            println!("  SIL 3: PFD [1e-4, 1e-3)   | PFH [1e-8, 1e-7)");
+            println!("  SIL 2: PFD [1e-3, 1e-2)   | PFH [1e-7, 1e-6)");
+            println!("  SIL 1: PFD [1e-2, 1e-1)   | PFH [1e-6, 1e-5)");
+            println!("  None:  PFD >= 1e-1        | PFH >= 1e-5");
             println!();
+            println!("Assessed SIL Level (by PFD): {}", sil.sil_level());
+            if sil.pfh_avg > 0.0 {
+                println!("Assessed SIL Level (by PFH): {}", sil.sil_level_pfh());
+            }
 
-            let sil_level = if sil.pfd_avg < 1e-5 {
-                "SIL 4"
-            } else if sil.pfd_avg < 1e-4 {
-                "SIL 3"
-            } else if sil.pfd_avg < 1e-3 {
-                "SIL 2"
-            } else if sil.pfd_avg < 1e-2 {
-                "SIL 1"
-            } else {
-                "None (below SIL 1)"
-            };
-
-            println!("Assessed SIL Level: {}", sil_level);
+            if cli.time_step.is_some() {
+                let (sil4, sil3, sil2, sil1, none) = sil.pfd_fractions_by_level();
+                println!();
+                println!("Fraction of mission time in each PFD band:");
+                println!("  SIL 4: {:.2}%", sil4 * 100.0);
+                println!("  SIL 3: {:.2}%", sil3 * 100.0);
+                println!("  SIL 2: {:.2}%", sil2 * 100.0);
+                println!("  SIL 1: {:.2}%", sil1 * 100.0);
+                println!("  None:  {:.2}%", none * 100.0);
+            }
             println!("==========================================\n");
         }
 

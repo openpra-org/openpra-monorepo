@@ -7,7 +7,7 @@ This guide provides a quick orientation to the web frontend and how its docs are
 - Web Frontend (React + TypeScript): SPA for building and editing PRA models
   - Docs: [Web Frontend API](/api/ts/web-frontend/README.html)
   - Shared types: [Shared Types API](/api/ts/shared-types/README.html)
-  - MEF types: [MEF Types API](/api/ts/mef-types/README.html)
+  - MEF types: [MEF Types](/mef-elements/ts/README.html)
 
 ## Tech stack
 

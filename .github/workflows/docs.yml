@@ -17,6 +17,9 @@ on:
       - "apps/solvers/praxis/**"
       - "apps/utilities/pracciolini/**"
       - ".github/workflows/docs.yml"
+      - "docker/docs-stack.yml"
+      - "docker/docs-branch-stack.yml"
+      - "packages/docs-md/Dockerfile"
       - ".dockerignore"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
@@ -105,12 +108,12 @@ jobs:
       - name: Build unified Markdown docs (VitePress)
         env:
           NX_NO_CLOUD: "true"
-          VITEPRESS_BASE: ${{ github.ref_name == 'main' && '/' || '/documentation/' }}
+          VITEPRESS_BASE: "/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
       - name: Link check
         env:
-          VITEPRESS_BASE: ${{ github.ref_name == 'main' && '/' || '/documentation/' }}
+          VITEPRESS_BASE: "/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
       - name: Determine image tag
@@ -200,11 +203,11 @@ jobs:
             echo "Documentation deployed to https://docs-dev.openpra.org"
           else
             export APP_NAME="openpra-docs-${SANITIZED_BRANCH}"
-            export HOST_URL="${SANITIZED_BRANCH}-dev.openpra.org"
+            export HOST_URL="${SANITIZED_BRANCH}-docs-dev.openpra.org"
             docker stack deploy \
               --with-registry-auth \
               --resolve-image never \
               --compose-file docker/docs-branch-stack.yml \
               "${APP_NAME}"
-            echo "Documentation deployed to https://${HOST_URL}/documentation"
+            echo "Documentation deployed to https://${HOST_URL}"
           fi

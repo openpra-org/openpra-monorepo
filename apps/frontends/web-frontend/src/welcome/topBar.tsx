@@ -15,6 +15,14 @@ function computeInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function docsUrl(): string {
+  const { protocol, hostname } = window.location;
+  if (hostname.endsWith("-dev.openpra.org")) {
+    return `${protocol}//${hostname.replace("-dev.openpra.org", "-docs-dev.openpra.org")}`;
+  }
+  return "https://docs-dev.openpra.org";
+}
+
 function TopBar(): JSX.Element {
   const [theme, setTheme] = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,7 +63,9 @@ function TopBar(): JSX.Element {
       <nav className="wp__topbar-nav" aria-label="Primary">
         <a
           className="wp__nav-link"
-          href="/documentation"
+          href={docsUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
           aria-label="Documentation"
         >
           <BookIcon /><span>Documentation</span>

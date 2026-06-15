@@ -5,9 +5,6 @@ import {
   CAPABILITY_CATEGORIES,
   THREE_MOMENTS,
   HRA_METHODS,
-  HR_UPSTREAM_LINKS,
-  HR_SIDEWAYS_LINKS,
-  HR_DOWNSTREAM_LINKS,
   ACTIVITY_TYPES,
   ACTIVITY_SOURCES,
   IMPACT_LEVELS,
@@ -19,6 +16,7 @@ import {
 } from "./hrViewData";
 import { ccScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface HrDrawerContext {
   kind: "activity" | "prehfe" | "posthfe" | "dependence" | "recovery";
@@ -81,62 +79,6 @@ function MomentsStrip(): JSX.Element {
   );
 }
 
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="hrsrc">
-      {HR_UPSTREAM_LINKS.map((u) => (
-        <div key={u.id} className="hrsrc__card">
-          <div className="hrsrc__top">
-            <span className="hrsrc__badge"><NamedIcon name={u.icon} /></span>
-            <div>
-              <div className="hrsrc__el">{u.element}</div>
-              <div className="hrsrc__wb">{u.workbook} · v{u.version}</div>
-            </div>
-          </div>
-          <div className="hrsrc__delivers">{u.delivers}. {u.note}</div>
-          <div className="hrsrc__foot">
-            <span className="hrsrc__status hrsrc__status--approved"><HRIcon.Check /> Approved</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  const sideIn = HR_SIDEWAYS_LINKS.filter((s) => s.dir === "in");
-  return (
-    <div className="hrflow">
-      <div className="hrflow__col">
-        <div className="hrflow__col-head"><HRIcon.ArrowR /> Inputs</div>
-        {[...HR_UPSTREAM_LINKS, ...sideIn].map((n) => (
-          <div key={n.id} className="hrflow__node hrflow__node--up">
-            <span className="hrflow__node-badge"><NamedIcon name={n.icon} /></span>
-            <div className="hrflow__node-body">
-              <span className="hrflow__node-el">{n.element}</span>
-              <span className="hrflow__node-use">{n.delivers ?? n.uses}</span>
-            </div>
-            <span className="hrflow__node-tag">{n.role}</span>
-          </div>
-        ))}
-      </div>
-      <div className="hrflow__col">
-        <div className="hrflow__col-head">Outputs <HRIcon.ArrowR /></div>
-        {HR_DOWNSTREAM_LINKS.map((n) => (
-          <div key={n.id} className="hrflow__node">
-            <span className="hrflow__node-badge"><NamedIcon name={n.icon} /></span>
-            <div className="hrflow__node-body">
-              <span className="hrflow__node-el">{n.element}</span>
-              <span className="hrflow__node-use">{n.uses}</span>
-            </div>
-            <span className="hrflow__node-tag">{n.role}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
   ccId: string;
   setCcId: (id: string) => void;
@@ -159,7 +101,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           <HRProvenanceChip>Linked</HRProvenanceChip>
         </div>
         <p className="poscard__sub">POS sets the per-state context, ES names the actions, SC sets the time available, SY places the events.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="HR" />
       </div>
 
       <div className="poscard">
@@ -168,7 +110,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           <span className="possubtle">Most interfaced element in the model</span>
         </div>
         <p className="poscard__sub">HR pulls operator contributions from IE, data from DA, and delivers the human error probabilities to ESQ.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="HR" />
       </div>
 
       <div className="poscard">

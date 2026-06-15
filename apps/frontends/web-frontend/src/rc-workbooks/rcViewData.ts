@@ -15,7 +15,7 @@ interface RcStep {
 }
 
 const RC_STEPS: RcStep[] = [
-  { id: "handoff", num: "01", se: "RCRE", seTone: "primary", label: "Scope & Handoff", sub: "Receive the source term", status: "idle" },
+  { id: "handoff", num: "01", se: "RCRE", seTone: "primary", label: "Scope", sub: "Receive the source term", status: "idle" },
   { id: "protective", num: "02", se: "RCPA", seTone: "site", label: "Protective Actions & Site", sub: "Model the people (A, B)", status: "idle" },
   { id: "weather", num: "03", se: "RCME", seTone: "atmos", label: "Meteorology", sub: "Compile the weather (A, B)", status: "idle" },
   { id: "dispersion", num: "04", se: "RCAD", seTone: "atmos", label: "Atmospheric Dispersion", sub: "Transport the plume (A to F)", status: "idle" },

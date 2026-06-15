@@ -16,6 +16,7 @@ import {
   stepsFromMef,
   type CommentView,
 } from "./ieSelectors";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import {
   ScopeScreen,
   StatesScreen,
@@ -43,7 +44,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & sources of radioactive material", sub: "What is in scope, which radioactive sources could be released, and which barriers protect them." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "What is in scope, which radioactive sources could be released, and which barriers protect them." };
     case "states": return { eyebrow: "Step 02", title: "Operating states", sub: "Each initiating event is tested in every operating state, weighted by its time fraction (IE-C8)." };
     case "methods": return { eyebrow: "Step 03", title: "Search methods", sub: "Register the structured, systematic techniques used to find every initiating event (IE-A1)." };
     case "identify": return { eyebrow: "Step 04", title: "Identify initiators", sub: "Identify every challenge category, for every operating state and source (IE-A5)." };
@@ -255,7 +256,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
             {sectionItems.map((it) => (
               <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
                 <span className="posdock__item-dot" />
-                <span><span className="posdock__item-text">{it.text}</span></span>
+                <span><span className="posdock__item-text">{it.text}</span><DockDependsChip element="IE" sr={it.id} /></span>
               </div>
             ))}
           </div>

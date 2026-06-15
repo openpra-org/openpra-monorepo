@@ -9,7 +9,6 @@ import {
   SC_ANALYSIS_TYPES,
   SC_RC_TONES,
   SC_SAFE_STABLE_CONDITIONS,
-  SC_UPSTREAM_LINKS,
   SC_DOWNSTREAM_LINKS,
   SC_END_STATE_NAMES,
   SC_SYSTEM_DEPS,
@@ -28,6 +27,7 @@ import {
 import { ccScore, type CcScore } from "./scSelectors";
 import { useScWorkbook } from "./scWorkbookContext";
 import { generateScReport } from "./scDocx";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 function NamedIcon({ name }: { name: string }): JSX.Element {
   const Icon = SCIcon[name] ?? SCIcon.Link;
@@ -52,30 +52,6 @@ function Drawer({ onClose, children }: { onClose: () => void; children: ReactNod
   );
 }
 
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="scup">
-      {SC_UPSTREAM_LINKS.map((u) => (
-        <div key={u.id} className={`scup__card${u.status === "in_review" ? " scup__card--update" : ""}`}>
-          <div className="scup__top">
-            <span className="scup__badge"><NamedIcon name={u.icon} /></span>
-            <div>
-              <div className="scup__el">{u.element}</div>
-              <div className="scup__wb">{u.workbook} · v{u.version}</div>
-            </div>
-          </div>
-          <div className="scup__delivers">{u.delivers}. {u.note}</div>
-          <div className="scup__foot">
-            {u.status === "in_review"
-              ? <span className="scup__status scup__status--review"><SCIcon.Refresh /> In review</span>
-              : <span className="scup__status scup__status--approved"><SCIcon.Check /> Approved</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ScScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
   ccId: string;
   setCcId: (id: string) => void;
@@ -93,22 +69,15 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           <SCProvenanceChip kind="sc">Linked</SCProvenanceChip>
         </div>
         <p className="poscard__sub">Criteria differ per state and per challenge. Operating states come from POS, challenges from IE, and ES-A3 names a function that SC-A5 specifies.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="SC" />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Downstream consumers</h3>
+          <h3 className="poscard__title">Interfaces</h3>
           <span className="possubtle">Read mid-stream by three elements</span>
         </div>
-        <div className="posrow posrow--wrap" style={{ gap: 10 }}>
-          {SC_DOWNSTREAM_LINKS.map((d) => (
-            <div key={d.id} className="scdown">
-              <span className="scdown__badge"><NamedIcon name={d.icon} /></span>
-              <div><div className="scdown__el">{d.element}</div><div className="scdown__use">{d.uses}</div></div>
-            </div>
-          ))}
-        </div>
+        <WorkbookInterfaceMap element="SC" />
       </div>
 
       <div className="poscard">

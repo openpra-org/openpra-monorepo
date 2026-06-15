@@ -713,7 +713,8 @@
 .posdock__section-head {
   padding: 12px 18px 6px;
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
   font-family: 'Nunito Sans', sans-serif;
   font-size: 11px;
@@ -723,6 +724,8 @@
   color: var(--color-text-subtle);
 }
 .posdock__section-head-count {
+  flex-shrink: 0;
+  white-space: nowrap;
   background: var(--color-surface-low);
   color: var(--color-text-muted);
   border-radius: 999px;

@@ -12,7 +12,7 @@ interface DaStep {
 }
 
 const DA_STEPS: DaStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "Slots · pedigree · inputs", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Slots · pedigree · inputs", status: "idle" },
   { id: "define", num: "02", label: "Define Parameters", sub: "Boundaries · models (HLR-A)", status: "idle" },
   { id: "group", num: "03", label: "Group Populations", sub: "Homogeneous pools (HLR-B)", status: "idle" },
   { id: "generic", num: "04", label: "Collect: Generic", sub: "Generic per state (HLR-C)", status: "idle" },

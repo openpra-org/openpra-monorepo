@@ -15,7 +15,7 @@ interface RiStep {
 }
 
 const RI_STEPS: RiStep[] = [
-  { id: "converge", num: "01", hlr: "B", hlrTone: "b", label: "Scope & Convergence", sub: "Compile the two pipelines", status: "idle" },
+  { id: "converge", num: "01", hlr: "B", hlrTone: "b", label: "Scope", sub: "Compile the two pipelines", status: "idle" },
   { id: "criteria", num: "02", hlr: "A", hlrTone: "a", label: "Significance Criteria", sub: "Set the yardsticks", status: "idle" },
   { id: "integrate", num: "03", hlr: "B", hlrTone: "b", label: "Integrate & Compute", sub: "Total and plot", status: "idle" },
   { id: "aggregate", num: "04", hlr: "B", hlrTone: "b", label: "Aggregation & Contributors", sub: "Judge the totals", status: "idle" },

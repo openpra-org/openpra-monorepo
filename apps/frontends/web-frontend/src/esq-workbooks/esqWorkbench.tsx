@@ -15,6 +15,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./esqReview";
 import { useEsqWorkbook, type EsqWorkbookData } from "./esqWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esqScreens.css";
 
@@ -26,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Inputs", sub: "The six elements that converge and the capability target." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The six elements that converge and the capability target." };
     case "integrate": return { eyebrow: "Step 02", title: "Integrate & Quantify", sub: "Families and family frequencies from the integrated model (ESQ-A)." };
     case "solve": return { eyebrow: "Step 03", title: "Solve & Converge", sub: "The codes, the truncation and the solution method (ESQ-B)." };
     case "logic": return { eyebrow: "Step 04", title: "Logic Integrity", sub: "Loops, flags, mutual exclusivity and modules (ESQ-B)." };
@@ -228,6 +229,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
                 <span>
                   <span className="posdock__item-text">{it.text}</span>
                   {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="ESQ" sr={it.id} />
                 </span>
               </div>
             ))}

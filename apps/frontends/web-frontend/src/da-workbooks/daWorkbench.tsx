@@ -15,6 +15,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./daReview";
 import { useDaWorkbook, type DaWorkbookData } from "./daWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/daScreens.css";
 
@@ -26,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Sources", sub: "The slots, the pedigree and the inputs that feed DA." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The slots, the pedigree and the inputs that feed DA." };
     case "define": return { eyebrow: "Step 02", title: "Define Parameters", sub: "Boundaries and probability models (HLR-A)." };
     case "group": return { eyebrow: "Step 03", title: "Group Populations", sub: "Homogeneous populations and outliers (HLR-B)." };
     case "generic": return { eyebrow: "Step 04", title: "Collect: Generic", sub: "Generic and technology sources per state (HLR-C)." };
@@ -229,6 +230,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
                 <span>
                   <span className="posdock__item-text">{it.text}</span>
                   {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="DA" sr={it.id} />
                 </span>
               </div>
             ))}

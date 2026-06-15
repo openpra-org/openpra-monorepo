@@ -15,6 +15,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./hrReview";
 import { useHrWorkbook, type HrWorkbookData } from "./hrWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/hrScreens.css";
 
@@ -26,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Sources", sub: "Human failure events, the interfaces and the setup." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "Human failure events, the interfaces and the setup." };
     case "preid": return { eyebrow: "Step 02", title: "Pre-initiator: Identify", sub: "Routine activities and multi-train practices (HR-A1 to A7)." };
     case "predef": return { eyebrow: "Step 03", title: "Pre-initiator: Define", sub: "Screening and event definition (HR-B1 to C6)." };
     case "prequant": return { eyebrow: "Step 04", title: "Pre-initiator: Quantify", sub: "Probabilities, recovery and dependence (HR-D1 to D10)." };
@@ -229,6 +230,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
                 <span>
                   <span className="posdock__item-text">{it.text}</span>
                   {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="HR" sr={it.id} />
                 </span>
               </div>
             ))}

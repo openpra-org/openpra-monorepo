@@ -5,8 +5,6 @@ import { useMsWorkbook } from "./msWorkbookContext";
 import {
   CAPABILITY_CATEGORIES,
   MS_METHODS,
-  MS_UPSTREAM_LINKS,
-  MS_DOWNSTREAM_LINKS,
   SOURCE_TERM_ATTRIBUTES,
   TIMING_LABELS,
   MAGNITUDE_LABELS,
@@ -21,71 +19,11 @@ import {
   type Stage,
 } from "./msViewData";
 import { categoryIsRiskSignificant, categoryIsWarn, assignedFamilies, headlineRelease } from "./msSelectors";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface MsDrawerContext {
   kind: "category" | "inventory" | "barrier" | "sourceterm";
   id: string;
-}
-
-// ─── Shared interface bars ─────────────────────────────────────────────────
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="mssrc">
-      {MS_UPSTREAM_LINKS.map((u) => {
-        const Icon = MSIcon[u.icon] ?? MSIcon.Link;
-        const needsUpdate = u.status === "in_review";
-        return (
-          <div key={u.id} className={`mssrc__card${needsUpdate ? " mssrc__card--update" : ""}`}>
-            <div className="mssrc__top">
-              <span className="mssrc__badge"><Icon /></span>
-              <div>
-                <div className="mssrc__el">{u.element}</div>
-                <div className="mssrc__wb">{u.workbook} · v{u.version}</div>
-              </div>
-            </div>
-            <div className="mssrc__delivers">{u.delivers}. {u.note}</div>
-            <div className="mssrc__foot">
-              <span className="mssrc__sync">Synced {u.synced}</span>
-              {needsUpdate
-                ? <span className="mssrc__resync">Re-sync</span>
-                : <span className="mssrc__status mssrc__status--approved"><MSIcon.Check /> Approved</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  function Node({ element, use, icon, up }: { element: string; use: string; icon: string; up?: boolean }): JSX.Element {
-    const Icon = MSIcon[icon] ?? MSIcon.Link;
-    return (
-      <div className={`syflow__node${up === true ? " syflow__node--up" : ""}`}>
-        <span className="syflow__node-badge"><Icon /></span>
-        <div className="syflow__node-body">
-          <span className="syflow__node-el">{element}</span>
-          <span className="syflow__node-use">{use}</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="syflow">
-      <div className="syflow__col">
-        <div className="syflow__col-head"><MSIcon.ArrowR /> Inputs</div>
-        {MS_UPSTREAM_LINKS.map((u) => <Node key={u.id} element={u.element} use={u.delivers ?? ""} icon={u.icon} up />)}
-      </div>
-      <div className="syflow__col">
-        <div className="syflow__col-head">Outputs <MSIcon.ArrowR /></div>
-        {MS_DOWNSTREAM_LINKS.map((d) => <Node key={d.id} element={d.element} use={d.uses ?? ""} icon={d.icon} />)}
-        <div className="hrnote" style={{ marginTop: 4 }}>
-          <MSIcon.Wind />
-          <span>MS feeds the source term to the radiological consequence analysis, which RI pairs with the ESQ frequency.</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Element | null {
@@ -112,7 +50,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <MsProvenanceChip>Linked</MsProvenanceChip>
         </div>
         <p className="poscard__sub">Three elements feed the source term, the release-category definitions, the source and barrier inventory, and the risk-significance.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="MS" />
       </div>
 
       <div className="poscard">
@@ -121,7 +59,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <span className="possubtle">The first element on the consequence side</span>
         </div>
         <p className="poscard__sub">MS takes the categories, the inventory and the significance, and it delivers the source term to the consequence analysis.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="MS" />
       </div>
 
       <div className="poscard">

@@ -35,7 +35,7 @@ const POS_PROJECT = {
 };
 
 const POS_STEPS: PosStep[] = [
-  { id: "setup", num: "01", label: "Setup", sub: "Plant & profile", status: "complete" },
+  { id: "setup", num: "01", label: "Scope", sub: "Plant & profile", status: "complete" },
   { id: "documents", num: "02", label: "Documents", sub: "Design basis & refs", status: "complete" },
   { id: "evolutions", num: "03", label: "Plant Evolutions", sub: "5 defined", status: "complete" },
   { id: "states", num: "04", label: "Operating States", sub: "9 defined · 1 attention", status: "in-progress" },

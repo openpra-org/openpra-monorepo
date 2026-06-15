@@ -8,9 +8,6 @@ import {
   FAILURE_MODE_TYPES,
   CCF_MODELS,
   SHARED_CAUSE_LABELS,
-  SY_UPSTREAM_LINKS,
-  SY_SIDEWAYS_LINKS,
-  SY_DOWNSTREAM_LINKS,
   SY_LOGIC_MODELS,
   SY_SYSTEM_DOSSIERS,
   SY_SYSTEM_RESULTS,
@@ -25,6 +22,7 @@ import {
 } from "./syViewData";
 import { ccScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface SyDrawerContext {
   kind: "system" | "ccf" | "hfe";
@@ -38,73 +36,6 @@ function NamedIcon({ name }: { name: string }): JSX.Element {
 
 function safetyFnName(id: string): string {
   return SY_SAFETY_FUNCTIONS[id]?.name ?? id;
-}
-
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="syup">
-      {SY_UPSTREAM_LINKS.map((u) => (
-        <div key={u.id} className="syup__card">
-          <div className="syup__top">
-            <span className="syup__badge"><NamedIcon name={u.icon} /></span>
-            <div>
-              <div className="syup__el">{u.element}</div>
-              <div className="syup__wb">{u.workbook} · v{u.version}</div>
-            </div>
-          </div>
-          <div className="syup__delivers">{u.delivers}. {u.note}</div>
-          <div className="syup__foot">
-            <span className="syup__status syup__status--approved"><SYIcon.Check /> Approved</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  const sideIn = SY_SIDEWAYS_LINKS.filter((s) => s.dir === "in");
-  const sideOut = SY_SIDEWAYS_LINKS.filter((s) => s.dir === "out");
-  return (
-    <div className="syflow">
-      <div className="syflow__col">
-        <div className="syflow__col-head"><SYIcon.ArrowR /> Inputs</div>
-        {SY_UPSTREAM_LINKS.map((u) => (
-          <div key={u.id} className="syflow__node syflow__node--up">
-            <span className="syflow__node-badge"><NamedIcon name={u.icon} /></span>
-            <div className="syflow__node-body">
-              <span className="syflow__node-el">{u.element}</span>
-              <span className="syflow__node-use">{u.delivers}</span>
-            </div>
-            <span className="syflow__node-tag">{u.role}</span>
-          </div>
-        ))}
-        {sideIn.map((n) => (
-          <div key={n.id} className="syflow__node">
-            <span className="syflow__node-badge"><NamedIcon name={n.icon} /></span>
-            <div className="syflow__node-body">
-              <span className="syflow__node-el">{n.element}</span>
-              <span className="syflow__node-use">{n.uses}</span>
-            </div>
-            <span className="syflow__node-tag">{n.role}</span>
-          </div>
-        ))}
-      </div>
-      <div className="syflow__col">
-        <div className="syflow__col-head">Outputs <SYIcon.ArrowR /></div>
-        {[...sideOut, ...SY_DOWNSTREAM_LINKS].map((n) => (
-          <div key={n.id} className="syflow__node">
-            <span className="syflow__node-badge"><NamedIcon name={n.icon} /></span>
-            <div className="syflow__node-body">
-              <span className="syflow__node-el">{n.element}</span>
-              <span className="syflow__node-use">{n.uses}</span>
-            </div>
-            <span className="syflow__node-tag">{n.role}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 const FT = { NODE_W: 184, NODE_H: 66, H_GAP: 24, SYM_H: 30, SYM_GAP: 12, LEVEL_GAP: 36, BUS_GAP: 16 };
@@ -300,7 +231,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           <SYProvenanceChip>Linked</SYProvenanceChip>
         </div>
         <p className="poscard__sub">ES names the functions and their systems, SC sets each top event, POS sets the alignments.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="SY" />
       </div>
 
       <div className="poscard">
@@ -309,7 +240,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           <span className="possubtle">Densest interface surface of any element</span>
         </div>
         <p className="poscard__sub">SY pulls parameters from DA, hands human events to HR, and delivers branch failure to ESQ.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="SY" />
       </div>
 
       <div className="poscard">

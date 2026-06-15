@@ -6,8 +6,6 @@ import {
   CAPABILITY_CATEGORIES,
   RC_METHODS,
   RC_STEPS,
-  RC_UPSTREAM_LINKS,
-  RC_DOWNSTREAM_LINKS,
   SITE_OPTIONS,
   HANDOFF_INPUTS,
   CONSEQUENCE_METRIC_NOTES,
@@ -24,71 +22,11 @@ import {
   type SiteBasis,
 } from "./rcViewData";
 import { categoryInputById } from "./rcSelectors";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface RcDrawerContext {
   kind: "family";
   id: string;
-}
-
-// ─── Shared interface bars ─────────────────────────────────────────────────
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="rcsrc">
-      {RC_UPSTREAM_LINKS.map((u) => {
-        const Icon = RCIcon[u.icon] ?? RCIcon.Link;
-        const needsUpdate = u.status === "in_review";
-        return (
-          <div key={u.id} className={`rcsrc__card${needsUpdate ? " rcsrc__card--update" : ""}`}>
-            <div className="rcsrc__top">
-              <span className="rcsrc__badge"><Icon /></span>
-              <div>
-                <div className="rcsrc__el">{u.element}</div>
-                <div className="rcsrc__wb">{u.workbook} · v{u.version}</div>
-              </div>
-            </div>
-            <div className="rcsrc__delivers">{u.delivers}. {u.note}</div>
-            <div className="rcsrc__foot">
-              <span className="rcsrc__sync">Synced {u.synced}</span>
-              {needsUpdate
-                ? <span className="rcsrc__resync">Re-sync</span>
-                : <span className="rcsrc__status rcsrc__status--approved"><RCIcon.Check /> Approved</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  function Node({ element, use, icon, up }: { element: string; use: string; icon: string; up?: boolean }): JSX.Element {
-    const Icon = RCIcon[icon] ?? RCIcon.Link;
-    return (
-      <div className={`syflow__node${up === true ? " syflow__node--up" : ""}`}>
-        <span className="syflow__node-badge"><Icon /></span>
-        <div className="syflow__node-body">
-          <span className="syflow__node-el">{element}</span>
-          <span className="syflow__node-use">{use}</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="syflow">
-      <div className="syflow__col">
-        <div className="syflow__col-head"><RCIcon.ArrowR /> Inputs</div>
-        {RC_UPSTREAM_LINKS.map((u) => <Node key={u.id} element={u.element} use={u.delivers ?? ""} icon={u.icon} up />)}
-      </div>
-      <div className="syflow__col">
-        <div className="syflow__col-head">Outputs <RCIcon.ArrowR /></div>
-        {RC_DOWNSTREAM_LINKS.map((d) => <Node key={d.id} element={d.element} use={d.uses ?? ""} icon={d.icon} />)}
-        <div className="hrnote" style={{ marginTop: 4 }}>
-          <RCIcon.Gauge />
-          <span>RC computes the consequence per family, and RI clamps it against the ESQ frequency to close the risk equation.</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Element | null {
@@ -161,7 +99,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
           <RcProvenanceChip>Linked</RcProvenanceChip>
         </div>
         <p className="poscard__sub">Three elements feed the consequence, the source-term table, the release-category definitions, and the consequence metric.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="RC" />
       </div>
 
       <div className="poscard">
@@ -179,7 +117,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
           <span className="possubtle">The only element that leaves the site fence</span>
         </div>
         <p className="poscard__sub">RC takes the source term, the categories and the metric, and it delivers the consequence table to risk integration.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="RC" />
       </div>
 
       <div className="poscard">

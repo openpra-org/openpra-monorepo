@@ -26,6 +26,7 @@ import {
 } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 import { computePosReportToc } from "./posDocx";
+import { WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 // hardcoded — the per-screen summary figures (stat tiles, "still missing" notes,
 // guided-Q&A prose) are static demo copy that mirrors the reference design.
@@ -127,6 +128,13 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           <p className="poscard__sub" style={{ margin: 0 }}>Steps 1 through 9 are read only in this view.</p>
         </div>
       )}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Interfaces</h3>
+        </div>
+        <p className="poscard__sub">POS has no upstream inputs. It feeds the operating states, alignments and outage timelines downstream to the rest of the model.</p>
+        <WorkbookInterfaceMap element="POS" mode="outputs" />
+      </div>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Plant identity</h3>

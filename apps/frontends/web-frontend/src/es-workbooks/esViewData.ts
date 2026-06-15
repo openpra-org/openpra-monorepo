@@ -13,7 +13,7 @@ interface EsStep {
 }
 
 const ES_STEPS: EsStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "IEs · POS · barriers · key safety functions", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "IEs · POS · barriers · key safety functions", status: "idle" },
   { id: "sequences", num: "02", label: "Event Sequences", sub: "Lay out sequences per IE", status: "idle" },
   { id: "deps", num: "03", label: "Dependencies", sub: "Functional · human · phenomena", status: "idle" },
   { id: "timing", num: "04", label: "Timing & Phenomena", sub: "Mission times · time windows", status: "idle" },

@@ -15,6 +15,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./msReview";
 import { useMsWorkbook, type MsWorkbookData } from "./msWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/msScreens.css";
 
@@ -26,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Inputs", sub: "The three elements that converge and the capability target." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The three elements that converge and the capability target." };
     case "categories": return { eyebrow: "Step 02", title: "Release Categories", sub: "The bins, the bounding sequences and the termination times (MS-A)." };
     case "sources": return { eyebrow: "Step 03", title: "Sources & Barriers", sub: "The inventories and the calculated retention chain (MS-B)." };
     case "transport": return { eyebrow: "Step 04", title: "Transport Phenomena", sub: "The phenomena checklist and the design-unique physics (MS-B)." };
@@ -226,6 +227,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
                 <span>
                   <span className="posdock__item-text">{it.text}</span>
                   {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="MS" sr={it.id} />
                 </span>
               </div>
             ))}

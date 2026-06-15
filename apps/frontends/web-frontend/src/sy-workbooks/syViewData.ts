@@ -12,7 +12,7 @@ interface SyStep {
 }
 
 const SY_STEPS: SyStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "Systems · interfaces · setup", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Systems · interfaces · setup", status: "idle" },
   { id: "models", num: "02", label: "System Models", sub: "Boundaries · logic models", status: "idle" },
   { id: "failures", num: "03", label: "Failure Modes", sub: "Modes · screening · events", status: "idle" },
   { id: "ccf", num: "04", label: "Common Cause", sub: "Groups · shared causes", status: "idle" },

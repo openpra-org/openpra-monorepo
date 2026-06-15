@@ -4,7 +4,6 @@ import { RCIcon } from "./rcIcons";
 import {
   RC_PERSONAS,
   CAPABILITY_CATEGORIES,
-  RC_SR_LINKED_NM,
   type RcPersona,
   type RcStep,
   type SiteBasis,
@@ -17,6 +16,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./rcReview";
 import { useRcWorkbook, type RcWorkbookData } from "./rcWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/rcScreens.css";
 
@@ -28,7 +28,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "handoff": return { eyebrow: "Step 01 · RCRE", title: "Scope & Handoff", sub: "The site fork, the nine inputs per category and the scoping declaration." };
+    case "handoff": return { eyebrow: "Step 01 · RCRE", title: "Scope", sub: "The site fork, the nine inputs per category and the scoping declaration." };
     case "protective": return { eyebrow: "Step 02 · RCPA", title: "Protective Actions & Site", sub: "The actions, the cohorts, the evacuation chain and the site data." };
     case "weather": return { eyebrow: "Step 03 · RCME", title: "Meteorology", sub: "The representative weather year and its data quality." };
     case "dispersion": return { eyebrow: "Step 04 · RCAD", title: "Atmospheric Dispersion", sub: "The plume model, the weather sampling, the credit fence and the deposition." };
@@ -229,19 +229,16 @@ function ConformanceDock({ ccId, site, onGoToHandoff, onClose, mobileOpen }: {
               {sectionName}
               <span className="posdock__section-head-count">{sectionItems.filter((it) => it.status === "ok").length} / {sectionItems.length}</span>
             </div>
-            {sectionItems.map((it) => {
-              const nm = RC_SR_LINKED_NM[it.id];
-              return (
-                <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
-                  <span className="posdock__item-dot" />
-                  <span>
-                    <span className="posdock__item-text">{it.text}</span>
-                    {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
-                    {nm !== undefined && <span className="posdock__item-meta"><RCIcon.Sparkle /> {nm}</span>}
-                  </span>
-                </div>
-              );
-            })}
+            {sectionItems.map((it) => (
+              <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
+                <span className="posdock__item-dot" />
+                <span>
+                  <span className="posdock__item-text">{it.text}</span>
+                  {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="RC" sr={it.id} />
+                </span>
+              </div>
+            ))}
           </div>
         ))}
       </div>

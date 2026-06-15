@@ -15,6 +15,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./syReview";
 import { useSyWorkbook, type SyWorkbookData } from "./syWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/syScreens.css";
 
@@ -26,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Sources", sub: "Systems from ES, top events from SC, alignments from POS (SY-A1, A2, A3)." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "Systems from ES, top events from SC, alignments from POS (SY-A1, A2, A3)." };
     case "models": return { eyebrow: "Step 02", title: "System Models", sub: "Boundaries, alignments and the logic model per system (HLR-SY-A)." };
     case "failures": return { eyebrow: "Step 03", title: "Failure Modes", sub: "What goes in the model, screening and human events (SY-A16 to A28)." };
     case "ccf": return { eyebrow: "Step 04", title: "Common Cause", sub: "The block that stops the model lying about independence (SY-B1 to B4)." };
@@ -227,6 +228,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
                 <span>
                   <span className="posdock__item-text">{it.text}</span>
                   {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="SY" sr={it.id} />
                 </span>
               </div>
             ))}

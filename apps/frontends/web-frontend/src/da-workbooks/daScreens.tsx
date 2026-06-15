@@ -11,69 +11,14 @@ import {
   DA_METHODS,
   GROUPING_BASIS,
   SOURCE_TYPES,
-  DA_UPSTREAM_LINKS,
-  DA_OUTPUT_LINKS,
   type Stage,
 } from "./daViewData";
 import { modelLabel, paramIsWarn } from "./daSelectors";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface DaDrawerContext {
   kind: "param" | "boundary" | "grouping" | "estimate";
   id: string;
-}
-
-// ─── Shared interface bars ─────────────────────────────────────────────────
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="eslink eslink--2up">
-      {DA_UPSTREAM_LINKS.map((u) => {
-        const Icon = DAIcon[u.icon] ?? DAIcon.Link;
-        return (
-          <div key={u.id} className="eslink__card">
-            <div className="eslink__top">
-              <span className="eslink__badge"><Icon /></span>
-              <div>
-                <div className="eslink__el">{u.element}</div>
-                <div className="eslink__wb">{u.workbook} · v{u.version}</div>
-              </div>
-            </div>
-            <div className="eslink__delivers">{u.delivers}. {u.note}</div>
-            <div className="eslink__foot">
-              <span className="eslink__sync">Synced {u.synced}</span>
-              <span className="eslink__status eslink__status--approved"><DAIcon.Check /> Approved</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  function Node({ element, use, icon, up }: { element: string; use: string; icon: string; up?: boolean }): JSX.Element {
-    const Icon = DAIcon[icon] ?? DAIcon.Link;
-    return (
-      <div className={`syflow__node${up === true ? " syflow__node--up" : ""}`}>
-        <span className="syflow__node-badge"><Icon /></span>
-        <div className="syflow__node-body">
-          <span className="syflow__node-el">{element}</span>
-          <span className="syflow__node-use">{use}</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="syflow">
-      <div className="syflow__col">
-        <div className="syflow__col-head"><DAIcon.ArrowR /> Inputs</div>
-        {DA_UPSTREAM_LINKS.map((u) => <Node key={u.id} element={u.element} use={u.delivers ?? ""} icon={u.icon} up />)}
-      </div>
-      <div className="syflow__col">
-        <div className="syflow__col-head">Outputs <DAIcon.ArrowR /></div>
-        {DA_OUTPUT_LINKS.map((n) => <Node key={n.id} element={n.element} use={n.uses ?? ""} icon={n.icon} />)}
-      </div>
-    </div>
-  );
 }
 
 function LadderStrip(): JSX.Element {
@@ -155,7 +100,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <DaProvenanceChip>Linked</DaProvenanceChip>
         </div>
         <p className="poscard__sub">SY hands DA the list of basic events to fill, and POS sets the per-state context and the outage timelines.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="DA" />
       </div>
 
       <div className="poscard">
@@ -164,7 +109,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <span className="possubtle">The only sideways supplier in the model</span>
         </div>
         <p className="poscard__sub">DA delivers frequencies to IE, basic-event probabilities and CCF parameters to SY, parameters to HR, and every number to ESQ.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="DA" />
       </div>
 
       <div className="poscard">

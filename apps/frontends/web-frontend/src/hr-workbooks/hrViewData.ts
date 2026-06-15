@@ -12,7 +12,7 @@ interface HrStep {
 }
 
 const HR_STEPS: HrStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "Sources · interfaces · setup", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Sources · interfaces · setup", status: "idle" },
   { id: "preid", num: "02", label: "Pre-initiator: Identify", sub: "Routine activities (HLR-A)", status: "idle" },
   { id: "predef", num: "03", label: "Pre-initiator: Define", sub: "Screen · define (HLR-B, C)", status: "idle" },
   { id: "prequant", num: "04", label: "Pre-initiator: Quantify", sub: "HEPs · recovery (HLR-D)", status: "idle" },

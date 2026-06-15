@@ -14,6 +14,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./scReview";
 import { useScWorkbook, type ScWorkbookData } from "./scWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/scScreens.css";
 
@@ -25,7 +26,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Sources", sub: "See the radionuclide barriers, operating states, and challenges every criterion is built around, with states from POS and challenges from IE (SC-A4)." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "See the radionuclide barriers, operating states, and challenges every criterion is built around, with states from POS and challenges from IE (SC-A4)." };
     case "stable": return { eyebrow: "Step 02", title: "Safe stable state", sub: "Define the SFR endpoint of every non-release sequence and the end states, reusing the Mechanistic Source Term release categories (SC-A1, A2, A3)." };
     case "criteria": return { eyebrow: "Step 03", title: "Success criteria", sub: "State a success criterion for each key safety function, per initiating event and per operating state (SC-A5)." };
     case "mission": return { eyebrow: "Step 04", title: "Mission times", sub: "Set a mission time with a 24 hour minimum for sequences reaching a safe stable state, and check component times support it (SC-A7, A8)." };
@@ -235,7 +236,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
             {sectionItems.map((it) => (
               <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
                 <span className="posdock__item-dot" />
-                <span><span className="posdock__item-text">{it.text}</span></span>
+                <span><span className="posdock__item-text">{it.text}</span><DockDependsChip element="SC" sr={it.id} /></span>
               </div>
             ))}
           </div>

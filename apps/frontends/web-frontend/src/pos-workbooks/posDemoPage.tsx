@@ -53,7 +53,7 @@ interface StepHeader {
 
 function headersFor(stepId: string, isApprover: boolean): StepHeader {
   switch (stepId) {
-    case "setup": return { eyebrow: "Step 01", title: "Set up the workbook", sub: "Identify the plant, the analysis stage, and the capability category the analysis must meet." };
+    case "setup": return { eyebrow: "Step 01", title: "Scope", sub: "Identify the plant, the analysis stage, and the capability category the analysis must meet." };
     case "documents": return { eyebrow: "Step 02", title: "Bring your design documents", sub: "Upload anything that describes how the plant is configured and operated." };
     case "evolutions": return { eyebrow: "Step 03", title: "Plant evolutions" };
     case "states": return { eyebrow: "Step 04", title: "Operating states", sub: "Define the slices of each evolution where the plant's response to a given event is essentially uniform." };

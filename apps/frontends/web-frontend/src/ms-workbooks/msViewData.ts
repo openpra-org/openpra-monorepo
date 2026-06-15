@@ -12,7 +12,7 @@ interface MsStep {
 }
 
 const MS_STEPS: MsStep[] = [
-  { id: "scope", num: "01", label: "Scope & Inputs", sub: "Three elements converge", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Three elements converge", status: "idle" },
   { id: "categories", num: "02", label: "Release Categories", sub: "Define the bins (A)", status: "idle" },
   { id: "sources", num: "03", label: "Sources & Barriers", sub: "Inventory · retention (B)", status: "idle" },
   { id: "transport", num: "04", label: "Transport Phenomena", sub: "The physics checklist (B)", status: "idle" },

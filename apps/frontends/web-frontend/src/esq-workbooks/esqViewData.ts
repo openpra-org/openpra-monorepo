@@ -12,7 +12,7 @@ interface EsqStep {
 }
 
 const ESQ_STEPS: EsqStep[] = [
-  { id: "scope", num: "01", label: "Scope & Inputs", sub: "Six elements converge", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Six elements converge", status: "idle" },
   { id: "integrate", num: "02", label: "Integrate & Quantify", sub: "Families · frequencies (A)", status: "idle" },
   { id: "solve", num: "03", label: "Solve & Converge", sub: "Codes · truncation (B)", status: "idle" },
   { id: "logic", num: "04", label: "Logic Integrity", sub: "Loops · flags · mutex (B)", status: "idle" },

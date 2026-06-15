@@ -9,7 +9,6 @@ import {
   FEASIBILITY_CRITERIA,
   ES_OPERATOR_ACTIONS,
   ES_PHENOMENA,
-  ES_UPSTREAM_META,
   ES_SOURCE_CATALOG,
   ES_SAFETY_FUNCTION_CATALOG,
   ES_REPRESENTATIONS,
@@ -38,6 +37,7 @@ import {
   type CcScore,
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 import "./css/esScreens.css";
 
 function NamedIcon({ name }: { name: string }): JSX.Element {
@@ -74,56 +74,6 @@ function ESQDeferBanner({ title, children }: { title: string; children?: ReactNo
         {children !== undefined && <div className="esdefer__sub">{children}</div>}
       </div>
       <span className="esdefer__link">Go to ESQ <ESIcon.ArrowR /></span>
-    </div>
-  );
-}
-
-interface UpstreamLinkBarProps {
-  onOpenPosLink: () => void;
-  onOpenIeLink: () => void;
-}
-
-function UpstreamLinkBar({ onOpenPosLink, onOpenIeLink }: UpstreamLinkBarProps): JSX.Element {
-  const { posLink, ieLink } = useEsWorkbook();
-  const posLinked = posLink.linkedPosWorkbookId !== null;
-  const ieLinked = ieLink.linkedIeWorkbookId !== null;
-  return (
-    <div className="esupstream">
-      <div className={`esupstream__card${ieLinked ? "" : " esupstream__card--update"}`}>
-        <div className="esupstream__top">
-          <span className="esupstream__badge"><NamedIcon name={ES_UPSTREAM_META.ie.icon} /></span>
-          <div style={{ minWidth: 0 }}>
-            <div className="esupstream__el">{ES_UPSTREAM_META.ie.element}</div>
-            <div className="esupstream__wb">{ES_UPSTREAM_META.ie.short}{ieLinked && ieLink.linkedName !== null ? ` · ${ieLink.linkedName}` : ""}</div>
-          </div>
-        </div>
-        <div className="esupstream__delivers">{ES_UPSTREAM_META.ie.delivers}</div>
-        {ieLinked && <div className="esupstream__chips">{ieLink.initiators.slice(0, 6).map((i) => <span key={i.id} className="poschip">{i.name}</span>)}</div>}
-        <div className="esupstream__foot">
-          <span className="esupstream__sync">{ieLinked ? `${ieLink.initiators.length} initiators` : "Not linked"}</span>
-          {ieLinked
-            ? <button type="button" className="esupstream__linkbtn" onClick={onOpenIeLink}><ESIcon.Link /> Change</button>
-            : <button type="button" className="esupstream__linkbtn" onClick={onOpenIeLink}><ESIcon.Link /> Link IE</button>}
-        </div>
-      </div>
-
-      <div className={`esupstream__card${posLinked ? "" : " esupstream__card--update"}`}>
-        <div className="esupstream__top">
-          <span className="esupstream__badge"><NamedIcon name={ES_UPSTREAM_META.pos.icon} /></span>
-          <div style={{ minWidth: 0 }}>
-            <div className="esupstream__el">{ES_UPSTREAM_META.pos.element}</div>
-            <div className="esupstream__wb">{ES_UPSTREAM_META.pos.short}{posLinked && posLink.linkedName !== null ? ` · ${posLink.linkedName}` : ""}</div>
-          </div>
-        </div>
-        <div className="esupstream__delivers">{ES_UPSTREAM_META.pos.delivers}</div>
-        {posLinked && <div className="esupstream__chips">{posLink.states.slice(0, 6).map((s) => <span key={s.id} className="poschip">{s.name}</span>)}</div>}
-        <div className="esupstream__foot">
-          <span className="esupstream__sync">{posLinked ? `${posLink.states.length} states` : "Not linked"}</span>
-          {posLinked
-            ? <button type="button" className="esupstream__linkbtn" onClick={onOpenPosLink}><ESIcon.Link /> Change</button>
-            : <button type="button" className="esupstream__linkbtn" onClick={onOpenPosLink}><ESIcon.Link /> Link POS</button>}
-        </div>
-      </div>
     </div>
   );
 }
@@ -533,7 +483,7 @@ interface ScopeScreenProps extends ScreenProps {
   onOpenIeLink: () => void;
 }
 
-function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIeLink }: ScopeScreenProps): JSX.Element {
+function EsScopeScreen({ ccId, setCcId, stage, setStage }: ScopeScreenProps): JSX.Element {
   const { es } = useEsWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const sourceIds = es.scopeDefinition.radioactiveMaterialSources;
@@ -546,7 +496,16 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
           <ESProvenanceChip>Linked</ESProvenanceChip>
         </div>
         <p className="poscard__sub">Event Sequence Analysis builds on the initiating events from IE and the operating states from POS.</p>
-        <UpstreamLinkBar onOpenPosLink={onOpenPosLink} onOpenIeLink={onOpenIeLink} />
+        <WorkbookUpstreamBar element="ES" />
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Interfaces</h3>
+          <ESProvenanceChip>Downstream</ESProvenanceChip>
+        </div>
+        <p className="poscard__sub">ES hands its structured scenarios, end states, and release categories to the elements downstream.</p>
+        <WorkbookInterfaceMap element="ES" />
       </div>
 
       <div className="poscard">

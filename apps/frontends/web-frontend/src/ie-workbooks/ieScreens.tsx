@@ -13,6 +13,7 @@ import { Badge } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
 import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, METHOD_REGISTRY, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
   return typeof f === "number" ? f : f.value;
@@ -188,6 +189,25 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
 
   return (
     <>
+      {/* ── Upstream inputs ── */}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Upstream inputs</h3>
+          {linked ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
+        </div>
+        <p className="poscard__sub">The elements that feed this initiating-event analysis.</p>
+        <WorkbookUpstreamBar element="IE" />
+      </div>
+
+      {/* ── Interfaces ── */}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Interfaces</h3>
+        </div>
+        <p className="poscard__sub">What flows into the initiating-event analysis, and what it feeds.</p>
+        <WorkbookInterfaceMap element="IE" />
+      </div>
+
       {/* ── Scope card ── */}
       <div className="poscard">
         <div className="poscard__head">

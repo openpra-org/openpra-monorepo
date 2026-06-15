@@ -5,7 +5,6 @@ import {
   RI_PERSONAS,
   CAPABILITY_CATEGORIES,
   APPLICATION_TYPES,
-  RI_SR_LINKED_NM,
   type AppTypeId,
   type RiPersona,
   type RiStep,
@@ -17,6 +16,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./riReview";
 import { useRiWorkbook, type RiWorkbookData } from "./riWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/riScreens.css";
 
@@ -28,7 +28,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "converge": return { eyebrow: "Step 01 · HLR-RI-B", title: "Scope & Convergence", sub: "The two pipelines, the family frequencies and the family consequences." };
+    case "converge": return { eyebrow: "Step 01 · HLR-RI-B", title: "Scope", sub: "The two pipelines, the family frequencies and the family consequences." };
     case "criteria": return { eyebrow: "Step 02 · HLR-RI-A", title: "Significance Criteria", sub: "The consequence measures, the application fork and the reporting floors." };
     case "integrate": return { eyebrow: "Step 03 · HLR-RI-B", title: "Integrate & Compute", sub: "The sum, the frequency-consequence plot and the exceedance curve." };
     case "aggregate": return { eyebrow: "Step 04 · HLR-RI-B", title: "Aggregation & Contributors", sub: "The per-hazard honesty, the anti-masking review and the contributor roll-up." };
@@ -228,19 +228,16 @@ function ConformanceDock({ ccId, appType, onGoToCriteria, onClose, mobileOpen }:
               {sectionName}
               <span className="posdock__section-head-count">{sectionItems.filter((it) => it.status === "ok").length} / {sectionItems.length}</span>
             </div>
-            {sectionItems.map((it) => {
-              const nm = RI_SR_LINKED_NM[it.id];
-              return (
-                <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
-                  <span className="posdock__item-dot" />
-                  <span>
-                    <span className="posdock__item-text">{it.text}</span>
-                    {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
-                    {nm !== undefined && <span className="posdock__item-meta"><RIIcon.Sparkle /> {nm}</span>}
-                  </span>
-                </div>
-              );
-            })}
+            {sectionItems.map((it) => (
+              <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
+                <span className="posdock__item-dot" />
+                <span>
+                  <span className="posdock__item-text">{it.text}</span>
+                  {it.meta !== undefined && <span className="posdock__item-meta">{it.meta}</span>}
+                  <DockDependsChip element="RI" sr={it.id} />
+                </span>
+              </div>
+            ))}
           </div>
         ))}
       </div>

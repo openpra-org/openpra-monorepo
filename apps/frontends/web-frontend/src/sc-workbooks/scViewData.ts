@@ -13,7 +13,7 @@ interface ScStep {
 }
 
 const SC_STEPS: ScStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "Inputs · consumers · barriers", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Inputs · consumers · barriers", status: "idle" },
   { id: "stable", num: "02", label: "Safe Stable State", sub: "Endpoint · end states", status: "idle" },
   { id: "criteria", num: "03", label: "Success Criteria", sub: "Function by event by state", status: "idle" },
   { id: "mission", num: "04", label: "Mission Times", sub: "24 hour rule · components", status: "idle" },

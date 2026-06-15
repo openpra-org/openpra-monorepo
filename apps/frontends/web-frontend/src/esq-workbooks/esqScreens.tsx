@@ -5,8 +5,6 @@ import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
   CAPABILITY_CATEGORIES,
   ESQ_METHODS,
-  ESQ_UPSTREAM_LINKS,
-  ESQ_DOWNSTREAM_LINKS,
   QUANT_BASIS_LABELS,
   CONTRIBUTOR_TYPE_LABELS,
   MUTEX_TREATMENT_LABELS,
@@ -15,71 +13,11 @@ import {
   type Stage,
 } from "./esqViewData";
 import { familyMeanFrequency, familyIsRiskSignificant, familyIsWarn } from "./esqSelectors";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface EsqDrawerContext {
   kind: "family" | "barrier";
   id: string;
-}
-
-// ─── Shared interface bars ─────────────────────────────────────────────────
-function UpstreamLinkBar(): JSX.Element {
-  return (
-    <div className="esqsrc">
-      {ESQ_UPSTREAM_LINKS.map((u) => {
-        const Icon = ESQIcon[u.icon] ?? ESQIcon.Link;
-        const needsUpdate = u.status === "in_review";
-        return (
-          <div key={u.id} className={`esqsrc__card${needsUpdate ? " esqsrc__card--update" : ""}`}>
-            <div className="esqsrc__top">
-              <span className="esqsrc__badge"><Icon /></span>
-              <div>
-                <div className="esqsrc__el">{u.element}</div>
-                <div className="esqsrc__wb">{u.workbook} · v{u.version}</div>
-              </div>
-            </div>
-            <div className="esqsrc__delivers">{u.delivers}. {u.note}</div>
-            <div className="esqsrc__foot">
-              <span className="esqsrc__sync">Synced {u.synced}</span>
-              {needsUpdate
-                ? <span className="esqsrc__resync">Re-sync</span>
-                : <span className="esqsrc__status esqsrc__status--approved"><ESQIcon.Check /> Approved</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function InterfaceMap(): JSX.Element {
-  function Node({ element, use, icon, up }: { element: string; use: string; icon: string; up?: boolean }): JSX.Element {
-    const Icon = ESQIcon[icon] ?? ESQIcon.Link;
-    return (
-      <div className={`syflow__node${up === true ? " syflow__node--up" : ""}`}>
-        <span className="syflow__node-badge"><Icon /></span>
-        <div className="syflow__node-body">
-          <span className="syflow__node-el">{element}</span>
-          <span className="syflow__node-use">{use}</span>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="syflow">
-      <div className="syflow__col">
-        <div className="syflow__col-head"><ESQIcon.ArrowR /> Inputs</div>
-        {ESQ_UPSTREAM_LINKS.map((u) => <Node key={u.id} element={u.element} use={u.delivers ?? ""} icon={u.icon} up />)}
-      </div>
-      <div className="syflow__col">
-        <div className="syflow__col-head">Outputs <ESQIcon.ArrowR /></div>
-        {ESQ_DOWNSTREAM_LINKS.map((d) => <Node key={d.id} element={d.element} use={d.uses ?? ""} icon={d.icon} />)}
-        <div className="hrnote" style={{ marginTop: 4 }}>
-          <ESQIcon.Refresh />
-          <span>A risk-significance feedback loop runs back to IE, ES, SY, HR and DA.</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Element | null {
@@ -115,7 +53,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <EsqProvenanceChip>Linked</EsqProvenanceChip>
         </div>
         <p className="poscard__sub">Each element supplies a distinct piece, combined per source, initiating-event group, hazard group and operating state.</p>
-        <UpstreamLinkBar />
+        <WorkbookUpstreamBar element="ESQ" />
       </div>
 
       <div className="poscard">
@@ -124,7 +62,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           <span className="possubtle">The funnel of every element and the auditor of every screen</span>
         </div>
         <p className="poscard__sub">ESQ delivers the family frequencies to Risk Integration and the release inputs to the source term, and feeds risk significance back to every input.</p>
-        <InterfaceMap />
+        <WorkbookInterfaceMap element="ESQ" />
       </div>
 
       <div className="poscard">

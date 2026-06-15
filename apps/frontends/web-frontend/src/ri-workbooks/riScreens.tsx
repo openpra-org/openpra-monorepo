@@ -1,9 +1,9 @@
 import { JSX } from "react";
 import { RIIcon } from "./riIcons";
-import { Badge, RiProvenanceChip, valText } from "./riShared";
+import { RiProvenanceChip, valText } from "./riShared";
 import { useRiWorkbook } from "./riWorkbookContext";
+import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 import {
-  RI_UPSTREAM_LINKS,
   APPLICATION_TYPES,
   SCOPE_POS_TEXT,
   SCOPE_NOTE,
@@ -16,7 +16,6 @@ import {
   CCDF_NOTE,
   SIG_LABELS,
   type AppTypeId,
-  type LinkSpec,
 } from "./riViewData";
 import { familySignificance, consequenceOf } from "./riSelectors";
 
@@ -37,31 +36,7 @@ function expTick(p: number): string {
   return `1E${p < 0 ? "" : "+"}${p}`;
 }
 
-// ─── Small upstream input card (the two pipelines) ─────────────────────────
-function UpstreamCard({ u }: { u: LinkSpec }): JSX.Element {
-  const Icon = RIIcon[u.icon] ?? RIIcon.Boxes;
-  const statusKind = u.status === "approved" ? "ok" : u.status === "in_review" ? "progress" : "draft";
-  const statusLabel = u.status === "approved" ? "Approved" : u.status === "in_review" ? "In review" : "Draft";
-  return (
-    <div className={`ricard ricard--${u.tone}`}>
-      <div className="posrow" style={{ gap: 10, alignItems: "center" }}>
-        <span className={`ricard__badge ricard__badge--${u.tone}`}><Icon /></span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>{u.element}</div>
-          <div className="possubtle" style={{ fontSize: 11 }}>{u.role}</div>
-        </div>
-        <Badge kind={statusKind}>{statusLabel}</Badge>
-      </div>
-      <p className="possubtle" style={{ fontSize: 11.5, lineHeight: 1.45, margin: 0 }}>{u.delivers}</p>
-      <div className="posrow" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="poschip posmono">{u.code} v{u.version}</span>
-        <span className="possubtle" style={{ fontSize: 11 }}>{u.count} · synced {u.synced}</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── 01 — Scope & Convergence (RI-B1) ──────────────────────────────────────
+// ─── 01 — Scope (RI-B1) ────────────────────────────────────────────────────
 function ConvergeScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
   const { ri } = useRiWorkbook();
   const scope = ri.scopeDefinition;
@@ -74,9 +49,16 @@ function ConvergeScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => 
           <RiProvenanceChip>RI-B1</RiProvenanceChip>
         </div>
         <p className="poscard__sub">RI compiles two pipelines, the family frequencies from ESQ and the family consequences from RC.</p>
-        <div className="rigrid--2">
-          {RI_UPSTREAM_LINKS.map((u) => <UpstreamCard key={u.id} u={u} />)}
+        <WorkbookUpstreamBar element="RI" />
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Interfaces</h3>
+          <span className="possubtle">Where RI sits in the model</span>
         </div>
+        <p className="poscard__sub">RI is the convergence point, so it consumes from every upstream element and dispatches the risk significance back down.</p>
+        <WorkbookInterfaceMap element="RI" />
       </div>
 
       <div className="poscard">

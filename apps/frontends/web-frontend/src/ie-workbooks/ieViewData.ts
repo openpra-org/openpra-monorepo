@@ -13,7 +13,7 @@ interface IeStep {
 }
 
 const IE_STEPS: IeStep[] = [
-  { id: "scope", num: "01", label: "Scope & Sources", sub: "PRA scope · radioactive sources", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "PRA scope · radioactive sources", status: "idle" },
   { id: "states", num: "02", label: "Operating States", sub: "Imported from POS", status: "idle" },
   { id: "methods", num: "03", label: "Search Methods", sub: "Systematic methods", status: "idle" },
   { id: "identify", num: "04", label: "Identify Initiators", sub: "IE-A5 challenge spectrum", status: "idle" },

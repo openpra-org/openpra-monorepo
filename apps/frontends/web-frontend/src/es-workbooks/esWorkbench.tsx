@@ -14,6 +14,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./esReview";
 import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
+import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esScreens.css";
 
@@ -25,7 +26,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope & Sources", sub: "See the sources, barriers, and key safety functions every scenario is built around, all coming in from IE and POS (ES-A1, A2, A3)." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "See the sources, barriers, and key safety functions every scenario is built around, all coming in from IE and POS (ES-A1, A2, A3)." };
     case "sequences": return { eyebrow: "Step 02", title: "Event sequences", sub: "Lay out each scenario from its initiating event to one end state, a safe stable state or a release (ES-A5, A7)." };
     case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "Capture every link between functions, systems and operator actions so no linked failure is treated as independent (HLR-ES-B)." };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
@@ -236,7 +237,7 @@ function ConformanceDock({ ccId, stage, onGoToScope, onClose, mobileOpen }: {
             {sectionItems.map((it) => (
               <div key={it.id} className={`posdock__item posdock__item--${it.status}`}>
                 <span className="posdock__item-dot" />
-                <span><span className="posdock__item-text">{it.text}</span></span>
+                <span><span className="posdock__item-text">{it.text}</span><DockDependsChip element="ES" sr={it.id} /></span>
               </div>
             ))}
           </div>

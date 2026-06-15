@@ -70,7 +70,7 @@ export default defineConfig({
         text: "TS API",
         items: [
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
-          { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
+          { text: "MEF Types", link: "/mef-elements/ts/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Web Frontend", link: "/api/ts/web-frontend/README.html" },
           { text: "Praetor", link: "/api/ts/praetor/README.html" },
@@ -103,41 +103,45 @@ export default defineConfig({
       "/mef-elements/": [
         {
           text: "MEF Technical Elements",
-          items: (() => {
-            const __dirname = path.dirname(fileURLToPath(import.meta.url));
-            const repoRoot = path.resolve(__dirname, "../../..");
-            const mefRoot = path.resolve(repoRoot, "packages/docs-md/mef-elements");
-            const order: Array<{
-              slug: string;
-              text: string;
-            }> = [
-              { slug: "plant-operating-states-analysis", text: "Plant Operating States Analysis" },
-              { slug: "initiating-event-analysis", text: "Initiating Event Analysis" },
-              { slug: "event-sequence-analysis", text: "Event Sequence Analysis" },
-              { slug: "success-criteria", text: "Success Criteria" },
-              { slug: "systems-analysis", text: "Systems Analysis" },
-              { slug: "data-analysis", text: "Data Analysis" },
-              { slug: "event-sequence-quantification", text: "Event Sequence Quantification" },
-              { slug: "mechanistic-source-term", text: "Mechanistic Source Term Analysis" },
-              { slug: "radiological-consequence-analysis", text: "Radiological Consequence Analysis" },
-              { slug: "risk-integration", text: "Risk Integration" },
-            ];
-            const encodeSeg = (s: string) => encodeURIComponent(s);
-            const items: Array<{
-              text: string;
-              link: string;
-            }> = [];
-            for (const { slug, text } of order) {
-              const dir = path.resolve(mefRoot, slug);
-              if (!fs.existsSync(dir)) continue;
-              const link = `/mef-elements/${encodeSeg(slug)}/index.html`;
-              items.push({ text, link });
-            }
-            if (items.length === 0) {
-              items.push({ text: "Index", link: "/mef-elements/index.html" });
-            }
-            return items;
-          })(),
+          items: [
+            { text: "Overview", link: "/mef-elements/index.html" },
+            {
+              text: "Plant Operating States Analysis",
+              link: "/mef-elements/ts/pos/plant-operating-state-analysis/README.html",
+            },
+            {
+              text: "Initiating Event Analysis",
+              link: "/mef-elements/ts/ie/initiating-event-analysis/README.html",
+            },
+            { text: "Event Sequence Analysis", link: "/mef-elements/ts/es/event-sequence-analysis/README.html" },
+            { text: "Success Criteria", link: "/mef-elements/ts/sc/success-criteria-development/README.html" },
+            { text: "Systems Analysis", link: "/mef-elements/ts/sy/systems-analysis/README.html" },
+            {
+              text: "Human Reliability Analysis",
+              link: "/mef-elements/ts/hr/human-reliability-analysis/README.html",
+            },
+            { text: "Data Analysis", link: "/mef-elements/ts/da/data-analysis/README.html" },
+            {
+              text: "Event Sequence Quantification",
+              link: "/mef-elements/ts/esq/event-sequence-quantification/README.html",
+            },
+            {
+              text: "Mechanistic Source Term Analysis",
+              link: "/mef-elements/ts/ms/mechanistic-source-term-analysis/README.html",
+            },
+            {
+              text: "Radiological Consequence Analysis",
+              link: "/mef-elements/ts/rc/radiological-consequence-analysis/README.html",
+            },
+            { text: "Risk Integration", link: "/mef-elements/ts/ri/risk-integration/README.html" },
+          ],
+        },
+        {
+          text: "Reference",
+          items: [
+            { text: "All TypeScript modules", link: "/mef-elements/ts/README.html" },
+            { text: "All Zod modules", link: "/mef-elements/zod/README.html" },
+          ],
         },
       ],
       "/guides/": [
@@ -160,24 +164,6 @@ export default defineConfig({
               [{ text: "Explore src/ (by folder)", link: "/api/ts/shared-types/_explore/index.html" }]
             : []),
           ],
-        },
-      ],
-      "/api/ts/mef-types/": [
-        {
-          text: "MEF Types",
-          items: [
-            { text: "Index", link: "/api/ts/mef-types/README.html" },
-            { text: "Modules", link: "/api/ts/mef-types/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-types/_explore/index.html" }]
-            : []),
-          ],
-        },
-      ],
-      "/api/mef/openpra-mef/": [
-        {
-          text: "MEF Technical Elements (Schemas)",
-          items: [{ text: "Index", link: "/api/mef/openpra-mef/index.html" }],
         },
       ],
       "/api/ts/web-backend/": [

@@ -6,7 +6,7 @@ on:
       - "**"
     paths:
       - "packages/docs-md/**"
-      - "packages/mef-types/**"
+      - "apps/interfaces/mef-types/**"
       - "packages/shared-sdk/**"
       - "packages/frontend/web-editor/src/utils/**"
       - "packages/engine/scram/**"

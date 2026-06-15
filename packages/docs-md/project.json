@@ -10,24 +10,24 @@
         "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-types --json api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig ../../apps/interfaces/shared-types/tsconfig.lib.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/interfaces/shared-types"
       }
     },
-    "ts:markdown:mef-types": {
+    "mef:elements:ts": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --json api/ts/mef-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/node_modules/** --tsconfig tsconfig.typedoc.sanitized.json --options typedoc.base.json --logLevel Warn --skipErrorChecking --entryPointStrategy expand .tmp/typedoc-sanitized/mef-types"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out mef-elements/ts --readme none --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/zod/** --exclude **/node_modules/** --tsconfig ../../apps/interfaces/mef-types/tsconfig.lib.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/interfaces/mef-types"
+      }
+    },
+    "mef:elements:zod": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out mef-elements/zod --readme none --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/node_modules/** --tsconfig ../../apps/interfaces/mef-types/tsconfig.lib.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../apps/interfaces/mef-types/zod"
+      }
+    },
+    "mef:elements:assemble": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/generate-mef-elements.mjs"
       },
-      "dependsOn": ["ts:sanitize:mef-types"]
-    },
-    "mef:openpra:markdown": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/generate-mef-openpra-md.mjs"
-      }
-    },
-    "mef:elements:copy-docs": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/copy-mef-element-docs.mjs"
-      }
+      "dependsOn": ["mef:elements:ts", "mef:elements:zod"]
     },
     "ts:explore:folders": {
       "executor": "nx:run-commands",
@@ -36,18 +36,11 @@
       },
       "dependsOn": [
         "ts:markdown:shared-types",
-        "ts:markdown:mef-types",
         "ts:markdown:web-backend",
         "ts:markdown:web-frontend",
         "ts:markdown:praetor",
         "ts:markdown:scram-node"
       ]
-    },
-    "ts:sanitize:mef-types": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/sanitize-jsdoc-tags.mjs"
-      }
     },
     "ts:markdown:web-backend": {
       "executor": "nx:run-commands",
@@ -98,14 +91,14 @@
       "options": {
         "command": "pnpm --filter docs-md dev"
       },
-      "dependsOn": ["mef:elements:copy-docs"]
+      "dependsOn": ["mef:elements:assemble"]
     },
     "site:build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "mef:elements:copy-docs", "ts:explore:folders"]
+      "dependsOn": ["cpp:sanitize", "mef:elements:assemble", "ts:explore:folders"]
     },
     "prepare": {
       "executor": "nx:run-commands",
@@ -114,9 +107,7 @@
       },
       "dependsOn": [
         "ts:markdown:shared-types",
-        "ts:markdown:mef-types",
-        "mef:openpra:markdown",
-        "mef:elements:copy-docs",
+        "mef:elements:assemble",
         "ts:explore:folders",
         "ts:markdown:web-backend",
         "ts:markdown:web-frontend",

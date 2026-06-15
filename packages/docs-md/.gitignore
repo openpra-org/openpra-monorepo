@@ -1,0 +1,3 @@
+# Generated documentation artifacts (regenerated on every build)
+.tmp/
+mef-elements/

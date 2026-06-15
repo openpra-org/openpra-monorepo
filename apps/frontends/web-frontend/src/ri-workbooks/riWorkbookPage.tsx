@@ -19,7 +19,7 @@ import {
 } from "./riWorkbookApi";
 import { RiWorkbench, type RiWorkbenchActions } from "./riWorkbench";
 import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
-import { RiLoadExampleModal, RiUnloadExampleModal } from "./riLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { type RiPersona } from "./riViewData";
 
@@ -184,7 +184,8 @@ function RiWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RiWorkbookRoleName[])} />}
       {loadExOpen && (
-        <RiLoadExampleModal
+        <LoadExampleModal
+          exampleName="RI"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadRiExample(id);
@@ -195,7 +196,7 @@ function RiWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <RiUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadRiExample(id);

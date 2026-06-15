@@ -19,7 +19,7 @@ import {
 } from "./scWorkbookApi";
 import { ScWorkbench, type ScWorkbenchActions } from "./scWorkbench";
 import { ScWorkbookProvider, type ScWorkbookData } from "./scWorkbookContext";
-import { ScLoadExampleModal, ScUnloadExampleModal } from "./scLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { ScDocumentsCard } from "./scDocumentsCard";
 import { type ScPersona } from "./scViewData";
 
@@ -189,7 +189,8 @@ function ScWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as ScWorkbookRoleName[])} />}
       {loadExOpen && (
-        <ScLoadExampleModal
+        <LoadExampleModal
+          exampleName="SC"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadScExample(id);
@@ -200,7 +201,7 @@ function ScWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <ScUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadScExample(id);

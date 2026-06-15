@@ -19,7 +19,7 @@ import {
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
 import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
-import { EsqLoadExampleModal, EsqUnloadExampleModal } from "./esqLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
 import { type EsqPersona } from "./esqViewData";
 
@@ -190,7 +190,8 @@ function EsqWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsqWorkbookRoleName[])} />}
       {loadExOpen && (
-        <EsqLoadExampleModal
+        <LoadExampleModal
+          exampleName="ESQ"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadEsqExample(id);
@@ -201,7 +202,7 @@ function EsqWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <EsqUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadEsqExample(id);

@@ -19,7 +19,7 @@ import {
 } from "./daWorkbookApi";
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
 import { DaWorkbookProvider, type DaWorkbookData } from "./daWorkbookContext";
-import { DaLoadExampleModal, DaUnloadExampleModal } from "./daLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { DaDocumentsCard } from "./daDocumentsCard";
 import { type DaPersona } from "./daViewData";
 
@@ -191,7 +191,8 @@ function DaWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as DaWorkbookRoleName[])} />}
       {loadExOpen && (
-        <DaLoadExampleModal
+        <LoadExampleModal
+          exampleName="DA"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadDaExample(id);
@@ -202,7 +203,7 @@ function DaWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <DaUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadDaExample(id);

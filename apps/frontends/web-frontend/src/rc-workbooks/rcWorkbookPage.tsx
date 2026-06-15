@@ -19,7 +19,7 @@ import {
 } from "./rcWorkbookApi";
 import { RcWorkbench, type RcWorkbenchActions } from "./rcWorkbench";
 import { RcWorkbookProvider, type RcWorkbookData } from "./rcWorkbookContext";
-import { RcLoadExampleModal, RcUnloadExampleModal } from "./rcLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
 
@@ -186,7 +186,8 @@ function RcWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RcWorkbookRoleName[])} />}
       {loadExOpen && (
-        <RcLoadExampleModal
+        <LoadExampleModal
+          exampleName="RC"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadRcExample(id);
@@ -197,7 +198,7 @@ function RcWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <RcUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadRcExample(id);

@@ -19,7 +19,7 @@ import {
 } from "./msWorkbookApi";
 import { MsWorkbench, type MsWorkbenchActions } from "./msWorkbench";
 import { MsWorkbookProvider, type MsWorkbookData } from "./msWorkbookContext";
-import { MsLoadExampleModal, MsUnloadExampleModal } from "./msLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { MsDocumentsCard } from "./msDocumentsCard";
 import { type MsPersona } from "./msViewData";
 
@@ -188,7 +188,8 @@ function MsWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as MsWorkbookRoleName[])} />}
       {loadExOpen && (
-        <MsLoadExampleModal
+        <LoadExampleModal
+          exampleName="MS"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadMsExample(id);
@@ -199,7 +200,7 @@ function MsWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <MsUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadMsExample(id);

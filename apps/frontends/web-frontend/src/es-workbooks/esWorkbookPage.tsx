@@ -27,7 +27,7 @@ import { EsWorkbench, type EsWorkbenchActions } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
 import { EsPosLinkModal } from "./esPosLinkModal";
 import { EsIeLinkModal } from "./esIeLinkModal";
-import { EsLoadExampleModal, EsUnloadExampleModal } from "./esLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsDocumentsCard } from "./esDocumentsCard";
 import { type EsPersona } from "./esViewData";
 
@@ -240,7 +240,8 @@ function EsWorkbookPage(): JSX.Element {
         />
       )}
       {loadExOpen && (
-        <EsLoadExampleModal
+        <LoadExampleModal
+          exampleName="ES"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadEsExample(id);
@@ -252,7 +253,7 @@ function EsWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <EsUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadEsExample(id);

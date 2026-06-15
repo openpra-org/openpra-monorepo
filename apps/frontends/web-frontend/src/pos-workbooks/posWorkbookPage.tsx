@@ -24,8 +24,7 @@ import {
 } from "./posWorkbookApi";
 import { PosWorkbench } from "./posDemoPage";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
-import { PosLoadExampleModal } from "./posLoadExampleModal";
-import { PosUnloadExampleModal } from "./posUnloadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type PosPersona } from "./posViewData";
 import { useMefPatch } from "./useMefPatch";
 import { useAuth } from "../auth/AuthContext";
@@ -280,7 +279,8 @@ function PosWorkbookPage(): JSX.Element {
         />
       )}
       {loadExOpen && (
-        <PosLoadExampleModal
+        <LoadExampleModal
+          exampleName="POS"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadPosExample(id);
@@ -292,7 +292,7 @@ function PosWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <PosUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadPosExample(id);

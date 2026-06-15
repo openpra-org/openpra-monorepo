@@ -1508,7 +1508,7 @@
 
   /* Modal grids stack */
   .posroles__assign { grid-template-columns: 1fr; gap: 8px; }
-  .posloadex-modal, .posroles-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
+  .exmodal, .posroles-modal { width: 100vw; max-height: 100dvh; border-radius: 0; }
 
   /* Touch sizing on buttons */
   .posnav__btn { min-height: 40px; padding: 8px 14px; }
@@ -1531,9 +1531,9 @@
   /* Stats tiles single column */
 
   /* Modals lose rounded corners on phone */
-  .posloadex__head, .posroles__head { padding: 14px 16px; }
-  .posloadex__body, .posroles__section { padding: 14px 16px; }
-  .posloadex__foot { padding: 12px 16px; }
+  .exmodal__head, .posroles__head { padding: 14px 16px; }
+  .exmodal__body, .posroles__section { padding: 14px 16px; }
+  .exmodal__foot { padding: 12px 16px; }
 }
 
 /* Touch-only refinements */

@@ -19,7 +19,7 @@ import {
 } from "./hrWorkbookApi";
 import { HrWorkbench, type HrWorkbenchActions } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
-import { HrLoadExampleModal, HrUnloadExampleModal } from "./hrLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { HrDocumentsCard } from "./hrDocumentsCard";
 import { type HrPersona } from "./hrViewData";
 
@@ -191,7 +191,8 @@ function HrWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as HrWorkbookRoleName[])} />}
       {loadExOpen && (
-        <HrLoadExampleModal
+        <LoadExampleModal
+          exampleName="HRA"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadHrExample(id);
@@ -202,7 +203,7 @@ function HrWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <HrUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadHrExample(id);

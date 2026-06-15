@@ -28,7 +28,7 @@ import {
 import { IeWorkbench, type IeWorkbenchActions } from "./ieWorkbench";
 import { IeWorkbookProvider, type IeWorkbookData } from "./ieWorkbookContext";
 import { IePosLinkModal } from "./iePosLinkModal";
-import { IeLoadExampleModal, IeUnloadExampleModal } from "./ieLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type IePersona } from "./ieViewData";
 
 interface IeExampleResponse {
@@ -229,7 +229,8 @@ function IeWorkbookPage(): JSX.Element {
         />
       )}
       {loadExOpen && (
-        <IeLoadExampleModal
+        <LoadExampleModal
+          exampleName="IE"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadIeExample(id);
@@ -241,7 +242,7 @@ function IeWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <IeUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadIeExample(id);

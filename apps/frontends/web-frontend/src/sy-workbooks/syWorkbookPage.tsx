@@ -19,7 +19,7 @@ import {
 } from "./syWorkbookApi";
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import { SyWorkbookProvider, type SyWorkbookData } from "./syWorkbookContext";
-import { SyLoadExampleModal, SyUnloadExampleModal } from "./syLoadExampleModal";
+import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
 
@@ -189,7 +189,8 @@ function SyWorkbookPage(): JSX.Element {
       />
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as SyWorkbookRoleName[])} />}
       {loadExOpen && (
-        <SyLoadExampleModal
+        <LoadExampleModal
+          exampleName="SY"
           onCancel={() => setLoadExOpen(false)}
           onConfirm={async () => {
             const res = await loadSyExample(id);
@@ -200,7 +201,7 @@ function SyWorkbookPage(): JSX.Element {
         />
       )}
       {unloadExOpen && (
-        <SyUnloadExampleModal
+        <UnloadExampleModal
           onCancel={() => setUnloadExOpen(false)}
           onConfirm={async () => {
             const res = await unloadSyExample(id);

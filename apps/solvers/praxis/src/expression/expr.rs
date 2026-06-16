@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use rand::Rng;
@@ -13,6 +14,7 @@ pub struct EvalContext<'a> {
     parameters: &'a HashMap<String, Expr>,
     mission_time: f64,
     time: f64,
+    sample_cache: Option<RefCell<HashMap<String, f64>>>,
 }
 
 impl<'a> EvalContext<'a> {
@@ -21,11 +23,21 @@ impl<'a> EvalContext<'a> {
             parameters,
             mission_time,
             time,
+            sample_cache: None,
         }
     }
 
     pub fn constant(parameters: &'a HashMap<String, Expr>, mission_time: f64) -> Self {
         EvalContext::new(parameters, mission_time, mission_time)
+    }
+
+    pub fn correlated(parameters: &'a HashMap<String, Expr>, mission_time: f64) -> Self {
+        EvalContext {
+            parameters,
+            mission_time,
+            time: mission_time,
+            sample_cache: Some(RefCell::new(HashMap::new())),
+        }
     }
 }
 
@@ -148,6 +160,13 @@ impl<R: Rng> Walk<'_, '_, R> {
         Ok(match expr {
             Expr::Constant(value) => *value,
             Expr::Parameter(name) => {
+                if self.rng.is_some() {
+                    if let Some(cache) = &self.ctx.sample_cache {
+                        if let Some(value) = cache.borrow().get(name) {
+                            return Ok(*value);
+                        }
+                    }
+                }
                 if self.resolving.iter().any(|n| n == name) {
                     return Err(PraxisError::Logic(format!(
                         "Parameter cycle detected at '{}'",
@@ -162,7 +181,13 @@ impl<R: Rng> Walk<'_, '_, R> {
                 self.resolving.push(name.clone());
                 let value = self.eval(&definition);
                 self.resolving.pop();
-                value?
+                let value = value?;
+                if self.rng.is_some() {
+                    if let Some(cache) = &self.ctx.sample_cache {
+                        cache.borrow_mut().insert(name.clone(), value);
+                    }
+                }
+                value
             }
             Expr::MissionTime => self.ctx.mission_time,
             Expr::Time => self.ctx.time,
@@ -720,5 +745,31 @@ mod tests {
         };
         let expected = (0.1 * 1.0 + 0.3 * 3.0) / 4.0;
         assert!((hist.evaluate(&ctx).unwrap() - expected).abs() < 1e-12);
+    }
+
+    #[test]
+    fn correlated_context_shares_parameter_draws() {
+        let mut params = empty();
+        params.insert("p".to_string(), Expr::uniform(0.0, 1.0));
+
+        let correlated = EvalContext::correlated(&params, 1.0);
+        let mut rng = ChaCha8Rng::seed_from_u64(1);
+        let first = Expr::Parameter("p".to_string())
+            .sample(&correlated, &mut rng)
+            .unwrap();
+        let second = Expr::Parameter("p".to_string())
+            .sample(&correlated, &mut rng)
+            .unwrap();
+        assert_eq!(first, second);
+
+        let independent = EvalContext::new(&params, 1.0, 1.0);
+        let mut rng2 = ChaCha8Rng::seed_from_u64(1);
+        let a = Expr::Parameter("p".to_string())
+            .sample(&independent, &mut rng2)
+            .unwrap();
+        let bb = Expr::Parameter("p".to_string())
+            .sample(&independent, &mut rng2)
+            .unwrap();
+        assert_ne!(a, bb);
     }
 }

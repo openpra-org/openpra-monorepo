@@ -124,8 +124,12 @@ pub fn propagate_uncertainty(
     num_trials: usize,
     seed: Option<u64>,
 ) -> Result<UncertaintyAnalysis, PraxisError> {
+    use crate::algorithms::bdd_engine::Bdd;
+    use crate::algorithms::bdd_pdag::BddPdag;
+    use crate::algorithms::bdd_vectored::probability_vectored;
     use crate::expression::EvalContext;
     use crate::mc::prng::initialize_rng;
+    use std::collections::HashMap;
 
     if num_trials == 0 {
         return Err(PraxisError::Logic(
@@ -133,34 +137,44 @@ pub fn propagate_uncertainty(
         ));
     }
 
+    let mut pdag = BddPdag::from_fault_tree(fault_tree)
+        .map_err(|e| PraxisError::Logic(format!("PDAG construction failed: {}", e)))?;
+    pdag.compute_ordering_and_modules()
+        .map_err(|e| PraxisError::Logic(format!("variable ordering failed: {}", e)))?;
+    let (bdd, root) = Bdd::build_from_pdag(&pdag)
+        .map_err(|e| PraxisError::Logic(format!("BDD construction failed: {}", e)))?;
+
+    let nominal = bdd.var_probs().to_vec();
+
+    let mut var_pos: HashMap<String, usize> = HashMap::new();
+    for event_id in fault_tree.basic_events().keys() {
+        if let Some(pos) = pdag.idx_of(event_id).and_then(|idx| pdag.bdd_pos_of(idx)) {
+            var_pos.insert(event_id.clone(), pos);
+        }
+    }
+
+    const CHUNK: usize = 4096;
+    let mission_time = fault_tree.mission_time();
     let mut samples = Vec::with_capacity(num_trials);
     let mut rng = initialize_rng(seed);
 
-    let ctx = EvalContext::new(
-        fault_tree.parameters(),
-        fault_tree.mission_time(),
-        fault_tree.mission_time(),
-    );
+    let mut remaining = num_trials;
+    while remaining > 0 {
+        let chunk = remaining.min(CHUNK);
+        let mut columns: Vec<Vec<f64>> = nominal.iter().map(|&p| vec![p; chunk]).collect();
 
-    for _ in 0..num_trials {
-        let mut sampled_ft = fault_tree.clone();
-
-        for (event_id, event) in fault_tree.basic_events() {
-            let sampled_prob = event.sample_probability(&ctx, &mut rng);
-
-            if let Some(sampled_event) = sampled_ft.get_basic_event_mut(event_id) {
-                let _ = sampled_event.set_probability(sampled_prob);
+        for j in 0..chunk {
+            let ctx = EvalContext::correlated(fault_tree.parameters(), mission_time);
+            for (event_id, event) in fault_tree.basic_events() {
+                let sampled = event.sample_probability(&ctx, &mut rng);
+                if let Some(&pos) = var_pos.get(event_id) {
+                    columns[pos][j] = sampled;
+                }
             }
         }
 
-        let fta = crate::analysis::fault_tree::FaultTreeAnalysis::new(&sampled_ft)
-            .map_err(|e| PraxisError::Logic(format!("FTA creation failed: {}", e)))?;
-
-        let result = fta
-            .analyze()
-            .map_err(|e| PraxisError::Logic(format!("FTA analysis failed: {}", e)))?;
-
-        samples.push(result.top_event_probability);
+        samples.extend(probability_vectored(&bdd, root, &columns, chunk));
+        remaining -= chunk;
     }
 
     UncertaintyAnalysis::from_samples(samples)
@@ -432,5 +446,39 @@ mod tests {
 
         assert_eq!(analysis1.mean(), analysis2.mean());
         assert_eq!(analysis1.sigma(), analysis2.sigma());
+    }
+
+    #[test]
+    fn test_propagate_uncertainty_shared_parameter_correlation() {
+        use crate::core::event::BasicEvent;
+        use crate::core::fault_tree::FaultTree;
+        use crate::core::gate::{Formula, Gate};
+        use crate::expression::Expr;
+
+        let mut ft = FaultTree::new("Test".to_string(), "G1".to_string()).unwrap();
+        let mut gate = Gate::new("G1".to_string(), Formula::And).unwrap();
+        gate.add_operand("E1".to_string());
+        gate.add_operand("E2".to_string());
+        ft.add_gate(gate).unwrap();
+
+        ft.set_parameter("p".to_string(), Expr::uniform(0.0, 1.0));
+        ft.add_basic_event(
+            BasicEvent::with_value("E1".to_string(), 0.5, Expr::Parameter("p".to_string()))
+                .unwrap(),
+        )
+        .unwrap();
+        ft.add_basic_event(
+            BasicEvent::with_value("E2".to_string(), 0.5, Expr::Parameter("p".to_string()))
+                .unwrap(),
+        )
+        .unwrap();
+
+        let analysis = propagate_uncertainty(&ft, 20000, Some(42)).unwrap();
+
+        assert!(
+            (analysis.mean() - 1.0 / 3.0).abs() < 0.02,
+            "shared parameter p makes the AND top equal p^2, so the mean should approach E[p^2]=1/3, not the independent 1/4; got {}",
+            analysis.mean()
+        );
     }
 }

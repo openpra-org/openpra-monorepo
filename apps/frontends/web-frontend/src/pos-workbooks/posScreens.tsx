@@ -1,6 +1,6 @@
 import { Fragment, JSX, useRef, useState } from "react";
 import { type PosDocumentEntry } from "./posWorkbookApi";
-import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { type PlantOperatingStatesAnalysis, type PlantEvolution, EvolutionType } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { type CapabilityCategory as MefCapabilityCategory, type PlantStage as MefPlantStage } from "interfaces-mef-types/core/pra-common";
 import { type Mutator } from "./useMefPatch";
@@ -47,10 +47,34 @@ interface ScreenProps {
   mefPatch?: (mutator: Mutator) => void;
   mefPatchDebounced?: (mutator: Mutator) => void;
   canEdit: boolean;
+  onAddEvolution?: () => void;
 }
 
 function blankPlantIdentity(): PlantIdentity {
   return { name: "", vendor: "", reactorType: "", thermalPower: "", primaryCoolant: "" };
+}
+
+function blankPlantEvolution(): PlantEvolution {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "",
+    type: EvolutionType.AT_POWER,
+    description: "",
+    operatingModes: [],
+    reviewedDocumentation: {
+      operatingModes: [],
+      rcbConfigurations: [],
+      rcsParameterRanges: [],
+      decayHeatRemovalMechanisms: [],
+      availableInstrumentation: [],
+      activitiesLeadingToChanges: [],
+      radionuclideTransportBarrierStatus: [],
+      sscCapabilityChanges: [],
+      operationalAssumptions: [],
+    },
+    plantOperatingStateIds: [],
+    implementsSrs: [],
+  };
 }
 
 function setPlantIdentityField<K extends keyof PlantIdentity>(
@@ -144,7 +168,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Plant name</label>
             <input
               className="posfield__input"
-              placeholder="e.g. Generic-1 Reactor"
+              placeholder="e.g. Generic HTGR"
               value={isReal ? pi.name : undefined}
               defaultValue={!isReal ? pi.name : undefined}
               onChange={(e) => onPiChange("name", e.target.value)}
@@ -164,7 +188,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Reactor type</label>
             <input
               className="posfield__input"
-              placeholder="e.g. Sodium-cooled fast reactor (SFR)"
+              placeholder="e.g. High-temperature gas-cooled reactor (prismatic)"
               value={isReal ? pi.reactorType : undefined}
               defaultValue={!isReal ? pi.reactorType : undefined}
               onChange={(e) => onPiChange("reactorType", e.target.value)}
@@ -174,7 +198,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Thermal power</label>
             <input
               className="posfield__input"
-              placeholder="e.g. 300 MWth"
+              placeholder="e.g. 350 MWth"
               value={isReal ? pi.thermalPower : undefined}
               defaultValue={!isReal ? pi.thermalPower : undefined}
               onChange={(e) => onPiChange("thermalPower", e.target.value)}
@@ -186,7 +210,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Primary coolant</label>
             <input
               className="posfield__input"
-              placeholder="e.g. Liquid sodium"
+              placeholder="e.g. Helium"
               value={isReal ? pi.primaryCoolant : undefined}
               defaultValue={!isReal ? pi.primaryCoolant : undefined}
               onChange={(e) => onPiChange("primaryCoolant", e.target.value)}
@@ -196,7 +220,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Intermediate coolant</label>
             <input
               className="posfield__input"
-              placeholder="e.g. Liquid sodium"
+              placeholder="e.g. None (direct steam cycle)"
               value={isReal ? (pi.intermediateCoolant ?? "") : undefined}
               defaultValue={!isReal ? (pi.intermediateCoolant ?? "") : undefined}
               onChange={(e) => onPiChange("intermediateCoolant", e.target.value)}
@@ -206,7 +230,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             <label className="posfield__label">Power conversion working fluid</label>
             <input
               className="posfield__input"
-              placeholder="e.g. supercritical CO₂"
+              placeholder="e.g. Steam (Rankine cycle)"
               value={isReal ? (pi.powerConversionFluid ?? "") : undefined}
               defaultValue={!isReal ? (pi.powerConversionFluid ?? "") : undefined}
               onChange={(e) => onPiChange("powerConversionFluid", e.target.value)}
@@ -463,12 +487,16 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
                 </div>
                 <div className="posdoc__main">
                   <div className="posdoc__name">{d.name}</div>
-                  <div className="posdoc__meta">{d.sizeLabel} · uploaded {d.uploadedLabel} · linked to {d.linked} field{d.linked === 1 ? "" : "s"}</div>
+                  <div className="posdoc__meta">{d.sizeLabel} · {d.uploadedLabel}</div>
                 </div>
                 <div className="posdoc__extracted">
                   <POSIcon.Sparkle /> {d.extracted}
                 </div>
-                <Badge kind="ok">Indexed</Badge>
+                {d.url !== undefined && (
+                  <a className="posnav__btn posnav__btn--sm" href={d.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                    <POSIcon.Eye /> View source
+                  </a>
+                )}
               </div>
             ))
             : isReal
@@ -504,38 +532,26 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
                 </div>
                 <div className="posdoc__main">
                   <div className="posdoc__name">{d.name}</div>
-                  <div className="posdoc__meta">{d.size} · uploaded {d.uploaded} · linked to {d.linked} field{d.linked === 1 ? "" : "s"}</div>
+                  <div className="posdoc__meta">{d.size} · {d.uploaded}</div>
                 </div>
                 <div className="posdoc__extracted">
                   <POSIcon.Sparkle /> {d.extracted}
                 </div>
-                <Badge kind="ok">Indexed</Badge>
-                <button type="button" className="posdoc__more" aria-label="More"><POSIcon.More /></button>
+                {d.url !== undefined && (
+                  <a className="posnav__btn posnav__btn--sm" href={d.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                    <POSIcon.Eye /> View source
+                  </a>
+                )}
               </div>
             ))}
         </div>
       </div>
 
-      {!isReal && (
-        <div className="poscard poscard--ghost">
-          <div className="poscard__head">
-            <h3 className="poscard__title">What OpenPRA is still missing</h3>
-          </div>
-          <p className="posmuted" style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0 }}>
-            Based on the uploaded set, three field groups have no source document attached:
-          </p>
-          <ul style={{ margin: "12px 0 0", paddingLeft: 22, fontSize: 13.5, lineHeight: 1.75, color: "var(--color-text)" }}>
-            <li>Maintenance configuration document for IHX drained operation (referenced in POS-08)</li>
-            <li>Cover-gas adjustment procedure (referenced in POS-09)</li>
-            <li>Spent-fuel storage layout for ex-core source inventory</li>
-          </ul>
-        </div>
-      )}
     </>
   );
 }
 
-function EvolutionsScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
+function EvolutionsScreen({ openDrawer, onAddEvolution }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const evolutions = evolutionsView(pos);
   return (
@@ -544,7 +560,7 @@ function EvolutionsScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.E
         <div className="poscard__head">
           <h3 className="poscard__title">Plant evolutions</h3>
           <div className="posrow" style={{ gap: 8 }}>
-            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Add evolution — coming soon")}><POSIcon.Plus /> Add evolution</button>}
+            {onAddEvolution !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddEvolution}><POSIcon.Plus /> Add evolution</button>}
           </div>
         </div>
         <p className="poscard__sub">
@@ -1127,6 +1143,7 @@ function DraftScreen({
 export {
   type DrawerContext,
   type ScreenProps,
+  blankPlantEvolution,
   SetupScreen,
   DocumentsScreen,
   EvolutionsScreen,

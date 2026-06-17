@@ -17,7 +17,7 @@ interface PosStep {
 }
 
 const POS_PROJECT = {
-  projectName: "Generic-1 Reactor — Pre-operational PRA",
+  projectName: "Generic HTGR Pre-operational PRA",
   projectVersion: 1,
   workbookName: "POS Workbook 1",
   workbookOwner: "Aakash Patel",
@@ -25,12 +25,12 @@ const POS_PROJECT = {
   workbookCreated: "Apr 2, 2026",
   workbookVersion: 2,
   plant: {
-    name: "Generic-1",
-    type: "Sodium-cooled fast reactor (SFR)",
-    power: "300 MWt",
+    name: "Generic HTGR",
+    type: "High-temperature gas-cooled reactor (prismatic)",
+    power: "350 MWt",
     vendor: "Generic Nuclear LLC",
-    siteName: "INL — Eastern Idaho",
-    coolant: "Liquid sodium (primary), liquid sodium (intermediate), supercritical CO₂ (power conversion)",
+    siteName: "Generic site",
+    coolant: "Helium (primary), steam Rankine (power conversion)",
   },
 };
 
@@ -186,18 +186,14 @@ interface PosDocument {
   uploaded: string;
   extracted: string;
   linked: number;
+  url?: string;
 }
 
 const POS_DOCUMENTS: PosDocument[] = [
-  { id: "DOC-01", name: "Generic-1 Design Basis Document — Rev 4", kind: "doc", size: "12.4 MB", uploaded: "Mar 4", extracted: "Operating modes · RCS parameters · Barrier list", linked: 9 },
-  { id: "DOC-02", name: "P&ID — Primary sodium loop", kind: "image", size: "2.1 MB", uploaded: "Mar 4", extracted: "Components · valve states", linked: 6 },
-  { id: "DOC-03", name: "P&ID — Intermediate heat-transport loop", kind: "image", size: "1.8 MB", uploaded: "Mar 4", extracted: "Components · valve states", linked: 5 },
-  { id: "DOC-04", name: "P&ID — Cover-gas system", kind: "image", size: "1.4 MB", uploaded: "Mar 4", extracted: "Vent paths · barriers", linked: 4 },
-  { id: "DOC-05", name: "OP-002 — Startup & shutdown procedure", kind: "doc", size: "3.2 MB", uploaded: "Mar 6", extracted: "Operating modes · transitions", linked: 4 },
-  { id: "DOC-06", name: "OP-014 — Refuelling sequence", kind: "doc", size: "5.6 MB", uploaded: "Mar 6", extracted: "Refuelling activities · barrier status", linked: 3 },
-  { id: "DOC-07", name: "EOP-100 — Post-trip cooldown", kind: "doc", size: "2.4 MB", uploaded: "Mar 7", extracted: "DRACS activation · timing", linked: 2 },
-  { id: "DOC-08", name: "Decay-heat curves (vendor)", kind: "sheet", size: "92 KB", uploaded: "Mar 11", extracted: "Decay-heat as function of time", linked: 6 },
-  { id: "DOC-09", name: "Instrumentation list — Rev 2", kind: "sheet", size: "210 KB", uploaded: "Mar 14", extracted: "Sensor list · safety classification", linked: 9 },
+  { id: "DOC-01", name: "OECD/NEA MHTGR-350 MW Core Design Benchmark", kind: "doc", size: "OECD/NEA", uploaded: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark" },
+  { id: "DOC-02", name: "Multi-physics steady-state analysis of the MHTGR-350", kind: "doc", size: "J. Nucl. Sci. Technol.", uploaded: "2017", extracted: "Confirms 350 MWt, 6.4 MPa, 259 and 687 °C, 157.1 kg/s helium flow", linked: 4, url: "/api/example-documents/pos/mhtgr-analysis" },
+  { id: "DOC-03", name: "Overview of Modular HTGR Safety Characterization", kind: "doc", size: "ORNL", uploaded: "Pub49707", extracted: "Passive decay heat removal, the RCCS and SCS, loss of forced cooling", linked: 4, url: "/api/example-documents/pos/htgr-safety" },
+  { id: "DOC-04", name: "NGNP Probabilistic Risk Assessment White Paper (INL/EXT-11-21270)", kind: "doc", size: "INL", uploaded: "INL/EXT-11-21270", extracted: "HTGR PRA approach, plant operating states, licensing basis events", linked: 5, url: "/api/example-documents/pos/ngnp-pra" },
 ];
 
 type PosWorkflowStatus = "ok" | "warn" | "draft";

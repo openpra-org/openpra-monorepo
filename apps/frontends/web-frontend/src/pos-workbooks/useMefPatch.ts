@@ -20,7 +20,13 @@ function useMefPatch(
 
   const patch = useCallback(async (mutator: Mutator): Promise<void> => {
     if (current === null) return;
-    const draft = mutator(current);
+    if (debounceTimer.current !== null) {
+      window.clearTimeout(debounceTimer.current);
+      debounceTimer.current = null;
+    }
+    const base = pendingDraft.current ?? current;
+    pendingDraft.current = null;
+    const draft = mutator(base);
     try {
       const updated = await patchPosWorkbook(workbookId, draft);
       onSuccess(updated.mef);

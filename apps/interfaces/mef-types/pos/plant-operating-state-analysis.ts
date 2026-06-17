@@ -437,6 +437,7 @@ export interface ExampleDocumentRef {
   uploadedLabel: string;
   extracted: string;
   linked: number;
+  url?: string;
 }
 
 export const POS_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

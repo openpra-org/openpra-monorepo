@@ -1,0 +1,2 @@
+# Upload Git LFS objects to the remote before pushing
+git lfs pre-push "$@"

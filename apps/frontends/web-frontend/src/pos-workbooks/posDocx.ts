@@ -185,11 +185,10 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   );
 
   out.push(heading("References", HeadingLevel.HEADING_1));
-  out.push(bullet("Generic-1 Design Basis Document — Rev 4"));
-  out.push(bullet("OP-002 — Startup & shutdown procedure"));
-  out.push(bullet("OP-014 — Refuelling sequence"));
-  out.push(bullet("EOP-100 — Post-trip cooldown"));
-  out.push(bullet("Vendor decay-heat curves (NR-2024-117)"));
+  out.push(bullet("OECD/NEA MHTGR-350 MW Core Design Benchmark, INL results, OSTI 1129932 (https://www.osti.gov/biblio/1129932)"));
+  out.push(bullet("Multi-physics steady-state analysis of the MHTGR-350, J. Nucl. Sci. Technol. 2017 (https://doi.org/10.1080/00223131.2017.1299649)"));
+  out.push(bullet("Overview of Modular HTGR Safety Characterization, ORNL Pub49707 (https://info.ornl.gov/sites/publications/files/Pub49707.pdf)"));
+  out.push(bullet("NGNP Probabilistic Risk Assessment White Paper, INL/EXT-11-21270 (http://large.stanford.edu/courses/2015/ph241/al-alami1/docs/11-21270.pdf)"));
 
   return out;
 }

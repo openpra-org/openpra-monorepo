@@ -35,6 +35,7 @@ import {
   FrequencyScreen,
   DecayHeatScreen,
   DraftScreen,
+  blankPlantEvolution,
   type DrawerContext,
 } from "./posScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
@@ -186,7 +187,7 @@ function WorkspaceHeader({
           </button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook">
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic HTGR example workbook">
             <POSIcon.Sparkle /> Load example
           </button>
         )}
@@ -548,7 +549,14 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const h = headersFor(stepId, isApprover);
 
   const canEdit = isPreparer && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
-  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit };
+  function addEvolution(): void {
+    if (mefPatch === undefined) return;
+    const ev = blankPlantEvolution();
+    mefPatch((draft) => ({ ...draft, plantEvolutions: [...draft.plantEvolutions, ev] }))
+      .then(() => setDrawer({ kind: "evolution", id: ev.uuid }))
+      .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not add evolution"));
+  }
+  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit, onAddEvolution: canEdit && mefPatch !== undefined ? addEvolution : undefined };
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
@@ -690,7 +698,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
         )}
       </div>
 
-      {drawer !== null && <Drawer context={drawer} onClose={() => setDrawer(null)} canEdit={canEdit} />}
+      {drawer !== null && <Drawer context={drawer} onClose={() => setDrawer(null)} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />}
 
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 

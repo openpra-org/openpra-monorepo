@@ -17,7 +17,7 @@
         "generateLockfile": false,
         "main": "apps/backends/web-backend/src/main.ts",
         "tsConfig": "apps/backends/web-backend/tsconfig.app.json",
-        "assets": [],
+        "assets": [{ "glob": "*.pdf", "input": "apps/backends/web-backend/example-documents", "output": "example-documents" }],
         "webpackConfig": "apps/backends/web-backend/webpack.config.js"
       },
       "configurations": {

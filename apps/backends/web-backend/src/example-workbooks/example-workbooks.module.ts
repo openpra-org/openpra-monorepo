@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ExampleWorkbook, ExampleWorkbookSchema } from "./example-workbook.schema";
 import { ExampleWorkbooksController } from "./example-workbooks.controller";
+import { ExampleDocumentsController } from "./example-documents.controller";
 import { ExampleWorkbooksService } from "./example-workbooks.service";
 
 @Module({
@@ -10,7 +11,7 @@ import { ExampleWorkbooksService } from "./example-workbooks.service";
       { name: ExampleWorkbook.name, schema: ExampleWorkbookSchema },
     ]),
   ],
-  controllers: [ExampleWorkbooksController],
+  controllers: [ExampleWorkbooksController, ExampleDocumentsController],
   providers: [ExampleWorkbooksService],
   exports: [ExampleWorkbooksService],
 })

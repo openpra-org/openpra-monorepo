@@ -101,8 +101,6 @@ pub struct Bdd {
     prob_cache: HashMap<BddRef, f64>,
     var_probs: Vec<f64>,
     frozen: bool,
-    node_limit: usize,
-    over_limit: bool,
 }
 
 const SENTINEL: BddNode = BddNode {
@@ -120,8 +118,6 @@ impl Bdd {
             prob_cache: HashMap::new(),
             var_probs: Vec::new(),
             frozen: false,
-            node_limit: usize::MAX,
-            over_limit: false,
         }
     }
 
@@ -165,14 +161,6 @@ impl Bdd {
 
     pub fn node_count(&self) -> usize {
         self.nodes.len().saturating_sub(2)
-    }
-
-    pub fn set_node_limit(&mut self, limit: usize) {
-        self.node_limit = limit;
-    }
-
-    pub fn over_limit(&self) -> bool {
-        self.over_limit
     }
 
     // -----------------------------------------------------------------------
@@ -267,10 +255,6 @@ impl Bdd {
         let key = BddNode::new(var, canon_high, canon_low);
         if let Some(r) = self.unique_get(&key) {
             return if negate { r.complement() } else { r };
-        }
-        if self.node_limit != usize::MAX && self.node_count() >= self.node_limit {
-            self.over_limit = true;
-            return BDD_FALSE;
         }
         let r = self.alloc_node(key);
         self.unique_insert(key, r);
@@ -398,37 +382,6 @@ impl Bdd {
         let root_ref = build_node_recursive(&mut bdd, pdag, root_idx, &mut cache)?;
 
         Ok((bdd, root_ref))
-    }
-
-    pub fn build_from_pdag_capped(
-        pdag: &BddPdag,
-        node_limit: usize,
-    ) -> Result<(Bdd, BddRef, bool)> {
-        let root_idx = pdag.root().ok_or_else(|| {
-            PraxisError::Logic("BDD construction: PDAG has no root".to_string())
-        })?;
-
-        if pdag.num_variables() > 0 && pdag.variable_order().is_empty() {
-            return Err(PraxisError::Logic(
-                "BDD construction: variable ordering not set".to_string(),
-            ));
-        }
-
-        let var_probs: Vec<f64> = pdag
-            .variable_order()
-            .iter()
-            .map(|&idx| pdag.probability_of(idx).unwrap_or(0.0))
-            .collect();
-
-        let mut bdd = Bdd::new();
-        bdd.set_var_probs(var_probs);
-        bdd.set_node_limit(node_limit);
-
-        let mut cache: HashMap<NodeIdx, BddRef> = HashMap::new();
-        let root_ref = build_node_recursive(&mut bdd, pdag, root_idx, &mut cache)?;
-        let over = bdd.over_limit();
-
-        Ok((bdd, root_ref, over))
     }
 
     pub fn probability(&self, root: BddRef) -> f64 {

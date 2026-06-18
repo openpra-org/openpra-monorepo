@@ -36,6 +36,7 @@ import {
   DecayHeatScreen,
   DraftScreen,
   blankPlantEvolution,
+  blankPlantOperatingState,
   type DrawerContext,
 } from "./posScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
@@ -556,7 +557,15 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       .then(() => setDrawer({ kind: "evolution", id: ev.uuid }))
       .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not add evolution"));
   }
-  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit, onAddEvolution: canEdit && mefPatch !== undefined ? addEvolution : undefined };
+  function addState(): void {
+    if (mefPatch === undefined) return;
+    const firstEvolution = data.pos.plantEvolutions[0]?.uuid ?? "";
+    const st = blankPlantOperatingState(firstEvolution);
+    mefPatch((draft) => ({ ...draft, plantOperatingStates: [...draft.plantOperatingStates, st] }))
+      .then(() => setDrawer({ kind: "state", id: st.uuid }))
+      .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not add state"));
+  }
+  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit, onAddEvolution: canEdit && mefPatch !== undefined ? addEvolution : undefined, onAddState: canEdit && mefPatch !== undefined ? addState : undefined };
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
@@ -576,7 +585,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       case "interviews": return <InterviewsScreen {...screenProps} />;
       case "screening": return <ScreeningScreen {...screenProps} />;
       case "grouping": return <GroupingScreen {...screenProps} />;
-      case "frequency": return <FrequencyScreen canEdit={canEdit} />;
+      case "frequency": return <FrequencyScreen {...screenProps} />;
       case "decayheat": return <DecayHeatScreen {...screenProps} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onGenerate={handleGenerate} onSubmitDraft={(ready) => {
         if (actions !== undefined) {
@@ -763,7 +772,14 @@ function PosDemoPage(): JSX.Element {
           projectName: POS_PROJECT.projectName,
           workbookName: POS_PROJECT.workbookName,
           workbookVersion: String(POS_PROJECT.workbookVersion),
-          plantIdentity: POS_PROJECT.plant,
+          plantIdentity: data.pos.metadata.plantIdentity
+            ? {
+                name: data.pos.metadata.plantIdentity.name,
+                type: data.pos.metadata.plantIdentity.reactorType,
+                power: data.pos.metadata.plantIdentity.thermalPower,
+                vendor: data.pos.metadata.plantIdentity.vendor,
+              }
+            : undefined,
         }}
       />
     </PosWorkbookProvider>

@@ -24,14 +24,6 @@ const POS_PROJECT = {
   workbookOwnerInitials: "AP",
   workbookCreated: "Apr 2, 2026",
   workbookVersion: 2,
-  plant: {
-    name: "Generic HTGR",
-    type: "High-temperature gas-cooled reactor (prismatic)",
-    power: "350 MWt",
-    vendor: "Generic Nuclear LLC",
-    siteName: "Generic site",
-    coolant: "Helium (primary), steam Rankine (power conversion)",
-  },
 };
 
 const POS_STEPS: PosStep[] = [
@@ -136,12 +128,6 @@ const POS_SR_DESCRIPTIONS: Record<string, string> = {
   "POS-D3": "Pre-operational: assumptions & limitations from missing as-built detail documented",
 };
 
-const POS_SR_LINKED_NM: Record<string, string> = {
-  "POS-B6": "NM-028",
-  "POS-C1": "NM-021",
-  "POS-C4": "NM-014",
-};
-
 function buildConformanceItems(): ConformanceItem[] {
   return Object.entries(POS_SR_CATALOG).map(([code, meta]) => {
     const stages = meta.stages.map((s): ConformanceStage => (s === "OPERATIONAL" ? "operational" : "pre_operational"));
@@ -154,8 +140,6 @@ function buildConformanceItems(): ConformanceItem[] {
       stages,
       sr: [code],
     };
-    const nm = POS_SR_LINKED_NM[code];
-    if (nm !== undefined) item.linkedNM = nm;
     return item;
   });
 }

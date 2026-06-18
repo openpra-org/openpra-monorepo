@@ -2,10 +2,13 @@ import {
   type PlantOperatingState,
   type PlantOperatingStatesAnalysis,
   type ParameterRange,
+  type ScreeningCriterion,
   BarrierStatus,
 } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
+import { type ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import {
   POS_STEPS,
   CONFORMANCE_ITEMS,
@@ -77,13 +80,17 @@ interface InterviewView {
   overlooked: number;
 }
 
-interface ScreeningView {
-  id: string;
+interface ScreeningEditorView {
   posId: string;
+  name: string;
+  description: string;
+  mode: string;
   retained: boolean;
-  criterion: string | null;
+  criterion: ScreeningCriterion | null;
+  riskSignificance: ImportanceLevel | null;
+  riskLabel: string;
   justification: string;
-  riskImpact: string;
+  needsBasis: boolean;
 }
 
 function formatNumber(value: number): string {
@@ -104,6 +111,18 @@ function formatDuration(hours: number): string {
 function formatFrequency(perYear: number): string {
   if (perYear === 0) return "—";
   return `${perYear}/yr`;
+}
+
+function formatImportance(level: ImportanceLevel): string {
+  return level.charAt(0) + level.slice(1).toLowerCase();
+}
+
+function stateLabel(name: string): string {
+  return name.trim().length > 0 ? name : "Untitled state";
+}
+
+function evolutionLabel(name: string): string {
+  return name.trim().length > 0 ? name : "Untitled evolution";
 }
 
 function barrierLabels(state: PlantOperatingState): string[] {
@@ -180,18 +199,19 @@ function evolutionsView(pos: PlantOperatingStatesAnalysis): EvolutionView[] {
 
 function groupsView(pos: PlantOperatingStatesAnalysis): GroupView[] {
   const groups = pos.plantOperatingStateGroups ?? [];
+  const nameById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, stateLabel(s.name)]));
   return groups.map((g) => {
     const bounded = g.doesNotMaskRiskSignificantContributors;
     const pending = g.boundingCharacteristics.some((c) => c.startsWith("Pending"));
     return {
       id: g.uuid,
       name: g.name,
-      members: g.memberPosIds,
+      members: g.memberPosIds.map((id) => nameById.get(id) ?? stateLabel("")),
       rationale: g.similarityBasis,
       boundingCharacteristic: g.boundingCharacteristics[0] ?? "",
       durationSum: formatDuration(g.summedDurationHours),
       status: bounded && !pending ? "ok" : "warn",
-      statusMessage: pending ? "Bounding rationale for fuel-handling phase still to be entered." : undefined,
+      statusMessage: pending ? `Bounding rationale for ${g.name} still to be entered.` : undefined,
       hasPreopAssumption: (g.preOperationalAssumptions ?? []).length > 0,
     };
   });
@@ -210,20 +230,25 @@ function interviewsView(pos: PlantOperatingStatesAnalysis): InterviewView[] {
   }));
 }
 
-function screeningView(pos: PlantOperatingStatesAnalysis): ScreeningView[] {
-  return pos.screeningRecords.map((r, i) => {
-    const impact = r.retained
-      ? r.posId === "POS-05"
-        ? "High"
-        : "Medium"
-      : "Low";
+function screeningEditorView(pos: PlantOperatingStatesAnalysis): ScreeningEditorView[] {
+  const byPos = new Map(pos.screeningRecords.map((r) => [r.posId, r]));
+  return pos.plantOperatingStates.map((s) => {
+    const rec = byPos.get(s.uuid);
+    const retained = rec ? rec.retained : true;
+    const riskSignificance = rec?.riskSignificance ?? null;
+    const criterion = rec?.criterion ?? null;
+    const justification = rec?.justification ?? "";
     return {
-      id: `SCR-${i + 1}`,
-      posId: r.posId,
-      retained: r.retained,
-      criterion: r.retained ? null : "Qualitative — subsumed",
-      justification: r.justification,
-      riskImpact: impact,
+      posId: s.uuid,
+      name: s.name,
+      description: s.description,
+      mode: s.operatingMode,
+      retained,
+      criterion,
+      riskSignificance,
+      riskLabel: riskSignificance !== null ? formatImportance(riskSignificance) : retained ? "Unrated" : "—",
+      justification,
+      needsBasis: !retained && (criterion === null || justification.trim() === ""),
     };
   });
 }
@@ -539,14 +564,142 @@ function preOpsForGroup(pos: PlantOperatingStatesAnalysis, groupId: string): Pre
   }));
 }
 
+const HOURS_PER_YEAR = 8760;
+
+interface CoverageView {
+  summedHours: number;
+  totalCycleHours: number;
+  coverageFraction: number;
+  gapHours: number;
+  covered: boolean;
+}
+
+function coverageView(pos: PlantOperatingStatesAnalysis): CoverageView {
+  const summedHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
+  const totalCycleHours = HOURS_PER_YEAR;
+  const coverageFraction = totalCycleHours > 0 ? summedHours / totalCycleHours : 0;
+  const gapHours = Math.max(0, totalCycleHours - summedHours);
+  const covered = gapHours <= 1;
+  return { summedHours, totalCycleHours, coverageFraction, gapHours, covered };
+}
+
+function frequencyValue(freq: Frequency | FrequencyWithDistribution): number {
+  return typeof freq === "number" ? freq : freq.value;
+}
+
+interface CycleReconciliationView {
+  summedHours: number;
+  totalCycleHours: number;
+  deltaHours: number;
+  withinTolerance: boolean;
+}
+
+function cycleReconciliation(pos: PlantOperatingStatesAnalysis): CycleReconciliationView {
+  const summedHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
+  const totalCycleHours = HOURS_PER_YEAR;
+  const deltaHours = summedHours - totalCycleHours;
+  const withinTolerance = Math.abs(deltaHours) <= 1;
+  return { summedHours, totalCycleHours, deltaHours, withinTolerance };
+}
+
+interface QuantStateView {
+  uuid: string;
+  name: string;
+  description: string;
+  mode: string;
+  durationHours: number;
+  frequencyPerYear: number;
+  basis: string;
+  durationFraction: number;
+  retained: boolean;
+  hasPreopAssumption: boolean;
+}
+
+function quantStatesView(pos: PlantOperatingStatesAnalysis): QuantStateView[] {
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  return pos.plantOperatingStates.map((s) => ({
+    uuid: s.uuid,
+    name: s.name,
+    description: s.description,
+    mode: s.operatingMode,
+    durationHours: s.meanDurationHours,
+    frequencyPerYear: frequencyValue(s.meanEntryFrequency),
+    basis: s.durationAndCycleTimingBasis ?? "",
+    durationFraction: s.meanDurationHours / HOURS_PER_YEAR,
+    retained: !screenedOut.has(s.uuid),
+    hasPreopAssumption: (s.preOperationalAssumptions ?? []).length > 0,
+  }));
+}
+
+interface GroupRollupView {
+  id: string;
+  name: string;
+  memberCount: number;
+  storedDurationHours: number;
+  memberDurationHours: number;
+  durationMatches: boolean;
+  entryFreqPerYear: number;
+}
+
+function groupRollupView(pos: PlantOperatingStatesAnalysis): GroupRollupView[] {
+  const byId = new Map(pos.plantOperatingStates.map((s) => [s.uuid, s]));
+  return (pos.plantOperatingStateGroups ?? []).map((g) => {
+    const members = g.memberPosIds
+      .map((id) => byId.get(id))
+      .filter((s): s is PlantOperatingState => s !== undefined);
+    const memberDurationHours = members.reduce((acc, s) => acc + s.meanDurationHours, 0);
+    const storedDurationHours = g.summedDurationHours;
+    return {
+      id: g.uuid,
+      name: g.name,
+      memberCount: members.length,
+      storedDurationHours,
+      memberDurationHours,
+      durationMatches: Math.abs(storedDurationHours - memberDurationHours) <= 1,
+      entryFreqPerYear: frequencyValue(g.entryFrequency),
+    };
+  });
+}
+
+function decayHeatFraction(timeAfterShutdownHours: number, operatingDays: number): number {
+  if (timeAfterShutdownHours <= 0 || operatingDays <= 0) return 0;
+  const t = timeAfterShutdownHours * 3600;
+  const ts = operatingDays * 24 * 3600;
+  return 0.0622 * (Math.pow(t, -0.2) - Math.pow(ts + t, -0.2));
+}
+
+function decayHeatWignerWay(timeAfterShutdownHours: number, operatingPowerMw: number, operatingDays: number): number {
+  return decayHeatFraction(timeAfterShutdownHours, operatingDays) * operatingPowerMw;
+}
+
+interface DecayHeatMethod {
+  id: string;
+  label: string;
+  compute: (timeAfterShutdownHours: number, operatingPowerMw: number, operatingDays: number) => number;
+}
+
+const DECAY_HEAT_METHODS: DecayHeatMethod[] = [
+  { id: "wigner-way", label: "Wigner-Way correlation", compute: decayHeatWignerWay },
+];
+
 export {
   type Stage,
+  type CoverageView,
+  type DecayHeatMethod,
+  type CycleReconciliationView,
+  type QuantStateView,
+  type GroupRollupView,
+  coverageView,
+  cycleReconciliation,
+  quantStatesView,
+  groupRollupView,
+  DECAY_HEAT_METHODS,
   type RcsView,
   type StateView,
   type EvolutionView,
   type GroupView,
   type InterviewView,
-  type ScreeningView,
+  type ScreeningEditorView,
   type ReviewerView,
   type CommentView,
   type CcSnapshotView,
@@ -556,12 +709,14 @@ export {
   evolutionsView,
   groupsView,
   interviewsView,
-  screeningView,
+  screeningEditorView,
   stepIndexById,
   filterConformance,
   groupBySection,
   ccScore,
   isBarrierBroken,
+  stateLabel,
+  evolutionLabel,
   formatNumber,
   formatRange,
   formatDuration,

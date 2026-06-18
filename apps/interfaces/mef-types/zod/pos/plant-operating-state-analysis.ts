@@ -299,6 +299,7 @@ export const PosScreeningRecordSchema = z.object({
   quantitativeBasis: z.number().optional(),
   justification: z.string(),
   alternateCriterionJustification: z.string().optional(),
+  riskSignificance: ImportanceLevelSchema.optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -425,6 +426,8 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   documentation: PosDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  // additional-to-example
+  decayHeatOperatingDays: z.number().optional(),
   // additional-to-example
   exampleDocuments: z.array(z.object({
     id: z.string(),

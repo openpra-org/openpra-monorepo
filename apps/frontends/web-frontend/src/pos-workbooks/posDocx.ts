@@ -11,7 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import { formatRange, formatDuration, formatFrequency } from "./posSelectors";
+import { formatRange, formatDuration, formatFrequency, stateLabel, evolutionLabel } from "./posSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -62,6 +62,11 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   const out: (Paragraph | Table)[] = [];
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const ccLabel = a.capabilityCategory ?? "N/A";
+  const stateById = new Map(a.plantOperatingStates.map((s) => [s.uuid, s]));
+  const posName = (id: string): string => {
+    const s = stateById.get(id);
+    return s !== undefined ? stateLabel(s.name) : id;
+  };
 
   out.push(
     new Paragraph({
@@ -112,17 +117,16 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(heading("Plant evolutions", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
-      ["ID", "Evolution", "Type", "States"],
-      a.plantEvolutions.map((e) => [e.uuid, e.name, e.type.split("_").join(" ").toLowerCase(), String(e.plantOperatingStateIds.length)]),
+      ["Evolution", "Type", "States"],
+      a.plantEvolutions.map((e) => [evolutionLabel(e.name), e.type.split("_").join(" ").toLowerCase(), String(e.plantOperatingStateIds.length)]),
     ),
   );
   out.push(heading("Plant operating states", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
-      ["ID", "State", "Mode", "Coolant T", "Power", "Mean duration", "Entry frequency"],
+      ["State", "Mode", "Coolant T", "Power", "Mean duration", "Entry frequency"],
       a.plantOperatingStates.map((s) => [
-        s.uuid,
-        s.name,
+        stateLabel(s.name),
         s.operatingMode,
         formatRange(s.rcsParameters.reactorCoolantTemperature),
         formatRange(s.rcsParameters.powerLevel),
@@ -144,7 +148,7 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(
     dataTable(
       ["State", "Decision", "Justification"],
-      a.screeningRecords.map((r) => [r.posId, r.retained ? "Retained" : "Screened out", r.justification]),
+      a.screeningRecords.map((r) => [posName(r.posId), r.retained ? "Retained" : "Screened out", r.justification]),
     ),
   );
   out.push(heading("Grouping plant operating states", HeadingLevel.HEADING_2));
@@ -153,7 +157,7 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
       ["Group", "Members", "Bounding characteristic", "Total duration"],
       (a.plantOperatingStateGroups ?? []).map((g) => [
         g.name,
-        g.memberPosIds.join(", "),
+        g.memberPosIds.map(posName).join(", "),
         g.boundingCharacteristics.join("; "),
         formatDuration(g.summedDurationHours),
       ]),
@@ -165,14 +169,14 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(
     dataTable(
       ["State", "Mean duration", "Entry frequency"],
-      a.plantOperatingStates.map((s) => [s.uuid, formatDuration(s.meanDurationHours), formatFrequency(frequencyValue(s.meanEntryFrequency))]),
+      a.plantOperatingStates.map((s) => [stateLabel(s.name), formatDuration(s.meanDurationHours), formatFrequency(frequencyValue(s.meanEntryFrequency))]),
     ),
   );
   out.push(heading("Decay heat levels", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
       ["State", "Time after shutdown (h)", "Decay-heat level", "Basis"],
-      a.decayHeatCharacterizations.map((d) => [d.posId, String(d.timeAfterShutdownHours), formatRange(d.decayHeatLevel), d.basis]),
+      a.decayHeatCharacterizations.map((d) => [posName(d.posId), String(d.timeAfterShutdownHours), formatRange(d.decayHeatLevel), d.basis]),
     ),
   );
 

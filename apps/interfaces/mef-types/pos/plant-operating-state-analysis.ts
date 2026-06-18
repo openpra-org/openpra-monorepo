@@ -290,6 +290,7 @@ export interface PosScreeningRecord {
   quantitativeBasis?: number;
   justification: string;
   alternateCriterionJustification?: string;
+  riskSignificance?: ImportanceLevel;
   implementsSrs: SRReference[];
 }
 
@@ -424,6 +425,8 @@ export interface PlantOperatingStatesAnalysis
   configurationControlRecordId?: string;
   newlyDevelopedMethodIds?: string[];
 
+  // additional-to-example
+  decayHeatOperatingDays?: number;
   // additional-to-example
   exampleDocuments?: ExampleDocumentRef[];
 }

@@ -47,7 +47,6 @@ function InternalReviewScreen({
   const { pos } = usePosWorkbook();
   const approver = internalApproverView(pos);
   const configSnapshotId = pos.configurationControlRecordId ?? "";
-  const methodIds = pos.newlyDevelopedMethodIds ?? [];
 
   const reviewerIds = useMemo(() => pos.metadata.reviewers.filter((r) => r.role === "INTERNAL_REVIEWER").map((r) => r.id), [pos.metadata.reviewers]);
   const approverIds = useMemo(() => pos.metadata.reviewers.filter((r) => r.role === "INTERNAL_APPROVER").map((r) => r.id), [pos.metadata.reviewers]);
@@ -215,20 +214,6 @@ function InternalReviewScreen({
                     </button>
                   ) : (
                     <span className="posapprove__attest-val possubtle">Not linked</span>
-                  )}
-                </div>
-                <div className="posapprove__attest-row">
-                  <span className="posapprove__attest-cap">Methods invoked</span>
-                  {methodIds.length > 0 ? (
-                    <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-                      {methodIds.map((nmId) => (
-                        <button key={nmId} type="button" className="poschip poschip--method" onClick={() => onAction(`${nmId} — Newly Developed Method workbook coming soon`)}>
-                          <POSIcon.Bolt /> {nmId}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="posapprove__attest-val possubtle">None</span>
                   )}
                 </div>
               </div>

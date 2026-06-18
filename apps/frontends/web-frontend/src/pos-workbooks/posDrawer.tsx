@@ -3,18 +3,27 @@ import { POSIcon } from "./posIcons";
 import { Badge } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
-import { statesView, evolutionsView, groupsView, isBarrierBroken, preOpsForState, preOpsForGroup, type StateView } from "./posSelectors";
+import { statesView, evolutionsView, groupsView, preOpsForState, preOpsForGroup, stateLabel, evolutionLabel, type StateView, type PreOpAssumptionView } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 import { type Mutator } from "./useMefPatch";
 import {
   type PlantOperatingStatesAnalysis,
   type PlantEvolution,
+  type PlantOperatingState,
+  type ParameterRange,
+  type RadioactiveSource,
+  type RadionuclideTransportBarrier,
   EvolutionType,
   OperatingMode,
+  SourceLocation,
+  BarrierStatus,
 } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 
 const EVOLUTION_TYPES = Object.values(EvolutionType);
 const OPERATING_MODES = Object.values(OperatingMode);
+const SOURCE_LOCATIONS = Object.values(SourceLocation);
+const BARRIER_STATUSES = Object.values(BarrierStatus);
 
 function patchEvolution(draft: PlantOperatingStatesAnalysis, uuid: string, patch: Partial<PlantEvolution>): PlantOperatingStatesAnalysis {
   return { ...draft, plantEvolutions: draft.plantEvolutions.map((e) => (e.uuid === uuid ? { ...e, ...patch } : e)) };
@@ -118,8 +127,8 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
               {states.map((s) => (
                 <tr key={s.id}>
                   <td>
-                    <div className="postable__name">{s.id}</div>
-                    <span className="postable__name-sub">{s.name}</span>
+                    <div className="postable__name">{stateLabel(s.name)}</div>
+                    <span className="postable__name-sub">{s.description}</span>
                   </td>
                   <td className="mono">{s.mode}</td>
                   <td className="mono">{s.duration}</td>
@@ -151,92 +160,255 @@ function removeEvolution(draft: PlantOperatingStatesAnalysis, uuid: string): Pla
   return { ...draft, plantEvolutions: draft.plantEvolutions.filter((e) => e.uuid !== uuid) };
 }
 
+function putState(draft: PlantOperatingStatesAnalysis, next: PlantOperatingState): PlantOperatingStatesAnalysis {
+  return { ...draft, plantOperatingStates: draft.plantOperatingStates.map((s) => (s.uuid === next.uuid ? next : s)) };
+}
+
+function removeState(draft: PlantOperatingStatesAnalysis, uuid: string): PlantOperatingStatesAnalysis {
+  return { ...draft, plantOperatingStates: draft.plantOperatingStates.filter((s) => s.uuid !== uuid) };
+}
+
+function blankSource(): RadioactiveSource {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "",
+    location: SourceLocation.IN_CORE,
+    description: "",
+    radionuclides: [],
+    status: "",
+    releasePaths: [],
+    barriers: [],
+    screeningStatus: ScreeningStatus.RETAINED,
+  };
+}
+
+function blankBarrier(): RadionuclideTransportBarrier {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "",
+    status: BarrierStatus.INTACT,
+    monitoringParameters: [],
+    breachCriteria: [],
+  };
+}
+
+function NumberField({ value, onCommit }: { value: number; onCommit: (n: number) => void }): JSX.Element {
+  const [text, setText] = useState(String(value));
+  return (
+    <input
+      className="posfield__input"
+      value={text}
+      style={{ width: "100%" }}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value.trim().length > 0 && !Number.isNaN(n)) onCommit(n);
+      }}
+    />
+  );
+}
+
+function RangeRow({ label, value, onChange }: { label: string; value: ParameterRange; onChange: (next: ParameterRange) => void }): JSX.Element {
+  const cap = { fontSize: 11, marginTop: 3 };
+  return (
+    <div className="posfield posfield-grid--span2">
+      <label className="posfield__label">{label}</label>
+      <div className="posrow" style={{ gap: 8, alignItems: "flex-start" }}>
+        <div style={{ flex: 1 }}>
+          <NumberField value={value.min} onCommit={(n) => onChange({ ...value, min: n })} />
+          <div className="possubtle" style={cap}>Min</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <NumberField value={value.max} onCommit={(n) => onChange({ ...value, max: n })} />
+          <div className="possubtle" style={cap}>Max</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <NumberField value={value.representative} onCommit={(n) => onChange({ ...value, representative: n })} />
+          <div className="possubtle" style={cap}>Typical</div>
+        </div>
+        <div style={{ width: 90 }}>
+          <input className="posfield__input" value={value.units ?? ""} style={{ width: "100%" }} onChange={(e) => onChange({ ...value, units: e.target.value })} />
+          <div className="possubtle" style={cap}>Units</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebounced, onClose }: {
+  state: PlantOperatingState;
+  evolutions: { uuid: string; name: string }[];
+  preop?: PreOpAssumptionView;
+  canEdit: boolean;
+  mefPatch?: (mutator: Mutator) => void;
+  mefPatchDebounced?: (mutator: Mutator) => void;
+  onClose: () => void;
+}): JSX.Element {
+  const [draft, setDraft] = useState<PlantOperatingState>(state);
+
+  function update(next: PlantOperatingState): void {
+    setDraft(next);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    mefPatchDebounced((d) => putState(d, next));
+  }
+  function onSourceChange(uuid: string, patch: Partial<RadioactiveSource>): void {
+    update({ ...draft, radioactiveMaterialSources: draft.radioactiveMaterialSources.map((s) => (s.uuid === uuid ? { ...s, ...patch } : s)) });
+  }
+  function onBarrierChange(uuid: string, patch: Partial<RadionuclideTransportBarrier>): void {
+    update({ ...draft, radionuclideTransportBarriers: draft.radionuclideTransportBarriers.map((b) => (b.uuid === uuid ? { ...b, ...patch } : b)) });
+  }
+  function onDelete(): void {
+    if (mefPatch === undefined) return;
+    mefPatch((d) => removeState(d, draft.uuid));
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="posdrawer__head">
+        <div>
+          <div className="posdrawer__cap">Operating state</div>
+          <h2 className="posdrawer__title">{draft.name.length > 0 ? draft.name : "Untitled state"}</h2>
+          <div className="posdrawer__sub">{draft.operatingMode.toLowerCase()}</div>
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
+      </div>
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">State details</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield">
+              <label className="posfield__label">Name</label>
+              <input className="posfield__input" value={draft.name} placeholder="e.g. Hot standby" onChange={(e) => update({ ...draft, name: e.target.value })} />
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Evolution</label>
+              <select className="posfield__input" value={draft.evolutionId} onChange={(e) => update({ ...draft, evolutionId: e.target.value })}>
+                <option value="">Unassigned</option>
+                {evolutions.map((ev) => <option key={ev.uuid} value={ev.uuid}>{evolutionLabel(ev.name)}</option>)}
+              </select>
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Operating mode</label>
+              <select className="posfield__input" value={draft.operatingMode} onChange={(e) => update({ ...draft, operatingMode: e.target.value as OperatingMode })}>
+                {OPERATING_MODES.map((m) => <option key={m} value={m}>{m.toLowerCase()}</option>)}
+              </select>
+            </div>
+            <div className="posfield posfield-grid--span2">
+              <label className="posfield__label">Description</label>
+              <textarea className="posfield__textarea" value={draft.description} placeholder="Describe the plant configuration in this state." onChange={(e) => update({ ...draft, description: e.target.value })} />
+            </div>
+          </div>
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Reactor coolant parameters</h3></div>
+          <div className="posfield-grid">
+            <RangeRow label="Coolant temperature" value={draft.rcsParameters.reactorCoolantTemperature} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, reactorCoolantTemperature: v } })} />
+            <RangeRow label="Coolant pressure" value={draft.rcsParameters.coolantPressure} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, coolantPressure: v } })} />
+            <RangeRow label="Power level" value={draft.rcsParameters.powerLevel} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, powerLevel: v } })} />
+            <RangeRow label="Decay heat" value={draft.rcsParameters.decayHeatLevel} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, decayHeatLevel: v } })} />
+            <div className="posfield posfield-grid--span2">
+              <label className="posfield__label">RCS configuration</label>
+              <textarea className="posfield__textarea" value={draft.rcsParameters.rcsConfigurationDescription} placeholder="Describe the coolant-system lineup." onChange={(e) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, rcsConfigurationDescription: e.target.value } })} />
+            </div>
+          </div>
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Configuration and boundary</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield posfield-grid--span2">
+              <label className="posfield__label">Boundary configuration</label>
+              <input className="posfield__input" value={draft.rcbConfiguration} placeholder="e.g. Reactor vessel closed. Containment intact." onChange={(e) => update({ ...draft, rcbConfiguration: e.target.value })} />
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Starting condition</label>
+              <input className="posfield__input" value={draft.timeBoundary.startingCondition} placeholder="What opens this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, startingCondition: e.target.value } })} />
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Ending condition</label>
+              <input className="posfield__input" value={draft.timeBoundary.endingCondition} placeholder="What closes this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, endingCondition: e.target.value } })} />
+            </div>
+          </div>
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head">
+            <h3 className="poscard__title">Radioactive material sources</h3>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radioactiveMaterialSources: [...draft.radioactiveMaterialSources, blankSource()] })}><POSIcon.Plus /> Add source</button>}
+          </div>
+          {draft.radioactiveMaterialSources.length === 0 ? (
+            <p className="posmuted" style={{ margin: 0 }}>No sources yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {draft.radioactiveMaterialSources.map((src) => (
+                <div key={src.uuid} className="posrow" style={{ gap: 8, alignItems: "center" }}>
+                  <input className="posfield__input" value={src.name} placeholder="Source name" style={{ flex: 2 }} onChange={(e) => onSourceChange(src.uuid, { name: e.target.value })} />
+                  <select className="posfield__input" value={src.location} style={{ flex: 1 }} onChange={(e) => onSourceChange(src.uuid, { location: e.target.value as SourceLocation })}>
+                    {SOURCE_LOCATIONS.map((l) => <option key={l} value={l}>{l.split("_").join(" ").toLowerCase()}</option>)}
+                  </select>
+                  <input className="posfield__input" value={src.status} placeholder="Status" style={{ flex: 1 }} onChange={(e) => onSourceChange(src.uuid, { status: e.target.value })} />
+                  {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radioactiveMaterialSources: draft.radioactiveMaterialSources.filter((x) => x.uuid !== src.uuid) })}><POSIcon.Close /></button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head">
+            <h3 className="poscard__title">Radionuclide transport barriers</h3>
+            {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radionuclideTransportBarriers: [...draft.radionuclideTransportBarriers, blankBarrier()] })}><POSIcon.Plus /> Add barrier</button>}
+          </div>
+          {draft.radionuclideTransportBarriers.length === 0 ? (
+            <p className="posmuted" style={{ margin: 0 }}>No barriers yet.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {draft.radionuclideTransportBarriers.map((b) => (
+                <div key={b.uuid} className="posrow" style={{ gap: 8, alignItems: "center" }}>
+                  <input className="posfield__input" value={b.name} placeholder="Barrier name" style={{ flex: 2 }} onChange={(e) => onBarrierChange(b.uuid, { name: e.target.value })} />
+                  <select className="posfield__input" value={b.status ?? BarrierStatus.INTACT} style={{ flex: 1 }} onChange={(e) => onBarrierChange(b.uuid, { status: e.target.value as BarrierStatus })}>
+                    {BARRIER_STATUSES.map((st) => <option key={st} value={st}>{st.toLowerCase()}</option>)}
+                  </select>
+                  {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radionuclideTransportBarriers: draft.radionuclideTransportBarriers.filter((x) => x.uuid !== b.uuid) })}><POSIcon.Close /></button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {canEdit && (
+          <div className="poscard">
+            <div className="poscard__head"><h3 className="poscard__title">Remove state</h3></div>
+            <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the operating state from the analysis.</p>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete state</button>
+          </div>
+        )}
+
+        <PreopAssumptionCard assumption={preop} />
+      </fieldset>
+    </>
+  );
+}
+
 function DrawerContent({ context, onClose, canEdit, mefPatch, mefPatchDebounced }: { context: DrawerContext; onClose: () => void; canEdit: boolean; mefPatch?: (mutator: Mutator) => void; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element | null {
   const { pos } = usePosWorkbook();
   if (context.kind === "state") {
-    const s = statesView(pos).find((x) => x.id === context.id);
-    if (s === undefined) return null;
-    const ev = evolutionsView(pos).find((e) => e.id === s.evolutionId);
+    const rawState = pos.plantOperatingStates.find((x) => x.uuid === context.id);
+    if (rawState === undefined) return null;
+    const evolutions = pos.plantEvolutions.map((e) => ({ uuid: e.uuid, name: e.name }));
     return (
-      <>
-        <div className="posdrawer__head">
-          <div>
-            <div className="posdrawer__cap">Operating state · {s.id}</div>
-            <h2 className="posdrawer__title">{s.name}</h2>
-            <div className="posdrawer__sub">Part of evolution <strong>{ev?.name}</strong> · {s.mode}</div>
-          </div>
-          <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
-        </div>
-        <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
-          <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Coolant parameters</h3></div>
-            <div className="posfield-grid posfield-grid--3">
-              <div className="posfield">
-                <label className="posfield__label">Coolant temperature</label>
-                <input className="posfield__input" defaultValue={s.rcs.temp} />
-              </div>
-              <div className="posfield">
-                <label className="posfield__label">Pressure</label>
-                <input className="posfield__input" defaultValue={s.rcs.press} />
-              </div>
-              <div className="posfield">
-                <label className="posfield__label">Power level</label>
-                <input className="posfield__input" defaultValue={s.rcs.power} />
-              </div>
-            </div>
-          </div>
-
-          <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Radioactive material sources</h3></div>
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              {s.sources.map((src) => <span key={src} className="poschip">{src}</span>)}
-              <button type="button" className="poschip"><POSIcon.Plus /> Add source</button>
-            </div>
-            <p className="posfield__hint" style={{ marginTop: 8 }}>
-              Ex-core sources (spent fuel, cover gas, off-gas) matter as much as in-core fuel for non-LWR designs.
-            </p>
-          </div>
-
-          <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Radionuclide transport barriers</h3></div>
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              {s.barriers.map((b) => (
-                <span key={b} className={`poschip${isBarrierBroken(b) ? " poschip--warn" : ""}`}>{b}</span>
-              ))}
-              <button type="button" className="poschip"><POSIcon.Plus /> Add barrier</button>
-            </div>
-          </div>
-
-          <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Time boundary</h3></div>
-            <div className="posfield-grid">
-              <div className="posfield">
-                <label className="posfield__label">Starting condition</label>
-                <input className="posfield__input" defaultValue="Entry from prior POS upon defined transition" />
-              </div>
-              <div className="posfield">
-                <label className="posfield__label">Ending condition</label>
-                <input className="posfield__input" defaultValue="Exit to next POS upon parameter threshold" />
-              </div>
-              <div className="posfield posfield-grid--span2">
-                <label className="posfield__label">Mean duration</label>
-                <input className="posfield__input" defaultValue={s.duration} />
-              </div>
-            </div>
-          </div>
-
-          {s.statusMessage !== undefined && (
-            <div className="poscard" style={{ background: "rgba(196,122,24,0.08)", borderColor: "rgba(196,122,24,0.3)" }}>
-              <div className="posrow" style={{ gap: 12 }}>
-                <div style={{ color: "var(--color-warning)" }}><POSIcon.Warn /></div>
-                <div style={{ fontSize: 13.5 }}><strong>Needs attention.</strong> {s.statusMessage}</div>
-              </div>
-            </div>
-          )}
-
-          <PreopAssumptionCard assumption={preOpsForState(pos, s.id)[0]} />
-        </fieldset>
-      </>
+      <StateEditor
+        key={rawState.uuid}
+        state={rawState}
+        evolutions={evolutions}
+        preop={preOpsForState(pos, rawState.uuid)[0]}
+        canEdit={canEdit}
+        mefPatch={mefPatch}
+        mefPatchDebounced={mefPatchDebounced}
+        onClose={onClose}
+      />
     );
   }
   if (context.kind === "evolution") {
@@ -263,7 +435,7 @@ function DrawerContent({ context, onClose, canEdit, mefPatch, mefPatchDebounced 
     <>
       <div className="posdrawer__head">
         <div>
-          <div className="posdrawer__cap">Operating-state group · {g.id}</div>
+          <div className="posdrawer__cap">Operating-state group</div>
           <h2 className="posdrawer__title">{g.name}</h2>
           <div className="posdrawer__sub">{g.members.length} member states · total {g.durationSum}</div>
         </div>

@@ -30,12 +30,66 @@ pub fn compute_dfs_metadata(pdag: &BddPdag) -> Result<DfsMetadata> {
     };
     state.visit(root);
 
+    let mut parents: HashMap<NodeIdx, Vec<NodeIdx>> = HashMap::new();
+    for &idx in state.cache.keys() {
+        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(idx) {
+            for &op in operands {
+                parents.entry(op.abs()).or_default().push(idx);
+            }
+        }
+    }
+    let candidates: Vec<NodeIdx> = state.modules.iter().copied().collect();
+    let mut true_modules: HashSet<NodeIdx> = HashSet::new();
+    for g in candidates {
+        if is_exclusive_module(pdag, g, &parents) {
+            true_modules.insert(g);
+        }
+    }
+    state.modules = true_modules;
+
     Ok(DfsMetadata {
         variable_order: state.order,
         module_gates: state.modules,
         gate_min_time: state.gate_min,
         gate_max_time: state.gate_max,
     })
+}
+
+fn subtree_of(pdag: &BddPdag, g: NodeIdx) -> HashSet<NodeIdx> {
+    let mut s: HashSet<NodeIdx> = HashSet::new();
+    let mut stack = vec![g.abs()];
+    s.insert(g.abs());
+    while let Some(n) = stack.pop() {
+        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(n) {
+            for &op in operands {
+                let a = op.abs();
+                if s.insert(a) {
+                    stack.push(a);
+                }
+            }
+        }
+    }
+    s
+}
+
+fn is_exclusive_module(
+    pdag: &BddPdag,
+    g: NodeIdx,
+    parents: &HashMap<NodeIdx, Vec<NodeIdx>>,
+) -> bool {
+    let sub = subtree_of(pdag, g);
+    let g_abs = g.abs();
+    for &n in &sub {
+        if n == g_abs {
+            continue;
+        }
+        if let Some(ps) = parents.get(&n) {
+            if ps.iter().any(|p| !sub.contains(p)) {
+                return false;
+            }
+        }
+    }
+    true
 }
 
 struct DfsState<'a> {

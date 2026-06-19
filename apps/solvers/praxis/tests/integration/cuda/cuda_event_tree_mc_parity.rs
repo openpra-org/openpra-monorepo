@@ -12,8 +12,7 @@ use praxis::mc::DpEventTreeMonteCarloAnalysis;
 
 #[test]
 fn cuda_event_tree_mc_matches_cpu_bit_for_bit() {
-    // Minimal ET with one functional event and two terminal sequences.
-    // Uses `collect_formula_negated` so we cover that fork semantics.
+
     let model = Model::new("").unwrap();
 
     let seq_ok = Sequence::new("SEQ_OK".to_string());
@@ -43,7 +42,6 @@ fn cuda_event_tree_mc_matches_cpu_bit_for_bit() {
         .with_probability(1.0)
         .with_frequency(2.0);
 
-    // Use explicit params so CPU/GPU both run the same (t,b,p) layout.
     let params = RunParams::new(3, 2, 2, 64, 123456789);
     let mc = DpEventTreeMonteCarloAnalysis::with_run_params(ie, et, &model, params).unwrap();
 

@@ -1,7 +1,3 @@
-/// CLI integration tests for XML output shape stability.
-///
-/// These are meant to prevent accidental breaking changes in the XML structure
-/// (e.g. switching the root element unexpectedly).
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

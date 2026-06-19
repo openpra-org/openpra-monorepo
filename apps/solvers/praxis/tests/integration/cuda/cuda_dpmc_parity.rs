@@ -72,7 +72,6 @@ fn cpu_reference_words(
 
     let mut cpu_words = vec![0u64; total_words];
 
-    // Init events (sampler order is soa.event_nodes).
     for b in 0..b_count {
         for p in 0..p_count {
             for (event_ord, &node) in soa.event_nodes.iter().enumerate() {
@@ -84,7 +83,6 @@ fn cpu_reference_words(
         }
     }
 
-    // Init constants.
     for layer in &soa.layers {
         for &node in &layer.constants {
             let node = node.abs();
@@ -101,7 +99,6 @@ fn cpu_reference_words(
         }
     }
 
-    // Evaluate gates layer-by-layer.
     for layer in &soa.layers {
         for gates in layer.gate_groups.values() {
             for &out_node in &gates.out_nodes {
@@ -173,10 +170,10 @@ fn run_fixture_parity(xml_path: &str) {
     preprocess_for_mc(&mut pdag).expect("mc preprocess");
 
     let params = RunParams::new(
-        0,  // t is passed separately
-        2,  // B
-        3,  // P
-        64, // omega
+        0,
+        2,
+        3,
+        64,
         0xC0FFEEu64,
     );
 
@@ -212,7 +209,6 @@ fn run_fixture_parity(xml_path: &str) {
 
     assert_eq!(gpu_tallies, cpu_tallies, "tally mismatch for {xml_path}");
 
-    // Check accumulation.
     let init = vec![7u64; cpu_tallies.len()];
     let gpu_tallies2 = execute_layers_bitpacked_gpu_tallies::<CudaRuntime>(
         &client,
@@ -258,10 +254,9 @@ fn cuda_dpmc_parity_tallies_atleast_xml_fixture() {
     run_fixture_parity("tests/fixtures/core/atleast.xml");
 }
 
-// Non-CUDA builds should not try to compile/execute these tests.
 #[cfg(not(feature = "cuda"))]
 #[test]
 fn cuda_dpmc_parity_tests_are_gated() {
-    // Keep a tiny test so the file participates in the test suite even without CUDA.
+
     assert!(std::env::current_exe().is_ok());
 }

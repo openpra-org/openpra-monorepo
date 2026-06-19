@@ -1,30 +1,9 @@
-//! Blueprint-style DPMC packed gate kernels (bitpacked words).
-//!
-//! These kernels evaluate gates over bitpacks (omega=64 lanes) in a
-//! `(B,P,node)` layout:
-//!
-//! `node_words[((b * p_count + p) * num_nodes + node_ix)] = u64`
-//!
-//! Gate operands are provided in SoA form:
-//! - `operand_offsets[gate]` .. `operand_offsets[gate+1]` in the flattened arrays
-//! - `operand_indices[j]` (node index)
-//! - `operand_negated[j]` (0/1) to represent complemented edges
-//!
-//! This module includes `AtLeast(k/n)` using a lane-parallel, bit-sliced counter
-//! and compare implementation (blueprint-style) validated by CUDA parity tests.
-
 #[cfg(feature = "gpu")]
 use cubecl::prelude::*;
 
-// --- Optional u64 kernels ----------------------------------------------------
-//
-// CubeCL support for `u64` varies by backend and code shape. We keep the
-// production path on `u32` lo/hi halves for robustness, and provide opt-in
-// `u64` kernels (currently: idempotent/parity gates) to evaluate feasibility.
-
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed AND gates.
+
 pub fn eval_gates_packed_and_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -49,11 +28,8 @@ pub fn eval_gates_packed_and_kernel(
     let op_begin = operand_offsets[gate as usize];
     let op_end = operand_offsets[(gate + 1u32) as usize];
 
-    // Base address for this (b,p) slice.
     let bp_base = (b * p_count + p) * num_nodes;
 
-    // We store packed words as two u32 halves (lo/hi) to avoid CubeCL u64
-    // expansion edge-cases.
     let fold_and_lo = RuntimeCell::<u32>::new(!0u32);
     let fold_and_hi = RuntimeCell::<u32>::new(!0u32);
 
@@ -77,7 +53,7 @@ pub fn eval_gates_packed_and_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed OR gates.
+
 pub fn eval_gates_packed_or_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -123,7 +99,7 @@ pub fn eval_gates_packed_or_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed XOR gates.
+
 pub fn eval_gates_packed_xor_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -169,7 +145,7 @@ pub fn eval_gates_packed_xor_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed NAND gates.
+
 pub fn eval_gates_packed_nand_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -215,7 +191,7 @@ pub fn eval_gates_packed_nand_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed NOR gates.
+
 pub fn eval_gates_packed_nor_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -261,7 +237,7 @@ pub fn eval_gates_packed_nor_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed IFF gates.
+
 pub fn eval_gates_packed_iff_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -314,9 +290,7 @@ pub fn eval_gates_packed_iff_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed AtLeast(k/n) gates for small fan-in (n <= 8).
-///
-/// `min_numbers[gate]` is k.
+
 pub fn eval_gates_packed_atleast_small_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -355,9 +329,9 @@ pub fn eval_gates_packed_atleast_small_kernel(
         out_lo.store(!0u32);
         out_hi.store(!0u32);
     } else if k > n_ops {
-        // Keep (0,0) from initialization.
+
     } else {
-        // 4-bit bit-sliced lane-parallel counter is sufficient for n<=8.
+
         let c0_lo = RuntimeCell::<u32>::new(0u32);
         let c1_lo = RuntimeCell::<u32>::new(0u32);
         let c2_lo = RuntimeCell::<u32>::new(0u32);
@@ -374,7 +348,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
             let w_lo = node_words_lo[(bp_base + node_ix) as usize] ^ neg_mask;
             let w_hi = node_words_hi[(bp_base + node_ix) as usize] ^ neg_mask;
 
-            // Add w_lo into (c*_lo).
             let a0 = c0_lo.read();
             let carry1_lo = a0 & w_lo;
             c0_lo.store(a0 ^ w_lo);
@@ -387,7 +360,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
             let a3 = c3_lo.read();
             c3_lo.store(a3 ^ carry3_lo);
 
-            // Add w_hi into (c*_hi).
             let b0 = c0_hi.read();
             let carry1_hi = b0 & w_hi;
             c0_hi.store(b0 ^ w_hi);
@@ -406,7 +378,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
         let eq_hi = RuntimeCell::<u32>::new(!0u32);
         let lt_hi = RuntimeCell::<u32>::new(0u32);
 
-        // bit 3
         let p3_lo = c3_lo.read();
         let p3_hi = c3_hi.read();
         if ((k >> 3u32) & 1u32) != 0u32 {
@@ -426,7 +397,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
             eq_hi.store(eq0_hi & (!p3_hi));
         }
 
-        // bit 2
         let p2_lo = c2_lo.read();
         let p2_hi = c2_hi.read();
         if ((k >> 2u32) & 1u32) != 0u32 {
@@ -446,7 +416,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
             eq_hi.store(eq0_hi & (!p2_hi));
         }
 
-        // bit 1
         let p1_lo = c1_lo.read();
         let p1_hi = c1_hi.read();
         if ((k >> 1u32) & 1u32) != 0u32 {
@@ -466,7 +435,6 @@ pub fn eval_gates_packed_atleast_small_kernel(
             eq_hi.store(eq0_hi & (!p1_hi));
         }
 
-        // bit 0
         let p0_lo = c0_lo.read();
         let p0_hi = c0_hi.read();
         if (k & 1u32) != 0u32 {
@@ -489,9 +457,7 @@ pub fn eval_gates_packed_atleast_small_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed AtLeast(k/n) gates.
-///
-/// `min_numbers[gate]` is k.
+
 pub fn eval_gates_packed_atleast_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -530,9 +496,9 @@ pub fn eval_gates_packed_atleast_kernel(
         out_lo.store(!0u32);
         out_hi.store(!0u32);
     } else if k > n_ops {
-        // Keep (0,0) from initialization.
+
     } else {
-        // Bit-sliced lane-parallel counter, using RuntimeCell for CubeCL compatibility.
+
         let c0_lo = RuntimeCell::<u32>::new(0u32);
         let c1_lo = RuntimeCell::<u32>::new(0u32);
         let c2_lo = RuntimeCell::<u32>::new(0u32);
@@ -573,7 +539,6 @@ pub fn eval_gates_packed_atleast_kernel(
             let w_lo = node_words_lo[(bp_base + node_ix) as usize] ^ neg_mask;
             let w_hi = node_words_hi[(bp_base + node_ix) as usize] ^ neg_mask;
 
-            // Add w_lo into (c*_lo).
             let a0 = c0_lo.read();
             let carry1_lo = a0 & w_lo;
             c0_lo.store(a0 ^ w_lo);
@@ -622,7 +587,6 @@ pub fn eval_gates_packed_atleast_kernel(
             let a15 = c15_lo.read();
             c15_lo.store(a15 ^ carry15_lo);
 
-            // Add w_hi into (c*_hi).
             let b0 = c0_hi.read();
             let carry1_hi = b0 & w_hi;
             c0_hi.store(b0 ^ w_hi);
@@ -677,8 +641,6 @@ pub fn eval_gates_packed_atleast_kernel(
         let eq_hi = RuntimeCell::<u32>::new(!0u32);
         let lt_hi = RuntimeCell::<u32>::new(0u32);
 
-        // Bit-sliced compare: compute lt_mask (count < k) by walking bits MSB..LSB.
-        // bit 15
         let p15_lo = c15_lo.read();
         let p15_hi = c15_hi.read();
         if ((k >> 15u32) & 1u32) != 0u32 {
@@ -697,7 +659,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p15_hi));
         }
-        // bit 14
+
         let p14_lo = c14_lo.read();
         let p14_hi = c14_hi.read();
         if ((k >> 14u32) & 1u32) != 0u32 {
@@ -716,7 +678,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p14_hi));
         }
-        // bit 13
+
         let p13_lo = c13_lo.read();
         let p13_hi = c13_hi.read();
         if ((k >> 13u32) & 1u32) != 0u32 {
@@ -735,7 +697,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p13_hi));
         }
-        // bit 12
+
         let p12_lo = c12_lo.read();
         let p12_hi = c12_hi.read();
         if ((k >> 12u32) & 1u32) != 0u32 {
@@ -754,7 +716,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p12_hi));
         }
-        // bit 11
+
         let p11_lo = c11_lo.read();
         let p11_hi = c11_hi.read();
         if ((k >> 11u32) & 1u32) != 0u32 {
@@ -773,7 +735,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p11_hi));
         }
-        // bit 10
+
         let p10_lo = c10_lo.read();
         let p10_hi = c10_hi.read();
         if ((k >> 10u32) & 1u32) != 0u32 {
@@ -792,7 +754,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p10_hi));
         }
-        // bit 9
+
         let p9_lo = c9_lo.read();
         let p9_hi = c9_hi.read();
         if ((k >> 9u32) & 1u32) != 0u32 {
@@ -811,7 +773,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p9_hi));
         }
-        // bit 8
+
         let p8_lo = c8_lo.read();
         let p8_hi = c8_hi.read();
         if ((k >> 8u32) & 1u32) != 0u32 {
@@ -830,7 +792,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p8_hi));
         }
-        // bit 7
+
         let p7_lo = c7_lo.read();
         let p7_hi = c7_hi.read();
         if ((k >> 7u32) & 1u32) != 0u32 {
@@ -849,7 +811,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p7_hi));
         }
-        // bit 6
+
         let p6_lo = c6_lo.read();
         let p6_hi = c6_hi.read();
         if ((k >> 6u32) & 1u32) != 0u32 {
@@ -868,7 +830,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p6_hi));
         }
-        // bit 5
+
         let p5_lo = c5_lo.read();
         let p5_hi = c5_hi.read();
         if ((k >> 5u32) & 1u32) != 0u32 {
@@ -887,7 +849,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p5_hi));
         }
-        // bit 4
+
         let p4_lo = c4_lo.read();
         let p4_hi = c4_hi.read();
         if ((k >> 4u32) & 1u32) != 0u32 {
@@ -906,7 +868,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p4_hi));
         }
-        // bit 3
+
         let p3_lo = c3_lo.read();
         let p3_hi = c3_hi.read();
         if ((k >> 3u32) & 1u32) != 0u32 {
@@ -925,7 +887,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p3_hi));
         }
-        // bit 2
+
         let p2_lo = c2_lo.read();
         let p2_hi = c2_hi.read();
         if ((k >> 2u32) & 1u32) != 0u32 {
@@ -944,7 +906,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p2_hi));
         }
-        // bit 1
+
         let p1_lo = c1_lo.read();
         let p1_hi = c1_hi.read();
         if ((k >> 1u32) & 1u32) != 0u32 {
@@ -963,7 +925,7 @@ pub fn eval_gates_packed_atleast_kernel(
             let eq0_hi = eq_hi.read();
             eq_hi.store(eq0_hi & (!p1_hi));
         }
-        // bit 0
+
         let p0_lo = c0_lo.read();
         let p0_hi = c0_hi.read();
         if (k & 1u32) != 0u32 {
@@ -986,11 +948,7 @@ pub fn eval_gates_packed_atleast_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate packed AtLeast(k/n) gates for large fan-in (n > 8) using cooperative
-/// lo/hi split threads per gate.
-///
-/// `total_gate_threads` is `num_gates * 2`, where even x-thread computes lo and
-/// odd x-thread computes hi for the same `(gate, p, b)`.
+
 pub fn eval_gates_packed_atleast_large_coop_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1030,7 +988,7 @@ pub fn eval_gates_packed_atleast_large_coop_kernel(
     if k == 0u32 {
         out_word.store(!0u32);
     } else if k > n_ops {
-        // Keep 0 from initialization.
+
     } else {
         let c0 = RuntimeCell::<u32>::new(0u32);
         let c1 = RuntimeCell::<u32>::new(0u32);
@@ -1294,7 +1252,7 @@ pub fn eval_gates_packed_atleast_large_coop_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed AND gates over true `u64` words.
+
 pub fn eval_gates_packed_and_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1337,7 +1295,7 @@ pub fn eval_gates_packed_and_u64_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed OR gates over true `u64` words.
+
 pub fn eval_gates_packed_or_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1380,7 +1338,7 @@ pub fn eval_gates_packed_or_u64_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed XOR gates over true `u64` words.
+
 pub fn eval_gates_packed_xor_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1423,7 +1381,7 @@ pub fn eval_gates_packed_xor_u64_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed NAND gates over true `u64` words.
+
 pub fn eval_gates_packed_nand_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1466,7 +1424,7 @@ pub fn eval_gates_packed_nand_u64_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed NOR gates over true `u64` words.
+
 pub fn eval_gates_packed_nor_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1509,7 +1467,7 @@ pub fn eval_gates_packed_nor_u64_kernel(
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
 #[cube(launch_unchecked)]
-/// Evaluate packed IFF gates over true `u64` words.
+
 pub fn eval_gates_packed_iff_u64_kernel(
     operand_offsets: &Array<u32>,
     operand_indices: &Array<u32>,
@@ -1555,9 +1513,7 @@ pub fn eval_gates_packed_iff_u64_kernel(
 }
 
 #[cfg(feature = "gpu")]
-/// Launch the packed gate kernel.
-///
-/// `node_words` is updated in-place.
+
 #[allow(clippy::too_many_arguments)]
 pub fn eval_gates_packed_gpu<R: Runtime>(
     client: &ComputeClient<R>,
@@ -1822,10 +1778,7 @@ pub fn eval_gates_packed_gpu<R: Runtime>(
 }
 
 #[cfg(all(feature = "gpu", feature = "gpu_u64"))]
-/// Launch the packed gate kernel using true `u64` words.
-///
-/// Currently supports op_codes 0..=5 (AND/OR/XOR/NAND/NOR/IFF). For `AtLeast`
-/// we keep the `u32` lo/hi path.
+
 #[allow(clippy::too_many_arguments)]
 pub fn eval_gates_packed_gpu_u64<R: Runtime>(
     client: &ComputeClient<R>,
@@ -2060,27 +2013,22 @@ mod cuda_tests {
         let device = <CudaRuntime as Runtime>::Device::default();
         let client = CudaRuntime::client(&device);
 
-        // Layout: num_nodes includes operand nodes and one output node.
         let num_nodes = 6u32;
         let b_count = 2u32;
         let p_count = 3u32;
 
-        // We'll evaluate 2 gates.
-        // Gate0 out=node4, operands: node0, node1 (negated), node2
-        // Gate1 out=node5, operands: node3, node2
         let gate_out_indices = vec![4u32, 5u32];
         let operand_offsets = vec![0u32, 3u32, 5u32];
         let operand_indices = vec![0u32, 1u32, 2u32, 3u32, 2u32];
         let operand_negated = vec![0u32, 1u32, 0u32, 0u32, 0u32];
 
-        // Initialize node words deterministically per (b,p,node).
         let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
         let mut node_words = vec![0u64; total_words];
         for b in 0..b_count {
             for p in 0..p_count {
                 let bp_base = ((b * p_count + p) * num_nodes) as usize;
                 for n in 0..num_nodes {
-                    // simple pattern; different per node and per bp
+
                     node_words[bp_base + n as usize] = 0x9E37_79B9_7F4A_7C15u64
                         ^ ((b as u64) << 48)
                         ^ ((p as u64) << 32)
@@ -2111,13 +2059,11 @@ mod cuda_tests {
                 &mut words_gpu,
             );
 
-            // CPU expected
             let mut words_cpu = node_words.clone();
             for b in 0..b_count {
                 for p in 0..p_count {
                     let bp_base = ((b * p_count + p) * num_nodes) as usize;
 
-                    // gate0
                     let ops0 = [
                         (words_cpu[bp_base], false),
                         (words_cpu[bp_base + 1], true),
@@ -2129,7 +2075,6 @@ mod cuda_tests {
                         cpu_eval_word(op_code, &ops0)
                     };
 
-                    // gate1
                     let ops1 = [
                         (words_cpu[bp_base + 3], false),
                         (words_cpu[bp_base + 2], false),

@@ -1,8 +1,3 @@
-//! Runtime diagnostics for Monte Carlo.
-//!
-//! This module is intended for lightweight, deterministic diagnostics that can
-//! run in unit tests and during MC execution.
-
 use crate::error::{PraxisError, Result};
 use statrs::distribution::{ChiSquared, ContinuousCDF};
 
@@ -13,18 +8,6 @@ fn clamp01(x: f64) -> f64 {
     x.clamp(0.0, 1.0)
 }
 
-/// Compute the required sample size $n$ to achieve a target relative half-width
-/// under the Wald CI for a Bernoulli proportion.
-///
-/// Using:
-///
-/// $$\mathrm{RHW} = \frac{z\sqrt{\hat{p}(1-\hat{p})/n}}{\hat{p}}$$
-///
-/// solving for $n$ yields:
-///
-/// $$n_{\min} = \frac{z^2(1-\hat{p})}{\mathrm{RHW}^2\hat{p}}$$
-///
-/// Returns `None` when inputs are invalid or when $\hat{p}$ clamps to 0.
 pub fn required_n_for_relative_half_width_wald(p_hat: f64, target_rhw: f64, z: f64) -> Option<f64> {
     if !(target_rhw.is_finite() && target_rhw > 0.0) {
         return None;
@@ -45,15 +28,6 @@ pub fn required_n_for_relative_half_width_wald(p_hat: f64, target_rhw: f64, z: f
     Some(z2 * (1.0 - p) / (target_rhw * target_rhw * p))
 }
 
-/// Sample-size adequacy ratio for meeting a target Wald relative half-width.
-///
-/// Defined as:
-///
-/// $$\mathrm{adequacy} = \frac{n}{n_{\min}}$$
-///
-/// where $n_{\min}$ is computed by [`required_n_for_relative_half_width_wald`].
-///
-/// Returns `None` when inputs are invalid or $n_{\min}$ is undefined.
 pub fn sample_size_adequacy_ratio_relative_half_width_wald(
     p_hat: f64,
     n: u64,
@@ -69,22 +43,14 @@ pub fn sample_size_adequacy_ratio_relative_half_width_wald(
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquareGof {
-    /// Pearson chi-square statistic.
+
     pub chi2: f64,
-    /// Degrees of freedom.
+
     pub dof: u64,
-    /// Upper-tail p-value: $P(\chi^2_{dof} \ge \chi^2)$.
+
     pub p_value: f64,
 }
 
-/// Pearson chi-square goodness-of-fit test for categorical counts.
-///
-/// - `observed`: observed counts per category.
-/// - `expected_probs`: expected probabilities per category (need not sum to 1; will be normalized).
-///
-/// Returns `Ok(None)` when `observed` is empty, has fewer than 2 categories, or sums to 0.
-/// Returns an error for invalid inputs (mismatched lengths, negative/NaN probabilities,
-/// or a zero expected probability for a category).
 pub fn chi_square_gof(observed: &[u64], expected_probs: &[f64]) -> Result<Option<ChiSquareGof>> {
     if observed.len() < 2 {
         return Ok(None);
@@ -133,17 +99,11 @@ pub fn chi_square_gof(observed: &[u64], expected_probs: &[f64]) -> Result<Option
     let dist = ChiSquared::new(dof as f64)
         .map_err(|e| PraxisError::Logic(format!("chi_square_gof: invalid dof: {e}")))?;
 
-    // Upper-tail p-value.
     let p_value = 1.0 - dist.cdf(chi2);
 
     Ok(Some(ChiSquareGof { chi2, dof, p_value }))
 }
 
-/// Special-case chi-square GOF for a Bernoulli model aggregated as `(successes, trials)`.
-///
-/// Equivalent to a 2-category chi-square test with `dof=1`.
-///
-/// Returns `Ok(None)` when `trials == 0`.
 pub fn chi_square_gof_bernoulli(
     successes: u64,
     trials: u64,
@@ -161,7 +121,6 @@ pub fn chi_square_gof_bernoulli(
     let p = clamp01(expected_p);
     let failures = trials - successes;
 
-    // If p is exactly 0 or 1 we must avoid expected=0 bins.
     if p == 0.0 {
         if successes == 0 {
             return Ok(Some(ChiSquareGof {
@@ -211,7 +170,7 @@ mod tests {
 
     #[test]
     fn required_n_for_rhw_matches_hand_calc() {
-        // p=0.1, rhw=0.1, z=1.96 => n_req ~ 3457.44
+
         let n_req = required_n_for_relative_half_width_wald(0.1, 0.1, 1.96).unwrap();
         assert!((n_req - 3457.44).abs() < 1e-2);
     }

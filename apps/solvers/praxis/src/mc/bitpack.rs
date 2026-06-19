@@ -1,21 +1,10 @@
-//! Bitpacking utilities for the DPMC (data-parallel Monte Carlo) engine.
-//!
-//! Blueprint intent:
-//! - A single machine word encodes `omega` Bernoulli trial outcomes.
-//! - Least-significant bit corresponds to lane 0.
-//! - Global trial indices are derived from `(t, b, p, lane)`.
-
 use crate::mc::plan::RunParams;
 use crate::Result;
 
 pub type Bitpack = u64;
 
-/// Number of trial lanes per packed word.
-///
-/// For `Bitpack = u64`, this is 64.
 pub const OMEGA: usize = Bitpack::BITS as usize;
 
-/// Returns the number of trials per iteration: $N = B \cdot P \cdot \omega$.
 pub fn trials_per_iteration(params: &RunParams) -> Result<usize> {
     params
         .b
@@ -28,10 +17,6 @@ pub fn trials_per_iteration(params: &RunParams) -> Result<usize> {
         })
 }
 
-/// Mapping from `(b, p, lane)` to the local trial index within one iteration.
-///
-/// This follows the TODO/blueprint convention:
-/// `local = (b * P + p) * omega + lane`.
 pub fn local_trial_index(params: &RunParams, b: usize, p: usize, lane: usize) -> Result<usize> {
     if params.omega != OMEGA {
         return Err(crate::error::PraxisError::Logic(format!(
@@ -70,7 +55,6 @@ pub fn local_trial_index(params: &RunParams, b: usize, p: usize, lane: usize) ->
         })
 }
 
-/// Mapping from `(t, b, p, lane)` to the global trial index across all iterations.
 pub fn global_trial_index(
     params: &RunParams,
     t: usize,

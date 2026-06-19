@@ -1,9 +1,3 @@
-//! Event-tree parsing.
-//!
-//! This module provides a MEF event-tree parser used when the input contains an event-tree model.
-//! It is intentionally correctness-first and currently supports the subset needed by
-//! `tests/fixtures/eta/EventTrees/linked_fault_trees_shared_be.xml`.
-
 use std::collections::HashMap;
 use std::io::BufRead;
 
@@ -21,7 +15,6 @@ use crate::error::{MefError, Result};
 
 use crate::io::parser::{parse_ccf_group, parse_element, parse_gate};
 
-/// Parsed event-tree model: a `Model` plus initiating events and event trees.
 #[derive(Debug)]
 pub struct EventTreeModel {
     pub model: Model,
@@ -220,7 +213,7 @@ fn parse_expression_value<R: BufRead>(
             Ok(args[0] - args[1])
         }
         other => {
-            // Skip unknown expression nodes for now.
+
             skip_to_end(reader, other)?;
             Err(MefError::Validity(format!(
                 "Unsupported expression '{}' in collect-expression",
@@ -367,7 +360,7 @@ fn parse_fault_tree_from_reader<R: BufRead>(
                         let ccf = parse_ccf_group(reader, &ccf_name, &model_type)?;
                         ccf_groups.push(ccf);
                     } else {
-                        // Best-effort: if the model type is missing, skip the group content.
+
                         skip_to_end(reader, b"define-CCF-group")?;
                     }
                 }
@@ -439,7 +432,7 @@ fn parse_basic_event_with_parameters<R: BufRead>(
     name: &str,
     parameters: &Parameters,
 ) -> Result<crate::core::event::BasicEvent> {
-    // Similar to `parse_element`, but additionally supports `<parameter name="..."/>`.
+
     let mut probability: Option<f64> = None;
     let mut buf = Vec::new();
 
@@ -476,7 +469,7 @@ fn parse_basic_event_with_parameters<R: BufRead>(
                     })?;
                     probability = Some(p);
                 }
-                // Best-effort: consume any content until </parameter>.
+
                 skip_to_end(reader, b"parameter")?;
             }
             Ok(Event::End(e)) if e.name().as_ref() == b"define-basic-event" => break,
@@ -667,8 +660,7 @@ fn parse_path_from_reader<R: BufRead>(
                     target = Some(BranchTarget::NamedBranch(branch_id));
                 }
                 b"float" => {
-                    // Some fixtures use <collect-expression><float .../></collect-expression>,
-                    // but a bare float is instruction-only; ignore.
+
                     let _ = attr_value(&e, b"value")?;
                 }
                 _ => {}
@@ -751,13 +743,12 @@ fn parse_initial_state<R: BufRead>(
                 initial_house_events.push((id, state));
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"collect-expression" => {
-                // Instruction semantics are not wired yet; skip safely.
+
                 skip_to_end(reader, b"collect-expression")?;
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"fork" => {
                 let fork = parse_fork(reader, &e, fe_links, parameters)?;
-                // parse_fork consumes its own end tag; we now continue until </initial-state>
-                // but the initial-state semantics expect a single entry branch.
+
                 skip_to_end(reader, b"initial-state")?;
                 let mut branch = Branch::new(BranchTarget::Fork(fork));
                 for (id, state) in initial_house_events {
@@ -766,7 +757,7 @@ fn parse_initial_state<R: BufRead>(
                 return Ok(branch);
             }
             Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {
-                // Instruction semantics are not wired yet.
+
             }
             Ok(Event::Empty(e)) if e.name().as_ref() == b"sequence" => {
                 let seq_id = required_attr(&e, b"name", "sequence")?;
@@ -822,7 +813,7 @@ fn parse_named_branch_from_reader<R: BufRead>(
                 branch_house_events.push((hid, state));
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"collect-expression" => {
-                // Instruction semantics are not wired yet; skip safely.
+
                 skip_to_end(reader, b"collect-expression")?;
             }
             Ok(Event::Start(e)) if e.name().as_ref() == b"fork" => {
@@ -835,7 +826,7 @@ fn parse_named_branch_from_reader<R: BufRead>(
                 return Ok(NamedBranch::new(id, branch));
             }
             Ok(Event::Empty(e)) if e.name().as_ref() == b"collect-expression" => {
-                // Instruction semantics are not wired yet.
+
             }
             Ok(Event::Empty(e)) if e.name().as_ref() == b"sequence" => {
                 let seq_id = required_attr(&e, b"name", "sequence")?;
@@ -911,7 +902,6 @@ fn parse_event_tree_from_reader<R: BufRead>(
                     let seq_id = required_attr(&e, b"name", "define-sequence")?;
                     let mut seq = Sequence::new(seq_id);
 
-                    // Support `<define-sequence name="X"><event-tree name="ET"/></define-sequence>`.
                     let mut seq_buf = Vec::new();
                     loop {
                         match reader.read_event_into(&mut seq_buf) {
@@ -988,13 +978,6 @@ fn parse_event_tree_from_reader<R: BufRead>(
     Ok(et)
 }
 
-/// Full MEF event-tree parser.
-///
-/// Currently supports:
-/// - `<define-fault-tree name="..."> ... </define-fault-tree>`
-/// - `<model-data><define-basic-event .../></model-data>`
-/// - `<define-initiating-event ...>` with `<float value="..."/>`
-/// - `<define-event-tree ...>` with functional events, sequences, and `initial-state` forks/paths.
 pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
     let mut model = Model::new("model".to_string())?;
     let mut initiating_events: Vec<InitiatingEvent> = Vec::new();
@@ -1038,7 +1021,6 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
         buf.clear();
     }
 
-    // MVP compatibility: if basic events are defined in <model-data>, also copy them into each fault tree.
     if !model.basic_events().is_empty() && !model.fault_trees().is_empty() {
         let model_basic_events: Vec<_> = model.basic_events().values().cloned().collect();
         let ft_ids: Vec<_> = model.fault_trees().keys().cloned().collect();
@@ -1046,7 +1028,7 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
             if let Some(ft) = model.get_fault_tree_mut(&ft_id) {
                 for be in &model_basic_events {
                     if ft.get_basic_event(be.element().id()).is_none() {
-                        // Ignore duplicates defensively.
+
                         let _ = ft.add_basic_event(be.clone());
                     }
                 }
@@ -1054,10 +1036,6 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
         }
     }
 
-    // MVP compatibility: allow fault trees to reference other fault-tree gates via qualified names
-    // like `OtherFaultTree.G1` inside gate formulas. Since '.' is not allowed in element IDs, we
-    // rewrite those operands to a safe local gate ID and inline/copy the referenced gate (and any
-    // dependent gates) into the consumer fault tree.
     if model.fault_trees().len() > 1 {
         resolve_cross_fault_tree_gate_references(&mut model)?;
     }
@@ -1070,7 +1048,7 @@ pub fn parse_event_tree_model_full(xml: &str) -> Result<EventTreeModel> {
 }
 
 fn ext_gate_local_id(src_ft_id: &str, src_gate_id: &str) -> String {
-    // Must not contain '.' to satisfy Element::new() validation.
+
     format!("__ext__{src_ft_id}__{src_gate_id}")
 }
 
@@ -1083,7 +1061,7 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
 
     let ft_ids: Vec<String> = model.fault_trees().keys().cloned().collect();
     for consumer_ft_id in ft_ids {
-        // First rewrite operands in-place (FT.G1 -> __ext__FT__G1) and collect which gates we need to inline.
+
         let gate_ids: Vec<String> = model
             .get_fault_tree(&consumer_ft_id)
             .ok_or_else(|| {
@@ -1111,7 +1089,6 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
             }
         }
 
-        // Then inline/copy any referenced gates into the consumer FT under the safe IDs.
         let mut seen: std::collections::HashSet<(String, String)> =
             std::collections::HashSet::new();
         let mut passes = 0_usize;
@@ -1134,7 +1111,6 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
                 ))
             })?;
 
-            // Some fixtures use `FaultTree.root` as an alias for the fault tree top event.
             let actual_src_gate_id = if src_gate_id == "root" {
                 src_ft.top_event().to_string()
             } else {
@@ -1149,7 +1125,6 @@ fn resolve_cross_fault_tree_gate_references(model: &mut Model) -> Result<()> {
 
             let local_id = ext_gate_local_id(&src_ft_id, &src_gate_id);
 
-            // Already inlined?
             if model
                 .get_fault_tree(&consumer_ft_id)
                 .and_then(|ft| ft.get_gate(&local_id))

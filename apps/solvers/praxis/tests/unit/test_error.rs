@@ -1,7 +1,3 @@
-// Unit tests for error types
-// Phase 2: T007-T008
-// Tests PraxisError, MefError, and XmlError
-
 use praxis::error::{PraxisError, MefError, XmlError};
 
 #[cfg(test)]
@@ -260,7 +256,7 @@ mod error_traits_tests {
         let err1 = PraxisError::Logic("test".to_string());
         let err2 = PraxisError::Logic("test".to_string());
         let err3 = PraxisError::Logic("different".to_string());
-        
+
         assert_eq!(err1, err2);
         assert_ne!(err1, err3);
     }
@@ -271,8 +267,7 @@ mod error_traits_tests {
             cycle_path: "G1 -> G2".to_string(),
         });
         let err2 = err1.clone();
-        
+
         assert_eq!(err1, err2);
     }
 }
-

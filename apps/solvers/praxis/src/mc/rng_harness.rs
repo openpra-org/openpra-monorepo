@@ -1,22 +1,13 @@
-//! Small RNG test harness hooks for Monte Carlo.
-//!
-//! This is intentionally lightweight and deterministic (no external test suites
-//! like BigCrush). It provides basic sanity checks for the Philox4x32-10 stream
-//! used by the DPMC engine.
-
 use crate::mc::philox::{philox4x32_10, Philox4x32Ctr, Philox4x32Key};
 
 const TWO_POW_32_F64: f64 = 4294967296.0;
 
 #[inline]
 fn u32_to_unit_interval(x: u32) -> f64 {
-    // Map to [0,1) via division by 2^32.
+
     (x as f64) / TWO_POW_32_F64
 }
 
-/// Generate `n` u32 values from Philox by incrementing `ctr[3]`.
-///
-/// This is a convenience helper for deterministic test harnesses.
 pub fn philox_u32_stream_from_ctr3(
     mut ctr: Philox4x32Ctr,
     key: Philox4x32Key,
@@ -47,9 +38,6 @@ pub struct StreamStats {
     pub corr_lag1_u01: f64,
 }
 
-/// Compute lightweight statistics over a u32 stream.
-///
-/// All computations are deterministic.
 pub fn stream_stats_u32(values: &[u32]) -> Option<StreamStats> {
     if values.len() < 2 {
         return None;
@@ -57,7 +45,6 @@ pub fn stream_stats_u32(values: &[u32]) -> Option<StreamStats> {
 
     let n = values.len() as f64;
 
-    // Mean in [0,1).
     let mut sum = 0.0;
     let mut high_bit = 0usize;
     for &x in values {
@@ -67,7 +54,6 @@ pub fn stream_stats_u32(values: &[u32]) -> Option<StreamStats> {
     let mean = sum / n;
     let frac_high = (high_bit as f64) / n;
 
-    // Lag-1 correlation of normalized values.
     let mut sum_x = 0.0;
     let mut sum_y = 0.0;
     let mut sum_x2 = 0.0;
@@ -117,7 +103,7 @@ mod tests {
 
     #[test]
     fn philox_stream_has_no_duplicates_in_small_prefix() {
-        // Not a proof, just a cheap regression guard against accidental misuse.
+
         let key: Philox4x32Key = [0xDEAD_BEEF, 0x1234_5678];
         let ctr: Philox4x32Ctr = [0, 1, 2, 3];
         let v = philox_u32_stream_from_ctr3(ctr, key, 4096);
@@ -135,21 +121,18 @@ mod tests {
         let v = philox_u32_stream_from_ctr3(ctr, key, 20_000);
         let s = stream_stats_u32(&v).unwrap();
 
-        // Mean should be near 0.5.
         assert!(
             (s.mean_u01 - 0.5).abs() < 0.01,
             "mean_u01={} out of expected range",
             s.mean_u01
         );
 
-        // High bit set fraction should be near 0.5.
         assert!(
             (s.frac_high_bit_set - 0.5).abs() < 0.03,
             "frac_high_bit_set={} out of expected range",
             s.frac_high_bit_set
         );
 
-        // Lag-1 correlation should be small.
         assert!(
             s.corr_lag1_u01.abs() < 0.03,
             "corr_lag1_u01={} too large",

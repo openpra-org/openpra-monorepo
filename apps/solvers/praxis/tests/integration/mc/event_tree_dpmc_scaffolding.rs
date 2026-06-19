@@ -46,16 +46,12 @@ fn correlation_changes_sequence_probability_vs_independence() {
     let analytic = analytic_both_fail(p_a, p_b, p_c);
     let product = naive_independence_product(p_a, p_b, p_c);
 
-    // Sanity: these should be very different because A is shared.
     assert!((analytic - product).abs() > 0.1);
 
     let (model, initiating_events, event_trees) = parse_event_tree_model(FIXTURE).unwrap();
     let ie = initiating_events[0].clone();
     let et = event_trees[0].clone();
 
-    // Run ET+linked-FT DPMC and assert the BothFail estimate ~= analytic.
-    // - DPMC must sample A once and reuse it across both FT evaluations.
-    // - The result must NOT match the naive product approximation.
     let analysis = DpEventTreeMonteCarloAnalysis::new(ie, et, &model, Some(123), 200_000).unwrap();
     let result = analysis.run_cpu().unwrap();
 
@@ -79,9 +75,6 @@ fn correlation_changes_sequence_probability_vs_independence() {
 #[test]
 #[ignore = "Scaffolding: enable once multi-root DPMC is implemented"]
 fn multi_root_matches_repeated_single_root_runs_for_fixed_seed() {
-    // TODO (future):
-    // - Build a plan for both FT roots (FT1.root, FT2.root).
-    // - Run once with multi-root tallying and record (s_v, n_v) for both roots.
-    // - Run twice with single-root evaluation and assert tallies match exactly.
+
     unimplemented!("Multi-root DPMC output not implemented yet");
 }

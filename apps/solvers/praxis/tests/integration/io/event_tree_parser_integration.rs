@@ -51,7 +51,6 @@ fn parses_event_tree_with_collect_expression_instructions() {
         assert!(et.sequences.contains_key(seq));
     }
 
-    // collect-expression blocks are instruction-only right now; structure should still validate.
     et.validate().unwrap();
 }
 
@@ -82,7 +81,6 @@ fn bcd_collect_expression_drives_sequence_probabilities() {
         }
     }
 
-    // Hand-computed from the fixture's collect-expression probabilities.
     assert!((p_success - 0.594).abs() < 1e-12, "p_success={p_success}");
     assert!((p_failure - 0.406).abs() < 1e-12, "p_failure={p_failure}");
     assert!(((p_success + p_failure) - 1.0).abs() < 1e-12);
@@ -187,7 +185,6 @@ fn gas_leak_expands_linked_event_tree() {
         EventTreeAnalysis::new(ie, et_top, &model_top).with_event_tree_library(&library);
     analysis.analyze().unwrap();
 
-    // Expect S9 from the top-level tree + S1..S8 from the linked reactive tree.
     let mut ids: Vec<String> = analysis
         .sequences()
         .iter()
@@ -219,7 +216,6 @@ fn gas_leak_mc_expands_linked_event_tree_and_sums_to_one() {
     let (model_reactive, _initiating_events_reactive, event_trees_reactive) =
         parse_event_tree_model(xml_reactive).unwrap();
 
-    // Merge reactive model content into the top-level model.
     for (_id, ft) in model_reactive.fault_trees().iter() {
         model_top.add_fault_tree(ft.clone()).unwrap();
     }
@@ -227,7 +223,6 @@ fn gas_leak_mc_expands_linked_event_tree_and_sums_to_one() {
         model_top.add_basic_event(be.clone()).unwrap();
     }
 
-    // Build an event-tree library across both parses.
     let mut library: HashMap<String, praxis::core::event_tree::EventTree> = HashMap::new();
     for et in event_trees_top.iter().chain(event_trees_reactive.iter()) {
         library.insert(et.id.clone(), et.clone());

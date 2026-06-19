@@ -1,14 +1,3 @@
-//! Importance sampling utilities for Monte Carlo (blueprint Chapter 17).
-//!
-//! This module provides the core likelihood-ratio math for Bernoulli vectors:
-//!
-//! - Target distribution per event:   $P(X_i=1)=p_i$
-//! - Proposal distribution per event: $Q(X_i=1)=q_i$
-//! - Likelihood ratio for a sample $x$ is:
-//!   $$L(x) = \prod_i \frac{p_i^{x_i}(1-p_i)^{1-x_i}}{q_i^{x_i}(1-q_i)^{1-x_i}}$$
-//!
-//! We compute in log-space to avoid underflow for large vectors.
-
 use crate::{PraxisError, Result};
 
 fn validate_probability_in_unit_interval(p: f64, name: &str) -> Result<f64> {
@@ -25,15 +14,6 @@ fn validate_probability_in_unit_interval(p: f64, name: &str) -> Result<f64> {
     Ok(p)
 }
 
-/// Log likelihood ratio contribution for a single Bernoulli outcome.
-///
-/// `x=true` means the event occurred.
-///
-/// Notes:
-/// - When `q` assigns zero probability to an observed outcome, this returns an error.
-///   (In importance sampling, samples are drawn from `q`, so such a sample indicates a bug.)
-/// - When `p` assigns zero probability to an observed outcome (but `q` does not), the
-///   ratio is zero and we return `-inf`.
 #[inline]
 pub fn bernoulli_log_likelihood_ratio(x: bool, p: f64, q: f64) -> Result<f64> {
     let p = validate_probability_in_unit_interval(p, "target")?;
@@ -62,9 +42,6 @@ pub fn bernoulli_log_likelihood_ratio(x: bool, p: f64, q: f64) -> Result<f64> {
     }
 }
 
-/// Log likelihood ratio for a Bernoulli vector sample.
-///
-/// `sample[i]` is the observed boolean outcome for event `i`.
 pub fn bernoulli_vector_log_likelihood_ratio(
     sample: &[bool],
     target_p: &[f64],
@@ -86,9 +63,6 @@ pub fn bernoulli_vector_log_likelihood_ratio(
     Ok(sum)
 }
 
-/// Likelihood ratio $L(x)$ for a Bernoulli vector sample.
-///
-/// This is `exp(bernoulli_vector_log_likelihood_ratio(...))`.
 pub fn bernoulli_vector_likelihood_ratio(
     sample: &[bool],
     target_p: &[f64],
@@ -97,7 +71,6 @@ pub fn bernoulli_vector_likelihood_ratio(
     Ok(bernoulli_vector_log_likelihood_ratio(sample, target_p, proposal_q)?.exp())
 }
 
-/// Convenience wrapper holding a target/proposal pair.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImportanceSamplingBernoulli {
     target_p: Vec<f64>,
@@ -142,13 +115,6 @@ impl ImportanceSamplingBernoulli {
     }
 }
 
-/// Weighted tallies for importance sampling.
-///
-/// Blueprint intent:
-/// - For indicator $Y \in \{0,1\}$ (e.g., top event occurred):
-///   - $S_1 = \sum w \cdot Y$
-///   - $S_0 = \sum w$
-///   - estimate $\hat{p} = S_1 / S_0$ (self-normalized IS)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WeightedTallies {
     pub s1: f64,
@@ -160,11 +126,6 @@ impl WeightedTallies {
         Self { s1: 0.0, s0: 0.0 }
     }
 
-    /// Add a single weighted indicator observation.
-    ///
-    /// `weight` is the likelihood ratio $L(x)$ (or any non-negative weight).
-    /// `y` is the indicator outcome.
-    /// `multiplicity` allows aggregating repeated identical samples.
     pub fn add_weighted_indicator(
         &mut self,
         weight: f64,
@@ -192,7 +153,6 @@ impl WeightedTallies {
         Ok(())
     }
 
-    /// Add an observation from a Bernoulli-vector sample using target/proposal.
     pub fn add_sample(
         &mut self,
         sample: &[bool],
@@ -205,9 +165,6 @@ impl WeightedTallies {
         self.add_weighted_indicator(lr, y, multiplicity)
     }
 
-    /// Returns the self-normalized estimate $S_1/S_0$.
-    ///
-    /// Returns `None` if `S0 == 0`.
     pub fn estimate(&self) -> Option<f64> {
         if self.s0 > 0.0 {
             Some(self.s1 / self.s0)
@@ -223,19 +180,9 @@ impl Default for WeightedTallies {
     }
 }
 
-/// Diagnostics derived from importance weights.
-///
-/// Effective sample size (ESS) for non-negative weights $w_i$:
-/// $$ESS = \frac{(\sum_i w_i)^2}{\sum_i w_i^2}$$
-///
-/// - Scale invariant in `w`.
-/// - Bounded: $1 \le ESS \le N$ for nonzero weights.
 pub mod diagnostics {
     use crate::{PraxisError, Result};
 
-    /// Compute ESS for a slice of nonnegative, finite weights.
-    ///
-    /// Returns `None` when `weights` is empty or sums are zero.
     pub fn effective_sample_size(weights: &[f64]) -> Result<Option<f64>> {
         if weights.is_empty() {
             return Ok(None);
@@ -262,9 +209,6 @@ pub mod diagnostics {
         Ok(Some((sum * sum) / sum_sq))
     }
 
-    /// ESS ratio in `(0,1]`: `ESS / N`.
-    ///
-    /// Returns `None` when ESS is undefined.
     pub fn effective_sample_size_ratio(weights: &[f64]) -> Result<Option<f64>> {
         let n = weights.len();
         if n == 0 {
@@ -273,9 +217,6 @@ pub mod diagnostics {
         Ok(effective_sample_size(weights)?.map(|ess| ess / (n as f64)))
     }
 
-    /// Returns the maximum normalized weight `max_i w_i / sum_j w_j`.
-    ///
-    /// Returns `None` when the sum is zero or the slice is empty.
     pub fn max_normalized_weight(weights: &[f64]) -> Result<Option<f64>> {
         if weights.is_empty() {
             return Ok(None);
@@ -304,9 +245,6 @@ pub mod diagnostics {
         Ok(Some(max_w / sum))
     }
 
-    /// Simple degeneracy flag: true when ESS ratio falls below `min_ess_ratio`.
-    ///
-    /// `min_ess_ratio` is clamped to `[0,1]`.
     pub fn is_weight_degenerate_by_ess(weights: &[f64], min_ess_ratio: f64) -> Result<bool> {
         let min_ess_ratio = if min_ess_ratio.is_finite() {
             min_ess_ratio.clamp(0.0, 1.0)
@@ -331,7 +269,7 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_all_zero_vector() {
-        // L = ((1-p1)/(1-q1)) * ((1-p2)/(1-q2))
+
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![false, false];
@@ -348,7 +286,7 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_all_one_vector() {
-        // L = (p1/q1) * (p2/q2)
+
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![true, true];
@@ -360,7 +298,7 @@ mod tests {
 
     #[test]
     fn likelihood_ratio_mixed_vector() {
-        // L = (p1/q1) * ((1-p2)/(1-q2))
+
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
         let sample = vec![true, false];
@@ -380,13 +318,12 @@ mod tests {
 
     #[test]
     fn proposal_impossible_outcome_is_error() {
-        // If q=0, proposal cannot produce x=true.
+
         let p = vec![0.2];
         let q = vec![0.0];
         let sample = vec![true];
         assert!(bernoulli_vector_likelihood_ratio(&sample, &p, &q).is_err());
 
-        // If q=1, proposal cannot produce x=false.
         let p2 = vec![0.2];
         let q2 = vec![1.0];
         let sample2 = vec![false];
@@ -406,9 +343,9 @@ mod tests {
     #[test]
     fn weighted_tally_estimate_is_s1_over_s0() {
         let mut t = WeightedTallies::new();
-        // Two observations with multiplicity.
-        t.add_weighted_indicator(2.0, true, 3).unwrap(); // s1 += 6, s0 += 6
-        t.add_weighted_indicator(1.0, false, 2).unwrap(); // s1 += 0, s0 += 2
+
+        t.add_weighted_indicator(2.0, true, 3).unwrap();
+        t.add_weighted_indicator(1.0, false, 2).unwrap();
         assert_close(t.s1, 6.0);
         assert_close(t.s0, 8.0);
         assert_close(t.estimate().unwrap(), 0.75);
@@ -416,8 +353,7 @@ mod tests {
 
     #[test]
     fn weighted_tally_exact_enumeration_matches_analytic_or_probability() {
-        // Use exact enumeration under q, weighting by L=p/q.
-        // For Y = OR(X1, X2), we must recover P_p(Y=1) = 1 - (1-p1)(1-p2).
+
         let p = vec![0.2, 0.3];
         let q = vec![0.4, 0.6];
 
@@ -428,7 +364,7 @@ mod tests {
             let y = s[0] || s[1];
             let qx = bernoulli_vector_prob(&s, &q);
             let lr = bernoulli_vector_likelihood_ratio(&s, &p, &q).unwrap();
-            // Use multiplicity=1 but inject q(x) into weight to represent exact expectation.
+
             tallies.add_weighted_indicator(qx * lr, y, 1).unwrap();
         }
 
@@ -436,7 +372,6 @@ mod tests {
         let analytic = 1.0 - (1.0 - p[0]) * (1.0 - p[1]);
         assert_close(estimate, analytic);
 
-        // Denominator should be sum_x q(x) * p(x)/q(x) = 1.
         assert_close(tallies.s0, 1.0);
     }
 
@@ -474,7 +409,7 @@ mod tests {
 
     #[test]
     fn degeneracy_flag_triggers_for_spiky_weights() {
-        // N=10, one weight dominates -> ESS ratio ~= 0.1.
+
         let mut w = vec![1.0; 9];
         w.push(1000.0);
         let ratio = diagnostics::effective_sample_size_ratio(&w)

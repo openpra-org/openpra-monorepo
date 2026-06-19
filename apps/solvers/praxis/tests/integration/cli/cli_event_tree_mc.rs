@@ -1,9 +1,3 @@
-/// CLI integration test for event-tree Monte Carlo.
-///
-/// This validates that the CLI can:
-/// - Parse an event-tree model from MEF XML
-/// - Load additional event-tree library files to resolve linked sequences
-/// - Run CPU DPMC-based event-tree Monte Carlo and print results
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -64,10 +58,9 @@ fn test_cli_event_tree_monte_carlo_with_library() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Event Tree Monte Carlo Results"));
-    // mc-t=1, mc-b=1, mc-p=2, omega=64 => 128 trials
+
     assert!(stdout.contains("Number of Trials: 128"));
 
-    // Root + linked ET should yield terminal sequences including S1 and S9.
     assert!(stdout.contains("S1"));
     assert!(stdout.contains("S9"));
 }
@@ -75,8 +68,7 @@ fn test_cli_event_tree_monte_carlo_with_library() {
 #[cfg(feature = "cuda")]
 #[test]
 fn test_cli_event_tree_monte_carlo_accepts_cuda_backend_flag() {
-    // Regression test: event-tree Monte Carlo should not reject GPU backends at the CLI layer.
-    // This test does NOT require a working CUDA device: it exits early with `--validate`.
+
     let root = "tests/fixtures/eta/EventTrees/gas_leak/gas_leak_combined.xml";
 
     if !PathBuf::from(root).exists() {

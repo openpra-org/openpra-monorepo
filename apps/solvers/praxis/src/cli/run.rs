@@ -227,7 +227,6 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let computed_event_tree_monte_carlo: Vec<EventTreeMonteCarloReport> = Vec::new();
 
-    // Write XML output
     if let Some(ref output_path) = cli.output_file {
         if verbose {
             eprintln!("Writing results to: {}", output_path.display());
@@ -235,10 +234,6 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
         let mut writer = writer_vec();
 
-            // Preserve existing OpenPSA-ish output (`write_results`) when possible.
-            // If cut sets are available we continue to emit the comprehensive report.
-            // If Monte Carlo ran (and cut sets were not computed), embed MC stats into
-            // the simple report without requiring any additional flags.
             if computed_cut_sets.is_some() || !computed_event_tree_monte_carlo.is_empty() {
                 let mut report = AnalysisReport::new(result.clone());
                 if let Some(ref cut_sets) = computed_cut_sets {
@@ -278,7 +273,6 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Default: print XML to stdout if no --print and no --output
     if !cli.print && cli.output_file.is_none() {
         let mut writer = writer_stdout();
 

@@ -21,22 +21,7 @@ pub struct Gate {
 }
 
 impl Gate {
-    /// Creates a new Gate with the given id and formula.
-    /// Corresponds to Gate constructor in C++ (inherits from Event/Id)
-    /// T033: Gate::new() constructor
-    ///
-    /// # Arguments
-    /// * `id` - The unique identifier for the gate
-    /// * `formula` - The logic formula type for this gate
-    ///
-    /// # Errors
-    /// Returns error if id is invalid (via Element::new())
-    ///
-    /// # Example
-    /// ```
-    /// use praxis::core::gate::{Gate, Formula};
-    /// let gate = Gate::new("G1".to_string(), Formula::And).unwrap();
-    /// ```
+
     pub fn new(id: String, formula: Formula) -> Result<Self> {
         let element = Element::new(id)?;
         Ok(Gate {
@@ -46,37 +31,22 @@ impl Gate {
         })
     }
 
-    /// Returns reference to the underlying Element
-    /// Provides access to id, name, label
     pub fn element(&self) -> &Element {
         &self.element
     }
 
-    /// Returns mutable reference to the underlying Element
     pub fn element_mut(&mut self) -> &mut Element {
         &mut self.element
     }
 
-    /// Returns the formula type of this gate
-    /// Corresponds to Gate::formula() const in C++
-    /// T036: Gate::formula() method
     pub fn formula(&self) -> &Formula {
         &self.formula
     }
 
-    /// Adds an operand (event or gate reference) to this gate
-    /// Corresponds to adding arguments to a gate in C++
-    /// T039: Gate::add_operand() method
-    ///
-    /// # Arguments
-    /// * `operand_id` - The ID of the event or gate to add as operand
     pub fn add_operand(&mut self, operand_id: String) {
         self.operands.push(operand_id);
     }
 
-    /// Returns a slice of operand IDs for this gate
-    /// Corresponds to accessing gate arguments in C++
-    /// T042: Gate::operands() method
     pub fn operands(&self) -> &[String] {
         &self.operands
     }
@@ -90,7 +60,6 @@ impl Gate {
 mod tests {
     use super::*;
 
-    // T034: Tests for Gate::new()
     #[test]
     fn test_gate_new_and_formula() {
         let gate = Gate::new("G1".to_string(), Formula::And);
@@ -168,7 +137,6 @@ mod tests {
         assert_eq!(gate.element().label(), Some("AND gate"));
     }
 
-    // T037: Tests for Gate::formula()
     #[test]
     fn test_gate_formula_getter() {
         let gate = Gate::new("G1".to_string(), Formula::And).unwrap();
@@ -210,7 +178,6 @@ mod tests {
         assert_eq!(f1, f2);
     }
 
-    // T040: Tests for Gate::add_operand()
     #[test]
     fn test_gate_add_operand_single() {
         let mut gate = Gate::new("G1".to_string(), Formula::And).unwrap();
@@ -261,7 +228,6 @@ mod tests {
         assert_eq!(gate.operands()[2], "E1");
     }
 
-    // T043: Tests for Gate::operands()
     #[test]
     fn test_gate_operands_empty() {
         let gate = Gate::new("G1".to_string(), Formula::And).unwrap();
@@ -299,7 +265,6 @@ mod tests {
         gate.add_operand("E1".to_string());
 
         let _operands = gate.operands();
-        // operands is immutable slice, cannot modify
 
         assert_eq!(gate.operands().len(), 1);
     }

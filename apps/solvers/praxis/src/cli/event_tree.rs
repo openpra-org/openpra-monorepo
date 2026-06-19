@@ -56,10 +56,6 @@ fn parse_model_with_libs_from_parsed(
     Ok((model, initiating_events, event_trees, event_tree_library))
 }
 
-// ---------------------------------------------------------------------------
-// Shared helpers for analytic ZBDD
-// ---------------------------------------------------------------------------
-
 fn event_names_from_pdag(pdag: &BddPdag) -> Vec<Option<String>> {
     pdag.variable_order()
         .iter()
@@ -108,10 +104,6 @@ fn compute_approx_et(zbdd: &ZbddEngine, root: ZbddRef, approximation: Option<App
     }
 }
 
-// ---------------------------------------------------------------------------
-// Intermediate state for a single sequence (used in WF1 & WF2 only)
-// ---------------------------------------------------------------------------
-
 struct SequenceIntermediate {
     seq_id: String,
     event_names: Vec<Option<String>>,
@@ -121,10 +113,6 @@ struct SequenceIntermediate {
     ie_frequency: f64,
     is_unconditional: bool,
 }
-
-// ---------------------------------------------------------------------------
-// Analytic ZBDD — 4 independent workflows
-// ---------------------------------------------------------------------------
 
 fn analytic_zbdd_wf1_no_approx_no_limits(
     _cli: &Args,
@@ -153,7 +141,6 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
     }
     all_seq_ids.sort();
 
-    // First pass: build all ZBDDs and collect metadata
     let mut intermediates: Vec<SequenceIntermediate> = Vec::new();
 
     for seq_id in &all_seq_ids {
@@ -206,7 +193,6 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
         });
     }
 
-    // Show combined metadata
     let mut meta_entries: Vec<ZbddSequenceMetadata> = Vec::new();
     for im in &intermediates {
         if im.is_unconditional {
@@ -228,10 +214,8 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
     }
     display_zbdd_metadata(&meta_entries);
 
-    // Prompt once for limits
     let (limit_order, cut_off) = prompt_for_limits();
 
-    // Second pass: apply filters and materialize (last step)
     let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
     for mut im in intermediates {
         let (filtered_root, cut_sets) = if im.is_unconditional {
@@ -341,7 +325,6 @@ fn analytic_zbdd_wf2_approx_no_limits(
         });
     }
 
-    // Show combined metadata
     let mut meta_entries: Vec<ZbddSequenceMetadata> = Vec::new();
     for im in &intermediates {
         if im.is_unconditional {
@@ -575,10 +558,6 @@ fn analytic_zbdd_wf4_approx_limits(
 
     Ok(sequences)
 }
-
-// ---------------------------------------------------------------------------
-// Monte Carlo event tree
-// ---------------------------------------------------------------------------
 
 fn run_monte_carlo_impl(
     cli: &Args,
@@ -950,10 +929,6 @@ pub fn run_monte_carlo_from_parsed(
     )
 }
 
-// ---------------------------------------------------------------------------
-// Analytic dispatcher (BDD and ZBDD)
-// ---------------------------------------------------------------------------
-
 fn run_analytic_impl(
     cli: &Args,
     model: praxis::core::model::Model,
@@ -1065,7 +1040,7 @@ fn run_analytic_impl(
                 )?,
             }
         } else {
-            // BDD exact path
+
             let praxis::analysis::sequence_formula::SequenceFormulas {
                 mut pdag,
                 sequence_roots,

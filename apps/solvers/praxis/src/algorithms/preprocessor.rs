@@ -1,78 +1,39 @@
-//! Fault Tree Preprocessor for optimization and simplification
-//!
-//! This module provides preprocessing algorithms that transform and simplify
-//! fault trees before analysis. The preprocessor applies various optimization
-//! techniques including constant propagation, gate normalization, module detection,
-//! and complement elimination.
-//!
-//! # Preprocessing Phases
-//!
-//! The preprocessor operates in five consecutive phases:
-//! 1. **Phase One**: Basic cleanup - constant propagation, NULL gate removal
-//! 2. **Phase Two**: Structural optimization - module detection, gate coalescing
-//! 3. **Phase Three**: Gate normalization - convert to AND/OR normal form
-//! 4. **Phase Four**: Complement propagation - negation normal form
-//! 5. **Phase Five**: Final cleanup - alternating gate layers
-//!
-//! # Examples
-//!
-//! ```
-//! use praxis::algorithms::pdag::Pdag;
-//! use praxis::algorithms::preprocessor::Preprocessor;
-//! use praxis::core::event::BasicEvent;
-//! use praxis::core::fault_tree::FaultTree;
-//! use praxis::core::gate::{Formula, Gate};
-//!
-//! let mut ft = FaultTree::new("FT1".to_string(), "G1".to_string()).unwrap();
-//! let mut gate = Gate::new("G1".to_string(), Formula::And).unwrap();
-//! gate.add_operand("E1".to_string());
-//! ft.add_gate(gate).unwrap();
-//! ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.01).unwrap())
-//!     .unwrap();
-//!
-//! let pdag = Pdag::from_fault_tree(&ft).unwrap();
-//! let mut preprocessor = Preprocessor::new(pdag);
-//! preprocessor.run().unwrap();
-//! let _optimized = preprocessor.into_pdag();
-//! ```
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::Result;
 use std::collections::HashMap;
 
-/// Normalization type for gate transformations
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NormalizationType {
-    /// No normalization
+
     None,
-    /// XOR gate normalization only
+
     Xor,
-    /// AtLeast (K/N voting) gate normalization only
+
     AtLeast,
-    /// Full normalization of all complex gates
+
     All,
 }
 
-/// Statistics about preprocessing optimizations
 #[derive(Debug, Clone, PartialEq)]
 pub struct PreprocessorStats {
-    /// Number of constant gates eliminated
+
     pub constants_eliminated: usize,
-    /// Number of NULL (pass-through) gates removed
+
     pub null_gates_removed: usize,
-    /// Number of gates normalized
+
     pub gates_normalized: usize,
-    /// Number of complements propagated
+
     pub complements_propagated: usize,
-    /// Number of modules detected
+
     pub modules_detected: usize,
-    /// Original node count
+
     pub original_nodes: usize,
-    /// Final node count after optimization
+
     pub final_nodes: usize,
 }
 
 impl PreprocessorStats {
-    /// Calculate the reduction percentage
+
     pub fn reduction_percentage(&self) -> f64 {
         if self.original_nodes == 0 {
             return 0.0;
@@ -81,33 +42,13 @@ impl PreprocessorStats {
     }
 }
 
-/// Fault tree preprocessor
-///
-/// The preprocessor transforms a PDAG representation of a fault tree
-/// to optimize it for analysis. It applies multiple optimization passes
-/// to reduce complexity while preserving the logical structure.
 pub struct Preprocessor {
     pdag: Pdag,
     stats: PreprocessorStats,
 }
 
 impl Preprocessor {
-    /// Create a new preprocessor for a PDAG
-    ///
-    /// # Arguments
-    /// * `pdag` - The PDAG to preprocess
-    ///
-    /// # Returns
-    /// * `Preprocessor` - A new preprocessor instance
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::algorithms::preprocessor::Preprocessor;
-    /// use praxis::algorithms::pdag::Pdag;
-    ///
-    /// let pdag = Pdag::new();
-    /// let preprocessor = Preprocessor::new(pdag);
-    /// ```
+
     pub fn new(pdag: Pdag) -> Self {
         let original_nodes = pdag.node_count();
         Preprocessor {
@@ -124,23 +65,6 @@ impl Preprocessor {
         }
     }
 
-    /// Run the complete preprocessing pipeline
-    ///
-    /// Executes all five preprocessing phases in sequence.
-    ///
-    /// # Returns
-    /// * `Ok(())` - Preprocessing completed successfully
-    /// * `Err(Error)` - Preprocessing failed
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::algorithms::preprocessor::Preprocessor;
-    /// use praxis::algorithms::pdag::Pdag;
-    ///
-    /// let pdag = Pdag::new();
-    /// let mut preprocessor = Preprocessor::new(pdag);
-    /// preprocessor.run().unwrap();
-    /// ```
     pub fn run(&mut self) -> Result<()> {
         self.run_phase_one()?;
         self.run_phase_two()?;
@@ -152,71 +76,36 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Phase One: Basic cleanup
-    ///
-    /// - Constant propagation (eliminate constant gates)
-    /// - NULL gate removal (pass-through gates)
-    /// - Partial gate normalization
     fn run_phase_one(&mut self) -> Result<()> {
         self.propagate_constants()?;
         self.remove_null_gates()?;
         Ok(())
     }
 
-    /// Phase Two: Structural optimization
-    ///
-    /// - Multiple definition detection
-    /// - Module detection and creation
-    /// - Gate coalescing (merge gates with same logic)
-    /// - Boolean optimization
     fn run_phase_two(&mut self) -> Result<()> {
         self.detect_modules()?;
         self.coalesce_gates()?;
         Ok(())
     }
 
-    /// Phase Three: Gate normalization
-    ///
-    /// - Convert complex gates to AND/OR normal form
-    /// - Normalize XOR gates
-    /// - Normalize K/N (AtLeast) voting gates
-    /// - Eliminate NOT, NAND, NOR gates
     fn run_phase_three(&mut self) -> Result<()> {
         self.normalize_gates(NormalizationType::All)?;
         Ok(())
     }
 
-    /// Phase Four: Complement propagation
-    ///
-    /// - Propagate NOT gates down to variables
-    /// - Apply DeMorgan's laws
-    /// - Achieve negation normal form
     fn run_phase_four(&mut self) -> Result<()> {
         self.propagate_complements()?;
         Ok(())
     }
 
-    /// Phase Five: Final cleanup
-    ///
-    /// - Remove remaining NULL gates
-    /// - Ensure alternating AND/OR layers
-    /// - Final structural validation
     fn run_phase_five(&mut self) -> Result<()> {
         self.remove_null_gates()?;
         self.stats.final_nodes = self.pdag.node_count();
         Ok(())
     }
 
-    /// Propagate constant values through the fault tree
-    ///
-    /// Eliminates gates with constant inputs by computing their logical result.
-    /// For example:
-    /// - AND gate with a FALSE input → FALSE
-    /// - OR gate with a TRUE input → TRUE
-    /// - AND gate with all TRUE inputs → TRUE
     fn propagate_constants(&mut self) -> Result<()> {
-        // Simplified version: just count potential optimizations
-        // Full implementation would require more sophisticated node replacement
+
         let mut count = 0;
 
         for node in self.pdag.nodes().values() {
@@ -239,12 +128,10 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Replace a gate node with a constant value
     fn replace_with_constant(&mut self, index: NodeIndex, value: bool) -> Result<()> {
-        // Create a constant node
+
         let constant_index = self.pdag.add_constant(value);
 
-        // Update all parent gates to use the constant instead
         if let Some(parents) = self.pdag.parents().get(&index).cloned() {
             for parent_idx in parents {
                 if let Some(PdagNode::Gate { operands, .. }) =
@@ -262,12 +149,8 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Remove NULL (pass-through) gates
-    ///
-    /// NULL gates simply pass through their single argument and can be eliminated
-    /// by directly connecting the argument to the parent gates.
     fn remove_null_gates(&mut self) -> Result<()> {
-        // Simplified version: just count NULL gates
+
         let mut count = 0;
 
         for node in self.pdag.nodes().values() {
@@ -284,7 +167,6 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Replace an operand in a gate
     fn replace_operand(
         &mut self,
         gate_index: NodeIndex,
@@ -301,10 +183,6 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Normalize all gates to AND/OR form
-    ///
-    /// Converts complex gates (XOR, NAND, NOR, NOT, AtLeast) to combinations
-    /// of AND and OR gates using logical equivalences.
     fn normalize_gates(&mut self, norm_type: NormalizationType) -> Result<()> {
         let to_normalize: Vec<NodeIndex> = self
             .pdag
@@ -367,10 +245,9 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Normalize NOT gate to NULL gate (will be removed later)
     fn normalize_not_gate(&mut self, index: NodeIndex, operands: &[NodeIndex]) -> Result<()> {
         if operands.len() == 1 {
-            // NOT gate becomes NULL gate with negated operand
+
             let negated_op = -operands[0];
             self.pdag.update_gate_operands(index, vec![negated_op])?;
             self.pdag.update_gate_connective(index, Connective::Null)?;
@@ -378,42 +255,28 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Normalize NAND gate to AND with NOT
-    ///
-    /// NAND(A, B) = NOT(AND(A, B))
     fn normalize_nand_gate(&mut self, index: NodeIndex, _operands: &[NodeIndex]) -> Result<()> {
-        // Convert NAND to AND
+
         self.pdag.update_gate_connective(index, Connective::And)?;
 
-        // The gate output becomes negated (handled by parent references)
-        // This is typically handled by marking the gate's output as complemented
         Ok(())
     }
 
-    /// Normalize NOR gate to OR with NOT
-    ///
-    /// NOR(A, B) = NOT(OR(A, B))
     fn normalize_nor_gate(&mut self, index: NodeIndex, _operands: &[NodeIndex]) -> Result<()> {
-        // Convert NOR to OR
+
         self.pdag.update_gate_connective(index, Connective::Or)?;
 
-        // The gate output becomes negated (handled by parent references)
         Ok(())
     }
 
-    /// Normalize XOR gate to AND/OR combination
-    ///
-    /// XOR(A, B) = OR(AND(A, NOT B), AND(NOT A, B))
-    ///           = (A ∧ ¬B) ∨ (¬A ∧ B)
     fn normalize_xor_gate(&mut self, index: NodeIndex, operands: &[NodeIndex]) -> Result<()> {
         if operands.len() != 2 {
-            return Ok(()); // XOR only defined for 2 operands
+            return Ok(());
         }
 
         let a = operands[0];
         let b = operands[1];
 
-        // Create: AND(A, NOT B)
         let and1_ops = vec![a, -b];
         let and1_index = self.pdag.add_gate(
             format!("XOR_AND1_{}", index),
@@ -422,7 +285,6 @@ impl Preprocessor {
             None,
         )?;
 
-        // Create: AND(NOT A, B)
         let and2_ops = vec![-a, b];
         let and2_index = self.pdag.add_gate(
             format!("XOR_AND2_{}", index),
@@ -431,7 +293,6 @@ impl Preprocessor {
             None,
         )?;
 
-        // Convert XOR to OR(AND1, AND2)
         self.pdag.update_gate_connective(index, Connective::Or)?;
         self.pdag
             .update_gate_operands(index, vec![and1_index, and2_index])?;
@@ -439,12 +300,6 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Normalize AtLeast (K/N voting) gate
-    ///
-    /// AtLeast(K, A1, A2, ..., An) is true if at least K of the inputs are true.
-    /// For small K and N, this can be expanded to OR of AND combinations.
-    ///
-    /// Example: AtLeast(2, A, B, C) = OR(AND(A,B), AND(A,C), AND(B,C))
     fn normalize_atleast_gate(
         &mut self,
         index: NodeIndex,
@@ -454,31 +309,29 @@ impl Preprocessor {
         let n = operands.len();
 
         if k == 0 {
-            // Always true
+
             self.replace_with_constant(index, true)?;
             return Ok(());
         }
 
         if k > n {
-            // Always false
+
             self.replace_with_constant(index, false)?;
             return Ok(());
         }
 
         if k == 1 {
-            // AtLeast(1, ...) = OR(...)
+
             self.pdag.update_gate_connective(index, Connective::Or)?;
             return Ok(());
         }
 
         if k == n {
-            // AtLeast(N, ...) = AND(...)
+
             self.pdag.update_gate_connective(index, Connective::And)?;
             return Ok(());
         }
 
-        // For general K/N, generate combinations
-        // This is computationally expensive for large N, so we limit it
         if n <= 10 {
             let combinations = self.generate_combinations(operands, k);
             let mut and_gates = Vec::new();
@@ -493,7 +346,6 @@ impl Preprocessor {
                 and_gates.push(and_index);
             }
 
-            // Convert to OR of all AND combinations
             self.pdag.update_gate_connective(index, Connective::Or)?;
             self.pdag.update_gate_operands(index, and_gates)?;
         }
@@ -501,7 +353,6 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Generate all K-combinations of operands
     fn generate_combinations(&self, operands: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
         let mut result = Vec::new();
         let n = operands.len();
@@ -515,7 +366,6 @@ impl Preprocessor {
             return result;
         }
 
-        // Generate combinations using recursive approach
         self.generate_combinations_helper(operands, k, 0, &mut Vec::new(), &mut result);
         result
     }
@@ -540,17 +390,12 @@ impl Preprocessor {
         }
     }
 
-    /// Propagate complements (NOT gates) down to basic events
-    ///
-    /// Applies DeMorgan's laws to push NOT gates towards leaves:
-    /// - NOT(AND(A, B)) = OR(NOT A, NOT B)
-    /// - NOT(OR(A, B)) = AND(NOT A, NOT B)
     fn propagate_complements(&mut self) -> Result<()> {
         let nodes: Vec<NodeIndex> = self.pdag.nodes().keys().copied().collect();
 
         for index in nodes {
             if index < 0 {
-                // This is a complemented reference, apply DeMorgan's law
+
                 let positive_idx = index.abs();
 
                 if let Some(PdagNode::Gate {
@@ -561,7 +406,7 @@ impl Preprocessor {
                 {
                     match connective {
                         Connective::And => {
-                            // NOT(AND(A, B, ...)) = OR(NOT A, NOT B, ...)
+
                             let negated_ops: Vec<NodeIndex> =
                                 operands.iter().map(|&op| -op).collect();
                             self.pdag
@@ -570,7 +415,7 @@ impl Preprocessor {
                             self.stats.complements_propagated += 1;
                         }
                         Connective::Or => {
-                            // NOT(OR(A, B, ...)) = AND(NOT A, NOT B, ...)
+
                             let negated_ops: Vec<NodeIndex> =
                                 operands.iter().map(|&op| -op).collect();
                             self.pdag
@@ -587,12 +432,8 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Detect independent modules (sub-trees) in the fault tree
-    ///
-    /// Modules are independent sub-graphs that can be analyzed separately.
-    /// Detecting modules can significantly improve analysis performance.
     fn detect_modules(&mut self) -> Result<()> {
-        // A simple module detection: find gates that are only used once
+
         let mut usage_count: HashMap<NodeIndex, usize> = HashMap::new();
 
         for node in self.pdag.nodes().values() {
@@ -603,7 +444,6 @@ impl Preprocessor {
             }
         }
 
-        // Gates used only once are potential modules
         for (_idx, count) in usage_count.iter() {
             if *count == 1 {
                 self.stats.modules_detected += 1;
@@ -613,11 +453,8 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Coalesce gates with identical logic
-    ///
-    /// Merges gates that have the same type and operands to reduce redundancy.
     fn coalesce_gates(&mut self) -> Result<()> {
-        // Build a map of gate signatures to detect duplicates
+
         let mut gate_signatures: HashMap<(Connective, Vec<NodeIndex>), NodeIndex> = HashMap::new();
         let mut to_merge: Vec<(NodeIndex, NodeIndex)> = Vec::new();
 
@@ -633,7 +470,7 @@ impl Preprocessor {
                 let signature = (*connective, sorted_ops);
 
                 if let Some(&existing_idx) = gate_signatures.get(&signature) {
-                    // Found duplicate gate
+
                     to_merge.push((index, existing_idx));
                 } else {
                     gate_signatures.insert(signature, index);
@@ -641,7 +478,6 @@ impl Preprocessor {
             }
         }
 
-        // Merge duplicate gates
         for (duplicate, original) in to_merge {
             if let Some(parents) = self.pdag.parents().get(&duplicate).cloned() {
                 for parent_idx in parents {
@@ -653,23 +489,14 @@ impl Preprocessor {
         Ok(())
     }
 
-    /// Get preprocessing statistics
-    ///
-    /// # Returns
-    /// * `PreprocessorStats` - Statistics about optimizations performed
     pub fn stats(&self) -> &PreprocessorStats {
         &self.stats
     }
 
-    /// Consume the preprocessor and return the optimized PDAG
-    ///
-    /// # Returns
-    /// * `Pdag` - The preprocessed and optimized PDAG
     pub fn into_pdag(self) -> Pdag {
         self.pdag
     }
 
-    /// Get a reference to the current PDAG
     pub fn pdag(&self) -> &Pdag {
         &self.pdag
     }
@@ -732,7 +559,6 @@ mod tests {
         let mut preprocessor = Preprocessor::new(pdag);
         preprocessor.remove_null_gates().unwrap();
 
-        // NULL gates should be removed
         assert!(preprocessor.stats().null_gates_removed > 0);
     }
 
@@ -759,7 +585,6 @@ mod tests {
         let e2 = pdag.add_basic_event("E2".to_string());
         let e3 = pdag.add_basic_event("E3".to_string());
 
-        // AtLeast(1, E1, E2, E3) should become OR(E1, E2, E3)
         let atleast_gate = pdag
             .add_gate(
                 "G1".to_string(),
@@ -774,7 +599,6 @@ mod tests {
             .normalize_gates(NormalizationType::All)
             .unwrap();
 
-        // Check that the gate was normalized
         if let Some(PdagNode::Gate { connective, .. }) =
             preprocessor.pdag().nodes().get(&atleast_gate)
         {
@@ -789,7 +613,6 @@ mod tests {
         let e2 = pdag.add_basic_event("E2".to_string());
         let e3 = pdag.add_basic_event("E3".to_string());
 
-        // AtLeast(3, E1, E2, E3) should become AND(E1, E2, E3)
         let atleast_gate = pdag
             .add_gate(
                 "G1".to_string(),
@@ -804,7 +627,6 @@ mod tests {
             .normalize_gates(NormalizationType::All)
             .unwrap();
 
-        // Check that the gate was normalized
         if let Some(PdagNode::Gate { connective, .. }) =
             preprocessor.pdag().nodes().get(&atleast_gate)
         {
@@ -820,7 +642,6 @@ mod tests {
         let operands = vec![1, 2, 3];
         let combos = preprocessor.generate_combinations(&operands, 2);
 
-        // C(3,2) = 3 combinations: (1,2), (1,3), (2,3)
         assert_eq!(combos.len(), 3);
     }
 
@@ -836,7 +657,6 @@ mod tests {
         let mut preprocessor = Preprocessor::new(pdag);
         preprocessor.detect_modules().unwrap();
 
-        // Should detect modules
         assert!(preprocessor.stats().modules_detected > 0);
     }
 

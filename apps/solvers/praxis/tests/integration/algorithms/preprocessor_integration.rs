@@ -1,4 +1,3 @@
-/// Integration tests for Preprocessor with real fault trees
 use praxis::algorithms::pdag::Pdag;
 use praxis::algorithms::preprocessor::Preprocessor;
 use praxis::core::event::BasicEvent;
@@ -26,7 +25,7 @@ fn test_preprocessor_simple_tree() {
     preprocessor.run().unwrap();
 
     let stats = preprocessor.stats();
-    assert_eq!(stats.original_nodes, 3); // 2 events + 1 gate
+    assert_eq!(stats.original_nodes, 3);
 }
 
 #[test]
@@ -41,7 +40,6 @@ fn test_preprocessor_with_atleast_gate() {
     ft.add_basic_event(e2).unwrap();
     ft.add_basic_event(e3).unwrap();
 
-    // AtLeast(2, E1, E2, E3) - 2-out-of-3 voting
     let mut g1 = Gate::new("G1".to_string(), Formula::AtLeast { min: 2 }).unwrap();
     g1.add_operand("E1".to_string());
     g1.add_operand("E2".to_string());
@@ -117,7 +115,7 @@ fn test_preprocessor_nested_gates() {
     preprocessor.run().unwrap();
 
     let stats = preprocessor.stats();
-    assert_eq!(stats.original_nodes, 6); // 3 events + 3 gates
+    assert_eq!(stats.original_nodes, 6);
 }
 
 #[test]
@@ -160,7 +158,6 @@ fn test_preprocessor_module_detection() {
     ft.add_basic_event(e3).unwrap();
     ft.add_basic_event(e4).unwrap();
 
-    // G1 and G2 are independent modules
     let mut g1 = Gate::new("G1".to_string(), Formula::And).unwrap();
     g1.add_operand("E1".to_string());
     g1.add_operand("E2".to_string());

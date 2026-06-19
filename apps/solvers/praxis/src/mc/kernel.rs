@@ -1,6 +1,3 @@
-/// GPU kernel modules for Monte Carlo simulation.
-///
-/// This module contains the blueprint-aligned DPMC bitpacked kernels.
 pub mod cpu;
 pub mod dpmc_event;
 

@@ -1,7 +1,3 @@
-/// Model container for probabilistic risk assessment
-///
-/// The Model is the top-level container that holds all fault trees,
-/// basic events, and other PRA model elements.
 use std::collections::HashMap;
 
 use crate::core::element::Element;
@@ -9,7 +5,6 @@ use crate::core::event::BasicEvent;
 use crate::core::fault_tree::FaultTree;
 use crate::{MefError, PraxisError, Result};
 
-/// Top-level container for entire PRA model
 #[derive(Debug, Clone)]
 pub struct Model {
     element: Element,
@@ -18,24 +13,7 @@ pub struct Model {
 }
 
 impl Model {
-    /// Create a new model with optional name
-    ///
-    /// # Arguments
-    /// * `name` - Optional model name (can be empty string for unnamed model)
-    ///
-    /// # Returns
-    /// * `Ok(Model)` - Successfully created model
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::core::model::Model;
-    ///
-    /// // Create unnamed model
-    /// let model = Model::new("").unwrap();
-    ///
-    /// // Create named model
-    /// let model = Model::new("MyModel").unwrap();
-    /// ```
+
     pub fn new(name: impl Into<String>) -> Result<Self> {
         let name_str = name.into();
         let id = if name_str.is_empty() {
@@ -55,44 +33,22 @@ impl Model {
         })
     }
 
-    /// Get reference to the model's element
     pub fn element(&self) -> &Element {
         &self.element
     }
 
-    /// Get mutable reference to the model's element
     pub fn element_mut(&mut self) -> &mut Element {
         &mut self.element
     }
 
-    /// Get the model name (empty string if unnamed)
     pub fn name(&self) -> &str {
         self.element.name().unwrap_or("")
     }
 
-    /// Check if the model has the default unnamed name
     pub fn is_unnamed(&self) -> bool {
         self.element.id() == "__unnamed-model__"
     }
 
-    /// Add a fault tree to the model
-    ///
-    /// # Arguments
-    /// * `fault_tree` - The fault tree to add
-    ///
-    /// # Returns
-    /// * `Ok(())` - Successfully added fault tree
-    /// * `Err(PraxisError::Mef(MefError::DuplicateElement))` - Fault tree with same ID already exists
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::core::model::Model;
-    /// use praxis::core::fault_tree::FaultTree;
-    ///
-    /// let mut model = Model::new("MyModel").unwrap();
-    /// let ft = FaultTree::new("FT1", "TopGate").unwrap();
-    /// model.add_fault_tree(ft).unwrap();
-    /// ```
     pub fn add_fault_tree(&mut self, fault_tree: FaultTree) -> Result<()> {
         let id = fault_tree.element().id().to_string();
         if self.fault_trees.contains_key(&id) {
@@ -106,59 +62,18 @@ impl Model {
         Ok(())
     }
 
-    /// Get a fault tree by ID
-    ///
-    /// # Arguments
-    /// * `id` - The fault tree ID to look up
-    ///
-    /// # Returns
-    /// * `Some(&FaultTree)` - Reference to the fault tree if found
-    /// * `None` - No fault tree with given ID exists
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::core::model::Model;
-    /// use praxis::core::fault_tree::FaultTree;
-    ///
-    /// let mut model = Model::new("MyModel").unwrap();
-    /// let ft = FaultTree::new("FT1", "TopGate").unwrap();
-    /// model.add_fault_tree(ft).unwrap();
-    ///
-    /// assert!(model.get_fault_tree("FT1").is_some());
-    /// assert!(model.get_fault_tree("FT2").is_none());
-    /// ```
     pub fn get_fault_tree(&self, id: &str) -> Option<&FaultTree> {
         self.fault_trees.get(id)
     }
 
-    /// Get a mutable reference to a fault tree by ID
     pub fn get_fault_tree_mut(&mut self, id: &str) -> Option<&mut FaultTree> {
         self.fault_trees.get_mut(id)
     }
 
-    /// Get all fault trees
     pub fn fault_trees(&self) -> &HashMap<String, FaultTree> {
         &self.fault_trees
     }
 
-    /// Add a basic event to the model
-    ///
-    /// # Arguments
-    /// * `basic_event` - The basic event to add
-    ///
-    /// # Returns
-    /// * `Ok(())` - Successfully added basic event
-    /// * `Err(PraxisError::Mef(MefError::DuplicateElement))` - Basic event with same ID already exists
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::core::model::Model;
-    /// use praxis::core::event::BasicEvent;
-    ///
-    /// let mut model = Model::new("MyModel").unwrap();
-    /// let event = BasicEvent::new("E1".to_string(), 0.01).unwrap();
-    /// model.add_basic_event(event).unwrap();
-    /// ```
     pub fn add_basic_event(&mut self, basic_event: BasicEvent) -> Result<()> {
         let id = basic_event.element().id().to_string();
         if self.basic_events.contains_key(&id) {
@@ -172,37 +87,14 @@ impl Model {
         Ok(())
     }
 
-    /// Get a basic event by ID
-    ///
-    /// # Arguments
-    /// * `id` - The basic event ID to look up
-    ///
-    /// # Returns
-    /// * `Some(&BasicEvent)` - Reference to the basic event if found
-    /// * `None` - No basic event with given ID exists
-    ///
-    /// # Examples
-    /// ```
-    /// use praxis::core::model::Model;
-    /// use praxis::core::event::BasicEvent;
-    ///
-    /// let mut model = Model::new("MyModel").unwrap();
-    /// let event = BasicEvent::new("E1".to_string(), 0.01).unwrap();
-    /// model.add_basic_event(event).unwrap();
-    ///
-    /// assert!(model.get_basic_event("E1").is_some());
-    /// assert!(model.get_basic_event("E2").is_none());
-    /// ```
     pub fn get_basic_event(&self, id: &str) -> Option<&BasicEvent> {
         self.basic_events.get(id)
     }
 
-    /// Get a mutable reference to a basic event by ID
     pub fn get_basic_event_mut(&mut self, id: &str) -> Option<&mut BasicEvent> {
         self.basic_events.get_mut(id)
     }
 
-    /// Get all basic events
     pub fn basic_events(&self) -> &HashMap<String, BasicEvent> {
         &self.basic_events
     }
@@ -212,7 +104,6 @@ impl Model {
 mod tests {
     use super::*;
 
-    // T045-T047: Model::new() tests
     #[test]
     fn test_model_new_unnamed() {
         let model = Model::new("").unwrap();
@@ -251,7 +142,6 @@ mod tests {
         assert_eq!(model.element().label(), Some("Test Label"));
     }
 
-    // T048-T050: Model::add_fault_tree() tests
     #[test]
     fn test_add_fault_tree_success() {
         let mut model = Model::new("TestModel").unwrap();
@@ -299,7 +189,6 @@ mod tests {
         assert_eq!(model.fault_trees().len(), 3);
     }
 
-    // T051-T053: Model::get_fault_tree() tests
     #[test]
     fn test_get_fault_tree_exists() {
         let mut model = Model::new("TestModel").unwrap();
@@ -348,7 +237,6 @@ mod tests {
         );
     }
 
-    // T054-T056: Model::add_basic_event() tests
     #[test]
     fn test_add_basic_event_success() {
         let mut model = Model::new("TestModel").unwrap();
@@ -414,7 +302,6 @@ mod tests {
         assert_eq!(model.get_basic_event("E1").unwrap().probability(), 1.0);
     }
 
-    // T057-T059: Model::get_basic_event() tests
     #[test]
     fn test_get_basic_event_exists() {
         let mut model = Model::new("TestModel").unwrap();
@@ -460,12 +347,10 @@ mod tests {
         assert_eq!(model.get_basic_event("E1").unwrap().probability(), 0.05);
     }
 
-    // Additional integration tests
     #[test]
     fn test_model_with_mixed_elements() {
         let mut model = Model::new("ComplexModel").unwrap();
 
-        // Add fault trees
         model
             .add_fault_tree(FaultTree::new("FT1", "Top1").unwrap())
             .unwrap();
@@ -473,7 +358,6 @@ mod tests {
             .add_fault_tree(FaultTree::new("FT2", "Top2").unwrap())
             .unwrap();
 
-        // Add basic events
         model
             .add_basic_event(BasicEvent::new("E1".to_string(), 0.01).unwrap())
             .unwrap();

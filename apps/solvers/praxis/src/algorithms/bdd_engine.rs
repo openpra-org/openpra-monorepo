@@ -3,10 +3,6 @@ use std::collections::HashMap;
 use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, BddPdagNode, NodeIdx};
 use crate::error::{PraxisError, Result};
 
-// ---------------------------------------------------------------------------
-// BddRef — signed complement-edge reference
-// ---------------------------------------------------------------------------
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BddRef(i32);
 
@@ -68,11 +64,6 @@ impl std::fmt::Display for BddRef {
     }
 }
 
-// ---------------------------------------------------------------------------
-// BddNode — internal non-terminal node
-// ---------------------------------------------------------------------------
-
-/// `high` is always non-complement (canonical form enforced by make_node).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BddNode {
     pub var: usize,
@@ -89,10 +80,6 @@ impl BddNode {
         self.var == usize::MAX
     }
 }
-
-// ---------------------------------------------------------------------------
-// Bdd — the engine
-// ---------------------------------------------------------------------------
 
 pub struct Bdd {
     nodes: Vec<BddNode>,
@@ -121,10 +108,6 @@ impl Bdd {
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Terminal helpers (static)
-    // -----------------------------------------------------------------------
-
     pub fn is_terminal(f: BddRef) -> bool {
         f.is_terminal()
     }
@@ -137,11 +120,6 @@ impl Bdd {
         f.is_false()
     }
 
-    // -----------------------------------------------------------------------
-    // Node access
-    // -----------------------------------------------------------------------
-
-    /// Returns the BddNode at f's index.  Panics on terminal or null refs.
     pub fn node(&self, f: BddRef) -> &BddNode {
         debug_assert!(
             !f.is_terminal() && !f.is_null(),
@@ -150,7 +128,6 @@ impl Bdd {
         &self.nodes[f.index()]
     }
 
-    /// BDD variable position of f.  Returns usize::MAX for terminals.
     pub fn var_of(&self, f: BddRef) -> usize {
         if f.is_terminal() {
             usize::MAX
@@ -162,10 +139,6 @@ impl Bdd {
     pub fn node_count(&self) -> usize {
         self.nodes.len().saturating_sub(2)
     }
-
-    // -----------------------------------------------------------------------
-    // Variable probabilities
-    // -----------------------------------------------------------------------
 
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.var_probs = probs;
@@ -183,10 +156,6 @@ impl Bdd {
         &self.var_probs
     }
 
-    // -----------------------------------------------------------------------
-    // Memory management
-    // -----------------------------------------------------------------------
-
     pub fn freeze(&mut self) {
         self.unique = HashMap::new();
         self.compute = HashMap::new();
@@ -200,10 +169,6 @@ impl Bdd {
     pub fn clear_prob_cache(&mut self) {
         self.prob_cache = HashMap::new();
     }
-
-    // -----------------------------------------------------------------------
-    // Internal table access
-    // -----------------------------------------------------------------------
 
     pub(crate) fn compute_get(&self, key: (BddRef, BddRef, BddRef)) -> Option<BddRef> {
         self.compute.get(&key).copied()
@@ -237,16 +202,11 @@ impl Bdd {
         self.prob_cache.insert(f.regular(), p);
     }
 
-    // -----------------------------------------------------------------------
-    // Phase 5: core BDD algorithms
-    // -----------------------------------------------------------------------
-
-    /// Get-or-create a BDD node with canonical high-non-complement invariant.
     fn make_node(&mut self, var: usize, high: BddRef, low: BddRef) -> BddRef {
         if high == low {
             return high;
         }
-        // If high is complement, flip both edges and return complement of result.
+
         let (canon_high, canon_low, negate) = if high.is_complement() {
             (high.complement(), low.complement(), true)
         } else {
@@ -265,9 +225,6 @@ impl Bdd {
         self.var_of(f).min(self.var_of(g)).min(self.var_of(h))
     }
 
-    /// Cofactor of f at BDD variable position `var` during ITE Shannon expansion.
-    ///
-    /// Invariant (enforced by callers): `var` == top_var, so f.var >= var always.
     fn ite_cofactor(&self, f: BddRef, var: usize, positive: bool) -> BddRef {
         let reg = f.regular();
         if reg.is_terminal() {
@@ -275,18 +232,13 @@ impl Bdd {
         }
         let node = self.node(reg);
         if node.var != var {
-            return f; // f's root is below `var`; f doesn't mention var
+            return f;
         }
         let edge = if positive { node.high } else { node.low };
-        // Propagate complement: cofactor(!f) = !cofactor(f).
+
         if f.is_complement() { edge.complement() } else { edge }
     }
 
-    /// If-Then-Else: computes f*g + !f*h.
-    ///
-    /// Normalizes the triple before the compute-table lookup (matches SCRAM/CUDD):
-    ///   1. f non-complement  — if complement, swap g/h and regularize f
-    ///   2. g non-complement  — if complement, negate whole result
     pub(crate) fn ite(&mut self, f: BddRef, g: BddRef, h: BddRef) -> BddRef {
         if f.is_true() {
             return g;
@@ -300,12 +252,11 @@ impl Bdd {
         let mut nh = h;
         let mut negate = false;
 
-        // Rule 1: ITE(!f, g, h) = ITE(f, h, g)
         if nf.is_complement() {
             nf = nf.complement();
             std::mem::swap(&mut ng, &mut nh);
         }
-        // Rule 2: ITE(f, !g, h) = !ITE(f, g, !h)
+
         if ng.is_complement() {
             negate = !negate;
             ng = ng.complement();
@@ -350,13 +301,6 @@ impl Bdd {
         self.ite(f, BDD_TRUE, g)
     }
 
-    // -----------------------------------------------------------------------
-    // Phase 5: PDAG → BDD construction
-    // -----------------------------------------------------------------------
-
-    /// Build a BDD from an already-ordered BddPdag.
-    ///
-    /// `compute_ordering_and_modules()` must have been called on `pdag` first.
     pub fn build_from_pdag(pdag: &BddPdag) -> Result<(Bdd, BddRef)> {
         let root_idx = pdag.root().ok_or_else(|| {
             PraxisError::Logic("BDD construction: PDAG has no root".to_string())
@@ -459,10 +403,6 @@ impl Default for Bdd {
     }
 }
 
-// ---------------------------------------------------------------------------
-// PDAG traversal helpers
-// ---------------------------------------------------------------------------
-
 fn build_node_recursive(
     bdd: &mut Bdd,
     pdag: &BddPdag,
@@ -546,7 +486,6 @@ fn build_node_recursive(
     Ok(if idx < 0 { node_result.complement() } else { node_result })
 }
 
-/// Encode AtLeast(k, ops) via Shannon expansion.
 fn build_atleast(
     bdd: &mut Bdd,
     pdag: &BddPdag,
@@ -576,10 +515,6 @@ fn build_atleast(
     Ok(bdd.ite(first, t, e))
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -587,10 +522,6 @@ mod tests {
     use crate::core::event::BasicEvent;
     use crate::core::fault_tree::FaultTree;
     use crate::core::gate::{Formula, Gate};
-
-    // -----------------------------------------------------------------------
-    // Phase 4: BddRef / BddNode / Bdd basics
-    // -----------------------------------------------------------------------
 
     #[test]
     fn test_bdd_true_is_terminal() {
@@ -715,7 +646,7 @@ mod tests {
         let r = bdd.alloc_node(BddNode::new(0, BDD_TRUE, BDD_FALSE));
         bdd.prob_cache_insert(r, 0.42);
         assert!((bdd.prob_cache_get(r).unwrap() - 0.42).abs() < 1e-15);
-        // complement ref maps to same cache slot
+
         assert!((bdd.prob_cache_get(r.complement()).unwrap() - 0.42).abs() < 1e-15);
     }
 
@@ -728,14 +659,10 @@ mod tests {
         assert!(!Bdd::is_terminal(BddRef(2)));
     }
 
-    // -----------------------------------------------------------------------
-    // Phase 5: make_node
-    // -----------------------------------------------------------------------
-
     #[test]
     fn test_make_node_reduction_rule() {
         let mut bdd = Bdd::new();
-        // make_node(v, f, f) == f without allocating a node
+
         assert_eq!(bdd.make_node(0, BDD_TRUE, BDD_TRUE), BDD_TRUE);
         assert_eq!(bdd.node_count(), 0);
     }
@@ -754,12 +681,11 @@ mod tests {
     #[test]
     fn test_make_node_canonical_complement_high() {
         let mut bdd = Bdd::new();
-        // make_node(v, FALSE, TRUE) must equal complement of make_node(v, TRUE, FALSE)
-        // and share the same underlying node slot.
+
         let pos = bdd.make_node(0, BDD_TRUE, BDD_FALSE);
         let neg = bdd.make_node(0, BDD_FALSE, BDD_TRUE);
         assert_eq!(neg, pos.complement());
-        assert_eq!(bdd.node_count(), 1); // only one physical node
+        assert_eq!(bdd.node_count(), 1);
     }
 
     #[test]
@@ -770,10 +696,6 @@ mod tests {
         assert_eq!(r1, r2);
         assert_eq!(bdd.node_count(), 1);
     }
-
-    // -----------------------------------------------------------------------
-    // Phase 5: ITE
-    // -----------------------------------------------------------------------
 
     fn two_var_bdd() -> (Bdd, BddRef, BddRef) {
         let mut bdd = Bdd::new();
@@ -814,7 +736,7 @@ mod tests {
 
     #[test]
     fn test_ite_complement_f_swaps_branches() {
-        // ITE(!f, g, h) = ITE(f, h, g)  i.e., the two calls produce equal BDDs.
+
         let (mut bdd, x0, x1) = two_var_bdd();
         let a = bdd.ite(x0.complement(), x1, BDD_FALSE);
         let b = bdd.ite(x0, BDD_FALSE, x1);
@@ -823,7 +745,7 @@ mod tests {
 
     #[test]
     fn test_and_two_vars_structure() {
-        // AND(x0, x1): root var=0, low=FALSE, high=x1 node (var=1, high=T, low=F)
+
         let (mut bdd, x0, x1) = two_var_bdd();
         let and_ref = bdd.and(x0, x1);
         assert!(!and_ref.is_terminal());
@@ -838,7 +760,7 @@ mod tests {
 
     #[test]
     fn test_or_two_vars_structure() {
-        // OR(x0, x1): root var=0, high=TRUE, low=x1 node
+
         let (mut bdd, x0, x1) = two_var_bdd();
         let or_ref = bdd.or(x0, x1);
         let root = bdd.node(or_ref.regular());
@@ -856,10 +778,6 @@ mod tests {
         let _ = bdd.and(x0, x1);
         assert_eq!(bdd.node_count(), before);
     }
-
-    // -----------------------------------------------------------------------
-    // Phase 5: build_from_pdag
-    // -----------------------------------------------------------------------
 
     fn and_pdag() -> BddPdag {
         let mut pdag = BddPdag::new();
@@ -930,7 +848,7 @@ mod tests {
             .add_gate("G".to_string(), BddConnective::And, vec![e1, e2], None)
             .unwrap();
         pdag.set_root(g).unwrap();
-        // omit compute_ordering_and_modules
+
         assert!(Bdd::build_from_pdag(&pdag).is_err());
     }
 
@@ -967,10 +885,6 @@ mod tests {
         assert!(!root.is_terminal());
         assert!(bdd.has_var_probs());
     }
-
-    // -----------------------------------------------------------------------
-    // Phase 8: probability
-    // -----------------------------------------------------------------------
 
     fn single_var_pdag() -> BddPdag {
         let mut pdag = BddPdag::new();

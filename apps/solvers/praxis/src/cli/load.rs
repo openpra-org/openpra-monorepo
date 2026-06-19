@@ -9,7 +9,6 @@ pub fn parse_fault_tree_from_xml(xml_content: &str) -> Result<FaultTree, Box<dyn
     Ok(fault_tree)
 }
 
-/// Load and parse fault tree from XML file
 #[allow(dead_code)]
 pub fn load_input_file(path: &PathBuf) -> Result<FaultTree, Box<dyn std::error::Error>> {
     let xml_content = fs::read_to_string(path)

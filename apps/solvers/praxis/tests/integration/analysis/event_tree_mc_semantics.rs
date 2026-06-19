@@ -15,10 +15,7 @@ fn p_of(result: &praxis::mc::EventTreeMonteCarloResult, seq_id: &str) -> f64 {
 
 #[test]
 fn mc_semantics_ie_probability_scales_sequence_partition() {
-    // Expected:
-    //   P(S_OK)   = P(IE) * P(FE succeeds) = 0.2 * 0.75 = 0.15
-    //   P(S_FAIL) = P(IE) * (1 - 0.75)     = 0.2 * 0.25 = 0.05
-    //   Total     = 0.20
+
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(0.2);
@@ -57,8 +54,7 @@ fn mc_semantics_ie_probability_scales_sequence_partition() {
 
 #[test]
 fn mc_semantics_collect_formula_negation_routes_complements() {
-    // collect-formula semantics: negated => complement.
-    // Expected partition: P(S_W) = 0.3, P(S_F) = 0.7.
+
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(1.0);
@@ -99,7 +95,7 @@ fn mc_semantics_collect_formula_negation_routes_complements() {
 
 #[test]
 fn mc_semantics_house_event_fixes_boolean_fork() {
-    // House-event assignment to the fork's FE id fixes traversal.
+
     let model = Model::new("M").unwrap();
 
     let ie = InitiatingEvent::new("IE".to_string()).with_probability(1.0);
@@ -116,7 +112,6 @@ fn mc_semantics_house_event_fixes_boolean_fork() {
 
     let fork = Fork::new("FE".to_string(), vec![true_path, false_path]).unwrap();
 
-    // Fix FE=true before we reach the fork.
     let initial =
         Branch::new(BranchTarget::Fork(fork)).with_house_event_assignment("FE".to_string(), true);
 

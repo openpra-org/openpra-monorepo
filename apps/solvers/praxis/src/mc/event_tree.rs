@@ -274,9 +274,6 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
             }
         }
 
-        // NOTE: the compiled PDAG is expected to already include the synthetic root + preprocessing.
-        // We intentionally do not rebuild or re-preprocess here.
-
         let plan = DpMcPlan::from_pdag(&pdag, self.run)?;
         let soa = GpuSoaPlan::from_plan(&plan)?;
 

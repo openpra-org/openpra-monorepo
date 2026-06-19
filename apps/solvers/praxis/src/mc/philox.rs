@@ -1,12 +1,5 @@
-//! Philox counter-based PRNG core.
-//!
-//! This module implements Philox4x32 with configurable rounds.
-//! It is designed to be CPU/GPU-friendly: only `u32` ops plus `u64` for mul hi/lo.
-
-/// Philox4x32 key (2 x 32-bit words).
 pub type Philox4x32Key = [u32; 2];
 
-/// Philox4x32 counter/state (4 x 32-bit words).
 pub type Philox4x32Ctr = [u32; 4];
 
 const PHILOX_M4X32_0: u32 = 0xD251_1F53;
@@ -39,13 +32,6 @@ fn round_4x32(ctr: Philox4x32Ctr, key: Philox4x32Key) -> Philox4x32Ctr {
     [hi1 ^ ctr[1] ^ key[0], lo1, hi0 ^ ctr[3] ^ key[1], lo0]
 }
 
-/// Compute Philox4x32 with the specified number of rounds.
-///
-/// This follows Random123's reference definition:
-/// - Round 0 uses the provided key.
-/// - Each subsequent round bumps the key by Weyl constants before applying the round.
-///
-/// Panics if `rounds > 16`.
 pub fn philox4x32_r(rounds: u32, mut ctr: Philox4x32Ctr, mut key: Philox4x32Key) -> Philox4x32Ctr {
     assert!(
         rounds <= 16,
@@ -64,7 +50,6 @@ pub fn philox4x32_r(rounds: u32, mut ctr: Philox4x32Ctr, mut key: Philox4x32Key)
     ctr
 }
 
-/// Philox4x32-10 (the default Philox4x32 variant).
 #[inline]
 pub fn philox4x32_10(ctr: Philox4x32Ctr, key: Philox4x32Key) -> Philox4x32Ctr {
     philox4x32_r(10, ctr, key)
@@ -74,7 +59,6 @@ pub fn philox4x32_10(ctr: Philox4x32Ctr, key: Philox4x32Key) -> Philox4x32Ctr {
 mod tests {
     use super::*;
 
-    // Known-answer vectors sourced from Random123 `tests/time_initkeyctr.h`.
     const EXAMPLE_KEY0: u32 = 0xDEAD_BEEF;
     const EXAMPLE_KEY1: u32 = 0x1234_5678;
 
@@ -92,7 +76,6 @@ mod tests {
         let expected: Philox4x32Ctr = [0xF16D_828E, 0xA1C5_962D, 0xACAC_820C, 0x5811_3D7A];
         assert_eq!(out, expected);
 
-        // Also exercise the convenience wrapper.
         assert_eq!(philox4x32_10(ctr, key), expected);
     }
 

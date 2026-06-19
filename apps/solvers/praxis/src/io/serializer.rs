@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_write_fault_tree_roundtrip() {
-        // Create a fault tree
+
         let mut ft = FaultTree::new("RoundTrip", "TopGate").unwrap();
         let mut gate = Gate::new("TopGate".to_string(), Formula::And).unwrap();
         gate.add_operand("E1".to_string());
@@ -491,13 +491,11 @@ mod tests {
         ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.25).unwrap())
             .unwrap();
 
-        // Write to XML
         let mut writer = Writer::new(Vec::new());
         write_fault_tree(&mut writer, &ft).unwrap();
 
         let xml = String::from_utf8(writer.into_inner()).unwrap();
 
-        // Verify XML structure
         assert!(xml.contains(r#"<?xml version="1.0""#));
         assert!(xml.contains(r#"<define-fault-tree name="RoundTrip">"#));
         assert!(xml.contains(r#"<define-gate name="TopGate">"#));

@@ -1,10 +1,6 @@
-// Integration tests for MOCUS CLI integration
-// Tests T252: Integrate MOCUS into main CLI
-
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Get the path to the compiled praxis binary
 fn praxis_binary() -> PathBuf {
     let candidates = [
         PathBuf::from("target/debug/praxis-cli"),
@@ -28,7 +24,7 @@ fn praxis_binary() -> PathBuf {
 
 #[test]
 fn test_mocus_and_gate() {
-    // Build the binary first
+
     let _ = Command::new("cargo")
         .args(["build"])
         .output()
@@ -118,7 +114,7 @@ fn test_mocus_with_verbosity() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(stdout.contains("Cut Sets:"));
-    // Check for either ordering of the cut set elements
+
     assert!(stdout.contains("{ B, A }") || stdout.contains("{ A, B }"));
 }
 

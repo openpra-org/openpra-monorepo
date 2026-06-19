@@ -67,7 +67,7 @@ pub struct ModelFeatures {
 }
 
 impl AnalysisReport {
-    /// Create a new analysis report with basic FTA results
+
     pub fn new(fta_result: AnalysisResult) -> Self {
         AnalysisReport {
             fta_result,
@@ -577,17 +577,14 @@ fn write_uncertainty_section<W: Write>(
 fn write_sil_section<W: Write>(writer: &mut Writer<W>, sil: &Sil) -> Result<()> {
     writer.write_event(Event::Start(BytesStart::new("sil-metrics")))?;
 
-    // Write PFD average
     writer.write_event(Event::Start(BytesStart::new("pfd-avg")))?;
     writer.write_event(Event::Text(BytesText::new(&sil.pfd_avg.to_string())))?;
     writer.write_event(Event::End(BytesEnd::new("pfd-avg")))?;
 
-    // Write PFH average
     writer.write_event(Event::Start(BytesStart::new("pfh-avg")))?;
     writer.write_event(Event::Text(BytesText::new(&sil.pfh_avg.to_string())))?;
     writer.write_event(Event::End(BytesEnd::new("pfh-avg")))?;
 
-    // Write PFD histogram
     if !sil.pfd_histogram.is_empty() {
         writer.write_event(Event::Start(BytesStart::new("pfd-histogram")))?;
         for bucket in &sil.pfd_histogram {
@@ -599,7 +596,6 @@ fn write_sil_section<W: Write>(writer: &mut Writer<W>, sil: &Sil) -> Result<()> 
         writer.write_event(Event::End(BytesEnd::new("pfd-histogram")))?;
     }
 
-    // Write PFH histogram
     if !sil.pfh_histogram.is_empty() {
         writer.write_event(Event::Start(BytesStart::new("pfh-histogram")))?;
         for bucket in &sil.pfh_histogram {

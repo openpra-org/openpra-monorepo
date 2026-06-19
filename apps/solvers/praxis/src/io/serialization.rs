@@ -1,30 +1,3 @@
-//! Analysis state serialization and checkpointing
-//!
-//! This module provides functionality to save and restore analysis state,
-//! enabling:
-//! - Checkpointing during long-running computations
-//! - Resuming interrupted analyses
-//! - Caching intermediate results for reuse
-//!
-//! State is serialized using serde (bincode format for efficiency).
-//!
-//! # Examples
-//!
-//! ```no_run
-//! use praxis::analysis::fault_tree::AnalysisResult;
-//! use praxis::io::serialization::{AnalysisCheckpoint, load_checkpoint, save_checkpoint};
-//!
-//! let result = AnalysisResult {
-//!     top_event_probability: 0.123,
-//!     gates_analyzed: 0,
-//!     basic_events_count: 0,
-//! };
-//! let checkpoint = AnalysisCheckpoint::new(result);
-//! save_checkpoint("checkpoint.bin", &checkpoint).expect("Save failed");
-//!
-//! let loaded = load_checkpoint("checkpoint.bin").expect("Load failed");
-//! assert_eq!(loaded.fta_result.top_event_probability, 0.123);
-//! ```
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -37,36 +10,26 @@ use crate::analysis::sil::Sil;
 use crate::analysis::uncertainty::UncertaintyAnalysis;
 use crate::Result;
 
-/// Complete analysis checkpoint containing all computed results
-///
-/// This structure holds all analysis state that can be serialized,
-/// allowing resumption of long-running computations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisCheckpoint {
-    /// Basic fault tree analysis result
+
     pub fta_result: AnalysisResult,
 
-    /// Minimal cut sets (if computed)
     pub cut_sets: Option<Vec<CutSet>>,
 
-    /// Importance analysis results (if computed)
     pub importance: Option<Vec<ImportanceRecord>>,
 
-    /// Uncertainty analysis results (if computed)
     pub uncertainty: Option<UncertaintyAnalysis>,
 
-    /// SIL metrics (if computed)
     pub sil: Option<Sil>,
 
-    /// Timestamp when checkpoint was created
     pub timestamp: u64,
 
-    /// Version of mcSCRAM that created this checkpoint
     pub version: String,
 }
 
 impl AnalysisCheckpoint {
-    /// Create a new empty checkpoint with basic FTA result
+
     pub fn new(fta_result: AnalysisResult) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -86,25 +49,21 @@ impl AnalysisCheckpoint {
         }
     }
 
-    /// Add cut sets to checkpoint
     pub fn with_cut_sets(mut self, cut_sets: Vec<CutSet>) -> Self {
         self.cut_sets = Some(cut_sets);
         self
     }
 
-    /// Add importance results to checkpoint
     pub fn with_importance(mut self, importance: Vec<ImportanceRecord>) -> Self {
         self.importance = Some(importance);
         self
     }
 
-    /// Add uncertainty results to checkpoint
     pub fn with_uncertainty(mut self, uncertainty: UncertaintyAnalysis) -> Self {
         self.uncertainty = Some(uncertainty);
         self
     }
 
-    /// Add SIL metrics to checkpoint
     pub fn with_sil(mut self, sil: Sil) -> Self {
         self.sil = Some(sil);
         self
@@ -112,32 +71,6 @@ impl AnalysisCheckpoint {
 
 }
 
-/// Save analysis checkpoint to file
-///
-/// Uses bincode for efficient binary serialization. The file can be
-/// loaded later to resume analysis.
-///
-/// # Arguments
-/// * `path` - Path where checkpoint will be saved
-/// * `checkpoint` - Checkpoint data to save
-///
-/// # Returns
-/// * `Result<()>` - Success or error
-///
-/// # Examples
-///
-/// ```no_run
-/// use praxis::analysis::fault_tree::AnalysisResult;
-/// use praxis::io::serialization::{AnalysisCheckpoint, save_checkpoint};
-///
-/// let result = AnalysisResult {
-///     top_event_probability: 0.123,
-///     gates_analyzed: 0,
-///     basic_events_count: 0,
-/// };
-/// let checkpoint = AnalysisCheckpoint::new(result);
-/// save_checkpoint("analysis.ckpt", &checkpoint).expect("Save failed");
-/// ```
 pub fn save_checkpoint<P: AsRef<Path>>(path: P, checkpoint: &AnalysisCheckpoint) -> Result<()> {
     let file = File::create(path)?;
     let writer = BufWriter::new(file);
@@ -146,25 +79,6 @@ pub fn save_checkpoint<P: AsRef<Path>>(path: P, checkpoint: &AnalysisCheckpoint)
     Ok(())
 }
 
-/// Load analysis checkpoint from file
-///
-/// Deserializes a previously saved checkpoint, allowing analysis to resume.
-///
-/// # Arguments
-/// * `path` - Path to checkpoint file
-///
-/// # Returns
-/// * `Result<AnalysisCheckpoint>` - Loaded checkpoint or error
-///
-/// # Examples
-///
-/// ```no_run
-/// use praxis::io::serialization::{AnalysisCheckpoint, load_checkpoint};
-///
-/// let checkpoint = load_checkpoint("analysis.ckpt").expect("Load failed");
-/// println!("Loaded checkpoint from version {}", checkpoint.version);
-/// println!("Top event probability: {}", checkpoint.fta_result.top_event_probability);
-/// ```
 pub fn load_checkpoint<P: AsRef<Path>>(path: P) -> Result<AnalysisCheckpoint> {
     let file = File::open(path)?;
     let reader = BufReader::new(file);
@@ -217,7 +131,6 @@ mod tests {
     fn test_save_and_load_checkpoint() {
         let temp_file = "test_checkpoint.bin";
 
-        // Create checkpoint
         let result = AnalysisResult {
             top_event_probability: 0.789,
             gates_analyzed: 7,
@@ -226,18 +139,14 @@ mod tests {
 
         let checkpoint = AnalysisCheckpoint::new(result);
 
-        // Save
         save_checkpoint(temp_file, &checkpoint).expect("Save failed");
 
-        // Load
         let loaded = load_checkpoint(temp_file).expect("Load failed");
 
-        // Verify
         assert_eq!(loaded.fta_result.top_event_probability, 0.789);
         assert_eq!(loaded.fta_result.gates_analyzed, 7);
         assert_eq!(loaded.version, checkpoint.version);
 
-        // Cleanup
         fs::remove_file(temp_file).ok();
     }
 
@@ -259,17 +168,14 @@ mod tests {
 
         let checkpoint = AnalysisCheckpoint::new(result).with_cut_sets(cut_sets);
 
-        // Save and load
         save_checkpoint(temp_file, &checkpoint).expect("Save failed");
         let loaded = load_checkpoint(temp_file).expect("Load failed");
 
-        // Verify cut sets preserved
         assert_eq!(loaded.cut_sets.as_ref().unwrap().len(), 3);
         assert_eq!(loaded.cut_sets.as_ref().unwrap()[0].events.len(), 1);
         assert_eq!(loaded.cut_sets.as_ref().unwrap()[1].events.len(), 2);
         assert_eq!(loaded.cut_sets.as_ref().unwrap()[2].events.len(), 3);
 
-        // Cleanup
         fs::remove_file(temp_file).ok();
     }
 

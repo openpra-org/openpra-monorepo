@@ -1,20 +1,8 @@
-//! MC-minimal preprocessing for PDAGs.
-//!
-//! This is intentionally much lighter than `algorithms::preprocessor` and is scoped
-//! specifically for Monte Carlo execution:
-//! - Remove `NULL` (pass-through) gates by bypassing them.
-//! - Eliminate explicit `NOT` gates by converting them into complemented edges.
-//!
-//! The PDAG data structure does not currently support deleting nodes; instead,
-//! this pass rewrites parent operand lists (and the root) so that `NULL`/`NOT`
-//! nodes become unreachable from the root.
-
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::Result;
 
 pub fn preprocess_for_mc(pdag: &mut Pdag) -> Result<()> {
-    // Iteratively rewrite until no more bypassable NULL/NOT nodes exist.
-    // (A single pass is typically enough, but iteration is cheap and safer.)
+
     let mut max_iters = 32;
     while max_iters > 0 {
         max_iters -= 1;
@@ -62,7 +50,6 @@ pub fn preprocess_for_mc(pdag: &mut Pdag) -> Result<()> {
 fn bypass_gate(pdag: &mut Pdag, gate_index: NodeIndex, replacement: NodeIndex) -> Result<()> {
     let gate_index = gate_index.abs();
 
-    // Rewrite all parents to reference `replacement` instead of this gate.
     let parent_list: Vec<NodeIndex> = pdag
         .parents()
         .get(&gate_index)
@@ -92,7 +79,6 @@ fn bypass_gate(pdag: &mut Pdag, gate_index: NodeIndex, replacement: NodeIndex) -
         pdag.update_gate_operands(parent, new_operands)?;
     }
 
-    // Rewrite root if it points to this gate.
     if let Some(root) = pdag.root() {
         if root.abs() == gate_index {
             let new_root = if root < 0 { -replacement } else { replacement };
@@ -177,7 +163,7 @@ mod tests {
 
     #[test]
     fn preprocess_removes_not_and_null_from_reachable_plan() {
-        // Root = OR(NULL(NOT(E1)), E2)  =>  (!E1) OR E2
+
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("E1".to_string());
         let e2 = pdag.add_basic_event("E2".to_string());
@@ -199,7 +185,6 @@ mod tests {
             .unwrap();
         pdag.set_root(root).unwrap();
 
-        // Baseline plan should include NOT/NULL.
         let plan_before = DpMcPlan::from_pdag(&pdag, RunParams::new(1, 1, 1, 64, 0)).unwrap();
         let has_not_before = plan_before.layers.iter().any(|l| {
             l.gates_by_connective
@@ -226,7 +211,6 @@ mod tests {
             }
         }
 
-        // Semantics preserved for all 4 combinations.
         let combos = [(false, false), (false, true), (true, false), (true, true)];
         for (v1, v2) in combos {
             let before = eval_pdag_root(&pdag, &plan_after, &[(e1, v1), (e2, v2)]);

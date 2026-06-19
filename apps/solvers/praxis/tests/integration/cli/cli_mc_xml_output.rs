@@ -77,7 +77,6 @@ fn test_cli_monte_carlo_xml_output_includes_stats() {
 
     let xml = normalize_xml(&xml);
 
-    // Fault-tree MC without cut sets uses the simple OpenPSA-ish output shape.
     assert!(xml.contains(r#"<opsa-mef>"#));
     assert!(!xml.contains(r#"<report>"#));
     assert!(xml.contains(r#"<analysis-results>"#));
@@ -134,7 +133,6 @@ fn test_cli_non_monte_carlo_xml_output_has_no_mc_section() {
 
     let xml = normalize_xml(&xml);
 
-    // Cut-set algorithms use the comprehensive report output.
     assert!(xml.contains(r#"<report>"#));
     assert!(xml.contains(r#"<results>"#));
     assert!(!xml.contains(r#"<monte-carlo-analysis>"#));

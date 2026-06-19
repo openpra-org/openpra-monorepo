@@ -1,15 +1,7 @@
-//! Blueprint counter assignment for counter-based RNG streams.
-//!
-//! Blueprint mapping (reserving 6 low bits for intra-thread increments):
-//!
-//! $$C(ix, iy, iz, t) = (ix+1, iz+1, iy+1, (t+1)\ll 6)$$
-
 use crate::mc::philox::Philox4x32Ctr;
 
-/// Number of low bits reserved for intra-thread increments.
 pub const INTRA_THREAD_BITS: u32 = 6;
 
-/// Number of unique increments available per base counter.
 pub const INTRA_THREAD_SPACE: u32 = 1u32 << INTRA_THREAD_BITS;
 
 #[inline]
@@ -19,15 +11,12 @@ fn checked_plus_one(x: u32) -> u32 {
 
 #[inline]
 fn checked_t_to_ctr3(t: u32) -> u32 {
-    // Need (t+1) << 6 to fit in u32.
+
     let tp1 = checked_plus_one(t);
     tp1.checked_shl(INTRA_THREAD_BITS)
         .expect("counter component overflow on (t+1)<<6")
 }
 
-/// Base blueprint counter for a work-item.
-///
-/// Panics on overflow (debug-friendly) if indices are too large.
 #[inline]
 pub fn blueprint_base_counter(ix: u32, iy: u32, iz: u32, t: u32) -> Philox4x32Ctr {
     [
@@ -38,9 +27,6 @@ pub fn blueprint_base_counter(ix: u32, iy: u32, iz: u32, t: u32) -> Philox4x32Ct
     ]
 }
 
-/// Derive a unique counter for an intra-thread increment in `[0, 64)`.
-///
-/// This is how we generate multiple Philox blocks per work-item without collisions.
 #[inline]
 pub fn blueprint_counter_with_increment(
     ix: u32,

@@ -1,14 +1,6 @@
-// Element - Base type for all PRA elements
-// Converted from mcSCRAM/src/element.cc and mcSCRAM/src/element.h
-// Phase 2: T009-T020
-
 use crate::error::{MefError, PraxisError};
 use crate::Result;
 
-/// Base element type for all PRA components
-/// Corresponds to Element class in C++
-/// In the Rust design: id is the unique identifier (C++ name field),
-/// name is optional human-readable name, label is optional description
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Element {
     id: String,
@@ -17,30 +9,15 @@ pub struct Element {
 }
 
 impl Element {
-    /// Creates a new Element with the given id.
-    /// Corresponds to Element::Element(std::string name) in C++
-    ///
-    /// # Arguments
-    /// * `id` - The unique identifier (must be non-empty and valid)
-    ///
-    /// # Errors
-    /// * Returns `PraxisError::Logic` if id is empty
-    /// * Returns `PraxisError::Mef(MefError::Validity)` if id contains '.'
-    ///
-    /// # Example
-    /// ```
-    /// use praxis::core::element::Element;
-    /// let elem = Element::new("E1".to_string()).unwrap();
-    /// ```
+
     pub fn new(id: String) -> Result<Self> {
-        // Validation: id cannot be empty
+
         if id.is_empty() {
             return Err(PraxisError::Logic(
                 "The element name cannot be empty".to_string(),
             ));
         }
 
-        // Validation: id cannot contain '.' (malformed)
         if id.contains('.') {
             return Err(PraxisError::Mef(MefError::Validity(
                 "The element name is malformed.".to_string(),
@@ -54,36 +31,26 @@ impl Element {
         })
     }
 
-    /// Returns the unique identifier of the element
-    /// Corresponds to Element::name() const in C++ (which returns the identifier)
-    /// T012: Element::id() getter
     pub fn id(&self) -> &str {
         &self.id
     }
 
-    /// Returns the optional human-readable name of the element
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
     }
 
-    /// Sets the human-readable name for the element
     pub fn set_name(&mut self, name: String) {
         self.name = Some(name);
     }
 
-    /// Returns the label of the element if set
-    /// Corresponds to Element::label() const in C++
     pub fn label(&self) -> Option<&str> {
         self.label.as_deref()
     }
 
-    /// Sets the label for the element
-    /// Corresponds to Element::label(std::string) in C++
     pub fn set_label(&mut self, label: Option<String>) {
         self.label = label;
     }
 
-    /// Builder method to set name during construction
     pub fn with_name(mut self, name: Option<String>) -> Self {
         self.name = name;
         self
@@ -169,13 +136,11 @@ mod tests {
     fn test_element_fields() {
         let elem = Element::new("TestElement".to_string()).unwrap();
 
-        // Verify initial state
         assert_eq!(elem.id(), "TestElement");
         assert_eq!(elem.name(), None);
         assert_eq!(elem.label(), None);
     }
 
-    // T013: Tests for Element::id() getter
     #[test]
     fn test_element_id_getter() {
         let elem = Element::new("E1".to_string()).unwrap();
@@ -197,7 +162,6 @@ mod tests {
         assert_eq!(id1, "E1");
     }
 
-    // T016: Tests for Element::name() getter
     #[test]
     fn test_element_name_initially_none() {
         let elem = Element::new("E1".to_string()).unwrap();
@@ -252,22 +216,17 @@ mod tests {
     fn test_element_set_name() {
         let mut elem = Element::new("E1".to_string()).unwrap();
 
-        // Initially no name
         assert_eq!(elem.name(), None);
 
-        // Set name
         elem.set_name("Event 1".to_string());
         assert_eq!(elem.name(), Some("Event 1"));
 
-        // Update name
         elem.set_name("Updated Event".to_string());
         assert_eq!(elem.name(), Some("Updated Event"));
 
-        // ID unchanged
         assert_eq!(elem.id(), "E1");
     }
 
-    // T019: Tests for Element::label() getter
     #[test]
     fn test_element_label_initially_none() {
         let elem = Element::new("E1".to_string()).unwrap();
@@ -324,14 +283,11 @@ mod tests {
     fn test_element_set_label() {
         let mut elem = Element::new("E1".to_string()).unwrap();
 
-        // Initially no label
         assert_eq!(elem.label(), None);
 
-        // Set label
         elem.set_label(Some("Test Label".to_string()));
         assert_eq!(elem.label(), Some("Test Label"));
 
-        // Update label
         elem.set_label(Some("Updated Label".to_string()));
         assert_eq!(elem.label(), Some("Updated Label"));
     }

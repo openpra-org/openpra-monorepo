@@ -3,10 +3,6 @@ use crate::mc::plan::{ConnectiveRank, DpMcPlan, GateDescriptor};
 use crate::Result;
 use std::collections::{BTreeMap, HashMap};
 
-/// Device buffer layout for bitpacked node words.
-///
-/// Words are stored as `(B, P, node)` contiguous:
-/// `idx = (b * p_count + p) * num_nodes + node`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NodeWordsLayout {
     pub num_nodes: u32,
@@ -33,7 +29,7 @@ pub struct GateGroupSoa {
     pub operand_offsets: Vec<u32>,
     pub operand_indices: Vec<u32>,
     pub operand_negated: Vec<u32>,
-    pub min_numbers: Option<Vec<u32>>, // only for AtLeast
+    pub min_numbers: Option<Vec<u32>>,
 }
 
 impl GateGroupSoa {
@@ -124,12 +120,8 @@ pub struct GpuSoaPlan {
     pub layout: NodeWordsLayout,
     pub layers: Vec<LayerSoa>,
 
-    /// Deterministic event list used by the bitpacked sampler.
-    ///
-    /// This is the concatenation of all `basic_events` in layer order (depth asc).
     pub event_nodes: Vec<i32>,
 
-    /// Reverse mapping: node index -> event ordinal.
     pub node_to_event: HashMap<i32, u32>,
 }
 
@@ -217,7 +209,6 @@ impl GpuSoaPlan {
                 );
             }
 
-            // Deterministic sampler order: basic events in layer order.
             event_nodes.extend(layer.basic_events.iter().map(|n| n.abs()));
 
             layers.push(LayerSoa {
@@ -246,8 +237,7 @@ impl GpuSoaPlan {
 
     pub fn validate(&self) -> Result<()> {
         for layer in &self.layers {
-            // Within a layer, gate groups are intended to be independent and thus
-            // safe to reorder/submit concurrently (they must write disjoint outputs).
+
             let mut seen_out_nodes: std::collections::HashSet<u32> =
                 std::collections::HashSet::new();
             for group in layer.gate_groups.values() {
@@ -294,12 +284,10 @@ mod tests {
         let e2 = pdag.add_basic_event("E2".to_string());
         let e3 = pdag.add_basic_event("E3".to_string());
 
-        // g1 = AND(e1, !e2)
         let g1 = pdag
             .add_gate("G1".to_string(), Connective::And, vec![e1, -e2], None)
             .unwrap();
 
-        // g2 = AtLeast(2 of [g1, e2, e3])
         let g2 = pdag
             .add_gate(
                 "G2".to_string(),
@@ -318,18 +306,14 @@ mod tests {
         let soa2 = GpuSoaPlan::from_plan(&plan).unwrap();
         assert_eq!(soa1, soa2);
 
-        // basic sanity
         assert!(soa1.layout.num_nodes > 0);
         assert_eq!(soa1.layout.b_count, 2);
         assert_eq!(soa1.layout.p_count, 1);
 
-        // must include all basic events in deterministic order
         assert_eq!(soa1.event_nodes, vec![e1.abs(), e2.abs(), e3.abs()]);
 
-        // validate already ran inside builder
         soa1.validate().unwrap();
 
-        // Ensure AtLeast group has min_numbers.
         let atleast_rank = ConnectiveRank::of(Connective::AtLeast);
         let mut found = false;
         for layer in &soa1.layers {
@@ -353,11 +337,10 @@ mod tests {
         let e2 = pdag.add_basic_event("E2".to_string());
         let e3 = pdag.add_basic_event("E3".to_string());
 
-        // g1 = OR(e1, e2)
         let g1 = pdag
             .add_gate("G1".to_string(), Connective::Or, vec![e1, e2], None)
             .unwrap();
-        // g2 = AtLeast(2 of [g1, e2, !e3])
+
         let g2 = pdag
             .add_gate(
                 "G2".to_string(),
@@ -373,18 +356,15 @@ mod tests {
         let plan = DpMcPlan::from_pdag(&pdag, params).unwrap();
         let soa = GpuSoaPlan::from_plan(&plan).unwrap();
 
-        // Prepare node words for a single (b=0,p=0).
         let layout = soa.layout;
         let mut node_words: Vec<Bitpack> = vec![0u64; layout.total_words()];
         let b = 0u32;
         let p = 0u32;
 
-        // Deterministic input bit patterns.
         node_words[layout.index(b, p, e1.unsigned_abs())] = 0xFFFF_0000_FFFF_0000u64;
         node_words[layout.index(b, p, e2.unsigned_abs())] = 0x0F0F_0F0F_0F0F_0F0Fu64;
         node_words[layout.index(b, p, e3.unsigned_abs())] = 0xAAAA_AAAA_AAAA_AAAAu64;
 
-        // Run layers in order, per connective group.
         let device = <CudaRuntime as Runtime>::Device::default();
         let client = CudaRuntime::client(&device);
 
@@ -417,7 +397,6 @@ mod tests {
             }
         }
 
-        // CPU packed reference for the two gates.
         let mut node_words_cpu = vec![0u64; layout.num_nodes as usize];
         node_words_cpu[e1.unsigned_abs() as usize] = 0xFFFF_0000_FFFF_0000u64;
         node_words_cpu[e2.unsigned_abs() as usize] = 0x0F0F_0F0F_0F0F_0F0Fu64;

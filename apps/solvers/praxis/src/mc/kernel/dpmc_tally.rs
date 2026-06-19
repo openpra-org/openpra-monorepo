@@ -1,23 +1,9 @@
-//! Blueprint-style DPMC tally kernels (popcount over packed words).
-//!
-//! This module provides:
-//! - a correctness-first kernel (one thread per node)
-//! - an optimized kernel (one cube per node) that parallelizes over `(B,P)` and
-//!   reduces within shared memory, updating global tallies once per node.
-
 #[cfg(feature = "gpu")]
 use cubecl::prelude::*;
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Optimized per-node tally kernel.
-///
-/// Launch configuration:
-/// - 1 cube (block) per node (use `CubeCount::Static(num_nodes, 1, 1)`)
-/// - cube_dim chosen by the host, typically a 2D tile over the local `(p,b)` workset
-///
-/// Each unit in the cube accumulates popcounts for a strided subset of `(B,P)`
-/// indices, then a shared-memory tree reduction produces the node sum.
+
 pub fn tally_popcount_per_node_reduced_kernel(
     num_nodes: u32,
     b_count: u32,
@@ -38,34 +24,30 @@ pub fn tally_popcount_per_node_reduced_kernel(
     let bp_total = b_count * p_count;
     let mut local = 0u32;
 
-    // Stride over (b,p) indices.
     let mut bp = tid;
     while bp < bp_total {
         let ix = (bp * num_nodes + node) as usize;
         let mut w_lo = node_words_lo[ix];
         let mut w_hi = node_words_hi[ix];
 
-        // If the host requested a non-full final word (num_trials not divisible by 64),
-        // mask off invalid lanes in the last (b,p) word so they don't contribute to tallies.
         if valid_lanes_last_word != 0u32 && bp + 1u32 == bp_total {
-            // valid_lanes_last_word is in 1..=63 (0 means full 64).
+
             if valid_lanes_last_word < 32u32 {
                 let lo_mask = (1u32 << valid_lanes_last_word) - 1u32;
                 w_lo &= lo_mask;
                 w_hi = 0u32;
             } else {
-                // valid in 32..=63
+
                 let hi_bits = valid_lanes_last_word - 32u32;
                 if hi_bits == 0u32 {
                     w_hi = 0u32;
                 } else {
-                    // low half fully valid.
+
                     w_hi &= (1u32 << hi_bits) - 1u32;
                 }
             }
         }
 
-        // Inline u32 popcount (Hacker's Delight).
         let mut x = w_lo;
         x = x - ((x >> 1u32) & 0x5555_5555u32);
         x = (x & 0x3333_3333u32) + ((x >> 2u32) & 0x3333_3333u32);
@@ -85,12 +67,10 @@ pub fn tally_popcount_per_node_reduced_kernel(
         bp += CUBE_DIM;
     }
 
-    // Reduce within the cube.
     let mut smem = SharedMemory::<u32>::new(256usize);
     smem[tid as usize] = local;
     sync_cube();
 
-    // Tree reduction: 256 -> 1.
     if tid < 128u32 {
         smem[tid as usize] = smem[tid as usize] + smem[(tid + 128u32) as usize];
     }
@@ -142,15 +122,7 @@ pub fn tally_popcount_per_node_reduced_kernel(
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Accumulate per-node tallies by popcounting all words for that node.
-///
-/// Tallies are stored as two u32 halves to avoid CubeCL u64 lowering edge-cases.
-///
-/// # Arguments
-/// - `num_nodes`: number of nodes
-/// - `b_count`/`p_count`: dimensions
-/// - `node_words_lo`/`node_words_hi`: `(B,P,node)` packed words split in halves, length `B*P*num_nodes`
-/// - `tally_lo`/`tally_hi`: per-node running tallies split in halves, length `num_nodes`
+
 pub fn tally_popcount_per_node_kernel(
     num_nodes: u32,
     b_count: u32,
@@ -189,7 +161,6 @@ pub fn tally_popcount_per_node_kernel(
             }
         }
 
-        // Inline u32 popcount (Hacker's Delight) to avoid CubeCL call restrictions.
         let mut x = w_lo;
         x = x - ((x >> 1u32) & 0x5555_5555u32);
         x = (x & 0x3333_3333u32) + ((x >> 2u32) & 0x3333_3333u32);
@@ -207,7 +178,6 @@ pub fn tally_popcount_per_node_kernel(
         sum += y & 0x3Fu32;
     }
 
-    // 64-bit add: tally += sum.
     let old_lo = tally_lo[node as usize];
     let old_hi = tally_hi[node as usize];
 
@@ -223,10 +193,7 @@ pub fn tally_popcount_per_node_kernel(
 }
 
 #[cfg(feature = "gpu")]
-/// Host launcher: popcount tallies for a `(B,P,node)` packed node-word buffer.
-///
-/// This function uploads `node_words` and an optional initial tally, runs the kernel,
-/// then returns the updated tallies.
+
 pub fn tally_popcount_per_node_gpu<R: Runtime>(
     client: &ComputeClient<R>,
     num_nodes: u32,
@@ -344,12 +311,11 @@ mod cuda_tests {
         let b_count = 2u32;
         let p_count = 3u32;
 
-        // Deterministic pseudo-random words.
         let total_words = (num_nodes * b_count * p_count) as usize;
         let mut words: Vec<u64> = Vec::with_capacity(total_words);
         let mut x = 0x1234_5678_9ABC_DEF0u64;
         for _ in 0..total_words {
-            // LCG-ish.
+
             x = x.wrapping_mul(6364136223846793005u64).wrapping_add(1);
             words.push(x);
         }
@@ -360,7 +326,6 @@ mod cuda_tests {
         );
         assert_eq!(gpu0, cpu0);
 
-        // Accumulation over an existing tally.
         let cpu1: Vec<u64> = cpu0.iter().map(|v| v + 7u64).collect();
         let gpu1 = tally_popcount_per_node_gpu::<CudaRuntime>(
             &client,

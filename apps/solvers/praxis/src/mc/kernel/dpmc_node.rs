@@ -1,21 +1,9 @@
-//! Small utility kernels that operate on the `(B,P,node)` packed word buffers.
-
 #[cfg(feature = "gpu")]
 use cubecl::prelude::*;
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Set constant nodes in-place.
-///
-/// For each constant node, writes either all-zeros or all-ones bitpack across all `(b,p)`.
-///
-/// # Arguments
-/// - `const_nodes`  : node indices to set
-/// - `const_values` : 0/1 values (0 => false => 0x0000.., 1 => true => 0xFFFF..)
-/// - `num_consts`   : number of constants
-/// - `num_nodes`    : total nodes in `(B,P,node)` layout
-/// - `b_count`/`p_count` : dimensions
-/// - `node_words_lo`/`node_words_hi` : packed word halves, length `B*P*num_nodes`
+
 pub fn set_constant_nodes_kernel(
     const_nodes: &Array<u32>,
     const_values: &Array<u32>,

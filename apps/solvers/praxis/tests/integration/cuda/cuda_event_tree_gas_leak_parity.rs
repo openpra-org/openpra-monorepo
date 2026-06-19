@@ -24,7 +24,6 @@ fn cuda_gas_leak_event_tree_mc_matches_cpu_bit_for_bit() {
     let (model_reactive, _initiating_events_reactive, event_trees_reactive) =
         parse_event_tree_model(xml_reactive).unwrap();
 
-    // Merge reactive model content into the top-level model.
     for (_id, ft) in model_reactive.fault_trees().iter() {
         model_top.add_fault_tree(ft.clone()).unwrap();
     }
@@ -32,7 +31,6 @@ fn cuda_gas_leak_event_tree_mc_matches_cpu_bit_for_bit() {
         model_top.add_basic_event(be.clone()).unwrap();
     }
 
-    // Build an event-tree library across both parses.
     let mut library: HashMap<String, praxis::core::event_tree::EventTree> = HashMap::new();
     for et in event_trees_top.iter().chain(event_trees_reactive.iter()) {
         library.insert(et.id.clone(), et.clone());
@@ -41,7 +39,6 @@ fn cuda_gas_leak_event_tree_mc_matches_cpu_bit_for_bit() {
     let ie = initiating_events_top[0].clone();
     let et_top = event_trees_top[0].clone();
 
-    // Keep runtime modest; parity is independent of sample size.
     let analysis = DpEventTreeMonteCarloAnalysis::new(ie, et_top, &model_top, Some(123), 25_000)
         .unwrap()
         .with_event_tree_library(&library);
@@ -69,7 +66,6 @@ fn cuda_gas_leak_event_tree_mc_matches_cpu_bit_for_bit() {
         );
     }
 
-    // Expect S9 from the top-level tree + S1..S8 from the linked reactive tree.
     for id in ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"] {
         let (cpu_s, cpu_p) = cpu_by_id.get(id).copied().unwrap();
         let (gpu_s, gpu_p) = gpu_by_id.get(id).copied().unwrap();

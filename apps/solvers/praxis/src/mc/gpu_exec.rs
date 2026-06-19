@@ -1,13 +1,3 @@
-//! Blueprint-style GPU layer scheduler / executor for DPMC.
-//!
-//! This wires together:
-//! - bitpacked Philox sampling (writing directly into `(B,P,node)` words)
-//! - constant node initialization
-//! - per-layer packed gate kernels, in depth order
-//!
-//! The intent is to keep node words resident on device and only read back once
-//! at the end of execution.
-
 #[cfg(feature = "gpu")]
 use cubecl::prelude::*;
 
@@ -429,10 +419,7 @@ unsafe fn launch_gate_group<R: Runtime>(
 }
 
 #[cfg(feature = "gpu")]
-/// Execute a DPMC plan on GPU using the SoA gate layout.
-///
-/// - `thresholds`/`full_ranges` must be per-event in `soa.event_nodes` order.
-/// - Returns `(B,P,node)` packed words as `u64`, with `B=plan.params.b`, `P=plan.params.p`.
+
 #[allow(clippy::too_many_arguments)]
 pub fn execute_layers_bitpacked_gpu<R: Runtime>(
     client: &ComputeClient<R>,
@@ -465,13 +452,10 @@ pub fn execute_layers_bitpacked_gpu<R: Runtime>(
 
     let total_words = (b_count as usize) * (p_count as usize) * (num_nodes as usize);
 
-    // Allocate `(B,P,node)` buffers on device.
-    // Start from zeros (host init once) to avoid relying on uninitialized `empty()`.
     let zeros = vec![0u32; total_words];
     let node_words_lo_h = client.create_from_slice(u32::as_bytes(&zeros));
     let node_words_hi_h = client.create_from_slice(u32::as_bytes(&zeros));
 
-    // Sample events directly into node word buffer.
     let event_nodes_u32: Vec<u32> = soa.event_nodes.iter().map(|&n| n.unsigned_abs()).collect();
     let thresholds_h = client.create_from_slice(u32::as_bytes(thresholds));
     let full_ranges_h = client.create_from_slice(u32::as_bytes(full_ranges));
@@ -501,7 +485,6 @@ pub fn execute_layers_bitpacked_gpu<R: Runtime>(
         .expect("Failed to launch event sampling-to-node kernel");
     }
 
-    // Initialize constant nodes (once up-front).
     let mut const_nodes: Vec<u32> = Vec::new();
     let mut const_values: Vec<u32> = Vec::new();
     for layer in &soa.layers {
@@ -543,11 +526,8 @@ pub fn execute_layers_bitpacked_gpu<R: Runtime>(
         }
     }
 
-    // Upload all SoA gate-group arrays once, then run packed gate kernels.
-    // This avoids per-gate-group heap allocations in the hot submission loop.
     let uploaded_layers = upload_gate_groups(client, soa);
 
-    // Run packed gate kernels layer-by-layer.
     for layer in &uploaded_layers {
         for group in &layer.gate_groups {
             unsafe {
@@ -566,7 +546,6 @@ pub fn execute_layers_bitpacked_gpu<R: Runtime>(
         }
     }
 
-    // Read back once at the end.
     let out_lo_bytes = client.read_one(node_words_lo_h);
     let out_hi_bytes = client.read_one(node_words_hi_h);
     let out_lo = u32::from_bytes(&out_lo_bytes).to_vec();
@@ -1561,12 +1540,7 @@ mod cuda_tests {
 
     #[test]
     fn cuda_dpmc_gpu_exec_runs_layers_and_matches_cpu() {
-        // Build a small multi-layer PDAG:
-        //   e1, e2, e3 are basic events
-        //   c1 is a true constant
-        //   g4 = AND(e1, e2)
-        //   g5 = OR(g4, !e3)
-        //   g6 = AtLeast(k=2, [g5, c1, e1])
+
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());
@@ -1590,10 +1564,10 @@ mod cuda_tests {
         pdag.set_root(g6).expect("set root");
 
         let params = RunParams::new(
-            0,  // t (iterations) - we pass t separately
-            2,  // B
-            3,  // P
-            64, // omega
+            0,
+            2,
+            3,
+            64,
             1234u64,
         );
 
@@ -1605,8 +1579,6 @@ mod cuda_tests {
         let t = 1u32;
         let key = [0xDEAD_BEEF, 0x1234_5678];
 
-        // thresholds/full_ranges per event in soa.event_nodes order.
-        // Give each event a distinct probability.
         let mut thresholds = Vec::new();
         let mut full_ranges = Vec::new();
         for &node in &soa.event_nodes {
@@ -1635,14 +1607,12 @@ mod cuda_tests {
             key,
         );
 
-        // CPU packed reference, evaluating in layer order.
         let num_nodes = soa.layout.num_nodes as usize;
         let total_words = (b_count as usize) * (p_count as usize) * num_nodes;
         assert_eq!(gpu_words.len(), total_words);
 
         let mut cpu_words = vec![0u64; total_words];
 
-        // Init events.
         for b in 0..b_count {
             for p in 0..p_count {
                 for (event_ord, &node) in soa.event_nodes.iter().enumerate() {
@@ -1654,7 +1624,6 @@ mod cuda_tests {
             }
         }
 
-        // Init constants.
         for layer in &soa.layers {
             for &node in &layer.constants {
                 let node = node.abs();
@@ -1671,16 +1640,15 @@ mod cuda_tests {
             }
         }
 
-        // Evaluate gates layer-by-layer.
         for layer in &soa.layers {
             for gates in layer.gate_groups.values() {
-                // Each `out_nodes[i]` is a gate node; eval from plan.gates descriptor.
+
                 for &out_node in &gates.out_nodes {
                     let desc = plan.gates.get(&(out_node as i32)).expect("gate desc");
 
                     for b in 0..b_count {
                         for p in 0..p_count {
-                            // Build a per-node slice view for this (b,p).
+
                             let base = ((b * p_count + p) as usize) * num_nodes;
                             let view = &cpu_words[base..base + num_nodes];
                             let w = eval_gate_word(desc, view);
@@ -1696,7 +1664,7 @@ mod cuda_tests {
 
     #[test]
     fn cuda_dpmc_gpu_exec_can_tally_without_node_readback() {
-        // Same PDAG as the word-parity test, but validate tallies.
+
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());
@@ -1758,7 +1726,6 @@ mod cuda_tests {
             0u32,
         );
 
-        // CPU packed reference: compute words then popcount tally per node.
         let num_nodes = soa.layout.num_nodes as usize;
         let total_words = (b_count as usize) * (p_count as usize) * num_nodes;
         let mut cpu_words = vec![0u64; total_words];
@@ -1855,10 +1822,7 @@ mod dependency_tests {
 
     #[test]
     fn within_layer_gate_group_order_is_irrelevant_but_layer_order_matters() {
-        // PDAG with two independent gates in the same layer:
-        //  g_and = AND(e1, e2)
-        //  g_xor = XOR(e3, e4)
-        //  root  = OR(g_and, g_xor)
+
         let mut pdag = Pdag::new();
         let e1 = pdag.add_basic_event("e1".to_string());
         let e2 = pdag.add_basic_event("e2".to_string());
@@ -1878,7 +1842,6 @@ mod dependency_tests {
 
         let plan = DpMcPlan::from_pdag(&pdag, RunParams::new(1, 1, 1, 64, 0)).expect("plan");
 
-        // Seed node_words so that gate outputs are guaranteed to differ if evaluated out-of-order.
         let num_nodes = plan
             .depths
             .keys()
@@ -1888,20 +1851,17 @@ mod dependency_tests {
             + 1;
         let mut base_words = vec![0u64; num_nodes];
 
-        // Events: choose fixed patterns.
         base_words[e1.unsigned_abs() as usize] = !0u64;
         base_words[e2.unsigned_abs() as usize] = !0u64;
         base_words[e3.unsigned_abs() as usize] = 0u64;
         base_words[e4.unsigned_abs() as usize] = 0u64;
 
-        // Any constant nodes should be initialized to their word values.
         for &node in plan.depths.keys() {
             if let Some(PdagNode::Constant { value, .. }) = pdag.get_node(node.abs()) {
                 base_words[node.unsigned_abs() as usize] = if *value { !0u64 } else { 0u64 };
             }
         }
 
-        // Two different within-layer group orders must yield identical outputs.
         let asc = exec_cpu_words_within_layer_rank_order(&plan, false, base_words.clone());
         let desc = exec_cpu_words_within_layer_rank_order(&plan, true, base_words.clone());
 
@@ -1914,8 +1874,6 @@ mod dependency_tests {
             "full node_words should match regardless of within-layer group order"
         );
 
-        // Demonstrate that violating *layer* dependencies changes results (mock scheduler bug).
-        // Evaluate root first using its uninitialized operands; it should differ.
         let root_desc = plan.gates.get(&root.abs()).expect("root desc");
         let wrong_root = eval_gate_word(root_desc, &base_words);
         assert_ne!(

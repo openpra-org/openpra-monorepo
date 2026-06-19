@@ -1,19 +1,10 @@
-//! Integer-threshold Bernoulli sampling.
-//!
-//! The blueprint uses 32-bit uniform integers and compares against a precomputed
-//! threshold derived from $p \cdot 2^{32}$.
-
 use crate::mc::counter::blueprint_counter_with_increment;
 use crate::mc::philox::philox4x32_10;
 use crate::mc::philox::Philox4x32Ctr;
 use crate::mc::philox::Philox4x32Key;
 
-/// $2^{32}$ as f64 (exact).
 const TWO_POW_32_F64: f64 = 4_294_967_296.0;
 
-/// Bernoulli threshold representation.
-///
-/// When `full_range=true`, the outcome is always true (i.e., p=1 exactly).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BernoulliThreshold {
     pub t: u32,
@@ -38,11 +29,6 @@ impl BernoulliThreshold {
     }
 }
 
-/// Convert a probability in $[0, 1]$ to a threshold compatible with `sample_u32`.
-///
-/// Computes $T = \lfloor p \cdot 2^{32} \rfloor$ using `f64` and returns:
-/// - `full_range=true` if $T = 2^{32}$ (i.e., p=1).
-/// - otherwise `full_range=false` with `t = T as u32`.
 #[inline]
 pub fn threshold_from_probability(p: f64) -> BernoulliThreshold {
     if !p.is_finite() {
@@ -72,9 +58,6 @@ pub fn threshold_from_probability(p: f64) -> BernoulliThreshold {
     }
 }
 
-/// Sample a Bernoulli outcome from a 32-bit uniform integer `r`.
-///
-/// Uses `r < T` where `T` is derived by `threshold_from_probability`.
 #[inline]
 pub fn sample_u32(r: u32, threshold: BernoulliThreshold) -> bool {
     if threshold.full_range {
@@ -83,9 +66,6 @@ pub fn sample_u32(r: u32, threshold: BernoulliThreshold) -> bool {
     r < threshold.t
 }
 
-/// Deterministic helper that generates one Philox4x32-10 block and returns the 4 outcomes.
-///
-/// This is primarily intended for unit tests and CPU reference behavior.
 #[inline]
 pub fn sample_block_philox4x32_10(
     ctr: Philox4x32Ctr,
@@ -101,9 +81,6 @@ pub fn sample_block_philox4x32_10(
     ]
 }
 
-/// Sample one Philox4x32-10 block using the blueprint counter mapping.
-///
-/// `increment` must be in `[0, 64)` and corresponds to the reserved 6 bits in ctr[3].
 #[inline]
 pub fn sample_block_blueprint(
     ix: u32,
@@ -142,13 +119,11 @@ mod tests {
             }
         );
 
-        // This is exactly (2^32 - 1)/2^32. It should NOT become full_range.
         let p_almost_one = (TWO_POW_32_F64 - 1.0) / TWO_POW_32_F64;
         let th = threshold_from_probability(p_almost_one);
         assert!(!th.full_range);
         assert_eq!(th.t, u32::MAX);
 
-        // Non-finite inputs should be safe.
         assert_eq!(
             threshold_from_probability(f64::NAN),
             BernoulliThreshold::always_false()
@@ -195,16 +170,13 @@ mod tests {
 
     #[test]
     fn sampling_mean_is_close_to_p_for_fixed_counter_stream() {
-        // Deterministic, non-flaky because Philox is deterministic.
-        // We just want a coarse sanity check (not a statistical test suite).
+
         let key: Philox4x32Key = [0xDEAD_BEEF, 0x1234_5678];
         let threshold = threshold_from_probability(0.5);
 
         let mut ones: u64 = 0;
         let mut total: u64 = 0;
 
-        // Walk a simple counter stream by incrementing ctr[0].
-        // Each Philox block yields 4 u32 values.
         for i in 0..10_000u32 {
             let ctr: Philox4x32Ctr = [i, 0, 0, 0];
             let r = philox4x32_10(ctr, key);

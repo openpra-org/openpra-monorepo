@@ -152,14 +152,12 @@ impl std::error::Error for PraxisError {}
 impl std::error::Error for MefError {}
 impl std::error::Error for XmlError {}
 
-// Conversion from std::io::Error
 impl From<std::io::Error> for PraxisError {
     fn from(err: std::io::Error) -> Self {
         PraxisError::Io(err.to_string())
     }
 }
 
-// Conversion from MefError
 impl From<MefError> for PraxisError {
     fn from(err: MefError) -> Self {
         PraxisError::Mef(err)

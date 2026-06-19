@@ -1,17 +1,8 @@
-//! Packed (bitwise) gate evaluation over `Bitpack` words.
-//!
-//! This is the CPU reference for the blueprint-style kernels:
-//! - Each `Bitpack` word encodes `omega` Bernoulli outcomes (one bit per lane).
-//! - Complemented edges are handled by inverting the input word (`!word`).
-
 use crate::algorithms::pdag::Connective;
 use crate::mc::bitpack::Bitpack;
 use crate::mc::bitpack::{get_lane, set_lane, OMEGA};
 use crate::mc::plan::{GateDescriptor, GateInput};
 
-/// Evaluate a single gate's output word from already-computed input words.
-///
-/// `node_words` is indexed by absolute `NodeIndex` as `usize`.
 #[inline]
 pub fn eval_gate_word(desc: &GateDescriptor, node_words: &[Bitpack]) -> Bitpack {
     eval_connective_word(desc.connective, &desc.operands, node_words, desc.min_number)
@@ -36,7 +27,7 @@ fn eval_connective_word(
             eval_atleast(operands, node_words, k)
         }
         Connective::Not | Connective::Null => {
-            // MC-minimal preprocessing should have removed these from the plan.
+
             panic!("Unexpected connective in packed gate evaluation: {connective:?}")
         }
     }
@@ -81,9 +72,7 @@ fn fold_xor(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
 
 #[inline]
 fn eval_iff(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
-    // IFF is true when all operands are equal.
-    // For booleans, this is equivalent to (AND operands) OR (AND (NOT operands)).
-    // Works for any arity >= 1.
+
     let mut all_true = !0u64;
     let mut all_false = !0u64;
 
@@ -98,8 +87,7 @@ fn eval_iff(operands: &[GateInput], node_words: &[Bitpack]) -> Bitpack {
 
 #[inline]
 fn eval_atleast(operands: &[GateInput], node_words: &[Bitpack], k: usize) -> Bitpack {
-    // CPU fallback: evaluate lane-by-lane.
-    // This is correct and matches the blueprint semantics, even if not the fastest approach.
+
     let n = operands.len();
     if k == 0 {
         return !0u64;
@@ -157,7 +145,6 @@ mod tests {
     fn packed_vs_scalar(connective: Connective, arity: usize, seed: u64) {
         let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
-        // We'll create node_words where indices 1..=arity map to operand words.
         let mut node_words = vec![0u64; arity + 1];
         let mut gate_inputs: Vec<GateInput> = Vec::with_capacity(arity);
 
@@ -170,7 +157,7 @@ mod tests {
             }
             node_words[idx as usize] = w;
 
-            let is_negated: bool = rng.gen::<bool>() && rng.gen::<bool>(); // bias toward false
+            let is_negated: bool = rng.gen::<bool>() && rng.gen::<bool>();
             gate_inputs.push(GateInput {
                 index: idx,
                 is_negated,
@@ -234,7 +221,7 @@ mod tests {
 
     #[test]
     fn packed_atleast_edge_cases() {
-        // Build three operands with deterministic patterns.
+
         let mut node_words = vec![0u64; 4];
         node_words[1] = 0xFFFF_FFFF_0000_0000;
         node_words[2] = 0xAAAA_AAAA_AAAA_AAAA;
@@ -255,7 +242,6 @@ mod tests {
             },
         ];
 
-        // k=0 => always true
         let desc0 = GateDescriptor {
             connective: Connective::AtLeast,
             operands: ops.clone(),
@@ -263,7 +249,6 @@ mod tests {
         };
         assert_eq!(eval_gate_word(&desc0, &node_words), !0u64);
 
-        // k>n => always false
         let desc_big = GateDescriptor {
             connective: Connective::AtLeast,
             operands: ops.clone(),

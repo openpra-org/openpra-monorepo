@@ -1,19 +1,3 @@
-//! GPU kernels for Event-Tree Monte Carlo sequence evaluation (bitpacked).
-//!
-//! This module evaluates an event tree over packed `(B,P)` trial words and produces
-//! per-sequence packed mask words in a `(B,P,seq)` layout, suitable for popcount tally.
-//!
-//! CubeCL currently has some control-flow and local-storage restrictions, so this kernel
-//! uses a compilation strategy that avoids per-thread stacks:
-//!
-//! - The host compiles the event tree into *per-sequence* sets of paths.
-//! - Each path is represented as a list of functional-event (FE) conditions:
-//!   FE must be true (success) or false (failure).
-//! - The kernel runs one thread per `(b,p,seq)` and computes:
-//!   `mask(seq) = OR_over_paths( IE_word AND_over_conditions( FE_word or !FE_word ) )`.
-//!
-//! This yields bit-for-bit parity with the CPU mask-propagation traversal.
-
 #[cfg(feature = "gpu")]
 use cubecl::prelude::*;
 
@@ -22,20 +6,7 @@ const ROUTE_FE_TRUE: u32 = 0;
 
 #[cfg(feature = "gpu")]
 #[cube(launch_unchecked)]
-/// Evaluate an event tree for each `(b,p)` word and write per-sequence packed masks.
-///
-/// Layouts:
-/// - `node_words_{lo,hi}`: `(B,P,node)` packed words
-/// - `seq_words_{lo,hi}`: `(B,P,seq)` packed words
-///
-/// Plan representation:
-/// - For each sequence `s`, a contiguous range of *paths* in `path_cond_{start,len}`:
-///   `paths = [seq_path_start[s], seq_path_start[s] + seq_path_len[s])`
-/// - For each path `p`, a contiguous range of *conditions*:
-///   `conds = [path_cond_start[p], path_cond_start[p] + path_cond_len[p])`
-/// - For each condition `c`:
-///   - `cond_fe_node[c]`: absolute PDAG node index for the FE's success mask
-///   - `cond_route[c]`: 0 => require FE true, 1 => require FE false
+
 pub fn event_tree_sequence_words_kernel(
     num_nodes: u32,
     b_count: u32,
@@ -64,15 +35,12 @@ pub fn event_tree_sequence_words_kernel(
     let bp_total = b_count * p_count;
     let bp = b * p_count + p;
 
-    // Base indices for this (b,p) word.
     let node_base = (bp * num_nodes) as usize;
     let out_ix = (bp * seq_count + seq_ix) as usize;
 
-    // Base mask = IE occurrence.
     let mut ie_lo = node_words_lo[node_base + ie_node as usize];
     let mut ie_hi = node_words_hi[node_base + ie_node as usize];
 
-    // Mask padded lanes only for the final (b,p) word.
     if valid_lanes_last_word != 0u32 && bp + 1u32 == bp_total {
         if valid_lanes_last_word < 32u32 {
             let lo_mask = (1u32 << valid_lanes_last_word) - 1u32;
@@ -112,7 +80,7 @@ pub fn event_tree_sequence_words_kernel(
         let mut ci = 0u32;
         while ci < cond_len {
             if (m_lo | m_hi) == 0u32 {
-                // Early-exit this path.
+
                 ci = cond_len;
             } else {
                 let cond_ix = (cond_start + ci) as usize;
@@ -122,7 +90,6 @@ pub fn event_tree_sequence_words_kernel(
                 let mut fe_lo = node_words_lo[node_base + fe_node as usize];
                 let mut fe_hi = node_words_hi[node_base + fe_node as usize];
 
-                // Mask padded lanes only for the final (b,p) word.
                 if valid_lanes_last_word != 0u32 && bp + 1u32 == bp_total {
                     if valid_lanes_last_word < 32u32 {
                         let lo_mask = (1u32 << valid_lanes_last_word) - 1u32;

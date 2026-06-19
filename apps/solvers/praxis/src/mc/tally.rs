@@ -1,10 +1,5 @@
 use crate::Result;
 
-/// Per-node popcount tally accumulators.
-///
-/// Blueprint-style DPMC uses popcount tallies (`s_v`) rather than storing
-/// per-trial booleans. The host tracks the total number of Bernoulli samples
-/// processed (`n_v`) and derives probability estimates as `p_hat = s_v / n_v`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeTallies {
     ones: Vec<u64>,
@@ -70,10 +65,6 @@ impl NodeTallies {
     }
 }
 
-/// Compute the effective number of trial-bits represented by a `(B,P,omega)` layout.
-///
-/// If `valid_lanes_last_word != 0`, the final word is treated as having only that
-/// many valid lanes and the remaining padded lanes are excluded from the total.
 pub fn effective_bits_per_iteration(
     b: usize,
     p: usize,
@@ -110,17 +101,6 @@ pub fn effective_bits_per_iteration(
     Ok(total - (omega as u64 - valid as u64))
 }
 
-/// Compute per-node popcount tallies from a packed `(B,P,node)` word buffer.
-///
-/// Layout contract:
-/// - `node_words` is length `B*P*num_nodes`.
-/// - Indexing matches the GPU kernels: `ix = (bp * num_nodes + node)` with
-///   `bp = b*p_count + p`.
-///
-/// Masking contract:
-/// - If `valid_lanes_last_word == 0`, all 64 lanes are considered valid.
-/// - Otherwise, only the lowest `valid_lanes_last_word` bits of the *final* `(b,p)` word
-///   contribute to the tallies (used when `num_trials` is not divisible by 64).
 pub fn popcount_tallies_from_node_words_u64(
     num_nodes: u32,
     b_count: u32,
@@ -198,11 +178,10 @@ mod tests {
 
     #[test]
     fn effective_bits_accounts_for_lane_mask() {
-        // Two 64-lane words, but only 10 lanes valid in the last word.
+
         let bits = effective_bits_per_iteration(1, 2, 64, 10).unwrap();
         assert_eq!(bits, 128 - (64 - 10));
 
-        // Full words.
         let bits_full = effective_bits_per_iteration(2, 3, 64, 0).unwrap();
         assert_eq!(bits_full, 2 * 3 * 64);
     }
@@ -227,7 +206,6 @@ mod tests {
         let p_count = 4u32;
         let total_words = (num_nodes * b_count * p_count) as usize;
 
-        // Deterministic pseudo-random words.
         let mut words: Vec<u64> = Vec::with_capacity(total_words);
         let mut x = 0xD1B5_D00Du64;
         for _ in 0..total_words {

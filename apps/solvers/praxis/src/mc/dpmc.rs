@@ -245,7 +245,6 @@ impl<'a> DpMonteCarloAnalysis<'a> {
         let mut vram_tracker = CudaVramTracker::new_current_process();
         let _ = vram_tracker.sample();
 
-
         let progress = if watch {
             let total_iters = built.plan.params.t as u64;
             let pb = ProgressBar::new(total_iters.max(1));
@@ -722,7 +721,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
             built.key,
             &selected_nodes,
             |words, t_counter| {
-                // words layout: (bp, selected_ix)
+
                 for bp in 0..bp_count {
                     let base = bp * num_selected;
                     let root_word = words[base];
@@ -1702,7 +1701,6 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 continue;
             }
 
-            // Compute stratum probability under the target distribution for stratified events.
             let mut pi_s = 1.0f64;
             for (j, &ord) in strat_ords.iter().enumerate() {
                 let p = built.event_probabilities[ord].clamp(0.0, 1.0);
@@ -1723,7 +1721,6 @@ impl<'a> DpMonteCarloAnalysis<'a> {
                 }
             }
 
-            // Use a per-stratum key so strata runs are not perfectly correlated.
             let seed_s = params
                 .seed
                 .wrapping_add(0x9e37_79b9_7f4a_7c15u64.wrapping_mul((s as u64).wrapping_add(1)));

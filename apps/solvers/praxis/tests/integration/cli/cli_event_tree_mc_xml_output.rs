@@ -1,8 +1,3 @@
-/// CLI integration test for event-tree Monte Carlo XML output.
-///
-/// Validates that:
-/// - `-o` includes per-sequence event-tree MC stats in XML
-/// - run-config metadata appears exactly once (not repeated per sequence)
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -73,17 +68,13 @@ fn test_cli_event_tree_monte_carlo_writes_xml() {
 
     let xml = fs::read_to_string(&out_path).expect("Failed to read output XML");
 
-    // Event-tree MC uses the comprehensive report format.
     assert!(xml.contains("<report>"));
     assert!(!xml.contains("<opsa-mef>"));
 
-    // Report should include the event-tree MC section.
     assert!(xml.contains("<event-tree-monte-carlo>"));
 
-    // Metadata should not repeat for each terminal sequence.
     assert_eq!(xml.matches("<run-config>").count(), 1);
 
-    // Terminal sequences should be present (root + linked ET yields these).
     assert!(xml.contains("sequence id=\"S1\""));
     assert!(xml.contains("sequence id=\"S9\""));
 

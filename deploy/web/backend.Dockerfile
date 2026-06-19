@@ -12,5 +12,6 @@ ENV NODE_ENV=production
 ENV PORT=8000
 COPY --from=deps /app/node_modules ./node_modules
 COPY main.js ./main.js
+COPY example-documents ./example-documents
 EXPOSE 8000
 CMD ["node", "main.js"]

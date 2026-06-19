@@ -49,6 +49,7 @@ jobs:
         run: |
           mkdir -p docker-context/web-backend
           cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
+          cp -r dist/apps/backends/web-backend/example-documents docker-context/web-backend/example-documents
           cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
           node -e '
             const fs = require("fs");

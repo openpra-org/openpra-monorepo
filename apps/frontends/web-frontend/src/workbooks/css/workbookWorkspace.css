@@ -527,7 +527,7 @@
 .posfield__select,
 .posfield__textarea {
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -682,7 +682,7 @@
 .posdock__gauge-circle svg { display: block; width: 100%; height: 100%; }
 .posdock__gauge-text {
   font-family: 'Literata', Georgia, serif;
-  font-size: 10.5px;
+  font-size: 9px;
   font-weight: 700;
   fill: var(--color-text);
   text-anchor: middle;
@@ -819,6 +819,15 @@
   border-top: 1px solid var(--color-border);
   vertical-align: top;
 }
+.postable--mid td { vertical-align: middle; }
+
+.posbasis__list { display: grid; margin: 4px 0 12px; }
+.posbasis__item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--color-border); }
+.posbasis__item:first-child { border-top: none; }
+.posbasis__chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.posbasis__note { font-size: 12px; color: var(--color-text-muted); margin-top: 5px; line-height: 1.45; }
+.posbasis__form { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.posbasis__actions { display: flex; gap: 8px; }
 .postable td.mono, .postable th.mono {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 12px;
@@ -910,6 +919,38 @@
 .posdoc__icon svg { width: 22px; height: 22px; }
 .posdoc__main { min-width: 0; }
 .posdoc__name { font-weight: 700; color: var(--color-text); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.posdoc__name-input {
+  font-weight: 700;
+  color: var(--color-text);
+  font-size: 13.5px;
+  font-family: inherit;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  margin: -3px -7px;
+}
+.posdoc__name-input:hover { border-color: var(--color-border); }
+.posdoc__name-input:focus { border-color: var(--color-primary-focus); background: var(--color-surface); outline: none; }
+.posdoc__name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.posdoc__name-row .posdoc__name { min-width: 0; }
+.posdoc__name-edit {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-subtle);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.posdoc__name-edit:hover { background: var(--color-surface-low); color: var(--color-text); }
+.posdoc__name-edit svg { width: 13px; height: 13px; }
 .posdoc__meta { font-size: 11.5px; color: var(--color-text-subtle); font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .posdoc__extracted {
   font-size: 11.5px;
@@ -1234,6 +1275,39 @@
 }
 .posstat--warn { border-color: var(--color-warning); }
 .posstat--warn .posstat__value { color: var(--color-warning); }
+
+/* Downstream handoff — clickable grid of downstream technical elements */
+.poshandoff__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+.poshandoff__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-low);
+  cursor: pointer;
+}
+.poshandoff__tile:hover { border-color: var(--color-border-strong); background: var(--color-surface); }
+.poshandoff__tile--active { border-color: var(--color-primary-focus); background: var(--color-primary-soft); }
+.poshandoff__tile-code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+}
+.poshandoff__tile-name { font-size: 13.5px; font-weight: 600; color: var(--color-text); }
+.poshandoff__tile-role { font-size: 11.5px; color: var(--color-text-muted); }
+@media (max-width: 760px) {
+  .poshandoff__grid { grid-template-columns: 1fr 1fr; }
+}
 
 /* Small chips */
 .poschip {

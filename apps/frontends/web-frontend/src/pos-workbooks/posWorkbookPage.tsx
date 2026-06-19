@@ -18,6 +18,7 @@ import {
   listPosDocuments,
   uploadPosDocument,
   deletePosDocument,
+  updatePosDocument,
   getPosDocumentDownload,
   type PosWorkbookRoleName,
   type PosDocumentEntry,
@@ -193,6 +194,10 @@ function PosWorkbookPage(): JSX.Element {
       onDownload: async (documentId: string): Promise<void> => {
         const { url } = await getPosDocumentDownload(id, documentId);
         window.open(url, "_blank", "noopener");
+      },
+      onUpdate: async (documentId: string, fields: { name?: string; notes?: string }): Promise<void> => {
+        await updatePosDocument(id, documentId, fields);
+        await refreshDocuments();
       },
     };
   }, [id, documents, myRoles, data?.pos.workflowState, refreshDocuments]);

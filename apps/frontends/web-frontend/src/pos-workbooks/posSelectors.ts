@@ -4,7 +4,9 @@ import {
   type ParameterRange,
   type ScreeningCriterion,
   BarrierStatus,
+  POS_SR_CATALOG,
 } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { type SRConformance, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
@@ -61,7 +63,7 @@ interface EvolutionView {
 interface GroupView {
   id: string;
   name: string;
-  members: string[];
+  members: { id: string; label: string }[];
   rationale: string;
   boundingCharacteristic: string;
   durationSum: string;
@@ -72,6 +74,7 @@ interface GroupView {
 
 interface InterviewView {
   id: string;
+  uuid: string;
   date: string;
   evolutionId: string | null;
   method: string;
@@ -90,6 +93,8 @@ interface ScreeningEditorView {
   riskSignificance: ImportanceLevel | null;
   riskLabel: string;
   justification: string;
+  quantitativeBasis: number | null;
+  alternateCriterionJustification: string;
   needsBasis: boolean;
 }
 
@@ -123,6 +128,17 @@ function stateLabel(name: string): string {
 
 function evolutionLabel(name: string): string {
   return name.trim().length > 0 ? name : "Untitled evolution";
+}
+
+function groupLabel(name: string): string {
+  return name.trim().length > 0 ? name : "Untitled group";
+}
+
+function methodLabel(method: string): string {
+  if (method === "WALKDOWN") return "Walkdown";
+  if (method === "COMPUTERIZED_WALKDOWN") return "Computerised walkdown";
+  if (method === "INTERVIEW") return "Interview";
+  return "Tabletop";
 }
 
 function barrierLabels(state: PlantOperatingState): string[] {
@@ -180,18 +196,18 @@ function statesView(pos: PlantOperatingStatesAnalysis): StateView[] {
 }
 
 function evolutionsView(pos: PlantOperatingStatesAnalysis): EvolutionView[] {
-  const stateById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, s] as const));
   const cycleTotal = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
   return pos.plantEvolutions.map((e) => {
-    const sumHours = e.plantOperatingStateIds.reduce((acc, id) => acc + (stateById.get(id)?.meanDurationHours ?? 0), 0);
+    const members = pos.plantOperatingStates.filter((s) => s.evolutionId === e.uuid);
+    const sumHours = members.reduce((acc, s) => acc + s.meanDurationHours, 0);
     const computedFraction = cycleTotal > 0 ? sumHours / cycleTotal : 0;
     return {
       id: e.uuid,
       name: e.name,
       type: e.type,
       description: e.description,
-      statesCount: e.plantOperatingStateIds.length,
-      durationFraction: e.durationFractionHint ?? computedFraction,
+      statesCount: members.length,
+      durationFraction: computedFraction,
       fromDoc: e.sourceDocumentRef ?? "",
     };
   });
@@ -201,17 +217,16 @@ function groupsView(pos: PlantOperatingStatesAnalysis): GroupView[] {
   const groups = pos.plantOperatingStateGroups ?? [];
   const nameById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, stateLabel(s.name)]));
   return groups.map((g) => {
-    const bounded = g.doesNotMaskRiskSignificantContributors;
-    const pending = g.boundingCharacteristics.some((c) => c.startsWith("Pending"));
+    const incomplete = g.boundingCharacteristics.length === 0 || g.similarityBasis.trim().length === 0 || !g.doesNotMaskRiskSignificantContributors;
     return {
       id: g.uuid,
-      name: g.name,
-      members: g.memberPosIds.map((id) => nameById.get(id) ?? stateLabel("")),
+      name: groupLabel(g.name),
+      members: g.memberPosIds.map((id) => ({ id, label: nameById.get(id) ?? stateLabel("") })),
       rationale: g.similarityBasis,
       boundingCharacteristic: g.boundingCharacteristics[0] ?? "",
       durationSum: formatDuration(g.summedDurationHours),
-      status: bounded && !pending ? "ok" : "warn",
-      statusMessage: pending ? `Bounding rationale for ${g.name} still to be entered.` : undefined,
+      status: incomplete ? "warn" : "ok",
+      statusMessage: incomplete ? `${groupLabel(g.name)} still needs its bounding rationale or attestation.` : undefined,
       hasPreopAssumption: (g.preOperationalAssumptions ?? []).length > 0,
     };
   });
@@ -221,6 +236,7 @@ function interviewsView(pos: PlantOperatingStatesAnalysis): InterviewView[] {
   const records = pos.interviewRecords ?? [];
   return records.map((r, i) => ({
     id: `IV-${String(i + 1).padStart(2, "0")}`,
+    uuid: r.uuid ?? "",
     date: r.date,
     evolutionId: r.evolutionId ?? null,
     method: r.method,
@@ -248,6 +264,8 @@ function screeningEditorView(pos: PlantOperatingStatesAnalysis): ScreeningEditor
       riskSignificance,
       riskLabel: riskSignificance !== null ? formatImportance(riskSignificance) : retained ? "Unrated" : "—",
       justification,
+      quantitativeBasis: rec?.quantitativeBasis ?? null,
+      alternateCriterionJustification: rec?.alternateCriterionJustification ?? "",
       needsBasis: !retained && (criterion === null || justification.trim() === ""),
     };
   });
@@ -265,25 +283,132 @@ function srStatusToTone(status: string): ConformanceStatus {
   return "warn";
 }
 
+// Maps each supporting requirement to the element data its conformance is judged
+// against. Documentation only; the live derivation reads the data directly.
+const SR_PATHS: Record<string, string[]> = {
+  "POS-A1": ["plantEvolutions"],
+  "POS-A2": ["plantEvolutions[].reviewedDocumentation"],
+  "POS-A3": ["plantOperatingStates"],
+  "POS-A5": ["plantOperatingStates"],
+  "POS-A8": ["interviewRecords"],
+  "POS-A9": ["plantOperatingStates[].successCriteriaIds"],
+  "POS-A10": ["praScope"],
+  "POS-A11": ["plantOperatingStates[].sscOperationalCharacteristics"],
+  "POS-A12": ["modelUncertainty"],
+  "POS-A13": ["plantOperatingStates[].preOperationalAssumptions"],
+  "POS-B1": ["plantOperatingStateGroups"],
+  "POS-B2": ["screeningRecords"],
+  "POS-B3": ["plantOperatingStateGroups[].doesNotMaskRiskSignificantContributors"],
+  "POS-B4": ["separationRecords"],
+  "POS-B5": ["demandTimeBasedRecords"],
+  "POS-B6": ["plantOperatingStateGroups[].boundingCharacteristics"],
+  "POS-B7": ["modelUncertainty"],
+  "POS-B8": ["plantOperatingStateGroups[].preOperationalAssumptions"],
+  "POS-C1": ["plantOperatingStates[].meanDurationHours"],
+  "POS-C2": ["plantOperatingStates[].preOperationalAssumptions"],
+  "POS-C3": ["plantOperatingStateGroups[].summedDurationHours"],
+  "POS-C4": ["decayHeatCharacterizations"],
+  "POS-D1": ["documentation"],
+  "POS-D2": ["modelUncertainty"],
+  "POS-D3": ["plantRepresentationAccuracy"],
+};
+
+function triStatus(done: number, total: number): SRStatus {
+  if (total === 0) return "NOT_MET";
+  if (done >= total) return "MET";
+  if (done === 0) return "NOT_MET";
+  return "PARTIAL";
+}
+
+function deriveConformance(pos: PlantOperatingStatesAnalysis): SRConformance[] {
+  const states = pos.plantOperatingStates;
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const retained = states.filter((s) => !screenedOut.has(s.uuid));
+  const lpsdRetained = retained.filter((s) => s.operatingMode !== "POWER");
+  const evolutions = pos.plantEvolutions;
+  const groups = pos.plantOperatingStateGroups ?? [];
+  const separations = pos.separationRecords ?? [];
+  const demandTimeBased = pos.demandTimeBasedRecords ?? [];
+  const interviews = pos.interviewRecords ?? [];
+  const decayHeatPosIds = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
+  const muSources = pos.modelUncertainty.uncertaintySources.length;
+  const doc = pos.documentation;
+  const groupAssumptions = groups.some((g) => (g.preOperationalAssumptions ?? []).length > 0);
+  const anyAssumption = groupAssumptions || states.some((s) => (s.preOperationalAssumptions ?? []).length > 0);
+
+  const evWithDoc = evolutions.filter((e) => {
+    if ((e.sourceDocumentRef ?? "").trim().length > 0) return true;
+    const r = e.reviewedDocumentation;
+    return r !== undefined && Object.values(r).some((arr) => Array.isArray(arr) && arr.length > 0);
+  }).length;
+  const statesCharacterised = states.filter((s) => s.radionuclideTransportBarriers.length > 0).length;
+  const statesWithSc = retained.filter((s) => s.successCriteriaIds.length > 0).length;
+  const statesWithSsc = states.filter((s) => s.sscOperationalCharacteristics.length > 0).length;
+  const screenedOutRecs = pos.screeningRecords.filter((r) => !r.retained);
+  const screenedJustified = screenedOutRecs.filter((r) => r.justification.trim().length > 0).length;
+  const groupsNotMasking = groups.filter((g) => g.doesNotMaskRiskSignificantContributors).length;
+  const groupsBounded = groups.filter((g) => g.boundingCharacteristics.length > 0 && g.similarityBasis.trim().length > 0 && g.doesNotMaskRiskSignificantContributors).length;
+  const statesWithDuration = retained.filter((s) => s.meanDurationHours > 0 && (s.operatingMode === "POWER" || s.meanTimeAfterShutdownHours !== undefined)).length;
+  const statesWithDurationBasis = retained.filter((s) => (s.preOperationalAssumptions ?? []).some((a) => a.influenceOnDefinition.toLowerCase().includes("duration"))).length;
+  const groupsWithDuration = groups.filter((g) => g.summedDurationHours > 0).length;
+  const lpsdCharacterised = lpsdRetained.filter((s) => decayHeatPosIds.has(s.uuid)).length;
+  const docFields = [doc.processDescription, doc.posIdentificationProcessAndCriteria, doc.posGroupingProcessAndCriteria, doc.durationsTimesSinceShutdownFrequencies, doc.decayHeatPerPos];
+  const docFilled = docFields.filter((f) => f.trim().length > 0).length;
+  const plural = (n: number): string => (n === 1 ? "" : "s");
+  const screeningStatus: SRStatus = pos.screeningRecords.length === 0 ? "NOT_MET" : screenedOutRecs.length === 0 ? "MET" : triStatus(screenedJustified, screenedOutRecs.length);
+
+  const rules: Record<string, { status: SRStatus; evidence: string }> = {
+    "POS-A1": { status: evolutions.length > 0 ? "MET" : "NOT_MET", evidence: `${evolutions.length} plant evolution${plural(evolutions.length)} identified.` },
+    "POS-A2": { status: triStatus(evWithDoc, evolutions.length), evidence: `${evWithDoc} of ${evolutions.length} evolution${plural(evolutions.length)} traced to source documents.` },
+    "POS-A3": { status: triStatus(statesCharacterised, states.length), evidence: `${statesCharacterised} of ${states.length} state${plural(states.length)} characterised by mode, parameters, and barriers.` },
+    "POS-A4": { status: pos.plantRepresentationAccuracy.scope === "OPERATING" ? "MET" : "NOT_MET", evidence: "As-built consistency applies once the plant is operating." },
+    "POS-A5": { status: states.length > 0 && evolutions.length > 0 ? "MET" : "NOT_MET", evidence: states.length > 0 && evolutions.length > 0 ? "States delineated from the reviewed design evolutions." : "Define evolutions and states from the design basis." },
+    "POS-A6": { status: "NOT_MET", evidence: "Future-evolution review applies to operating plants." },
+    "POS-A7": { status: interviews.length > 0 ? "MET" : "NOT_MET", evidence: "Operating-plant personnel interviews apply once the plant is operating." },
+    "POS-A8": { status: interviews.length > 0 ? "MET" : "NOT_MET", evidence: `${interviews.length} engineering interview session${plural(interviews.length)} logged.` },
+    "POS-A9": { status: triStatus(statesWithSc, retained.length), evidence: `${statesWithSc} of ${retained.length} retained state${plural(retained.length)} carry success criteria for downstream analysis.` },
+    "POS-A10": { status: states.length === 0 ? "NOT_MET" : !pos.includesNonInternalHazardGroups ? "MET" : "PARTIAL", evidence: states.length === 0 ? "Define operating states before reviewing hazard-group sufficiency." : !pos.includesNonInternalHazardGroups ? "Scope is internal events; no further hazard groups in scope." : "Confirm state conditions cover the in-scope hazard groups." },
+    "POS-A11": { status: triStatus(statesWithSsc, states.length), evidence: `${statesWithSsc} of ${states.length} state${plural(states.length)} record SSC operational characteristics.` },
+    "POS-A12": { status: muSources > 0 ? "MET" : "NOT_MET", evidence: `${muSources} model-uncertainty source${plural(muSources)} logged.` },
+    "POS-A13": { status: anyAssumption ? "MET" : "NOT_MET", evidence: anyAssumption ? "Pre-operational assumptions logged with closure plans." : "Log assumptions arising from missing as-built detail." },
+    "POS-B1": { status: groups.length > 0 ? "MET" : "NOT_MET", evidence: `${groups.length} representative group${plural(groups.length)} defined.` },
+    "POS-B2": { status: screeningStatus, evidence: pos.screeningRecords.length === 0 ? "No screening decisions recorded yet." : `${screenedOutRecs.length} state${plural(screenedOutRecs.length)} screened out, each with a documented basis.` },
+    "POS-B3": { status: triStatus(groupsNotMasking, groups.length), evidence: `${groupsNotMasking} of ${groups.length} group${plural(groups.length)} confirmed not to mask risk-significant contributors.` },
+    "POS-B4": { status: separations.length > 0 ? "MET" : "NOT_MET", evidence: separations.length > 0 ? `${separations.length} separation record${plural(separations.length)} documented.` : "Document any states kept separate for differing response." },
+    "POS-B5": { status: demandTimeBased.length > 0 ? "MET" : states.length > 0 ? "PARTIAL" : "NOT_MET", evidence: demandTimeBased.length > 0 ? `${demandTimeBased.length} demand/time-based separation record${plural(demandTimeBased.length)} documented.` : "Record demand-based and time-based states kept separate to avoid averaging." },
+    "POS-B6": { status: triStatus(groupsBounded, groups.length), evidence: `${groupsBounded} of ${groups.length} group${plural(groups.length)} carry a complete bounding rationale.` },
+    "POS-B7": { status: muSources > 0 ? "MET" : "NOT_MET", evidence: "Screening and grouping uncertainty captured in the model-uncertainty log." },
+    "POS-B8": { status: groupAssumptions ? "MET" : "NOT_MET", evidence: groupAssumptions ? "Grouping assumptions logged with closure plans." : "Log grouping assumptions from missing as-built detail." },
+    "POS-C1": { status: triStatus(statesWithDuration, retained.length), evidence: `${statesWithDuration} of ${retained.length} retained state${plural(retained.length)} carry mean duration and time after shutdown.` },
+    "POS-C2": { status: triStatus(statesWithDurationBasis, retained.length), evidence: `${statesWithDurationBasis} of ${retained.length} retained state${plural(retained.length)} document a duration basis.` },
+    "POS-C3": { status: triStatus(groupsWithDuration, groups.length), evidence: `${groupsWithDuration} of ${groups.length} group${plural(groups.length)} carry a summed duration.` },
+    "POS-C4": { status: triStatus(lpsdCharacterised, lpsdRetained.length), evidence: `${lpsdCharacterised} of ${lpsdRetained.length} retained LPSD state${plural(lpsdRetained.length)} have a decay-heat characterisation.` },
+    "POS-C5": { status: "NOT_MET", evidence: "Future-schedule review applies to operating plants." },
+    "POS-D1": { status: triStatus(docFilled, docFields.length), evidence: `${docFilled} of ${docFields.length} core documentation field${plural(docFields.length)} written.` },
+    "POS-D2": { status: muSources > 0 ? "MET" : "NOT_MET", evidence: "Model-uncertainty sources documented with treatments." },
+    "POS-D3": { status: anyAssumption ? "MET" : "NOT_MET", evidence: anyAssumption ? "Assumptions and limitations documented with closure plans." : "Document assumptions and limitations from missing as-built detail." },
+  };
+
+  return Object.entries(POS_SR_CATALOG).map(([sr, meta]) => {
+    const rule = rules[sr] ?? { status: "NOT_MET" as SRStatus, evidence: "Not yet assessed." };
+    return { sr, hlr: meta.hlr, capabilityCategory: pos.capabilityCategory ?? "CC-II", applicableToStage: meta.stages, status: rule.status, satisfiedByElementPaths: SR_PATHS[sr] ?? [], evidence: rule.evidence };
+  });
+}
+
 function filterConformance(pos: PlantOperatingStatesAnalysis, ccId: string, stage: Stage): ConformanceItem[] {
   const stageKey = stage === "operational" ? "operational" : "pre_operational";
-  const ccUpper = ccId.replace("cc-", "").toUpperCase();
-  const matrixBySr = new Map<string, { status: string }>();
-  for (const entry of pos.conformanceMatrix) {
-    if (entry.capabilityCategory === `CC-${ccUpper}` as never) matrixBySr.set(entry.sr, entry);
-  }
+  const bySr = new Map(deriveConformance(pos).map((e) => [e.sr, e] as const));
   return CONFORMANCE_ITEMS.filter((it) => it.requiredAt.includes(ccId)).map((it) => {
     const inStage = it.stages.includes("both") || it.stages.includes(stageKey);
     if (!inStage) return { ...it, status: "na" as const, meta: "Not applicable to current plant stage" };
-    const srs = it.sr ?? [];
-    if (srs.length === 0) return { ...it, status: "warn" as const, meta: "Awaiting evidence" };
-    const statuses = srs.map((sr) => matrixBySr.get(sr)?.status);
-    if (statuses.every((s) => s === undefined)) return { ...it, status: "warn" as const, meta: "Awaiting evidence" };
-    const tones = statuses.map((s) => s === undefined ? "warn" : srStatusToTone(s));
-    if (tones.includes("blocked")) return { ...it, status: "blocked" as const };
-    if (tones.includes("warn")) return { ...it, status: "warn" as const };
-    if (tones.every((t) => t === "na")) return { ...it, status: "na" as const };
-    return { ...it, status: "ok" as const };
+    const entries = (it.sr ?? []).map((sr) => bySr.get(sr)).filter((e): e is SRConformance => e !== undefined);
+    if (entries.length === 0) return { ...it, status: "warn" as const, meta: "Awaiting evidence" };
+    const meta = entries.map((e) => e.evidence).join(" ");
+    const tones = entries.map((e) => (ccId === "cc-i" && e.status === "PARTIAL" ? "ok" : srStatusToTone(e.status)));
+    if (tones.includes("blocked")) return { ...it, status: "blocked" as const, meta };
+    if (tones.includes("warn")) return { ...it, status: "warn" as const, meta };
+    if (tones.every((t) => t === "na")) return { ...it, status: "na" as const, meta };
+    return { ...it, status: "ok" as const, meta };
   });
 }
 
@@ -566,6 +691,11 @@ function preOpsForGroup(pos: PlantOperatingStatesAnalysis, groupId: string): Pre
 
 const HOURS_PER_YEAR = 8760;
 
+function cycleHours(pos: PlantOperatingStatesAnalysis): number {
+  const stored = pos.validationRules.collectiveExhaustivity.totalCycleHours;
+  return stored > 0 ? stored : HOURS_PER_YEAR;
+}
+
 interface CoverageView {
   summedHours: number;
   totalCycleHours: number;
@@ -576,11 +706,250 @@ interface CoverageView {
 
 function coverageView(pos: PlantOperatingStatesAnalysis): CoverageView {
   const summedHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
-  const totalCycleHours = HOURS_PER_YEAR;
+  const totalCycleHours = cycleHours(pos);
   const coverageFraction = totalCycleHours > 0 ? summedHours / totalCycleHours : 0;
-  const gapHours = Math.max(0, totalCycleHours - summedHours);
-  const covered = gapHours <= 1;
+  const deltaHours = totalCycleHours - summedHours;
+  const gapHours = Math.max(0, deltaHours);
+  const covered = Math.abs(deltaHours) <= 1;
   return { summedHours, totalCycleHours, coverageFraction, gapHours, covered };
+}
+
+function rangesOverlap(a: ParameterRange, b: ParameterRange): boolean {
+  if (a.min === a.max && b.min === b.max) return a.min === b.min;
+  return a.max > b.min && b.max > a.min;
+}
+
+function barrierSignature(s: PlantOperatingState): string {
+  return s.radionuclideTransportBarriers
+    .map((bar) => `${bar.name}:${bar.status ?? "?"}`)
+    .sort()
+    .join("|");
+}
+
+const DELINEATION_PARAMETER_OPTIONS = ["Operating mode", "Power level", "Reactor coolant temperature", "Coolant pressure", "Decay heat level", "Barrier status"];
+const DELINEATION_PARAMETERS = new Set(DELINEATION_PARAMETER_OPTIONS);
+
+function overlapsOnParameter(a: PlantOperatingState, b: PlantOperatingState, param: string): boolean {
+  switch (param) {
+    case "Operating mode": return a.operatingMode === b.operatingMode;
+    case "Power level": return rangesOverlap(a.rcsParameters.powerLevel, b.rcsParameters.powerLevel);
+    case "Reactor coolant temperature": return rangesOverlap(a.rcsParameters.reactorCoolantTemperature, b.rcsParameters.reactorCoolantTemperature);
+    case "Coolant pressure": return rangesOverlap(a.rcsParameters.coolantPressure, b.rcsParameters.coolantPressure);
+    case "Decay heat level": return rangesOverlap(a.rcsParameters.decayHeatLevel, b.rcsParameters.decayHeatLevel);
+    case "Barrier status": return barrierSignature(a) === barrierSignature(b);
+    default: return true;
+  }
+}
+
+interface MutualExclusivityView {
+  delineationParameters: string[];
+  recognizedParameters: string[];
+  configured: boolean;
+  statesChecked: number;
+  overlaps: { aId: string; aName: string; bId: string; bName: string }[];
+  allSeparable: boolean;
+}
+
+function mutualExclusivityView(pos: PlantOperatingStatesAnalysis): MutualExclusivityView {
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const states = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const declared = pos.validationRules.mutualExclusivity.delineationParameters;
+  const recognized = declared.filter((p) => DELINEATION_PARAMETERS.has(p));
+  const overlaps: { aId: string; aName: string; bId: string; bName: string }[] = [];
+  if (recognized.length > 0) {
+    for (let i = 0; i < states.length; i++) {
+      for (let j = i + 1; j < states.length; j++) {
+        const a = states[i];
+        const b = states[j];
+        if (recognized.every((p) => overlapsOnParameter(a, b, p))) {
+          overlaps.push({ aId: a.uuid, aName: stateLabel(a.name), bId: b.uuid, bName: stateLabel(b.name) });
+        }
+      }
+    }
+  }
+  return {
+    delineationParameters: declared,
+    recognizedParameters: recognized,
+    configured: recognized.length > 0,
+    statesChecked: states.length,
+    overlaps,
+    allSeparable: overlaps.length === 0,
+  };
+}
+
+interface TransitionValidationView {
+  totalStates: number;
+  unreachable: { id: string; name: string }[];
+  nonExitable: { id: string; name: string }[];
+  danglingTargets: { from: string; to: string }[];
+  staleSources: { id: string; name: string }[];
+  allValid: boolean;
+}
+
+function transitionValidationView(pos: PlantOperatingStatesAnalysis): TransitionValidationView {
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const states = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const ids = new Set(states.map((s) => s.uuid));
+  const nameById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, stateLabel(s.name)]));
+  const matrix = pos.validationRules.transitions.transitionMatrix;
+  const adjacency = new Map<string, string[]>();
+  const danglingTargets: { from: string; to: string }[] = [];
+  const staleSources: { id: string; name: string }[] = [];
+  for (const from of Object.keys(matrix)) {
+    const targets = matrix[from] ?? [];
+    if (!ids.has(from)) {
+      staleSources.push({ id: from, name: nameById.get(from) ?? from });
+      continue;
+    }
+    const valid: string[] = [];
+    for (const to of targets) {
+      if (ids.has(to)) valid.push(to);
+      else danglingTargets.push({ from, to });
+    }
+    adjacency.set(from, valid);
+  }
+  const hasIncoming = new Set<string>();
+  for (const targets of adjacency.values()) {
+    for (const to of targets) hasIncoming.add(to);
+  }
+  const entries = states
+    .filter((s) => s.operatingMode === "POWER" || !hasIncoming.has(s.uuid))
+    .map((s) => s.uuid);
+  const first = states[0];
+  if (entries.length === 0 && first !== undefined) entries.push(first.uuid);
+  const reachable = new Set<string>(entries);
+  const queue = [...entries];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === undefined) break;
+    for (const to of adjacency.get(current) ?? []) {
+      if (!reachable.has(to)) {
+        reachable.add(to);
+        queue.push(to);
+      }
+    }
+  }
+  const unreachable = states.filter((s) => !reachable.has(s.uuid)).map((s) => ({ id: s.uuid, name: stateLabel(s.name) }));
+  const nonExitable = states.filter((s) => (adjacency.get(s.uuid) ?? []).length === 0).map((s) => ({ id: s.uuid, name: stateLabel(s.name) }));
+  return {
+    totalStates: states.length,
+    unreachable,
+    nonExitable,
+    danglingTargets,
+    staleSources,
+    allValid: unreachable.length === 0 && nonExitable.length === 0 && danglingTargets.length === 0 && staleSources.length === 0,
+  };
+}
+
+function dhrStatuses(s: PlantOperatingState): string[] {
+  const dhr = s.decayHeatRemoval;
+  return [
+    ...Object.values(dhr.primaryCoolingSystems),
+    ...Object.values(dhr.secondaryCoolingSystems),
+    ...Object.values(dhr.passiveMechanisms),
+  ];
+}
+
+function trainsInService(s: PlantOperatingState): number {
+  return dhrStatuses(s).filter((status) => status === "YES").length;
+}
+
+function trainsAvailable(s: PlantOperatingState): number {
+  return dhrStatuses(s).filter((status) => status === "YES" || status === "STANDBY").length;
+}
+
+function barrierSummary(s: PlantOperatingState): string {
+  if (s.radionuclideTransportBarriers.length === 0) return "—";
+  const counts = new Map<string, number>();
+  for (const bar of s.radionuclideTransportBarriers) {
+    const status = (bar.status ?? "unknown").toLowerCase();
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([status, n]) => `${n} ${status}`).join(" · ");
+}
+
+interface HandoffLane {
+  code: string;
+  element: string;
+  role: string;
+  columns: string[];
+  rows: { posId: string; name: string; values: string[] }[];
+}
+
+interface HandoffBundleView {
+  retainedCount: number;
+  lanes: HandoffLane[];
+}
+
+function handoffBundleView(pos: PlantOperatingStatesAnalysis): HandoffBundleView {
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const states = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const dhByPos = new Map(pos.decayHeatCharacterizations.map((d) => [d.posId, d]));
+  const matrix = pos.validationRules.transitions.transitionMatrix;
+  const outgoing = (uuid: string): number => (matrix[uuid] ?? []).length;
+  const row = (s: PlantOperatingState, values: string[]): { posId: string; name: string; values: string[] } => ({ posId: s.uuid, name: stateLabel(s.name), values });
+  const timeFraction = (s: PlantOperatingState): string => `${((s.meanDurationHours / cycleHours(pos)) * 100).toFixed(1)} %`;
+  const lanes: HandoffLane[] = [
+    {
+      code: "IE",
+      element: "Initiating Events",
+      role: "States & frequencies",
+      columns: ["State", "Entry frequency", "Time fraction", "Initiators", "Transitions out"],
+      rows: states.map((s) => {
+        const freq = frequencyValue(s.meanEntryFrequency);
+        const freqLabel = freq === 0 && s.operatingMode === "POWER" ? "Base state" : formatFrequency(freq);
+        return row(s, [freqLabel, timeFraction(s), String(s.applicableInitiatingEvents.length), String(outgoing(s.uuid))]);
+      }),
+    },
+    {
+      code: "ES",
+      element: "Event Sequence",
+      role: "Sequences & barriers",
+      columns: ["State", "Safety functions", "Success criteria", "Barriers"],
+      rows: states.map((s) => row(s, [String(s.safetyFunctions.length), String(s.successCriteriaIds.length), barrierSummary(s)])),
+    },
+    {
+      code: "SC",
+      element: "Success Criteria",
+      role: "Decay heat & conditions",
+      columns: ["State", "Success criteria", "Decay heat", "Coolant temp", "Pressure"],
+      rows: states.map((s) => {
+        const dh = dhByPos.get(s.uuid);
+        return row(s, [
+          String(s.successCriteriaIds.length),
+          dh !== undefined ? formatRange(dh.decayHeatLevel) : "—",
+          formatRange(s.rcsParameters.reactorCoolantTemperature),
+          formatRange(s.rcsParameters.coolantPressure),
+        ]);
+      }),
+    },
+    {
+      code: "SY",
+      element: "Systems Analysis",
+      role: "Alignments & SSCs",
+      columns: ["State", "Trains in service", "Trains available", "SSCs characterised"],
+      rows: states.map((s) => row(s, [String(trainsInService(s)), String(trainsAvailable(s)), String(s.sscOperationalCharacteristics.length)])),
+    },
+    {
+      code: "HR",
+      element: "Human Reliability",
+      role: "Timing & cues",
+      columns: ["State", "Time after shutdown", "Decay heat", "Instruments"],
+      rows: states.map((s) => {
+        const dh = dhByPos.get(s.uuid);
+        const time = dh !== undefined ? `${dh.timeAfterShutdownHours} h` : s.operatingMode === "POWER" ? "At power" : "—";
+        return row(s, [time, dh !== undefined ? formatRange(dh.decayHeatLevel) : "—", String(s.availableInstrumentation.length)]);
+      }),
+    },
+    {
+      code: "DA",
+      element: "Data Analysis",
+      role: "Durations & timelines",
+      columns: ["State", "Duration", "Time fraction"],
+      rows: states.map((s) => row(s, [formatDuration(s.meanDurationHours), timeFraction(s)])),
+    },
+  ];
+  return { retainedCount: states.length, lanes };
 }
 
 function frequencyValue(freq: Frequency | FrequencyWithDistribution): number {
@@ -596,7 +965,7 @@ interface CycleReconciliationView {
 
 function cycleReconciliation(pos: PlantOperatingStatesAnalysis): CycleReconciliationView {
   const summedHours = pos.plantOperatingStates.reduce((acc, s) => acc + s.meanDurationHours, 0);
-  const totalCycleHours = HOURS_PER_YEAR;
+  const totalCycleHours = cycleHours(pos);
   const deltaHours = summedHours - totalCycleHours;
   const withinTolerance = Math.abs(deltaHours) <= 1;
   return { summedHours, totalCycleHours, deltaHours, withinTolerance };
@@ -617,6 +986,7 @@ interface QuantStateView {
 
 function quantStatesView(pos: PlantOperatingStatesAnalysis): QuantStateView[] {
   const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const cycle = cycleHours(pos);
   return pos.plantOperatingStates.map((s) => ({
     uuid: s.uuid,
     name: s.name,
@@ -625,7 +995,7 @@ function quantStatesView(pos: PlantOperatingStatesAnalysis): QuantStateView[] {
     durationHours: s.meanDurationHours,
     frequencyPerYear: frequencyValue(s.meanEntryFrequency),
     basis: s.durationAndCycleTimingBasis ?? "",
-    durationFraction: s.meanDurationHours / HOURS_PER_YEAR,
+    durationFraction: s.meanDurationHours / cycle,
     retained: !screenedOut.has(s.uuid),
     hasPreopAssumption: (s.preOperationalAssumptions ?? []).length > 0,
   }));
@@ -651,7 +1021,7 @@ function groupRollupView(pos: PlantOperatingStatesAnalysis): GroupRollupView[] {
     const storedDurationHours = g.summedDurationHours;
     return {
       id: g.uuid,
-      name: g.name,
+      name: groupLabel(g.name),
       memberCount: members.length,
       storedDurationHours,
       memberDurationHours,
@@ -689,7 +1059,14 @@ export {
   type CycleReconciliationView,
   type QuantStateView,
   type GroupRollupView,
+  type MutualExclusivityView,
+  type TransitionValidationView,
+  type HandoffBundleView,
   coverageView,
+  mutualExclusivityView,
+  transitionValidationView,
+  DELINEATION_PARAMETER_OPTIONS,
+  handoffBundleView,
   cycleReconciliation,
   quantStatesView,
   groupRollupView,
@@ -712,11 +1089,14 @@ export {
   screeningEditorView,
   stepIndexById,
   filterConformance,
+  deriveConformance,
   groupBySection,
   ccScore,
   isBarrierBroken,
   stateLabel,
   evolutionLabel,
+  groupLabel,
+  methodLabel,
   formatNumber,
   formatRange,
   formatDuration,

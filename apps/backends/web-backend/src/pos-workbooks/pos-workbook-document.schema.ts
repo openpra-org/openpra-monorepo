@@ -25,6 +25,9 @@ export class PosWorkbookFile {
 
   @Prop({ type: String, required: true })
   uploadedBy!: string;
+
+  @Prop({ type: String, default: "" })
+  notes!: string;
 }
 
 export const PosWorkbookFileSchema = SchemaFactory.createForClass(PosWorkbookFile);

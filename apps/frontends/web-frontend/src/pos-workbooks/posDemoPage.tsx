@@ -37,6 +37,7 @@ import {
   DraftScreen,
   blankPlantEvolution,
   blankPlantOperatingState,
+  blankPlantOperatingStateGroup,
   type DrawerContext,
 } from "./posScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
@@ -385,6 +386,7 @@ interface PosWorkbenchDocuments {
   onUpload: (file: File) => Promise<void>;
   onDelete: (documentId: string) => Promise<void>;
   onDownload: (documentId: string) => Promise<void>;
+  onUpdate: (documentId: string, fields: { name?: string; notes?: string }) => Promise<void>;
 }
 
 function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced, renderApprovalTable, renderSignCard, renderRoster }: {
@@ -565,7 +567,14 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       .then(() => setDrawer({ kind: "state", id: st.uuid }))
       .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not add state"));
   }
-  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit, onAddEvolution: canEdit && mefPatch !== undefined ? addEvolution : undefined, onAddState: canEdit && mefPatch !== undefined ? addState : undefined };
+  function addGroup(): void {
+    if (mefPatch === undefined) return;
+    const grp = blankPlantOperatingStateGroup();
+    mefPatch((draft) => ({ ...draft, plantOperatingStateGroups: [...(draft.plantOperatingStateGroups ?? []), grp] }))
+      .then(() => setDrawer({ kind: "group", id: grp.uuid }))
+      .catch((err: unknown) => flash((err as { message?: string }).message ?? "Could not add group"));
+  }
+  const screenProps = { ccId, setCcId, stage, setStage, openDrawer: setDrawer, onAction: flash, mefPatch, mefPatchDebounced, canEdit, onAddEvolution: canEdit && mefPatch !== undefined ? addEvolution : undefined, onAddState: canEdit && mefPatch !== undefined ? addState : undefined, onAddGroup: canEdit && mefPatch !== undefined ? addGroup : undefined };
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
@@ -578,6 +587,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           onUploadFile={documents?.onUpload}
           onDeleteDocument={documents?.onDelete}
           onDownloadDocument={documents?.onDownload}
+          onUpdateDocument={documents?.onUpdate}
         />
       );
       case "evolutions": return <EvolutionsScreen {...screenProps} />;

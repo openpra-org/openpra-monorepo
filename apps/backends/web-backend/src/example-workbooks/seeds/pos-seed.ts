@@ -5,6 +5,7 @@ import {
   type PlantOperatingStateGroup,
   type PosScreeningRecord,
   type PosSeparationRecord,
+  type DemandTimeBasedRecord,
   type SubsumedPosRecord,
   type DecayHeatCharacterization,
   type TransitionEvent,
@@ -72,9 +73,34 @@ function fillerSscs(posId: string, count: number): SscOperationalCharacteristic[
   return out;
 }
 
-const FILLER_DHR: DecayHeatRemovalConfiguration = {
+// Per-state decay-heat-removal line-ups. System status reflects each state's
+// described cooling configuration: the forced main loop at power and hot standby,
+// the Shutdown Cooling System during cooldown and refuelling, passive cavity
+// cooling only when forced circulation is lost, and the Shutdown Cooling System
+// out of service during its maintenance outage.
+const DHR_POWER: DecayHeatRemovalConfiguration = {
   primaryCoolingSystems: { "Main helium circulator and steam generator": "YES" },
   secondaryCoolingSystems: { "Shutdown Cooling System": "STANDBY" },
+  passiveMechanisms: { "Reactor Cavity Cooling System": "YES" },
+};
+const DHR_SCS_COOLDOWN: DecayHeatRemovalConfiguration = {
+  primaryCoolingSystems: { "Main helium circulator and steam generator": "STANDBY" },
+  secondaryCoolingSystems: { "Shutdown Cooling System": "YES" },
+  passiveMechanisms: { "Reactor Cavity Cooling System": "YES" },
+};
+const DHR_SCS_INSERVICE: DecayHeatRemovalConfiguration = {
+  primaryCoolingSystems: { "Main helium circulator and steam generator": "NO" },
+  secondaryCoolingSystems: { "Shutdown Cooling System": "YES" },
+  passiveMechanisms: { "Reactor Cavity Cooling System": "YES" },
+};
+const DHR_PASSIVE_ONLY: DecayHeatRemovalConfiguration = {
+  primaryCoolingSystems: { "Main helium circulator and steam generator": "NO" },
+  secondaryCoolingSystems: { "Shutdown Cooling System": "NO" },
+  passiveMechanisms: { "Reactor Cavity Cooling System": "YES" },
+};
+const DHR_SCS_OOS: DecayHeatRemovalConfiguration = {
+  primaryCoolingSystems: { "Main helium circulator and steam generator": "NO" },
+  secondaryCoolingSystems: { "Shutdown Cooling System": "OOS" },
   passiveMechanisms: { "Reactor Cavity Cooling System": "YES" },
 };
 
@@ -172,6 +198,7 @@ interface StateSpec {
   decayHeat: ParameterRange;
   rcsConfigurationDescription: string;
   rcbConfiguration: string;
+  decayHeatRemoval?: DecayHeatRemovalConfiguration;
   sources: { name: string; location: SourceLocation; description: string; status: string }[];
   barriers: { name: string; status?: BarrierStatus }[];
   instrumentationCount: number;
@@ -209,7 +236,7 @@ function makeState(spec: StateSpec): PlantOperatingState {
     activitiesLeadingToParameterChanges: ["Reactor power manoeuvring", "Coolant temperature change"],
     radionuclideTransportBarriers: fillerBarriers(spec.barriers),
     timeBoundary: timeBoundary(`Entry to ${spec.name}`, `Exit from ${spec.name}`),
-    decayHeatRemoval: FILLER_DHR,
+    decayHeatRemoval: spec.decayHeatRemoval ?? DHR_POWER,
     sscOperationalCharacteristics: fillerSscs(spec.uuid, spec.sscCount),
     safetyFunctions: fillerSafetyFunctions(spec.uuid),
     applicableInitiatingEvents: fillerInitiators(spec.uuid),
@@ -362,6 +389,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(1.4, 2.0, "MW", 1.6),
     rcsConfigurationDescription: "Shutdown Cooling System in forced circulation. Primary depressurising.",
+    decayHeatRemoval: DHR_SCS_COOLDOWN,
     rcbConfiguration: "Reactor vessel closed. Containment intact.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -390,6 +418,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(0.7, 1.1, "MW", 0.9),
     rcsConfigurationDescription: "Primary boundary closed and near atmospheric. Shutdown Cooling System in service.",
+    decayHeatRemoval: DHR_SCS_INSERVICE,
     rcbConfiguration: "Reactor vessel closed. Containment intact.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -430,6 +459,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(0.5, 0.8, "MW", 0.65),
     rcsConfigurationDescription: "Primary boundary open for fuel handling. Cooling by the Shutdown Cooling System.",
+    decayHeatRemoval: DHR_SCS_INSERVICE,
     rcbConfiguration: "Reactor vessel open. Containment intact.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -471,6 +501,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(3.0, 7.0, "MW", 3.5),
     rcsConfigurationDescription: "Primary pressurised and intact. No forced circulation. Reactor Cavity Cooling System removing heat from the vessel.",
+    decayHeatRemoval: DHR_PASSIVE_ONLY,
     rcbConfiguration: "Reactor vessel closed. Containment intact.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -511,6 +542,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(0.4, 0.7, "MW", 0.55),
     rcsConfigurationDescription: "Shutdown Cooling System out of service. Reactor Cavity Cooling System available as the passive path.",
+    decayHeatRemoval: DHR_SCS_OOS,
     rcbConfiguration: "Reactor vessel closed. Shutdown Cooling System isolated.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -551,6 +583,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     power: range(0, 0, "%"),
     decayHeat: range(0.4, 0.7, "MW", 0.55),
     rcsConfigurationDescription: "Primary depressurised with a maintenance opening. Cooling by the Shutdown Cooling System.",
+    decayHeatRemoval: DHR_SCS_INSERVICE,
     rcbConfiguration: "Reactor vessel closed. Primary depressurised and vented for maintenance.",
     sources: [
       { name: "In-core TRISO fuel (decay)", location: SourceLocation.IN_CORE, description: "Decaying in-core fuel inventory.", status: "Decay" },
@@ -603,11 +636,10 @@ const plantEvolutions: PlantEvolution[] = [
     type: EvolutionType.AT_POWER,
     description: "Full power and load follow. Helium primary coolant runs at about 6.4 MPa with a core outlet near 687°C. The main helium circulator drives forced flow through the steam generator for power production.",
     operatingModes: ["POWER"],
-    reviewedDocumentation: evolutionDocs(["DBD §3.2"]),
+    reviewedDocumentation: evolutionDocs(["MHTGR-350 Core Design Benchmark"]),
     plantOperatingStateIds: ["POS-01", "POS-02"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
-    sourceDocumentRef: "DBD §3.2",
-    durationFractionHint: 0.84,
+    sourceDocumentRef: "MHTGR-350 Core Design Benchmark",
   },
   {
     uuid: "EV-02",
@@ -615,11 +647,10 @@ const plantEvolutions: PlantEvolution[] = [
     type: EvolutionType.CONTROLLED_SHUTDOWN,
     description: "Controlled power reduction to hot standby. The Shutdown Cooling System removes decay heat by forced helium circulation. The primary is cooled and depressurised so the vessel can be opened.",
     operatingModes: ["SHUTDOWN"],
-    reviewedDocumentation: evolutionDocs(["DBD §3.3", "OP-002"]),
+    reviewedDocumentation: evolutionDocs(["NGNP PRA White Paper"]),
     plantOperatingStateIds: ["POS-03", "POS-04"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
-    sourceDocumentRef: "DBD §3.3 / OP-002",
-    durationFractionHint: 0.05,
+    sourceDocumentRef: "NGNP PRA White Paper",
   },
   {
     uuid: "EV-03",
@@ -627,11 +658,10 @@ const plantEvolutions: PlantEvolution[] = [
     type: EvolutionType.REFUELING_OUTAGE,
     description: "Offline refuelling of the prismatic core. The reactor is shut down and depressurised and the vessel closure is opened. Fuel handling equipment swaps hexagonal graphite fuel blocks. Spent blocks move to storage.",
     operatingModes: ["REFUELING"],
-    reviewedDocumentation: evolutionDocs(["DBD §3.4", "OP-014"]),
+    reviewedDocumentation: evolutionDocs(["NGNP PRA White Paper"]),
     plantOperatingStateIds: ["POS-05", "POS-06"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }, { sr: "POS-A2", hlr: "A" }],
-    sourceDocumentRef: "DBD §3.4 / OP-014",
-    durationFractionHint: 0.06,
+    sourceDocumentRef: "NGNP PRA White Paper",
   },
   {
     uuid: "EV-04",
@@ -639,11 +669,10 @@ const plantEvolutions: PlantEvolution[] = [
     type: EvolutionType.FORCED_OUTAGE,
     description: "Post trip cooldown after an unplanned reactor trip. The Shutdown Cooling System carries decay heat when it is available. If forced cooling is lost the passive Reactor Cavity Cooling System removes heat from the reactor cavity.",
     operatingModes: ["SHUTDOWN"],
-    reviewedDocumentation: evolutionDocs(["EOP-100"]),
+    reviewedDocumentation: evolutionDocs(["Modular HTGR Safety Characterization"]),
     plantOperatingStateIds: ["POS-07"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }],
-    sourceDocumentRef: "EOP-100",
-    durationFractionHint: 0.03,
+    sourceDocumentRef: "Modular HTGR Safety Characterization",
   },
   {
     uuid: "EV-05",
@@ -651,11 +680,10 @@ const plantEvolutions: PlantEvolution[] = [
     type: EvolutionType.MAINTENANCE_CONFIG,
     description: "Reactor shut down for component maintenance. A decay heat removal train such as the Shutdown Cooling System may be out of service for the work. The core is held subcritical.",
     operatingModes: ["MAINTENANCE"],
-    reviewedDocumentation: evolutionDocs(["OP-211"]),
+    reviewedDocumentation: evolutionDocs(["NGNP PRA White Paper"]),
     plantOperatingStateIds: ["POS-08", "POS-09"],
     implementsSrs: [{ sr: "POS-A1", hlr: "A" }],
-    sourceDocumentRef: "OP-211",
-    durationFractionHint: 0.02,
+    sourceDocumentRef: "NGNP PRA White Paper",
   },
 ];
 
@@ -691,7 +719,7 @@ const plantOperatingStateGroups: PlantOperatingStateGroup[] = [
     evolutionType: EvolutionType.REFUELING_OUTAGE,
     memberPosIds: ["POS-05", "POS-06"],
     similarityBasis: "POS-05 (cold shutdown) and POS-06 (vessel open) are the refuelling-evolution states. POS-06, with the primary boundary open during fuel handling, bounds POS-05 for barrier status.",
-    boundingCharacteristics: ["Pending: fuel-handling phase"],
+    boundingCharacteristics: ["Open primary boundary during fuel handling, POS-06"],
     doesNotMaskRiskSignificantContributors: false,
     summedDurationHours: 180,
     entryFrequency: 1,
@@ -707,6 +735,18 @@ const plantOperatingStateGroups: PlantOperatingStateGroup[] = [
         "N. Hartwell",
       ),
     ],
+    implementsSrs: [{ sr: "POS-B6", hlr: "B" }],
+  },
+  {
+    uuid: "GRP-MNT",
+    name: "Maintenance cooling group",
+    evolutionType: EvolutionType.MAINTENANCE_CONFIG,
+    memberPosIds: ["POS-08"],
+    similarityBasis: "The Shutdown Cooling System out-of-service configuration is a unique loss of the active cooling path. No other retained state bounds it, so it is carried as its own group and represents itself.",
+    boundingCharacteristics: ["Loss of the active shutdown-cooling path, POS-08"],
+    doesNotMaskRiskSignificantContributors: true,
+    summedDurationHours: 176,
+    entryFrequency: 0.5,
     implementsSrs: [{ sr: "POS-B6", hlr: "B" }],
   },
 ];
@@ -760,11 +800,17 @@ const subsumedPosRecords: SubsumedPosRecord[] = [
   },
 ];
 
+// ─── Demand-based vs time-based separation ───────────────────────────────
+const demandTimeBasedRecords: DemandTimeBasedRecord[] = [
+  { posId: "POS-07", initiatorBasis: "DEMAND_BASED", delineatedToAvoidAveraging: true, justification: "The post-trip loss-of-forced-cooling state is entered on a reactor-trip demand. It is held separate from the time-based shutdown states so its short event-driven exposure is not averaged into the cycle-based durations.", implementsSrs: [{ sr: "POS-B5", hlr: "B" }] },
+  { posId: "POS-08", initiatorBasis: "DEMAND_BASED", delineatedToAvoidAveraging: true, justification: "The Shutdown Cooling System maintenance state is entered on a maintenance demand. It is kept separate from the time-based refuelling states to avoid averaging its demand-based frequency with cycle-based durations.", implementsSrs: [{ sr: "POS-B5", hlr: "B" }] },
+];
+
 // ─── Decay heat characterizations ────────────────────────────────────────
 const decayHeatCharacterizations: DecayHeatCharacterization[] = [
   {
     posId: "POS-03",
-    decayHeatLevel: range(2.8, 3.5, "MW", 3.2),
+    decayHeatLevel: range(2.8, 3.5, "MWth", 3.2),
     timeAfterShutdownHours: 2,
     basis: "Design decay-heat curve at 2 h after shutdown.",
     isLpsd: true,
@@ -772,7 +818,7 @@ const decayHeatCharacterizations: DecayHeatCharacterization[] = [
   },
   {
     posId: "POS-04",
-    decayHeatLevel: range(1.4, 2.0, "MW", 1.6),
+    decayHeatLevel: range(1.4, 2.0, "MWth", 1.6),
     timeAfterShutdownHours: 18,
     basis: "Design decay-heat curve at 18 h after shutdown.",
     isLpsd: true,
@@ -780,7 +826,7 @@ const decayHeatCharacterizations: DecayHeatCharacterization[] = [
   },
   {
     posId: "POS-05",
-    decayHeatLevel: range(0.7, 1.1, "MW", 0.9),
+    decayHeatLevel: range(0.7, 1.1, "MWth", 0.9),
     timeAfterShutdownHours: 96,
     basis: "Design decay-heat curve at 96 h after shutdown.",
     isLpsd: true,
@@ -791,7 +837,7 @@ const decayHeatCharacterizations: DecayHeatCharacterization[] = [
 // ─── Validation rules ────────────────────────────────────────────────────
 const validationRules: PosValidationRules = {
   mutualExclusivity: {
-    delineationParameters: ["Operating mode", "Barrier status", "Reactor coolant temperature"],
+    delineationParameters: ["Operating mode", "Power level", "Reactor coolant temperature", "Barrier status"],
     verificationMethod: "Pairwise comparison of delineation parameters across all states.",
     allConditionsBelongToExactlyOnePos: true,
   },
@@ -805,9 +851,13 @@ const validationRules: PosValidationRules = {
   transitions: {
     transitionMatrix: {
       "POS-01": ["POS-02", "POS-03", "POS-07"],
-      "POS-03": ["POS-04"],
-      "POS-04": ["POS-05"],
-      "POS-05": ["POS-06"],
+      "POS-02": ["POS-01"],
+      "POS-03": ["POS-04", "POS-01"],
+      "POS-04": ["POS-05", "POS-03", "POS-08"],
+      "POS-05": ["POS-06", "POS-04"],
+      "POS-06": ["POS-05"],
+      "POS-07": ["POS-03"],
+      "POS-08": ["POS-04"],
     },
     transitionTriggers: {
       "POS-01->POS-03": "Controlled power reduction",
@@ -839,13 +889,13 @@ const transitionEvents: TransitionEvent[] = [
 
 // ─── Interviews ──────────────────────────────────────────────────────────
 const interviewRecords: PlantOperatingStatesAnalysis["interviewRecords"] = [
-  { evolutionId: "EV-01", date: "Mar 12, 2026", personnelRoles: ["Lead Reactor Engineer", "Senior I&C Designer"], method: "TABLETOP", findings: "Confirmed steady-state envelope; flagged narrow-range thermal stratification during load-follow.", overlookedEvolutionsIdentified: [] },
-  { evolutionId: "EV-02", date: "Mar 14, 2026", personnelRoles: ["Operations Lead", "Refuelling Engineer"], method: "TABLETOP", findings: "Confirmed the cooldown sequence. Identified the need to split hot standby and forced cooldown.", overlookedEvolutionsIdentified: ["Forced-cooldown split"] },
-  { evolutionId: "EV-03", date: "Mar 21, 2026", personnelRoles: ["Refuelling Lead", "Containment Engineer", "Safety Analyst"], method: "WALKDOWN", findings: "Walkdown of the fuel-handling path. Flagged the vessel-opening timing for a separate POS.", overlookedEvolutionsIdentified: ["Vessel-opening sequence", "Fuel-transfer staging"] },
-  { evolutionId: "EV-04", date: "Mar 28, 2026", personnelRoles: ["Lead Safety Analyst"], method: "INTERVIEW", findings: "Decay-heat profile reviewed. Passive Reactor Cavity Cooling System heat removal confirmed as design intent.", overlookedEvolutionsIdentified: [] },
-  { evolutionId: "EV-05", date: "Apr 02, 2026", personnelRoles: ["Maintenance Engineer", "I&C Engineer"], method: "TABLETOP", findings: "Maintenance configurations reviewed against Shutdown Cooling System outage procedures.", overlookedEvolutionsIdentified: [] },
-  { date: "Apr 08, 2026", personnelRoles: ["Reactor Designer (Generic Nuclear LLC)"], method: "INTERVIEW", findings: "Reviewed helium coolant chemistry implications across all states.", overlookedEvolutionsIdentified: [] },
-  { date: "Apr 14, 2026", personnelRoles: ["Configuration Mgmt Lead"], method: "COMPUTERIZED_WALKDOWN", findings: "Walkdown of CAD model — instrumentation locations verified for POS-05/06.", overlookedEvolutionsIdentified: [] },
+  { uuid: "iv-01", evolutionId: "EV-01", date: "Mar 12, 2026", personnelRoles: ["Lead Reactor Engineer", "Senior I&C Designer"], method: "TABLETOP", findings: "Confirmed steady-state envelope; flagged narrow-range thermal stratification during load-follow.", overlookedEvolutionsIdentified: [] },
+  { uuid: "iv-02", evolutionId: "EV-02", date: "Mar 14, 2026", personnelRoles: ["Operations Lead", "Refuelling Engineer"], method: "TABLETOP", findings: "Confirmed the cooldown sequence. Identified the need to split hot standby and forced cooldown.", overlookedEvolutionsIdentified: ["Forced-cooldown split"] },
+  { uuid: "iv-03", evolutionId: "EV-03", date: "Mar 21, 2026", personnelRoles: ["Refuelling Lead", "Containment Engineer", "Safety Analyst"], method: "WALKDOWN", findings: "Walkdown of the fuel-handling path. Flagged the vessel-opening timing for a separate POS.", overlookedEvolutionsIdentified: ["Vessel-opening sequence", "Fuel-transfer staging"] },
+  { uuid: "iv-04", evolutionId: "EV-04", date: "Mar 28, 2026", personnelRoles: ["Lead Safety Analyst"], method: "INTERVIEW", findings: "Decay-heat profile reviewed. Passive Reactor Cavity Cooling System heat removal confirmed as design intent.", overlookedEvolutionsIdentified: [] },
+  { uuid: "iv-05", evolutionId: "EV-05", date: "Apr 02, 2026", personnelRoles: ["Maintenance Engineer", "I&C Engineer"], method: "TABLETOP", findings: "Maintenance configurations reviewed against Shutdown Cooling System outage procedures.", overlookedEvolutionsIdentified: [] },
+  { uuid: "iv-06", date: "Apr 08, 2026", personnelRoles: ["Reactor Designer (Generic Nuclear LLC)"], method: "INTERVIEW", findings: "Reviewed helium coolant chemistry implications across all states.", overlookedEvolutionsIdentified: [] },
+  { uuid: "iv-07", date: "Apr 14, 2026", personnelRoles: ["Configuration Mgmt Lead"], method: "COMPUTERIZED_WALKDOWN", findings: "Walkdown of CAD model — instrumentation locations verified for POS-05/06.", overlookedEvolutionsIdentified: [] },
 ];
 
 // ─── Plant representation accuracy ───────────────────────────────────────
@@ -904,25 +954,11 @@ const documentation: PosDocumentation = {
   implementsSrs: [{ sr: "POS-D1", hlr: "D" }, { sr: "POS-D2", hlr: "D" }, { sr: "POS-D3", hlr: "D" }],
 };
 
-// ─── Conformance matrix (SR-level; internal — surfaced only in the report) ──
-const conformanceMatrix: SRConformance[] = [
-  { sr: "POS-A1", hlr: "A", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantEvolutions"], evidence: "Five plant evolutions identified and documented." },
-  { sr: "POS-A2", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantEvolutions[].reviewedDocumentation"], evidence: "Each evolution traced to design-basis documents." },
-  { sr: "POS-A3", hlr: "A", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStates"], evidence: "All states characterised; POS-04 upper-containment barrier entry pending.", reviewNotes: "POS-04 missing barrier-status entry." },
-  { sr: "POS-A8", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["interviewRecords"], evidence: "Seven design-engineering interview sessions logged." },
-  { sr: "POS-A9", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantEvolutions[].futureEvolutionReview"], evidence: "Future-evolution review pending for one evolution." },
-  { sr: "POS-A11", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantOperatingStates[].sscOperationalCharacteristics"], evidence: "Required SSC configurations recorded per state." },
-  { sr: "POS-A12", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainty"], evidence: "Four model-uncertainty sources logged." },
-  { sr: "POS-A13", hlr: "A", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["preOperationalAssumptions"], evidence: "Six pre-operational assumptions logged with closure plans." },
-  { sr: "POS-B2", hlr: "B", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["screeningRecords"], evidence: "Each screened-out state has a documented justification." },
-  { sr: "POS-B3", hlr: "B", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["plantOperatingStateGroups[].doesNotMaskRiskSignificantContributors"], evidence: "Grouping does not mask risk-significant contributors." },
-  { sr: "POS-B6", hlr: "B", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStateGroups[].boundingCharacteristics"], evidence: "Bounding rationale pending for the refuelling group.", reviewNotes: "Group RFG bounding rationale not yet written." },
-  { sr: "POS-C1", hlr: "C", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "PARTIAL", satisfiedByElementPaths: ["plantOperatingStates[].meanDurationHours"], evidence: "Durations and frequencies captured; one state missing duration basis." },
-  { sr: "POS-C4", hlr: "C", capabilityCategory: "CC-I", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "NOT_MET", satisfiedByElementPaths: ["decayHeatCharacterizations"], evidence: "Decay-heat characterisation incomplete for LPSD maintenance states.", reviewNotes: "0 of 6 LPSD states characterised." },
-  { sr: "POS-D1", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["documentation"], evidence: "Inputs traceable to source documents for every claim." },
-  { sr: "POS-D2", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["OPERATIONAL", "PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["modelUncertainty"], evidence: "Sources of model uncertainty captured." },
-  { sr: "POS-D3", hlr: "D", capabilityCategory: "CC-II", applicableToStage: ["PRE_OPERATIONAL"], status: "MET", satisfiedByElementPaths: ["preOperationalAssumptions"], evidence: "Pre-operational assumptions logged with closure plans." },
-];
+// ─── Conformance matrix ──────────────────────────────────────────────────
+// Conformance is derived live from the analysis data (deriveConformance in
+// posSelectors), so completing a step turns its requirements green. The stored
+// matrix is left empty so the derivation is the single source of truth.
+const conformanceMatrix: SRConformance[] = [];
 
 const REVIEWERS = [
   { id: "rev-1", name: "Dr. Nadia Hartwell", role: "INTERNAL_REVIEWER" as const, organization: "Generic Nuclear LLC", title: "Lead Technical Reviewer" },
@@ -939,7 +975,10 @@ const REVIEW_COMMENTS = [
     createdAt: "2026-05-26T10:00:00Z",
     associatedSr: "POS-A3",
     text: "POS-04 still missing the upper-containment barrier-status entry. The conformance check correctly flags it; please close before this can advance to approval.",
-    resolved: false,
+    resolved: true,
+    resolution: "Upper-containment barrier status entered for POS-04 (Containment, intact). The conformance check now clears POS-A3.",
+    resolvedAt: "2026-05-28T08:00:00Z",
+    resolvedBy: "rev-1",
     severity: "MAJOR" as const,
   },
   {
@@ -980,8 +1019,8 @@ const REVIEW_COMMENTS = [
     authorRole: "INTERNAL_REVIEWER" as const,
     authorId: "rev-2",
     createdAt: "2026-05-27T15:00:00Z",
-    associatedSr: "POS-C1",
-    text: "POS-09 (maintenance, primary depressurised) has no duration basis yet. Please add one when you set the duration in Step 08.",
+    associatedSr: "POS-C2",
+    text: "Several retained states still lack a documented duration basis. Please add the basis for each when you set durations in Step 08.",
     resolved: false,
     severity: "MINOR" as const,
   },
@@ -1070,12 +1109,14 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   praScope: "Internal events, all plant operating states, full operating cycle.",
   includesNonInternalHazardGroups: false,
   includesAtPowerOperations: true,
+  includesLPSDOperations: true,
   plantEvolutions,
   plantOperatingStates,
   plantOperatingStateGroups,
   screeningRecords,
   separationRecords,
   subsumedPosRecords,
+  demandTimeBasedRecords,
   decayHeatCharacterizations,
   interviewRecords,
   plantRepresentationAccuracy,
@@ -1087,10 +1128,10 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   decayHeatOperatingDays: 540,
   newlyDevelopedMethodIds: [],
   exampleDocuments: [
-    { id: "DOC-01", name: "OECD/NEA MHTGR-350 MW Core Design Benchmark", kind: "doc", sizeLabel: "OECD/NEA", uploadedLabel: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark" },
+    { id: "DOC-01", name: "MHTGR-350 Core Design Benchmark", kind: "doc", sizeLabel: "OECD/NEA", uploadedLabel: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark" },
     { id: "DOC-02", name: "Multi-physics steady-state analysis of the MHTGR-350", kind: "doc", sizeLabel: "J. Nucl. Sci. Technol.", uploadedLabel: "2017", extracted: "Confirms 350 MWt, 6.4 MPa, 259 and 687 °C, 157.1 kg/s helium flow", linked: 4, url: "/api/example-documents/pos/mhtgr-analysis" },
-    { id: "DOC-03", name: "Overview of Modular HTGR Safety Characterization", kind: "doc", sizeLabel: "ORNL", uploadedLabel: "Pub49707", extracted: "Passive decay heat removal, the RCCS and SCS, loss of forced cooling", linked: 4, url: "/api/example-documents/pos/htgr-safety" },
-    { id: "DOC-04", name: "NGNP Probabilistic Risk Assessment White Paper (INL/EXT-11-21270)", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL/EXT-11-21270", extracted: "HTGR PRA approach, plant operating states, licensing basis events", linked: 5, url: "/api/example-documents/pos/ngnp-pra" },
+    { id: "DOC-03", name: "Modular HTGR Safety Characterization", kind: "doc", sizeLabel: "ORNL", uploadedLabel: "Pub49707", extracted: "Passive decay heat removal, the RCCS and SCS, loss of forced cooling", linked: 4, url: "/api/example-documents/pos/htgr-safety" },
+    { id: "DOC-04", name: "NGNP PRA White Paper", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL/EXT-11-21270", extracted: "HTGR PRA approach, plant operating states, licensing basis events", linked: 5, url: "/api/example-documents/pos/ngnp-pra" },
   ],
 };
 

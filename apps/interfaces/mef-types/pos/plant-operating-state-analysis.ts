@@ -59,6 +59,8 @@ export interface ParameterRange {
 }
 
 export interface InterviewRecord {
+  // additional-to-example
+  uuid?: string;
   evolutionId?: string;
   posId?: string;
   date: string;
@@ -258,8 +260,6 @@ export interface PlantEvolution extends Unique, Named {
 
   // additional-to-example
   sourceDocumentRef?: string;
-  // additional-to-example
-  durationFractionHint?: number;
 }
 
 export interface EvolutionGroup extends Unique, Named {

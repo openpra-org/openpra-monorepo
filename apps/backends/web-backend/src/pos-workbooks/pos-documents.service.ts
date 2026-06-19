@@ -29,6 +29,7 @@ export interface PosDocumentEntry {
   size: number;
   uploadedBy: string;
   uploadedAt: string;
+  notes: string;
 }
 
 interface UploadInput {
@@ -106,6 +107,7 @@ export class PosDocumentsService implements OnModuleInit {
       size: d.size,
       uploadedBy: d.uploadedBy,
       uploadedAt: d.createdAt.toISOString(),
+      notes: d.notes ?? "",
     }));
   }
 
@@ -135,6 +137,30 @@ export class PosDocumentsService implements OnModuleInit {
       size: input.size,
       uploadedBy: acting.username,
       uploadedAt: created.createdAt.toISOString(),
+      notes: "",
+    };
+  }
+
+  async update(workbookId: string, documentId: string, fields: { name?: string; notes?: string }, acting: ActingUser): Promise<PosDocumentEntry> {
+    const { myRoles } = await this.loadAuthorize(workbookId, acting, true);
+    if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can edit documents");
+    const doc = await this.posDocModel.findOne({ workbookId, documentId }).exec();
+    if (!doc) throw new NotFoundException("Document not found");
+    if (fields.name !== undefined) {
+      const name = fields.name.trim();
+      if (name.length === 0) throw new BadRequestException("Document name cannot be empty");
+      doc.filename = name;
+    }
+    if (fields.notes !== undefined) doc.notes = fields.notes;
+    await doc.save();
+    return {
+      documentId: doc.documentId,
+      filename: doc.filename,
+      mimeType: doc.mimeType,
+      size: doc.size,
+      uploadedBy: doc.uploadedBy,
+      uploadedAt: doc.createdAt.toISOString(),
+      notes: doc.notes ?? "",
     };
   }
 

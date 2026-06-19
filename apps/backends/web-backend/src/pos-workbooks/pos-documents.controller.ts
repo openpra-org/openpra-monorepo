@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards, UseInterceptors, UploadedFile } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
@@ -9,6 +9,11 @@ interface UploadedFilePayload {
   mimetype: string;
   size: number;
   originalname: string;
+}
+
+interface UpdateDocumentBody {
+  name?: string;
+  notes?: string;
 }
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -38,6 +43,12 @@ export class PosDocumentsController {
       { buffer: file.buffer, mimeType: file.mimetype, size: file.size, originalName: file.originalname },
       { username: req.user!.username },
     );
+  }
+
+  @Patch(":documentId")
+  @HttpCode(HttpStatus.OK)
+  update(@Param("id") id: string, @Param("documentId") documentId: string, @Body() body: UpdateDocumentBody, @Req() req: AuthenticatedRequest): Promise<PosDocumentEntry> {
+    return this.posDocumentsService.update(id, documentId, { name: body.name, notes: body.notes }, { username: req.user!.username });
   }
 
   @Delete(":documentId")

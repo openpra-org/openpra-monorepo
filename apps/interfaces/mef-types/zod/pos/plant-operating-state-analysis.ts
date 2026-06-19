@@ -47,6 +47,8 @@ export const ParameterRangeSchema = z.object({
 });
 
 export const InterviewRecordSchema = z.object({
+  // additional-to-example
+  uuid: z.string().optional(),
   evolutionId: z.string().optional(),
   posId: z.string().optional(),
   date: z.string(),
@@ -261,8 +263,6 @@ export const PlantEvolutionSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
   // additional-to-example
   sourceDocumentRef: z.string().optional(),
-  // additional-to-example
-  durationFractionHint: z.number().optional(),
 });
 
 export const EvolutionGroupSchema = z.object({

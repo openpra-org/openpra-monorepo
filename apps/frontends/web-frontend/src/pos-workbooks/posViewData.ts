@@ -155,13 +155,6 @@ interface CcScore {
   percent: number;
 }
 
-// hardcoded — precomputed conformance score per capability category. The step-01
-// cards and the right dock both read these so the numbers always agree.
-const CC_SCORES: Record<string, CcScore> = {
-  "cc-i": { applicable: 8, met: 7, warn: 1, blocked: 0, na: 0, percent: 88 },
-  "cc-ii": { applicable: 17, met: 12, warn: 3, blocked: 1, na: 1, percent: 71 },
-};
-
 interface PosDocument {
   id: string;
   name: string;
@@ -193,7 +186,7 @@ const POS_UI_STATE: Record<string, PosUiState> = {
   "POS-01": { status: "ok", docsLinked: 4 },
   "POS-02": { status: "ok", docsLinked: 3 },
   "POS-03": { status: "ok", docsLinked: 2 },
-  "POS-04": { status: "warn", statusMessage: "Barrier-status field for upper containment not yet entered.", docsLinked: 2 },
+  "POS-04": { status: "ok", docsLinked: 2 },
   "POS-05": { status: "ok", docsLinked: 3 },
   "POS-06": { status: "ok", docsLinked: 4 },
   "POS-07": { status: "ok", docsLinked: 2 },
@@ -256,7 +249,6 @@ export {
   PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
-  CC_SCORES,
   POS_DOCUMENTS,
   POS_UI_STATE,
   EVOLUTION_UI,

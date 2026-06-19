@@ -165,6 +165,7 @@ interface PosDocumentEntry {
   size: number;
   uploadedBy: string;
   uploadedAt: string;
+  notes: string;
 }
 
 async function listPosDocuments(workbookId: string): Promise<PosDocumentEntry[]> {
@@ -179,6 +180,10 @@ async function uploadPosDocument(workbookId: string, file: File): Promise<PosDoc
 
 async function deletePosDocument(workbookId: string, documentId: string): Promise<void> {
   await deleteJson<void>(`/api/pos-workbooks/${workbookId}/documents/${documentId}`);
+}
+
+async function updatePosDocument(workbookId: string, documentId: string, fields: { name?: string; notes?: string }): Promise<PosDocumentEntry> {
+  return patchJson<PosDocumentEntry>(`/api/pos-workbooks/${workbookId}/documents/${documentId}`, fields);
 }
 
 async function getPosDocumentDownload(workbookId: string, documentId: string): Promise<{ url: string; filename: string }> {
@@ -207,6 +212,7 @@ export {
   listPosDocuments,
   uploadPosDocument,
   deletePosDocument,
+  updatePosDocument,
   getPosDocumentDownload,
   type PosDocumentEntry,
   type PosWorkbookResponse,

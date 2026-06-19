@@ -11,7 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
-import { formatRange, formatDuration, formatFrequency, stateLabel, evolutionLabel } from "./posSelectors";
+import { formatRange, formatDuration, formatFrequency, stateLabel, evolutionLabel, methodLabel, deriveConformance } from "./posSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -118,13 +118,13 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(
     dataTable(
       ["Evolution", "Type", "States"],
-      a.plantEvolutions.map((e) => [evolutionLabel(e.name), e.type.split("_").join(" ").toLowerCase(), String(e.plantOperatingStateIds.length)]),
+      a.plantEvolutions.map((e) => [evolutionLabel(e.name), e.type.split("_").join(" ").toLowerCase(), String(a.plantOperatingStates.filter((s) => s.evolutionId === e.uuid).length)]),
     ),
   );
   out.push(heading("Plant operating states", HeadingLevel.HEADING_2));
   out.push(
     dataTable(
-      ["State", "Mode", "Coolant T", "Power", "Mean duration", "Entry frequency"],
+      ["State", "Mode", "Coolant Temp", "Power", "Mean duration", "Entry frequency"],
       a.plantOperatingStates.map((s) => [
         stateLabel(s.name),
         s.operatingMode,
@@ -139,7 +139,7 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(
     dataTable(
       ["Date", "Method", "Personnel", "Findings"],
-      (a.interviewRecords ?? []).map((iv) => [iv.date, iv.method, iv.personnelRoles.join(", "), iv.findings]),
+      (a.interviewRecords ?? []).map((iv) => [iv.date, methodLabel(iv.method), iv.personnelRoles.join(", "), iv.findings]),
     ),
   );
 
@@ -184,7 +184,7 @@ function buildChildren(a: PlantOperatingStatesAnalysis, final: boolean): (Paragr
   out.push(
     dataTable(
       ["SR", "HLR", "Category", "Status", "Evidence"],
-      a.conformanceMatrix.map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
+      deriveConformance(a).filter((c) => c.applicableToStage.includes(a.plantStage)).map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
     ),
   );
 
@@ -241,7 +241,7 @@ function computePosReportToc(pos: PlantOperatingStatesAnalysis): TocEntry[] {
     { title: "Frequencies and durations analysis", indent: 1, lines: tableLines(pos.plantOperatingStates.length) },
     { title: "Decay heat levels", indent: 1, lines: tableLines(pos.decayHeatCharacterizations.length) },
 
-    { title: "Conformance summary", indent: 0, lines: tableLines(pos.conformanceMatrix.length) },
+    { title: "Conformance summary", indent: 0, lines: tableLines(deriveConformance(pos).filter((c) => c.applicableToStage.includes(pos.plantStage)).length) },
 
     { title: "References", indent: 0, lines: 5 },
   ];

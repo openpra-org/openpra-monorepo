@@ -1,6 +1,6 @@
 import { Fragment, JSX, useRef, useState } from "react";
 import { type PosDocumentEntry } from "./posWorkbookApi";
-import { type PlantOperatingStatesAnalysis, type PlantEvolution, type PlantOperatingState, type ParameterRange, type ScreeningCriterion, type PosScreeningRecord, EvolutionType, OperatingMode } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { type PlantOperatingStatesAnalysis, type PlantEvolution, type PlantOperatingState, type PlantOperatingStateGroup, type ParameterRange, type ScreeningCriterion, type PosScreeningRecord, type PosSeparationRecord, type DemandTimeBasedRecord, type SubsumedPosRecord, type InterviewRecord, EvolutionType, OperatingMode } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { type CapabilityCategory as MefCapabilityCategory, type PlantStage as MefPlantStage } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -22,12 +22,17 @@ import {
   type ScreeningEditorView,
   groupsView,
   coverageView,
+  mutualExclusivityView,
+  transitionValidationView,
+  DELINEATION_PARAMETER_OPTIONS,
+  handoffBundleView,
   cycleReconciliation,
   quantStatesView,
   groupRollupView,
   type QuantStateView,
   stateLabel,
   evolutionLabel,
+  methodLabel,
   formatNumber,
   formatDuration,
   formatFrequency,
@@ -39,7 +44,6 @@ import {
 } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 import { computePosReportToc } from "./posDocx";
-import { WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface DrawerContext {
   kind: "state" | "evolution" | "group";
@@ -59,6 +63,7 @@ interface ScreenProps {
   canEdit: boolean;
   onAddEvolution?: () => void;
   onAddState?: () => void;
+  onAddGroup?: () => void;
 }
 
 function blankPlantIdentity(): PlantIdentity {
@@ -85,6 +90,32 @@ function blankPlantEvolution(): PlantEvolution {
     },
     plantOperatingStateIds: [],
     implementsSrs: [],
+  };
+}
+
+function blankPlantOperatingStateGroup(): PlantOperatingStateGroup {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "",
+    evolutionType: EvolutionType.AT_POWER,
+    memberPosIds: [],
+    similarityBasis: "",
+    boundingCharacteristics: [],
+    doesNotMaskRiskSignificantContributors: false,
+    summedDurationHours: 0,
+    entryFrequency: 0,
+    implementsSrs: [],
+  };
+}
+
+function blankInterviewRecord(): InterviewRecord {
+  return {
+    uuid: crypto.randomUUID(),
+    date: "",
+    personnelRoles: [],
+    method: "TABLETOP",
+    findings: "",
+    overlookedEvolutionsIdentified: [],
   };
 }
 
@@ -146,6 +177,9 @@ function stageToMef(stage: Stage): MefPlantStage {
 
 function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPatchDebounced, canEdit }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
+  const handoff = handoffBundleView(pos);
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const selectedLane = handoff.lanes.find((l) => l.code === selectedTe);
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const pi = pos.metadata.plantIdentity ?? blankPlantIdentity();
   const isReal = mefPatch !== undefined;
@@ -200,8 +234,43 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <div className="poscard__head">
           <h3 className="poscard__title">Interfaces</h3>
         </div>
-        <p className="poscard__sub">POS has no upstream inputs. It feeds the operating states, alignments and outage timelines downstream to the rest of the model.</p>
-        <WorkbookInterfaceMap element="POS" mode="outputs" />
+        <p className="poscard__sub">POS has no upstream inputs. It feeds these downstream elements. Select one to see what it receives from the {handoff.retainedCount} retained states.</p>
+        <div className="poshandoff__grid">
+          {handoff.lanes.map((lane) => (
+            <button
+              key={lane.code}
+              type="button"
+              className={`poshandoff__tile${selectedTe === lane.code ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.code ? null : lane.code)}
+            >
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>{selectedLane.element} receives</div>
+            {selectedLane.rows.length === 0 ? (
+              <p className="posmuted" style={{ margin: 0 }}>No retained states to hand off yet.</p>
+            ) : (
+            <table className="postable postable--mid">
+              <thead>
+                <tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr>
+              </thead>
+              <tbody>
+                {selectedLane.rows.map((r) => (
+                  <tr key={r.posId}>
+                    <td><div className="postable__name">{r.name}</div></td>
+                    {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
+        )}
       </div>
       <div className="poscard">
         <div className="poscard__head">
@@ -435,6 +504,7 @@ interface DocumentsScreenProps extends ScreenProps {
   onUploadFile?: (file: File) => Promise<void>;
   onDeleteDocument?: (documentId: string) => Promise<void>;
   onDownloadDocument?: (documentId: string) => Promise<void>;
+  onUpdateDocument?: (documentId: string, fields: { name?: string; notes?: string }) => Promise<void>;
 }
 
 function pickIconKind(mimeType: string): "sheet" | "image" | "doc" {
@@ -449,7 +519,78 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onDeleteDocument, onDownloadDocument }: DocumentsScreenProps): JSX.Element {
+function patchExampleDoc(pos: PlantOperatingStatesAnalysis, id: string, name: string): PlantOperatingStatesAnalysis {
+  return { ...pos, exampleDocuments: (pos.exampleDocuments ?? []).map((d) => (d.id === id ? { ...d, name } : d)) };
+}
+
+function ExampleDocName({ id, name, canEdit, mefPatchDebounced }: {
+  id: string;
+  name: string;
+  canEdit: boolean;
+  mefPatchDebounced?: (mutator: Mutator) => void;
+}): JSX.Element {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(name);
+  if (!canEdit || mefPatchDebounced === undefined) {
+    return <div className="posdoc__name">{name}</div>;
+  }
+  if (editing) {
+    return (
+      <input
+        className="posdoc__name-input"
+        value={text}
+        aria-label="Document name"
+        autoFocus
+        onChange={(e) => { setText(e.target.value); mefPatchDebounced((d) => patchExampleDoc(d, id, e.target.value)); }}
+        onBlur={() => setEditing(false)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }}
+      />
+    );
+  }
+  return (
+    <div className="posdoc__name-row">
+      <span className="posdoc__name">{name}</span>
+      <button type="button" className="posdoc__name-edit" aria-label="Edit document name" onClick={() => { setText(name); setEditing(true); }}><POSIcon.Pencil /></button>
+    </div>
+  );
+}
+
+function RealDocName({ documentId, name, canRename, onUpdateDocument }: { documentId: string; name: string; canRename: boolean; onUpdateDocument?: (documentId: string, fields: { name?: string; notes?: string }) => Promise<void> }): JSX.Element {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(name);
+  if (!canRename || onUpdateDocument === undefined) return <div className="posdoc__name">{name}</div>;
+  function save(): void {
+    setEditing(false);
+    const next = text.trim();
+    if (next.length === 0 || next === name) return;
+    void onUpdateDocument!(documentId, { name: next });
+  }
+  if (editing) {
+    return (
+      <input className="posdoc__name-input" value={text} aria-label="Document name" autoFocus onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }} />
+    );
+  }
+  return (
+    <div className="posdoc__name-row">
+      <span className="posdoc__name">{name}</span>
+      <button type="button" className="posdoc__name-edit" aria-label="Rename document" onClick={() => { setText(name); setEditing(true); }}><POSIcon.Pencil /></button>
+    </div>
+  );
+}
+
+function RealDocNotes({ documentId, notes, canEdit, onUpdateDocument }: { documentId: string; notes: string; canEdit: boolean; onUpdateDocument?: (documentId: string, fields: { name?: string; notes?: string }) => Promise<void> }): JSX.Element | null {
+  const [text, setText] = useState(notes);
+  if (!canEdit || onUpdateDocument === undefined) return notes.length > 0 ? <div className="posdoc__meta" style={{ marginTop: 4 }}>{notes}</div> : null;
+  function save(): void {
+    if (text === notes) return;
+    void onUpdateDocument!(documentId, { notes: text });
+  }
+  return (
+    <input className="posfield__input" style={{ marginTop: 6, width: "100%" }} placeholder="What this document supports (summary)…" value={text} onChange={(e) => setText(e.target.value)} onBlur={save} />
+  );
+}
+
+function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, canUpload, onUploadFile, onDeleteDocument, onDownloadDocument, onUpdateDocument }: DocumentsScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const isReal = realDocuments !== undefined;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -466,7 +607,7 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
     if (file === undefined || onUploadFile === undefined) return;
     setUploading(true);
     onUploadFile(file)
-      .then(() => { onAction("Uploaded — document processing coming soon"); })
+      .then(() => { onAction("Document uploaded"); })
       .catch((err: unknown) => { onAction((err as { message?: string }).message ?? "Upload failed"); })
       .finally(() => {
         setUploading(false);
@@ -519,7 +660,6 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
           <h3 className="poscard__title">Uploaded documents</h3>
           <div className="posrow" style={{ gap: 12 }}>
             <Badge kind="ok">{(showExampleDocs ? exampleDocs.length : (isReal ? realDocuments.length : POS_DOCUMENTS.length))} files</Badge>
-            {isReal && !showExampleDocs ? <Badge>Processing coming soon</Badge> : <Badge kind="progress">All extracted</Badge>}
           </div>
         </div>
         <div className="posdoc-list">
@@ -530,11 +670,8 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
                   {d.kind === "sheet" ? <POSIcon.Sheet /> : d.kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
                 </div>
                 <div className="posdoc__main">
-                  <div className="posdoc__name">{d.name}</div>
+                  <ExampleDocName id={d.id} name={d.name} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
                   <div className="posdoc__meta">{d.sizeLabel} · {d.uploadedLabel}</div>
-                </div>
-                <div className="posdoc__extracted">
-                  <POSIcon.Sparkle /> {d.extracted}
                 </div>
                 {d.url !== undefined && (
                   <a className="posnav__btn posnav__btn--sm" href={d.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
@@ -553,9 +690,10 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
                         <div className="posdoc__icon">
                           {kind === "sheet" ? <POSIcon.Sheet /> : kind === "image" ? <POSIcon.Image /> : <POSIcon.Doc />}
                         </div>
-                        <div className="posdoc__main">
-                          <div className="posdoc__name">{d.filename}</div>
+                        <div className="posdoc__main" style={{ flex: 1 }}>
+                          <RealDocName documentId={d.documentId} name={d.filename} canRename={canUpload === true} onUpdateDocument={onUpdateDocument} />
                           <div className="posdoc__meta">{formatSize(d.size)} · uploaded by @{d.uploadedBy}</div>
+                          <RealDocNotes documentId={d.documentId} notes={d.notes} canEdit={canUpload === true} onUpdateDocument={onUpdateDocument} />
                         </div>
                         <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => handleDownload(d.documentId)}>
                           <POSIcon.Eye /> Download
@@ -577,9 +715,6 @@ function DocumentsScreen({ onAction, realDocuments, canUpload, onUploadFile, onD
                 <div className="posdoc__main">
                   <div className="posdoc__name">{d.name}</div>
                   <div className="posdoc__meta">{d.size} · {d.uploaded}</div>
-                </div>
-                <div className="posdoc__extracted">
-                  <POSIcon.Sparkle /> {d.extracted}
                 </div>
                 {d.url !== undefined && (
                   <a className="posnav__btn posnav__btn--sm" href={d.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
@@ -613,7 +748,7 @@ function EvolutionsScreen({ openDrawer, onAddEvolution }: ScreenProps): JSX.Elem
         {evolutions.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No evolutions defined yet.</p>
         ) : (
-          <table className="postable">
+          <table className="postable postable--mid">
             <thead>
               <tr>
                 <th>Evolution</th>
@@ -644,10 +779,81 @@ function EvolutionsScreen({ openDrawer, onAddEvolution }: ScreenProps): JSX.Elem
   );
 }
 
-function StatesScreen({ openDrawer, onAddState }: ScreenProps): JSX.Element {
+function patchDelineation(pos: PlantOperatingStatesAnalysis, params: string[]): PlantOperatingStatesAnalysis {
+  return {
+    ...pos,
+    validationRules: {
+      ...pos.validationRules,
+      mutualExclusivity: { ...pos.validationRules.mutualExclusivity, delineationParameters: params },
+    },
+  };
+}
+
+function patchTransition(pos: PlantOperatingStatesAnalysis, fromUuid: string, toUuid: string): PlantOperatingStatesAnalysis {
+  const matrix = pos.validationRules.transitions.transitionMatrix;
+  const current = matrix[fromUuid] ?? [];
+  const next = current.includes(toUuid) ? current.filter((id) => id !== toUuid) : [...current, toUuid];
+  return {
+    ...pos,
+    validationRules: {
+      ...pos.validationRules,
+      transitions: { ...pos.validationRules.transitions, transitionMatrix: { ...matrix, [fromUuid]: next } },
+    },
+  };
+}
+
+function DelineationEditor({ selected, canEdit, mefPatch }: { selected: string[]; canEdit: boolean; mefPatch?: (mutator: Mutator) => void }): JSX.Element {
+  const chosen = new Set(selected);
+  function toggle(p: string): void {
+    if (mefPatch === undefined) return;
+    const next = chosen.has(p) ? selected.filter((x) => x !== p) : [...selected, p];
+    mefPatch((d) => patchDelineation(d, next));
+  }
+  return (
+    <div className="posrow" style={{ gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+      {DELINEATION_PARAMETER_OPTIONS.map((p) => (
+        <button key={p} type="button" disabled={!canEdit} className={`posnav__btn posnav__btn--sm${chosen.has(p) ? " posnav__btn--primary" : ""}`} onClick={() => toggle(p)}>{p}</button>
+      ))}
+    </div>
+  );
+}
+
+function TransitionEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: (mutator: Mutator) => void }): JSX.Element {
   const { pos } = usePosWorkbook();
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const states = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const matrix = pos.validationRules.transitions.transitionMatrix;
+  function toggle(from: string, to: string): void {
+    if (mefPatch === undefined) return;
+    mefPatch((d) => patchTransition(d, from, to));
+  }
+  return (
+    <div style={{ marginTop: 10 }}>
+      {states.map((s) => {
+        const targets = new Set(matrix[s.uuid] ?? []);
+        return (
+          <div key={s.uuid} style={{ marginTop: 8 }}>
+            <div className="possubtle" style={{ fontSize: 12, marginBottom: 4 }}>{stateLabel(s.name)} transitions to</div>
+            <div className="posrow" style={{ gap: 6, flexWrap: "wrap" }}>
+              {states.filter((t) => t.uuid !== s.uuid).map((t) => (
+                <button key={t.uuid} type="button" disabled={!canEdit} className={`posnav__btn posnav__btn--sm${targets.has(t.uuid) ? " posnav__btn--primary" : ""}`} onClick={() => toggle(s.uuid, t.uuid)}>{stateLabel(t.name)}</button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatesScreen({ openDrawer, onAddState, canEdit, mefPatch }: ScreenProps): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const [showTransitions, setShowTransitions] = useState(false);
   const states = statesView(pos);
   const coverage = coverageView(pos);
+  const me = mutualExclusivityView(pos);
+  const tv = transitionValidationView(pos);
+  const validationOk = coverage.covered && me.allSeparable && tv.allValid;
   return (
     <>
       <div className="poscard">
@@ -661,12 +867,12 @@ function StatesScreen({ openDrawer, onAddState }: ScreenProps): JSX.Element {
         {states.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
         ) : (
-        <table className="postable">
+        <table className="postable postable--mid">
           <thead>
             <tr>
               <th>State</th>
               <th>Mode</th>
-              <th>Coolant T</th>
+              <th>Coolant Temp</th>
               <th>Power</th>
               <th>Status</th>
               <th aria-label="Open" />
@@ -709,46 +915,196 @@ function StatesScreen({ openDrawer, onAddState }: ScreenProps): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Coverage check</h3>
-          {coverage.covered
-            ? <Badge kind="ok">Cycle covered</Badge>
-            : <Badge kind="warn">Coverage incomplete</Badge>}
+          <h3 className="poscard__title">Validation</h3>
+          {states.length > 0 && (validationOk ? <Badge kind="ok">All checks pass</Badge> : <Badge kind="warn">Needs attention</Badge>)}
         </div>
-        <p className="poscard__sub">
-          Collective exhaustivity is computed from the state durations.
-        </p>
-        <div style={{ marginTop: 12 }}>
-          <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
-            <span className="possubtle">Collective exhaustivity</span>
-            <span className="posmono" style={{ fontWeight: 700, color: "var(--color-text)" }}>{(coverage.coverageFraction * 100).toFixed(1)} %</span>
+        {states.length === 0 ? (
+          <p className="posmuted" style={{ padding: "8px 0", margin: 0 }}>Add operating states to run validation.</p>
+        ) : (
+        <>
+          <div style={{ marginTop: 4 }}>
+            <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
+              <span className="possubtle">Collective exhaustivity</span>
+              <span className="posmono" style={{ fontWeight: 700, color: "var(--color-text)" }}>{(coverage.coverageFraction * 100).toFixed(1)} %</span>
+            </div>
+            <div style={{ height: 10, borderRadius: 999, background: "var(--color-border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${Math.min(100, coverage.coverageFraction * 100)}%`, borderRadius: 999, background: coverage.covered ? "var(--c-complete)" : "var(--color-warning)" }} />
+            </div>
+            <div className="possubtle" style={{ marginTop: 6, fontSize: 12 }}>
+              {coverage.summedHours.toLocaleString("en-US")} of {coverage.totalCycleHours.toLocaleString("en-US")} h per year
+              {coverage.gapHours > 1 && <> · {coverage.gapHours.toLocaleString("en-US")} h unassigned</>}
+            </div>
           </div>
-          <div style={{ height: 10, borderRadius: 999, background: "var(--color-border)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${Math.min(100, coverage.coverageFraction * 100)}%`, borderRadius: 999, background: coverage.covered ? "var(--c-complete)" : "var(--color-warning)" }} />
+
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--color-border)" }}>
+            <div className="posrow" style={{ justifyContent: "space-between" }}>
+              <span className="possubtle">Mutual exclusivity</span>
+              {!me.configured
+                ? <Badge kind="draft">Not set</Badge>
+                : me.allSeparable
+                  ? <Badge kind="ok">Separable</Badge>
+                  : <Badge kind="warn">{me.overlaps.length} overlap{me.overlaps.length === 1 ? "" : "s"}</Badge>}
+            </div>
+            <div className="possubtle" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+              {!me.configured
+                ? "Set the delineation parameters to run this check."
+                : me.allSeparable
+                  ? `Every condition belongs to exactly one state, separated by ${me.recognizedParameters.join(", ").toLowerCase()}.`
+                  : "These state pairs are not separated by the delineation parameters. Add a parameter that distinguishes them, or merge them."}
+            </div>
+            {canEdit && <DelineationEditor selected={pos.validationRules.mutualExclusivity.delineationParameters} canEdit={canEdit} mefPatch={mefPatch} />}
+            {me.overlaps.map((o) => (
+              <div key={`${o.aId}-${o.bId}`} style={{ fontSize: 12, marginTop: 4, color: "var(--color-text)" }}>{o.aName} and {o.bName}</div>
+            ))}
           </div>
-          <div className="possubtle" style={{ marginTop: 6, fontSize: 12 }}>
-            {coverage.summedHours.toLocaleString("en-US")} of {coverage.totalCycleHours.toLocaleString("en-US")} h per year
-            {coverage.gapHours > 1 && <> · {coverage.gapHours.toLocaleString("en-US")} h unassigned</>}
+
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--color-border)" }}>
+            <div className="posrow" style={{ justifyContent: "space-between" }}>
+              <span className="possubtle">Transition map</span>
+              {tv.allValid ? <Badge kind="ok">Reachable &amp; exitable</Badge> : <Badge kind="warn">Issues</Badge>}
+            </div>
+            <div className="possubtle" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+              {tv.allValid
+                ? `All ${tv.totalStates} states can be reached from at-power operation and can be exited.`
+                : "The transition map has gaps."}
+            </div>
+            {tv.unreachable.length > 0 && <div style={{ fontSize: 12, marginTop: 4, color: "var(--color-text)" }}>Unreachable: {tv.unreachable.map((u) => u.name).join(", ")}</div>}
+            {tv.nonExitable.length > 0 && <div style={{ fontSize: 12, marginTop: 4, color: "var(--color-text)" }}>Cannot be exited: {tv.nonExitable.map((u) => u.name).join(", ")}</div>}
+            {tv.danglingTargets.length > 0 && <div style={{ fontSize: 12, marginTop: 4, color: "var(--color-text)" }}>Edge to a missing state: {tv.danglingTargets.map((d) => `${d.from} to ${d.to}`).join(", ")}</div>}
+            {tv.staleSources.length > 0 && <div style={{ fontSize: 12, marginTop: 4, color: "var(--color-text)" }}>Screened state still in the map: {tv.staleSources.map((s) => s.name).join(", ")}</div>}
+            {canEdit && (
+              <div style={{ marginTop: 12 }}>
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setShowTransitions((v) => !v)}>{showTransitions ? "Hide transition editor" : "Edit transitions"}</button>
+                {showTransitions && <TransitionEditor canEdit={canEdit} mefPatch={mefPatch} />}
+              </div>
+            )}
           </div>
-        </div>
-        <div style={{ marginTop: 14, padding: 12, background: "var(--color-bg-to)", borderRadius: 6, fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.55 }}>
-          <strong style={{ color: "var(--color-text)" }}>Mutual exclusivity.</strong> Every plant condition should belong to exactly one state. The automatic overlap check is not built yet, so it is not verified here.
-        </div>
+        </>
+        )}
       </div>
     </>
   );
 }
 
-function InterviewsScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
+function parseMethod(v: string): InterviewRecord["method"] {
+  return v === "WALKDOWN" || v === "COMPUTERIZED_WALKDOWN" || v === "INTERVIEW" ? v : "TABLETOP";
+}
+
+function splitList(v: string): string[] {
+  return v.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+function patchInterview(pos: PlantOperatingStatesAnalysis, uuid: string, fields: Partial<InterviewRecord>): PlantOperatingStatesAnalysis {
+  return { ...pos, interviewRecords: (pos.interviewRecords ?? []).map((r) => (r.uuid === uuid ? { ...r, ...fields } : r)) };
+}
+
+function removeInterview(pos: PlantOperatingStatesAnalysis, uuid: string): PlantOperatingStatesAnalysis {
+  return { ...pos, interviewRecords: (pos.interviewRecords ?? []).filter((r) => r.uuid !== uuid) };
+}
+
+function InterviewEditor({ record, evolutions, canEdit, mefPatch, mefPatchDebounced }: {
+  record: InterviewRecord;
+  evolutions: { uuid: string; name: string }[];
+  canEdit: boolean;
+  mefPatch?: (mutator: Mutator) => void;
+  mefPatchDebounced?: (mutator: Mutator) => void;
+}): JSX.Element {
+  const uuid = record.uuid ?? "";
+  const [dateText, setDateText] = useState(record.date);
+  const [personnelText, setPersonnelText] = useState(record.personnelRoles.join(", "));
+  const [findingsText, setFindingsText] = useState(record.findings);
+  const [overlookedText, setOverlookedText] = useState(record.overlookedEvolutionsIdentified.join(", "));
+  function saveDebounced(fields: Partial<InterviewRecord>): void {
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    mefPatchDebounced((d) => patchInterview(d, uuid, fields));
+  }
+  function saveNow(fields: Partial<InterviewRecord>): void {
+    if (!canEdit || mefPatch === undefined) return;
+    mefPatch((d) => patchInterview(d, uuid, fields));
+  }
+  function onDelete(): void {
+    if (!canEdit || mefPatch === undefined) return;
+    mefPatch((d) => removeInterview(d, uuid));
+  }
+  return (
+    <div className="poscard">
+      <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit session" : "Session (read-only)"}</h3></div>
+      <div className="posfield-grid">
+        <div className="posfield">
+          <label className="posfield__label">Method</label>
+          <select className="posfield__input" value={record.method} disabled={!canEdit} onChange={(e) => saveNow({ method: parseMethod(e.target.value) })}>
+            <option value="TABLETOP">Tabletop</option>
+            <option value="WALKDOWN">Walkdown</option>
+            <option value="COMPUTERIZED_WALKDOWN">Computerised walkdown</option>
+            <option value="INTERVIEW">Interview</option>
+          </select>
+        </div>
+        <div className="posfield">
+          <label className="posfield__label">Date</label>
+          <input className="posfield__input" value={dateText} placeholder="e.g. Mar 12, 2026" disabled={!canEdit} onChange={(e) => { setDateText(e.target.value); saveDebounced({ date: e.target.value }); }} />
+        </div>
+        <div className="posfield">
+          <label className="posfield__label">Evolution</label>
+          <select className="posfield__input" value={record.evolutionId ?? ""} disabled={!canEdit} onChange={(e) => saveNow({ evolutionId: e.target.value.length > 0 ? e.target.value : undefined })}>
+            <option value="">All evolutions</option>
+            {evolutions.map((ev) => <option key={ev.uuid} value={ev.uuid}>{evolutionLabel(ev.name)}</option>)}
+          </select>
+        </div>
+        <div className="posfield">
+          <label className="posfield__label">Personnel (comma separated)</label>
+          <input className="posfield__input" value={personnelText} placeholder="e.g. Lead Reactor Engineer, Senior I&C Designer" disabled={!canEdit} onChange={(e) => { setPersonnelText(e.target.value); saveDebounced({ personnelRoles: splitList(e.target.value) }); }} />
+        </div>
+        <div className="posfield posfield-grid--span2">
+          <label className="posfield__label">Findings</label>
+          <textarea className="posfield__textarea" value={findingsText} placeholder="What the session confirmed or surfaced." disabled={!canEdit} onChange={(e) => { setFindingsText(e.target.value); saveDebounced({ findings: e.target.value }); }} />
+        </div>
+        <div className="posfield posfield-grid--span2">
+          <label className="posfield__label">Overlooked evolutions identified (comma separated)</label>
+          <input className="posfield__input" value={overlookedText} placeholder="Evolutions the session newly identified" disabled={!canEdit} onChange={(e) => { setOverlookedText(e.target.value); saveDebounced({ overlookedEvolutionsIdentified: splitList(e.target.value) }); }} />
+        </div>
+      </div>
+      {canEdit && (
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete session</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InterviewsScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const interviews = interviewsView(pos);
+  const rawByUuid = new Map((pos.interviewRecords ?? []).map((r) => [r.uuid ?? "", r]));
+  const evolutions = pos.plantEvolutions.map((e) => ({ uuid: e.uuid, name: e.name }));
+  function evoName(id: string): string {
+    const e = evolutions.find((x) => x.uuid === id);
+    return e !== undefined ? evolutionLabel(e.name) : "All evolutions";
+  }
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  function toggle(id: string): void {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function addInterview(): void {
+    if (!canEdit || mefPatch === undefined) return;
+    const rec = blankInterviewRecord();
+    mefPatch((d) => ({ ...d, interviewRecords: [...(d.interviewRecords ?? []), rec] }));
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(rec.uuid ?? "");
+      return next;
+    });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Interview &amp; walkdown log</h3>
-          <div className="posrow" style={{ gap: 8 }}>
-            {canEdit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Log session — coming soon")}><POSIcon.Plus /> Log session</button>}
-          </div>
+          {canEdit && mefPatch !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={addInterview}><POSIcon.Plus /> Add session</button>}
         </div>
         <p className="poscard__sub">
           For pre-operational plants, engineering interviews substitute for operations walkdowns.
@@ -756,41 +1112,53 @@ function InterviewsScreen({ onAction, canEdit }: ScreenProps): JSX.Element {
         {interviews.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No interviews or walkdowns logged yet.</p>
         ) : (
-        <table className="postable">
+        <table className="postable postable--expandable postable--mid">
           <thead>
             <tr>
+              <th style={{ width: 28 }} />
               <th>Session</th>
               <th>Method</th>
               <th>Personnel</th>
               <th>Findings</th>
               <th>Impact</th>
-              <th aria-label="Open" />
             </tr>
           </thead>
           <tbody>
-            {interviews.map((iv) => (
-              <tr key={iv.id} className="postable__row--clickable">
-                <td>
-                  <div className="postable__name">{iv.id}</div>
-                  <span className="postable__name-sub">{iv.date} · {iv.evolutionId ?? "All evolutions"}</span>
-                </td>
-                <td><span className="poschip">{iv.method}</span></td>
-                <td>
-                  <div style={{ fontSize: 12.5 }}>{iv.personnel.join(", ")}</div>
-                </td>
-                <td>
-                  <div style={{ fontSize: 12.5, color: "var(--color-text)", maxWidth: 380 }}>{iv.findings}</div>
-                </td>
-                <td>
-                  {iv.overlooked > 0 ? (
-                    <Badge kind="warn">{iv.overlooked} new state{iv.overlooked === 1 ? "" : "s"} identified</Badge>
-                  ) : (
-                    <Badge kind="ok">No new states</Badge>
+            {interviews.map((iv) => {
+              const isOpen = expanded.has(iv.uuid);
+              const raw = rawByUuid.get(iv.uuid);
+              return (
+                <Fragment key={iv.uuid}>
+                  <tr className="postable__row--clickable" onClick={() => toggle(iv.uuid)}>
+                    <td><span className={`postable__expand${isOpen ? " postable__expand--open" : ""}`}><POSIcon.Chevron /></span></td>
+                    <td>
+                      <div className="postable__name">{iv.id}</div>
+                      <span className="postable__name-sub">{iv.date.length > 0 ? iv.date : "No date"} · {iv.evolutionId !== null ? evoName(iv.evolutionId) : "All evolutions"}</span>
+                    </td>
+                    <td><span className="poschip">{methodLabel(iv.method)}</span></td>
+                    <td><div style={{ fontSize: 12.5 }}>{iv.personnel.join(", ")}</div></td>
+                    <td><div style={{ fontSize: 12.5, color: "var(--color-text)", maxWidth: 380 }}>{iv.findings}</div></td>
+                    <td>
+                      {iv.overlooked > 0 ? (
+                        <Badge kind="warn">{iv.overlooked} overlooked evolution{iv.overlooked === 1 ? "" : "s"} identified</Badge>
+                      ) : (
+                        <Badge kind="ok">No new evolutions</Badge>
+                      )}
+                    </td>
+                  </tr>
+                  {isOpen && raw !== undefined && (
+                    <tr className="postable__expand-row">
+                      <td />
+                      <td colSpan={5}>
+                        <fieldset disabled={!canEdit} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                          <InterviewEditor record={raw} evolutions={evolutions} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />
+                        </fieldset>
+                      </td>
+                    </tr>
                   )}
-                </td>
-                <td><POSIcon.Chevron /></td>
-              </tr>
-            ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
         )}
@@ -821,16 +1189,20 @@ function isDefaultScreening(r: PosScreeningRecord): boolean {
     && r.alternateCriterionJustification === undefined;
 }
 
-function upsertScreening(pos: PlantOperatingStatesAnalysis, posId: string, fields: { retained?: boolean; criterion?: ScreeningCriterion; riskSignificance?: ImportanceLevel; justification?: string }): PlantOperatingStatesAnalysis {
+function upsertScreening(pos: PlantOperatingStatesAnalysis, posId: string, fields: { retained?: boolean; criterion?: ScreeningCriterion; riskSignificance?: ImportanceLevel; justification?: string; quantitativeBasis?: number; alternateCriterionJustification?: string }): PlantOperatingStatesAnalysis {
   const apply = (r: PosScreeningRecord): PosScreeningRecord => {
     const retained = fields.retained ?? r.retained;
     const criterion = "criterion" in fields ? fields.criterion : r.criterion;
     const riskSignificance = "riskSignificance" in fields ? fields.riskSignificance : r.riskSignificance;
+    const quantitativeBasis = "quantitativeBasis" in fields ? fields.quantitativeBasis : r.quantitativeBasis;
+    const alternateCriterionJustification = "alternateCriterionJustification" in fields ? fields.alternateCriterionJustification : r.alternateCriterionJustification;
     return {
       ...r,
       retained,
       criterion: retained ? undefined : criterion,
       riskSignificance: retained ? riskSignificance : undefined,
+      quantitativeBasis: retained ? undefined : quantitativeBasis,
+      alternateCriterionJustification: retained ? undefined : alternateCriterionJustification,
       justification: fields.justification ?? r.justification,
     };
   };
@@ -849,9 +1221,22 @@ function ScreeningEditorRow({ row, canEdit, mefPatch, mefPatchDebounced }: {
   mefPatchDebounced?: (mutator: Mutator) => void;
 }): JSX.Element {
   const [justText, setJustText] = useState(row.justification);
+  const [altText, setAltText] = useState(row.alternateCriterionJustification);
+  const [quantText, setQuantText] = useState(row.quantitativeBasis !== null ? String(row.quantitativeBasis) : "");
   function onDecision(v: string): void {
     if (!canEdit || mefPatch === undefined) return;
     mefPatch((d) => upsertScreening(d, row.posId, { retained: v === "retained" }));
+  }
+  function onAltJust(v: string): void {
+    setAltText(v);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    mefPatchDebounced((d) => upsertScreening(d, row.posId, { alternateCriterionJustification: v }));
+  }
+  function onQuant(v: string): void {
+    setQuantText(v);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    const n = Number(v);
+    mefPatchDebounced((d) => upsertScreening(d, row.posId, { quantitativeBasis: v.trim().length === 0 || Number.isNaN(n) ? undefined : n }));
   }
   function onCriterion(v: string): void {
     if (!canEdit || mefPatch === undefined) return;
@@ -897,14 +1282,252 @@ function ScreeningEditorRow({ row, canEdit, mefPatch, mefPatchDebounced }: {
               <option value="SCR-3">SCR-3</option>
               <option value="ALTERNATE">Alternate</option>
             </select>
+            <p className="posfield__hint">SCR-1 and SCR-2: bounded by another state's impact. SCR-3: detected and corrected before a complicated shutdown. Alternate: a separately justified criterion.</p>
+          </div>
+        )}
+        {!row.retained && (
+          <div className="posfield">
+            <label className="posfield__label">Quantitative basis (optional)</label>
+            <input className="posfield__input" value={quantText} placeholder="Frequency or fraction" disabled={!canEdit} onChange={(e) => onQuant(e.target.value)} />
           </div>
         )}
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Justification</label>
           <textarea className="posfield__textarea" value={justText} placeholder={row.retained ? "Why this state is retained for analysis…" : "Why screening out leaves downstream results unchanged…"} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />
         </div>
+        {!row.retained && row.criterion === "ALTERNATE" && (
+          <div className="posfield posfield-grid--span2">
+            <label className="posfield__label">Alternate-criterion justification</label>
+            <textarea className="posfield__textarea" value={altText} placeholder="Justify the alternate screening criterion…" disabled={!canEdit} onChange={(e) => onAltJust(e.target.value)} />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function upsertDemandTime(pos: PlantOperatingStatesAnalysis, posId: string, basis: "DEMAND_BASED" | "TIME_BASED" | null): PlantOperatingStatesAnalysis {
+  const records = pos.demandTimeBasedRecords ?? [];
+  if (basis === null) return { ...pos, demandTimeBasedRecords: records.filter((r) => r.posId !== posId) };
+  const exists = records.find((r) => r.posId === posId);
+  const rec: DemandTimeBasedRecord = exists !== undefined
+    ? { ...exists, initiatorBasis: basis }
+    : { posId, initiatorBasis: basis, delineatedToAvoidAveraging: true, justification: "", implementsSrs: [{ sr: "POS-B5", hlr: "B" }] };
+  const next = exists !== undefined ? records.map((r) => (r.posId === posId ? rec : r)) : [...records, rec];
+  return { ...pos, demandTimeBasedRecords: next };
+}
+
+function patchDemandTimeJust(pos: PlantOperatingStatesAnalysis, posId: string, justification: string): PlantOperatingStatesAnalysis {
+  return { ...pos, demandTimeBasedRecords: (pos.demandTimeBasedRecords ?? []).map((r) => (r.posId === posId ? { ...r, justification } : r)) };
+}
+
+function addSeparation(pos: PlantOperatingStatesAnalysis, posIds: string[], basis: string): PlantOperatingStatesAnalysis {
+  const rec: PosSeparationRecord = { separatedPosIds: posIds, differingResponseBasis: basis, differentSuccessCriteria: false, differentBarrierConfiguration: false, moreSevereReleasePotential: false, implementsSrs: [{ sr: "POS-B4", hlr: "B" }] };
+  return { ...pos, separationRecords: [...(pos.separationRecords ?? []), rec] };
+}
+
+function removeSeparation(pos: PlantOperatingStatesAnalysis, index: number): PlantOperatingStatesAnalysis {
+  return { ...pos, separationRecords: (pos.separationRecords ?? []).filter((_, i) => i !== index) };
+}
+
+function DemandTimeRow({ state, record, canEdit, mefPatch, mefPatchDebounced }: { state: PlantOperatingState; record?: DemandTimeBasedRecord; canEdit: boolean; mefPatch?: (mutator: Mutator) => void; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element {
+  const [just, setJust] = useState(record?.justification ?? "");
+  function onBasis(v: string): void {
+    if (!canEdit || mefPatch === undefined) return;
+    const basis = v === "DEMAND_BASED" ? "DEMAND_BASED" : v === "TIME_BASED" ? "TIME_BASED" : null;
+    mefPatch((d) => upsertDemandTime(d, state.uuid, basis));
+  }
+  function onJust(v: string): void {
+    setJust(v);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    mefPatchDebounced((d) => patchDemandTimeJust(d, state.uuid, v));
+  }
+  return (
+    <tr>
+      <td><div className="postable__name">{stateLabel(state.name)}</div></td>
+      <td>
+        <select className="posfield__input" style={{ minWidth: 150 }} value={record?.initiatorBasis ?? ""} disabled={!canEdit} onChange={(e) => onBasis(e.target.value)}>
+          <option value="">Not set</option>
+          <option value="TIME_BASED">Time-based</option>
+          <option value="DEMAND_BASED">Demand-based</option>
+        </select>
+      </td>
+      <td>
+        {record !== undefined && <input className="posfield__input" placeholder="Short note" value={just} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />}
+      </td>
+    </tr>
+  );
+}
+
+function DemandTimeEditor({ canEdit, mefPatch, mefPatchDebounced }: { canEdit: boolean; mefPatch?: (mutator: Mutator) => void; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const retained = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const byId = new Map((pos.demandTimeBasedRecords ?? []).map((r) => [r.posId, r] as const));
+  return (
+    <div className="poscard">
+      <div className="poscard__head"><h3 className="poscard__title">Demand-based and time-based states</h3></div>
+      <p className="poscard__sub">Mark how each state is entered. This keeps short demand events apart from long time-based states.</p>
+      {retained.length === 0 ? <p className="posmuted" style={{ padding: "8px 0", margin: 0 }}>No retained states yet.</p> : (
+        <table className="postable postable--mid">
+          <thead><tr><th>State</th><th>Basis</th><th>Note</th></tr></thead>
+          <tbody>
+            {retained.map((s) => <DemandTimeRow key={s.uuid} state={s} record={byId.get(s.uuid)} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />)}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function SeparationEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: (mutator: Mutator) => void }): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const screenedOut = new Set(pos.screeningRecords.filter((r) => !r.retained).map((r) => r.posId));
+  const retained = pos.plantOperatingStates.filter((s) => !screenedOut.has(s.uuid));
+  const nameById = new Map(pos.plantOperatingStates.map((s) => [s.uuid, stateLabel(s.name)] as const));
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [basis, setBasis] = useState("");
+  const records = pos.separationRecords ?? [];
+  function togglePick(id: string): void {
+    setPicked((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function add(): void {
+    if (!canEdit || mefPatch === undefined || picked.size < 2 || basis.trim().length === 0) return;
+    const ids = Array.from(picked);
+    mefPatch((d) => addSeparation(d, ids, basis));
+    setPicked(new Set());
+    setBasis("");
+  }
+  function remove(index: number): void {
+    if (!canEdit || mefPatch === undefined) return;
+    mefPatch((d) => removeSeparation(d, index));
+  }
+  return (
+    <div className="poscard">
+      <div className="poscard__head"><h3 className="poscard__title">States kept separate</h3></div>
+      <p className="poscard__sub">List states that are too different to group together. This keeps grouping from hiding the difference.</p>
+      {records.length > 0 && (
+        <div className="posbasis__list">
+          {records.map((rec, i) => (
+            <div key={rec.separatedPosIds.join("-")} className="posbasis__item">
+              <div style={{ minWidth: 0 }}>
+                <div className="posbasis__chips">{rec.separatedPosIds.map((id) => <span key={id} className="poschip">{nameById.get(id) ?? id}</span>)}</div>
+                <div className="posbasis__note">{rec.differingResponseBasis}</div>
+              </div>
+              {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => remove(i)}>Remove</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      {canEdit && (
+        <div className="posbasis__form">
+          <div className="posfield">
+            <label className="posfield__label">Pick the states</label>
+            <div className="posbasis__chips">
+              {retained.map((s) => (
+                <button key={s.uuid} type="button" className={`posnav__btn posnav__btn--sm${picked.has(s.uuid) ? " posnav__btn--primary" : ""}`} onClick={() => togglePick(s.uuid)}>{stateLabel(s.name)}</button>
+              ))}
+            </div>
+          </div>
+          <div className="posfield">
+            <label className="posfield__label">Why they stay separate</label>
+            <input className="posfield__input" placeholder="Short reason" value={basis} onChange={(e) => setBasis(e.target.value)} />
+          </div>
+          <div className="posbasis__actions">
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={picked.size < 2 || basis.trim().length === 0} onClick={add}>Add separation</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function addSubsumption(pos: PlantOperatingStatesAnalysis, subsumedPosId: string, subsumingPosId: string, justification: string): PlantOperatingStatesAnalysis {
+  const rec: SubsumedPosRecord = { subsumedPosId, subsumingPosId, criterion: "SCR-1", justification, riskImpact: ImportanceLevel.LOW, limitations: [], validationMethod: "Qualitative comparison of the subsumed and subsuming states.", implementsSrs: [{ sr: "POS-B4", hlr: "B" }] };
+  return { ...pos, subsumedPosRecords: [...(pos.subsumedPosRecords ?? []), rec] };
+}
+
+function removeSubsumption(pos: PlantOperatingStatesAnalysis, index: number): PlantOperatingStatesAnalysis {
+  return { ...pos, subsumedPosRecords: (pos.subsumedPosRecords ?? []).filter((_, i) => i !== index) };
+}
+
+function SubsumptionEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: (mutator: Mutator) => void }): JSX.Element {
+  const { pos } = usePosWorkbook();
+  const states = pos.plantOperatingStates;
+  const nameById = new Map(states.map((s) => [s.uuid, stateLabel(s.name)] as const));
+  const [subsumed, setSubsumed] = useState("");
+  const [subsuming, setSubsuming] = useState("");
+  const [just, setJust] = useState("");
+  const records = pos.subsumedPosRecords ?? [];
+  const valid = subsumed !== "" && subsuming !== "" && subsumed !== subsuming && just.trim().length > 0;
+  function add(): void {
+    if (!canEdit || mefPatch === undefined || !valid) return;
+    mefPatch((d) => addSubsumption(d, subsumed, subsuming, just));
+    setSubsumed(""); setSubsuming(""); setJust("");
+  }
+  function remove(index: number): void {
+    if (!canEdit || mefPatch === undefined) return;
+    mefPatch((d) => removeSubsumption(d, index));
+  }
+  return (
+    <div className="poscard">
+      <div className="poscard__head"><h3 className="poscard__title">Subsumed states</h3></div>
+      <p className="poscard__sub">Link a screened-out state to the retained state that covers it.</p>
+      {records.length > 0 && (
+        <div className="posbasis__list">
+          {records.map((rec, i) => (
+            <div key={`${rec.subsumedPosId}-${rec.subsumingPosId}`} className="posbasis__item">
+              <div style={{ minWidth: 0 }}>
+                <div className="posbasis__chips">
+                  <span className="poschip">{nameById.get(rec.subsumedPosId) ?? rec.subsumedPosId}</span>
+                  <span className="possubtle" style={{ fontSize: 12, alignSelf: "center" }}>covered by</span>
+                  <span className="poschip">{nameById.get(rec.subsumingPosId) ?? rec.subsumingPosId}</span>
+                </div>
+                <div className="posbasis__note">{rec.justification}</div>
+              </div>
+              {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => remove(i)}>Remove</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      {canEdit && (
+        <div className="posbasis__form">
+          <div className="posfield-grid">
+            <div className="posfield">
+              <label className="posfield__label">Screened-out state</label>
+              <select className="posfield__input" value={subsumed} onChange={(e) => setSubsumed(e.target.value)}>
+                <option value="">Select</option>
+                {states.map((s) => <option key={s.uuid} value={s.uuid}>{stateLabel(s.name)}</option>)}
+              </select>
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Covered by</label>
+              <select className="posfield__input" value={subsuming} onChange={(e) => setSubsuming(e.target.value)}>
+                <option value="">Select</option>
+                {states.map((s) => <option key={s.uuid} value={s.uuid}>{stateLabel(s.name)}</option>)}
+              </select>
+            </div>
+            <div className="posfield posfield-grid--span2">
+              <label className="posfield__label">Why it is covered</label>
+              <input className="posfield__input" placeholder="Short reason" value={just} onChange={(e) => setJust(e.target.value)} />
+            </div>
+          </div>
+          <div className="posbasis__actions">
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!valid} onClick={add}>Add subsumption</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScreeningBasisCards({ canEdit, mefPatch, mefPatchDebounced }: { canEdit: boolean; mefPatch?: (mutator: Mutator) => void; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element {
+  return (
+    <>
+      <DemandTimeEditor canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />
+      <SeparationEditor canEdit={canEdit} mefPatch={mefPatch} />
+      <SubsumptionEditor canEdit={canEdit} mefPatch={mefPatch} />
+    </>
   );
 }
 
@@ -926,7 +1549,7 @@ function ScreeningScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
         {rows.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
         ) : (
-        <table className="postable postable--expandable">
+        <table className="postable postable--expandable postable--mid">
           <thead>
             <tr>
               <th style={{ width: 28 }} />
@@ -975,23 +1598,26 @@ function ScreeningScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
         </table>
         )}
       </div>
+      {pos.plantOperatingStates.length > 0 && <ScreeningBasisCards canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />}
     </>
   );
 }
 
-function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Element {
+function GroupingScreen({ openDrawer, canEdit, onAddGroup }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const groups = groupsView(pos);
   return (
     <>
-      {groups.length === 0 && (
-        <div className="poscard">
-          <p className="posmuted" style={{ margin: 0 }}>No groups proposed yet.
-            {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: 12 }} onClick={() => onAction("Propose group — coming soon")}><POSIcon.Plus /> Propose group</button>}
-          </p>
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Operating-state groups</h3>
+          {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}><POSIcon.Plus /> Add group</button>}
         </div>
-      )}
+        <p className="poscard__sub">Bound similar operating states into a group represented by a worst-case bounding state.</p>
+        {groups.length === 0 && <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No groups defined yet.</p>}
+      </div>
 
+      {groups.length > 0 && (
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
         {groups.map((g) => (
           <div key={g.id} className="poscard">
@@ -999,10 +1625,10 @@ function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Ele
               <div>
                 <div className="posrow" style={{ gap: 10 }}>
                   <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
-                  {g.status === "ok" ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Rationale pending</Badge>}
+                  {g.status === "ok" ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Incomplete</Badge>}
                 </div>
                 <div className="possubtle" style={{ marginTop: 6 }}>
-                  Members: {g.members.join(", ")} · Total time {g.durationSum}
+                  Members: {g.members.map((m) => m.label).join(", ")} · Total time {g.durationSum}
                 </div>
               </div>
               <button type="button" className="posnav__btn" onClick={() => openDrawer({ kind: "group", id: g.id })}>{canEdit ? "Edit" : "View"}</button>
@@ -1010,7 +1636,6 @@ function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Ele
             <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, marginBottom: 10 }}>{g.rationale}</div>
             <div className="posrow" style={{ gap: 22, fontSize: 12.5 }}>
               <div><span className="possubtle">Bounding by</span> <strong style={{ color: "var(--color-text)" }}>{g.boundingCharacteristic}</strong></div>
-              <div><span className="possubtle">Member states</span> {g.members.map((m) => <span key={m} className="poschip" style={{ marginRight: 4 }}>{m}</span>)}</div>
             </div>
             {g.statusMessage !== undefined && (
               <div style={{ marginTop: 10, padding: 10, background: "rgba(196,122,24,0.08)", borderLeft: "3px solid var(--color-warning)", borderRadius: 4, fontSize: 12.5, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -1021,29 +1646,37 @@ function GroupingScreen({ openDrawer, onAction, canEdit }: ScreenProps): JSX.Ele
           </div>
         ))}
       </div>
+      )}
     </>
   );
 }
 
 function patchStateQuant(pos: PlantOperatingStatesAnalysis, uuid: string, fields: { durationHours?: number; frequencyPerYear?: number; basis?: string }): PlantOperatingStatesAnalysis {
-  return {
-    ...pos,
-    plantOperatingStates: pos.plantOperatingStates.map((s) => {
-      if (s.uuid !== uuid) return s;
-      let meanEntryFrequency = s.meanEntryFrequency;
-      if (fields.frequencyPerYear !== undefined) {
-        meanEntryFrequency = typeof s.meanEntryFrequency === "number"
-          ? fields.frequencyPerYear
-          : { ...s.meanEntryFrequency, value: fields.frequencyPerYear };
-      }
-      return {
-        ...s,
-        meanDurationHours: fields.durationHours ?? s.meanDurationHours,
-        meanEntryFrequency,
-        durationAndCycleTimingBasis: fields.basis ?? s.durationAndCycleTimingBasis,
-      };
-    }),
-  };
+  const plantOperatingStates = pos.plantOperatingStates.map((s) => {
+    if (s.uuid !== uuid) return s;
+    let meanEntryFrequency = s.meanEntryFrequency;
+    if (fields.frequencyPerYear !== undefined) {
+      meanEntryFrequency = typeof s.meanEntryFrequency === "number"
+        ? fields.frequencyPerYear
+        : { ...s.meanEntryFrequency, value: fields.frequencyPerYear };
+    }
+    return {
+      ...s,
+      meanDurationHours: fields.durationHours ?? s.meanDurationHours,
+      meanEntryFrequency,
+      durationAndCycleTimingBasis: fields.basis ?? s.durationAndCycleTimingBasis,
+    };
+  });
+  if (fields.durationHours === undefined) return { ...pos, plantOperatingStates };
+  const durationById = new Map(plantOperatingStates.map((s) => [s.uuid, s.meanDurationHours]));
+  const plantOperatingStateGroups = pos.plantOperatingStateGroups?.map((g) =>
+    g.memberPosIds.includes(uuid)
+      ? { ...g, summedDurationHours: g.memberPosIds.reduce((acc, id) => acc + (durationById.get(id) ?? 0), 0) }
+      : g,
+  );
+  return plantOperatingStateGroups === undefined
+    ? { ...pos, plantOperatingStates }
+    : { ...pos, plantOperatingStates, plantOperatingStateGroups };
 }
 
 function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
@@ -1094,6 +1727,34 @@ function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
   );
 }
 
+function patchCycleHours(pos: PlantOperatingStatesAnalysis, hours: number): PlantOperatingStatesAnalysis {
+  return {
+    ...pos,
+    validationRules: {
+      ...pos.validationRules,
+      collectiveExhaustivity: { ...pos.validationRules.collectiveExhaustivity, totalCycleHours: hours },
+    },
+  };
+}
+
+function CycleBasisField({ hours, canEdit, mefPatchDebounced }: { hours: number; canEdit: boolean; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element {
+  const [text, setText] = useState(String(hours));
+  function onChange(v: string): void {
+    setText(v);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    const n = Number(v);
+    if (v.trim().length === 0 || Number.isNaN(n) || n <= 0) return;
+    mefPatchDebounced((d) => patchCycleHours(d, n));
+  }
+  if (!canEdit) return <div className="posstat__value">{formatNumber(hours)}<span className="posstat__unit">h/yr</span></div>;
+  return (
+    <div className="posstat__value">
+      <input className="posfield__input" value={text} onChange={(e) => onChange(e.target.value)} style={{ width: 96 }} />
+      <span className="posstat__unit">h/yr</span>
+    </div>
+  );
+}
+
 function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const rows = quantStatesView(pos);
@@ -1119,7 +1780,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
             ? <Badge kind="ok">Balanced</Badge>
             : <Badge kind="warn">{shortfall ? "Shortfall" : "Excess"}</Badge>}
         </div>
-        <p className="poscard__sub">The state durations should account for the full operating cycle. The cycle basis is one reactor-year.</p>
+        <p className="poscard__sub">The state durations should account for the full operating cycle. Set the cycle basis to your plant's cycle length.</p>
         <div className="posstats">
           <div className="posstat">
             <div className="posstat__label">Sum of state durations</div>
@@ -1127,7 +1788,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
           </div>
           <div className="posstat">
             <div className="posstat__label">Cycle basis</div>
-            <div className="posstat__value">{formatNumber(recon.totalCycleHours)}<span className="posstat__unit">h/yr</span></div>
+            <CycleBasisField hours={recon.totalCycleHours} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
           </div>
           <div className={`posstat${recon.withinTolerance ? "" : " posstat--warn"}`}>
             <div className="posstat__label">Delta</div>
@@ -1144,7 +1805,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
         {rows.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
         ) : (
-        <table className="postable postable--expandable">
+        <table className="postable postable--expandable postable--mid">
           <thead>
             <tr>
               <th style={{ width: 28 }} />
@@ -1173,7 +1834,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
                     </td>
                     <td className="mono">{s.mode}</td>
                     <td className="mono">{formatDuration(s.durationHours)}</td>
-                    <td className="mono">{formatFrequency(s.frequencyPerYear)}</td>
+                    <td className="mono">{s.frequencyPerYear === 0 && s.mode === "POWER" ? "Base state" : formatFrequency(s.frequencyPerYear)}</td>
                     <td className="mono">{(s.durationFraction * 100).toFixed(1)} %</td>
                     <td>
                       {s.basis.trim().length > 0
@@ -1209,7 +1870,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Group roll-up check</h3></div>
         <p className="poscard__sub">A group's stored duration should match the sum of its member states. Entry frequency is the rate of entering the group, not the sum of member frequencies.</p>
-        <table className="postable">
+        <table className="postable postable--mid">
           <thead>
             <tr><th>Group</th><th>Members</th><th>Sum of member duration</th><th>Stored duration</th><th>Group entry frequency</th><th>Status</th></tr>
           </thead>
@@ -1235,26 +1896,37 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
 
 function patchStateDecayHeat(pos: PlantOperatingStatesAnalysis, uuid: string, fields: { timeHours?: number; mw?: number; basis?: string }): PlantOperatingStatesAnalysis {
   const round = (n: number): number => Number(n.toFixed(3));
-  return {
-    ...pos,
-    plantOperatingStates: pos.plantOperatingStates.map((s) => {
-      if (s.uuid !== uuid) return s;
-      const decayHeatLevel = fields.mw !== undefined
-        ? { min: round(fields.mw * 0.9), max: round(fields.mw * 1.1), representative: round(fields.mw), units: "MW" }
-        : s.rcsParameters.decayHeatLevel;
-      return {
-        ...s,
-        meanTimeAfterShutdownHours: fields.timeHours ?? s.meanTimeAfterShutdownHours,
-        rcsParameters: { ...s.rcsParameters, decayHeatLevel },
-        decayHeatBasis: fields.basis ?? s.decayHeatBasis,
-        decayHeatLevelDefined: fields.mw !== undefined ? true : s.decayHeatLevelDefined,
-      };
-    }),
+  const plantOperatingStates = pos.plantOperatingStates.map((s) => {
+    if (s.uuid !== uuid) return s;
+    const decayHeatLevel = fields.mw !== undefined
+      ? { min: round(fields.mw * 0.9), max: round(fields.mw * 1.1), representative: round(fields.mw), units: "MWth" }
+      : s.rcsParameters.decayHeatLevel;
+    return {
+      ...s,
+      meanTimeAfterShutdownHours: fields.timeHours ?? s.meanTimeAfterShutdownHours,
+      rcsParameters: { ...s.rcsParameters, decayHeatLevel },
+      decayHeatBasis: fields.basis ?? s.decayHeatBasis,
+      decayHeatLevelDefined: fields.mw !== undefined ? true : s.decayHeatLevelDefined,
+    };
+  });
+  if (fields.mw === undefined) return { ...pos, plantOperatingStates };
+  const s = plantOperatingStates.find((x) => x.uuid === uuid);
+  if (s === undefined) return { ...pos, plantOperatingStates };
+  const entry = {
+    posId: uuid,
+    decayHeatLevel: s.rcsParameters.decayHeatLevel,
+    timeAfterShutdownHours: s.meanTimeAfterShutdownHours ?? 0,
+    basis: s.decayHeatBasis ?? "",
+    isLpsd: s.operatingMode !== "POWER",
+    implementsSrs: [{ sr: "POS-C4", hlr: "C" as const }],
   };
+  const decayHeatCharacterizations = [...pos.decayHeatCharacterizations.filter((d) => d.posId !== uuid), entry];
+  return { ...pos, plantOperatingStates, decayHeatCharacterizations };
 }
 
-function DecayHeatRow({ state, powerMw, operatingDays, method, canEdit, mefPatch, mefPatchDebounced }: {
+function DecayHeatRow({ state, recorded, powerMw, operatingDays, method, canEdit, mefPatch, mefPatchDebounced }: {
   state: PlantOperatingState;
+  recorded: boolean;
   powerMw?: number;
   operatingDays?: number;
   method: DecayHeatMethod;
@@ -1298,12 +1970,12 @@ function DecayHeatRow({ state, powerMw, operatingDays, method, canEdit, mefPatch
       <td><input className="posfield__input" value={timeText} placeholder="hours" style={{ width: 90 }} disabled={!canEdit} onChange={(e) => onTime(e.target.value)} /></td>
       <td>
         <div className="posrow" style={{ gap: 6, alignItems: "center" }}>
-          <input className="posfield__input" value={mwText} placeholder="MW" style={{ width: 90 }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
+          <input className="posfield__input" value={mwText} style={{ width: 90 }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
           {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!canCompute} onClick={compute}>Compute</button>}
         </div>
       </td>
       <td className="mono">{fractionPercent !== undefined ? `${fractionPercent.toFixed(2)} %` : "—"}</td>
-      <td>{state.decayHeatLevelDefined ? <Badge kind="ok">Characterised</Badge> : <Badge kind="warn">Pending</Badge>}</td>
+      <td>{recorded ? <Badge kind="ok">Characterised</Badge> : <Badge kind="warn">Pending</Badge>}</td>
     </tr>
   );
 }
@@ -1339,6 +2011,7 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
   const operatingPowerMw = Number.isFinite(parsedPower) && parsedPower > 0 ? parsedPower : undefined;
   const operatingDays = pos.decayHeatOperatingDays;
   const lpsd = pos.plantOperatingStates.filter((s) => s.operatingMode !== "POWER");
+  const characterized = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
   const [methodId, setMethodId] = useState(DECAY_HEAT_METHODS[0].id);
   const method = DECAY_HEAT_METHODS.find((m) => m.id === methodId) ?? DECAY_HEAT_METHODS[0];
   const [computeVersion, setComputeVersion] = useState(0);
@@ -1380,22 +2053,25 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
         {operatingPowerMw === undefined && (
           <p className="posfield__hint" style={{ marginBottom: 10 }}>Set the core thermal power in the plant setup to compute decay heat from a correlation.</p>
         )}
+        {operatingDays === undefined && (
+          <p className="posfield__hint" style={{ marginBottom: 10 }}>Set the operating days before shutdown to compute decay heat from a correlation.</p>
+        )}
         {lpsd.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No LPSD states yet.</p>
         ) : (
-        <table className="postable">
+        <table className="postable postable--mid">
           <thead>
             <tr>
               <th>State</th>
               <th>Time after shutdown (h)</th>
-              <th>Decay heat</th>
+              <th>Decay heat (MWth)</th>
               <th>Fraction of power</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
             {lpsd.map((s) => (
-              <DecayHeatRow key={`${s.uuid}-${computeVersion}`} state={s} powerMw={operatingPowerMw} operatingDays={operatingDays} method={method} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />
+              <DecayHeatRow key={`${s.uuid}-${computeVersion}`} state={s} recorded={characterized.has(s.uuid)} powerMw={operatingPowerMw} operatingDays={operatingDays} method={method} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />
             ))}
           </tbody>
         </table>
@@ -1423,6 +2099,17 @@ function DraftScreen({
   const { pos } = usePosWorkbook();
   const ready = scores.blocked === 0;
   const toc = computePosReportToc(pos);
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(pos, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${pos.name} — POS Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -1495,6 +2182,9 @@ function DraftScreen({
             <button type="button" className="posnav__btn" onClick={() => onGenerate(ready)}>
               <POSIcon.Download /> Download draft (.docx)
             </button>
+            <button type="button" className="posnav__btn" onClick={downloadJson}>
+              <POSIcon.Download /> Download JSON
+            </button>
             <button type="button" className="posnav__btn" onClick={() => onGenerate(ready)}>
               <POSIcon.Eye /> Preview before generating
             </button>
@@ -1510,6 +2200,7 @@ export {
   type ScreenProps,
   blankPlantEvolution,
   blankPlantOperatingState,
+  blankPlantOperatingStateGroup,
   SetupScreen,
   DocumentsScreen,
   EvolutionsScreen,

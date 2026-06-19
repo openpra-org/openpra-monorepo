@@ -3,13 +3,14 @@ import { POSIcon } from "./posIcons";
 import { Badge } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
-import { statesView, evolutionsView, groupsView, preOpsForState, preOpsForGroup, stateLabel, evolutionLabel, type StateView, type PreOpAssumptionView } from "./posSelectors";
+import { statesView, evolutionsView, preOpsForState, preOpsForGroup, stateLabel, evolutionLabel, groupLabel, formatDuration, type StateView, type PreOpAssumptionView } from "./posSelectors";
 import { usePosWorkbook } from "./posWorkbookContext";
 import { type Mutator } from "./useMefPatch";
 import {
   type PlantOperatingStatesAnalysis,
   type PlantEvolution,
   type PlantOperatingState,
+  type PlantOperatingStateGroup,
   type ParameterRange,
   type RadioactiveSource,
   type RadionuclideTransportBarrier,
@@ -121,7 +122,7 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
           {states.length === 0 ? (
             <p className="posmuted" style={{ margin: 0 }}>No operating states point to this evolution yet.</p>
           ) : (
-          <table className="postable">
+          <table className="postable postable--mid">
             <thead><tr><th>State</th><th>Mode</th><th>Duration</th><th>Status</th></tr></thead>
             <tbody>
               {states.map((s) => (
@@ -165,7 +166,17 @@ function putState(draft: PlantOperatingStatesAnalysis, next: PlantOperatingState
 }
 
 function removeState(draft: PlantOperatingStatesAnalysis, uuid: string): PlantOperatingStatesAnalysis {
-  return { ...draft, plantOperatingStates: draft.plantOperatingStates.filter((s) => s.uuid !== uuid) };
+  const durationById = new Map(draft.plantOperatingStates.map((s) => [s.uuid, s.meanDurationHours]));
+  return {
+    ...draft,
+    plantOperatingStates: draft.plantOperatingStates.filter((s) => s.uuid !== uuid),
+    plantOperatingStateGroups: (draft.plantOperatingStateGroups ?? []).map((g) => {
+      if (!g.memberPosIds.includes(uuid)) return g;
+      const memberPosIds = g.memberPosIds.filter((id) => id !== uuid);
+      const summedDurationHours = memberPosIds.reduce((acc, id) => acc + (durationById.get(id) ?? 0), 0);
+      return { ...g, memberPosIds, summedDurationHours };
+    }),
+  };
 }
 
 function blankSource(): RadioactiveSource {
@@ -392,6 +403,140 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
   );
 }
 
+function putGroup(draft: PlantOperatingStatesAnalysis, next: PlantOperatingStateGroup): PlantOperatingStatesAnalysis {
+  return { ...draft, plantOperatingStateGroups: (draft.plantOperatingStateGroups ?? []).map((g) => (g.uuid === next.uuid ? next : g)) };
+}
+
+function removeGroup(draft: PlantOperatingStatesAnalysis, uuid: string): PlantOperatingStatesAnalysis {
+  return { ...draft, plantOperatingStateGroups: (draft.plantOperatingStateGroups ?? []).filter((g) => g.uuid !== uuid) };
+}
+
+const GROUP_EVOLUTION_TYPES = Object.values(EvolutionType);
+
+function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounced, onClose }: {
+  group: PlantOperatingStateGroup;
+  states: { uuid: string; name: string; durationHours: number }[];
+  preop?: PreOpAssumptionView;
+  canEdit: boolean;
+  mefPatch?: (mutator: Mutator) => void;
+  mefPatchDebounced?: (mutator: Mutator) => void;
+  onClose: () => void;
+}): JSX.Element {
+  const [draft, setDraft] = useState<PlantOperatingStateGroup>(group);
+  const freqValue = typeof draft.entryFrequency === "number" ? draft.entryFrequency : draft.entryFrequency.value;
+  const [freqText, setFreqText] = useState(String(freqValue));
+  const durationById = new Map(states.map((s) => [s.uuid, s.durationHours]));
+  function update(next: PlantOperatingStateGroup): void {
+    setDraft(next);
+    if (!canEdit || mefPatchDebounced === undefined) return;
+    mefPatchDebounced((d) => putGroup(d, next));
+  }
+  function toggleMember(uuid: string): void {
+    const memberPosIds = draft.memberPosIds.includes(uuid)
+      ? draft.memberPosIds.filter((id) => id !== uuid)
+      : [...draft.memberPosIds, uuid];
+    const summedDurationHours = memberPosIds.reduce((acc, id) => acc + (durationById.get(id) ?? 0), 0);
+    update({ ...draft, memberPosIds, summedDurationHours });
+  }
+  function onFreq(v: string): void {
+    setFreqText(v);
+    const n = Number(v);
+    if (v.trim().length === 0 || Number.isNaN(n) || n < 0) return;
+    const entryFrequency = typeof draft.entryFrequency === "number" ? n : { ...draft.entryFrequency, value: n };
+    update({ ...draft, entryFrequency });
+  }
+  function onBounding(v: string): void {
+    const rest = draft.boundingCharacteristics.slice(1);
+    update({ ...draft, boundingCharacteristics: v.trim().length > 0 ? [v, ...rest] : rest });
+  }
+  function onDelete(): void {
+    if (mefPatch === undefined) return;
+    mefPatch((d) => removeGroup(d, draft.uuid));
+    onClose();
+  }
+  return (
+    <>
+      <div className="posdrawer__head">
+        <div>
+          <div className="posdrawer__cap">Operating-state group</div>
+          <h2 className="posdrawer__title">{groupLabel(draft.name)}</h2>
+          <div className="posdrawer__sub">{draft.memberPosIds.length} member states · total {formatDuration(draft.summedDurationHours)}</div>
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
+      </div>
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Group details</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield">
+              <label className="posfield__label">Name</label>
+              <input className="posfield__input" value={draft.name} placeholder="e.g. Shutdown / cooldown group" onChange={(e) => update({ ...draft, name: e.target.value })} />
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Evolution type</label>
+              <select className="posfield__input" value={draft.evolutionType} onChange={(e) => update({ ...draft, evolutionType: e.target.value as EvolutionType })}>
+                {GROUP_EVOLUTION_TYPES.map((t) => <option key={t} value={t}>{t.split("_").join(" ").toLowerCase()}</option>)}
+              </select>
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Entry frequency (per year)</label>
+              <input className="posfield__input" value={freqText} placeholder="per year" onChange={(e) => onFreq(e.target.value)} />
+            </div>
+            <div className="posfield">
+              <label className="posfield__label">Summed duration (computed)</label>
+              <div className="mono" style={{ padding: "8px 0" }}>{formatDuration(draft.summedDurationHours)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Member states</h3></div>
+          {states.length === 0 ? (
+            <p className="posmuted" style={{ margin: 0 }}>No operating states to group yet.</p>
+          ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {states.map((s) => (
+              <label key={s.uuid} className="posrow" style={{ gap: 8, cursor: canEdit ? "pointer" : "default" }}>
+                <input type="checkbox" checked={draft.memberPosIds.includes(s.uuid)} disabled={!canEdit} onChange={() => toggleMember(s.uuid)} />
+                <span>{stateLabel(s.name)}</span>
+                <span className="possubtle" style={{ marginLeft: "auto", fontSize: 12 }}>{formatDuration(s.durationHours)}</span>
+              </label>
+            ))}
+          </div>
+          )}
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Similarity rationale</h3></div>
+          <textarea className="posfield__textarea" value={draft.similarityBasis} placeholder="Why these states are similar enough to group." style={{ minHeight: 110 }} onChange={(e) => update({ ...draft, similarityBasis: e.target.value })} />
+        </div>
+
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Bounding characteristic</h3></div>
+          <input className="posfield__input" value={draft.boundingCharacteristics[0] ?? ""} placeholder="e.g. Lowest helium temperature, the bounding state" onChange={(e) => onBounding(e.target.value)} />
+        </div>
+
+        <div className="poscard">
+          <label className="posrow" style={{ gap: 10, cursor: canEdit ? "pointer" : "default" }}>
+            <input type="checkbox" checked={draft.doesNotMaskRiskSignificantContributors} disabled={!canEdit} onChange={(e) => update({ ...draft, doesNotMaskRiskSignificantContributors: e.target.checked })} />
+            <span>Grouping does not mask any risk-significant contributors</span>
+          </label>
+        </div>
+
+        {canEdit && (
+          <div className="poscard">
+            <div className="poscard__head"><h3 className="poscard__title">Remove group</h3></div>
+            <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the operating-state group from the analysis.</p>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete group</button>
+          </div>
+        )}
+
+        <PreopAssumptionCard assumption={preop} />
+      </fieldset>
+    </>
+  );
+}
+
 function DrawerContent({ context, onClose, canEdit, mefPatch, mefPatchDebounced }: { context: DrawerContext; onClose: () => void; canEdit: boolean; mefPatch?: (mutator: Mutator) => void; mefPatchDebounced?: (mutator: Mutator) => void }): JSX.Element | null {
   const { pos } = usePosWorkbook();
   if (context.kind === "state") {
@@ -429,38 +574,20 @@ function DrawerContent({ context, onClose, canEdit, mefPatch, mefPatchDebounced 
       />
     );
   }
-  const g = groupsView(pos).find((x) => x.id === context.id);
-  if (g === undefined) return null;
+  const rawGroup = (pos.plantOperatingStateGroups ?? []).find((x) => x.uuid === context.id);
+  if (rawGroup === undefined) return null;
+  const groupStates = pos.plantOperatingStates.map((s) => ({ uuid: s.uuid, name: s.name, durationHours: s.meanDurationHours }));
   return (
-    <>
-      <div className="posdrawer__head">
-        <div>
-          <div className="posdrawer__cap">Operating-state group</div>
-          <h2 className="posdrawer__title">{g.name}</h2>
-          <div className="posdrawer__sub">{g.members.length} member states · total {g.durationSum}</div>
-        </div>
-        <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
-      </div>
-      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
-        <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Similarity rationale</h3></div>
-          <textarea className="posfield__textarea" defaultValue={g.rationale} style={{ minHeight: 120 }} />
-        </div>
-        <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Bounding characteristic</h3></div>
-          <input className="posfield__input" defaultValue={g.boundingCharacteristic} />
-        </div>
-        <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Member states</h3></div>
-          <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-            {g.members.map((m) => <span key={m} className="poschip poschip--primary">{m}</span>)}
-            <button type="button" className="poschip"><POSIcon.Plus /> Add state</button>
-          </div>
-        </div>
-
-        <PreopAssumptionCard assumption={preOpsForGroup(pos, g.id)[0]} />
-      </fieldset>
-    </>
+    <GroupEditor
+      key={rawGroup.uuid}
+      group={rawGroup}
+      states={groupStates}
+      preop={preOpsForGroup(pos, rawGroup.uuid)[0]}
+      canEdit={canEdit}
+      mefPatch={mefPatch}
+      mefPatchDebounced={mefPatchDebounced}
+      onClose={onClose}
+    />
   );
 }
 

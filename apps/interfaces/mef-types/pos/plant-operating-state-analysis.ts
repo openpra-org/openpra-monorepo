@@ -441,6 +441,7 @@ export interface ExampleDocumentRef {
   extracted: string;
   linked: number;
   url?: string;
+  citation?: string;
 }
 
 export const POS_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

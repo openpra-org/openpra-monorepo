@@ -95,6 +95,11 @@ interface PosBundleResponse {
   newlyDevelopedMethods: PosExampleResponse[];
 }
 
+interface ExampleOption {
+  id: string;
+  label: string;
+}
+
 interface HeaderMeta {
   projectName: string;
   workbookName: string;
@@ -103,7 +108,7 @@ interface HeaderMeta {
 }
 
 function WorkspaceHeader({
-  stage, setStage, onBack, persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, onToggleRail, onToggleDock,
+  stage, setStage, onBack, persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, onToggleRail, onToggleDock, exampleOptions, selectedExample, onSelectExample,
 }: {
   stage: Stage;
   setStage: (s: Stage) => void;
@@ -119,6 +124,9 @@ function WorkspaceHeader({
   headerMeta: HeaderMeta;
   onToggleRail?: () => void;
   onToggleDock?: () => void;
+  exampleOptions?: ExampleOption[];
+  selectedExample?: string;
+  onSelectExample?: (id: string) => void;
 }): JSX.Element {
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
@@ -169,6 +177,20 @@ function WorkspaceHeader({
       <div className="poshd__spacer" />
 
       <div className="poshd__actions">
+        {exampleOptions !== undefined && exampleOptions.length > 1 && onSelectExample !== undefined && (
+          <label className="poshd__perspective" title="Switch the worked example">
+            <span className="poshd__perspective-label">Example</span>
+            <select
+              className="poshd__perspective-select"
+              value={selectedExample}
+              onChange={(e) => onSelectExample(e.target.value)}
+            >
+              {exampleOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {showPersonaPicker && availablePersonas.length > 1 && (
           <label className="poshd__perspective" title="Switch perspective">
             <span className="poshd__perspective-label">View as</span>
@@ -389,7 +411,7 @@ interface PosWorkbenchDocuments {
   onUpdate: (documentId: string, fields: { name?: string; notes?: string }) => Promise<void>;
 }
 
-function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced, renderApprovalTable, renderSignCard, renderRoster }: {
+function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, actions, documents, headerMeta, mefPatch, mefPatchDebounced, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample }: {
   data: PosWorkbookData;
   persona: PosPersona;
   setPersona: (p: PosPersona) => void;
@@ -406,6 +428,9 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   renderApprovalTable?: () => JSX.Element | null;
   renderSignCard?: () => JSX.Element | null;
   renderRoster?: () => JSX.Element | null;
+  exampleOptions?: ExampleOption[];
+  selectedExample?: string;
+  onSelectExample?: (id: string) => void;
 }): JSX.Element {
   const navigate = useNavigate();
   const isReviewer = persona === "reviewer";
@@ -647,7 +672,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
     <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`POS — ${step.label}`}>
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
-      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} setPersona={setPersona} workflowState={data.pos.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
+      <WorkspaceHeader stage={stage} setStage={setStage} onBack={() => navigate(-1)} persona={persona} setPersona={setPersona} workflowState={data.pos.workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} exampleOptions={exampleOptions} selectedExample={selectedExample} onSelectExample={onSelectExample} />
 
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
         <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
@@ -742,27 +767,48 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
 }
 
 function PosDemoPage(): JSX.Element {
+  const [examples, setExamples] = useState<ExampleOption[]>([]);
+  const [selected, setSelected] = useState<string>("");
   const [data, setData] = useState<PosWorkbookData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<PosPersona>("preparer");
 
   useEffect(() => {
     let cancelled = false;
-    fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle")
+    fetchJson<ExampleOption[]>("/api/example-workbooks/pos-examples")
       .then((res) => {
         if (cancelled) return;
-        setData({
-          pos: res.pos.mef as PlantOperatingStatesAnalysis,
-          cc: res.configurationControl.mef as PRAConfigurationControl,
-          nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-        });
+        setExamples(res);
+        setSelected((cur) => (cur.length > 0 ? cur : res[0]?.id ?? "htgr"));
       })
-      .catch((err: unknown) => {
+      .catch(() => {
         if (cancelled) return;
-        setError((err as { message?: string }).message ?? "Could not load the example workbook");
+        setSelected((cur) => (cur.length > 0 ? cur : "htgr"));
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (selected.length > 0) {
+      setData(null);
+      setError(null);
+      fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${encodeURIComponent(selected)}`)
+        .then((res) => {
+          if (cancelled) return;
+          setData({
+            pos: res.pos.mef as PlantOperatingStatesAnalysis,
+            cc: res.configurationControl.mef as PRAConfigurationControl,
+            nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setError((err as { message?: string }).message ?? "Could not load the example workbook");
+        });
+    }
+    return () => { cancelled = true; };
+  }, [selected]);
 
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
@@ -771,26 +817,28 @@ function PosDemoPage(): JSX.Element {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading example workbook…</p></main></div>;
   }
 
+  const identity = data.pos.metadata.plantIdentity;
+  const stageLabel = data.pos.plantStage === "OPERATIONAL" ? "Operational" : "Pre-operational";
+  const headerMeta: HeaderMeta = {
+    projectName: identity !== undefined ? `${identity.name} ${stageLabel} PRA` : POS_PROJECT.projectName,
+    workbookName: data.pos.name,
+    workbookVersion: String(data.pos.version),
+    plantIdentity: identity !== undefined
+      ? { name: identity.name, type: identity.reactorType, power: identity.thermalPower, vendor: identity.vendor }
+      : undefined,
+  };
+
   return (
-    <PosWorkbookProvider data={data}>
+    <PosWorkbookProvider key={selected} data={data}>
       <PosWorkbench
         data={data}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={true}
-        headerMeta={{
-          projectName: POS_PROJECT.projectName,
-          workbookName: POS_PROJECT.workbookName,
-          workbookVersion: String(POS_PROJECT.workbookVersion),
-          plantIdentity: data.pos.metadata.plantIdentity
-            ? {
-                name: data.pos.metadata.plantIdentity.name,
-                type: data.pos.metadata.plantIdentity.reactorType,
-                power: data.pos.metadata.plantIdentity.thermalPower,
-                vendor: data.pos.metadata.plantIdentity.vendor,
-              }
-            : undefined,
-        }}
+        headerMeta={headerMeta}
+        exampleOptions={examples}
+        selectedExample={selected}
+        onSelectExample={setSelected}
       />
     </PosWorkbookProvider>
   );

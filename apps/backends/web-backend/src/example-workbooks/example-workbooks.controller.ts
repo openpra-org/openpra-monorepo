@@ -1,9 +1,10 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, HttpCode, HttpStatus, Param, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import {
   ExampleWorkbooksService,
   type ExampleWorkbookResponse,
   type PosExampleBundle,
+  type PosExampleOption,
   type IeExampleBundle,
   type EsExampleBundle,
   type ScExampleBundle,
@@ -21,10 +22,16 @@ import {
 export class ExampleWorkbooksController {
   constructor(private readonly exampleWorkbooksService: ExampleWorkbooksService) {}
 
+  @Get("pos-examples")
+  @HttpCode(HttpStatus.OK)
+  getPosExamples(): PosExampleOption[] {
+    return this.exampleWorkbooksService.getPosExamples();
+  }
+
   @Get("pos-bundle")
   @HttpCode(HttpStatus.OK)
-  getPosBundle(): Promise<PosExampleBundle> {
-    return this.exampleWorkbooksService.getPosBundle();
+  getPosBundle(@Query("example") example?: string): Promise<PosExampleBundle> {
+    return this.exampleWorkbooksService.getPosBundle(example);
   }
 
   @Get("ie-bundle")

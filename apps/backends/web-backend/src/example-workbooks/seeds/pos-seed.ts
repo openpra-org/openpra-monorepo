@@ -553,7 +553,7 @@ const plantOperatingStates: PlantOperatingState[] = [
     sscCount: 8,
     meanDurationHours: 176,
     meanEntryFrequency: 0.5,
-    meanTimeAfterShutdownHours: 336,
+    meanTimeAfterShutdownHours: 504,
     decayHeatLevelDefined: false,
     preOperationalAssumptions: [
       mkAssumption(
@@ -1128,10 +1128,10 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   decayHeatOperatingDays: 540,
   newlyDevelopedMethodIds: [],
   exampleDocuments: [
-    { id: "DOC-01", name: "MHTGR-350 Core Design Benchmark", kind: "doc", sizeLabel: "OECD/NEA", uploadedLabel: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark" },
-    { id: "DOC-02", name: "Multi-physics steady-state analysis of the MHTGR-350", kind: "doc", sizeLabel: "J. Nucl. Sci. Technol.", uploadedLabel: "2017", extracted: "Confirms 350 MWt, 6.4 MPa, 259 and 687 °C, 157.1 kg/s helium flow", linked: 4, url: "/api/example-documents/pos/mhtgr-analysis" },
-    { id: "DOC-03", name: "Modular HTGR Safety Characterization", kind: "doc", sizeLabel: "ORNL", uploadedLabel: "Pub49707", extracted: "Passive decay heat removal, the RCCS and SCS, loss of forced cooling", linked: 4, url: "/api/example-documents/pos/htgr-safety" },
-    { id: "DOC-04", name: "NGNP PRA White Paper", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL/EXT-11-21270", extracted: "HTGR PRA approach, plant operating states, licensing basis events", linked: 5, url: "/api/example-documents/pos/ngnp-pra" },
+    { id: "DOC-01", name: "MHTGR-350 Core Design Benchmark", kind: "doc", sizeLabel: "OECD/NEA", uploadedLabel: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark", citation: "OECD/NEA MHTGR-350 MW Core Design Benchmark, INL results, OSTI 1129932 (https://www.osti.gov/biblio/1129932)" },
+    { id: "DOC-02", name: "Multi-physics steady-state analysis of the MHTGR-350", kind: "doc", sizeLabel: "J. Nucl. Sci. Technol.", uploadedLabel: "2017", extracted: "Confirms 350 MWt, 6.4 MPa, 259 and 687 °C, 157.1 kg/s helium flow", linked: 4, url: "/api/example-documents/pos/mhtgr-analysis", citation: "Multi-physics steady-state analysis of the MHTGR-350, J. Nucl. Sci. Technol. 2017 (https://doi.org/10.1080/00223131.2017.1299649)" },
+    { id: "DOC-03", name: "Modular HTGR Safety Characterization", kind: "doc", sizeLabel: "ORNL", uploadedLabel: "Pub49707", extracted: "Passive decay heat removal, the RCCS and SCS, loss of forced cooling", linked: 4, url: "/api/example-documents/pos/htgr-safety", citation: "Overview of Modular HTGR Safety Characterization, ORNL Pub49707 (https://info.ornl.gov/sites/publications/files/Pub49707.pdf)" },
+    { id: "DOC-04", name: "NGNP PRA White Paper", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL/EXT-11-21270", extracted: "HTGR PRA approach, plant operating states, licensing basis events", linked: 5, url: "/api/example-documents/pos/ngnp-pra", citation: "NGNP Probabilistic Risk Assessment White Paper, INL/EXT-11-21270 (http://large.stanford.edu/courses/2015/ph241/al-alami1/docs/11-21270.pdf)" },
   ],
 };
 

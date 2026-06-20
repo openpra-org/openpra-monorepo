@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_GENERIC_1_SLUG, IE_GENERIC_1_SLUG, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_EXAMPLES, IE_GENERIC_1_SLUG, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -15,6 +15,11 @@ export interface PosExampleBundle {
   pos: ExampleWorkbookResponse;
   configurationControl: ExampleWorkbookResponse;
   newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+export interface PosExampleOption {
+  id: string;
+  label: string;
 }
 
 export interface IeExampleBundle {
@@ -113,8 +118,13 @@ export class ExampleWorkbooksService implements OnModuleInit {
     return toResponse(doc);
   }
 
-  async getPosBundle(): Promise<PosExampleBundle> {
-    const pos = await this.findBySlug(POS_GENERIC_1_SLUG);
+  getPosExamples(): PosExampleOption[] {
+    return POS_EXAMPLES.map((e) => ({ id: e.id, label: e.label }));
+  }
+
+  async getPosBundle(exampleId?: string): Promise<PosExampleBundle> {
+    const entry = POS_EXAMPLES.find((e) => e.id === exampleId) ?? POS_EXAMPLES[0];
+    const pos = await this.findBySlug(entry.slug);
     const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return {

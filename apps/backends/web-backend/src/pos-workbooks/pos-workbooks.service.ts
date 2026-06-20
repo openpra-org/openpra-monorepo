@@ -76,7 +76,7 @@ export class PosWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<PosWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<PosWorkbookResponse> {
     const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("POS workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -86,7 +86,7 @@ export class PosWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getPosBundle();
+    const example = await this.exampleWorkbooksService.getPosBundle(exampleId);
     const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(example.pos.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

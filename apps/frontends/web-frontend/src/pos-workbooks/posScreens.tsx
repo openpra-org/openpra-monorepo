@@ -596,7 +596,7 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const exampleDocs = pos.exampleDocuments ?? [];
-  const showExampleDocs = isReal && realDocuments.length === 0 && exampleDocs.length > 0;
+  const showExampleDocs = exampleDocs.length > 0 && (!isReal || realDocuments.length === 0);
 
   function pickFile(): void {
     fileInputRef.current?.click();

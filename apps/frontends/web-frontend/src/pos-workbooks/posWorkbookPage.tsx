@@ -13,6 +13,7 @@ import {
   signPosReview,
   signPosApproval,
   requestPosRevision,
+  getPosExampleOptions,
   loadPosExample,
   unloadPosExample,
   listPosDocuments,
@@ -22,6 +23,7 @@ import {
   getPosDocumentDownload,
   type PosWorkbookRoleName,
   type PosDocumentEntry,
+  type PosExampleOption,
 } from "./posWorkbookApi";
 import { PosWorkbench } from "./posDemoPage";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
@@ -70,6 +72,8 @@ function PosWorkbookPage(): JSX.Element {
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
+  const [exampleOptions, setExampleOptions] = useState<PosExampleOption[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [documents, setDocuments] = useState<PosDocumentEntry[]>([]);
   const [projectName, setProjectName] = useState<string>("");
@@ -109,6 +113,14 @@ function PosWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPosExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { /* selector falls back to the default example */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const updatePos = useCallback((pos: PlantOperatingStatesAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, pos }));
@@ -234,6 +246,7 @@ function PosWorkbookPage(): JSX.Element {
   return (
     <PosWorkbookProvider data={data}>
       <PosWorkbench
+        key={reloadKey}
         data={data}
         persona={persona}
         setPersona={setPersona}
@@ -286,10 +299,12 @@ function PosWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="POS"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadPosExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadPosExample(id, exampleId);
             updatePos(res.mef);
+            setReloadKey((k) => k + 1);
             setHasPreviousMef(res.hasPreviousMef);
             await refreshDocuments();
             setLoadExOpen(false);
@@ -302,6 +317,7 @@ function PosWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadPosExample(id);
             updatePos(res.mef);
+            setReloadKey((k) => k + 1);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

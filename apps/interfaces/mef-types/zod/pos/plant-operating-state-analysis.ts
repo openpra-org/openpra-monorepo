@@ -438,6 +438,7 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
     extracted: z.string(),
     linked: z.number(),
     url: z.string().optional(),
+    citation: z.string().optional(),
   })).optional(),
 });
 

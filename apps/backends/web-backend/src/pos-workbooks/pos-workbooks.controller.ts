@@ -6,6 +6,10 @@ interface ReplaceMefBody {
   mef: unknown;
 }
 
+interface LoadExampleBody {
+  example?: string;
+}
+
 @Controller("pos-workbooks")
 @UseGuards(JwtAuthGuard)
 export class PosWorkbooksController {
@@ -29,8 +33,8 @@ export class PosWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<PosWorkbookResponse> {
-    return this.posWorkbooksService.loadExample(id, { username: req.user!.username });
+  loadExample(@Param("id") id: string, @Body() body: LoadExampleBody, @Req() req: AuthenticatedRequest): Promise<PosWorkbookResponse> {
+    return this.posWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 
   @Post(":id/unload-example")

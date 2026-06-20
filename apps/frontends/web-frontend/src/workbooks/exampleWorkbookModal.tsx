@@ -9,20 +9,30 @@ function CloseIcon(): JSX.Element {
   );
 }
 
-interface LoadExampleModalProps {
-  exampleName: string;
-  onCancel: () => void;
-  onConfirm: () => Promise<void>;
+interface ExampleOption {
+  id: string;
+  label: string;
 }
 
-function LoadExampleModal({ exampleName, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
+interface LoadExampleModalProps {
+  exampleName: string;
+  exampleOptions?: ExampleOption[];
+  onCancel: () => void;
+  onConfirm: (exampleId?: string) => Promise<void>;
+}
+
+function LoadExampleModal({ exampleName, exampleOptions, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const options = exampleOptions ?? [];
+  const hasChoice = options.length > 1;
+  const [selected, setSelected] = useState<string>(options[0]?.id ?? "");
+  const selectedLabel = options.find((o) => o.id === selected)?.label;
 
   function handleConfirm(): void {
     setBusy(true);
     setError(null);
-    onConfirm().catch((err: unknown) => {
+    onConfirm(hasChoice ? selected : undefined).catch((err: unknown) => {
       setError((err as { message?: string }).message ?? "Could not load the example");
       setBusy(false);
     });
@@ -37,8 +47,18 @@ function LoadExampleModal({ exampleName, onCancel, onConfirm }: LoadExampleModal
         </header>
 
         <div className="exmodal__body">
+          {hasChoice && (
+            <label className="exmodal__choice">
+              <span className="exmodal__choice-label">Example reactor</span>
+              <select className="exmodal__choice-select" value={selected} disabled={busy} onChange={(e) => setSelected(e.target.value)}>
+                {options.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <p>
-            This will replace the current workbook contents with the <strong>Generic-1</strong> {exampleName} example. Any data
+            This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong> {exampleName} example. Any data
             you have entered will be lost. Uploaded documents, comments, and review signoffs will also be cleared.
           </p>
           <p className="exmodal__hint">

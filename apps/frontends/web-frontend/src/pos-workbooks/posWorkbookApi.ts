@@ -150,8 +150,17 @@ async function getPosAwaitingMe(): Promise<PosAwaitingMeEntry[]> {
   return fetchJson<PosAwaitingMeEntry[]>("/api/workbooks/awaiting-me");
 }
 
-async function loadPosExample(workbookId: string): Promise<PosWorkbookResponse> {
-  return postJson<PosWorkbookResponse>(`/api/pos-workbooks/${workbookId}/load-example`, {});
+interface PosExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getPosExampleOptions(): Promise<PosExampleOption[]> {
+  return fetchJson<PosExampleOption[]>("/api/example-workbooks/pos-examples");
+}
+
+async function loadPosExample(workbookId: string, exampleId?: string): Promise<PosWorkbookResponse> {
+  return postJson<PosWorkbookResponse>(`/api/pos-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadPosExample(workbookId: string): Promise<PosWorkbookResponse> {
@@ -207,6 +216,7 @@ export {
   signPosAs,
   requestPosRevision,
   getPosAwaitingMe,
+  getPosExampleOptions,
   loadPosExample,
   unloadPosExample,
   listPosDocuments,
@@ -224,4 +234,5 @@ export {
   type PosRoleHolder,
   type PosSignoffRole,
   type PosAwaitingMeEntry,
+  type PosExampleOption,
 };

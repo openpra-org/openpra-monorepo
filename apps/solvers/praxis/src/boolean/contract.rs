@@ -238,6 +238,7 @@ pub struct QuantificationSettings {
     pub mcub: Option<bool>,
     pub monte_carlo: Option<bool>,
     pub prime_implicants: Option<bool>,
+    pub prime_implicants_tdd: Option<bool>,
     pub probability: Option<bool>,
     pub importance: Option<bool>,
     pub uncertainty: Option<bool>,

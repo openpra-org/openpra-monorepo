@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, BddPdagNode, NodeIdx};
+use crate::algorithms::pdag::{Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode};
 use crate::error::{PraxisError, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -299,6 +300,191 @@ impl Bdd {
 
     pub(crate) fn or(&mut self, f: BddRef, g: BddRef) -> BddRef {
         self.ite(f, BDD_TRUE, g)
+    }
+
+    fn pdag_var_order(pdags: &[&Pdag]) -> std::collections::HashMap<PdagIndex, usize> {
+        let mut events: Vec<PdagIndex> = pdags
+            .iter()
+            .flat_map(|p| p.nodes().values())
+            .filter_map(|n| match n {
+                PdagNode::BasicEvent { index, .. } => Some(*index),
+                _ => None,
+            })
+            .collect();
+        events.sort();
+        events.dedup();
+        let mut var_of = std::collections::HashMap::new();
+        for (i, &e) in events.iter().enumerate() {
+            var_of.insert(e, i);
+        }
+        var_of
+    }
+
+    fn build_pdag_root(
+        &mut self,
+        pdag: &Pdag,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+    ) -> Result<BddRef> {
+        let root = match pdag.root() {
+            Some(r) => r,
+            None => return Ok(BDD_TRUE),
+        };
+        let mut memo: HashMap<PdagIndex, BddRef> = HashMap::new();
+        let mut r = self.build_pdag_node(pdag, root.abs(), var_of, &mut memo)?;
+        if root < 0 {
+            r = r.complement();
+        }
+        if pdag.complement() {
+            r = r.complement();
+        }
+        Ok(r)
+    }
+
+    pub fn from_pdag(pdag: &Pdag) -> Result<(Bdd, BddRef)> {
+        let var_of = Self::pdag_var_order(&[pdag]);
+        Self::from_pdag_with_order(pdag, &var_of)
+    }
+
+    pub fn from_pdag_with_order(
+        pdag: &Pdag,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+    ) -> Result<(Bdd, BddRef)> {
+        let mut bdd = Bdd::new();
+        let root = bdd.build_pdag_root(pdag, var_of)?;
+        Ok((bdd, root))
+    }
+
+    pub fn equivalent(a: &Pdag, b: &Pdag) -> Result<bool> {
+        let var_of = Self::pdag_var_order(&[a, b]);
+        let mut bdd = Bdd::new();
+        let ra = bdd.build_pdag_root(a, &var_of)?;
+        let rb = bdd.build_pdag_root(b, &var_of)?;
+        Ok(ra == rb)
+    }
+
+    fn build_pdag_node(
+        &mut self,
+        pdag: &Pdag,
+        idx: PdagIndex,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+        memo: &mut HashMap<PdagIndex, BddRef>,
+    ) -> Result<BddRef> {
+        let a = idx.abs();
+        if let Some(&r) = memo.get(&a) {
+            return Ok(r);
+        }
+        if self.node_count() > 5_000_000 {
+            return Err(PraxisError::Logic("BDD from_pdag: node cap exceeded".to_string()));
+        }
+        let r = match pdag.get_node(a) {
+            Some(PdagNode::BasicEvent { .. }) => {
+                let v = *var_of.get(&a).ok_or_else(|| {
+                    PraxisError::Logic(format!("BDD from_pdag: variable {} unmapped", a))
+                })?;
+                self.make_node(v, BDD_TRUE, BDD_FALSE)
+            }
+            Some(PdagNode::Constant { value, .. }) => {
+                if *value {
+                    BDD_TRUE
+                } else {
+                    BDD_FALSE
+                }
+            }
+            Some(PdagNode::Gate {
+                connective,
+                operands,
+                min_number,
+                ..
+            }) => {
+                let conn = *connective;
+                let min = *min_number;
+                let ops = operands.clone();
+                let mut children = Vec::with_capacity(ops.len());
+                for &op in &ops {
+                    let c = self.build_pdag_node(pdag, op.abs(), var_of, memo)?;
+                    children.push(if op < 0 { c.complement() } else { c });
+                }
+                self.combine_pdag(conn, &children, min)
+            }
+            None => {
+                return Err(PraxisError::Logic(format!(
+                    "BDD from_pdag: node {} not found",
+                    a
+                )))
+            }
+        };
+        memo.insert(a, r);
+        Ok(r)
+    }
+
+    fn combine_pdag(&mut self, conn: PdagConnective, children: &[BddRef], min: Option<usize>) -> BddRef {
+        match conn {
+            PdagConnective::And => {
+                let mut acc = BDD_TRUE;
+                for &c in children {
+                    acc = self.and(acc, c);
+                }
+                acc
+            }
+            PdagConnective::Or => {
+                let mut acc = BDD_FALSE;
+                for &c in children {
+                    acc = self.or(acc, c);
+                }
+                acc
+            }
+            PdagConnective::Null => children.first().copied().unwrap_or(BDD_TRUE),
+            PdagConnective::Not => children
+                .first()
+                .copied()
+                .map(|c| c.complement())
+                .unwrap_or(BDD_FALSE),
+            PdagConnective::Nand => {
+                let mut acc = BDD_TRUE;
+                for &c in children {
+                    acc = self.and(acc, c);
+                }
+                acc.complement()
+            }
+            PdagConnective::Nor => {
+                let mut acc = BDD_FALSE;
+                for &c in children {
+                    acc = self.or(acc, c);
+                }
+                acc.complement()
+            }
+            PdagConnective::Xor => {
+                let mut acc = BDD_FALSE;
+                for &c in children {
+                    acc = self.ite(acc, c.complement(), c);
+                }
+                acc
+            }
+            PdagConnective::Iff => {
+                let mut all_true = BDD_TRUE;
+                let mut all_false = BDD_TRUE;
+                for &c in children {
+                    all_true = self.and(all_true, c);
+                    all_false = self.and(all_false, c.complement());
+                }
+                self.or(all_true, all_false)
+            }
+            PdagConnective::AtLeast => self.atleast_pdag(children, min.unwrap_or(1)),
+        }
+    }
+
+    fn atleast_pdag(&mut self, children: &[BddRef], k: usize) -> BddRef {
+        if k == 0 {
+            return BDD_TRUE;
+        }
+        if k > children.len() {
+            return BDD_FALSE;
+        }
+        let x = children[0];
+        let rest = &children[1..];
+        let t = self.atleast_pdag(rest, k - 1);
+        let e = self.atleast_pdag(rest, k);
+        self.ite(x, t, e)
     }
 
     pub fn build_from_pdag(pdag: &BddPdag) -> Result<(Bdd, BddRef)> {

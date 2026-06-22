@@ -19,6 +19,7 @@ export const QuantificationSettingsSchema = z.object({
   monteCarlo: z.boolean().optional(),
 
   primeImplicants: z.boolean().optional(),
+  primeImplicantsTdd: z.boolean().optional(),
   probability: z.boolean().optional(),
   importance: z.boolean().optional(),
   uncertainty: z.boolean().optional(),

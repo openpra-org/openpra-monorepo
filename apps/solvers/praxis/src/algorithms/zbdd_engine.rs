@@ -66,6 +66,7 @@ pub struct ZbddEngine {
     unique: HashMap<ZbddNode, ZbddRef>,
     union_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     subtract_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
+    difference_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     minimize_cache: HashMap<ZbddRef, ZbddRef>,
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
@@ -84,6 +85,7 @@ impl ZbddEngine {
             unique: HashMap::new(),
             union_cache: HashMap::new(),
             subtract_cache: HashMap::new(),
+            difference_cache: HashMap::new(),
             minimize_cache: HashMap::new(),
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
@@ -270,6 +272,43 @@ impl ZbddEngine {
 
     pub(crate) fn multiply(&mut self, var: usize, f: ZbddRef) -> ZbddRef {
         self.make_node(var, f, ZBDD_EMPTY)
+    }
+
+    pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        if f.is_empty() {
+            return ZBDD_EMPTY;
+        }
+        if g.is_empty() {
+            return f;
+        }
+        if f == g {
+            return ZBDD_EMPTY;
+        }
+        let key = (f, g);
+        if let Some(r) = self.difference_cache.get(&key).copied() {
+            return r;
+        }
+        let fv = self.var_of(f);
+        let gv = self.var_of(g);
+        let result = if fv < gv {
+            let f_hi = self.node(f).high;
+            let f_lo = self.node(f).low;
+            let lo = self.difference(f_lo, g);
+            self.make_node(fv, f_hi, lo)
+        } else if fv > gv {
+            let g_lo = self.node(g).low;
+            self.difference(f, g_lo)
+        } else {
+            let f_hi = self.node(f).high;
+            let f_lo = self.node(f).low;
+            let g_hi = self.node(g).high;
+            let g_lo = self.node(g).low;
+            let hi = self.difference(f_hi, g_hi);
+            let lo = self.difference(f_lo, g_lo);
+            self.make_node(fv, hi, lo)
+        };
+        self.difference_cache.insert(key, result);
+        result
     }
 
     pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
@@ -462,6 +501,10 @@ impl ZbddEngine {
         };
         cache.insert(f, result.clone());
         result
+    }
+
+    pub fn set_var_probs(&mut self, probs: Vec<f64>) {
+        self.var_probs = probs;
     }
 
     pub fn rare_event_probability(&self, root: ZbddRef) -> f64 {

@@ -99,6 +99,8 @@ pub struct Pdag {
     next_index: NodeIndex,
     root_index: Option<NodeIndex>,
     parents: HashMap<NodeIndex, HashSet<NodeIndex>>,
+    #[serde(default)]
+    complement: bool,
 }
 
 impl Pdag {
@@ -109,7 +111,16 @@ impl Pdag {
             next_index: 1,
             root_index: None,
             parents: HashMap::new(),
+            complement: false,
         }
+    }
+
+    pub fn complement(&self) -> bool {
+        self.complement
+    }
+
+    pub fn toggle_complement(&mut self) {
+        self.complement = !self.complement;
     }
 
     fn allocate_index(&mut self) -> NodeIndex {
@@ -444,6 +455,48 @@ impl Pdag {
         } else {
             Err(PraxisError::Logic(format!("Node {} not found", index)))
         }
+    }
+
+    pub fn negate_references(&mut self, target: NodeIndex) -> Result<()> {
+        let t = target.abs();
+        let parent_list: Vec<NodeIndex> = self
+            .parents
+            .get(&t)
+            .map(|set| set.iter().copied().collect())
+            .unwrap_or_default();
+
+        for parent in parent_list {
+            if let Some(PdagNode::Gate { operands, .. }) = self.nodes.get(&parent).cloned() {
+                let new_operands: Vec<NodeIndex> = operands
+                    .iter()
+                    .map(|&op| if op.abs() == t { -op } else { op })
+                    .collect();
+                self.update_gate_operands(parent, new_operands)?;
+            }
+        }
+
+        if let Some(root) = self.root_index {
+            if root.abs() == t {
+                self.complement = !self.complement;
+                self.root_index = Some(t);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_node(&mut self, index: NodeIndex) -> Result<()> {
+        let i = index.abs();
+        if let Some(PdagNode::Gate { operands, .. }) = self.nodes.get(&i).cloned() {
+            for op in operands {
+                if let Some(set) = self.parents.get_mut(&op.abs()) {
+                    set.remove(&i);
+                }
+            }
+        }
+        self.nodes.remove(&i);
+        self.parents.remove(&i);
+        Ok(())
     }
 }
 

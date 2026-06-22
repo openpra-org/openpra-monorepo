@@ -16,6 +16,7 @@ export interface QuantificationSettings {
   monteCarlo?: boolean;
 
   primeImplicants?: boolean;
+  primeImplicantsTdd?: boolean;
   probability?: boolean;
   importance?: boolean;
   uncertainty?: boolean;

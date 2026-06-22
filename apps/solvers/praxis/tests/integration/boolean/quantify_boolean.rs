@@ -97,6 +97,75 @@ fn demo_tree_model() -> (BooleanModel, BasicEventBindingTable) {
     (model, bindings)
 }
 
+fn consensus_model() -> (BooleanModel, BasicEventBindingTable) {
+    let mut model = BooleanModel {
+        id: 1,
+        ..Default::default()
+    };
+    model
+        .nodes
+        .insert(1, gate(1, BooleanOperator::Or, vec![2, 3]));
+    model
+        .nodes
+        .insert(2, gate(2, BooleanOperator::And, vec![4, 5]));
+    model
+        .nodes
+        .insert(3, gate(3, BooleanOperator::And, vec![6, 7]));
+    model.nodes.insert(4, basic(4, 10));
+    model.nodes.insert(5, basic(5, 11));
+    model
+        .nodes
+        .insert(6, gate(6, BooleanOperator::Not, vec![8]));
+    model.nodes.insert(8, basic(8, 10));
+    model.nodes.insert(7, basic(7, 12));
+    model.fault_trees.push(fault_tree_entry(100, 1));
+    let bindings = BasicEventBindingTable {
+        id: 1,
+        bindings: vec![binding(10, 0.1), binding(11, 0.1), binding(12, 0.1)],
+        ..Default::default()
+    };
+    (model, bindings)
+}
+
+#[test]
+fn prime_implicants_zbdd_finds_consensus_and_negation() {
+    let (model, bindings) = consensus_model();
+    let settings = QuantificationSettings {
+        prime_implicants: Some(true),
+        probability: Some(true),
+        ..Default::default()
+    };
+    let result = quantify(&model, &bindings, &CcfGroupTable::default(), &settings).unwrap();
+    let ft = result.fault_trees.unwrap();
+    let cut_sets = ft[0].cut_sets.as_ref().unwrap();
+    assert_eq!(cut_sets.prime_implicants, Some(true));
+    assert_eq!(cut_sets.products, 3);
+    let list = cut_sets.list.as_ref().unwrap();
+    assert!(
+        list.iter().any(|cs| cs.literals.iter().any(|l| l.negated)),
+        "non-coherent primes must contain a negated literal"
+    );
+    let prob = ft[0].top_event_probability.as_ref().unwrap();
+    assert!((prob.value - 0.10).abs() < 1e-9, "exact P = {}", prob.value);
+}
+
+#[test]
+fn prime_implicants_tdd_matches_zbdd() {
+    let (model, bindings) = consensus_model();
+    let settings = QuantificationSettings {
+        prime_implicants_tdd: Some(true),
+        probability: Some(true),
+        ..Default::default()
+    };
+    let result = quantify(&model, &bindings, &CcfGroupTable::default(), &settings).unwrap();
+    let ft = result.fault_trees.unwrap();
+    let cut_sets = ft[0].cut_sets.as_ref().unwrap();
+    assert_eq!(cut_sets.prime_implicants, Some(true));
+    assert_eq!(cut_sets.products, 3);
+    let prob = ft[0].top_event_probability.as_ref().unwrap();
+    assert!((prob.value - 0.10).abs() < 1e-9);
+}
+
 #[test]
 fn bdd_exact_probability_for_or_tree() {
     let (model, bindings) = or_two_events_model();

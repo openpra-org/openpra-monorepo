@@ -45,6 +45,7 @@ impl PreprocessorStats {
 pub struct Preprocessor {
     pdag: Pdag,
     stats: PreprocessorStats,
+    next_synth: usize,
 }
 
 impl Preprocessor {
@@ -62,109 +63,198 @@ impl Preprocessor {
                 original_nodes,
                 final_nodes: original_nodes,
             },
+            next_synth: 0,
         }
+    }
+
+    fn new_gate(&mut self, connective: Connective, operands: Vec<NodeIndex>) -> Result<NodeIndex> {
+        self.next_synth += 1;
+        let id = format!("_pp{}", self.next_synth);
+        self.pdag.add_gate(id, connective, operands, None)
     }
 
     pub fn run(&mut self) -> Result<()> {
-        self.run_phase_one()?;
-        self.run_phase_two()?;
-        self.run_phase_three()?;
-        self.run_phase_four()?;
-        self.run_phase_five()?;
-
-        self.stats.final_nodes = self.pdag.node_count();
-        Ok(())
-    }
-
-    fn run_phase_one(&mut self) -> Result<()> {
-        self.propagate_constants()?;
-        self.remove_null_gates()?;
-        Ok(())
-    }
-
-    fn run_phase_two(&mut self) -> Result<()> {
-        self.detect_modules()?;
-        self.coalesce_gates()?;
-        Ok(())
-    }
-
-    fn run_phase_three(&mut self) -> Result<()> {
         self.normalize_gates(NormalizationType::All)?;
-        Ok(())
-    }
-
-    fn run_phase_four(&mut self) -> Result<()> {
-        self.propagate_complements()?;
-        Ok(())
-    }
-
-    fn run_phase_five(&mut self) -> Result<()> {
-        self.remove_null_gates()?;
+        loop {
+            let folded = self.propagate_constants()?;
+            let spliced = self.remove_null_gates()?;
+            if !folded && !spliced {
+                break;
+            }
+        }
+        self.coalesce_gates()?;
+        self.detect_modules()?;
         self.stats.final_nodes = self.pdag.node_count();
         Ok(())
     }
 
-    fn propagate_constants(&mut self) -> Result<()> {
+    fn const_value_of(&self, op: NodeIndex) -> Option<bool> {
+        match self.pdag.get_node(op) {
+            Some(PdagNode::Constant { value, .. }) => Some(if op < 0 { !*value } else { *value }),
+            _ => None,
+        }
+    }
 
-        let mut count = 0;
+    fn make_constant(&mut self, index: NodeIndex, value: bool) -> Result<()> {
+        let cidx = self.pdag.add_constant(value);
+        let parent_list: Vec<NodeIndex> = self
+            .pdag
+            .parents()
+            .get(&index.abs())
+            .map(|set| set.iter().copied().collect())
+            .unwrap_or_default();
+        for parent in parent_list {
+            if let Some(PdagNode::Gate { operands, .. }) = self.pdag.get_node(parent).cloned() {
+                let new_operands: Vec<NodeIndex> = operands
+                    .iter()
+                    .map(|&op| {
+                        if op == index {
+                            cidx
+                        } else if op == -index {
+                            -cidx
+                        } else {
+                            op
+                        }
+                    })
+                    .collect();
+                self.pdag.update_gate_operands(parent, new_operands)?;
+            }
+        }
+        if let Some(root) = self.pdag.root() {
+            if root.abs() == index.abs() {
+                let signed = if root < 0 { -cidx } else { cidx };
+                self.pdag.set_root(signed)?;
+            }
+        }
+        self.pdag.remove_node(index)?;
+        self.stats.constants_eliminated += 1;
+        Ok(())
+    }
 
-        for node in self.pdag.nodes().values() {
-            if let PdagNode::Gate {
-                connective: _,
-                operands,
-                ..
-            } = node
-            {
-                for &op_idx in operands {
-                    if let Some(PdagNode::Constant { .. }) = self.pdag.nodes().get(&op_idx.abs()) {
-                        count += 1;
-                        break;
+    fn propagate_constants(&mut self) -> Result<bool> {
+        let mut changed = false;
+        let indices: Vec<NodeIndex> = self.pdag.nodes().keys().copied().collect();
+        for index in indices {
+            let (conn, ops) = match self.pdag.get_node(index) {
+                Some(PdagNode::Gate {
+                    connective,
+                    operands,
+                    ..
+                }) => (*connective, operands.clone()),
+                _ => continue,
+            };
+            match conn {
+                Connective::And => {
+                    if ops.iter().any(|&op| self.const_value_of(op) == Some(false)) {
+                        self.make_constant(index, false)?;
+                        changed = true;
+                        continue;
+                    }
+                    let kept: Vec<NodeIndex> = ops
+                        .iter()
+                        .copied()
+                        .filter(|&op| self.const_value_of(op) != Some(true))
+                        .collect();
+                    if kept.len() != ops.len() {
+                        self.collapse_gate(index, Connective::And, kept, true)?;
+                        changed = true;
                     }
                 }
+                Connective::Or => {
+                    if ops.iter().any(|&op| self.const_value_of(op) == Some(true)) {
+                        self.make_constant(index, true)?;
+                        changed = true;
+                        continue;
+                    }
+                    let kept: Vec<NodeIndex> = ops
+                        .iter()
+                        .copied()
+                        .filter(|&op| self.const_value_of(op) != Some(false))
+                        .collect();
+                    if kept.len() != ops.len() {
+                        self.collapse_gate(index, Connective::Or, kept, false)?;
+                        changed = true;
+                    }
+                }
+                Connective::Null => {
+                    if let Some(&op) = ops.first() {
+                        if let Some(v) = self.const_value_of(op) {
+                            self.make_constant(index, v)?;
+                            changed = true;
+                        }
+                    }
+                }
+                _ => {}
             }
         }
+        Ok(changed)
+    }
 
-        self.stats.constants_eliminated = count;
+    fn collapse_gate(
+        &mut self,
+        index: NodeIndex,
+        connective: Connective,
+        kept: Vec<NodeIndex>,
+        empty_value: bool,
+    ) -> Result<()> {
+        if kept.is_empty() {
+            self.make_constant(index, empty_value)?;
+        } else if kept.len() == 1 {
+            self.pdag.update_gate_connective(index, Connective::Null)?;
+            self.pdag.update_gate_operands(index, kept)?;
+        } else {
+            self.pdag.update_gate_connective(index, connective)?;
+            self.pdag.update_gate_operands(index, kept)?;
+        }
         Ok(())
     }
 
-    fn replace_with_constant(&mut self, index: NodeIndex, value: bool) -> Result<()> {
-
-        let constant_index = self.pdag.add_constant(value);
-
-        if let Some(parents) = self.pdag.parents().get(&index).cloned() {
-            for parent_idx in parents {
-                if let Some(PdagNode::Gate { operands, .. }) =
-                    self.pdag.nodes().get(&parent_idx).cloned()
-                {
+    fn remove_null_gates(&mut self) -> Result<bool> {
+        let mut changed = false;
+        let indices: Vec<NodeIndex> = self.pdag.nodes().keys().copied().collect();
+        for index in indices {
+            let inner = match self.pdag.get_node(index) {
+                Some(PdagNode::Gate {
+                    connective: Connective::Null,
+                    operands,
+                    ..
+                }) if operands.len() == 1 => operands[0],
+                _ => continue,
+            };
+            let parent_list: Vec<NodeIndex> = self
+                .pdag
+                .parents()
+                .get(&index.abs())
+                .map(|set| set.iter().copied().collect())
+                .unwrap_or_default();
+            for parent in parent_list {
+                if let Some(PdagNode::Gate { operands, .. }) = self.pdag.get_node(parent).cloned() {
                     let new_operands: Vec<NodeIndex> = operands
                         .iter()
-                        .map(|&op| if op == index { constant_index } else { op })
+                        .map(|&op| {
+                            if op == index {
+                                inner
+                            } else if op == -index {
+                                -inner
+                            } else {
+                                op
+                            }
+                        })
                         .collect();
-                    self.pdag.update_gate_operands(parent_idx, new_operands)?;
+                    self.pdag.update_gate_operands(parent, new_operands)?;
                 }
             }
-        }
-
-        Ok(())
-    }
-
-    fn remove_null_gates(&mut self) -> Result<()> {
-
-        let mut count = 0;
-
-        for node in self.pdag.nodes().values() {
-            if let PdagNode::Gate {
-                connective: Connective::Null,
-                ..
-            } = node
-            {
-                count += 1;
+            if let Some(root) = self.pdag.root() {
+                if root.abs() == index.abs() {
+                    let signed = if root < 0 { -inner } else { inner };
+                    self.pdag.set_root(signed)?;
+                }
             }
+            self.pdag.remove_node(index)?;
+            self.stats.null_gates_removed += 1;
+            changed = true;
         }
-
-        self.stats.null_gates_removed = count;
-        Ok(())
+        Ok(changed)
     }
 
     fn replace_operand(
@@ -196,6 +286,7 @@ impl Preprocessor {
                             | Connective::Nand
                             | Connective::Nor
                             | Connective::Xor
+                            | Connective::Iff
                             | Connective::AtLeast
                     )
                 } else {
@@ -229,6 +320,9 @@ impl Preprocessor {
                     {
                         self.normalize_xor_gate(index, &operands)?;
                     }
+                    Connective::Iff if norm_type == NormalizationType::All => {
+                        self.normalize_iff_gate(index, &operands)?;
+                    }
                     Connective::AtLeast
                         if norm_type == NormalizationType::AtLeast
                             || norm_type == NormalizationType::All =>
@@ -256,48 +350,83 @@ impl Preprocessor {
     }
 
     fn normalize_nand_gate(&mut self, index: NodeIndex, _operands: &[NodeIndex]) -> Result<()> {
-
+        self.pdag.negate_references(index)?;
         self.pdag.update_gate_connective(index, Connective::And)?;
-
         Ok(())
     }
 
     fn normalize_nor_gate(&mut self, index: NodeIndex, _operands: &[NodeIndex]) -> Result<()> {
-
+        self.pdag.negate_references(index)?;
         self.pdag.update_gate_connective(index, Connective::Or)?;
-
         Ok(())
     }
 
+    fn build_xor(&mut self, operands: &[NodeIndex]) -> Result<NodeIndex> {
+        if operands.len() == 1 {
+            return Ok(operands[0]);
+        }
+        let a = operands[0];
+        let rest = self.build_xor(&operands[1..])?;
+        let and1 = self.new_gate(Connective::And, vec![a, -rest])?;
+        let and2 = self.new_gate(Connective::And, vec![-a, rest])?;
+        self.new_gate(Connective::Or, vec![and1, and2])
+    }
+
     fn normalize_xor_gate(&mut self, index: NodeIndex, operands: &[NodeIndex]) -> Result<()> {
-        if operands.len() != 2 {
+        if operands.is_empty() {
             return Ok(());
         }
-
+        if operands.len() == 1 {
+            self.pdag.update_gate_connective(index, Connective::Null)?;
+            return Ok(());
+        }
         let a = operands[0];
-        let b = operands[1];
+        let rest = self.build_xor(&operands[1..])?;
+        let and1 = self.new_gate(Connective::And, vec![a, -rest])?;
+        let and2 = self.new_gate(Connective::And, vec![-a, rest])?;
+        self.pdag.update_gate_connective(index, Connective::Or)?;
+        self.pdag.update_gate_operands(index, vec![and1, and2])?;
+        Ok(())
+    }
 
-        let and1_ops = vec![a, -b];
-        let and1_index = self.pdag.add_gate(
-            format!("XOR_AND1_{}", index),
-            Connective::And,
-            and1_ops,
-            None,
-        )?;
-
-        let and2_ops = vec![-a, b];
-        let and2_index = self.pdag.add_gate(
-            format!("XOR_AND2_{}", index),
-            Connective::And,
-            and2_ops,
-            None,
-        )?;
-
+    fn normalize_iff_gate(&mut self, index: NodeIndex, operands: &[NodeIndex]) -> Result<()> {
+        if operands.is_empty() {
+            return Ok(());
+        }
+        if operands.len() == 1 {
+            let a = operands[0];
+            self.pdag.update_gate_connective(index, Connective::Or)?;
+            self.pdag.update_gate_operands(index, vec![a, -a])?;
+            return Ok(());
+        }
+        let pos = operands.to_vec();
+        let neg: Vec<NodeIndex> = operands.iter().map(|&o| -o).collect();
+        let all_pos = self.new_gate(Connective::And, pos)?;
+        let all_neg = self.new_gate(Connective::And, neg)?;
         self.pdag.update_gate_connective(index, Connective::Or)?;
         self.pdag
-            .update_gate_operands(index, vec![and1_index, and2_index])?;
-
+            .update_gate_operands(index, vec![all_pos, all_neg])?;
         Ok(())
+    }
+
+    fn build_atleast(&mut self, operands: &[NodeIndex], k: usize) -> Result<NodeIndex> {
+        if k == 0 {
+            return Ok(self.pdag.add_constant(true));
+        }
+        if k > operands.len() {
+            return Ok(self.pdag.add_constant(false));
+        }
+        if k == 1 {
+            return self.new_gate(Connective::Or, operands.to_vec());
+        }
+        if k == operands.len() {
+            return self.new_gate(Connective::And, operands.to_vec());
+        }
+        let x = operands[0];
+        let then_branch = self.build_atleast(&operands[1..], k - 1)?;
+        let else_branch = self.build_atleast(&operands[1..], k)?;
+        let and = self.new_gate(Connective::And, vec![x, then_branch])?;
+        self.new_gate(Connective::Or, vec![and, else_branch])
     }
 
     fn normalize_atleast_gate(
@@ -309,126 +438,40 @@ impl Preprocessor {
         let n = operands.len();
 
         if k == 0 {
-
-            self.replace_with_constant(index, true)?;
+            if n >= 1 {
+                self.pdag.update_gate_connective(index, Connective::Or)?;
+                self.pdag
+                    .update_gate_operands(index, vec![operands[0], -operands[0]])?;
+            }
             return Ok(());
         }
 
         if k > n {
-
-            self.replace_with_constant(index, false)?;
+            if n >= 1 {
+                self.pdag.update_gate_connective(index, Connective::And)?;
+                self.pdag
+                    .update_gate_operands(index, vec![operands[0], -operands[0]])?;
+            }
             return Ok(());
         }
 
         if k == 1 {
-
             self.pdag.update_gate_connective(index, Connective::Or)?;
             return Ok(());
         }
 
         if k == n {
-
             self.pdag.update_gate_connective(index, Connective::And)?;
             return Ok(());
         }
 
-        if n <= 10 {
-            let combinations = self.generate_combinations(operands, k);
-            let mut and_gates = Vec::new();
-
-            for (i, combo) in combinations.iter().enumerate() {
-                let and_index = self.pdag.add_gate(
-                    format!("AtLeast_AND_{}_{}", index, i),
-                    Connective::And,
-                    combo.clone(),
-                    None,
-                )?;
-                and_gates.push(and_index);
-            }
-
-            self.pdag.update_gate_connective(index, Connective::Or)?;
-            self.pdag.update_gate_operands(index, and_gates)?;
-        }
-
-        Ok(())
-    }
-
-    fn generate_combinations(&self, operands: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
-        let mut result = Vec::new();
-        let n = operands.len();
-
-        if k == 0 {
-            result.push(Vec::new());
-            return result;
-        }
-
-        if k > n {
-            return result;
-        }
-
-        self.generate_combinations_helper(operands, k, 0, &mut Vec::new(), &mut result);
-        result
-    }
-
-    fn generate_combinations_helper(
-        &self,
-        operands: &[NodeIndex],
-        k: usize,
-        start: usize,
-        current: &mut Vec<NodeIndex>,
-        result: &mut Vec<Vec<NodeIndex>>,
-    ) {
-        if current.len() == k {
-            result.push(current.clone());
-            return;
-        }
-
-        for i in start..operands.len() {
-            current.push(operands[i]);
-            self.generate_combinations_helper(operands, k, i + 1, current, result);
-            current.pop();
-        }
-    }
-
-    fn propagate_complements(&mut self) -> Result<()> {
-        let nodes: Vec<NodeIndex> = self.pdag.nodes().keys().copied().collect();
-
-        for index in nodes {
-            if index < 0 {
-
-                let positive_idx = index.abs();
-
-                if let Some(PdagNode::Gate {
-                    connective,
-                    operands,
-                    ..
-                }) = self.pdag.nodes().get(&positive_idx).cloned()
-                {
-                    match connective {
-                        Connective::And => {
-
-                            let negated_ops: Vec<NodeIndex> =
-                                operands.iter().map(|&op| -op).collect();
-                            self.pdag
-                                .update_gate_connective(positive_idx, Connective::Or)?;
-                            self.pdag.update_gate_operands(positive_idx, negated_ops)?;
-                            self.stats.complements_propagated += 1;
-                        }
-                        Connective::Or => {
-
-                            let negated_ops: Vec<NodeIndex> =
-                                operands.iter().map(|&op| -op).collect();
-                            self.pdag
-                                .update_gate_connective(positive_idx, Connective::And)?;
-                            self.pdag.update_gate_operands(positive_idx, negated_ops)?;
-                            self.stats.complements_propagated += 1;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
+        let x = operands[0];
+        let then_branch = self.build_atleast(&operands[1..], k - 1)?;
+        let else_branch = self.build_atleast(&operands[1..], k)?;
+        let and = self.new_gate(Connective::And, vec![x, then_branch])?;
+        self.pdag.update_gate_connective(index, Connective::Or)?;
+        self.pdag
+            .update_gate_operands(index, vec![and, else_branch])?;
         Ok(())
     }
 
@@ -632,17 +675,6 @@ mod tests {
         {
             assert_eq!(*connective, Connective::And);
         }
-    }
-
-    #[test]
-    fn test_generate_combinations() {
-        let pdag = Pdag::new();
-        let preprocessor = Preprocessor::new(pdag);
-
-        let operands = vec![1, 2, 3];
-        let combos = preprocessor.generate_combinations(&operands, 2);
-
-        assert_eq!(combos.len(), 3);
     }
 
     #[test]

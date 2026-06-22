@@ -5,7 +5,9 @@ use crate::algorithms::bdd_pdag::BddPdag;
 use crate::algorithms::mocus::Mocus;
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::importance::{ImportanceAnalysis, ImportanceRecord};
+use crate::analysis::labelled_zbdd;
 use crate::analysis::sil::Sil;
+use crate::analysis::ternary_dd;
 use crate::analysis::uncertainty::{propagate_uncertainty, UncertaintyAnalysis};
 use crate::core::fault_tree::FaultTree;
 use crate::mc::DpMonteCarloAnalysis;
@@ -30,6 +32,8 @@ enum EngineChoice {
     Zbdd,
     Mocus,
     MonteCarlo,
+    PiZbdd,
+    PiTdd,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,7 +57,11 @@ struct Resolved {
 }
 
 fn resolve(settings: &QuantificationSettings) -> Resolved {
-    let engine = if settings.mocus.unwrap_or(false) {
+    let engine = if settings.prime_implicants_tdd.unwrap_or(false) {
+        EngineChoice::PiTdd
+    } else if settings.prime_implicants.unwrap_or(false) {
+        EngineChoice::PiZbdd
+    } else if settings.mocus.unwrap_or(false) {
         EngineChoice::Mocus
     } else if settings.bdd.unwrap_or(false) {
         EngineChoice::Bdd
@@ -336,6 +344,12 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
                 ));
             }
         }
+        EngineChoice::PiZbdd => {
+            prime_implicant_outcome(fault_tree, resolved, false, &mut outcome)?;
+        }
+        EngineChoice::PiTdd => {
+            prime_implicant_outcome(fault_tree, resolved, true, &mut outcome)?;
+        }
     }
 
     if resolved.importance {
@@ -356,6 +370,106 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
     }
 
     Ok(outcome)
+}
+
+fn prime_implicant_outcome(
+    fault_tree: &FaultTree,
+    resolved: &Resolved,
+    use_tdd: bool,
+    outcome: &mut RootOutcome,
+) -> Result<()> {
+    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
+    pdag.compute_ordering_and_modules()?;
+    let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
+    let exact = if resolved.probability && resolved.approximation.is_none() {
+        Some(bdd.probability(root))
+    } else {
+        None
+    };
+    let var_order = pdag.variable_order().to_vec();
+    let n = var_order.len();
+    let var_prob: Vec<f64> = bdd.var_probs().to_vec();
+    let mut var_name: Vec<String> = vec![String::new(); n];
+    for (pos, &idx) in var_order.iter().enumerate() {
+        if let Some(node) = pdag.node(idx) {
+            if let Some(id) = node.id() {
+                var_name[pos] = id.to_string();
+            }
+        }
+    }
+    let var_event: Vec<i32> = (0..n as i32).map(|i| i + 1).collect();
+    let max_order = resolved.limit_order.unwrap_or(usize::MAX);
+    let min_prob = resolved.cut_off.unwrap_or(0.0);
+
+    let (extracted, rare_event): (Vec<(Vec<i32>, f64)>, f64) = if use_tdd {
+        let (teng, troot) = ternary_dd::prime_tdd(&mut bdd, root);
+        let ext = teng.extract(troot, &var_event, &var_prob, max_order, min_prob);
+        let re = teng.rare_event_probability(troot, &var_prob);
+        (ext, re)
+    } else {
+        let (mut zeng, zroot) = labelled_zbdd::prime_zbdd(&mut bdd, root);
+        let ext = labelled_zbdd::extract(&zeng, zroot, &var_event, &var_prob, max_order, min_prob);
+        let mut lit_probs = vec![0.0f64; 2 * n];
+        for v in 0..n {
+            lit_probs[2 * v] = var_prob[v];
+            lit_probs[2 * v + 1] = 1.0 - var_prob[v];
+        }
+        zeng.set_var_probs(lit_probs);
+        let re = zeng.rare_event_probability(zroot);
+        (ext, re)
+    };
+
+    outcome.cut_sets = Some(signed_cut_set_result(&extracted, &var_name));
+
+    if resolved.probability {
+        outcome.probability = Some(match resolved.approximation {
+            Some(ApproxChoice::RareEvent) => {
+                approx_probability(rare_event, Approximation::RareEvent)
+            }
+            Some(ApproxChoice::Mcub) => {
+                let log_keep: f64 = extracted.iter().map(|(_, p)| (-(*p)).ln_1p()).sum();
+                approx_probability(-log_keep.exp_m1(), Approximation::Mcub)
+            }
+            None => exact_probability(exact.unwrap_or(f64::NAN)),
+        });
+    }
+    Ok(())
+}
+
+fn signed_cut_set_result(extracted: &[(Vec<i32>, f64)], var_name: &[String]) -> CutSetResult {
+    let mut list = Vec::with_capacity(extracted.len());
+    let mut max_order = 0usize;
+    for (cube, prob) in extracted {
+        let order = cube.len();
+        max_order = max_order.max(order);
+        let literals = cube
+            .iter()
+            .map(|&lit| {
+                let pos = lit.unsigned_abs() as usize - 1;
+                CutSetLiteral {
+                    basic_event_id: numeric_basic_event_id(&var_name[pos]).unwrap_or(0),
+                    negated: lit < 0,
+                }
+            })
+            .collect();
+        list.push(CutSet {
+            order,
+            literals,
+            probability: Some(*prob),
+            contribution: None,
+        });
+    }
+    let mut distribution = vec![0usize; max_order + 1];
+    for cut_set in &list {
+        distribution[cut_set.order] += 1;
+    }
+    CutSetResult {
+        products: list.len(),
+        prime_implicants: Some(true),
+        distribution_by_order: Some(distribution),
+        list: Some(list),
+        ..Default::default()
+    }
 }
 
 pub fn quantify(

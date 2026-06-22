@@ -14,17 +14,16 @@ interface IeStep {
 
 const IE_STEPS: IeStep[] = [
   { id: "scope", num: "01", label: "Scope", sub: "PRA scope · radioactive sources", status: "idle" },
-  { id: "states", num: "02", label: "Operating States", sub: "Imported from POS", status: "idle" },
-  { id: "methods", num: "03", label: "Search Methods", sub: "Systematic methods", status: "idle" },
-  { id: "identify", num: "04", label: "Identify Initiators", sub: "IE-A5 challenge spectrum", status: "idle" },
-  { id: "completeness", num: "05", label: "Completeness Search", sub: "Per-system · experience", status: "idle" },
-  { id: "hazards", num: "06", label: "Hazard-Induced", sub: "Hazards & combinations", status: "idle" },
-  { id: "grouping", num: "07", label: "Grouping", sub: "Bounding cases", status: "idle" },
-  { id: "screening", num: "08", label: "Screening", sub: "Barrier gate + SCR", status: "idle" },
-  { id: "frequency", num: "09", label: "Frequency", sub: "Annual · POS-weighted", status: "idle" },
-  { id: "draft", num: "10", label: "Draft", sub: "Produce IE report", status: "idle", terminal: true },
-  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "12", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "methods", num: "02", label: "Search Methods", sub: "Systematic methods", status: "idle" },
+  { id: "identify", num: "03", label: "Identify Initiators", sub: "IE-A5 challenge spectrum", status: "idle" },
+  { id: "completeness", num: "04", label: "Completeness Search", sub: "Per-system · experience", status: "idle" },
+  { id: "hazards", num: "05", label: "Hazard-Induced", sub: "Hazards & combinations", status: "idle" },
+  { id: "grouping", num: "06", label: "Grouping", sub: "Bounding cases", status: "idle" },
+  { id: "screening", num: "07", label: "Screening", sub: "Barrier gate + SCR", status: "idle" },
+  { id: "frequency", num: "08", label: "Frequency", sub: "Annual · POS-weighted", status: "idle" },
+  { id: "draft", num: "09", label: "Draft", sub: "Produce IE report", status: "idle", terminal: true },
+  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type IePersona = "preparer" | "reviewer" | "approver";

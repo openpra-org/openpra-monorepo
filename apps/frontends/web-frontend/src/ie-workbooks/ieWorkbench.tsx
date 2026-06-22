@@ -19,7 +19,6 @@ import {
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import {
   ScopeScreen,
-  StatesScreen,
   MethodsScreen,
   IdentifyScreen,
   CompletenessScreen,
@@ -45,17 +44,16 @@ interface StepHeader {
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "What is in scope, which radioactive sources could be released, and which barriers protect them." };
-    case "states": return { eyebrow: "Step 02", title: "Operating states", sub: "Each initiating event is tested in every operating state, weighted by its time fraction (IE-C8)." };
-    case "methods": return { eyebrow: "Step 03", title: "Search methods", sub: "Register the structured, systematic techniques used to find every initiating event (IE-A1)." };
-    case "identify": return { eyebrow: "Step 04", title: "Identify initiators", sub: "Identify every challenge category, for every operating state and source (IE-A5)." };
-    case "completeness": return { eyebrow: "Step 05", title: "Completeness search", sub: "Per-system and support-system sweeps, source mechanisms, and similar-plant experience." };
-    case "hazards": return { eyebrow: "Step 06", title: "Hazard-induced initiators", sub: "Initiators caused by individual internal and external hazards (IE-A5 e/f) or by hazard combinations (IE-A6)." };
-    case "grouping": return { eyebrow: "Step 07", title: "Grouping", sub: "Bundle events that share mitigation requirements under a bounding case, without masking any risk-significant sequence (IE-B4)." };
-    case "screening": return { eyebrow: "Step 08", title: "Screening", sub: "Eliminate an event only if it does not breach a barrier AND meets an SCR test. The barrier-integrity gate is enforced first (IE-C9)." };
-    case "frequency": return { eyebrow: "Step 09", title: "Frequency & quantification", sub: "Annual frequency per event or group, on a plant-calendar-year basis, weighted by the POS time fraction (IE-C8)." };
-    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the IE report from everything entered. Submitting advances the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 11 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer responds. The workbook advances to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 12 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs. The approver signs last, gated on all comments being resolved." };
+    case "methods": return { eyebrow: "Step 02", title: "Search methods", sub: "Register the structured, systematic techniques used to find every initiating event (IE-A1)." };
+    case "identify": return { eyebrow: "Step 03", title: "Identify initiators", sub: "Identify every challenge category, for every operating state and source (IE-A5)." };
+    case "completeness": return { eyebrow: "Step 04", title: "Completeness search", sub: "Per-system and support-system sweeps, source mechanisms, and similar-plant experience." };
+    case "hazards": return { eyebrow: "Step 05", title: "Hazard-induced initiators", sub: "Initiators caused by individual internal and external hazards (IE-A5 e/f) or by hazard combinations (IE-A6)." };
+    case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Bundle events that share mitigation requirements under a bounding case, without masking any risk-significant sequence (IE-B4)." };
+    case "screening": return { eyebrow: "Step 07", title: "Screening", sub: "Eliminate an event only if it does not breach a barrier AND meets an SCR test. The barrier-integrity gate is enforced first (IE-C9)." };
+    case "frequency": return { eyebrow: "Step 08", title: "Frequency & quantification", sub: "Annual frequency per event or group, on a plant-calendar-year basis, weighted by the POS time fraction (IE-C8)." };
+    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Generate the IE report from everything entered. Submitting advances the workbook to internal technical review." };
+    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer responds. The workbook advances to Approval once every comment is resolved." };
+    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs. The approver signs last, gated on all comments being resolved." };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -388,7 +386,6 @@ function IeWorkbench({
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
       case "scope": return <ScopeScreen {...screenProps} stage={stage} setStage={setStage} onOpenLink={() => onOpenPosLink?.()} />;
-      case "states": return <StatesScreen {...screenProps} onOpenLink={() => onOpenPosLink?.()} />;
       case "methods": return <MethodsScreen />;
       case "identify": return <IdentifyScreen />;
       case "completeness": return <CompletenessScreen />;

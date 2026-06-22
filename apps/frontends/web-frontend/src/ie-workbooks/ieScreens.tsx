@@ -1,4 +1,4 @@
-import { JSX, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import {
   InitiatingEventCategory,
   type InitiatorDefinition,
@@ -11,9 +11,11 @@ import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-t
 import { IEIcon } from "./ieIcons";
 import { Badge } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
-import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, METHOD_REGISTRY, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
+import { CAPABILITY_CATEGORIES, CATEGORY_COLORS, INITIATOR_CATEGORIES, categoryById, methodSpec, COMPLETENESS_CHECK_META, type CapabilityCategory, type Stage } from "./ieViewData";
 import { type CcScore } from "./ieSelectors";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
+import { FaultTreeEditor } from "../newly-developed-methods/fault-tree/faultTreeEditor";
+import { type FtInputNode } from "../newly-developed-methods/fault-tree/faultTreeTypes";
+import { mldToFaultTree, hbftToFaultTree } from "./faultTreeAdapters";
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
   return typeof f === "number" ? f : f.value;
@@ -123,7 +125,16 @@ const SOURCE_ENRICHMENT: Record<string, { state: string; note: string; barriers:
 };
 
 function sourceBaseName(name: string): string {
-  return name.replace(/\s*\([^)]*\)$/, "").trim();
+  const trimmed = name.trim();
+  if (!trimmed.endsWith(")")) return trimmed;
+  const open = trimmed.lastIndexOf(" (");
+  return open === -1 ? trimmed : trimmed.slice(0, open).trim();
+}
+
+function formatSourceLocation(location: string): string {
+  if (location === "IN_CORE") return "In-core";
+  if (location === "EX_CORE") return "Ex-core";
+  return location;
 }
 
 function buildEnrichedSources(rawSources: { id: string; name: string; location: string; barriers: string[] }[], initiators: InitiatorDefinition[]): EnrichedSource[] {
@@ -151,19 +162,14 @@ interface ScopeScreenProps extends ScreenProps {
   onOpenLink: () => void;
 }
 
-function FieldToggle({ source, setSource, linked }: { source: "pos" | "manual"; setSource: (s: "pos" | "manual") => void; linked: boolean }): JSX.Element {
-  return (
-    <div className="iefield-toggle">
-      {linked && (
-        <button type="button" className={`iefield-toggle__btn${source === "pos" ? " is-on" : ""}`} onClick={() => setSource("pos")}>
-          <IEIcon.Link /> POS
-        </button>
-      )}
-      <button type="button" className={`iefield-toggle__btn${source === "manual" ? " is-on" : ""}`} onClick={() => setSource("manual")}>
-        Manual
-      </button>
-    </div>
-  );
+interface IfaceLane {
+  code: string;
+  element: string;
+  role: string;
+  direction: "in" | "out";
+  columns: string[];
+  empty: string;
+  rows: { id: string; name: string; values: string[] }[];
 }
 
 function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
@@ -171,41 +177,136 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
   const linked = posLink.linkedPosWorkbookId !== null;
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
 
-  const plantName = ie.metadata.plantIdentity?.name ?? posLink.linkedName ?? "";
-
-  const [plantSource, setPlantSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
   const [siteConfig, setSiteConfig] = useState<"single" | "multi">("single");
   const [unitCount, setUnitCount] = useState("2");
-  const [modesSource, setModesSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
-  const [lpsd, setLpsd] = useState<boolean>(() => posLink.states.some((s) => s.operatingMode !== "POWER"));
-  const [hazardsSource, setHazardsSource] = useState<"pos" | "manual">(linked ? "pos" : "manual");
-  const [hazards, setHazards] = useState<string[]>(() => {
-    const base = ["Internal events"];
-    if (ie.includesNonInternalHazardGroups) base.push("Internal fire", "Internal flooding", "Seismic");
-    return base;
-  });
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
 
   const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope";
+  const totalStateHours = posLink.states.reduce((acc, s) => acc + s.meanDurationHours, 0);
+
+  const ifaceLanes = useMemo<IfaceLane[]>(() => {
+    const fmtDur = (h: number): string => (h >= 8760 ? `${(h / 8760).toFixed(1)} yr` : `${Math.round(h)} h`);
+    const qBasis = new Map(ie.quantifications.map((q) => [q.initiatorOrGroupId, q.basis]));
+    const groups = ie.initiatingEventGroups;
+    const seenSource = new Set<string>();
+    const uniqueSources = posLink.sources.filter((s) => {
+      const key = sourceBaseName(s.name).toLowerCase();
+      if (seenSource.has(key)) return false;
+      seenSource.add(key);
+      return true;
+    });
+    return [
+      {
+        code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in",
+        columns: ["State", "Mode", "Entry frequency", "Duration", "Time fraction", "Initiators applicable"], empty: "No linked POS workbook.",
+        rows: posLink.states.map((s) => ({
+          id: s.id,
+          name: s.name,
+          values: [
+            s.operatingMode,
+            s.meanEntryFrequency === 0 && s.operatingMode === "POWER" ? "Base state" : fmtFreq(s.meanEntryFrequency),
+            fmtDur(s.meanDurationHours),
+            totalStateHours > 0 ? `${((s.meanDurationHours / totalStateHours) * 100).toFixed(1)} %` : "—",
+            String(ie.initiators.filter((i) => i.applicableStates.includes(s.id)).length),
+          ],
+        })),
+      },
+      {
+        code: "MS", element: "Mechanistic Source Term", role: "Sources & barriers", direction: "in",
+        columns: ["Source", "Location", "Barriers"], empty: "No linked sources.",
+        rows: uniqueSources.map((s) => ({ id: s.id, name: sourceBaseName(s.name), values: [formatSourceLocation(s.location), s.barriers.join(" · ")] })),
+      },
+      {
+        code: "ES", element: "Event Sequence Analysis", role: "Initiating events", direction: "out",
+        columns: ["Group", "Members", "Bounding", "States"], empty: "No initiating-event groups yet.",
+        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [String(g.memberInitiatorIds.length), g.boundingInitiatorId, String(g.applicableStates.length)] })),
+      },
+      {
+        code: "ESQ", element: "Event Sequence Quantification", role: "Frequencies", direction: "out",
+        columns: ["Group", "Mean (per plant-yr)", "Risk"], empty: "No quantifications yet.",
+        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [fmtFreq(g.meanFrequency), g.riskImportance ?? "—"] })),
+      },
+      {
+        code: "HR", element: "Human Reliability", role: "Support fault trees", direction: "out",
+        columns: ["Group", "Members", "Bounding"], empty: "No fault-tree groups.",
+        rows: groups.filter((g) => qBasis.get(g.uuid) === "FAULT_TREE").map((g) => ({ id: g.uuid, name: g.name, values: [String(g.memberInitiatorIds.length), g.boundingInitiatorId] })),
+      },
+      {
+        code: "SC", element: "Success Criteria", role: "Challenges", direction: "out",
+        columns: ["Group", "Challenged safety functions"], empty: "No groups yet.",
+        rows: groups.map((g) => ({ id: g.uuid, name: g.name, values: [g.challengedSafetyFunctions.join(" · ")] })),
+      },
+    ];
+  }, [ie, posLink, totalStateHours]);
+  const selectedIfaceLane = ifaceLanes.find((l) => l.code === selectedTe);
 
   return (
     <>
-      {/* ── Upstream inputs ── */}
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          {linked ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
-        </div>
-        <p className="poscard__sub">The elements that feed this initiating-event analysis.</p>
-        <WorkbookUpstreamBar element="IE" />
-      </div>
-
       {/* ── Interfaces ── */}
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Interfaces</h3>
         </div>
-        <p className="poscard__sub">What flows into the initiating-event analysis, and what it feeds.</p>
-        <WorkbookInterfaceMap element="IE" />
+        <p className="poscard__sub">What flows into the initiating-event analysis, and what it feeds. Select an element to see the data exchanged.</p>
+        <div className="poshandoff__grid">
+          {ifaceLanes.map((lane) => (
+            <button
+              key={lane.code}
+              type="button"
+              className={`poshandoff__tile${selectedTe === lane.code ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.code ? null : lane.code)}
+            >
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedIfaceLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+              {selectedIfaceLane.direction === "in"
+                ? `Initiating Events receives ${selectedIfaceLane.role.toLowerCase()} from ${selectedIfaceLane.element}`
+                : `${selectedIfaceLane.element} receives ${selectedIfaceLane.role.toLowerCase()} from Initiating Events`}
+            </div>
+            {selectedIfaceLane.code === "POS" && totalStateHours > 0 && (
+              <>
+                <div className="ietimebar" role="img" aria-label="Time fraction by operating state" style={{ marginBottom: 10 }}>
+                  {posLink.states.map((s) => {
+                    const pct = (s.meanDurationHours / totalStateHours) * 100;
+                    const atP = s.operatingMode === "POWER";
+                    return (
+                      <div key={s.id} className={`ietimebar__seg${atP ? " ietimebar__seg--power" : ""}`} style={{ width: `${pct}%` }} title={`${s.id} · ${pct.toFixed(1)}%`}>
+                        {pct > 7 && <span className="ietimebar__seg-label">{pct.toFixed(1)}%</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="ietimebar__legend" style={{ marginBottom: 14 }}>
+                  <span><span className="ietimebar__key ietimebar__key--power" /> At-power</span>
+                  <span><span className="ietimebar__key" /> Low-power &amp; shutdown</span>
+                </div>
+              </>
+            )}
+            {selectedIfaceLane.rows.length === 0 ? (
+              <p className="posmuted" style={{ margin: 0 }}>{selectedIfaceLane.empty}</p>
+            ) : (
+              <table className="postable postable--mid">
+                <thead>
+                  <tr>{selectedIfaceLane.columns.map((c) => <th key={c}>{c}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {selectedIfaceLane.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="postable__name">{r.name}</div></td>
+                      {r.values.map((v, idx) => <td key={selectedIfaceLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Scope card ── */}
@@ -220,21 +321,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
             : "No POS workbook linked yet. Fill fields manually, or link a POS workbook to inherit plant data."}
         </p>
         <div className="iefield-grid iefield-grid--3">
-
-          {/* Plant */}
-          <div className="iefield">
-            <div className="iefield__labelrow">
-              <label className="iefield__label" htmlFor="ie-scope-plant">Plant</label>
-              <FieldToggle source={plantSource} setSource={setPlantSource} linked={linked} />
-            </div>
-            <input
-              id="ie-scope-plant"
-              className={`iefield__input${plantSource === "pos" ? " iefield__input--locked" : ""}`}
-              value={plantSource === "pos" ? plantName : plantName}
-              readOnly={plantSource === "pos"}
-              onChange={() => {}}
-            />
-          </div>
 
           {/* Site configuration */}
           <div className="iefield">
@@ -253,66 +339,10 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
               : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={unitCount} onChange={(e) => setUnitCount(e.target.value)} />}
           </div>
 
-          {/* Operating modes */}
-          <div className="iefield iefield-grid--span2">
-            <div className="iefield__labelrow">
-              <label className="iefield__label">Operating modes in scope</label>
-              <FieldToggle source={modesSource} setSource={setModesSource} linked={linked} />
-            </div>
-            <div className="iemodes">
-              <span className="iemode iemode--baseline" title="At-power operation is always in scope for a Level 1 PRA.">
-                <IEIcon.Lock /> At-power <span className="iemode__tag">Baseline</span>
-              </span>
-              <button
-                type="button"
-                className={`iemode iemode--toggle ${lpsd ? "is-on" : "is-off"}${modesSource === "pos" ? " iemode--locked" : ""}`}
-                disabled={modesSource === "pos"}
-                onClick={() => { if (modesSource !== "pos") setLpsd(!lpsd); }}
-              >
-                {lpsd ? <IEIcon.Check /> : <IEIcon.Plus />}
-                Low power &amp; shutdown (LPSD)
-                <span className="iemode__state">{lpsd ? "Included" : "Excluded"}</span>
-              </button>
-            </div>
-          </div>
-
           {/* Multi-unit IE-A16 */}
           <div className="iefield">
             <label className="iefield__label">Multi-unit initiating events (IE-A16)</label>
             <input className="iefield__input iefield__input--locked" value={multiUnitText} readOnly />
-          </div>
-
-          {/* Hazard groups */}
-          <div className="iefield iefield-grid--span2">
-            <div className="iefield__labelrow">
-              <label className="iefield__label">Hazard groups in scope</label>
-              <FieldToggle source={hazardsSource} setSource={setHazardsSource} linked={linked} />
-            </div>
-            <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-              {hazards.map((h, i) => {
-                const isPrimary = i === 0;
-                return (
-                  <span key={h} className={`poschip${isPrimary ? " poschip--primary" : ""}`}>
-                    {h}
-                    {hazardsSource === "manual" && !isPrimary && (
-                      <button
-                        type="button"
-                        className="iechip-x"
-                        title={`Remove ${h}`}
-                        onClick={() => setHazards(hazards.filter((x) => x !== h))}
-                      >
-                        <IEIcon.Close />
-                      </button>
-                    )}
-                  </span>
-                );
-              })}
-              {hazardsSource === "manual" && (
-                <button type="button" className="poschip" onClick={() => setHazards([...hazards, "New hazard group"])}>
-                  <IEIcon.Plus /> Add
-                </button>
-              )}
-            </div>
           </div>
 
         </div>
@@ -353,8 +383,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
               {buildEnrichedSources(posLink.sources, ie.initiators).map((s) => (
                 <tr key={s.baseName}>
                   <td>
-                    <div className="iesrc__name"><span className="iesrc__icon"><IEIcon.Radiation /></span>{s.baseName}</div>
-                    <div className="iesrc__sub">{s.state}{s.note.length > 0 ? ` · ${s.note}` : ""}</div>
+                    <div className="postable__name">{s.baseName}</div>
                   </td>
                   <td><div className="iesrc__chips">{s.barriers.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div></td>
                   <td>
@@ -421,138 +450,64 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
   );
 }
 
-function StatesScreen({ onOpenLink }: ScreenProps & { onOpenLink: () => void }): JSX.Element {
-  const { ie, posLink } = useIeWorkbook();
-  if (posLink.linkedPosWorkbookId === null) {
-    return (
-      <div className="poscard" style={{ textAlign: "center", padding: 32 }}>
-        <div style={{ display: "inline-flex", width: 32, height: 32, color: "var(--color-primary)", marginBottom: 10 }}><IEIcon.Link /></div>
-        <h3 className="poscard__title" style={{ marginBottom: 6 }}>No operating states linked yet</h3>
-        <p className="possubtle" style={{ maxWidth: 460, margin: "0 auto 16px" }}>
-          IE works inside the coordinate system POS already defined. Link a POS workbook to import its operating states and sources.
-        </p>
-        <button type="button" className="posnav__btn posnav__btn--primary" onClick={onOpenLink}>
-          <IEIcon.Download /> Import from a POS workbook
-        </button>
-      </div>
-    );
-  }
-  const totalHours = posLink.states.reduce((a, s) => a + s.meanDurationHours, 0);
-  return (
-    <>
-      <div className="ieposlink">
-        <span className="ieposlink__icon"><IEIcon.Link /></span>
-        <div className="ieposlink__main">
-          <div className="ieposlink__title">Linked to <strong>{posLink.linkedName ?? "POS workbook"}</strong></div>
-          <div className="ieposlink__sub">{posLink.states.length} operating states imported.</div>
-        </div>
-        <div className="ieposlink__actions">
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenLink}><IEIcon.Refresh /> Re-link</button>
-        </div>
-      </div>
-
-      {totalHours > 0 && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Time fraction across operating states</h3>
-            <span className="possubtle">IE-C8 weighting basis</span>
-          </div>
-          <div className="ietimebar" role="img" aria-label="Time fraction by operating state">
-            {posLink.states.map((s) => {
-              const pct = (s.meanDurationHours / totalHours) * 100;
-              const atP = s.operatingMode === "POWER";
-              return (
-                <div key={s.id} className={`ietimebar__seg${atP ? " ietimebar__seg--power" : ""}`}
-                  style={{ width: `${pct}%` }} title={`${s.id} · ${pct.toFixed(1)}%`}>
-                  {pct > 7 && <span className="ietimebar__seg-label">{pct.toFixed(1)}%</span>}
-                </div>
-              );
-            })}
-          </div>
-          <div className="ietimebar__legend">
-            <span><span className="ietimebar__key ietimebar__key--power" /> At-power</span>
-            <span><span className="ietimebar__key" /> Low-power &amp; shutdown</span>
-          </div>
-        </div>
-      )}
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Operating states</h3>
-          <span className="possubtle">Linked · edit at source in POS</span>
-        </div>
-        <table className="postable">
-          <thead>
-            <tr><th>State</th><th>Mode</th><th>Time fraction</th><th>Mean duration (h)</th><th>Initiators applicable</th></tr>
-          </thead>
-          <tbody>
-            {posLink.states.map((s) => {
-              const count = ie.initiators.filter((i) => i.applicableStates.includes(s.id)).length;
-              const pct = totalHours > 0 ? ((s.meanDurationHours / totalHours) * 100).toFixed(1) : "—";
-              return (
-                <tr key={s.id}>
-                  <td><div className="postable__name">{s.id}</div><span className="postable__name-sub">{s.name}</span></td>
-                  <td className="mono">{s.operatingMode}</td>
-                  <td className="mono">{pct} %</td>
-                  <td className="mono">{s.meanDurationHours.toLocaleString("en-US")}</td>
-                  <td className="mono">{count}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
+const METHOD_ROLE_LABEL: Record<string, string> = {
+  DEDUCTIVE: "Top-down",
+  INDUCTIVE: "Bottom-up",
+  EXPERIENCE: "Experience",
+  CATALOGUE: "Catalogue",
+};
 
 function MethodsScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
-  const methodIds = new Set<string>();
-  for (const i of ie.initiators) for (const m of i.identificationMethodIds) methodIds.add(m);
-  const registryOrder = Object.keys(METHOD_REGISTRY);
-  const byMethod = Array.from(methodIds)
-    .sort((a, b) => {
-      const ia = registryOrder.indexOf(a);
-      const ib = registryOrder.indexOf(b);
-      if (ia === -1 && ib === -1) return a.localeCompare(b);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    })
-    .map((m) => ({
-      id: m,
-      spec: methodSpec(m),
-      count: ie.initiators.filter((i) => i.identificationMethodIds.includes(m)).length,
-    }));
+  const methods = ie.searchMethods ?? [];
+  const [openMethodId, setOpenMethodId] = useState<string | null>(null);
+  const [treeTitleOverride, setTreeTitleOverride] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const openMethod = methods.find((m) => m.id === openMethodId) ?? null;
+  const openEditor = (id: string): void => { setOpenMethodId(id); setTreeTitleOverride(null); setEditingTitle(false); };
+  const treeTitle = treeTitleOverride ?? (openMethod !== null ? `${ie.name} — ${openMethod.id}` : "");
+  const ftNodes = useMemo<FtInputNode[]>(() => {
+    if (openMethod === null) return [];
+    if (openMethod.id === "MLD") {
+      const mld = (ie.masterLogicDiagrams ?? [])[0];
+      return mld !== undefined ? mldToFaultTree(mld) : [];
+    }
+    if (openMethod.id === "HBFT") return hbftToFaultTree(ie.heatBalanceFaultTrees ?? []);
+    return [];
+  }, [openMethod, ie.masterLogicDiagrams, ie.heatBalanceFaultTrees]);
   return (
     <>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Systematic search methods</h3></div>
-        {byMethod.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
+        {methods.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
           <div className="iemethod-grid">
-            {byMethod.map((m) => {
-              const Ico = IEIcon[m.spec.icon as keyof typeof IEIcon] ?? IEIcon.Network;
+            {methods.map((m) => {
+              const Ico = IEIcon[methodSpec(m.id).icon as keyof typeof IEIcon] ?? IEIcon.Network;
+              const count = ie.initiators.filter((i) => i.identificationMethodIds.includes(m.id)).length;
+              const hasEditor = m.id === "MLD" || m.id === "HBFT";
               return (
                 <div key={m.id} className="iemethod">
                   <div className="iemethod__head">
                     <span className="iemethod__icon"><Ico /></span>
                     <div className="iemethod__title-block">
-                      <div className="iemethod__name">{m.spec.name.length > 0 ? m.spec.name : m.id}</div>
+                      <div className="iemethod__name">{m.name}</div>
                     </div>
-                    {m.spec.statusMessage === undefined
-                      ? <Badge kind="ok">Ready</Badge>
-                      : <Badge kind="warn">Needs attention</Badge>}
+                    <Badge kind="ok">{METHOD_ROLE_LABEL[m.role] ?? m.role}</Badge>
                   </div>
-                  {m.spec.scope.length > 0 && <div className="iemethod__scope">{m.spec.scope}</div>}
-                  {m.spec.note.length > 0 && <p className="iemethod__note">{m.spec.note}</p>}
                   <div className="iemethod__foot">
-                    {m.spec.coverage.length > 0 && <span className="poschip">{m.spec.coverage}</span>}
-                    <span className="poscomment__foot-spacer" />
-                    <span className="posmono possubtle">{m.count} initiators</span>
+                    <div className="iemethod__cats">
+                      {m.coverageCategories.map((c) => (
+                        <span key={c} className="poschip">{categoryById(c)?.label ?? c}</span>
+                      ))}
+                    </div>
+                    <span className="posmono possubtle iemethod__count">{count} initiators</span>
                   </div>
-                  {m.spec.statusMessage !== undefined && (
-                    <div className="iewarn-note"><span className="iewarn-note__icon"><IEIcon.Warn /></span><span>{m.spec.statusMessage}</span></div>
+                  {hasEditor && (
+                    <div className="iemethod__open-row">
+                      <button type="button" className="iemethod__open" onClick={() => openEditor(m.id)}>
+                        Open {m.id} <span className="iemethod__open-arrow">→</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -560,6 +515,37 @@ function MethodsScreen(): JSX.Element {
           </div>
         )}
       </div>
+      {openMethod !== null && (
+        <div className="ftspace">
+          <div className="ftspace__head">
+            <button type="button" className="ftspace__back" onClick={() => setOpenMethodId(null)}>
+              <span className="ftspace__back-arrow">←</span> Back to workbook
+            </button>
+            <div className="ftspace__titlewrap">
+              {editingTitle ? (
+                <input
+                  className="ftspace__title-input"
+                  value={treeTitle}
+                  onChange={(e) => setTreeTitleOverride(e.target.value)}
+                  onBlur={() => setEditingTitle(false)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setEditingTitle(false); }}
+                  autoFocus
+                />
+              ) : (
+                <>
+                  <span className="ftspace__title">{treeTitle}</span>
+                  <button type="button" className="ftspace__title-edit" aria-label="Rename fault tree" onClick={() => setEditingTitle(true)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="ftspace__body">
+            <FaultTreeEditor key={openMethod.id} nodes={ftNodes} flavor={openMethod.id === "HBFT" ? "heat" : "logic"} />
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -655,8 +641,10 @@ function IdentifyScreen(): JSX.Element {
 function CompletenessScreen(): JSX.Element {
   const { ie } = useIeWorkbook();
   const cs = ie.completenessSearch;
+  const hazardsInScope = ie.includesNonInternalHazardGroups;
+  const categoryTarget = hazardsInScope ? 7 : 5;
   const checks: { label: string; ok: boolean; icon: string; detail: string; meta: string }[] = [
-    { label: "All seven functional categories covered", ok: cs.functionalCategoriesCovered.length >= 7, ...COMPLETENESS_CHECK_META[0], meta: COMPLETENESS_CHECK_META[0].meta(cs) },
+    { label: hazardsInScope ? "All seven functional categories covered" : "All in-scope functional categories covered", ok: cs.functionalCategoriesCovered.length >= categoryTarget, icon: COMPLETENESS_CHECK_META[0].icon, detail: hazardsInScope ? COMPLETENESS_CHECK_META[0].detail : "Transient · RCB breach · interfacing · special · human-failure. Internal and external hazards are out of scope, carried by the separate hazard analyses.", meta: `${cs.functionalCategoriesCovered.length} / ${categoryTarget}` },
     { label: "Per-system search performed", ok: cs.perSystemSearchPerformed, ...COMPLETENESS_CHECK_META[1], meta: COMPLETENESS_CHECK_META[1].meta(cs) },
     { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed, ...COMPLETENESS_CHECK_META[2], meta: COMPLETENESS_CHECK_META[2].meta(cs) },
     { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed, ...COMPLETENESS_CHECK_META[3], meta: COMPLETENESS_CHECK_META[3].meta(cs) },
@@ -1063,7 +1051,6 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 
 export {
   ScopeScreen,
-  StatesScreen,
   MethodsScreen,
   IdentifyScreen,
   CompletenessScreen,

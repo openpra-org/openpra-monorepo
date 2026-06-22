@@ -4,6 +4,9 @@ import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId }
 import { PreOperationalAssumption, BaseModelUncertaintyDocumentation, PlantRepresentationAccuracy } from "../core/documentation";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import { MasterLogicDiagram } from "../cross-cutting/methods/master-logic-diagram";
+import { HeatBalanceFaultTree } from "../cross-cutting/methods/heat-balance-fault-tree";
+import { FailureModesEffectAnalysis } from "../cross-cutting/methods/fmea";
 
 export type PlantOperatingStateReference = string;
 export type SafetyFunctionReference = string;
@@ -253,11 +256,29 @@ export interface IeDocumentation {
   implementsSrs: SRReference[];
 }
 
+export type IeSearchMethodRole = "DEDUCTIVE" | "INDUCTIVE" | "EXPERIENCE" | "CATALOGUE";
+
+export interface IeSearchMethod {
+  id: string;
+  role: IeSearchMethodRole;
+  name: string;
+  description: string;
+  scope: string;
+  coverageCategories: InitiatingEventCategory[];
+  legitimacyBasis: string;
+  supportingDocuments: string[];
+  implementsSrs: SRReference[];
+}
+
 export interface InitiatingEventsAnalysis
   extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
   praScope: string;
   includesNonInternalHazardGroups: boolean;
   applicablePlantOperatingStates: PlantOperatingStateReference[];
+  searchMethods?: IeSearchMethod[];
+  masterLogicDiagrams?: MasterLogicDiagram[];
+  heatBalanceFaultTrees?: HeatBalanceFaultTree[];
+  failureModesAnalyses?: FailureModesEffectAnalysis[];
 
   initiators: InitiatorDefinition[];
   hazardInducedInitiators?: HazardInducedInitiator[];

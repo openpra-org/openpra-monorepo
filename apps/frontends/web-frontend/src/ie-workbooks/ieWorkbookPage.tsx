@@ -46,7 +46,6 @@ interface IeBundleResponse {
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "IE-A2",
-  states: "IE-C8",
   methods: "IE-A1",
   identify: "IE-A5",
   completeness: "IE-A9",

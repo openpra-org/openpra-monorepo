@@ -24,6 +24,7 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { MasterLogicDiagramSchema, HeatBalanceFaultTreeSchema, FailureModesEffectAnalysisSchema } from "../cross-cutting/methods/methods";
 
 export const InitiatingEventCategorySchema = z.enum(InitiatingEventCategory);
 export const ModuleImpactStateSchema = z.enum(ModuleImpactState);
@@ -275,11 +276,27 @@ export const IeDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const IeSearchMethodSchema = z.object({
+  id: z.string(),
+  role: z.enum(["DEDUCTIVE", "INDUCTIVE", "EXPERIENCE", "CATALOGUE"]),
+  name: z.string(),
+  description: z.string(),
+  scope: z.string(),
+  coverageCategories: z.array(InitiatingEventCategorySchema),
+  legitimacyBasis: z.string(),
+  supportingDocuments: z.array(z.string()),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
 export const InitiatingEventsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.INITIATING_EVENT_ANALYSIS).shape,
   praScope: z.string(),
   includesNonInternalHazardGroups: z.boolean(),
   applicablePlantOperatingStates: z.array(z.string()),
+  searchMethods: z.array(IeSearchMethodSchema).optional(),
+  masterLogicDiagrams: z.array(MasterLogicDiagramSchema).optional(),
+  heatBalanceFaultTrees: z.array(HeatBalanceFaultTreeSchema).optional(),
+  failureModesAnalyses: z.array(FailureModesEffectAnalysisSchema).optional(),
   initiators: z.array(InitiatorDefinitionSchema),
   hazardInducedInitiators: z.array(HazardInducedInitiatorSchema).optional(),
   initiatingEventGroups: z.array(InitiatingEventGroupSchema),

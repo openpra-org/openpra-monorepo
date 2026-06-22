@@ -1,5 +1,6 @@
 import { JSX, useEffect, useState } from "react";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
@@ -21,18 +22,33 @@ interface IeBundleResponse {
   newlyDevelopedMethods: IeExampleResponse[];
 }
 
-function deriveDemoPosLink(ie: InitiatingEventsAnalysis): IePosLinkStatus {
+interface PosBundleResponse {
+  pos: { mef: unknown };
+}
+
+function buildPosLink(ie: InitiatingEventsAnalysis, pos: PlantOperatingStatesAnalysis): IePosLinkStatus {
+  const wanted = new Set(ie.applicablePlantOperatingStates);
+  const wantedStates = pos.plantOperatingStates.filter((s) => wanted.has(s.uuid));
+  const states = wantedStates.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    operatingMode: s.operatingMode,
+    meanDurationHours: s.meanDurationHours,
+    meanEntryFrequency: typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value,
+  }));
+  const sourceById = new Map<string, { id: string; name: string; location: string; barriers: string[] }>();
+  for (const s of wantedStates) {
+    for (const src of s.radioactiveMaterialSources) {
+      if (!sourceById.has(src.uuid)) {
+        sourceById.set(src.uuid, { id: src.uuid, name: src.name, location: src.location, barriers: src.barriers });
+      }
+    }
+  }
   return {
     linkedPosWorkbookId: "example",
-    linkedName: "POS Workbook Example",
-    states: ie.applicablePlantOperatingStates.map((id) => ({
-      id,
-      name: id,
-      operatingMode: "—",
-      meanDurationHours: 0,
-      meanEntryFrequency: 0,
-    })),
-    sources: [],
+    linkedName: "Generic HTGR POS Workbook",
+    states,
+    sources: Array.from(sourceById.values()),
   };
 }
 
@@ -43,15 +59,19 @@ function IeDemoPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    fetchJson<IeBundleResponse>("/api/example-workbooks/ie-bundle")
-      .then((res) => {
+    Promise.all([
+      fetchJson<IeBundleResponse>("/api/example-workbooks/ie-bundle"),
+      fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle"),
+    ])
+      .then(([res, posRes]) => {
         if (cancelled) return;
         const ie = res.ie.mef as InitiatingEventsAnalysis;
+        const pos = posRes.pos.mef as PlantOperatingStatesAnalysis;
         setData({
           ie,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          posLink: deriveDemoPosLink(ie),
+          posLink: buildPosLink(ie, pos),
         });
       })
       .catch((err: unknown) => {
@@ -68,6 +88,9 @@ function IeDemoPage(): JSX.Element {
     return <div className="posw"><main className="posmain"><p className="pws-status">Loading example workbook…</p></main></div>;
   }
 
+  const identity = data.ie.metadata.plantIdentity;
+  const stageLabel = data.ie.plantStage === "OPERATIONAL" ? "Operational" : "Pre-operational";
+
   return (
     <IeWorkbookProvider data={data}>
       <IeWorkbench
@@ -76,15 +99,15 @@ function IeDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: identity !== undefined ? `${identity.name} ${stageLabel} PRA` : "Generic HTGR Pre-operational PRA",
           workbookName: data.ie.name,
           workbookVersion: data.ie.version,
-          plantIdentity: data.ie.metadata.plantIdentity !== undefined
+          plantIdentity: identity !== undefined
             ? {
-                name: data.ie.metadata.plantIdentity.name,
-                type: data.ie.metadata.plantIdentity.reactorType,
-                power: data.ie.metadata.plantIdentity.thermalPower,
-                vendor: data.ie.metadata.plantIdentity.vendor,
+                name: identity.name,
+                type: identity.reactorType,
+                power: identity.thermalPower,
+                vendor: identity.vendor,
               }
             : undefined,
         }}

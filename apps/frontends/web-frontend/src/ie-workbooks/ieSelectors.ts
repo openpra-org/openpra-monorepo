@@ -152,7 +152,7 @@ function stepsForPersona(persona: IePersona): IeStep[] {
 function stepsFromMef(ie: InitiatingEventsAnalysis, persona: IePersona): IeStep[] {
   const base = stepsForPersona(persona);
   const scopeComplete = ie.praScope.length > 0;
-  const statesComplete = ie.applicablePlantOperatingStates.length > 0;
+  const methodsComplete = (ie.searchMethods ?? []).length > 0;
   const identifyComplete = ie.initiators.length > 0;
   const groupingComplete = ie.initiatingEventGroups.length > 0;
   const screeningComplete = ie.screeningRecords.length > 0;
@@ -169,8 +169,7 @@ function stepsFromMef(ie: InitiatingEventsAnalysis, persona: IePersona): IeStep[
   return base.map((s) => {
     switch (s.id) {
       case "scope": return { ...s, status: status(scopeComplete) };
-      case "states": return { ...s, status: status(statesComplete) };
-      case "methods": return { ...s, status: status(identifyComplete) };
+      case "methods": return { ...s, status: status(methodsComplete) };
       case "identify": return { ...s, status: status(identifyComplete) };
       case "completeness": return { ...s, status: status(completenessComplete) };
       case "hazards": return { ...s, status: status(hazardsComplete) };

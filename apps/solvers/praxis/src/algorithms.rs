@@ -6,4 +6,5 @@ pub mod mocus;
 pub mod ordering;
 pub mod pdag;
 pub mod preprocessor;
+pub mod reorder;
 pub mod zbdd_engine;

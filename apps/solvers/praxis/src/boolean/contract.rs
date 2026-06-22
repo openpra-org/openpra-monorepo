@@ -226,6 +226,13 @@ pub enum ConvergenceIntervalPolicy {
     Wald,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariableOrdering {
+    Sift,
+    Gsift,
+    Ils,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct QuantificationSettings {
     pub solver: Option<SolverTarget>,
@@ -239,6 +246,8 @@ pub struct QuantificationSettings {
     pub monte_carlo: Option<bool>,
     pub prime_implicants: Option<bool>,
     pub prime_implicants_tdd: Option<bool>,
+    pub reorder: Option<VariableOrdering>,
+    pub reorder_budget_seconds: Option<f64>,
     pub probability: Option<bool>,
     pub importance: Option<bool>,
     pub uncertainty: Option<bool>,

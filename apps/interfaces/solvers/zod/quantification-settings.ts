@@ -5,6 +5,8 @@ export const SolverTargetSchema = z.enum(["SCRAM", "PRAXIS"]);
 
 export const ConvergenceIntervalPolicySchema = z.enum(["bayes", "wald"]);
 
+export const VariableOrderingSchema = z.enum(["sift", "gsift", "ils"]);
+
 export const QuantificationSettingsSchema = z.object({
   solver: SolverTargetSchema.optional(),
 
@@ -20,6 +22,8 @@ export const QuantificationSettingsSchema = z.object({
 
   primeImplicants: z.boolean().optional(),
   primeImplicantsTdd: z.boolean().optional(),
+  reorder: VariableOrderingSchema.optional(),
+  reorderBudgetSeconds: z.number().optional(),
   probability: z.boolean().optional(),
   importance: z.boolean().optional(),
   uncertainty: z.boolean().optional(),

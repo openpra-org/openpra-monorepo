@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use crate::algorithms::bdd_engine::Bdd;
 use crate::algorithms::bdd_pdag::BddPdag;
 use crate::algorithms::mocus::Mocus;
+use crate::algorithms::reorder::{best_order, ReorderMethod};
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::importance::{ImportanceAnalysis, ImportanceRecord};
 use crate::analysis::labelled_zbdd;
@@ -21,6 +23,7 @@ use crate::boolean::contract::{
     CutSetResult, EndStateQuantification, FaultTreeQuantification, ImportanceMeasureResult,
     ProbabilityResult, QuantificationResult, QuantificationSettings, Quantile,
     SafetyIntegrityLevelResult, SequenceQuantification, SolverTarget, UncertaintyResult,
+    VariableOrdering,
 };
 
 const DEFAULT_NUM_TRIALS: usize = 10_000;
@@ -54,7 +57,11 @@ struct Resolved {
     cut_off: Option<f64>,
     num_trials: usize,
     seed: u64,
+    reorder: Option<ReorderMethod>,
+    reorder_budget: Duration,
 }
+
+const DEFAULT_REORDER_BUDGET_SECONDS: f64 = 10.0;
 
 fn resolve(settings: &QuantificationSettings) -> Resolved {
     let engine = if settings.prime_implicants_tdd.unwrap_or(false) {
@@ -94,7 +101,28 @@ fn resolve(settings: &QuantificationSettings) -> Resolved {
             .map(|n| n.max(1) as usize)
             .unwrap_or(DEFAULT_NUM_TRIALS),
         seed: settings.seed.unwrap_or(DEFAULT_SEED),
+        reorder: settings.reorder.map(|v| match v {
+            VariableOrdering::Sift => ReorderMethod::Sift,
+            VariableOrdering::Gsift => ReorderMethod::Gsift,
+            VariableOrdering::Ils => ReorderMethod::Ils,
+        }),
+        reorder_budget: Duration::from_secs_f64(
+            settings
+                .reorder_budget_seconds
+                .filter(|s| s.is_finite() && *s > 0.0)
+                .unwrap_or(DEFAULT_REORDER_BUDGET_SECONDS),
+        ),
     }
+}
+
+fn prepared_bdd_pdag(fault_tree: &FaultTree, resolved: &Resolved) -> Result<BddPdag> {
+    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
+    pdag.compute_ordering_and_modules()?;
+    if let Some(method) = resolved.reorder {
+        let order = best_order(&pdag, method, resolved.reorder_budget);
+        pdag.set_variable_order(order);
+    }
+    Ok(pdag)
 }
 
 #[derive(Default)]
@@ -245,8 +273,7 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
 
     match resolved.engine {
         EngineChoice::Bdd => {
-            let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-            pdag.compute_ordering_and_modules()?;
+            let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
             let (bdd, root) = Bdd::build_from_pdag(&pdag)?;
             if resolved.probability {
                 let value = if resolved.limit_order.is_some() || resolved.cut_off.is_some() {
@@ -258,8 +285,7 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
             }
         }
         EngineChoice::Zbdd => {
-            let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-            pdag.compute_ordering_and_modules()?;
+            let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
             let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
             let exact = if resolved.probability && resolved.approximation.is_none() {
                 Some(bdd.probability(root))
@@ -378,8 +404,7 @@ fn prime_implicant_outcome(
     use_tdd: bool,
     outcome: &mut RootOutcome,
 ) -> Result<()> {
-    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-    pdag.compute_ordering_and_modules()?;
+    let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
     let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
     let exact = if resolved.probability && resolved.approximation.is_none() {
         Some(bdd.probability(root))

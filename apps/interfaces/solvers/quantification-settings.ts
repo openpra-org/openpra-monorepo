@@ -2,6 +2,8 @@ export type SolverTarget = "SCRAM" | "PRAXIS";
 
 export type ConvergenceIntervalPolicy = "bayes" | "wald";
 
+export type VariableOrdering = "sift" | "gsift" | "ils";
+
 export interface QuantificationSettings {
   solver?: SolverTarget;
 
@@ -17,6 +19,8 @@ export interface QuantificationSettings {
 
   primeImplicants?: boolean;
   primeImplicantsTdd?: boolean;
+  reorder?: VariableOrdering;
+  reorderBudgetSeconds?: number;
   probability?: boolean;
   importance?: boolean;
   uncertainty?: boolean;

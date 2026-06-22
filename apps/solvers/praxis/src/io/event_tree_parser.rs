@@ -346,8 +346,8 @@ fn parse_fault_tree_from_reader<R: BufRead>(
                     if top_gate.is_none() {
                         top_gate = Some(gate_name.clone());
                     }
-                    let gate = parse_gate(reader, &gate_name)?;
-                    gates.push(gate);
+                    let parsed = parse_gate(reader, &gate_name)?;
+                    gates.extend(parsed);
                 }
                 b"define-basic-event" => {
                     let event_name = required_attr(&e, b"name", "define-basic-event")?;

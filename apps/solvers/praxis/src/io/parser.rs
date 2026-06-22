@@ -528,114 +528,174 @@ fn parse_named_expression<R: BufRead>(reader: &mut Reader<R>, closing: &str) -> 
     })
 }
 
-pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Gate> {
-    let mut formula = None;
-    let mut operands = Vec::new();
+fn formula_from_tag(tag: &[u8], e: &BytesStart, gate: &str) -> Result<Option<Formula>> {
+    let formula = match tag {
+        b"and" => Formula::And,
+        b"or" => Formula::Or,
+        b"not" => Formula::Not,
+        b"xor" => Formula::Xor,
+        b"nand" => Formula::Nand,
+        b"nor" => Formula::Nor,
+        b"iff" => Formula::Iff,
+        b"atleast" => {
+            let mut min = 1;
+            for attr in e.attributes() {
+                let attr = attr.map_err(|err| {
+                    MefError::Validity(format!("Invalid attribute in gate {}: {}", gate, err))
+                })?;
+                if attr.key.as_ref() == b"min" {
+                    let min_str = std::str::from_utf8(&attr.value).map_err(|_| {
+                        MefError::Validity(format!(
+                            "Invalid UTF-8 in min attribute for gate {}",
+                            gate
+                        ))
+                    })?;
+                    min = min_str.parse::<usize>().map_err(|_| {
+                        MefError::Validity(format!(
+                            "Invalid min value '{}' for gate {}",
+                            min_str, gate
+                        ))
+                    })?;
+                }
+            }
+            Formula::AtLeast { min }
+        }
+        _ => return Ok(None),
+    };
+    Ok(Some(formula))
+}
+
+fn operand_name(e: &BytesStart) -> Result<Option<String>> {
+    match e.name().as_ref() {
+        b"basic-event" | b"gate" | b"house-event" => {
+            for attr in e.attributes() {
+                let attr =
+                    attr.map_err(|err| MefError::Validity(format!("Invalid attribute: {}", err)))?;
+                if attr.key.as_ref() == b"name" {
+                    let name = std::str::from_utf8(&attr.value).map_err(|_| {
+                        MefError::Validity("Invalid UTF-8 in name attribute".to_string())
+                    })?;
+                    return Ok(Some(name.to_string()));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+fn skip_to_end<R: BufRead>(reader: &mut Reader<R>, target: Vec<u8>) -> Result<()> {
+    let mut depth = 1;
     let mut buf = Vec::new();
-    let mut in_formula = false;
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) if e.name().as_ref() == target.as_slice() => depth += 1,
+            Ok(Event::End(e)) if e.name().as_ref() == target.as_slice() => {
+                depth -= 1;
+                if depth == 0 {
+                    return Ok(());
+                }
+            }
+            Ok(Event::Eof) => {
+                return Err(MefError::Validity(
+                    "Unexpected EOF while skipping element".to_string(),
+                )
+                .into());
+            }
+            Err(e) => {
+                return Err(MefError::Validity(format!("XML parse error: {}", e)).into());
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+}
+
+fn read_formula<R: BufRead>(
+    reader: &mut Reader<R>,
+    gate_name: String,
+    formula: Formula,
+    prefix: &str,
+    counter: &mut usize,
+    synthetic: &mut Vec<Gate>,
+) -> Result<Gate> {
+    let mut gate = Gate::new(gate_name.clone(), formula)?;
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => {
+                if let Some(child_formula) = formula_from_tag(e.name().as_ref(), &e, &gate_name)? {
+                    let child_name = format!("__{}_aut{}", prefix, *counter);
+                    *counter += 1;
+                    let child = read_formula(
+                        reader,
+                        child_name.clone(),
+                        child_formula,
+                        prefix,
+                        counter,
+                        synthetic,
+                    )?;
+                    synthetic.push(child);
+                    gate.add_operand(child_name);
+                } else {
+                    let target = e.name().as_ref().to_vec();
+                    skip_to_end(reader, target)?;
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                if let Some(name) = operand_name(&e)? {
+                    gate.add_operand(name);
+                }
+            }
+            Ok(Event::End(_)) => break,
+            Ok(Event::Eof) => {
+                return Err(MefError::Validity(format!(
+                    "Unexpected EOF while parsing gate {}",
+                    gate_name
+                ))
+                .into());
+            }
+            Err(e) => {
+                return Err(MefError::Validity(format!(
+                    "XML parse error in gate {}: {}",
+                    gate_name, e
+                ))
+                .into());
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+    Ok(gate)
+}
+
+pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Vec<Gate>> {
+    let mut buf = Vec::new();
+    let mut synthetic: Vec<Gate> = Vec::new();
+    let mut counter = 0usize;
+    let mut main = None;
 
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                let tag_name = e.name();
-                match tag_name.as_ref() {
-                    b"and" => {
-                        formula = Some(Formula::And);
-                        in_formula = true;
-                    }
-                    b"or" => {
-                        formula = Some(Formula::Or);
-                        in_formula = true;
-                    }
-                    b"not" => {
-                        formula = Some(Formula::Not);
-                        in_formula = true;
-                    }
-                    b"xor" => {
-                        formula = Some(Formula::Xor);
-                        in_formula = true;
-                    }
-                    b"nand" => {
-                        formula = Some(Formula::Nand);
-                        in_formula = true;
-                    }
-                    b"nor" => {
-                        formula = Some(Formula::Nor);
-                        in_formula = true;
-                    }
-                    b"iff" => {
-                        formula = Some(Formula::Iff);
-                        in_formula = true;
-                    }
-                    b"atleast" => {
-                        let mut min = 1;
-                        for attr in e.attributes() {
-                            let attr = attr.map_err(|e| {
-                                MefError::Validity(format!(
-                                    "Invalid attribute in gate {}: {}",
-                                    name, e
-                                ))
-                            })?;
-
-                            if attr.key.as_ref() == b"min" {
-                                let min_str = std::str::from_utf8(&attr.value).map_err(|_| {
-                                    MefError::Validity(format!(
-                                        "Invalid UTF-8 in min attribute for gate {}",
-                                        name
-                                    ))
-                                })?;
-
-                                min = min_str.parse::<usize>().map_err(|_| {
-                                    MefError::Validity(format!(
-                                        "Invalid min value '{}' for gate {}",
-                                        min_str, name
-                                    ))
-                                })?;
-                            }
-                        }
-                        formula = Some(Formula::AtLeast { min });
-                        in_formula = true;
-                    }
-                    _ => {}
-                }
-            }
-            Ok(Event::Empty(e)) => {
-                if in_formula {
-                    let tag_name = e.name();
-                    match tag_name.as_ref() {
-                        b"basic-event" | b"gate" | b"house-event" => {
-                            for attr in e.attributes() {
-                                let attr = attr.map_err(|e| {
-                                    MefError::Validity(format!("Invalid attribute: {}", e))
-                                })?;
-
-                                if attr.key.as_ref() == b"name" {
-                                    let operand_name =
-                                        std::str::from_utf8(&attr.value).map_err(|_| {
-                                            MefError::Validity(
-                                                "Invalid UTF-8 in name attribute".to_string(),
-                                            )
-                                        })?;
-                                    operands.push(operand_name.to_string());
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
+                if let Some(formula) = formula_from_tag(e.name().as_ref(), &e, name)? {
+                    let gate = read_formula(
+                        reader,
+                        name.to_string(),
+                        formula,
+                        name,
+                        &mut counter,
+                        &mut synthetic,
+                    )?;
+                    main = Some(gate);
+                } else {
+                    let target = e.name().as_ref().to_vec();
+                    skip_to_end(reader, target)?;
                 }
             }
             Ok(Event::End(e)) => {
-                let tag_name = e.name();
-                if tag_name.as_ref() == b"define-gate" {
+                if e.name().as_ref() == b"define-gate" {
                     break;
-                } else if in_formula {
-                    match tag_name.as_ref() {
-                        b"and" | b"or" | b"not" | b"xor" | b"nand" | b"nor" | b"iff"
-                        | b"atleast" => {
-                            in_formula = false;
-                        }
-                        _ => {}
-                    }
                 }
             }
             Ok(Event::Eof) => {
@@ -655,15 +715,12 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Gate
         buf.clear();
     }
 
-    let formula = formula
+    let main = main
         .ok_or_else(|| MefError::Validity(format!("Missing gate formula for gate {}", name)))?;
-
-    let mut gate = Gate::new(name.to_string(), formula)?;
-    for operand in operands {
-        gate.add_operand(operand);
-    }
-
-    Ok(gate)
+    let mut out = Vec::with_capacity(1 + synthetic.len());
+    out.push(main);
+    out.append(&mut synthetic);
+    Ok(out)
 }
 
 pub fn parse_ccf_group<R: BufRead>(
@@ -882,8 +939,8 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                             if top_gate.is_none() {
                                 top_gate = Some(name.clone());
                             }
-                            let gate = parse_gate(&mut reader, &name)?;
-                            gates.push(gate);
+                            let parsed = parse_gate(&mut reader, &name)?;
+                            gates.extend(parsed);
                         }
                     }
                     b"define-basic-event" => {
@@ -1112,7 +1169,8 @@ mod tests {
         loop {
             match reader.read_event() {
                 Ok(Event::Start(e)) if e.name().as_ref() == b"define-gate" => {
-                    let gate = parse_gate(&mut reader, "G1").unwrap();
+                    let gates = parse_gate(&mut reader, "G1").unwrap();
+                    let gate = &gates[0];
                     assert!(matches!(gate.formula(), Formula::And));
                     assert_eq!(gate.operands().len(), 2);
                     assert_eq!(gate.operands()[0], "E1");
@@ -1134,7 +1192,8 @@ mod tests {
         loop {
             match reader.read_event() {
                 Ok(Event::Start(e)) if e.name().as_ref() == b"define-gate" => {
-                    let gate = parse_gate(&mut reader, "G2").unwrap();
+                    let gates = parse_gate(&mut reader, "G2").unwrap();
+                    let gate = &gates[0];
                     assert!(matches!(gate.formula(), Formula::Or));
                     assert_eq!(gate.operands().len(), 3);
                     break;
@@ -1154,7 +1213,8 @@ mod tests {
         loop {
             match reader.read_event() {
                 Ok(Event::Start(e)) if e.name().as_ref() == b"define-gate" => {
-                    let gate = parse_gate(&mut reader, "G3").unwrap();
+                    let gates = parse_gate(&mut reader, "G3").unwrap();
+                    let gate = &gates[0];
                     assert!(matches!(gate.formula(), Formula::Not));
                     assert_eq!(gate.operands().len(), 1);
                     break;
@@ -1163,6 +1223,71 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    #[test]
+    fn test_parse_gate_inline_not_preserves_sibling_and_sign() {
+        let xml = r#"<define-gate name="g"><and><not><basic-event name="a"/></not><basic-event name="b"/></and></define-gate>"#;
+        let mut reader = Reader::from_str(xml);
+        reader.trim_text(true);
+
+        loop {
+            match reader.read_event() {
+                Ok(Event::Start(e)) if e.name().as_ref() == b"define-gate" => {
+                    let gates = parse_gate(&mut reader, "g").unwrap();
+                    assert_eq!(gates.len(), 2);
+                    let main = &gates[0];
+                    assert!(matches!(main.formula(), Formula::And));
+                    assert_eq!(main.operands().len(), 2);
+                    assert!(main.operands().iter().any(|o| o.as_str() == "b"));
+                    let synth_ref = main
+                        .operands()
+                        .iter()
+                        .find(|o| o.as_str() != "b")
+                        .expect("synthetic operand for inline not");
+                    assert!(synth_ref.starts_with("__g_aut"));
+                    let synth = gates
+                        .iter()
+                        .find(|g| g.element().id() == synth_ref.as_str())
+                        .expect("synthetic gate registered");
+                    assert!(matches!(synth.formula(), Formula::Not));
+                    assert_eq!(synth.operands(), &["a".to_string()]);
+                    break;
+                }
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_fault_tree_inline_not_is_not_constant_true() {
+        let xml = r#"<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="inline">
+    <define-gate name="top">
+      <and>
+        <not><basic-event name="a"/></not>
+        <basic-event name="b"/>
+      </and>
+    </define-gate>
+    <define-basic-event name="a"><float value="0.1"/></define-basic-event>
+    <define-basic-event name="b"><float value="0.1"/></define-basic-event>
+  </define-fault-tree>
+</opsa-mef>"#;
+
+        let ft = parse_fault_tree(xml).unwrap();
+        assert_eq!(ft.top_event(), "top");
+        let pdag = crate::algorithms::pdag::Pdag::from_fault_tree(&ft).unwrap();
+        let events = crate::algorithms::ordering::basic_events(&pdag);
+        let mut var_of = HashMap::new();
+        for (i, &e) in events.iter().enumerate() {
+            var_of.insert(e, i);
+        }
+        let (_bdd, root) =
+            crate::algorithms::bdd_engine::Bdd::from_pdag_with_order(&pdag, &var_of).unwrap();
+        assert!(!root.is_true(), "inline not must not collapse to constant true");
+        assert!(!root.is_false());
     }
 
     #[test]

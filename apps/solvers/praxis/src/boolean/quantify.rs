@@ -326,6 +326,9 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
             if let Some(limit) = resolved.limit_order {
                 mocus = mocus.with_max_order(limit);
             }
+            if let Some(cut_off) = resolved.cut_off {
+                mocus = mocus.with_cut_off(cut_off);
+            }
             let analyzed = mocus.analyze()?.to_vec();
             let original = analyzed.len();
             let mut event_sets: Vec<Vec<String>> = analyzed

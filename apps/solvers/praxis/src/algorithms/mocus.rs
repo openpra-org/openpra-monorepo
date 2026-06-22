@@ -35,6 +35,8 @@ pub struct Mocus<'a> {
     cut_sets: Vec<CutSet>,
     cut_sets_bits: Vec<Vec<u64>>,
     max_order: Option<usize>,
+    cut_off: Option<f64>,
+    prob_ub: HashMap<String, f64>,
     basic_event_index: HashMap<String, usize>,
     basic_event_bit_words: usize,
 }
@@ -46,6 +48,8 @@ impl<'a> Mocus<'a> {
             cut_sets: Vec::new(),
             cut_sets_bits: Vec::new(),
             max_order: None,
+            cut_off: None,
+            prob_ub: HashMap::new(),
             basic_event_index: HashMap::new(),
             basic_event_bit_words: 0,
         }
@@ -53,6 +57,11 @@ impl<'a> Mocus<'a> {
 
     pub fn with_max_order(mut self, max_order: usize) -> Self {
         self.max_order = Some(max_order);
+        self
+    }
+
+    pub fn with_cut_off(mut self, cut_off: f64) -> Self {
+        self.cut_off = Some(cut_off);
         self
     }
 
@@ -65,6 +74,7 @@ impl<'a> Mocus<'a> {
         self.validate_no_cycles()?;
 
         self.rebuild_basic_event_index();
+        self.compute_prob_bounds();
 
         let mut work_queue: VecDeque<Vec<String>> = VecDeque::new();
         let mut seen_work_sets: HashSet<Vec<String>> = HashSet::new();
@@ -85,6 +95,12 @@ impl<'a> Mocus<'a> {
 
             if self.should_prune_set(&current_set) {
                 continue;
+            }
+
+            if let Some(cut_off) = self.cut_off {
+                if self.set_prob_ub(&current_set) < cut_off {
+                    continue;
+                }
             }
 
             if self.all_basic_events(&current_set) {
@@ -157,6 +173,68 @@ impl<'a> Mocus<'a> {
         self.cut_sets_bits
             .iter()
             .any(|known| Self::bitset_is_subset(known, &basic_bits))
+    }
+
+    fn compute_prob_bounds(&mut self) {
+        let mut memo: HashMap<String, f64> = HashMap::new();
+        self.node_prob_ub(self.fault_tree.top_event(), &mut memo);
+        self.prob_ub = memo;
+    }
+
+    fn node_prob_ub(&self, id: &str, memo: &mut HashMap<String, f64>) -> f64 {
+        if let Some(&v) = memo.get(id) {
+            return v;
+        }
+        let value = self.node_prob_ub_uncached(id, memo);
+        memo.insert(id.to_string(), value);
+        value
+    }
+
+    fn node_prob_ub_uncached(&self, id: &str, memo: &mut HashMap<String, f64>) -> f64 {
+        if let Some(event) = self.fault_tree.get_basic_event(id) {
+            return event.probability();
+        }
+        if let Some(house) = self.fault_tree.get_house_event(id) {
+            return if house.state() { 1.0 } else { 0.0 };
+        }
+        let Some(gate) = self.fault_tree.get_gate(id) else {
+            return 1.0;
+        };
+        let formula = gate.formula().clone();
+        let operands: Vec<String> = gate.operands().to_vec();
+        match formula {
+            Formula::And => {
+                let mut product = 1.0;
+                for operand in &operands {
+                    product *= self.node_prob_ub(operand, memo);
+                }
+                product
+            }
+            Formula::Or => {
+                let mut complement = 1.0;
+                for operand in &operands {
+                    complement *= 1.0 - self.node_prob_ub(operand, memo);
+                }
+                1.0 - complement
+            }
+            Formula::AtLeast { min } => {
+                let mut bounds = Vec::with_capacity(operands.len());
+                for operand in &operands {
+                    bounds.push(self.node_prob_ub(operand, memo));
+                }
+                bounds.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+                bounds.iter().take(min).product()
+            }
+            _ => 1.0,
+        }
+    }
+
+    fn set_prob_ub(&self, set: &[String]) -> f64 {
+        let mut product = 1.0;
+        for id in set {
+            product *= self.prob_ub.get(id).copied().unwrap_or(1.0);
+        }
+        product
     }
 
     fn try_add_minimal_cut_set(&mut self, candidate: CutSet, candidate_bits: Vec<u64>) {
@@ -457,6 +535,88 @@ mod tests {
         assert_eq!(cut_sets[0].order(), 2);
         assert!(cut_sets[0].events.contains("E1"));
         assert!(cut_sets[0].events.contains("E2"));
+    }
+
+    fn three_branch_tree() -> FaultTree {
+        let mut ft = FaultTree::new("FT-CUT".to_string(), "TOP".to_string()).unwrap();
+        let mut top = Gate::new("TOP".to_string(), Formula::Or).unwrap();
+        top.add_operand("G1".to_string());
+        top.add_operand("G2".to_string());
+        top.add_operand("G3".to_string());
+        ft.add_gate(top).unwrap();
+        for (g, x, y) in [("G1", "a", "b"), ("G2", "c", "d"), ("G3", "e", "f")] {
+            let mut gate = Gate::new(g.to_string(), Formula::And).unwrap();
+            gate.add_operand(x.to_string());
+            gate.add_operand(y.to_string());
+            ft.add_gate(gate).unwrap();
+        }
+        for (e, p) in [
+            ("a", 0.1),
+            ("b", 0.1),
+            ("c", 0.01),
+            ("d", 0.01),
+            ("e", 0.001),
+            ("f", 0.001),
+        ] {
+            ft.add_basic_event(BasicEvent::new(e.to_string(), p).unwrap())
+                .unwrap();
+        }
+        ft
+    }
+
+    #[test]
+    fn test_mocus_online_cutoff_matches_full_filtered() {
+        let ft = three_branch_tree();
+
+        let full: Vec<Vec<String>> = {
+            let mut m = Mocus::new(&ft);
+            m.analyze()
+                .unwrap()
+                .iter()
+                .map(|cs| {
+                    let mut v: Vec<String> = cs.events.iter().cloned().collect();
+                    v.sort();
+                    v
+                })
+                .collect()
+        };
+        assert_eq!(full.len(), 3);
+
+        let cut_off = 1e-5;
+        let truncated: Vec<Vec<String>> = {
+            let mut m = Mocus::new(&ft).with_cut_off(cut_off);
+            m.analyze()
+                .unwrap()
+                .iter()
+                .map(|cs| {
+                    let mut v: Vec<String> = cs.events.iter().cloned().collect();
+                    v.sort();
+                    v
+                })
+                .collect()
+        };
+
+        let prob = |set: &[String]| -> f64 {
+            set.iter()
+                .map(|e| ft.get_basic_event(e).unwrap().probability())
+                .product()
+        };
+        let mut expected: Vec<Vec<String>> =
+            full.iter().filter(|s| prob(s) >= cut_off).cloned().collect();
+        expected.sort();
+        let mut got = truncated.clone();
+        got.sort();
+        assert_eq!(got, expected);
+        assert_eq!(got.len(), 2);
+        assert!(!got.iter().any(|s| s == &vec!["e".to_string(), "f".to_string()]));
+    }
+
+    #[test]
+    fn test_mocus_online_cutoff_prunes_gate_before_expansion() {
+        let ft = three_branch_tree();
+        let mut m = Mocus::new(&ft).with_cut_off(2e-6);
+        let cut_sets = m.analyze().unwrap();
+        assert_eq!(cut_sets.len(), 2);
     }
 
     #[test]

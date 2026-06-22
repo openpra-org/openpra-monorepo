@@ -15,6 +15,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      docs_hash: ${{ steps.docs.outputs.docs_hash }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,7 +53,6 @@ jobs:
         run: |
           mkdir -p docker-context/web-backend
           cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
-          cp -r dist/apps/backends/web-backend/example-documents docker-context/web-backend/example-documents
           cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
           node -e '
             const fs = require("fs");
@@ -67,6 +68,25 @@ jobs:
             fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
           '
           cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
+
+      - name: Build and save documents image
+        id: docs
+        run: |
+          DOCS_SRC=dist/apps/backends/web-backend/example-documents
+          DOCS_HASH=$(find "$DOCS_SRC" -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
+          echo "docs_hash=$DOCS_HASH" >> "$GITHUB_OUTPUT"
+          mkdir -p docker-context/web-backend-docs
+          cp -r "$DOCS_SRC" docker-context/web-backend-docs/example-documents
+          cp deploy/web/backend-docs.Dockerfile docker-context/web-backend-docs/Dockerfile
+          docker build -t "openpra-apps-web-backend-docs:$DOCS_HASH" docker-context/web-backend-docs
+          docker save "openpra-apps-web-backend-docs:$DOCS_HASH" -o backend-docs-image.tar
+
+      - name: Upload documents image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-docs-image
+          path: backend-docs-image.tar
+          retention-days: 1
 
       - name: Prepare frontend build context
         run: |
@@ -151,6 +171,35 @@ jobs:
       - name: Load base images into the swarm node
         run: docker load -i base-images.tar
 
+      - name: Check documents image present
+        id: docscheck
+        run: |
+          HASH="${{ needs.build-and-push.outputs.docs_hash }}"
+          if docker image inspect "openpra-apps-web-backend-docs:$HASH" >/dev/null 2>&1; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download documents image artifact
+        if: steps.docscheck.outputs.have == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-docs-image
+          path: .
+
+      - name: Load documents image into the swarm node
+        if: steps.docscheck.outputs.have == 'false'
+        run: docker load -i backend-docs-image.tar
+
+      - name: Populate documents volume
+        run: |
+          HASH="${{ needs.build-and-push.outputs.docs_hash }}"
+          VOL="openpra-docs-$HASH"
+          docker volume create "$VOL" >/dev/null
+          docker run --rm -v "$VOL":/dest "openpra-apps-web-backend-docs:$HASH" \
+            sh -c 'if [ ! -f /dest/.populated ]; then tar -C /example-documents -cf - . | tar -C /dest -xf - && touch /dest/.populated; fi'
+
       - name: Deploy to Docker Swarm
         env:
           APP_NAME: openpra-apps-${{ steps.vars.outputs.branch_slug }}
@@ -159,6 +208,7 @@ jobs:
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
           IMAGE_MONGO: mongo:latest
           IMAGE_MINIO: minio/minio:latest
+          DOCS_HASH: ${{ needs.build-and-push.outputs.docs_hash }}
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.APPS_GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.APPS_GOOGLE_CLIENT_SECRET }}

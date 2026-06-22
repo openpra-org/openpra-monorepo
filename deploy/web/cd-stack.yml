@@ -10,6 +10,9 @@ networks:
 volumes:
   mongodb_data:
   minio_data:
+  example_documents:
+    external: true
+    name: openpra-docs-${DOCS_HASH}
 
 x-base-replicated: &shared-replicated
   mode: replicated
@@ -84,6 +87,8 @@ services:
     networks:
       - app_net
       - traefik-public
+    volumes:
+      - example_documents:/app/example-documents:ro
     environment:
       NODE_ENV: production
       PORT: "8000"
@@ -112,6 +117,9 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: 1
+      placement:
+        constraints:
+          - "node.hostname == gaia"
       restart_policy:
         condition: any
         delay: 10s

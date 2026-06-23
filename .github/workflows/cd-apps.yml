@@ -162,13 +162,24 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
+      - name: Check base images present
+        id: basecheck
+        run: |
+          if docker image inspect mongo:latest >/dev/null 2>&1 && docker image inspect minio/minio:latest >/dev/null 2>&1; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download base images artifact
+        if: steps.basecheck.outputs.have == 'false'
         uses: actions/download-artifact@v4
         with:
           name: base-images
           path: .
 
       - name: Load base images into the swarm node
+        if: steps.basecheck.outputs.have == 'false'
         run: docker load -i base-images.tar
 
       - name: Check documents image present

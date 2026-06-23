@@ -674,6 +674,7 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Vec<
     let mut synthetic: Vec<Gate> = Vec::new();
     let mut counter = 0usize;
     let mut main = None;
+    let mut passthrough: Vec<String> = Vec::new();
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -688,9 +689,18 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Vec<
                         &mut synthetic,
                     )?;
                     main = Some(gate);
+                } else if let Some(operand) = operand_name(&e)? {
+                    passthrough.push(operand);
+                    let target = e.name().as_ref().to_vec();
+                    skip_to_end(reader, target)?;
                 } else {
                     let target = e.name().as_ref().to_vec();
                     skip_to_end(reader, target)?;
+                }
+            }
+            Ok(Event::Empty(e)) => {
+                if let Some(operand) = operand_name(&e)? {
+                    passthrough.push(operand);
                 }
             }
             Ok(Event::End(e)) => {
@@ -715,8 +725,23 @@ pub fn parse_gate<R: BufRead>(reader: &mut Reader<R>, name: &str) -> Result<Vec<
         buf.clear();
     }
 
-    let main = main
-        .ok_or_else(|| MefError::Validity(format!("Missing gate formula for gate {}", name)))?;
+    let main = match main {
+        Some(gate) => gate,
+        None if !passthrough.is_empty() => {
+            let mut gate = Gate::new(name.to_string(), Formula::Or)?;
+            for operand in passthrough {
+                gate.add_operand(operand);
+            }
+            gate
+        }
+        None => {
+            return Err(MefError::Validity(format!(
+                "Missing gate formula for gate {}",
+                name
+            ))
+            .into())
+        }
+    };
     let mut out = Vec::with_capacity(1 + synthetic.len());
     out.push(main);
     out.append(&mut synthetic);
@@ -1175,6 +1200,28 @@ mod tests {
                     assert_eq!(gate.operands().len(), 2);
                     assert_eq!(gate.operands()[0], "E1");
                     assert_eq!(gate.operands()[1], "E2");
+                    break;
+                }
+                Ok(Event::Eof) => panic!("Unexpected EOF"),
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn test_parse_gate_pass_through() {
+        let xml = r#"<define-gate name="r1"><gate name="g1"/></define-gate>"#;
+        let mut reader = Reader::from_str(xml);
+        reader.trim_text(true);
+
+        loop {
+            match reader.read_event() {
+                Ok(Event::Start(e)) if e.name().as_ref() == b"define-gate" => {
+                    let gates = parse_gate(&mut reader, "r1").unwrap();
+                    let gate = &gates[0];
+                    assert!(matches!(gate.formula(), Formula::Or));
+                    assert_eq!(gate.operands().len(), 1);
+                    assert_eq!(gate.operands()[0], "g1");
                     break;
                 }
                 Ok(Event::Eof) => panic!("Unexpected EOF"),

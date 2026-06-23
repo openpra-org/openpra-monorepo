@@ -1,8 +1,8 @@
 pub mod bdd_engine;
-pub mod bdd_pdag;
 pub mod bdd_vectored;
 pub mod cycle;
 pub mod mocus;
+pub mod noncoherent_mocus;
 pub mod ordering;
 pub mod pdag;
 pub mod preprocessor;

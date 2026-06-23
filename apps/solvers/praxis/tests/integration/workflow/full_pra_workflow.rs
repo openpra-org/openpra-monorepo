@@ -1,8 +1,9 @@
 use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::bdd_pdag::BddPdag;
 use praxis::algorithms::mocus::Mocus;
+use praxis::algorithms::pdag::Pdag;
 use praxis::analysis::fault_tree::FaultTreeAnalysis;
 use praxis::analysis::importance::ImportanceAnalysis;
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event::BasicEvent;
 use praxis::expression::Expr;
 use praxis::core::fault_tree::FaultTree;
@@ -73,9 +74,11 @@ fn test_full_pra_workflow_comprehensive() {
     assert!(fta_result.top_event_probability > 0.0);
     assert!(fta_result.top_event_probability < 0.001);
 
-    let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-    pdag.compute_ordering_and_modules().unwrap();
-    let (bdd_engine, root) = BddEngine::build_from_pdag(&pdag).unwrap();
+    let pdag = Pdag::from_fault_tree(&ft).unwrap();
+    let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+    let var_probs = pdag.level_var_probs(&ft, &meta.var_of).unwrap();
+    let (bdd_engine, root) =
+        BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap();
     let bdd_result = bdd_engine.probability(root);
     println!("  BDD Algorithm: P(system failure) = {:.6e}", bdd_result);
     assert!((bdd_result - fta_result.top_event_probability).abs() < 1e-6);

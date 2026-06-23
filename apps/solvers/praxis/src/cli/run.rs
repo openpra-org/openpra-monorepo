@@ -11,9 +11,14 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     let verbose = cli.verbosity > 0;
     let verbosity_level = cli.verbosity;
 
-    if cli.approximation.is_some() && !matches!(cli.algorithm, Algorithm::Mocus | Algorithm::Zbdd) {
+    if cli.approximation.is_some()
+        && !matches!(
+            cli.algorithm,
+            Algorithm::Mocus | Algorithm::MocusPi | Algorithm::Zbdd
+        )
+    {
         eprintln!(
-            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus' or '--algorithm zbdd'"
+            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi' or '--algorithm zbdd'"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -184,10 +189,10 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                         verbose,
                     )?;
                 }
-                Algorithm::Mocus => {
+                Algorithm::Mocus | Algorithm::MocusPi => {
                     if !cli.validate {
                         eprintln!(
-                            "error: '--algorithm mocus' is not supported for event-tree inputs"
+                            "error: cut-set algorithms (mocus, mocus-pi) are not supported for event-tree inputs"
                         );
                         eprintln!();
                         eprintln!("For more information, try '--help'.");

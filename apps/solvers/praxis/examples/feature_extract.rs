@@ -3,9 +3,9 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use praxis::algorithms::bdd_pdag::{BddPdag, BddPdagNode, NodeIdx};
+use praxis::algorithms::pdag::{NodeIndex, Pdag, PdagNode};
 use praxis::analysis::width::{
-    build_incidence_graph_full, build_incidence_graph_skeleton, compute_dfs_metadata,
+    build_incidence_graph_full, build_incidence_graph_skeleton, compute_dfs_metadata_pdag,
     greedy_vertex_separation_pathwidth, maximal_modules, min_fill_treewidth, IncidenceGraph,
 };
 use praxis::core::fault_tree::FaultTree;
@@ -75,15 +75,15 @@ struct Row {
     f: Feats,
 }
 
-fn parent_counts(pdag: &BddPdag, root: NodeIdx) -> HashMap<NodeIdx, usize> {
-    let mut pc: HashMap<NodeIdx, usize> = HashMap::new();
-    let mut seen: HashSet<NodeIdx> = HashSet::new();
+fn parent_counts(pdag: &Pdag, root: NodeIndex) -> HashMap<NodeIndex, usize> {
+    let mut pc: HashMap<NodeIndex, usize> = HashMap::new();
+    let mut seen: HashSet<NodeIndex> = HashSet::new();
     let mut stack = vec![root.abs()];
     while let Some(n) = stack.pop() {
         if !seen.insert(n) {
             continue;
         }
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(n) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(n) {
             for &op in operands {
                 *pc.entry(op.abs()).or_insert(0) += 1;
                 stack.push(op.abs());
@@ -94,12 +94,12 @@ fn parent_counts(pdag: &BddPdag, root: NodeIdx) -> HashMap<NodeIdx, usize> {
 }
 
 fn compute_feats(
-    pdag: &BddPdag,
+    pdag: &Pdag,
     ft: &FaultTree,
     graph: &IncidenceGraph,
-    pc: &HashMap<NodeIdx, usize>,
+    pc: &HashMap<NodeIndex, usize>,
 ) -> Feats {
-    let verts: Vec<NodeIdx> = graph.vertices().collect();
+    let verts: Vec<NodeIndex> = graph.vertices().collect();
     let nv = graph.num_vertices();
     let ne = graph.num_edges();
 
@@ -111,11 +111,11 @@ fn compute_feats(
     let (mut and, mut or, mut atl, mut xor, mut typed) = (0usize, 0usize, 0usize, 0usize, 0usize);
 
     for &v in &verts {
-        match pdag.node(v) {
-            Some(BddPdagNode::Variable { .. }) => {
+        match pdag.get_node(v) {
+            Some(PdagNode::BasicEvent { id, .. }) => {
                 num_vars += 1;
-                if let Some(p) = pdag.probability_of(v) {
-                    probs.push(p);
+                if let Some(be) = ft.get_basic_event(id) {
+                    probs.push(be.probability());
                 }
                 let fo = pc.get(&v).copied().unwrap_or(0);
                 fanouts.push(fo);
@@ -123,9 +123,9 @@ fn compute_feats(
                     shared += 1;
                 }
             }
-            Some(BddPdagNode::Gate { .. }) => {
+            Some(PdagNode::Gate { .. }) => {
                 num_gates += 1;
-                if let Some(g) = pdag.node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
+                if let Some(g) = pdag.get_node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
                     typed += 1;
                     match g.formula() {
                         Formula::And | Formula::Nand => and += 1,
@@ -221,17 +221,13 @@ fn process(path: &Path, rows: &mut Vec<Row>, st: &mut Stats) {
             return;
         }
     };
-    let mut pdag = match BddPdag::from_fault_tree(&ft) {
+    let pdag = match Pdag::from_fault_tree(&ft) {
         Ok(p) => p,
         Err(_) => {
             st.pdag_fail += 1;
             return;
         }
     };
-    if pdag.compute_ordering_and_modules().is_err() {
-        st.pdag_fail += 1;
-        return;
-    }
     let root = match pdag.root() {
         Some(r) => r,
         None => {
@@ -239,7 +235,7 @@ fn process(path: &Path, rows: &mut Vec<Row>, st: &mut Stats) {
             return;
         }
     };
-    let meta = match compute_dfs_metadata(&pdag) {
+    let meta = match compute_dfs_metadata_pdag(&pdag) {
         Ok(m) => m,
         Err(_) => {
             st.pdag_fail += 1;
@@ -250,7 +246,7 @@ fn process(path: &Path, rows: &mut Vec<Row>, st: &mut Stats) {
 
     let pc = parent_counts(&pdag, root);
     let maximals = maximal_modules(&meta);
-    let maximals_set: HashSet<NodeIdx> = maximals.iter().map(|m| m.abs()).collect();
+    let maximals_set: HashSet<NodeIndex> = maximals.iter().map(|m| m.abs()).collect();
 
     if !maximals_set.contains(&root.abs()) {
         let g = build_incidence_graph_skeleton(&pdag, root, &maximals_set);
@@ -271,7 +267,7 @@ fn process(path: &Path, rows: &mut Vec<Row>, st: &mut Stats) {
     for &m in &maximals {
         let g = build_incidence_graph_full(&pdag, m);
         let f = compute_feats(&pdag, &ft, &g, &pc);
-        let name = pdag.node(m).and_then(|n| n.id()).unwrap_or("?").to_string();
+        let name = pdag.get_node(m).and_then(|n| n.id()).unwrap_or("?").to_string();
         st.cores += 1;
         if f.tw.is_some() {
             st.width_done += 1;

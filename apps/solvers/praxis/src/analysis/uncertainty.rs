@@ -125,8 +125,9 @@ pub fn propagate_uncertainty(
     seed: Option<u64>,
 ) -> Result<UncertaintyAnalysis, PraxisError> {
     use crate::algorithms::bdd_engine::Bdd;
-    use crate::algorithms::bdd_pdag::BddPdag;
     use crate::algorithms::bdd_vectored::probability_vectored;
+    use crate::algorithms::pdag::Pdag;
+    use crate::analysis::width::compute_dfs_metadata_pdag;
     use crate::expression::EvalContext;
     use crate::mc::prng::initialize_rng;
     use std::collections::HashMap;
@@ -137,18 +138,24 @@ pub fn propagate_uncertainty(
         ));
     }
 
-    let mut pdag = BddPdag::from_fault_tree(fault_tree)
+    let pdag = Pdag::from_fault_tree(fault_tree)
         .map_err(|e| PraxisError::Logic(format!("PDAG construction failed: {}", e)))?;
-    pdag.compute_ordering_and_modules()
+    let meta = compute_dfs_metadata_pdag(&pdag)
         .map_err(|e| PraxisError::Logic(format!("variable ordering failed: {}", e)))?;
-    let (bdd, root) = Bdd::build_from_pdag(&pdag)
+    let var_probs = pdag
+        .level_var_probs(fault_tree, &meta.var_of)
+        .map_err(|e| PraxisError::Logic(format!("variable probabilities failed: {}", e)))?;
+    let (bdd, root) = Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
         .map_err(|e| PraxisError::Logic(format!("BDD construction failed: {}", e)))?;
 
     let nominal = bdd.var_probs().to_vec();
 
     let mut var_pos: HashMap<String, usize> = HashMap::new();
     for event_id in fault_tree.basic_events().keys() {
-        if let Some(pos) = pdag.idx_of(event_id).and_then(|idx| pdag.bdd_pos_of(idx)) {
+        if let Some(pos) = pdag
+            .get_index(event_id)
+            .and_then(|idx| meta.var_of.get(&idx).copied())
+        {
             var_pos.insert(event_id.clone(), pos);
         }
     }

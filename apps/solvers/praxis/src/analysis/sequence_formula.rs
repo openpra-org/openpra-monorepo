@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, NodeIdx};
+use crate::algorithms::pdag::{Connective, NodeIndex, Pdag};
 use crate::core::event_tree::{Branch, BranchTarget, EventTree};
 use crate::core::fault_tree::FaultTree;
 use crate::core::gate::Formula;
@@ -9,11 +9,13 @@ use crate::error::{PraxisError, Result};
 
 pub struct SequenceFormulas {
 
-    pub pdag: BddPdag,
+    pub pdag: Pdag,
 
-    pub sequence_roots: HashMap<String, NodeIdx>,
+    pub sequence_roots: HashMap<String, NodeIndex>,
 
     pub unconditional: HashSet<String>,
+
+    pub event_probs: HashMap<String, f64>,
 
     pub ie_frequency: f64,
 }
@@ -21,13 +23,19 @@ pub struct SequenceFormulas {
 pub struct SequenceFormulaBuilder<'a> {
     model: &'a Model,
     et_library: Option<&'a HashMap<String, EventTree>>,
-    pdag: BddPdag,
+    pdag: Pdag,
 
-    sequence_paths: HashMap<String, Vec<NodeIdx>>,
+    event_probs: HashMap<String, f64>,
+
+    sequence_paths: HashMap<String, Vec<NodeIndex>>,
 
     unconditional: HashSet<String>,
 
     next_synthetic: usize,
+
+    true_const: Option<NodeIndex>,
+
+    false_const: Option<NodeIndex>,
 }
 
 impl<'a> SequenceFormulaBuilder<'a> {
@@ -35,11 +43,32 @@ impl<'a> SequenceFormulaBuilder<'a> {
         Self {
             model,
             et_library: None,
-            pdag: BddPdag::new(),
+            pdag: Pdag::new(),
+            event_probs: HashMap::new(),
             sequence_paths: HashMap::new(),
             unconditional: HashSet::new(),
             next_synthetic: 0,
+            true_const: None,
+            false_const: None,
         }
+    }
+
+    fn const_true(&mut self) -> NodeIndex {
+        if let Some(idx) = self.true_const {
+            return idx;
+        }
+        let idx = self.pdag.add_constant(true);
+        self.true_const = Some(idx);
+        idx
+    }
+
+    fn const_false(&mut self) -> NodeIndex {
+        if let Some(idx) = self.false_const {
+            return idx;
+        }
+        let idx = self.pdag.add_constant(false);
+        self.false_const = Some(idx);
+        idx
     }
 
     pub fn with_event_tree_library(mut self, lib: &'a HashMap<String, EventTree>) -> Self {
@@ -49,7 +78,6 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
     pub fn build(mut self, et: &EventTree, ie_frequency: f64) -> Result<SequenceFormulas> {
         et.validate()?;
-        self.pdag.set_ie_frequency(ie_frequency);
 
         let initial = et.initial_state.clone();
         self.collect_sequences(et, &initial, Vec::new(), HashMap::new())?;
@@ -69,7 +97,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
             } else {
                 let id = format!("__OR__{}", self.next_synthetic);
                 self.next_synthetic += 1;
-                self.pdag.add_gate(id, BddConnective::Or, paths, None)?
+                self.pdag.add_gate(id, Connective::Or, paths, None)?
             };
             sequence_roots.insert(seq_id, root);
         }
@@ -78,6 +106,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
             pdag: self.pdag,
             sequence_roots,
             unconditional: self.unconditional,
+            event_probs: self.event_probs,
             ie_frequency,
         })
     }
@@ -86,7 +115,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         &mut self,
         et: &EventTree,
         branch: &Branch,
-        path_collector: Vec<NodeIdx>,
+        path_collector: Vec<NodeIndex>,
         house_overrides: HashMap<String, bool>,
     ) -> Result<()> {
 
@@ -163,7 +192,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         &mut self,
         et: &EventTree,
         seq_id: &str,
-        path_collector: Vec<NodeIdx>,
+        path_collector: Vec<NodeIndex>,
         overrides: HashMap<String, bool>,
     ) -> Result<()> {
         let sequence = et.sequences.get(seq_id).ok_or_else(|| {
@@ -209,7 +238,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         Ok(())
     }
 
-    fn build_path_gate(&mut self, path_collector: Vec<NodeIdx>) -> Result<Option<NodeIdx>> {
+    fn build_path_gate(&mut self, path_collector: Vec<NodeIndex>) -> Result<Option<NodeIndex>> {
         Ok(match path_collector.len() {
             0 => None,
             1 => Some(path_collector[0]),
@@ -218,7 +247,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 self.next_synthetic += 1;
                 let idx =
                     self.pdag
-                        .add_gate(id, BddConnective::And, path_collector, None)?;
+                        .add_gate(id, Connective::And, path_collector, None)?;
                 Some(idx)
             }
         })
@@ -229,7 +258,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         ft: &FaultTree,
         overrides: &HashMap<String, bool>,
         scope: &str,
-    ) -> Result<NodeIdx> {
+    ) -> Result<NodeIndex> {
         let ft_name = ft.element().id();
         let ft_scope = if scope.is_empty() {
             ft_name.to_string()
@@ -238,16 +267,17 @@ impl<'a> SequenceFormulaBuilder<'a> {
         };
 
         let scoped_top = scoped_node_id(ft.top_event(), &ft_scope);
-        if let Some(idx) = self.pdag.idx_of(&scoped_top) {
+        if let Some(idx) = self.pdag.get_index(&scoped_top) {
             return Ok(idx);
         }
 
         for be in ft.basic_events().values() {
-            self.pdag
-                .add_variable(be.element().id().to_string(), be.probability());
+            let id = be.element().id().to_string();
+            self.pdag.add_basic_event(id.clone());
+            self.event_probs.insert(id, be.probability());
         }
 
-        let mut gate_cache: HashMap<String, NodeIdx> = HashMap::new();
+        let mut gate_cache: HashMap<String, NodeIndex> = HashMap::new();
         self.add_element_scoped(ft, ft.top_event(), overrides, &ft_scope, &mut gate_cache)
     }
 
@@ -257,11 +287,11 @@ impl<'a> SequenceFormulaBuilder<'a> {
         element_id: &str,
         overrides: &HashMap<String, bool>,
         scope: &str,
-        cache: &mut HashMap<String, NodeIdx>,
-    ) -> Result<NodeIdx> {
+        cache: &mut HashMap<String, NodeIndex>,
+    ) -> Result<NodeIndex> {
         let scoped_id = scoped_node_id(element_id, scope);
 
-        if let Some(idx) = self.pdag.idx_of(&scoped_id) {
+        if let Some(idx) = self.pdag.get_index(&scoped_id) {
             return Ok(idx);
         }
 
@@ -271,9 +301,9 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
         if let Some(&val) = overrides.get(element_id) {
             let idx = if val {
-                self.pdag.get_or_create_true()
+                self.const_true()
             } else {
-                self.pdag.get_or_create_false()
+                self.const_false()
             };
             cache.insert(scoped_id, idx);
             return Ok(idx);
@@ -281,15 +311,15 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
         if let Some(he) = ft.get_house_event(element_id) {
             let idx = if he.state() {
-                self.pdag.get_or_create_true()
+                self.const_true()
             } else {
-                self.pdag.get_or_create_false()
+                self.const_false()
             };
             cache.insert(scoped_id, idx);
             return Ok(idx);
         }
 
-        if let Some(idx) = self.pdag.idx_of(element_id) {
+        if let Some(idx) = self.pdag.get_index(element_id) {
             cache.insert(scoped_id, idx);
             return Ok(idx);
         }
@@ -302,7 +332,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
             ))
         })?;
 
-        let connective = BddConnective::from_formula(gate.formula());
+        let connective = Connective::from_formula(gate.formula());
         let min_number = match gate.formula() {
             Formula::AtLeast { min } => Some(*min),
             _ => None,
@@ -346,6 +376,7 @@ fn scoped_node_id(id: &str, scope: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::algorithms::pdag::PdagNode;
     use crate::core::event::BasicEvent;
     use crate::core::event::HouseEvent;
     use crate::core::event_tree::{Fork, FunctionalEvent, Path, Sequence};
@@ -444,8 +475,8 @@ mod tests {
         assert!(ok_root > 0, "success root should be positive");
         assert_eq!(fail_root, -ok_root, "failure root should be complement");
 
-        assert!(formulas.pdag.idx_of("E1").is_some());
-        assert!(formulas.pdag.idx_of("E2").is_some());
+        assert!(formulas.pdag.get_index("E1").is_some());
+        assert!(formulas.pdag.get_index("E2").is_some());
     }
 
     #[test]
@@ -519,14 +550,14 @@ mod tests {
         assert!(formulas.unconditional.is_empty());
 
         let ff_root = formulas.sequence_roots["SEQ-FF"];
-        let ff_node = formulas.pdag.node(ff_root).expect("SEQ-FF root must exist");
+        let ff_node = formulas.pdag.get_node(ff_root).expect("SEQ-FF root must exist");
         assert!(ff_node.is_gate());
 
         let s_root = formulas.sequence_roots["SEQ-S"];
         assert!(s_root > 0);
 
         for be in ["E1", "E2", "E3", "E4"] {
-            assert!(formulas.pdag.idx_of(be).is_some(), "{be} missing from pdag");
+            assert!(formulas.pdag.get_index(be).is_some(), "{be} missing from pdag");
         }
     }
 
@@ -588,11 +619,11 @@ mod tests {
             .unwrap();
 
         let root = formulas.sequence_roots["SEQ-TARGET"];
-        let node = formulas.pdag.node(root).unwrap();
+        let node = formulas.pdag.get_node(root).unwrap();
         assert!(node.is_gate());
         match node {
-            crate::algorithms::bdd_pdag::BddPdagNode::Gate { connective, .. } => {
-                assert_eq!(*connective, crate::algorithms::bdd_pdag::BddConnective::Or);
+            PdagNode::Gate { connective, .. } => {
+                assert_eq!(*connective, Connective::Or);
             }
             _ => panic!("expected a Gate node"),
         }
@@ -616,17 +647,19 @@ mod tests {
         let mut fe = FunctionalEvent::new("FE".to_string());
         fe.fault_tree_id = Some("FT-HE".to_string());
 
-        let mut branch_target = Branch::new(BranchTarget::Sequence("SEQ-1".to_string()));
-        branch_target
-            .house_event_assignments
-            .insert("H1".to_string(), true);
-
-        let path = Path::new("failure".to_string(), branch_target)
-            .unwrap()
-            .with_collect_formula_negated(true);
+        let path = Path::new(
+            "failure".to_string(),
+            Branch::new(BranchTarget::Sequence("SEQ-1".to_string())),
+        )
+        .unwrap()
+        .with_collect_formula_negated(true);
 
         let fork = Fork::new("FE".to_string(), vec![path]).unwrap();
-        let mut et = EventTree::new("ET".to_string(), Branch::new(BranchTarget::Fork(fork)));
+        let mut initial = Branch::new(BranchTarget::Fork(fork));
+        initial
+            .house_event_assignments
+            .insert("H1".to_string(), true);
+        let mut et = EventTree::new("ET".to_string(), initial);
         et.add_sequence(Sequence::new("SEQ-1".to_string())).unwrap();
         et.add_functional_event(fe).unwrap();
 
@@ -636,16 +669,12 @@ mod tests {
 
         assert!(formulas.sequence_roots.contains_key("SEQ-1"));
 
-        let mut pdag_copy = formulas.pdag;
-        let true_idx = pdag_copy.get_or_create_true();
-        assert!(true_idx > 0);
-        let node = pdag_copy.node(true_idx).unwrap();
-        match node {
-            crate::algorithms::bdd_pdag::BddPdagNode::Constant { value, .. } => {
-                assert!(*value);
-            }
-            _ => panic!("expected TRUE constant node"),
-        }
+        let has_true = formulas
+            .pdag
+            .nodes()
+            .values()
+            .any(|n| matches!(n, PdagNode::Constant { value: true, .. }));
+        assert!(has_true, "expected a TRUE constant node from the override");
     }
 
     #[test]
@@ -683,16 +712,12 @@ mod tests {
             .unwrap();
 
         assert!(formulas.sequence_roots.contains_key("SEQ-1"));
-        let mut pdag_copy = formulas.pdag;
-        let false_idx = pdag_copy.get_or_create_false();
-        assert!(false_idx > 0);
-        let node = pdag_copy.node(false_idx).unwrap();
-        match node {
-            crate::algorithms::bdd_pdag::BddPdagNode::Constant { value, .. } => {
-                assert!(!value);
-            }
-            _ => panic!("expected FALSE constant node"),
-        }
+        let has_false = formulas
+            .pdag
+            .nodes()
+            .values()
+            .any(|n| matches!(n, PdagNode::Constant { value: false, .. }));
+        assert!(has_false, "expected a FALSE constant node from the house event");
     }
 
     #[test]
@@ -707,7 +732,6 @@ mod tests {
             .unwrap();
 
         assert!((formulas.ie_frequency - 1.23e-4).abs() < 1e-15);
-        assert!((formulas.pdag.ie_frequency() - 1.23e-4).abs() < 1e-15);
     }
 
     #[test]
@@ -754,11 +778,11 @@ mod tests {
             .unwrap();
 
         let root = formulas.sequence_roots["SEQ-1"];
-        let node = formulas.pdag.node(root).unwrap();
+        let node = formulas.pdag.get_node(root).unwrap();
         assert!(node.is_gate());
 
-        assert!(formulas.pdag.idx_of("GX__FT-X").is_some(), "GX__FT-X must be in pdag");
-        assert!(formulas.pdag.idx_of("GX").is_none(), "plain GX must not exist after ft-scope fix");
+        assert!(formulas.pdag.get_index("GX__FT-X").is_some(), "GX__FT-X must be in pdag");
+        assert!(formulas.pdag.get_index("GX").is_none(), "plain GX must not exist after ft-scope fix");
     }
 
     #[test]

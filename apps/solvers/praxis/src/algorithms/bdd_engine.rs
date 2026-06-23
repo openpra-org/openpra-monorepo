@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, BddPdagNode, NodeIdx};
 use crate::algorithms::pdag::{Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode};
 use crate::error::{PraxisError, Result};
 
@@ -354,6 +353,17 @@ impl Bdd {
         Ok((bdd, root))
     }
 
+    pub fn from_pdag_with_order_and_probs(
+        pdag: &Pdag,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+        var_probs: Vec<f64>,
+    ) -> Result<(Bdd, BddRef)> {
+        let mut bdd = Bdd::new();
+        bdd.set_var_probs(var_probs);
+        let root = bdd.build_pdag_root(pdag, var_of)?;
+        Ok((bdd, root))
+    }
+
     pub fn equivalent(a: &Pdag, b: &Pdag) -> Result<bool> {
         let var_of = Self::pdag_var_order(&[a, b]);
         let mut bdd = Bdd::new();
@@ -372,9 +382,6 @@ impl Bdd {
         let a = idx.abs();
         if let Some(&r) = memo.get(&a) {
             return Ok(r);
-        }
-        if self.node_count() > 5_000_000 {
-            return Err(PraxisError::Logic("BDD from_pdag: node cap exceeded".to_string()));
         }
         let r = match pdag.get_node(a) {
             Some(PdagNode::BasicEvent { .. }) => {
@@ -487,33 +494,6 @@ impl Bdd {
         self.ite(x, t, e)
     }
 
-    pub fn build_from_pdag(pdag: &BddPdag) -> Result<(Bdd, BddRef)> {
-        let root_idx = pdag.root().ok_or_else(|| {
-            PraxisError::Logic("BDD construction: PDAG has no root".to_string())
-        })?;
-
-        if pdag.num_variables() > 0 && pdag.variable_order().is_empty() {
-            return Err(PraxisError::Logic(
-                "BDD construction: variable ordering not set — call compute_ordering_and_modules() first"
-                    .to_string(),
-            ));
-        }
-
-        let var_probs: Vec<f64> = pdag
-            .variable_order()
-            .iter()
-            .map(|&idx| pdag.probability_of(idx).unwrap_or(0.0))
-            .collect();
-
-        let mut bdd = Bdd::new();
-        bdd.set_var_probs(var_probs);
-
-        let mut cache: HashMap<NodeIdx, BddRef> = HashMap::new();
-        let root_ref = build_node_recursive(&mut bdd, pdag, root_idx, &mut cache)?;
-
-        Ok((bdd, root_ref))
-    }
-
     pub fn probability(&self, root: BddRef) -> f64 {
         let mut cache = HashMap::new();
         self.prob_inner(root, &mut cache)
@@ -589,122 +569,10 @@ impl Default for Bdd {
     }
 }
 
-fn build_node_recursive(
-    bdd: &mut Bdd,
-    pdag: &BddPdag,
-    idx: NodeIdx,
-    cache: &mut HashMap<NodeIdx, BddRef>,
-) -> Result<BddRef> {
-    let abs_idx = idx.abs();
-
-    if let Some(&cached) = cache.get(&abs_idx) {
-        return Ok(if idx < 0 { cached.complement() } else { cached });
-    }
-
-    let node_result = match pdag.node(abs_idx) {
-        Some(BddPdagNode::Constant { value, .. }) => {
-            if *value { BDD_TRUE } else { BDD_FALSE }
-        }
-
-        Some(BddPdagNode::Variable { .. }) => {
-            let var = pdag.bdd_pos_of(abs_idx).ok_or_else(|| {
-                PraxisError::Logic(format!(
-                    "BDD construction: no variable ordering for PDAG node {}",
-                    abs_idx
-                ))
-            })?;
-            bdd.make_node(var, BDD_TRUE, BDD_FALSE)
-        }
-
-        Some(BddPdagNode::Gate { connective, operands, min_number, .. }) => {
-            let conn = *connective;
-            let ops: Vec<NodeIdx> = operands.clone();
-            let min_n = *min_number;
-
-            match conn {
-                BddConnective::And => {
-                    let mut acc = BDD_TRUE;
-                    for op in ops {
-                        let op_ref = build_node_recursive(bdd, pdag, op, cache)?;
-                        acc = bdd.and(acc, op_ref);
-                    }
-                    acc
-                }
-                BddConnective::Or => {
-                    let mut acc = BDD_FALSE;
-                    for op in ops {
-                        let op_ref = build_node_recursive(bdd, pdag, op, cache)?;
-                        acc = bdd.or(acc, op_ref);
-                    }
-                    acc
-                }
-                BddConnective::Not => {
-                    if ops.len() != 1 {
-                        return Err(PraxisError::Logic(
-                            "BDD construction: NOT gate must have exactly 1 operand".to_string(),
-                        ));
-                    }
-                    let op_ref = build_node_recursive(bdd, pdag, ops[0], cache)?;
-                    op_ref.complement()
-                }
-                BddConnective::AtLeast => {
-                    let k = min_n.unwrap_or(1);
-                    build_atleast(bdd, pdag, &ops, k, cache)?
-                }
-                other => {
-                    return Err(PraxisError::Logic(format!(
-                        "BDD construction: unsupported gate connective {:?}",
-                        other
-                    )));
-                }
-            }
-        }
-
-        None => {
-            return Err(PraxisError::Logic(format!(
-                "BDD construction: PDAG node {} not found",
-                abs_idx
-            )));
-        }
-    };
-
-    cache.insert(abs_idx, node_result);
-    Ok(if idx < 0 { node_result.complement() } else { node_result })
-}
-
-fn build_atleast(
-    bdd: &mut Bdd,
-    pdag: &BddPdag,
-    ops: &[NodeIdx],
-    k: usize,
-    cache: &mut HashMap<NodeIdx, BddRef>,
-) -> Result<BddRef> {
-    if k == 0 {
-        return Ok(BDD_TRUE);
-    }
-    if k > ops.len() {
-        return Ok(BDD_FALSE);
-    }
-    if k == ops.len() {
-        let mut acc = BDD_TRUE;
-        for &op in ops {
-            let op_ref = build_node_recursive(bdd, pdag, op, cache)?;
-            acc = bdd.and(acc, op_ref);
-        }
-        return Ok(acc);
-    }
-
-    let first = build_node_recursive(bdd, pdag, ops[0], cache)?;
-    let rest = &ops[1..];
-    let t = build_atleast(bdd, pdag, rest, k - 1, cache)?;
-    let e = build_atleast(bdd, pdag, rest, k, cache)?;
-    Ok(bdd.ite(first, t, e))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algorithms::bdd_pdag::{BddConnective, BddPdag};
+    use crate::analysis::width::compute_dfs_metadata_pdag;
     use crate::core::event::BasicEvent;
     use crate::core::fault_tree::FaultTree;
     use crate::core::gate::{Formula, Gate};
@@ -965,33 +833,47 @@ mod tests {
         assert_eq!(bdd.node_count(), before);
     }
 
-    fn and_pdag() -> BddPdag {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let e2 = pdag.add_variable("E2".to_string(), 0.2);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::And, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        pdag
+    fn build_bdd(ft: &FaultTree) -> (Bdd, BddRef) {
+        let pdag = Pdag::from_fault_tree(ft).unwrap();
+        let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+        let var_probs = pdag.level_var_probs(ft, &meta.var_of).unwrap();
+        Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap()
     }
 
-    fn or_pdag() -> BddPdag {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let e2 = pdag.add_variable("E2".to_string(), 0.2);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::Or, vec![e1, e2], None)
+    fn two_var_ft(connective: Formula) -> FaultTree {
+        let mut ft = FaultTree::new("FT", "G").unwrap();
+        let mut g = Gate::new("G".to_string(), connective).unwrap();
+        g.add_operand("E1".to_string());
+        g.add_operand("E2".to_string());
+        ft.add_gate(g).unwrap();
+        ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
             .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        pdag
+        ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
+            .unwrap();
+        ft
+    }
+
+    fn and_ft() -> FaultTree {
+        two_var_ft(Formula::And)
+    }
+
+    fn or_ft() -> FaultTree {
+        two_var_ft(Formula::Or)
+    }
+
+    fn single_var_ft() -> FaultTree {
+        let mut ft = FaultTree::new("FT", "G").unwrap();
+        let mut g = Gate::new("G".to_string(), Formula::Or).unwrap();
+        g.add_operand("E1".to_string());
+        ft.add_gate(g).unwrap();
+        ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
+            .unwrap();
+        ft
     }
 
     #[test]
     fn test_build_and_pdag_structure() {
-        let (bdd, root) = Bdd::build_from_pdag(&and_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&and_ft());
         assert!(!root.is_terminal());
         let node = bdd.node(root.regular());
         assert_eq!(node.var, 0);
@@ -1004,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_build_or_pdag_structure() {
-        let (bdd, root) = Bdd::build_from_pdag(&or_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&or_ft());
         let node = bdd.node(root.regular());
         assert_eq!(node.var, 0);
         assert!(node.high.is_true());
@@ -1014,40 +896,21 @@ mod tests {
 
     #[test]
     fn test_build_from_pdag_var_probs_loaded() {
-        let (bdd, _) = Bdd::build_from_pdag(&and_pdag()).unwrap();
+        let (bdd, _) = build_bdd(&and_ft());
         assert!(bdd.has_var_probs());
         assert!((bdd.var_prob(0) - 0.1).abs() < 1e-12);
         assert!((bdd.var_prob(1) - 0.2).abs() < 1e-12);
     }
 
     #[test]
-    fn test_build_from_pdag_no_root_error() {
-        assert!(Bdd::build_from_pdag(&BddPdag::new()).is_err());
-    }
-
-    #[test]
-    fn test_build_from_pdag_no_ordering_error() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let e2 = pdag.add_variable("E2".to_string(), 0.2);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::And, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-
-        assert!(Bdd::build_from_pdag(&pdag).is_err());
-    }
-
-    #[test]
     fn test_build_from_pdag_not_gate() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let not_e1 = pdag
-            .add_gate("NOT_E1".to_string(), BddConnective::Not, vec![e1], None)
+        let mut ft = FaultTree::new("FT", "NOT_E1").unwrap();
+        let mut g = Gate::new("NOT_E1".to_string(), Formula::Not).unwrap();
+        g.add_operand("E1".to_string());
+        ft.add_gate(g).unwrap();
+        ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
             .unwrap();
-        pdag.set_root(not_e1).unwrap();
-        pdag.set_variable_order(vec![e1]);
-        let (bdd, root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, root) = build_bdd(&ft);
         assert!(root.is_complement());
         assert_eq!(bdd.node(root.regular()).var, 0);
     }
@@ -1064,20 +927,9 @@ mod tests {
         ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.03).unwrap())
             .unwrap();
 
-        let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-
-        let (bdd, root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, root) = build_bdd(&ft);
         assert!(!root.is_terminal());
         assert!(bdd.has_var_probs());
-    }
-
-    fn single_var_pdag() -> BddPdag {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        pdag.set_root(e1).unwrap();
-        pdag.set_variable_order(vec![e1]);
-        pdag
     }
 
     #[test]
@@ -1094,26 +946,78 @@ mod tests {
 
     #[test]
     fn test_probability_single_var() {
-        let (bdd, root) = Bdd::build_from_pdag(&single_var_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&single_var_ft());
         assert!((bdd.probability(root) - 0.1).abs() < 1e-12);
     }
 
     #[test]
     fn test_probability_complement() {
-        let (bdd, root) = Bdd::build_from_pdag(&single_var_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&single_var_ft());
         assert!((bdd.probability(root.complement()) - 0.9).abs() < 1e-12);
     }
 
     #[test]
     fn test_probability_and_gate() {
-        let (bdd, root) = Bdd::build_from_pdag(&and_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&and_ft());
         assert!((bdd.probability(root) - 0.02).abs() < 1e-12);
     }
 
     #[test]
     fn test_probability_or_gate() {
-        let (bdd, root) = Bdd::build_from_pdag(&or_pdag()).unwrap();
+        let (bdd, root) = build_bdd(&or_ft());
         let expected = 0.1 + 0.2 - 0.1 * 0.2;
         assert!((bdd.probability(root) - expected).abs() < 1e-12);
+    }
+
+    fn audit_fault_tree() -> FaultTree {
+        let mut ft = FaultTree::new("FT", "TOP").unwrap();
+        let mut top = Gate::new("TOP".to_string(), Formula::Or).unwrap();
+        top.add_operand("G1".to_string());
+        top.add_operand("C".to_string());
+        ft.add_gate(top).unwrap();
+        let mut g1 = Gate::new("G1".to_string(), Formula::And).unwrap();
+        g1.add_operand("A".to_string());
+        g1.add_operand("B".to_string());
+        ft.add_gate(g1).unwrap();
+        ft.add_basic_event(BasicEvent::new("A".to_string(), 0.1).unwrap())
+            .unwrap();
+        ft.add_basic_event(BasicEvent::new("B".to_string(), 0.2).unwrap())
+            .unwrap();
+        ft.add_basic_event(BasicEvent::new("C".to_string(), 0.05).unwrap())
+            .unwrap();
+        ft
+    }
+
+    #[test]
+    fn pdag_bdd_probability_and_levels_keyed_by_id() {
+        let ft = audit_fault_tree();
+
+        let pdag = Pdag::from_fault_tree(&ft).unwrap();
+        let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+        let var_probs = pdag.level_var_probs(&ft, &meta.var_of).unwrap();
+        let (bdd, root) =
+            Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap();
+        let p = bdd.probability(root);
+
+        let expected = 1.0 - (1.0 - 0.1 * 0.2) * (1.0 - 0.05);
+        assert!(
+            (p - expected).abs() < 1e-12,
+            "pdag BDD probability {} differs from analytic {}",
+            p,
+            expected
+        );
+
+        for (id, expected) in [("A", 0.1), ("B", 0.2), ("C", 0.05)] {
+            let index = pdag.get_index(id).unwrap();
+            let level = *meta.var_of.get(&index).unwrap();
+            assert!(
+                (bdd.var_prob(level) - expected).abs() < 1e-15,
+                "var_prob at level {} for event {} was {}, expected {}",
+                level,
+                id,
+                bdd.var_prob(level),
+                expected
+            );
+        }
     }
 }

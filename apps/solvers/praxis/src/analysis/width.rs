@@ -3,23 +3,24 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::algorithms::bdd_pdag::{BddPdag, BddPdagNode, NodeIdx};
+use crate::algorithms::pdag::{NodeIndex, Pdag, PdagNode};
 use crate::error::{PraxisError, Result};
 
 #[derive(Debug, Clone)]
-pub struct DfsMetadata {
-    pub variable_order: Vec<NodeIdx>,
-    pub module_gates: HashSet<NodeIdx>,
-    pub gate_min_time: HashMap<NodeIdx, usize>,
-    pub gate_max_time: HashMap<NodeIdx, usize>,
+pub struct PdagDfsMetadata {
+    pub variable_order: Vec<NodeIndex>,
+    pub var_of: HashMap<NodeIndex, usize>,
+    pub module_gates: HashSet<NodeIndex>,
+    pub gate_min_time: HashMap<NodeIndex, usize>,
+    pub gate_max_time: HashMap<NodeIndex, usize>,
 }
 
-pub fn compute_dfs_metadata(pdag: &BddPdag) -> Result<DfsMetadata> {
+pub fn compute_dfs_metadata_pdag(pdag: &Pdag) -> Result<PdagDfsMetadata> {
     let root = pdag.root().ok_or_else(|| {
-        PraxisError::Logic("BddPdag: cannot order variables — root not set".to_string())
+        PraxisError::Logic("Pdag: cannot order variables — root not set".to_string())
     })?;
 
-    let mut state = DfsState {
+    let mut state = PdagDfsState {
         pdag,
         counter: 0,
         order: Vec::new(),
@@ -30,37 +31,44 @@ pub fn compute_dfs_metadata(pdag: &BddPdag) -> Result<DfsMetadata> {
     };
     state.visit(root);
 
-    let mut parents: HashMap<NodeIdx, Vec<NodeIdx>> = HashMap::new();
+    let mut parents: HashMap<NodeIndex, Vec<NodeIndex>> = HashMap::new();
     for &idx in state.cache.keys() {
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(idx) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(idx) {
             for &op in operands {
                 parents.entry(op.abs()).or_default().push(idx);
             }
         }
     }
-    let candidates: Vec<NodeIdx> = state.modules.iter().copied().collect();
-    let mut true_modules: HashSet<NodeIdx> = HashSet::new();
+    let candidates: Vec<NodeIndex> = state.modules.iter().copied().collect();
+    let mut true_modules: HashSet<NodeIndex> = HashSet::new();
     for g in candidates {
-        if is_exclusive_module(pdag, g, &parents) {
+        if is_exclusive_module_pdag(pdag, g, &parents) {
             true_modules.insert(g);
         }
     }
-    state.modules = true_modules;
 
-    Ok(DfsMetadata {
+    let var_of: HashMap<NodeIndex, usize> = state
+        .order
+        .iter()
+        .enumerate()
+        .map(|(i, &e)| (e, i))
+        .collect();
+
+    Ok(PdagDfsMetadata {
         variable_order: state.order,
-        module_gates: state.modules,
+        var_of,
+        module_gates: true_modules,
         gate_min_time: state.gate_min,
         gate_max_time: state.gate_max,
     })
 }
 
-fn subtree_of(pdag: &BddPdag, g: NodeIdx) -> HashSet<NodeIdx> {
-    let mut s: HashSet<NodeIdx> = HashSet::new();
+fn subtree_of_pdag(pdag: &Pdag, g: NodeIndex) -> HashSet<NodeIndex> {
+    let mut s: HashSet<NodeIndex> = HashSet::new();
     let mut stack = vec![g.abs()];
     s.insert(g.abs());
     while let Some(n) = stack.pop() {
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(n) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(n) {
             for &op in operands {
                 let a = op.abs();
                 if s.insert(a) {
@@ -72,12 +80,12 @@ fn subtree_of(pdag: &BddPdag, g: NodeIdx) -> HashSet<NodeIdx> {
     s
 }
 
-fn is_exclusive_module(
-    pdag: &BddPdag,
-    g: NodeIdx,
-    parents: &HashMap<NodeIdx, Vec<NodeIdx>>,
+fn is_exclusive_module_pdag(
+    pdag: &Pdag,
+    g: NodeIndex,
+    parents: &HashMap<NodeIndex, Vec<NodeIndex>>,
 ) -> bool {
-    let sub = subtree_of(pdag, g);
+    let sub = subtree_of_pdag(pdag, g);
     let g_abs = g.abs();
     for &n in &sub {
         if n == g_abs {
@@ -92,26 +100,26 @@ fn is_exclusive_module(
     true
 }
 
-struct DfsState<'a> {
-    pdag: &'a BddPdag,
+struct PdagDfsState<'a> {
+    pdag: &'a Pdag,
     counter: usize,
-    order: Vec<NodeIdx>,
-    cache: HashMap<NodeIdx, (usize, usize, usize)>,
-    gate_min: HashMap<NodeIdx, usize>,
-    gate_max: HashMap<NodeIdx, usize>,
-    modules: HashSet<NodeIdx>,
+    order: Vec<NodeIndex>,
+    cache: HashMap<NodeIndex, (usize, usize, usize)>,
+    gate_min: HashMap<NodeIndex, usize>,
+    gate_max: HashMap<NodeIndex, usize>,
+    modules: HashSet<NodeIndex>,
 }
 
-impl<'a> DfsState<'a> {
-    fn visit(&mut self, idx: NodeIdx) -> (usize, usize, usize) {
-        let abs_idx: NodeIdx = idx.abs();
+impl<'a> PdagDfsState<'a> {
+    fn visit(&mut self, idx: NodeIndex) -> (usize, usize, usize) {
+        let abs_idx: NodeIndex = idx.abs();
 
         if let Some(&(mn, mx, _)) = self.cache.get(&abs_idx) {
             return (mn, mx, 0);
         }
 
-        match self.pdag.node(abs_idx) {
-            Some(BddPdagNode::Variable { .. }) => {
+        match self.pdag.get_node(abs_idx) {
+            Some(PdagNode::BasicEvent { .. }) => {
                 let t = self.counter;
                 self.counter += 1;
                 self.order.push(abs_idx);
@@ -119,8 +127,8 @@ impl<'a> DfsState<'a> {
                 self.cache.insert(abs_idx, result);
                 result
             }
-            Some(BddPdagNode::Gate { operands, .. }) => {
-                let ops: Vec<NodeIdx> = operands.clone();
+            Some(PdagNode::Gate { operands, .. }) => {
+                let ops: Vec<NodeIndex> = operands.clone();
                 let mut mn = usize::MAX;
                 let mut mx = 0usize;
                 let mut new_vars = 0usize;
@@ -161,7 +169,7 @@ pub struct WidthReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleWidthReport {
-    pub root_gate_idx: NodeIdx,
+    pub root_gate_idx: NodeIndex,
     pub root_gate_id: Option<String>,
     pub kind: ModuleKind,
     pub num_vertices: usize,
@@ -197,7 +205,7 @@ pub struct WidthOptions {
 
 #[derive(Debug, Clone)]
 pub struct IncidenceGraph {
-    adjacency: BTreeMap<NodeIdx, BTreeSet<NodeIdx>>,
+    adjacency: BTreeMap<NodeIndex, BTreeSet<NodeIndex>>,
 }
 
 impl IncidenceGraph {
@@ -207,11 +215,11 @@ impl IncidenceGraph {
         }
     }
 
-    pub fn add_vertex(&mut self, v: NodeIdx) {
+    pub fn add_vertex(&mut self, v: NodeIndex) {
         self.adjacency.entry(v).or_default();
     }
 
-    pub fn add_edge(&mut self, u: NodeIdx, v: NodeIdx) {
+    pub fn add_edge(&mut self, u: NodeIndex, v: NodeIndex) {
         if u == v {
             return;
         }
@@ -227,11 +235,11 @@ impl IncidenceGraph {
         self.adjacency.values().map(|s| s.len()).sum::<usize>() / 2
     }
 
-    pub fn vertices(&self) -> impl Iterator<Item = NodeIdx> + '_ {
+    pub fn vertices(&self) -> impl Iterator<Item = NodeIndex> + '_ {
         self.adjacency.keys().copied()
     }
 
-    pub fn neighbors(&self, v: NodeIdx) -> Option<&BTreeSet<NodeIdx>> {
+    pub fn neighbors(&self, v: NodeIndex) -> Option<&BTreeSet<NodeIndex>> {
         self.adjacency.get(&v)
     }
 }
@@ -242,14 +250,14 @@ impl Default for IncidenceGraph {
     }
 }
 
-pub fn maximal_modules(meta: &DfsMetadata) -> Vec<NodeIdx> {
-    let modules: Vec<NodeIdx> = {
-        let mut m: Vec<NodeIdx> = meta.module_gates.iter().copied().collect();
+pub fn maximal_modules(meta: &PdagDfsMetadata) -> Vec<NodeIndex> {
+    let modules: Vec<NodeIndex> = {
+        let mut m: Vec<NodeIndex> = meta.module_gates.iter().copied().collect();
         m.sort();
         m
     };
 
-    let mut maximals: Vec<NodeIdx> = Vec::new();
+    let mut maximals: Vec<NodeIndex> = Vec::new();
     for &g in &modules {
         let g_min = meta.gate_min_time.get(&g).copied().unwrap_or(usize::MAX);
         let g_max = meta.gate_max_time.get(&g).copied().unwrap_or(0);
@@ -280,17 +288,17 @@ pub fn maximal_modules(meta: &DfsMetadata) -> Vec<NodeIdx> {
     maximals
 }
 
-pub fn build_incidence_graph_full(pdag: &BddPdag, root: NodeIdx) -> IncidenceGraph {
+pub fn build_incidence_graph_full(pdag: &Pdag, root: NodeIndex) -> IncidenceGraph {
     let mut g = IncidenceGraph::new();
-    let mut visited: HashSet<NodeIdx> = HashSet::new();
-    let mut stack: Vec<NodeIdx> = vec![root.abs()];
+    let mut visited: HashSet<NodeIndex> = HashSet::new();
+    let mut stack: Vec<NodeIndex> = vec![root.abs()];
     while let Some(idx) = stack.pop() {
         let abs = idx.abs();
         if !visited.insert(abs) {
             continue;
         }
         g.add_vertex(abs);
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(abs) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(abs) {
             for &op in operands {
                 let op_abs = op.abs();
                 g.add_edge(abs, op_abs);
@@ -302,13 +310,13 @@ pub fn build_incidence_graph_full(pdag: &BddPdag, root: NodeIdx) -> IncidenceGra
 }
 
 pub fn build_incidence_graph_skeleton(
-    pdag: &BddPdag,
-    root: NodeIdx,
-    leaves: &HashSet<NodeIdx>,
+    pdag: &Pdag,
+    root: NodeIndex,
+    leaves: &HashSet<NodeIndex>,
 ) -> IncidenceGraph {
     let mut g = IncidenceGraph::new();
-    let mut visited: HashSet<NodeIdx> = HashSet::new();
-    let mut stack: Vec<NodeIdx> = vec![root.abs()];
+    let mut visited: HashSet<NodeIndex> = HashSet::new();
+    let mut stack: Vec<NodeIndex> = vec![root.abs()];
     while let Some(idx) = stack.pop() {
         let abs = idx.abs();
         if !visited.insert(abs) {
@@ -318,7 +326,7 @@ pub fn build_incidence_graph_skeleton(
         if leaves.contains(&abs) && abs != root.abs() {
             continue;
         }
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(abs) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(abs) {
             for &op in operands {
                 let op_abs = op.abs();
                 g.add_edge(abs, op_abs);
@@ -331,15 +339,15 @@ pub fn build_incidence_graph_skeleton(
 
 pub fn min_fill_treewidth(graph: &IncidenceGraph) -> WidthReport {
     let start = Instant::now();
-    let mut adj: BTreeMap<NodeIdx, BTreeSet<NodeIdx>> = graph.adjacency.clone();
+    let mut adj: BTreeMap<NodeIndex, BTreeSet<NodeIndex>> = graph.adjacency.clone();
     let n = adj.len();
     let mut max_bag: usize = 0;
 
     for _ in 0..n {
-        let vertices: Vec<NodeIdx> = adj.keys().copied().collect();
-        let mut best: Option<(usize, usize, NodeIdx)> = None;
+        let vertices: Vec<NodeIndex> = adj.keys().copied().collect();
+        let mut best: Option<(usize, usize, NodeIndex)> = None;
         for &v in &vertices {
-            let nbrs: Vec<NodeIdx> = adj[&v].iter().copied().collect();
+            let nbrs: Vec<NodeIndex> = adj[&v].iter().copied().collect();
             let degree = nbrs.len();
             let mut fill: usize = 0;
             for i in 0..nbrs.len() {
@@ -362,7 +370,7 @@ pub fn min_fill_treewidth(graph: &IncidenceGraph) -> WidthReport {
             });
         }
         let (_, _, v) = best.expect("non-empty adjacency");
-        let nbrs: Vec<NodeIdx> = adj[&v].iter().copied().collect();
+        let nbrs: Vec<NodeIndex> = adj[&v].iter().copied().collect();
         let bag_size = nbrs.len() + 1;
         if bag_size > max_bag {
             max_bag = bag_size;
@@ -392,14 +400,14 @@ pub fn greedy_vertex_separation_pathwidth(graph: &IncidenceGraph) -> WidthReport
     let start = Instant::now();
     let adj = &graph.adjacency;
     let n = adj.len();
-    let mut processed: HashSet<NodeIdx> = HashSet::new();
-    let mut frontier: BTreeSet<NodeIdx> = BTreeSet::new();
+    let mut processed: HashSet<NodeIndex> = HashSet::new();
+    let mut frontier: BTreeSet<NodeIndex> = BTreeSet::new();
     let mut max_sep: usize = 0;
 
-    let all_vertices: Vec<NodeIdx> = adj.keys().copied().collect();
+    let all_vertices: Vec<NodeIndex> = adj.keys().copied().collect();
 
     for _ in 0..n {
-        let mut best: Option<(usize, NodeIdx)> = None;
+        let mut best: Option<(usize, NodeIndex)> = None;
         for &v in &all_vertices {
             if processed.contains(&v) {
                 continue;
@@ -449,14 +457,14 @@ pub fn greedy_vertex_separation_pathwidth(graph: &IncidenceGraph) -> WidthReport
     }
 }
 
-pub fn compute_widths(pdag: &BddPdag, options: WidthOptions) -> Result<WidthsReport> {
-    let meta = compute_dfs_metadata(pdag)?;
+pub fn compute_widths(pdag: &Pdag, options: WidthOptions) -> Result<WidthsReport> {
+    let meta = compute_dfs_metadata_pdag(pdag)?;
     let root = pdag.root().ok_or_else(|| {
-        PraxisError::Logic("BddPdag: cannot compute widths — root not set".to_string())
+        PraxisError::Logic("Pdag: cannot compute widths — root not set".to_string())
     })?;
 
     let maximals = maximal_modules(&meta);
-    let leaves: HashSet<NodeIdx> = maximals.iter().copied().collect();
+    let leaves: HashSet<NodeIndex> = maximals.iter().copied().collect();
 
     let mut module_reports: Vec<ModuleWidthReport> = Vec::new();
     let mut treewidth_total_ms: u128 = 0;
@@ -479,7 +487,7 @@ pub fn compute_widths(pdag: &BddPdag, options: WidthOptions) -> Result<WidthsRep
         }
         module_reports.push(ModuleWidthReport {
             root_gate_idx: root.abs(),
-            root_gate_id: pdag.node(root).and_then(|n| n.id().map(|s| s.to_string())),
+            root_gate_id: pdag.get_node(root).and_then(|n| n.id().map(|s| s.to_string())),
             kind,
             num_vertices: skeleton.num_vertices(),
             num_edges: skeleton.num_edges(),
@@ -499,7 +507,7 @@ pub fn compute_widths(pdag: &BddPdag, options: WidthOptions) -> Result<WidthsRep
         }
         module_reports.push(ModuleWidthReport {
             root_gate_idx: m_root,
-            root_gate_id: pdag.node(m_root).and_then(|n| n.id().map(|s| s.to_string())),
+            root_gate_id: pdag.get_node(m_root).and_then(|n| n.id().map(|s| s.to_string())),
             kind: ModuleKind::Module,
             num_vertices: module_graph.num_vertices(),
             num_edges: module_graph.num_edges(),
@@ -525,10 +533,11 @@ pub fn compute_widths(pdag: &BddPdag, options: WidthOptions) -> Result<WidthsRep
         None
     };
 
+    let stats = pdag.stats();
     Ok(WidthsReport {
         coherent: pdag.is_coherent(),
-        num_basic_events: pdag.num_variables(),
-        num_gates: pdag.num_gates(),
+        num_basic_events: stats.num_basic_events,
+        num_gates: stats.num_gates,
         num_modules: maximals.len(),
         max_treewidth: max_tw,
         max_pathwidth: max_pw,

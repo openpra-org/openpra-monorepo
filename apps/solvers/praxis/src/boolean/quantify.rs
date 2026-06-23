@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::algorithms::bdd_engine::Bdd;
-use crate::algorithms::bdd_pdag::BddPdag;
 use crate::algorithms::mocus::Mocus;
+use crate::algorithms::noncoherent_mocus::NonCoherentMocus;
+use crate::algorithms::pdag::{NodeIndex, Pdag, PdagNode};
+use crate::algorithms::preprocessor::{NormalizationType, Preprocessor, PreprocessorConfig};
 use crate::algorithms::reorder::{best_order, ReorderMethod};
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::importance::{ImportanceAnalysis, ImportanceRecord};
@@ -11,6 +13,7 @@ use crate::analysis::labelled_zbdd;
 use crate::analysis::sil::Sil;
 use crate::analysis::ternary_dd;
 use crate::analysis::uncertainty::{propagate_uncertainty, UncertaintyAnalysis};
+use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::mc::DpMonteCarloAnalysis;
 use crate::Result;
@@ -21,8 +24,8 @@ use crate::boolean::builder::{
 use crate::boolean::contract::{
     Approximation, BasicEventBindingTable, BooleanModel, CcfGroupTable, CutSet, CutSetLiteral,
     CutSetResult, EndStateQuantification, FaultTreeQuantification, ImportanceMeasureResult,
-    ProbabilityResult, QuantificationResult, QuantificationSettings, Quantile,
-    SafetyIntegrityLevelResult, SequenceQuantification, SolverTarget, UncertaintyResult,
+    PreprocessNormalization, ProbabilityResult, QuantificationResult, QuantificationSettings,
+    Quantile, SafetyIntegrityLevelResult, SequenceQuantification, SolverTarget, UncertaintyResult,
     VariableOrdering,
 };
 
@@ -37,6 +40,7 @@ enum EngineChoice {
     MonteCarlo,
     PiZbdd,
     PiTdd,
+    NcConsensus,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,12 +63,15 @@ struct Resolved {
     seed: u64,
     reorder: Option<ReorderMethod>,
     reorder_budget: Duration,
+    preprocess: PreprocessorConfig,
 }
 
 const DEFAULT_REORDER_BUDGET_SECONDS: f64 = 10.0;
 
 fn resolve(settings: &QuantificationSettings) -> Resolved {
-    let engine = if settings.prime_implicants_tdd.unwrap_or(false) {
+    let engine = if settings.prime_implicants_consensus.unwrap_or(false) {
+        EngineChoice::NcConsensus
+    } else if settings.prime_implicants_tdd.unwrap_or(false) {
         EngineChoice::PiTdd
     } else if settings.prime_implicants.unwrap_or(false) {
         EngineChoice::PiZbdd
@@ -85,6 +92,19 @@ fn resolve(settings: &QuantificationSettings) -> Resolved {
         Some(ApproxChoice::Mcub)
     } else {
         None
+    };
+    let preprocess = PreprocessorConfig {
+        normalize: settings.preprocess_normalize_gates.unwrap_or(true),
+        normalization: match settings.preprocess_normalization {
+            Some(PreprocessNormalization::None) => NormalizationType::None,
+            Some(PreprocessNormalization::Xor) => NormalizationType::Xor,
+            Some(PreprocessNormalization::AtLeast) => NormalizationType::AtLeast,
+            Some(PreprocessNormalization::All) | None => NormalizationType::All,
+        },
+        fold_constants: settings.preprocess_fold_constants.unwrap_or(true),
+        splice_null_gates: settings.preprocess_splice_null_gates.unwrap_or(true),
+        coalesce_gates: settings.preprocess_coalesce_gates.unwrap_or(true),
+        detect_modules: settings.preprocess_detect_modules.unwrap_or(true),
     };
     Resolved {
         engine,
@@ -112,17 +132,41 @@ fn resolve(settings: &QuantificationSettings) -> Resolved {
                 .filter(|s| s.is_finite() && *s > 0.0)
                 .unwrap_or(DEFAULT_REORDER_BUDGET_SECONDS),
         ),
+        preprocess,
     }
 }
 
-fn prepared_bdd_pdag(fault_tree: &FaultTree, resolved: &Resolved) -> Result<BddPdag> {
-    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-    pdag.compute_ordering_and_modules()?;
-    if let Some(method) = resolved.reorder {
-        let order = best_order(&pdag, method, resolved.reorder_budget);
-        pdag.set_variable_order(order);
+struct PreparedPdag {
+    pdag: Pdag,
+    var_of: HashMap<NodeIndex, usize>,
+    order: Vec<NodeIndex>,
+    var_probs: Vec<f64>,
+}
+
+fn prepared_pdag(fault_tree: &FaultTree, resolved: &Resolved) -> Result<PreparedPdag> {
+    let pdag = Pdag::from_fault_tree(fault_tree)?;
+    let mut pp = Preprocessor::with_config(pdag, resolved.preprocess);
+    pp.run()?;
+    let pdag = pp.into_pdag();
+
+    let order = if let Some(method) = resolved.reorder {
+        best_order(&pdag, method, resolved.reorder_budget)
+    } else {
+        compute_dfs_metadata_pdag(&pdag)?.variable_order
+    };
+
+    let mut var_of: HashMap<NodeIndex, usize> = HashMap::new();
+    for (pos, &idx) in order.iter().enumerate() {
+        var_of.insert(idx.abs(), pos);
     }
-    Ok(pdag)
+    let var_probs = pdag.level_var_probs(fault_tree, &var_of)?;
+
+    Ok(PreparedPdag {
+        pdag,
+        var_of,
+        order,
+        var_probs,
+    })
 }
 
 #[derive(Default)]
@@ -178,17 +222,21 @@ fn mcub_value(event_sets: &[Vec<String>], fault_tree: &FaultTree) -> f64 {
         .product::<f64>()
 }
 
-fn enumerate_event_sets(zbdd: &ZbddEngine, root: ZbddRef, pdag: &BddPdag) -> Vec<Vec<String>> {
-    let var_order = pdag.variable_order().to_vec();
+fn enumerate_event_sets(
+    zbdd: &ZbddEngine,
+    root: ZbddRef,
+    pdag: &Pdag,
+    order: &[NodeIndex],
+) -> Vec<Vec<String>> {
     zbdd.enumerate(root)
         .iter()
         .map(|set| {
             let mut events: Vec<String> = set
                 .iter()
                 .filter_map(|&pos| {
-                    var_order
+                    order
                         .get(pos)
-                        .and_then(|&idx| pdag.node(idx))
+                        .and_then(|&idx| pdag.get_node(idx))
                         .and_then(|node| node.id().map(|id| id.to_string()))
                 })
                 .collect();
@@ -273,8 +321,9 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
 
     match resolved.engine {
         EngineChoice::Bdd => {
-            let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
-            let (bdd, root) = Bdd::build_from_pdag(&pdag)?;
+            let prep = prepared_pdag(fault_tree, resolved)?;
+            let (bdd, root) =
+                Bdd::from_pdag_with_order_and_probs(&prep.pdag, &prep.var_of, prep.var_probs)?;
             if resolved.probability {
                 let value = if resolved.limit_order.is_some() || resolved.cut_off.is_some() {
                     bdd.probability_with_limits(root, resolved.limit_order, resolved.cut_off)
@@ -285,8 +334,12 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
             }
         }
         EngineChoice::Zbdd => {
-            let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
-            let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
+            let prep = prepared_pdag(fault_tree, resolved)?;
+            let (mut bdd, root) = Bdd::from_pdag_with_order_and_probs(
+                &prep.pdag,
+                &prep.var_of,
+                prep.var_probs,
+            )?;
             let exact = if resolved.probability && resolved.approximation.is_none() {
                 Some(bdd.probability(root))
             } else {
@@ -305,7 +358,7 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
             } else {
                 ZbddEngine::build_from_bdd(&bdd, root, false)
             };
-            let event_sets = enumerate_event_sets(&zbdd, zbdd_root, &pdag);
+            let event_sets = enumerate_event_sets(&zbdd, zbdd_root, &prep.pdag, &prep.order);
             outcome.cut_sets = Some(cut_set_result(&event_sets, fault_tree));
             if resolved.probability {
                 outcome.probability = Some(match resolved.approximation {
@@ -379,6 +432,9 @@ fn run_root(fault_tree: &FaultTree, resolved: &Resolved) -> Result<RootOutcome> 
         EngineChoice::PiTdd => {
             prime_implicant_outcome(fault_tree, resolved, true, &mut outcome)?;
         }
+        EngineChoice::NcConsensus => {
+            nc_consensus_outcome(fault_tree, resolved, &mut outcome)?;
+        }
     }
 
     if resolved.importance {
@@ -407,19 +463,19 @@ fn prime_implicant_outcome(
     use_tdd: bool,
     outcome: &mut RootOutcome,
 ) -> Result<()> {
-    let pdag = prepared_bdd_pdag(fault_tree, resolved)?;
-    let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
+    let prep = prepared_pdag(fault_tree, resolved)?;
+    let (mut bdd, root) =
+        Bdd::from_pdag_with_order_and_probs(&prep.pdag, &prep.var_of, prep.var_probs)?;
     let exact = if resolved.probability && resolved.approximation.is_none() {
         Some(bdd.probability(root))
     } else {
         None
     };
-    let var_order = pdag.variable_order().to_vec();
-    let n = var_order.len();
+    let n = prep.order.len();
     let var_prob: Vec<f64> = bdd.var_probs().to_vec();
     let mut var_name: Vec<String> = vec![String::new(); n];
-    for (pos, &idx) in var_order.iter().enumerate() {
-        if let Some(node) = pdag.node(idx) {
+    for (pos, &idx) in prep.order.iter().enumerate() {
+        if let Some(node) = prep.pdag.get_node(idx) {
             if let Some(id) = node.id() {
                 var_name[pos] = id.to_string();
             }
@@ -459,6 +515,73 @@ fn prime_implicant_outcome(
                 approx_probability(-log_keep.exp_m1(), Approximation::Mcub)
             }
             None => exact_probability(exact.unwrap_or(f64::NAN)),
+        });
+    }
+    Ok(())
+}
+
+fn nc_consensus_outcome(
+    fault_tree: &FaultTree,
+    resolved: &Resolved,
+    outcome: &mut RootOutcome,
+) -> Result<()> {
+    let pdag = Pdag::from_fault_tree(fault_tree)?;
+    let mut pp = Preprocessor::with_config(pdag, resolved.preprocess);
+    pp.run()?;
+    let pre = pp.into_pdag();
+
+    let mut events: Vec<NodeIndex> = pre
+        .nodes()
+        .iter()
+        .filter_map(|(&idx, n)| match n {
+            PdagNode::BasicEvent { .. } => Some(idx),
+            _ => None,
+        })
+        .collect();
+    events.sort();
+    let mut pos_of: HashMap<NodeIndex, usize> = HashMap::new();
+    let mut var_name: Vec<String> = Vec::with_capacity(events.len());
+    for (i, &e) in events.iter().enumerate() {
+        pos_of.insert(e, i);
+        var_name.push(pre.get_node(e).and_then(|n| n.id()).unwrap_or("").to_string());
+    }
+
+    let mut engine = NonCoherentMocus::new(&pre, fault_tree);
+    if let Some(limit) = resolved.limit_order {
+        engine = engine.with_max_order(limit);
+    }
+    if let Some(cut_off) = resolved.cut_off {
+        engine = engine.with_cut_off(cut_off);
+    }
+    let primes = engine.analyze_primes();
+
+    let mut extracted: Vec<(Vec<i32>, f64)> = Vec::with_capacity(primes.len());
+    for cs in &primes {
+        let mut cube: Vec<i32> = cs
+            .literals
+            .iter()
+            .map(|&l| {
+                let pos = pos_of[&l.abs()] as i32 + 1;
+                if l < 0 {
+                    -pos
+                } else {
+                    pos
+                }
+            })
+            .collect();
+        cube.sort_by_key(|x| x.unsigned_abs());
+        extracted.push((cube, engine.cut_set_probability(cs)));
+    }
+
+    outcome.cut_sets = Some(signed_cut_set_result(&extracted, &var_name));
+
+    if resolved.probability {
+        let rare_event: f64 = extracted.iter().map(|(_, p)| *p).sum::<f64>().min(1.0);
+        let log_keep: f64 = extracted.iter().map(|(_, p)| (-(*p)).ln_1p()).sum();
+        let mcub = -log_keep.exp_m1();
+        outcome.probability = Some(match resolved.approximation {
+            Some(ApproxChoice::RareEvent) => approx_probability(rare_event, Approximation::RareEvent),
+            _ => approx_probability(mcub, Approximation::Mcub),
         });
     }
     Ok(())

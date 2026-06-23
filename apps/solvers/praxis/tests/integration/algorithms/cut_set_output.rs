@@ -1,8 +1,9 @@
 use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::bdd_pdag::BddPdag;
 use praxis::algorithms::mocus::{CutSet, Mocus};
+use praxis::algorithms::pdag::Pdag;
 use praxis::algorithms::zbdd_engine::ZbddEngine;
 use praxis::analysis::fault_tree::{filter_by_order, filter_by_probability, FaultTreeAnalysis};
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event::BasicEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
@@ -11,12 +12,14 @@ use quick_xml::Writer;
 use std::collections::HashMap;
 
 fn cut_sets_via_zbdd(ft: &FaultTree) -> Vec<CutSet> {
-    let mut pdag = BddPdag::from_fault_tree(ft).unwrap();
-    pdag.compute_ordering_and_modules().unwrap();
-    let (mut bdd_engine, bdd_root) = BddEngine::build_from_pdag(&pdag).unwrap();
+    let pdag = Pdag::from_fault_tree(ft).unwrap();
+    let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+    let var_probs = pdag.level_var_probs(ft, &meta.var_of).unwrap();
+    let (mut bdd_engine, bdd_root) =
+        BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap();
     bdd_engine.freeze();
     let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd_engine, bdd_root, false);
-    let var_order = pdag.variable_order().to_vec();
+    let var_order = meta.variable_order;
     zbdd.enumerate(zbdd_root)
         .into_iter()
         .map(|set| {
@@ -25,7 +28,7 @@ fn cut_sets_via_zbdd(ft: &FaultTree) -> Vec<CutSet> {
                 .filter_map(|&pos| {
                     var_order
                         .get(pos)
-                        .and_then(|&idx| pdag.node(idx))
+                        .and_then(|&idx| pdag.get_node(idx))
                         .and_then(|n| n.id())
                         .map(|s| s.to_string())
                 })

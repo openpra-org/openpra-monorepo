@@ -10,10 +10,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use praxis::algorithms::bdd_engine::Bdd;
-use praxis::algorithms::bdd_pdag::{BddPdag, BddPdagNode, NodeIdx};
 use praxis::algorithms::mocus::Mocus;
+use praxis::algorithms::pdag::{NodeIndex, Pdag, PdagNode};
 use praxis::analysis::width::{
-    build_incidence_graph_full, compute_dfs_metadata, greedy_vertex_separation_pathwidth,
+    build_incidence_graph_full, compute_dfs_metadata_pdag, greedy_vertex_separation_pathwidth,
     maximal_modules, min_fill_treewidth, IncidenceGraph,
 };
 use praxis::core::event::BasicEvent;
@@ -83,9 +83,10 @@ fn extract_subtree(ft: &FaultTree, root: &str) -> Option<FaultTree> {
 }
 
 fn arm_bdd(ft: &FaultTree) -> Option<f64> {
-    let mut pdag = BddPdag::from_fault_tree(ft).ok()?;
-    pdag.compute_ordering_and_modules().ok()?;
-    let (bdd, root) = Bdd::build_from_pdag(&pdag).ok()?;
+    let pdag = Pdag::from_fault_tree(ft).ok()?;
+    let meta = compute_dfs_metadata_pdag(&pdag).ok()?;
+    let var_probs = pdag.level_var_probs(ft, &meta.var_of).ok()?;
+    let (bdd, root) = Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).ok()?;
     Some(bdd.probability(root))
 }
 
@@ -173,15 +174,15 @@ struct Feats {
     f_xor: f64,
 }
 
-fn parent_counts(pdag: &BddPdag, root: NodeIdx) -> HashMap<NodeIdx, usize> {
-    let mut pc: HashMap<NodeIdx, usize> = HashMap::new();
-    let mut seen: HashSet<NodeIdx> = HashSet::new();
+fn parent_counts(pdag: &Pdag, root: NodeIndex) -> HashMap<NodeIndex, usize> {
+    let mut pc: HashMap<NodeIndex, usize> = HashMap::new();
+    let mut seen: HashSet<NodeIndex> = HashSet::new();
     let mut stack = vec![root.abs()];
     while let Some(n) = stack.pop() {
         if !seen.insert(n) {
             continue;
         }
-        if let Some(BddPdagNode::Gate { operands, .. }) = pdag.node(n) {
+        if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(n) {
             for &op in operands {
                 *pc.entry(op.abs()).or_insert(0) += 1;
                 stack.push(op.abs());
@@ -192,12 +193,12 @@ fn parent_counts(pdag: &BddPdag, root: NodeIdx) -> HashMap<NodeIdx, usize> {
 }
 
 fn compute_feats(
-    pdag: &BddPdag,
+    pdag: &Pdag,
     ft: &FaultTree,
     graph: &IncidenceGraph,
-    pc: &HashMap<NodeIdx, usize>,
+    pc: &HashMap<NodeIndex, usize>,
 ) -> Feats {
-    let verts: Vec<NodeIdx> = graph.vertices().collect();
+    let verts: Vec<NodeIndex> = graph.vertices().collect();
     let nv = graph.num_vertices();
     let ne = graph.num_edges();
     let mut probs: Vec<f64> = Vec::new();
@@ -205,11 +206,11 @@ fn compute_feats(
     let (mut num_vars, mut num_gates, mut shared) = (0usize, 0usize, 0usize);
     let (mut and, mut or, mut atl, mut xor, mut typed) = (0usize, 0usize, 0usize, 0usize, 0usize);
     for &v in &verts {
-        match pdag.node(v) {
-            Some(BddPdagNode::Variable { .. }) => {
+        match pdag.get_node(v) {
+            Some(PdagNode::BasicEvent { id, .. }) => {
                 num_vars += 1;
-                if let Some(p) = pdag.probability_of(v) {
-                    probs.push(p);
+                if let Some(be) = ft.get_basic_event(id) {
+                    probs.push(be.probability());
                 }
                 let fo = pc.get(&v).copied().unwrap_or(0);
                 fanouts.push(fo);
@@ -217,9 +218,9 @@ fn compute_feats(
                     shared += 1;
                 }
             }
-            Some(BddPdagNode::Gate { .. }) => {
+            Some(PdagNode::Gate { .. }) => {
                 num_gates += 1;
-                if let Some(g) = pdag.node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
+                if let Some(g) = pdag.get_node(v).and_then(|n| n.id()).and_then(|name| ft.get_gate(name)) {
                     typed += 1;
                     match g.formula() {
                         Formula::And | Formula::Nand => and += 1,
@@ -310,24 +311,21 @@ fn decompose(path: &Path, tasks: &mut Vec<Task>) {
         Ok(f) => f,
         Err(_) => return,
     };
-    let mut pdag = match BddPdag::from_fault_tree(&ft) {
+    let pdag = match Pdag::from_fault_tree(&ft) {
         Ok(p) => p,
         Err(_) => return,
     };
-    if pdag.compute_ordering_and_modules().is_err() {
-        return;
-    }
     let root = match pdag.root() {
         Some(r) => r,
         None => return,
     };
-    let meta = match compute_dfs_metadata(&pdag) {
+    let meta = match compute_dfs_metadata_pdag(&pdag) {
         Ok(m) => m,
         Err(_) => return,
     };
     let pc = parent_counts(&pdag, root);
     for &m in &maximal_modules(&meta) {
-        let name = match pdag.node(m).and_then(|n| n.id()) {
+        let name = match pdag.get_node(m).and_then(|n| n.id()) {
             Some(n) if ft.get_gate(n).is_some() => n.to_string(),
             _ => continue,
         };

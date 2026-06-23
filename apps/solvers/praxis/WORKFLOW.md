@@ -6,7 +6,7 @@
 
 ```
 Input
- └─ build BddPdag
+ └─ build pdag::Pdag → preprocess
  └─ compute ordering + modules
  └─ build BddEngine
  └─ walk BDD → exact probability / frequency
@@ -17,7 +17,7 @@ Input
 
 ```
 Input
- └─ build BddPdag
+ └─ build pdag::Pdag → preprocess
  └─ compute ordering + modules
  └─ build BddEngine
  └─ walk BDD with on-the-fly discard:
@@ -39,7 +39,7 @@ No approximation is allowed for BDD. The `--approximation` flag must be rejected
 
 ```
 Input
- └─ build BddPdag → ordering → BddEngine
+ └─ build pdag::Pdag → preprocess → ordering → BddEngine
  └─ sweep BDD → exact probability / frequency → CACHE
  └─ ZbddEngine::build_from_bdd(bdd, root, coherent=false)
       convert BDD → ZBDD via cofactoring
@@ -70,7 +70,7 @@ Limits only control which MCS appear in the final enumeration.
 
 ```
 Input
- └─ build BddPdag → ordering → BddEngine
+ └─ build pdag::Pdag → preprocess → ordering → BddEngine
  └─ ZbddEngine::build_from_bdd(bdd, root, coherent=false)
       convert BDD → ZBDD via cofactoring
       minimize()  → every path in ZBDD = exactly one MCS
@@ -105,7 +105,7 @@ because the removed paths would otherwise still contribute to the sum.
 
 ```
 Input
- └─ build BddPdag → ordering → BddEngine
+ └─ build pdag::Pdag → preprocess → ordering → BddEngine
  └─ sweep BDD → exact probability / frequency → CACHE
  └─ build ZBDD from BDD with on-the-fly discard during construction:
       discard any path whose order exceeds --limit-order    (prune high branch)
@@ -128,7 +128,7 @@ The exact frequency always comes from the BDD cache.
 
 ```
 Input
- └─ build BddPdag → ordering → BddEngine
+ └─ build pdag::Pdag → preprocess → ordering → BddEngine
  └─ build ZBDD from BDD with on-the-fly discard during construction:
       discard any path whose order exceeds --limit-order    (prune high branch)
       discard any path whose probability is below --cut-off (prune during traversal)
@@ -187,7 +187,7 @@ Each workflow is an independent module. They do not share runtime state.
 Data flows between modules only through well-defined interfaces:
 
 ```
-BddPdag  →  BddEngine  →  [BDD cache]
+pdag::Pdag  →  BddEngine  →  [BDD cache]
                        →  ZbddEngine  →  [metadata]  →  [filtered ZbddEngine]  →  materialization
 ```
 

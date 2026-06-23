@@ -167,6 +167,80 @@ fn prime_implicants_tdd_matches_zbdd() {
 }
 
 #[test]
+fn prime_implicants_consensus_finds_consensus_through_quantify() {
+    let (model, bindings) = consensus_model();
+    let settings = QuantificationSettings {
+        prime_implicants_consensus: Some(true),
+        probability: Some(true),
+        ..Default::default()
+    };
+    let result = quantify(&model, &bindings, &CcfGroupTable::default(), &settings).unwrap();
+    let ft = result.fault_trees.unwrap();
+    let cut_sets = ft[0].cut_sets.as_ref().unwrap();
+    assert_eq!(cut_sets.prime_implicants, Some(true));
+    assert_eq!(
+        cut_sets.products, 3,
+        "consensus engine must find all 3 prime implicants including the consensus b&c"
+    );
+    let list = cut_sets.list.as_ref().unwrap();
+    assert!(
+        list.iter().any(|cs| cs.literals.iter().any(|l| l.negated)),
+        "non-coherent primes must contain a negated literal"
+    );
+    let prob = ft[0].top_event_probability.as_ref().unwrap();
+    assert!(
+        prob.value.is_finite() && prob.value >= 0.10 && prob.value <= 0.12,
+        "P = {}",
+        prob.value
+    );
+}
+
+#[test]
+fn preprocess_flags_are_wired_and_preserve_probability() {
+    let (model, bindings) = consensus_model();
+
+    let base = QuantificationSettings {
+        bdd: Some(true),
+        probability: Some(true),
+        ..Default::default()
+    };
+    let p_default = quantify(&model, &bindings, &CcfGroupTable::default(), &base)
+        .unwrap()
+        .fault_trees
+        .unwrap()[0]
+        .top_event_probability
+        .as_ref()
+        .unwrap()
+        .value;
+
+    let ablated = QuantificationSettings {
+        bdd: Some(true),
+        probability: Some(true),
+        preprocess_normalize_gates: Some(false),
+        preprocess_fold_constants: Some(false),
+        preprocess_splice_null_gates: Some(false),
+        preprocess_coalesce_gates: Some(false),
+        preprocess_detect_modules: Some(false),
+        ..Default::default()
+    };
+    let p_ablated = quantify(&model, &bindings, &CcfGroupTable::default(), &ablated)
+        .unwrap()
+        .fault_trees
+        .unwrap()[0]
+        .top_event_probability
+        .as_ref()
+        .unwrap()
+        .value;
+
+    assert!(
+        (p_default - p_ablated).abs() < 1e-12,
+        "preprocess flags changed probability: {} vs {}",
+        p_default,
+        p_ablated
+    );
+}
+
+#[test]
 fn bdd_exact_probability_for_or_tree() {
     let (model, bindings) = or_two_events_model();
     let settings = QuantificationSettings {

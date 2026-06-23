@@ -341,6 +341,58 @@ impl Pdag {
         Ok(gate_index)
     }
 
+    pub fn level_var_probs(
+        &self,
+        fault_tree: &FaultTree,
+        var_of: &HashMap<NodeIndex, usize>,
+    ) -> Result<Vec<f64>> {
+        let levels = var_of
+            .values()
+            .copied()
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
+        let mut probs = vec![0.0; levels];
+        for node in self.nodes.values() {
+            if let PdagNode::BasicEvent { id, index } = node {
+                if let Some(&level) = var_of.get(index) {
+                    let event = fault_tree.basic_events().get(id).ok_or_else(|| {
+                        PraxisError::Logic(format!(
+                            "Basic event '{}' not found in fault tree",
+                            id
+                        ))
+                    })?;
+                    probs[level] = event.probability();
+                }
+            }
+        }
+        Ok(probs)
+    }
+
+    pub fn level_var_probs_from_map(
+        &self,
+        event_probs: &HashMap<String, f64>,
+        var_of: &HashMap<NodeIndex, usize>,
+    ) -> Vec<f64> {
+        let levels = var_of
+            .values()
+            .copied()
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
+        let mut probs = vec![0.0; levels];
+        for node in self.nodes.values() {
+            if let PdagNode::BasicEvent { id, index } = node {
+                if let Some(&level) = var_of.get(index) {
+                    if let Some(&p) = event_probs.get(id) {
+                        probs[level] = p;
+                    }
+                }
+            }
+        }
+        probs
+    }
+
     pub fn stats(&self) -> PdagStats {
         let mut num_gates = 0;
         let mut num_basic_events = 0;

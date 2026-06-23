@@ -130,6 +130,7 @@ pub enum Algorithm {
     Bdd,
     Zbdd,
     Mocus,
+    MocusPi,
     MonteCarlo,
 }
 

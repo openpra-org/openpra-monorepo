@@ -7,6 +7,8 @@ export const ConvergenceIntervalPolicySchema = z.enum(["bayes", "wald"]);
 
 export const VariableOrderingSchema = z.enum(["sift", "gsift", "ils"]);
 
+export const PreprocessNormalizationSchema = z.enum(["none", "xor", "atleast", "all"]);
+
 export const QuantificationSettingsSchema = z.object({
   solver: SolverTargetSchema.optional(),
 
@@ -22,8 +24,15 @@ export const QuantificationSettingsSchema = z.object({
 
   primeImplicants: z.boolean().optional(),
   primeImplicantsTdd: z.boolean().optional(),
+  primeImplicantsConsensus: z.boolean().optional(),
   reorder: VariableOrderingSchema.optional(),
   reorderBudgetSeconds: z.number().optional(),
+  preprocessNormalizeGates: z.boolean().optional(),
+  preprocessNormalization: PreprocessNormalizationSchema.optional(),
+  preprocessFoldConstants: z.boolean().optional(),
+  preprocessSpliceNullGates: z.boolean().optional(),
+  preprocessCoalesceGates: z.boolean().optional(),
+  preprocessDetectModules: z.boolean().optional(),
   probability: z.boolean().optional(),
   importance: z.boolean().optional(),
   uncertainty: z.boolean().optional(),

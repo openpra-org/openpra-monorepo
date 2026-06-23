@@ -639,8 +639,12 @@ impl Default for ZbddEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algorithms::bdd_engine::{BDD_FALSE, BDD_TRUE};
-    use crate::algorithms::bdd_pdag::{BddConnective, BddPdag};
+    use crate::algorithms::bdd_engine::{BddRef, BDD_FALSE, BDD_TRUE};
+    use crate::algorithms::pdag::Pdag;
+    use crate::analysis::width::compute_dfs_metadata_pdag;
+    use crate::core::event::BasicEvent;
+    use crate::core::fault_tree::FaultTree;
+    use crate::core::gate::{Formula, Gate};
 
     fn x0_zbdd() -> (ZbddEngine, ZbddRef) {
         let mut z = ZbddEngine::new();
@@ -648,10 +652,34 @@ mod tests {
         (z, r)
     }
 
-    fn x1_zbdd() -> (ZbddEngine, ZbddRef) {
-        let mut z = ZbddEngine::new();
-        let r = z.multiply(1, ZBDD_BASE);
-        (z, r)
+    fn build_bdd(ft: &FaultTree) -> (Bdd, BddRef) {
+        let pdag = Pdag::from_fault_tree(ft).unwrap();
+        let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+        let var_probs = pdag.level_var_probs(ft, &meta.var_of).unwrap();
+        Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap()
+    }
+
+    fn two_var_ft(conn: Formula, p0: f64, p1: f64) -> FaultTree {
+        let mut ft = FaultTree::new("FT", "G").unwrap();
+        let mut g = Gate::new("G".to_string(), conn).unwrap();
+        g.add_operand("E1".to_string());
+        g.add_operand("E2".to_string());
+        ft.add_gate(g).unwrap();
+        ft.add_basic_event(BasicEvent::new("E1".to_string(), p0).unwrap())
+            .unwrap();
+        ft.add_basic_event(BasicEvent::new("E2".to_string(), p1).unwrap())
+            .unwrap();
+        ft
+    }
+
+    fn single_var_ft(p: f64) -> FaultTree {
+        let mut ft = FaultTree::new("FT", "G").unwrap();
+        let mut g = Gate::new("G".to_string(), Formula::Or).unwrap();
+        g.add_operand("E1".to_string());
+        ft.add_gate(g).unwrap();
+        ft.add_basic_event(BasicEvent::new("E1".to_string(), p).unwrap())
+            .unwrap();
+        ft
     }
 
     #[test]
@@ -936,11 +964,7 @@ mod tests {
 
     #[test]
     fn test_convert_bdd_single_var() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        pdag.set_root(e1).unwrap();
-        pdag.set_variable_order(vec![e1]);
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&single_var_ft(0.1));
         let (z, root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         let sets = z.enumerate(root);
         assert_eq!(sets.len(), 1);
@@ -949,15 +973,7 @@ mod tests {
 
     #[test]
     fn test_convert_bdd_and_gate() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let e2 = pdag.add_variable("E2".to_string(), 0.2);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::And, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::And, 0.1, 0.2));
 
         let (z, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         let sets = z.enumerate(zbdd_root);
@@ -967,15 +983,7 @@ mod tests {
 
     #[test]
     fn test_convert_bdd_or_gate() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        let e2 = pdag.add_variable("E2".to_string(), 0.2);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::Or, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::Or, 0.1, 0.2));
 
         let (z, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         let sets = z.enumerate(zbdd_root);
@@ -985,23 +993,7 @@ mod tests {
 
     #[test]
     fn test_build_from_bdd_coherent_and_gate_end_to_end() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-
-        let mut ft = FaultTree::new("FT", "TOP").unwrap();
-        let mut top = Gate::new("TOP".to_string(), Formula::And).unwrap();
-        top.add_operand("E1".to_string());
-        top.add_operand("E2".to_string());
-        ft.add_gate(top).unwrap();
-        ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
-            .unwrap();
-        ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
-            .unwrap();
-
-        let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::And, 0.1, 0.2));
 
         let (z, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         let sets = z.enumerate(zbdd_root);
@@ -1011,23 +1003,7 @@ mod tests {
 
     #[test]
     fn test_build_from_bdd_coherent_or_gate_end_to_end() {
-        use crate::core::event::BasicEvent;
-        use crate::core::fault_tree::FaultTree;
-        use crate::core::gate::{Formula, Gate};
-
-        let mut ft = FaultTree::new("FT", "TOP").unwrap();
-        let mut top = Gate::new("TOP".to_string(), Formula::Or).unwrap();
-        top.add_operand("E1".to_string());
-        top.add_operand("E2".to_string());
-        ft.add_gate(top).unwrap();
-        ft.add_basic_event(BasicEvent::new("E1".to_string(), 0.1).unwrap())
-            .unwrap();
-        ft.add_basic_event(BasicEvent::new("E2".to_string(), 0.2).unwrap())
-            .unwrap();
-
-        let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::Or, 0.1, 0.2));
 
         let (z, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         let sets = z.enumerate(zbdd_root);
@@ -1049,28 +1025,12 @@ mod tests {
     }
 
     fn or_zbdd(p0: f64, p1: f64) -> (ZbddEngine, ZbddRef) {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), p0);
-        let e2 = pdag.add_variable("E2".to_string(), p1);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::Or, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::Or, p0, p1));
         ZbddEngine::build_from_bdd(&bdd, bdd_root, true)
     }
 
     fn and_zbdd(p0: f64, p1: f64) -> (ZbddEngine, ZbddRef) {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), p0);
-        let e2 = pdag.add_variable("E2".to_string(), p1);
-        let g = pdag
-            .add_gate("G".to_string(), BddConnective::And, vec![e1, e2], None)
-            .unwrap();
-        pdag.set_root(g).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::And, p0, p1));
         ZbddEngine::build_from_bdd(&bdd, bdd_root, true)
     }
 
@@ -1082,11 +1042,7 @@ mod tests {
 
     #[test]
     fn test_rare_event_single_var() {
-        let mut pdag = BddPdag::new();
-        let e1 = pdag.add_variable("E1".to_string(), 0.1);
-        pdag.set_root(e1).unwrap();
-        pdag.set_variable_order(vec![e1]);
-        let (bdd, bdd_root) = Bdd::build_from_pdag(&pdag).unwrap();
+        let (bdd, bdd_root) = build_bdd(&single_var_ft(0.1));
         let (z, root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, true);
         assert!((z.rare_event_probability(root) - 0.1).abs() < 1e-12);
     }

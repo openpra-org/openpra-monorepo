@@ -1,6 +1,7 @@
 use crate::algorithms::bdd_engine::Bdd;
-use crate::algorithms::bdd_pdag::BddPdag;
 use crate::algorithms::mocus::CutSet;
+use crate::algorithms::pdag::Pdag;
+use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::event::BasicEvent;
 use crate::error::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
@@ -139,11 +140,16 @@ impl<'a> ImportanceAnalysis<'a> {
         event_id: &str,
         override_probability: f64,
     ) -> Result<f64> {
-        let mut pdag = BddPdag::from_fault_tree(self.fault_tree)?;
-        pdag.compute_ordering_and_modules()?;
-        let (mut bdd, root) = Bdd::build_from_pdag(&pdag)?;
+        let pdag = Pdag::from_fault_tree(self.fault_tree)?;
+        let meta = compute_dfs_metadata_pdag(&pdag)?;
+        let var_probs = pdag.level_var_probs(self.fault_tree, &meta.var_of)?;
+        let (mut bdd, root) =
+            Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)?;
 
-        if let Some(var) = pdag.idx_of(event_id).and_then(|idx| pdag.bdd_pos_of(idx)) {
+        if let Some(var) = pdag
+            .get_index(event_id)
+            .and_then(|idx| meta.var_of.get(&idx).copied())
+        {
             let mut probs = bdd.var_probs().to_vec();
             probs[var] = override_probability;
             bdd.set_var_probs(probs);

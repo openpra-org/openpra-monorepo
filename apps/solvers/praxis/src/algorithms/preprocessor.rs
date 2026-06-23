@@ -14,6 +14,35 @@ pub enum NormalizationType {
     All,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PreprocessorConfig {
+
+    pub normalize: bool,
+
+    pub normalization: NormalizationType,
+
+    pub fold_constants: bool,
+
+    pub splice_null_gates: bool,
+
+    pub coalesce_gates: bool,
+
+    pub detect_modules: bool,
+}
+
+impl Default for PreprocessorConfig {
+    fn default() -> Self {
+        PreprocessorConfig {
+            normalize: true,
+            normalization: NormalizationType::All,
+            fold_constants: true,
+            splice_null_gates: true,
+            coalesce_gates: true,
+            detect_modules: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PreprocessorStats {
 
@@ -46,11 +75,16 @@ pub struct Preprocessor {
     pdag: Pdag,
     stats: PreprocessorStats,
     next_synth: usize,
+    config: PreprocessorConfig,
 }
 
 impl Preprocessor {
 
     pub fn new(pdag: Pdag) -> Self {
+        Self::with_config(pdag, PreprocessorConfig::default())
+    }
+
+    pub fn with_config(pdag: Pdag, config: PreprocessorConfig) -> Self {
         let original_nodes = pdag.node_count();
         Preprocessor {
             pdag,
@@ -64,7 +98,12 @@ impl Preprocessor {
                 final_nodes: original_nodes,
             },
             next_synth: 0,
+            config,
         }
+    }
+
+    pub fn config(&self) -> &PreprocessorConfig {
+        &self.config
     }
 
     fn new_gate(&mut self, connective: Connective, operands: Vec<NodeIndex>) -> Result<NodeIndex> {
@@ -74,16 +113,30 @@ impl Preprocessor {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        self.normalize_gates(NormalizationType::All)?;
+        if self.config.normalize {
+            self.normalize_gates(self.config.normalization)?;
+        }
         loop {
-            let folded = self.propagate_constants()?;
-            let spliced = self.remove_null_gates()?;
+            let folded = if self.config.fold_constants {
+                self.propagate_constants()?
+            } else {
+                false
+            };
+            let spliced = if self.config.splice_null_gates {
+                self.remove_null_gates()?
+            } else {
+                false
+            };
             if !folded && !spliced {
                 break;
             }
         }
-        self.coalesce_gates()?;
-        self.detect_modules()?;
+        if self.config.coalesce_gates {
+            self.coalesce_gates()?;
+        }
+        if self.config.detect_modules {
+            self.detect_modules()?;
+        }
         self.stats.final_nodes = self.pdag.node_count();
         Ok(())
     }
@@ -707,5 +760,149 @@ mod tests {
 
         let stats = preprocessor.stats();
         assert_eq!(stats.original_nodes, original_count);
+    }
+
+    fn config_test_pdag() -> Pdag {
+        let mut p = Pdag::new();
+        let a = p.add_basic_event("A".to_string());
+        let b = p.add_basic_event("B".to_string());
+        let c = p.add_basic_event("C".to_string());
+        let xor = p
+            .add_gate("X".to_string(), Connective::Xor, vec![a, b], None)
+            .unwrap();
+        let nand = p
+            .add_gate("N".to_string(), Connective::Nand, vec![b, c], None)
+            .unwrap();
+        let top = p
+            .add_gate("T".to_string(), Connective::Or, vec![xor, nand], None)
+            .unwrap();
+        p.set_root(top).unwrap();
+        p
+    }
+
+    #[test]
+    fn config_default_normalizes_not_gate() {
+        let mut pdag = Pdag::new();
+        let e1 = pdag.add_basic_event("E1".to_string());
+        let not_gate = pdag
+            .add_gate("G1".to_string(), Connective::Not, vec![e1], None)
+            .unwrap();
+        pdag.set_root(not_gate).unwrap();
+
+        let mut pp = Preprocessor::new(pdag);
+        pp.run().unwrap();
+        assert!(pp.stats().gates_normalized > 0);
+    }
+
+    #[test]
+    fn config_normalize_off_leaves_not_gate() {
+        let mut pdag = Pdag::new();
+        let e1 = pdag.add_basic_event("E1".to_string());
+        let not_gate = pdag
+            .add_gate("G1".to_string(), Connective::Not, vec![e1], None)
+            .unwrap();
+        pdag.set_root(not_gate).unwrap();
+
+        let config = PreprocessorConfig {
+            normalize: false,
+            ..Default::default()
+        };
+        let mut pp = Preprocessor::with_config(pdag, config);
+        pp.run().unwrap();
+
+        assert_eq!(pp.stats().gates_normalized, 0);
+        match pp.pdag().get_node(not_gate) {
+            Some(PdagNode::Gate { connective, .. }) => {
+                assert_eq!(*connective, Connective::Not);
+            }
+            _ => panic!("NOT gate should remain"),
+        }
+    }
+
+    #[test]
+    fn config_fold_off_keeps_constant() {
+        let mut pdag = Pdag::new();
+        let e1 = pdag.add_basic_event("E1".to_string());
+        let false_const = pdag.add_constant(false);
+        let g = pdag
+            .add_gate("G1".to_string(), Connective::And, vec![e1, false_const], None)
+            .unwrap();
+        pdag.set_root(g).unwrap();
+
+        let config = PreprocessorConfig {
+            fold_constants: false,
+            ..Default::default()
+        };
+        let mut pp = Preprocessor::with_config(pdag, config);
+        pp.run().unwrap();
+
+        assert_eq!(pp.stats().constants_eliminated, 0);
+    }
+
+    #[test]
+    fn config_all_off_does_nothing() {
+        let pdag = config_test_pdag();
+        let original = pdag.node_count();
+
+        let config = PreprocessorConfig {
+            normalize: false,
+            normalization: NormalizationType::None,
+            fold_constants: false,
+            splice_null_gates: false,
+            coalesce_gates: false,
+            detect_modules: false,
+        };
+        let mut pp = Preprocessor::with_config(pdag, config);
+        pp.run().unwrap();
+
+        let stats = pp.stats();
+        assert_eq!(stats.gates_normalized, 0);
+        assert_eq!(stats.constants_eliminated, 0);
+        assert_eq!(stats.null_gates_removed, 0);
+        assert_eq!(stats.modules_detected, 0);
+        assert_eq!(stats.final_nodes, original);
+    }
+
+    #[test]
+    fn config_subsets_preserve_function() {
+        use crate::algorithms::bdd_engine::Bdd;
+
+        let configs = [
+            PreprocessorConfig::default(),
+            PreprocessorConfig {
+                normalize: false,
+                ..Default::default()
+            },
+            PreprocessorConfig {
+                fold_constants: false,
+                splice_null_gates: false,
+                ..Default::default()
+            },
+            PreprocessorConfig {
+                coalesce_gates: false,
+                detect_modules: false,
+                ..Default::default()
+            },
+            PreprocessorConfig {
+                normalize: false,
+                normalization: NormalizationType::None,
+                fold_constants: false,
+                splice_null_gates: false,
+                coalesce_gates: false,
+                detect_modules: false,
+            },
+        ];
+
+        for config in configs {
+            let original = config_test_pdag();
+            let mut pp = Preprocessor::with_config(config_test_pdag(), config);
+            pp.run().unwrap();
+            let result = pp.into_pdag();
+            assert!(
+                Bdd::equivalent(&original, &result).unwrap(),
+                "config {:?} changed the function",
+                config
+            );
+        }
     }
 }

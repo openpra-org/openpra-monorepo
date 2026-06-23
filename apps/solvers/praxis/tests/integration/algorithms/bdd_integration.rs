@@ -1,13 +1,19 @@
-use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::bdd_pdag::BddPdag;
+use praxis::algorithms::bdd_engine::{Bdd as BddEngine, BddRef};
+use praxis::algorithms::pdag::Pdag;
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event::BasicEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::{Formula, Gate};
 
+fn build_bdd(ft: &FaultTree) -> (BddEngine, BddRef) {
+    let pdag = Pdag::from_fault_tree(ft).unwrap();
+    let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+    let var_probs = pdag.level_var_probs(ft, &meta.var_of).unwrap();
+    BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap()
+}
+
 fn bdd_probability(ft: &FaultTree) -> f64 {
-    let mut pdag = BddPdag::from_fault_tree(ft).unwrap();
-    pdag.compute_ordering_and_modules().unwrap();
-    let (bdd_engine, root) = BddEngine::build_from_pdag(&pdag).unwrap();
+    let (bdd_engine, root) = build_bdd(ft);
     bdd_engine.probability(root)
 }
 
@@ -185,9 +191,7 @@ fn test_bdd_node_count() {
     top_gate.add_operand("E2".to_string());
     ft.add_gate(top_gate).unwrap();
 
-    let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-    pdag.compute_ordering_and_modules().unwrap();
-    let (bdd_engine, _root) = BddEngine::build_from_pdag(&pdag).unwrap();
+    let (bdd_engine, _root) = build_bdd(&ft);
 
     assert_eq!(bdd_engine.var_probs().len(), 2);
     assert!(bdd_engine.node_count() >= 2);
@@ -207,9 +211,7 @@ fn test_bdd_prob_cache_clearing() {
     top_gate.add_operand("E2".to_string());
     ft.add_gate(top_gate).unwrap();
 
-    let mut pdag = BddPdag::from_fault_tree(&ft).unwrap();
-    pdag.compute_ordering_and_modules().unwrap();
-    let (mut bdd_engine, root) = BddEngine::build_from_pdag(&pdag).unwrap();
+    let (mut bdd_engine, root) = build_bdd(&ft);
 
     let prob1 = bdd_engine.probability(root);
 

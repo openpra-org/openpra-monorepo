@@ -4,9 +4,12 @@ use crate::cli::optimize::{
     estimate_fault_tree_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::bdd_pdag::BddPdag;
 use praxis::algorithms::mocus::{CutSet, Mocus};
+use praxis::algorithms::noncoherent_mocus::NonCoherentMocus;
+use praxis::algorithms::pdag::{NodeIndex, Pdag};
+use praxis::algorithms::preprocessor::Preprocessor;
 use praxis::algorithms::zbdd_engine::ZbddEngine;
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::mc::core::{ConvergenceSettings, VrtMode, VrtSettings};
 use praxis::mc::plan::{choose_run_params_for_num_trials, RunParams};
 use praxis::mc::DpMonteCarloAnalysis;
@@ -38,29 +41,41 @@ pub enum FaultTreePreOutcome {
 
 fn build_pdag_and_bdd(
     fault_tree: &praxis::core::fault_tree::FaultTree,
-) -> Result<(BddPdag, BddEngine, praxis::algorithms::bdd_engine::BddRef), Box<dyn std::error::Error>>
-{
-    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-    pdag.compute_ordering_and_modules()?;
-    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)?;
-    Ok((pdag, bdd, bdd_root))
+) -> Result<
+    (
+        Pdag,
+        Vec<NodeIndex>,
+        BddEngine,
+        praxis::algorithms::bdd_engine::BddRef,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let pdag = Pdag::from_fault_tree(fault_tree)?;
+    let mut pp = Preprocessor::new(pdag);
+    pp.run()?;
+    let pdag = pp.into_pdag();
+    let meta = compute_dfs_metadata_pdag(&pdag)?;
+    let var_probs = pdag.level_var_probs(fault_tree, &meta.var_of)?;
+    let (bdd, bdd_root) =
+        BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)?;
+    Ok((pdag, meta.variable_order, bdd, bdd_root))
 }
 
 fn enumerate_cut_sets(
     zbdd: &ZbddEngine,
     root: praxis::algorithms::zbdd_engine::ZbddRef,
-    pdag: &BddPdag,
+    pdag: &Pdag,
+    order: &[NodeIndex],
 ) -> Vec<CutSet> {
-    let var_order = pdag.variable_order().to_vec();
     zbdd.enumerate(root)
         .iter()
         .map(|set| {
             let events: Vec<String> = set
                 .iter()
                 .filter_map(|&pos| {
-                    var_order
+                    order
                         .get(pos)
-                        .and_then(|&idx| pdag.node(idx))
+                        .and_then(|&idx| pdag.get_node(idx))
                         .and_then(|n| n.id().map(|s| s.to_string()))
                 })
                 .collect();
@@ -101,7 +116,8 @@ fn print_cut_sets_summary(label: &str, ft_id: &str, cut_sets: &[CutSet], verbosi
 fn zbdd_wf1_no_approx_no_limits(
     cli: &Args,
     fault_tree: &praxis::core::fault_tree::FaultTree,
-    pdag: &BddPdag,
+    pdag: &Pdag,
+    order: &[NodeIndex],
     bdd: &mut BddEngine,
     bdd_root: praxis::algorithms::bdd_engine::BddRef,
     verbosity_level: u32,
@@ -124,7 +140,7 @@ fn zbdd_wf1_no_approx_no_limits(
 
     let filtered_root = apply_zbdd_filters(&mut zbdd, zbdd_root, limit_order, cut_off);
 
-    let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag);
+    let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag, order);
 
     if cli.print || verbosity_level > 0 {
         print_cut_sets_summary(
@@ -141,7 +157,8 @@ fn zbdd_wf1_no_approx_no_limits(
 fn zbdd_wf2_approx_no_limits(
     cli: &Args,
     fault_tree: &praxis::core::fault_tree::FaultTree,
-    pdag: &BddPdag,
+    pdag: &Pdag,
+    order: &[NodeIndex],
     bdd: &mut BddEngine,
     bdd_root: praxis::algorithms::bdd_engine::BddRef,
     verbosity_level: u32,
@@ -170,7 +187,7 @@ fn zbdd_wf2_approx_no_limits(
         approx_prob
     };
 
-    let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag);
+    let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag, order);
 
     if cli.print || verbosity_level > 0 {
         print_cut_sets_summary(
@@ -187,7 +204,8 @@ fn zbdd_wf2_approx_no_limits(
 fn zbdd_wf3_no_approx_limits(
     cli: &Args,
     fault_tree: &praxis::core::fault_tree::FaultTree,
-    pdag: &BddPdag,
+    pdag: &Pdag,
+    order: &[NodeIndex],
     bdd: &mut BddEngine,
     bdd_root: praxis::algorithms::bdd_engine::BddRef,
     verbosity_level: u32,
@@ -201,7 +219,7 @@ fn zbdd_wf3_no_approx_limits(
     let (zbdd, zbdd_root) =
         ZbddEngine::build_from_bdd_with_limits(bdd, bdd_root, false, limit_order, cut_off);
 
-    let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag);
+    let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag, order);
 
     if cli.print || verbosity_level > 0 {
         print_cut_sets_summary(
@@ -218,7 +236,8 @@ fn zbdd_wf3_no_approx_limits(
 fn zbdd_wf4_approx_limits(
     cli: &Args,
     fault_tree: &praxis::core::fault_tree::FaultTree,
-    pdag: &BddPdag,
+    pdag: &Pdag,
+    order: &[NodeIndex],
     bdd: &mut BddEngine,
     bdd_root: praxis::algorithms::bdd_engine::BddRef,
     verbosity_level: u32,
@@ -233,7 +252,7 @@ fn zbdd_wf4_approx_limits(
 
     let approx_prob = compute_approx(&zbdd, zbdd_root, cli.approximation);
 
-    let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag);
+    let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag, order);
 
     if cli.print || verbosity_level > 0 {
         print_cut_sets_summary(
@@ -368,9 +387,7 @@ fn run_pre_event_tree_impl(
         if verbose {
             eprintln!("Computing top event probability using BDD...");
         }
-        let mut pdag = BddPdag::from_fault_tree(&fault_tree)?;
-        pdag.compute_ordering_and_modules()?;
-        let (mut bdd_engine, root) = BddEngine::build_from_pdag(&pdag)?;
+        let (_pdag, _order, mut bdd_engine, root) = build_pdag_and_bdd(&fault_tree)?;
         let p = if cli.limit_order.is_some() || cli.cut_off.is_some() {
             bdd_engine.probability_with_limits(
                 root,
@@ -384,6 +401,43 @@ fn run_pre_event_tree_impl(
         result.top_event_probability = p;
         if verbose {
             eprintln!("BDD analysis complete!");
+            eprintln!("Top event probability: {}", result.top_event_probability);
+        }
+    }
+
+    if cli.algorithm == Algorithm::MocusPi {
+        if verbose {
+            eprintln!("Computing prime implicants via non-coherent MOCUS (consensus)...");
+        }
+        let pdag = Pdag::from_fault_tree(&fault_tree)?;
+        let mut pp = Preprocessor::new(pdag);
+        pp.run()?;
+        let pre = pp.into_pdag();
+        let mut engine = NonCoherentMocus::new(&pre, &fault_tree);
+        if let Some(n) = cli.limit_order {
+            engine = engine.with_max_order(n as usize);
+        }
+        if let Some(c) = cli.cut_off {
+            engine = engine.with_cut_off(c);
+        }
+        let primes = engine.analyze_primes();
+        let probs: Vec<f64> = primes
+            .iter()
+            .map(|cs| engine.cut_set_probability(cs))
+            .collect();
+        let p = match cli.approximation {
+            Some(Approximation::RareEvent) => probs.iter().sum::<f64>().min(1.0),
+            _ => {
+                let log_keep: f64 = probs.iter().map(|q| (-q).ln_1p()).sum();
+                -log_keep.exp_m1()
+            }
+        };
+        result.top_event_probability = p;
+        if verbose {
+            eprintln!(
+                "Non-coherent MOCUS complete: {} prime implicants",
+                primes.len()
+            );
             eprintln!("Top event probability: {}", result.top_event_probability);
         }
     }
@@ -504,7 +558,7 @@ fn run_pre_event_tree_impl(
             eprintln!("\nRunning ZBDD analysis...");
         }
 
-        let (pdag, mut bdd, bdd_root) = build_pdag_and_bdd(&fault_tree)?;
+        let (pdag, order, mut bdd, bdd_root) = build_pdag_and_bdd(&fault_tree)?;
 
         let has_limits = cli.limit_order.is_some() || cli.cut_off.is_some();
         let has_approx = cli.approximation.is_some();
@@ -514,6 +568,7 @@ fn run_pre_event_tree_impl(
                 cli,
                 &fault_tree,
                 &pdag,
+                &order,
                 &mut bdd,
                 bdd_root,
                 verbosity_level,
@@ -522,6 +577,7 @@ fn run_pre_event_tree_impl(
                 cli,
                 &fault_tree,
                 &pdag,
+                &order,
                 &mut bdd,
                 bdd_root,
                 verbosity_level,
@@ -530,6 +586,7 @@ fn run_pre_event_tree_impl(
                 cli,
                 &fault_tree,
                 &pdag,
+                &order,
                 &mut bdd,
                 bdd_root,
                 verbosity_level,
@@ -538,6 +595,7 @@ fn run_pre_event_tree_impl(
                 cli,
                 &fault_tree,
                 &pdag,
+                &order,
                 &mut bdd,
                 bdd_root,
                 verbosity_level,
@@ -554,7 +612,7 @@ fn run_pre_event_tree_impl(
             }
             eprintln!("Top event probability: {}", result.top_event_probability);
         }
-        let _ = pdag;
+        let _ = (pdag, order);
     }
 
     if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {

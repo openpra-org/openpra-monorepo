@@ -233,6 +233,14 @@ pub enum VariableOrdering {
     Ils,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreprocessNormalization {
+    None,
+    Xor,
+    AtLeast,
+    All,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct QuantificationSettings {
     pub solver: Option<SolverTarget>,
@@ -246,8 +254,15 @@ pub struct QuantificationSettings {
     pub monte_carlo: Option<bool>,
     pub prime_implicants: Option<bool>,
     pub prime_implicants_tdd: Option<bool>,
+    pub prime_implicants_consensus: Option<bool>,
     pub reorder: Option<VariableOrdering>,
     pub reorder_budget_seconds: Option<f64>,
+    pub preprocess_normalize_gates: Option<bool>,
+    pub preprocess_normalization: Option<PreprocessNormalization>,
+    pub preprocess_fold_constants: Option<bool>,
+    pub preprocess_splice_null_gates: Option<bool>,
+    pub preprocess_coalesce_gates: Option<bool>,
+    pub preprocess_detect_modules: Option<bool>,
     pub probability: Option<bool>,
     pub importance: Option<bool>,
     pub uncertainty: Option<bool>,

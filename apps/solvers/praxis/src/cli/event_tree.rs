@@ -9,9 +9,10 @@ use crate::cli::optimize::{
 };
 use crate::cli::output::{writer_stdout, writer_vec};
 use praxis::algorithms::bdd_engine::Bdd as BddEngine;
-use praxis::algorithms::bdd_pdag::BddPdag;
+use praxis::algorithms::pdag::{NodeIndex, Pdag};
 use praxis::algorithms::zbdd_engine::ZbddRef;
 use praxis::analysis::sequence_formula::SequenceFormulaBuilder;
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::event_tree::InitiatingEvent;
 use praxis::core::fault_tree::FaultTree;
 use praxis::io::event_tree_parser::EventTreeModel;
@@ -56,10 +57,10 @@ fn parse_model_with_libs_from_parsed(
     Ok((model, initiating_events, event_trees, event_tree_library))
 }
 
-fn event_names_from_pdag(pdag: &BddPdag) -> Vec<Option<String>> {
-    pdag.variable_order()
+fn event_names_from_pdag(pdag: &Pdag, order: &[NodeIndex]) -> Vec<Option<String>> {
+    order
         .iter()
-        .map(|&idx| pdag.node(idx).and_then(|n| n.id().map(|s| s.to_string())))
+        .map(|&idx| pdag.get_node(idx).and_then(|n| n.id().map(|s| s.to_string())))
         .collect()
 }
 
@@ -127,6 +128,7 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
         mut pdag,
         sequence_roots,
         unconditional,
+        event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
         .with_event_tree_library(event_tree_library)
@@ -171,15 +173,17 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
 
         pdag.set_root(root_idx)
             .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        pdag.compute_ordering_and_modules()
+        let meta = compute_dfs_metadata_pdag(&pdag)
             .map_err(|e| format!("BDD ordering failed for '{}': {}", seq_id, e))?;
-        let (mut bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
-            .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+        let var_probs = pdag.level_var_probs_from_map(&event_probs, &meta.var_of);
+        let (mut bdd, bdd_root) =
+            BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
+                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
 
         let exact_prob = bdd.probability(bdd_root);
         bdd.freeze();
 
-        let event_names = event_names_from_pdag(&pdag);
+        let event_names = event_names_from_pdag(&pdag, &meta.variable_order);
         let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, false);
 
         intermediates.push(SequenceIntermediate {
@@ -260,6 +264,7 @@ fn analytic_zbdd_wf2_approx_no_limits(
         mut pdag,
         sequence_roots,
         unconditional,
+        event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
         .with_event_tree_library(event_tree_library)
@@ -304,13 +309,15 @@ fn analytic_zbdd_wf2_approx_no_limits(
 
         pdag.set_root(root_idx)
             .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        pdag.compute_ordering_and_modules()
+        let meta = compute_dfs_metadata_pdag(&pdag)
             .map_err(|e| format!("BDD ordering failed for '{}': {}", seq_id, e))?;
-        let (mut bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
-            .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+        let var_probs = pdag.level_var_probs_from_map(&event_probs, &meta.var_of);
+        let (mut bdd, bdd_root) =
+            BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
+                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
         bdd.freeze();
 
-        let event_names = event_names_from_pdag(&pdag);
+        let event_names = event_names_from_pdag(&pdag, &meta.variable_order);
         let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, false);
         let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
 
@@ -400,6 +407,7 @@ fn analytic_zbdd_wf3_no_approx_limits(
         mut pdag,
         sequence_roots,
         unconditional,
+        event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
         .with_event_tree_library(event_tree_library)
@@ -444,15 +452,17 @@ fn analytic_zbdd_wf3_no_approx_limits(
 
         pdag.set_root(root_idx)
             .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        pdag.compute_ordering_and_modules()
+        let meta = compute_dfs_metadata_pdag(&pdag)
             .map_err(|e| format!("BDD ordering failed for '{}': {}", seq_id, e))?;
-        let (mut bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
-            .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+        let var_probs = pdag.level_var_probs_from_map(&event_probs, &meta.var_of);
+        let (mut bdd, bdd_root) =
+            BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
+                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
 
         let exact_prob = bdd.probability(bdd_root);
         bdd.freeze();
 
-        let event_names = event_names_from_pdag(&pdag);
+        let event_names = event_names_from_pdag(&pdag, &meta.variable_order);
         let (zbdd, zbdd_root) =
             ZbddEngine::build_from_bdd_with_limits(&bdd, bdd_root, false, limit_order, cut_off);
 
@@ -488,6 +498,7 @@ fn analytic_zbdd_wf4_approx_limits(
         mut pdag,
         sequence_roots,
         unconditional,
+        event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
         .with_event_tree_library(event_tree_library)
@@ -532,16 +543,18 @@ fn analytic_zbdd_wf4_approx_limits(
 
         pdag.set_root(root_idx)
             .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        pdag.compute_ordering_and_modules()
+        let meta = compute_dfs_metadata_pdag(&pdag)
             .map_err(|e| format!("BDD ordering failed for '{}': {}", seq_id, e))?;
-        let (mut bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
-            .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+        let var_probs = pdag.level_var_probs_from_map(&event_probs, &meta.var_of);
+        let (mut bdd, bdd_root) =
+            BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
+                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
         bdd.freeze();
 
         let (zbdd, zbdd_root) =
             ZbddEngine::build_from_bdd_with_limits(&bdd, bdd_root, false, limit_order, cut_off);
 
-        let event_names = event_names_from_pdag(&pdag);
+        let event_names = event_names_from_pdag(&pdag, &meta.variable_order);
         let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
         let order_dist = zbdd.count_by_order(zbdd_root);
         let cut_sets = enumerate_cut_sets_et(&zbdd, zbdd_root, &event_names);
@@ -1045,6 +1058,7 @@ fn run_analytic_impl(
                 mut pdag,
                 sequence_roots,
                 unconditional,
+                event_probs,
                 ie_frequency: _,
             } = SequenceFormulaBuilder::new(&model)
                 .with_event_tree_library(&event_tree_library)
@@ -1066,10 +1080,12 @@ fn run_analytic_impl(
                 } else if let Some(&root_idx) = sequence_roots.get(seq_id.as_str()) {
                     pdag.set_root(root_idx)
                         .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-                    pdag.compute_ordering_and_modules()
+                    let meta = compute_dfs_metadata_pdag(&pdag)
                         .map_err(|e| format!("BDD ordering failed for '{}': {}", seq_id, e))?;
-                    let (bdd, bdd_root) = BddEngine::build_from_pdag(&pdag)
-                        .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+                    let var_probs = pdag.level_var_probs_from_map(&event_probs, &meta.var_of);
+                    let (bdd, bdd_root) =
+                        BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)
+                            .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
                     bdd.probability(bdd_root)
                 } else {
                     0.0

@@ -11,7 +11,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use praxis::algorithms::bdd_engine::Bdd;
-use praxis::algorithms::bdd_pdag::BddPdag;
+use praxis::algorithms::pdag::Pdag;
+use praxis::analysis::width::compute_dfs_metadata_pdag;
 use praxis::core::fault_tree::FaultTree;
 use praxis::core::gate::Formula;
 use praxis::io::parser::parse_fault_tree;
@@ -398,9 +399,10 @@ fn wmc(ft: &FaultTree, cap: usize) -> Option<(f64, usize)> {
 }
 
 fn bdd_prob(ft: &FaultTree) -> Option<f64> {
-    let mut pdag = BddPdag::from_fault_tree(ft).ok()?;
-    pdag.compute_ordering_and_modules().ok()?;
-    let (bdd, root) = Bdd::build_from_pdag(&pdag).ok()?;
+    let pdag = Pdag::from_fault_tree(ft).ok()?;
+    let meta = compute_dfs_metadata_pdag(&pdag).ok()?;
+    let var_probs = pdag.level_var_probs(ft, &meta.var_of).ok()?;
+    let (bdd, root) = Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).ok()?;
     Some(bdd.probability(root))
 }
 

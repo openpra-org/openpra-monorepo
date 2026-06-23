@@ -4,6 +4,8 @@ export type ConvergenceIntervalPolicy = "bayes" | "wald";
 
 export type VariableOrdering = "sift" | "gsift" | "ils";
 
+export type PreprocessNormalization = "none" | "xor" | "atleast" | "all";
+
 export interface QuantificationSettings {
   solver?: SolverTarget;
 
@@ -19,8 +21,15 @@ export interface QuantificationSettings {
 
   primeImplicants?: boolean;
   primeImplicantsTdd?: boolean;
+  primeImplicantsConsensus?: boolean;
   reorder?: VariableOrdering;
   reorderBudgetSeconds?: number;
+  preprocessNormalizeGates?: boolean;
+  preprocessNormalization?: PreprocessNormalization;
+  preprocessFoldConstants?: boolean;
+  preprocessSpliceNullGates?: boolean;
+  preprocessCoalesceGates?: boolean;
+  preprocessDetectModules?: boolean;
   probability?: boolean;
   importance?: boolean;
   uncertainty?: boolean;

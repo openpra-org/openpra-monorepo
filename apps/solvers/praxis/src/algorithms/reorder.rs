@@ -1,10 +1,88 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::algorithms::bdd_pdag::{BddConnective, BddPdag, BddPdagNode, NodeIdx};
+use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
+use crate::analysis::width::compute_dfs_metadata_pdag;
 
 const TRUE: i32 = 1;
 const FALSE: i32 = -1;
+
+#[derive(Clone, Copy)]
+pub(crate) enum RConn {
+    And,
+    Or,
+    Not,
+    Nand,
+    Nor,
+    Xor,
+    Iff,
+    AtLeast,
+    Null,
+}
+
+pub(crate) enum RKind<'a> {
+    Variable,
+    Constant(bool),
+    Gate {
+        conn: RConn,
+        operands: &'a [NodeIndex],
+        min: Option<usize>,
+    },
+}
+
+pub(crate) trait ReorderSource {
+    fn r_variable_order(&self) -> Vec<NodeIndex>;
+    fn r_root(&self) -> Option<NodeIndex>;
+    fn r_global_complement(&self) -> bool;
+    fn r_kind(&self, idx: NodeIndex) -> Option<RKind<'_>>;
+}
+
+fn rconn_from_pdag(c: Connective) -> RConn {
+    match c {
+        Connective::And => RConn::And,
+        Connective::Or => RConn::Or,
+        Connective::Not => RConn::Not,
+        Connective::Nand => RConn::Nand,
+        Connective::Nor => RConn::Nor,
+        Connective::Xor => RConn::Xor,
+        Connective::Iff => RConn::Iff,
+        Connective::AtLeast => RConn::AtLeast,
+        Connective::Null => RConn::Null,
+    }
+}
+
+impl ReorderSource for Pdag {
+    fn r_variable_order(&self) -> Vec<NodeIndex> {
+        compute_dfs_metadata_pdag(self)
+            .map(|m| m.variable_order)
+            .unwrap_or_default()
+    }
+
+    fn r_root(&self) -> Option<NodeIndex> {
+        self.root()
+    }
+
+    fn r_global_complement(&self) -> bool {
+        self.complement()
+    }
+
+    fn r_kind(&self, idx: NodeIndex) -> Option<RKind<'_>> {
+        match self.get_node(idx.abs())? {
+            PdagNode::BasicEvent { .. } => Some(RKind::Variable),
+            PdagNode::Constant { value, .. } => Some(RKind::Constant(*value)),
+            PdagNode::Gate {
+                connective,
+                operands,
+                min_number,
+                ..
+            } => Some(RKind::Gate {
+                conn: rconn_from_pdag(*connective),
+                operands,
+                min: *min_number,
+            }),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReorderMethod {
@@ -264,54 +342,48 @@ impl RBdd {
     }
 }
 
-fn build_pdag(rb: &mut RBdd, pdag: &BddPdag, var_of: &HashMap<NodeIdx, usize>) -> i32 {
-    let root = match pdag.root() {
+fn build_pdag<S: ReorderSource>(rb: &mut RBdd, source: &S, var_of: &HashMap<NodeIndex, usize>) -> i32 {
+    let root = match source.r_root() {
         Some(r) => r,
         None => return TRUE,
     };
-    let mut memo: HashMap<NodeIdx, i32> = HashMap::new();
+    let mut memo: HashMap<NodeIndex, i32> = HashMap::new();
     let mut imemo: HashMap<(i32, i32, i32), i32> = HashMap::new();
-    let r = build_node(rb, pdag, root.abs(), var_of, &mut memo, &mut imemo);
-    if root < 0 {
-        comp(r)
+    let r = build_node(rb, source, root.abs(), var_of, &mut memo, &mut imemo);
+    let out = if root < 0 { comp(r) } else { r };
+    if source.r_global_complement() {
+        comp(out)
     } else {
-        r
+        out
     }
 }
 
-fn build_node(
+fn build_node<S: ReorderSource>(
     rb: &mut RBdd,
-    pdag: &BddPdag,
-    idx: NodeIdx,
-    var_of: &HashMap<NodeIdx, usize>,
-    memo: &mut HashMap<NodeIdx, i32>,
+    source: &S,
+    idx: NodeIndex,
+    var_of: &HashMap<NodeIndex, usize>,
+    memo: &mut HashMap<NodeIndex, i32>,
     imemo: &mut HashMap<(i32, i32, i32), i32>,
 ) -> i32 {
     let a = idx.abs();
     if let Some(&r) = memo.get(&a) {
         return r;
     }
-    let r = match pdag.node(a) {
-        Some(BddPdagNode::Variable { .. }) => rb.make(var_of[&a], TRUE, FALSE),
-        Some(BddPdagNode::Constant { value, .. }) => {
-            if *value {
+    let r = match source.r_kind(a) {
+        Some(RKind::Variable) => rb.make(var_of[&a], TRUE, FALSE),
+        Some(RKind::Constant(value)) => {
+            if value {
                 TRUE
             } else {
                 FALSE
             }
         }
-        Some(BddPdagNode::Gate {
-            connective,
-            operands,
-            min_number,
-            ..
-        }) => {
-            let conn = *connective;
-            let min = *min_number;
-            let ops = operands.clone();
+        Some(RKind::Gate { conn, operands, min }) => {
+            let ops = operands.to_vec();
             let mut kids = Vec::with_capacity(ops.len());
             for op in &ops {
-                let c = build_node(rb, pdag, op.abs(), var_of, memo, imemo);
+                let c = build_node(rb, source, op.abs(), var_of, memo, imemo);
                 kids.push(if *op < 0 { comp(c) } else { c });
             }
             combine(rb, conn, &kids, min, imemo)
@@ -324,49 +396,49 @@ fn build_node(
 
 fn combine(
     rb: &mut RBdd,
-    conn: BddConnective,
+    conn: RConn,
     kids: &[i32],
     min: Option<usize>,
     imemo: &mut HashMap<(i32, i32, i32), i32>,
 ) -> i32 {
     match conn {
-        BddConnective::And => {
+        RConn::And => {
             let mut acc = TRUE;
             for &c in kids {
                 acc = rb.and(acc, c, imemo);
             }
             acc
         }
-        BddConnective::Or => {
+        RConn::Or => {
             let mut acc = FALSE;
             for &c in kids {
                 acc = rb.or(acc, c, imemo);
             }
             acc
         }
-        BddConnective::Not => kids.first().map(|&c| comp(c)).unwrap_or(FALSE),
-        BddConnective::Nand => {
+        RConn::Not => kids.first().map(|&c| comp(c)).unwrap_or(FALSE),
+        RConn::Nand => {
             let mut acc = TRUE;
             for &c in kids {
                 acc = rb.and(acc, c, imemo);
             }
             comp(acc)
         }
-        BddConnective::Nor => {
+        RConn::Nor => {
             let mut acc = FALSE;
             for &c in kids {
                 acc = rb.or(acc, c, imemo);
             }
             comp(acc)
         }
-        BddConnective::Xor => {
+        RConn::Xor => {
             let mut acc = FALSE;
             for &c in kids {
                 acc = rb.ite(acc, comp(c), c, imemo);
             }
             acc
         }
-        BddConnective::Iff => {
+        RConn::Iff => {
             let mut at = TRUE;
             let mut af = TRUE;
             for &c in kids {
@@ -375,7 +447,8 @@ fn combine(
             }
             rb.or(at, af, imemo)
         }
-        BddConnective::AtLeast => atleast(rb, kids, min.unwrap_or(1), imemo),
+        RConn::AtLeast => atleast(rb, kids, min.unwrap_or(1), imemo),
+        RConn::Null => kids.first().copied().unwrap_or(TRUE),
     }
 }
 
@@ -564,19 +637,23 @@ fn ils_swap(rb: &mut RBdd, mut root: i32, deadline: Instant) {
     }
 }
 
-pub fn best_order(pdag: &BddPdag, method: ReorderMethod, budget: Duration) -> Vec<NodeIdx> {
-    let seed = pdag.variable_order().to_vec();
+pub(crate) fn best_order<S: ReorderSource>(
+    source: &S,
+    method: ReorderMethod,
+    budget: Duration,
+) -> Vec<NodeIndex> {
+    let seed = source.r_variable_order();
     let n = seed.len();
     if n < 2 {
         return seed;
     }
     let deadline = Instant::now() + budget;
-    let mut var_of: HashMap<NodeIdx, usize> = HashMap::new();
+    let mut var_of: HashMap<NodeIndex, usize> = HashMap::new();
     for (pos, &idx) in seed.iter().enumerate() {
         var_of.insert(idx.abs(), pos);
     }
     let mut rb = RBdd::new(n, deadline);
-    let root = build_pdag(&mut rb, pdag, &var_of);
+    let root = build_pdag(&mut rb, source, &var_of);
     if rb.aborted {
         return seed;
     }
@@ -598,34 +675,49 @@ pub fn best_order(pdag: &BddPdag, method: ReorderMethod, budget: Duration) -> Ve
 mod tests {
     use super::*;
     use crate::algorithms::bdd_engine::Bdd;
-    use crate::algorithms::bdd_pdag::BddPdag;
+    use crate::core::event::BasicEvent;
+    use crate::core::fault_tree::FaultTree;
+    use crate::core::gate::{Formula, Gate};
 
-    fn sample_pdag() -> BddPdag {
-        let mut p = BddPdag::new();
-        let a = p.add_variable("a".to_string(), 0.1);
-        let b = p.add_variable("b".to_string(), 0.2);
-        let c = p.add_variable("c".to_string(), 0.3);
-        let d = p.add_variable("d".to_string(), 0.15);
-        let e = p.add_variable("e".to_string(), 0.25);
-        let f = p.add_variable("f".to_string(), 0.05);
-        let g1 = p
-            .add_gate("g1".to_string(), BddConnective::And, vec![a, b], None)
-            .unwrap();
-        let g2 = p
-            .add_gate("g2".to_string(), BddConnective::And, vec![c, d], None)
-            .unwrap();
-        let g3 = p
-            .add_gate("g3".to_string(), BddConnective::And, vec![e, f], None)
-            .unwrap();
-        let top = p
-            .add_gate("top".to_string(), BddConnective::Or, vec![g1, g2, g3], None)
-            .unwrap();
-        p.set_root(top).unwrap();
-        p.compute_ordering_and_modules().unwrap();
-        p
+    fn sample_ft() -> FaultTree {
+        let mut ft = FaultTree::new("FT", "top").unwrap();
+        let mut top = Gate::new("top".to_string(), Formula::Or).unwrap();
+        for g in ["g1", "g2", "g3"] {
+            top.add_operand(g.to_string());
+        }
+        ft.add_gate(top).unwrap();
+        for (g, x, y) in [("g1", "a", "b"), ("g2", "c", "d"), ("g3", "e", "f")] {
+            let mut gate = Gate::new(g.to_string(), Formula::And).unwrap();
+            gate.add_operand(x.to_string());
+            gate.add_operand(y.to_string());
+            ft.add_gate(gate).unwrap();
+        }
+        for (e, p) in [
+            ("a", 0.1),
+            ("b", 0.2),
+            ("c", 0.3),
+            ("d", 0.15),
+            ("e", 0.25),
+            ("f", 0.05),
+        ] {
+            ft.add_basic_event(BasicEvent::new(e.to_string(), p).unwrap())
+                .unwrap();
+        }
+        ft
     }
 
-    fn is_permutation(seed: &[NodeIdx], got: &[NodeIdx]) -> bool {
+    fn prob_with_order(pdag: &Pdag, ft: &FaultTree, order: &[NodeIndex]) -> f64 {
+        let mut var_of: HashMap<NodeIndex, usize> = HashMap::new();
+        for (pos, &idx) in order.iter().enumerate() {
+            var_of.insert(idx.abs(), pos);
+        }
+        let var_probs = pdag.level_var_probs(ft, &var_of).unwrap();
+        let (bdd, root) =
+            Bdd::from_pdag_with_order_and_probs(pdag, &var_of, var_probs).unwrap();
+        bdd.probability(root)
+    }
+
+    fn is_permutation(seed: &[NodeIndex], got: &[NodeIndex]) -> bool {
         let mut a = seed.to_vec();
         let mut b = got.to_vec();
         a.sort();
@@ -636,17 +728,15 @@ mod tests {
     #[test]
     fn best_order_permutes_and_preserves_function() {
         for method in [ReorderMethod::Sift, ReorderMethod::Gsift, ReorderMethod::Ils] {
-            let mut pdag = sample_pdag();
-            let seed = pdag.variable_order().to_vec();
-            let (b0, r0) = Bdd::build_from_pdag(&pdag).unwrap();
-            let p0 = b0.probability(r0);
+            let ft = sample_ft();
+            let pdag = Pdag::from_fault_tree(&ft).unwrap();
+            let seed = compute_dfs_metadata_pdag(&pdag).unwrap().variable_order;
+            let p0 = prob_with_order(&pdag, &ft, &seed);
 
             let order = best_order(&pdag, method, Duration::from_millis(150));
             assert!(is_permutation(&seed, &order), "{:?} not a permutation", method);
 
-            pdag.set_variable_order(order);
-            let (b1, r1) = Bdd::build_from_pdag(&pdag).unwrap();
-            let p1 = b1.probability(r1);
+            let p1 = prob_with_order(&pdag, &ft, &order);
             assert!(
                 (p0 - p1).abs() < 1e-12,
                 "{:?} changed probability: {} vs {}",
@@ -659,11 +749,10 @@ mod tests {
 
     #[test]
     fn best_order_trivial_when_few_variables() {
-        let mut p = BddPdag::new();
-        let a = p.add_variable("a".to_string(), 0.1);
+        let mut p = Pdag::new();
+        let a = p.add_basic_event("a".to_string());
         p.set_root(a).unwrap();
-        p.compute_ordering_and_modules().unwrap();
-        let seed = p.variable_order().to_vec();
+        let seed = compute_dfs_metadata_pdag(&p).unwrap().variable_order;
         let order = best_order(&p, ReorderMethod::Sift, Duration::from_millis(50));
         assert_eq!(order, seed);
     }

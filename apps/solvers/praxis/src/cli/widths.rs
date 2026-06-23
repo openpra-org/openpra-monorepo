@@ -5,7 +5,7 @@ use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
 use quick_xml::Writer;
 
 use crate::cli::args::Args;
-use praxis::algorithms::bdd_pdag::BddPdag;
+use praxis::algorithms::pdag::Pdag;
 use praxis::analysis::width::{
     compute_widths, ModuleKind, ModuleWidthReport, WidthOptions, WidthReport, WidthsReport,
 };
@@ -23,14 +23,13 @@ pub fn run_widths_only(
         eprintln!("Building PDAG from fault tree: {}", fault_tree.element().id());
     }
 
-    let mut pdag = BddPdag::from_fault_tree(fault_tree)?;
-    pdag.compute_ordering_and_modules()?;
+    let pdag = Pdag::from_fault_tree(fault_tree)?;
 
     if verbose {
+        let stats = pdag.stats();
         eprintln!(
             "PDAG: {} basic events, {} gates",
-            pdag.num_variables(),
-            pdag.num_gates()
+            stats.num_basic_events, stats.num_gates
         );
         if compute_treewidth {
             eprintln!("Computing greedy min-fill treewidth upper bound...");

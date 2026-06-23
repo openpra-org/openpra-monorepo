@@ -84,7 +84,8 @@ pub fn probability_vectored(bdd: &Bdd, root: BddRef, columns: &[Vec<f64>], n: us
 mod tests {
     use super::*;
     use crate::algorithms::bdd_engine::Bdd;
-    use crate::algorithms::bdd_pdag::BddPdag;
+    use crate::algorithms::pdag::Pdag;
+    use crate::analysis::width::compute_dfs_metadata_pdag;
     use crate::core::event::BasicEvent;
     use crate::core::fault_tree::FaultTree;
     use crate::core::gate::{Formula, Gate};
@@ -103,9 +104,10 @@ mod tests {
     }
 
     fn build(ft: &FaultTree) -> (Bdd, BddRef) {
-        let mut pdag = BddPdag::from_fault_tree(ft).unwrap();
-        pdag.compute_ordering_and_modules().unwrap();
-        Bdd::build_from_pdag(&pdag).unwrap()
+        let pdag = Pdag::from_fault_tree(ft).unwrap();
+        let meta = compute_dfs_metadata_pdag(&pdag).unwrap();
+        let var_probs = pdag.level_var_probs(ft, &meta.var_of).unwrap();
+        Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs).unwrap()
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { JSX, useMemo, useState } from "react";
+import { JSX, useMemo, useState, useEffect } from "react";
 import {
   InitiatingEventCategory,
   type InitiatorDefinition,
@@ -16,6 +16,13 @@ import { type CcScore } from "./ieSelectors";
 import { FaultTreeEditor } from "../newly-developed-methods/fault-tree/faultTreeEditor";
 import { type FtInputNode } from "../newly-developed-methods/fault-tree/faultTreeTypes";
 import { mldToFaultTree, hbftToFaultTree } from "./faultTreeAdapters";
+import { WorksheetEditor } from "../newly-developed-methods/worksheet/worksheetEditor";
+import { PhaEditor } from "../newly-developed-methods/process-hazard-analysis/phaEditor";
+import { OperatingExperienceEditor } from "../newly-developed-methods/operating-experience/operatingExperienceEditor";
+import { GenericCatalogueEditor } from "../newly-developed-methods/generic-catalogue/genericCatalogueEditor";
+import { buildWorksheetModel, buildPhaModel, buildOeModel, buildCatalogueModel } from "./methodEditorAdapters";
+
+const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
 
 function freqValue(f: Frequency | FrequencyWithDistribution): number {
   return typeof f === "number" ? f : f.value;
@@ -475,6 +482,47 @@ function MethodsScreen(): JSX.Element {
     if (openMethod.id === "HBFT") return hbftToFaultTree(ie.heatBalanceFaultTrees ?? []);
     return [];
   }, [openMethod, ie.masterLogicDiagrams, ie.heatBalanceFaultTrees]);
+  const worksheetModel = useMemo(
+    () => buildWorksheetModel((ie.failureModesAnalyses ?? [])[0], (ie.hazardOperabilityStudies ?? [])[0]),
+    [ie.failureModesAnalyses, ie.hazardOperabilityStudies],
+  );
+  const phaModel = useMemo(() => {
+    const pha = (ie.processHazardAnalyses ?? [])[0];
+    return pha !== undefined ? buildPhaModel(pha, ie.failureModesAnalyses ?? [], ie.hazardOperabilityStudies ?? []) : null;
+  }, [ie.processHazardAnalyses, ie.failureModesAnalyses, ie.hazardOperabilityStudies]);
+  const oeModel = useMemo(() => {
+    const oe = (ie.operatingExperienceReviews ?? [])[0];
+    return oe !== undefined ? buildOeModel(oe) : null;
+  }, [ie.operatingExperienceReviews]);
+  const catModel = useMemo(() => {
+    const cat = (ie.genericInitiatorCatalogues ?? [])[0];
+    return cat !== undefined ? buildCatalogueModel(cat) : null;
+  }, [ie.genericInitiatorCatalogues]);
+  useEffect(() => {
+    if (openMethod === null) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [openMethod]);
+  const renderEditor = (): JSX.Element | null => {
+    if (openMethod === null) return null;
+    switch (openMethod.id) {
+      case "MLD":
+      case "HBFT":
+        return <FaultTreeEditor key={openMethod.id} nodes={ftNodes} flavor={openMethod.id === "HBFT" ? "heat" : "logic"} />;
+      case "FMEA":
+      case "HAZOP":
+        return <WorksheetEditor key={openMethod.id} model={worksheetModel} mode={openMethod.id === "HAZOP" ? "hazop" : "fmea"} />;
+      case "PHA":
+        return phaModel !== null ? <PhaEditor model={phaModel} /> : <div className="iee-empty">No process-hazard-analysis record yet.</div>;
+      case "OEREV":
+        return oeModel !== null ? <OperatingExperienceEditor model={oeModel} /> : <div className="iee-empty">No operating-experience review recorded yet.</div>;
+      case "GENLIST":
+        return catModel !== null ? <GenericCatalogueEditor model={catModel} /> : <div className="iee-empty">No generic catalogue recorded yet.</div>;
+      default:
+        return null;
+    }
+  };
   return (
     <>
       <div className="poscard">
@@ -484,7 +532,7 @@ function MethodsScreen(): JSX.Element {
             {methods.map((m) => {
               const Ico = IEIcon[methodSpec(m.id).icon as keyof typeof IEIcon] ?? IEIcon.Network;
               const count = ie.initiators.filter((i) => i.identificationMethodIds.includes(m.id)).length;
-              const hasEditor = m.id === "MLD" || m.id === "HBFT";
+              const hasEditor = EDITOR_METHOD_IDS.has(m.id);
               return (
                 <div key={m.id} className="iemethod">
                   <div className="iemethod__head">
@@ -542,7 +590,7 @@ function MethodsScreen(): JSX.Element {
             </div>
           </div>
           <div className="ftspace__body">
-            <FaultTreeEditor key={openMethod.id} nodes={ftNodes} flavor={openMethod.id === "HBFT" ? "heat" : "logic"} />
+            {renderEditor()}
           </div>
         </div>
       )}

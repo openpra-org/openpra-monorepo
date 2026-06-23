@@ -1,0 +1,230 @@
+.iee {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  background: var(--color-surface);
+}
+
+.iee__result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+.iee__sep {
+  width: 1px;
+  height: 26px;
+  background: var(--color-border);
+}
+.iee__spacer {
+  flex: 1;
+}
+.iee__metric {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.iee__val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.iee__cap {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+.iee__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.iee__btn:hover {
+  border-color: var(--color-primary);
+}
+.iee__btn--primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.iee__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.pha__frame {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-low);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pha__chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.pha__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.pha__label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+.pha__scope {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text);
+  background: var(--color-surface);
+  resize: vertical;
+}
+.pha__scope:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+.pha__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.pha__chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.pha__chip--ie {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 700;
+  background: var(--color-primary-soft);
+  border-color: transparent;
+  color: var(--color-primary);
+}
+.pha__chip--muted {
+  color: var(--color-text-subtle);
+}
+
+.iee-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.iee-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  background: var(--color-surface-low);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.iee-grid td {
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+}
+.iee-grid__rownum {
+  width: 34px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-subtle);
+  padding: 9px 0 !important;
+  vertical-align: top;
+}
+.iee-grid__delcol {
+  width: 38px;
+  text-align: center;
+  vertical-align: middle !important;
+}
+
+.iee-cell {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text);
+  padding: 9px 12px;
+  outline: none;
+}
+.iee-cell:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background: var(--color-surface);
+}
+.iee-cell--mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+}
+
+.iee-grid__del {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-subtle);
+  padding: 6px;
+  border-radius: 6px;
+}
+.iee-grid__del:hover {
+  color: var(--color-error);
+  background: rgba(186, 26, 26, 0.08);
+}
+
+.iee__footbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-low);
+}
+.iee__note {
+  font-size: 11.5px;
+  color: var(--color-text-subtle);
+  line-height: 1.4;
+}

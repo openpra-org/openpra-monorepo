@@ -24,7 +24,15 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
-import { MasterLogicDiagramSchema, HeatBalanceFaultTreeSchema, FailureModesEffectAnalysisSchema } from "../cross-cutting/methods/methods";
+import {
+  MasterLogicDiagramSchema,
+  HeatBalanceFaultTreeSchema,
+  FailureModesEffectAnalysisSchema,
+  HazardOperabilityStudySchema,
+  ProcessHazardAnalysisSchema,
+  OperatingExperienceReviewSchema,
+  GenericInitiatorCatalogueSchema,
+} from "../cross-cutting/methods/methods";
 
 export const InitiatingEventCategorySchema = z.enum(InitiatingEventCategory);
 export const ModuleImpactStateSchema = z.enum(ModuleImpactState);
@@ -297,6 +305,10 @@ export const InitiatingEventsAnalysisSchema = z.object({
   masterLogicDiagrams: z.array(MasterLogicDiagramSchema).optional(),
   heatBalanceFaultTrees: z.array(HeatBalanceFaultTreeSchema).optional(),
   failureModesAnalyses: z.array(FailureModesEffectAnalysisSchema).optional(),
+  hazardOperabilityStudies: z.array(HazardOperabilityStudySchema).optional(),
+  processHazardAnalyses: z.array(ProcessHazardAnalysisSchema).optional(),
+  operatingExperienceReviews: z.array(OperatingExperienceReviewSchema).optional(),
+  genericInitiatorCatalogues: z.array(GenericInitiatorCatalogueSchema).optional(),
   initiators: z.array(InitiatorDefinitionSchema),
   hazardInducedInitiators: z.array(HazardInducedInitiatorSchema).optional(),
   initiatingEventGroups: z.array(InitiatingEventGroupSchema),

@@ -7,6 +7,10 @@ import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import { MasterLogicDiagram } from "../cross-cutting/methods/master-logic-diagram";
 import { HeatBalanceFaultTree } from "../cross-cutting/methods/heat-balance-fault-tree";
 import { FailureModesEffectAnalysis } from "../cross-cutting/methods/fmea";
+import { HazardOperabilityStudy } from "../cross-cutting/methods/hazop";
+import { ProcessHazardAnalysis } from "../cross-cutting/methods/process-hazard-analysis";
+import { OperatingExperienceReview } from "../cross-cutting/methods/operating-experience-review";
+import { GenericInitiatorCatalogue } from "../cross-cutting/methods/generic-initiator-catalogue";
 
 export type PlantOperatingStateReference = string;
 export type SafetyFunctionReference = string;
@@ -279,6 +283,11 @@ export interface InitiatingEventsAnalysis
   masterLogicDiagrams?: MasterLogicDiagram[];
   heatBalanceFaultTrees?: HeatBalanceFaultTree[];
   failureModesAnalyses?: FailureModesEffectAnalysis[];
+  // Search-method editor datasets: HAZOP, process hazard analysis, operating-experience review, generic initiator catalogue
+  hazardOperabilityStudies?: HazardOperabilityStudy[];
+  processHazardAnalyses?: ProcessHazardAnalysis[];
+  operatingExperienceReviews?: OperatingExperienceReview[];
+  genericInitiatorCatalogues?: GenericInitiatorCatalogue[];
 
   initiators: InitiatorDefinition[];
   hazardInducedInitiators?: HazardInducedInitiator[];

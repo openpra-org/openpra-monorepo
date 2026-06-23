@@ -1,6 +1,13 @@
 import { Unique, Named } from "../../core/meta";
 
-export type MethodKind = "MASTER_LOGIC_DIAGRAM" | "HEAT_BALANCE_FAULT_TREE" | "FMEA";
+export type MethodKind =
+  | "MASTER_LOGIC_DIAGRAM"
+  | "HEAT_BALANCE_FAULT_TREE"
+  | "FMEA"
+  | "HAZARD_OPERABILITY_STUDY"
+  | "PROCESS_HAZARD_ANALYSIS"
+  | "OPERATING_EXPERIENCE_REVIEW"
+  | "GENERIC_INITIATOR_CATALOGUE";
 
 export interface MethodBase extends Unique, Named {
   methodKind: MethodKind;

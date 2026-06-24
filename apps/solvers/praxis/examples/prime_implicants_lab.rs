@@ -6,7 +6,6 @@ use std::time::Instant;
 use praxis::algorithms::bdd_engine::{Bdd, BddRef};
 use praxis::algorithms::ordering::{basic_events, force_order};
 use praxis::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
-use praxis::algorithms::preprocessor::Preprocessor;
 use praxis::analysis::labelled_zbdd;
 use praxis::analysis::ternary_dd;
 use praxis::io::parser::parse_fault_tree;
@@ -14,10 +13,7 @@ use praxis::io::parser::parse_fault_tree;
 fn load_pre(path: &str) -> Option<Pdag> {
     let text = fs::read_to_string(Path::new(path)).ok()?;
     let ft = parse_fault_tree(&text).ok()?;
-    let pdag = Pdag::from_fault_tree(&ft).ok()?;
-    let mut pp = Preprocessor::new(pdag);
-    pp.run().ok()?;
-    Some(pp.into_pdag())
+    Pdag::from_fault_tree(&ft).ok()
 }
 
 fn reachable_count(bdd: &Bdd, f: BddRef) -> usize {
@@ -128,12 +124,7 @@ fn run_diag(path: &str) {
         Some((n, r, k)) => println!("{:<14} RAW (no preprocess):  vars={} reach={} root={}", name, n, r, k),
         None => println!("{:<14} RAW build failed", name),
     }
-    let mut pp = Preprocessor::new(raw);
-    if pp.run().is_err() {
-        println!("{:<14} preprocess error", name);
-        return;
-    }
-    let pre = pp.into_pdag();
+    let pre = raw;
     match build_natural(&pre) {
         Some((n, r, k)) => println!("{:<14} PREPROCESSED:        vars={} reach={} root={}", name, n, r, k),
         None => println!("{:<14} PREPROCESSED build failed", name),
@@ -320,12 +311,7 @@ fn run_extract(path: &str) {
             return;
         }
     };
-    let mut pp = Preprocessor::new(pdag);
-    if pp.run().is_err() {
-        println!("{} preprocess error", name);
-        return;
-    }
-    let pre = pp.into_pdag();
+    let pre = pdag;
     let events = basic_events(&pre);
     let n = events.len();
     let order = force_order(&pre);

@@ -1,7 +1,4 @@
-use crate::algorithms::bdd_engine::Bdd;
 use crate::algorithms::mocus::CutSet;
-use crate::algorithms::pdag::Pdag;
-use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::event::BasicEvent;
 use crate::error::{PraxisError, Result};
 use serde::{Deserialize, Serialize};
@@ -140,22 +137,23 @@ impl<'a> ImportanceAnalysis<'a> {
         event_id: &str,
         override_probability: f64,
     ) -> Result<f64> {
-        let pdag = Pdag::from_fault_tree(self.fault_tree)?;
-        let meta = compute_dfs_metadata_pdag(&pdag)?;
-        let var_probs = pdag.level_var_probs(self.fault_tree, &meta.var_of)?;
-        let (mut bdd, root) =
-            Bdd::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)?;
+        let built = crate::algorithms::build::build_bdd(
+            self.fault_tree,
+            crate::algorithms::build::BuildOptions::default(),
+        )?;
+        let mut bdd = built.bdd;
 
-        if let Some(var) = pdag
+        if let Some(var) = built
+            .pdag
             .get_index(event_id)
-            .and_then(|idx| meta.var_of.get(&idx).copied())
+            .and_then(|idx| built.var_of.get(&idx).copied())
         {
             let mut probs = bdd.var_probs().to_vec();
             probs[var] = override_probability;
             bdd.set_var_probs(probs);
         }
 
-        Ok(bdd.probability(root))
+        Ok(bdd.probability(built.root))
     }
 
     pub fn compute_fussell_vesely_from_cutsets(

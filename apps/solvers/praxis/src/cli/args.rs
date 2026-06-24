@@ -84,6 +84,9 @@ pub struct Args {
     #[arg(long = "widths-only", help = "Skip quantification; compute structural width metrics only and exit")]
     pub widths_only: bool,
 
+    #[arg(long = "simplify-house-events", help = "Before building, fold constant/house-event leaves and splice NULL/NOT gates (optional; the BDD handles these natively, so results are unchanged)")]
+    pub simplify_house_events: bool,
+
     #[arg(long = "early-stop")]
     pub early_stop: bool,
 

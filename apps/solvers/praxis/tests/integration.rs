@@ -6,8 +6,6 @@ mod cut_set_output;
 mod cut_set_xml_output;
 #[path = "integration/algorithms/pdag_integration.rs"]
 mod pdag_integration;
-#[path = "integration/algorithms/preprocessor_integration.rs"]
-mod preprocessor_integration;
 #[path = "integration/algorithms/zbdd_integration.rs"]
 mod zbdd_integration;
 
@@ -42,9 +40,6 @@ mod cli_test;
 mod cli_xml_output_shape;
 #[path = "integration/cli/cli_importance_output.rs"]
 mod cli_importance_output;
-
-#[path = "integration/boolean/quantify_boolean.rs"]
-mod quantify_boolean;
 
 #[path = "integration/core/ccf_integration.rs"]
 mod ccf_integration;

@@ -1147,7 +1147,7 @@ impl<'a> DpMonteCarloAnalysis<'a> {
 
     fn build_dpmc(&self, params: RunParams) -> Result<BuiltDpmc> {
         let mut pdag = Pdag::from_fault_tree(self.fault_tree)?;
-        crate::mc::preprocess::preprocess_for_mc(&mut pdag)?;
+        crate::algorithms::simplify::splice_null_and_not(&mut pdag)?;
 
         let plan = DpMcPlan::from_pdag(&pdag, params)?;
         let soa = GpuSoaPlan::from_plan(&plan)?;

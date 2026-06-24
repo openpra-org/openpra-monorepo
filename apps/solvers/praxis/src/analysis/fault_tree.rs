@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::algorithms::bdd_engine::Bdd as BddEngine;
 use crate::algorithms::mocus::CutSet;
-use crate::algorithms::pdag::Pdag;
-use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::Result;
 
@@ -27,12 +24,12 @@ impl<'a> FaultTreeAnalysis<'a> {
     }
 
     pub fn analyze(&self) -> Result<AnalysisResult> {
-        let pdag = Pdag::from_fault_tree(self.fault_tree)?;
-        let meta = compute_dfs_metadata_pdag(&pdag)?;
-        let var_probs = pdag.level_var_probs(self.fault_tree, &meta.var_of)?;
-        let (mut bdd_engine, root) =
-            BddEngine::from_pdag_with_order_and_probs(&pdag, &meta.var_of, var_probs)?;
-        let top_probability = bdd_engine.probability(root);
+        let built = crate::algorithms::build::build_bdd(
+            self.fault_tree,
+            crate::algorithms::build::BuildOptions::default(),
+        )?;
+        let mut bdd_engine = built.bdd;
+        let top_probability = bdd_engine.probability(built.root);
         bdd_engine.freeze();
 
         Ok(AnalysisResult {

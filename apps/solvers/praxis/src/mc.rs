@@ -11,7 +11,6 @@ pub mod memory;
 pub mod packed_gate;
 pub mod philox;
 pub mod plan;
-pub mod preprocess;
 pub mod prng;
 pub mod rng_harness;
 pub mod scheduler;

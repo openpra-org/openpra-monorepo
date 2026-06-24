@@ -14,9 +14,7 @@
       "interfaces-shared-types": ["apps/interfaces/shared-types/index.ts"],
       "interfaces-shared-types/*": ["apps/interfaces/shared-types/*"],
       "interfaces-mef-types": ["apps/interfaces/mef-types/index.ts"],
-      "interfaces-mef-types/*": ["apps/interfaces/mef-types/*"],
-      "interfaces-solvers": ["apps/interfaces/solvers/index.ts"],
-      "interfaces-solvers/*": ["apps/interfaces/solvers/*"]
+      "interfaces-mef-types/*": ["apps/interfaces/mef-types/*"]
     },
     "types": ["jest", "node", "@types/jest"],
     "strictNullChecks": true,

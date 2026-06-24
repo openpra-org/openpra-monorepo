@@ -5,6 +5,7 @@ pub mod sequence_formula;
 pub mod importance;
 pub mod labelled_zbdd;
 pub mod prime_implicants;
+pub mod quantify;
 pub mod settings;
 pub mod sil;
 pub mod ternary_dd;

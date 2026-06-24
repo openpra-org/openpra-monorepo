@@ -14,7 +14,7 @@ use crate::mc::gpu_soa::GpuSoaPlan;
 use crate::mc::packed_gate::eval_gate_word;
 use crate::mc::philox::{philox4x32_10, Philox4x32Key};
 use crate::mc::plan::{choose_run_params_for_num_trials, DpMcPlan, RunParams};
-use crate::mc::preprocess::preprocess_for_mc;
+use crate::algorithms::simplify::splice_null_and_not;
 use crate::mc::tally::effective_bits_per_iteration;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -188,7 +188,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         }
 
         make_root_reach_everything(&mut pdag, &ft_root_nodes, ie_node, &fe_node_by_id)?;
-        preprocess_for_mc(&mut pdag)?;
+        splice_null_and_not(&mut pdag)?;
 
         Ok(CompiledEventTreePdagV1 {
             version: "et-mc-pdag-v1".to_string(),
@@ -651,7 +651,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
 
         make_root_reach_everything(&mut pdag, &ft_root_nodes, ie_node, &fe_node_by_id)?;
 
-        preprocess_for_mc(&mut pdag)?;
+        splice_null_and_not(&mut pdag)?;
 
         let plan = DpMcPlan::from_pdag(&pdag, self.run)?;
         let soa = GpuSoaPlan::from_plan(&plan)?;
@@ -1383,7 +1383,7 @@ impl<'a> DpEventTreeMonteCarloAnalysis<'a> {
         }
 
         make_root_reach_everything(&mut pdag, &ft_root_nodes, ie_node, &fe_node_by_id)?;
-        preprocess_for_mc(&mut pdag)?;
+        splice_null_and_not(&mut pdag)?;
 
         let plan = DpMcPlan::from_pdag(&pdag, self.run)?;
         let soa = GpuSoaPlan::from_plan(&plan)?;

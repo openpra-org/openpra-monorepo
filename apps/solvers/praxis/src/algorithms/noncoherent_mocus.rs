@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::core::fault_tree::FaultTree;
+use crate::Result;
 
 #[derive(Debug, Clone)]
 pub struct SignedCutSet {
@@ -21,13 +22,122 @@ enum Expansion {
     Unsupported,
 }
 
-pub struct NonCoherentMocus<'a> {
-    pdag: &'a Pdag,
+pub struct NonCoherentMocus {
+    pdag: Pdag,
     prob: HashMap<NodeIndex, f64>,
     max_order: Option<usize>,
     cut_off: Option<f64>,
     bound: HashMap<NodeIndex, f64>,
     cut_sets: Vec<Vec<NodeIndex>>,
+}
+
+/// Expand XOR and IFF gates into AND/OR/complement structure in place, so the
+/// consensus cut-set engine (which has no XOR/IFF expansion of its own) sees a
+/// graph built only from connectives it handles natively. Every other connective
+/// (AND, OR, NAND, NOR, NOT, NULL, ATLEAST) is consumed directly by
+/// `gate_expansion`, so only XOR and IFF are rewritten here. Function-preserving.
+fn normalize_xor_iff(pdag: &mut Pdag) -> Result<()> {
+    let mut synth: usize = 0;
+    let targets: Vec<NodeIndex> = pdag
+        .nodes()
+        .iter()
+        .filter_map(|(&idx, node)| match node {
+            PdagNode::Gate {
+                connective: Connective::Xor,
+                ..
+            }
+            | PdagNode::Gate {
+                connective: Connective::Iff,
+                ..
+            } => Some(idx),
+            _ => None,
+        })
+        .collect();
+
+    for index in targets {
+        let (conn, operands) = match pdag.get_node(index) {
+            Some(PdagNode::Gate {
+                connective,
+                operands,
+                ..
+            }) => (*connective, operands.clone()),
+            _ => continue,
+        };
+        match conn {
+            Connective::Xor => normalize_xor_gate(pdag, index, &operands, &mut synth)?,
+            Connective::Iff => normalize_iff_gate(pdag, index, &operands, &mut synth)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn new_synth_gate(
+    pdag: &mut Pdag,
+    synth: &mut usize,
+    connective: Connective,
+    operands: Vec<NodeIndex>,
+) -> Result<NodeIndex> {
+    *synth += 1;
+    let id = format!("_ncpp{}", *synth);
+    pdag.add_gate(id, connective, operands, None)
+}
+
+fn build_xor(pdag: &mut Pdag, synth: &mut usize, operands: &[NodeIndex]) -> Result<NodeIndex> {
+    if operands.len() == 1 {
+        return Ok(operands[0]);
+    }
+    let a = operands[0];
+    let rest = build_xor(pdag, synth, &operands[1..])?;
+    let and1 = new_synth_gate(pdag, synth, Connective::And, vec![a, -rest])?;
+    let and2 = new_synth_gate(pdag, synth, Connective::And, vec![-a, rest])?;
+    new_synth_gate(pdag, synth, Connective::Or, vec![and1, and2])
+}
+
+fn normalize_xor_gate(
+    pdag: &mut Pdag,
+    index: NodeIndex,
+    operands: &[NodeIndex],
+    synth: &mut usize,
+) -> Result<()> {
+    if operands.is_empty() {
+        return Ok(());
+    }
+    if operands.len() == 1 {
+        pdag.update_gate_connective(index, Connective::Null)?;
+        return Ok(());
+    }
+    let a = operands[0];
+    let rest = build_xor(pdag, synth, &operands[1..])?;
+    let and1 = new_synth_gate(pdag, synth, Connective::And, vec![a, -rest])?;
+    let and2 = new_synth_gate(pdag, synth, Connective::And, vec![-a, rest])?;
+    pdag.update_gate_connective(index, Connective::Or)?;
+    pdag.update_gate_operands(index, vec![and1, and2])?;
+    Ok(())
+}
+
+fn normalize_iff_gate(
+    pdag: &mut Pdag,
+    index: NodeIndex,
+    operands: &[NodeIndex],
+    synth: &mut usize,
+) -> Result<()> {
+    if operands.is_empty() {
+        return Ok(());
+    }
+    if operands.len() == 1 {
+        let a = operands[0];
+        pdag.update_gate_connective(index, Connective::Or)?;
+        pdag.update_gate_operands(index, vec![a, -a])?;
+        return Ok(());
+    }
+    let pos = operands.to_vec();
+    let neg: Vec<NodeIndex> = operands.iter().map(|&o| -o).collect();
+    let all_pos = new_synth_gate(pdag, synth, Connective::And, pos)?;
+    let all_neg = new_synth_gate(pdag, synth, Connective::And, neg)?;
+    pdag.update_gate_connective(index, Connective::Or)?;
+    pdag.update_gate_operands(index, vec![all_pos, all_neg])?;
+    Ok(())
 }
 
 fn flip(ops: &[NodeIndex]) -> Vec<NodeIndex> {
@@ -136,10 +246,12 @@ fn combinations(items: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
     out
 }
 
-impl<'a> NonCoherentMocus<'a> {
-    pub fn new(pdag: &'a Pdag, fault_tree: &FaultTree) -> Self {
+impl NonCoherentMocus {
+    pub fn new(pdag: &Pdag, fault_tree: &FaultTree) -> Result<Self> {
+        let mut owned = pdag.clone();
+        normalize_xor_iff(&mut owned)?;
         let mut prob = HashMap::new();
-        for (&idx, node) in pdag.nodes() {
+        for (&idx, node) in owned.nodes() {
             if let PdagNode::BasicEvent { id, .. } = node {
                 let p = fault_tree
                     .get_basic_event(id)
@@ -148,14 +260,14 @@ impl<'a> NonCoherentMocus<'a> {
                 prob.insert(idx, p);
             }
         }
-        Self {
-            pdag,
+        Ok(Self {
+            pdag: owned,
             prob,
             max_order: None,
             cut_off: None,
             bound: HashMap::new(),
             cut_sets: Vec::new(),
-        }
+        })
     }
 
     pub fn with_max_order(mut self, max_order: usize) -> Self {
@@ -544,7 +656,7 @@ mod tests {
     }
 
     fn check_cover(pdag: &Pdag, ft: &FaultTree, events: &[NodeIndex]) -> Vec<SignedCutSet> {
-        let cuts = NonCoherentMocus::new(pdag, ft).analyze();
+        let cuts = NonCoherentMocus::new(pdag, ft).unwrap().analyze();
         for cs in &cuts {
             let mut seen: HashSet<NodeIndex> = HashSet::new();
             for &l in &cs.literals {
@@ -622,10 +734,10 @@ mod tests {
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.1), ("b", 0.2), ("c", 0.3)]);
 
-        let cover = NonCoherentMocus::new(&p, &ft).analyze();
+        let cover = NonCoherentMocus::new(&p, &ft).unwrap().analyze();
         assert_eq!(cover.len(), 2, "structural cover misses the consensus");
 
-        let primes = NonCoherentMocus::new(&p, &ft).analyze_primes();
+        let primes = NonCoherentMocus::new(&p, &ft).unwrap().analyze_primes();
         let as_sets: Vec<Vec<NodeIndex>> = primes
             .iter()
             .map(|c| {
@@ -662,13 +774,13 @@ mod tests {
         let mut bcd = vec![b, c, d];
         bcd.sort();
 
-        let full = NonCoherentMocus::new(&p, &ft).analyze_primes();
+        let full = NonCoherentMocus::new(&p, &ft).unwrap().analyze_primes();
         assert_eq!(full.len(), 1, "unbounded primes must be exactly {{b,c,d}}");
         let mut got = full[0].literals.clone();
         got.sort();
         assert_eq!(got, bcd);
 
-        let limited = NonCoherentMocus::new(&p, &ft)
+        let limited = NonCoherentMocus::new(&p, &ft).unwrap()
             .with_max_order(3)
             .analyze_primes();
         assert_eq!(
@@ -683,7 +795,6 @@ mod tests {
 
     #[test]
     fn stress_full_prime_implicants_match_qm_oracle() {
-        use crate::algorithms::preprocessor::Preprocessor;
         let names = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
         let n = names.len();
         let mut p = Pdag::new();
@@ -769,14 +880,11 @@ mod tests {
             .collect();
         oracle.sort();
 
-        let mut pp = Preprocessor::new(p);
-        pp.run().unwrap();
-        let pre = pp.into_pdag();
         let mut ft = FaultTree::new("FT".to_string(), "top".to_string()).unwrap();
         for nm in &names {
             ft.add_basic_event(BasicEvent::new(nm.to_string(), 0.5).unwrap()).unwrap();
         }
-        let primes = NonCoherentMocus::new(&pre, &ft).analyze_primes();
+        let primes = NonCoherentMocus::new(&p, &ft).unwrap().analyze_primes();
         let mut engine: Vec<String> = primes
             .iter()
             .map(|cs| {
@@ -784,7 +892,7 @@ mod tests {
                     .literals
                     .iter()
                     .map(|&lit| {
-                        let id = pre.get_node(lit.abs()).and_then(|nd| nd.id()).unwrap_or("?").to_string();
+                        let id = p.get_node(lit.abs()).and_then(|nd| nd.id()).unwrap_or("?").to_string();
                         let s = if lit < 0 {
                             format!("~{}", id)
                         } else {
@@ -814,11 +922,11 @@ mod tests {
         let top = p.add_gate("top".to_string(), Connective::Or, vec![g1, b], None).unwrap();
         p.set_root(top).unwrap();
         let ft = ft_with(&[("a", 0.5), ("b", 1e-3)]);
-        let full = NonCoherentMocus::new(&p, &ft).analyze();
-        let truncated = NonCoherentMocus::new(&p, &ft).with_cut_off(1e-2).analyze();
+        let full = NonCoherentMocus::new(&p, &ft).unwrap().analyze();
+        let truncated = NonCoherentMocus::new(&p, &ft).unwrap().with_cut_off(1e-2).analyze();
         assert!(truncated.len() < full.len());
         for cs in &truncated {
-            assert!(NonCoherentMocus::new(&p, &ft).cut_set_probability(cs) >= 1e-2);
+            assert!(NonCoherentMocus::new(&p, &ft).unwrap().cut_set_probability(cs) >= 1e-2);
         }
     }
 }

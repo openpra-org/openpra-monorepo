@@ -1,6 +1,5 @@
 pub mod algorithms;
 pub mod analysis;
-pub mod boolean;
 pub mod core;
 pub mod error;
 pub mod expression;

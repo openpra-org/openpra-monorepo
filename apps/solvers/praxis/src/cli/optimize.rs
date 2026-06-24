@@ -15,7 +15,7 @@ pub fn estimate_fault_tree_nodes(fault_tree: &FaultTree) -> usize {
         Err(_) => return fallback,
     };
 
-    if praxis::mc::preprocess::preprocess_for_mc(&mut pdag).is_err() {
+    if praxis::algorithms::simplify::splice_null_and_not(&mut pdag).is_err() {
         return fallback;
     }
 

@@ -27,6 +27,7 @@ import {
 } from "./ieWorkbookApi";
 import { IeWorkbench, type IeWorkbenchActions } from "./ieWorkbench";
 import { IeWorkbookProvider, type IeWorkbookData } from "./ieWorkbookContext";
+import { useIeMefPatch } from "./useIeMefPatch";
 import { IePosLinkModal } from "./iePosLinkModal";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { type IePersona } from "./ieViewData";
@@ -63,6 +64,7 @@ function IeWorkbookPage(): JSX.Element {
   const [data, setData] = useState<IeWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<IeWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [posLinkOpen, setPosLinkOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
@@ -107,6 +109,14 @@ function IeWorkbookPage(): JSX.Element {
   const updateIe = useCallback((ie: InitiatingEventsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ie }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useIeMefPatch(id ?? "", data?.ie ?? null, handleSaveOk, handleSaveErr);
+  const mutateIe = useCallback((mutator: (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ie: mutator(prev.ie) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const refreshPosLink = useCallback(async (): Promise<void> => {
     if (id === undefined) return;
@@ -170,12 +180,13 @@ function IeWorkbookPage(): JSX.Element {
   }
 
   const workflowState = data.ie.workflowState;
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = (myRoles.includes("preparer") || myRoles.includes("co_preparer")) && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
   const canLink = myRoles.includes("preparer") || myRoles.includes("co_preparer");
 
   return (
-    <IeWorkbookProvider data={data}>
+    <IeWorkbookProvider data={data} editable={editable} mutateIe={mutateIe}>
       <IeWorkbench
         data={data}
         persona={persona}
@@ -212,6 +223,12 @@ function IeWorkbookPage(): JSX.Element {
         )}
         renderRoster={() => (<WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />)}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as IeWorkbookRoleName[])} />}
       {posLinkOpen && (
         <IePosLinkModal

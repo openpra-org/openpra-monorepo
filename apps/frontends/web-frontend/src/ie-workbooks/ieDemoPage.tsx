@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
@@ -81,6 +81,10 @@ function IeDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateIe = useCallback((mutator: (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ie: mutator(prev.ie) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -92,7 +96,7 @@ function IeDemoPage(): JSX.Element {
   const stageLabel = data.ie.plantStage === "OPERATIONAL" ? "Operational" : "Pre-operational";
 
   return (
-    <IeWorkbookProvider data={data}>
+    <IeWorkbookProvider data={data} editable={persona === "preparer"} mutateIe={mutateIe}>
       <IeWorkbench
         data={data}
         persona={persona}

@@ -1,4 +1,4 @@
-import { JSX, useMemo, useState, useEffect } from "react";
+import { JSX, useMemo, useState, useEffect, useRef, useLayoutEffect } from "react";
 import {
   InitiatingEventCategory,
   type InitiatorDefinition,
@@ -8,6 +8,7 @@ import {
   type HazardAnalysis,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type Frequency, type FrequencyWithDistribution } from "interfaces-mef-types/core/events";
+import { ScreeningStatus } from "interfaces-mef-types/core/shared-patterns";
 import { IEIcon } from "./ieIcons";
 import { Badge } from "./ieShared";
 import { useIeWorkbook } from "./ieWorkbookContext";
@@ -55,14 +56,52 @@ const BASIS_LABEL: Record<string, string> = {
   FAULT_TREE: "Fault tree",
 };
 
-function hazardIcon(h: HazardAnalysis): keyof typeof IEIcon {
-  const text = (h.subcategory ?? h.name).toLowerCase();
-  if (text.includes("fire")) return "Flame";
-  if (text.includes("flood")) return "Wave";
-  if (text.includes("seismic") || text.includes("quake") || text.includes("earthquake")) return "Quake";
-  if (h.hazardType === "EXTERNAL") return "Quake";
-  return "Flame";
+function EditCell({ value, onChange, placeholder, mono, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean; rows?: number }): JSX.Element {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [focused, setFocused] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el !== null) {
+      if (focused) {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      } else {
+        el.style.height = "";
+      }
+    }
+  }, [value, focused]);
+  return (
+    <textarea
+      ref={ref}
+      className={`ietbl__cell${mono === true ? " ietbl__cell--mono" : ""}`}
+      rows={rows}
+      value={value}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 }
+
+function nextHazardId(hazards: HazardAnalysis[]): string {
+  let max = 0;
+  for (const h of hazards) {
+    if (h.uuid.startsWith("HAZ-")) {
+      const n = Number(h.uuid.slice(4));
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+  }
+  return `HAZ-${max + 1}`;
+}
+
+const HAZARD_SCREENING_OPTIONS: { value: ScreeningStatus; label: string }[] = [
+  { value: ScreeningStatus.RETAINED, label: "Retained" },
+  { value: ScreeningStatus.SCREENED_OUT, label: "Screened out" },
+  { value: ScreeningStatus.QUALITATIVE_ANALYSIS, label: "Qualitative" },
+  { value: ScreeningStatus.FULL_ANALYSIS, label: "Full analysis" },
+  { value: ScreeningStatus.MERGED, label: "Merged" },
+];
 
 function hazardStatusKind(h: HazardAnalysis): "ok" | "draft" | "warn" {
   if (h.screeningStatus === "SCREENED_OUT") return "draft";
@@ -74,12 +113,6 @@ function hazardStatusLabel(h: HazardAnalysis): string {
   if (h.screeningStatus === "SCREENED_OUT") return "Screened";
   if (h.screeningStatus === "RETAINED") return "Ready";
   return "Draft";
-}
-
-function riskFromBarrier(barrier: string | undefined): { label: string; warn: boolean } {
-  if (barrier === "BREACHED" || barrier === "BYPASSED") return { label: "High", warn: true };
-  if (barrier === "DEGRADED") return { label: "Medium", warn: false };
-  return { label: "Low", warn: false };
 }
 
 function CatIcon({ catId, size = 14 }: { catId: string; size?: number }): JSX.Element {
@@ -598,13 +631,54 @@ function MethodsScreen(): JSX.Element {
   );
 }
 
+function nextInitiatorId(initiators: InitiatorDefinition[]): string {
+  let max = 0;
+  for (const i of initiators) {
+    if (i.uuid.startsWith("IE-")) {
+      const n = Number(i.uuid.slice(3));
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+  }
+  return `IE-${String(max + 1).padStart(2, "0")}`;
+}
+
 function IdentifyScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const initiators = ie.initiators;
   const shown = activeCat !== null ? initiators.filter((i) => i.category === activeCat) : initiators;
   const total = initiators.length;
   const cat = activeCat !== null ? categoryById(activeCat) : undefined;
+
+  const setCategory = (uuid: string, category: InitiatingEventCategory): void => {
+    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.map((i) => (i.uuid === uuid ? { ...i, category } : i)) }));
+  };
+  const renameInitiator = (uuid: string, name: string): void => {
+    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.map((i) => (i.uuid === uuid ? { ...i, name } : i)) }));
+  };
+  const deleteInitiator = (uuid: string): void => {
+    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.filter((i) => i.uuid !== uuid) }));
+  };
+  const addInitiator = (): void => {
+    const category = (activeCat as InitiatingEventCategory | null) ?? InitiatingEventCategory.TRANSIENT;
+    const created: InitiatorDefinition = {
+      uuid: nextInitiatorId(initiators),
+      name: "New initiator",
+      eventType: "INITIATING",
+      frequency: 0,
+      category,
+      applicableStates: [],
+      identificationMethodIds: [],
+      identificationBasis: [],
+      tripParameters: [],
+      mitigatingSystems: [],
+      barrierImpacts: [],
+      challengedSafetyFunctions: [],
+      screeningStatus: ScreeningStatus.RETAINED,
+      implementsSrs: [],
+    };
+    mutateIe((draft) => ({ ...draft, initiators: [...draft.initiators, created] }));
+  };
 
   return (
     <>
@@ -655,11 +729,14 @@ function IdentifyScreen(): JSX.Element {
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">{cat !== undefined ? cat.label : "All initiators"}<span className="possubtle" style={{ fontWeight: 400 }}> · {shown.length}</span></h3>
-          {activeCat !== null && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setActiveCat(null)}>Clear filter</button>}
+          <div className="ieident__head-actions">
+            {activeCat !== null && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setActiveCat(null)}>Clear filter</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInitiator}>+ Add initiator</button>}
+          </div>
         </div>
-        {shown.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No initiators identified yet.</p> : (
+        {shown.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No initiators identified yet.{editable ? " Use Add initiator to start the challenge spectrum." : ""}</p> : (
           <table className="postable">
-            <thead><tr><th>Initiator</th><th>Category</th><th>States</th><th>Barrier</th><th>Disposition</th></tr></thead>
+            <thead><tr><th>Initiator</th><th>Category</th><th>States</th><th>Barrier</th><th>Disposition</th>{editable && <th aria-label="Actions" />}</tr></thead>
             <tbody>
               {shown.map((i) => {
                 const c = categoryById(i.category);
@@ -667,14 +744,25 @@ function IdentifyScreen(): JSX.Element {
                 return (
                   <tr key={i.uuid}>
                     <td>
-                      <div className="postable__name">{i.uuid} · {i.name}</div>
-                      {i.subcategory !== undefined && <span className="postable__name-sub">{i.subcategory}</span>}
+                      <div className="postable__name">
+                        <span className="ieident__id">{i.uuid}</span>
+                        {editable
+                          ? <input className="ieident__name" value={i.name} placeholder="Initiator name" onChange={(e) => renameInitiator(i.uuid, e.target.value)} />
+                          : <span> · {i.name}</span>}
+                      </div>
                       {(i.preOperationalAssumptions ?? []).length > 0 && <span className="poschip" style={{ marginLeft: 6, fontSize: 11, background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
                     </td>
-                    <td><span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span></td>
+                    <td>
+                      {editable
+                        ? <select className="ieident__cat" value={i.category} onChange={(e) => setCategory(i.uuid, e.target.value as InitiatingEventCategory)}>
+                            {INITIATOR_CATEGORIES.map((cc) => <option key={cc.id} value={cc.id}>{cc.label}</option>)}
+                          </select>
+                        : <span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span>}
+                    </td>
                     <td className="mono">{i.applicableStates.length}</td>
                     <td><span className={`poschip${barrier === "INTACT" ? "" : " poschip--warn"}`}>{barrier}</span></td>
                     <td><DispositionChip status={i.screeningStatus} /></td>
+                    {editable && <td><button type="button" className="ieident__del" onClick={() => deleteInitiator(i.uuid)} aria-label="Delete initiator">✕</button></td>}
                   </tr>
                 );
               })}
@@ -686,17 +774,30 @@ function IdentifyScreen(): JSX.Element {
   );
 }
 
+type CompletenessToggleField =
+  | "perSystemSearchPerformed"
+  | "perSupportSystemSearchPerformed"
+  | "radioactiveSourceMechanismsAddressed"
+  | "multiReactorEventsAddressed";
+
 function CompletenessScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const cs = ie.completenessSearch;
   const hazardsInScope = ie.includesNonInternalHazardGroups;
   const categoryTarget = hazardsInScope ? 7 : 5;
-  const checks: { label: string; ok: boolean; icon: string; detail: string; meta: string }[] = [
-    { label: hazardsInScope ? "All seven functional categories covered" : "All in-scope functional categories covered", ok: cs.functionalCategoriesCovered.length >= categoryTarget, icon: COMPLETENESS_CHECK_META[0].icon, detail: hazardsInScope ? COMPLETENESS_CHECK_META[0].detail : "Transient · RCB breach · interfacing · special · human-failure. Internal and external hazards are out of scope, carried by the separate hazard analyses.", meta: `${cs.functionalCategoriesCovered.length} / ${categoryTarget}` },
-    { label: "Per-system search performed", ok: cs.perSystemSearchPerformed, ...COMPLETENESS_CHECK_META[1], meta: COMPLETENESS_CHECK_META[1].meta(cs) },
-    { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed, ...COMPLETENESS_CHECK_META[2], meta: COMPLETENESS_CHECK_META[2].meta(cs) },
-    { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed, ...COMPLETENESS_CHECK_META[3], meta: COMPLETENESS_CHECK_META[3].meta(cs) },
-    { label: "Multi-reactor / shared-source events addressed", ok: cs.multiReactorEventsAddressed, ...COMPLETENESS_CHECK_META[4], meta: COMPLETENESS_CHECK_META[4].meta(cs) },
+  const inScopeCategoryIds = INITIATOR_CATEGORIES
+    .map((c) => c.id)
+    .filter((id) => hazardsInScope || (id !== InitiatingEventCategory.INTERNAL_HAZARD && id !== InitiatingEventCategory.EXTERNAL_HAZARD));
+  const coveredCount = inScopeCategoryIds.filter((id) => ie.initiators.some((i) => i.category === id)).length;
+  const toggleCheck = (field: CompletenessToggleField): void => {
+    mutateIe((draft) => ({ ...draft, completenessSearch: { ...draft.completenessSearch, [field]: !draft.completenessSearch[field] } }));
+  };
+  const checks: { label: string; ok: boolean; icon: string; detail: string; meta: string; field?: CompletenessToggleField }[] = [
+    { label: hazardsInScope ? "All seven functional categories covered" : "All in-scope functional categories covered", ok: coveredCount >= categoryTarget, icon: COMPLETENESS_CHECK_META[0].icon, detail: hazardsInScope ? COMPLETENESS_CHECK_META[0].detail : "Transient · RCB breach · interfacing · special · human-failure. Internal and external hazards are out of scope, carried by the separate hazard analyses.", meta: `${coveredCount} / ${categoryTarget}` },
+    { label: "Per-system search performed", ok: cs.perSystemSearchPerformed, ...COMPLETENESS_CHECK_META[1], meta: COMPLETENESS_CHECK_META[1].meta(cs), field: "perSystemSearchPerformed" },
+    { label: "Per-support-system search performed", ok: cs.perSupportSystemSearchPerformed, ...COMPLETENESS_CHECK_META[2], meta: COMPLETENESS_CHECK_META[2].meta(cs), field: "perSupportSystemSearchPerformed" },
+    { label: "Radioactive-source mechanisms addressed", ok: cs.radioactiveSourceMechanismsAddressed, ...COMPLETENESS_CHECK_META[3], meta: COMPLETENESS_CHECK_META[3].meta(cs), field: "radioactiveSourceMechanismsAddressed" },
+    { label: "Multi-reactor / shared-source events addressed", ok: cs.multiReactorEventsAddressed, ...COMPLETENESS_CHECK_META[4], meta: COMPLETENESS_CHECK_META[4].meta(cs), field: "multiReactorEventsAddressed" },
   ];
   return (
     <>
@@ -708,6 +809,7 @@ function CompletenessScreen(): JSX.Element {
         <div className="iecheck-list">
           {checks.map((c, i) => {
             const Ico = IEIcon[c.icon as keyof typeof IEIcon] ?? IEIcon.Check;
+            const field = c.field;
             return (
               <div key={i} className={`iecheck iecheck--${c.ok ? "ok" : "warn"}`}>
                 <span className="iecheck__icon"><Ico /></span>
@@ -717,9 +819,11 @@ function CompletenessScreen(): JSX.Element {
                 </div>
                 <div className="iecheck__right">
                   {c.meta.length > 0 && <span className="iecheck__meta">{c.meta}</span>}
-                  {c.ok
-                    ? <span className="iecheck__dot iecheck__dot--ok"><IEIcon.Check /></span>
-                    : <span className="iecheck__dot iecheck__dot--warn"><IEIcon.Warn /></span>}
+                  {editable && field !== undefined
+                    ? <button type="button" className={`iecheck__toggle iecheck__toggle--${c.ok ? "ok" : "warn"}`} onClick={() => toggleCheck(field)} aria-pressed={c.ok} title={c.ok ? "Confirmed · click to clear" : "Not confirmed · click to confirm"}>{c.ok ? <IEIcon.Check /> : <IEIcon.Warn />}</button>
+                    : c.ok
+                      ? <span className="iecheck__dot iecheck__dot--ok"><IEIcon.Check /></span>
+                      : <span className="iecheck__dot iecheck__dot--warn"><IEIcon.Warn /></span>}
                 </div>
               </div>
             );
@@ -754,142 +858,254 @@ function CompletenessScreen(): JSX.Element {
 }
 
 function HazardsScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const hazards: HazardAnalysis[] = ie.hazardAnalyses ?? [];
-  const allCombinations = hazards.flatMap((h) =>
-    h.potentialCombinations.map((text) => ({ sourceHazard: h, text }))
-  );
+  const combos = hazards.flatMap((h) => h.potentialCombinations.map((text, idx) => ({ hazardUuid: h.uuid, idx, text })));
+
+  const addHazard = (): void => {
+    const created: HazardAnalysis = {
+      uuid: nextHazardId(hazards),
+      name: "New hazard",
+      description: "",
+      hazardType: "INTERNAL",
+      subcategory: "",
+      severityLevels: [],
+      affectedAreas: [],
+      radionuclideBarrierIds: [],
+      inducingMechanisms: [],
+      inducedInitiatorIds: [],
+      potentialCombinations: [],
+      analysisMethods: [],
+      screeningStatus: ScreeningStatus.RETAINED,
+      screeningBasis: "",
+      implementsSrs: [],
+    };
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: [...(draft.hazardAnalyses ?? []), created] }));
+  };
+  const patchHazard = (uuid: string, patch: Partial<HazardAnalysis>): void => {
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, ...patch } : h)) }));
+  };
+  const deleteHazard = (uuid: string): void => {
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).filter((h) => h.uuid !== uuid) }));
+  };
+  const editCombo = (uuid: string, idx: number, text: string): void => {
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, potentialCombinations: h.potentialCombinations.map((t, j) => (j === idx ? text : t)) } : h)) }));
+  };
+  const moveCombo = (fromUuid: string, idx: number, toUuid: string): void => {
+    mutateIe((draft) => {
+      const hs = draft.hazardAnalyses ?? [];
+      const from = hs.find((h) => h.uuid === fromUuid);
+      if (from === undefined) return draft;
+      const text = from.potentialCombinations[idx];
+      return { ...draft, hazardAnalyses: hs.map((h) => {
+        if (h.uuid === fromUuid) return { ...h, potentialCombinations: h.potentialCombinations.filter((_, j) => j !== idx) };
+        if (h.uuid === toUuid) return { ...h, potentialCombinations: [...h.potentialCombinations, text] };
+        return h;
+      }) };
+    });
+  };
+  const deleteCombo = (uuid: string, idx: number): void => {
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, potentialCombinations: h.potentialCombinations.filter((_, j) => j !== idx) } : h)) }));
+  };
+  const addCombo = (): void => {
+    const first = hazards[0];
+    if (first === undefined) return;
+    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === first.uuid ? { ...h, potentialCombinations: [...h.potentialCombinations, ""] } : h)) }));
+  };
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Hazard analyses</h3><span className="possubtle">IE-A5(e/f)</span></div>
-        <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12).</p>
-        {hazards.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard analyses recorded yet.</p> : (
-          <div className="iehazard-grid">
-            {hazards.map((h) => {
-              const iconName = hazardIcon(h);
-              const Ico = IEIcon[iconName] ?? IEIcon.Flame;
-              const statusKind = hazardStatusKind(h);
-              const statusLabel = hazardStatusLabel(h);
-              return (
-                <div key={h.uuid} className="iehazard">
-                  <div className="iehazard__head">
-                    <span className="iehazard__icon"><Ico /></span>
-                    <div>
-                      <div className="iehazard__name">{h.name}</div>
-                      <div className="iehazard__type">{h.hazardType === "INTERNAL" ? "Internal hazard" : "External hazard"}{h.subcategory.length > 0 ? ` · ${h.subcategory}` : ""}</div>
-                    </div>
-                    <Badge kind={statusKind}>{statusLabel}</Badge>
-                  </div>
-                  <p className="iehazard__basis">{h.screeningBasis}</p>
-                  <div className="iehazard__foot">
-                    {h.inducedInitiatorIds.length > 0 ? (
-                      <div className="posrow posrow--wrap" style={{ gap: 4 }}>
-                        <span className="possubtle" style={{ fontSize: 11.5 }}>Induces</span>
-                        {h.inducedInitiatorIds.map((id) => (
-                          <span key={id} className="poschip poschip--method" style={{ fontSize: 11 }}><IEIcon.Bolt /> {id}</span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="possubtle" style={{ fontSize: 12 }}>No induced initiators</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <div className="poscard__head">
+          <h3 className="poscard__title">Hazard analyses</h3>
+          <div className="ieident__head-actions">
+            <span className="possubtle">IE-A5(e/f)</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHazard}>+ Add hazard</button>}
           </div>
+        </div>
+        <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12).</p>
+        {hazards.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard analyses recorded yet.{editable ? " Use Add hazard to start." : ""}</p> : (
+          <table className="postable ietbl">
+            <thead><tr>
+              <th style={{ width: "18%" }}>Hazard</th><th style={{ width: "9%" }}>Type</th><th style={{ width: "14%" }}>Subcategory</th><th style={{ width: "11%" }}>Screening</th><th>Screening basis</th><th style={{ width: "13%" }}>Induces</th>
+              {editable && <th aria-label="Actions" />}
+            </tr></thead>
+            <tbody>
+              {hazards.map((h) => (
+                <tr key={h.uuid}>
+                  <td>{editable ? <EditCell value={h.name} rows={1} onChange={(v) => patchHazard(h.uuid, { name: v })} /> : <span className="ietbl__text">{h.name}</span>}</td>
+                  <td>{editable ? <select className="ietbl__select" value={h.hazardType} onChange={(e) => patchHazard(h.uuid, { hazardType: e.target.value === "EXTERNAL" ? "EXTERNAL" : "INTERNAL" })}><option value="INTERNAL">Internal</option><option value="EXTERNAL">External</option></select> : <span className="ietbl__text">{h.hazardType === "INTERNAL" ? "Internal" : "External"}</span>}</td>
+                  <td>{editable ? <EditCell value={h.subcategory} rows={1} onChange={(v) => patchHazard(h.uuid, { subcategory: v })} /> : <span className="ietbl__text">{h.subcategory}</span>}</td>
+                  <td>{editable ? <select className="ietbl__select" value={h.screeningStatus} onChange={(e) => patchHazard(h.uuid, { screeningStatus: e.target.value as ScreeningStatus })}>{HAZARD_SCREENING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <Badge kind={hazardStatusKind(h)}>{hazardStatusLabel(h)}</Badge>}</td>
+                  <td>{editable ? <EditCell value={h.screeningBasis} rows={2} onChange={(v) => patchHazard(h.uuid, { screeningBasis: v })} /> : <span className="ietbl__text">{h.screeningBasis}</span>}</td>
+                  <td>{editable ? <EditCell value={h.inducedInitiatorIds.join(", ")} rows={1} mono placeholder="IE-…" onChange={(v) => patchHazard(h.uuid, { inducedInitiatorIds: v.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} /> : <span className="ietbl__chips">{h.inducedInitiatorIds.map((id) => <span key={id} className="poschip">{id}</span>)}</span>}</td>
+                  {editable && <td><button type="button" className="ietbl__del" onClick={() => deleteHazard(h.uuid)} aria-label="Delete hazard">✕</button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {allCombinations.length > 0 && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Hazard combinations</h3>
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Hazard combinations</h3>
+          <div className="ieident__head-actions">
             <Badge kind="warn">IE-A6</Badge>
-          </div>
-          <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6), a frequent completeness gap.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {allCombinations.map((c, i) => {
-              const srcIcon = hazardIcon(c.sourceHazard);
-              const SrcIco = IEIcon[srcIcon] ?? IEIcon.Flame;
-              const [comboName, ...basisParts] = c.text.split("\n");
-              const comboBasis = basisParts.join(" ");
-              return (
-                <div key={i} className="iecombo">
-                  <div className="iecombo__chain">
-                    <span className="iecombo__node">
-                      <span className="iecombo__node-icon"><SrcIco /></span>
-                      {c.sourceHazard.name}
-                    </span>
-                  </div>
-                  <div className="iecombo__body">
-                    <div className="iecombo__name">{comboName}</div>
-                    {comboBasis.length > 0 && <p className="iecombo__basis">{comboBasis}</p>}
-                  </div>
-                </div>
-              );
-            })}
+            {editable && hazards.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCombo}>+ Add combination</button>}
           </div>
         </div>
-      )}
+        <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6), a frequent completeness gap.</p>
+        {combos.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard combinations recorded yet.{editable && hazards.length > 0 ? " Use Add combination to record one." : ""}</p> : (
+          <table className="postable ietbl">
+            <thead><tr><th style={{ width: "26%" }}>Source hazard</th><th>Combination</th>{editable && <th aria-label="Actions" />}</tr></thead>
+            <tbody>
+              {combos.map((c) => (
+                <tr key={`${c.hazardUuid}-${c.idx}`}>
+                  <td>{editable ? <select className="ietbl__select" value={c.hazardUuid} onChange={(e) => moveCombo(c.hazardUuid, c.idx, e.target.value)}>{hazards.map((h) => <option key={h.uuid} value={h.uuid}>{h.name}</option>)}</select> : <span className="ietbl__text">{hazards.find((h) => h.uuid === c.hazardUuid)?.name ?? c.hazardUuid}</span>}</td>
+                  <td>{editable ? <EditCell value={c.text} rows={2} onChange={(v) => editCombo(c.hazardUuid, c.idx, v)} /> : <span className="ietbl__text">{c.text}</span>}</td>
+                  {editable && <td><button type="button" className="ietbl__del" onClick={() => deleteCombo(c.hazardUuid, c.idx)} aria-label="Delete combination">✕</button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </>
   );
 }
 
+function nextGroupId(groups: InitiatingEventGroup[]): string {
+  let max = 0;
+  for (const g of groups) {
+    if (g.uuid.startsWith("IEG-")) {
+      const n = Number(g.uuid.slice(4));
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+  }
+  return `IEG-${String(max + 1).padStart(2, "0")}`;
+}
+
 function GroupingScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const groups: InitiatingEventGroup[] = ie.initiatingEventGroups;
+  const initiators = ie.initiators;
+
+  const patchGroup = (uuid: string, patch: Partial<InitiatingEventGroup>): void => {
+    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => (g.uuid === uuid ? { ...g, ...patch } : g)) }));
+  };
+  const addGroup = (): void => {
+    const created: InitiatingEventGroup = {
+      uuid: nextGroupId(groups),
+      name: "New group",
+      description: "",
+      memberInitiatorIds: [],
+      groupingBasis: "",
+      boundingInitiatorId: "",
+      similarMitigationRequirements: [],
+      groupingDoesNotMaskRiskSignificantSequences: false,
+      comparableImpactAcrossMembers: false,
+      challengedSafetyFunctions: [],
+      applicableStates: [],
+      implementsSrs: [],
+    };
+    mutateIe((draft) => ({ ...draft, initiatingEventGroups: [...draft.initiatingEventGroups, created] }));
+  };
+  const deleteGroup = (uuid: string): void => {
+    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.filter((g) => g.uuid !== uuid) }));
+  };
+  const addMember = (uuid: string, initId: string): void => {
+    if (initId === "") return;
+    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => {
+      if (g.uuid !== uuid || g.memberInitiatorIds.includes(initId)) return g;
+      return { ...g, memberInitiatorIds: [...g.memberInitiatorIds, initId], boundingInitiatorId: g.boundingInitiatorId === "" ? initId : g.boundingInitiatorId };
+    }) }));
+  };
+  const removeMember = (uuid: string, initId: string): void => {
+    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => {
+      if (g.uuid !== uuid) return g;
+      const members = g.memberInitiatorIds.filter((m) => m !== initId);
+      return { ...g, memberInitiatorIds: members, boundingInitiatorId: g.boundingInitiatorId === initId ? (members[0] ?? "") : g.boundingInitiatorId };
+    }) }));
+  };
+
   return (
     <>
       <div className="poscard poscard--ghost">
         <div className="posrow" style={{ gap: 12, alignItems: "flex-start" }}>
           <span style={{ display: "inline-flex", width: 20, height: 20, color: "var(--color-text-muted)", flexShrink: 0, marginTop: 1 }}><IEIcon.Branch /></span>
           <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.55 }}>
-            Group events only when they are alike in plant response, success criteria, and timing — or bounded by the worst case. Never group to hide risk-significant sequences.
+            Group events only when they are alike in plant response, success criteria, and timing, or bounded by the worst case. Never group to hide risk-significant sequences.
           </p>
         </div>
       </div>
 
-      {groups.length === 0 ? <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.</p></div> : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
+      {editable && <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button></div>}
+
+      {groups.length === 0 ? <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p></div> : (
+        <div className="iegroup__list">
           {groups.map((g) => {
-            const boundingInit = ie.initiators.find((i) => i.uuid === g.boundingInitiatorId);
+            const boundingInit = initiators.find((i) => i.uuid === g.boundingInitiatorId);
+            const available = initiators.filter((i) => !g.memberInitiatorIds.includes(i.uuid));
             return (
               <div key={g.uuid} className="poscard">
-                <div className="poscard__head">
-                  <div>
-                    <div className="posrow" style={{ gap: 10 }}>
-                      <span className="posmono possubtle">{g.uuid}</span>
-                      <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
-                      {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
-                    </div>
-                    <div className="possubtle" style={{ marginTop: 6 }}>{g.memberInitiatorIds.length} members · Mean {fmtFreq(g.meanFrequency)} per plant-yr</div>
+                <div className="iegroup__head">
+                  <span className="posmono possubtle">{g.uuid}</span>
+                  {editable
+                    ? <input className="iegroup__name" value={g.name} onChange={(e) => patchGroup(g.uuid, { name: e.target.value })} />
+                    : <span className="iegroup__name-text">{g.name}</span>}
+                  {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
+                  {editable && <button type="button" className="ietbl__del" onClick={() => deleteGroup(g.uuid)} aria-label="Delete group">✕</button>}
+                </div>
+                <div className="iegroup__field">
+                  <span className="iegroup__label">Members</span>
+                  <div className="iegroup__members">
+                    {g.memberInitiatorIds.map((m) => {
+                      const init = initiators.find((i) => i.uuid === m);
+                      const isBounding = m === g.boundingInitiatorId;
+                      return (
+                        <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
+                          {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
+                          {init !== undefined && <CatIcon catId={init.category} size={12} />}
+                          <span className="iegroup__member-id">{m}</span>
+                          {editable && <button type="button" className="iegroup__member-x" onClick={() => removeMember(g.uuid, m)} aria-label="Remove member">✕</button>}
+                        </span>
+                      );
+                    })}
+                    {g.memberInitiatorIds.length === 0 && !editable && <span className="possubtle" style={{ fontSize: 12 }}>No members</span>}
+                    {editable && available.length > 0 && (
+                      <select className="iegroup__add" value="" onChange={(e) => addMember(g.uuid, e.target.value)}>
+                        <option value="">+ Add member…</option>
+                        {available.map((i) => <option key={i.uuid} value={i.uuid}>{i.uuid} · {i.name}</option>)}
+                      </select>
+                    )}
                   </div>
                 </div>
-                <div className="iegroup__members">
-                  {g.memberInitiatorIds.map((m) => {
-                    const init = ie.initiators.find((i) => i.uuid === m);
-                    const isBounding = m === g.boundingInitiatorId;
-                    return (
-                      <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
-                        {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
-                        {init !== undefined && <CatIcon catId={init.category} size={13} />}
-                        <span className="iegroup__member-id">{m}</span>
-                      </span>
-                    );
-                  })}
+
+                <div className="iegroup__field">
+                  <span className="iegroup__label">Bounding case</span>
+                  {editable
+                    ? <select className="ietbl__select iegroup__bounding" value={g.boundingInitiatorId} onChange={(e) => patchGroup(g.uuid, { boundingInitiatorId: e.target.value })}>
+                        <option value="">None selected</option>
+                        {g.memberInitiatorIds.map((m) => { const init = initiators.find((i) => i.uuid === m); return <option key={m} value={m}>{m}{init !== undefined ? ` · ${init.name}` : ""}</option>; })}
+                      </select>
+                    : <span className="ietbl__text">{g.boundingInitiatorId.length > 0 ? `${g.boundingInitiatorId}${boundingInit !== undefined ? ` · ${boundingInit.name}` : ""}` : "None selected"}</span>}
                 </div>
-                <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, margin: "12px 0 10px" }}>{g.groupingBasis}</div>
+
+                <div className="iegroup__field">
+                  <span className="iegroup__label">Grouping basis</span>
+                  {editable
+                    ? <EditCell value={g.groupingBasis} rows={3} onChange={(v) => patchGroup(g.uuid, { groupingBasis: v })} />
+                    : <span className="ietbl__text">{g.groupingBasis}</span>}
+                </div>
+
                 <div className="iegroup__checks">
-                  <span className={`iegroup__check${g.comparableImpactAcrossMembers ? " iegroup__check--ok" : ""}`}>
+                  <button type="button" className={`iegroup__check${g.comparableImpactAcrossMembers ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchGroup(g.uuid, { comparableImpactAcrossMembers: !g.comparableImpactAcrossMembers })}>
                     {g.comparableImpactAcrossMembers ? <IEIcon.Check /> : <IEIcon.Warn />} Comparable impact across members
-                  </span>
-                  <span className={`iegroup__check${g.groupingDoesNotMaskRiskSignificantSequences ? " iegroup__check--ok" : " iegroup__check--warn"}`}>
+                  </button>
+                  <button type="button" className={`iegroup__check${g.groupingDoesNotMaskRiskSignificantSequences ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchGroup(g.uuid, { groupingDoesNotMaskRiskSignificantSequences: !g.groupingDoesNotMaskRiskSignificantSequences })}>
                     {g.groupingDoesNotMaskRiskSignificantSequences ? <IEIcon.Check /> : <IEIcon.Warn />} Does not mask risk-significant sequences
-                  </span>
-                  <span className="iegroup__check">
-                    <IEIcon.Target /> Bounded by {boundingInit?.name ?? g.boundingInitiatorId}
-                  </span>
+                  </button>
                 </div>
               </div>
             );
@@ -901,8 +1117,51 @@ function GroupingScreen(): JSX.Element {
 }
 
 function ScreeningScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const records: InitiatingEventScreeningRecord[] = ie.screeningRecords;
+  const groups = ie.initiatingEventGroups;
+  const initiators = ie.initiators;
+
+  const recordedIds = new Set(records.map((r) => r.initiatorOrGroupId));
+  const availableTargets = [
+    ...groups.filter((g) => !recordedIds.has(g.uuid)).map((g) => ({ id: g.uuid, label: `${g.uuid} · ${g.name}` })),
+    ...initiators.filter((i) => !recordedIds.has(i.uuid)).map((i) => ({ id: i.uuid, label: `${i.uuid} · ${i.name}` })),
+  ];
+
+  const targetName = (id: string): string => {
+    const g = groups.find((x) => x.uuid === id);
+    if (g !== undefined) return g.name;
+    return initiators.find((x) => x.uuid === id)?.name ?? "";
+  };
+  const patchRecord = (id: string, patch: Partial<InitiatingEventScreeningRecord>): void => {
+    mutateIe((draft) => ({ ...draft, screeningRecords: draft.screeningRecords.map((r) => (r.initiatorOrGroupId === id ? { ...r, ...patch } : r)) }));
+  };
+  const changeTarget = (oldId: string, newId: string): void => {
+    if (newId === oldId || newId === "") return;
+    mutateIe((draft) => {
+      if (draft.screeningRecords.some((r) => r.initiatorOrGroupId === newId)) return draft;
+      return { ...draft, screeningRecords: draft.screeningRecords.map((r) => (r.initiatorOrGroupId === oldId ? { ...r, initiatorOrGroupId: newId } : r)) };
+    });
+  };
+  const addRecord = (): void => {
+    mutateIe((draft) => {
+      const used = new Set(draft.screeningRecords.map((r) => r.initiatorOrGroupId));
+      const firstFree = [...draft.initiatingEventGroups.map((g) => g.uuid), ...draft.initiators.map((i) => i.uuid)].find((id) => !used.has(id));
+      if (firstFree === undefined) return draft;
+      const created: InitiatingEventScreeningRecord = {
+        initiatorOrGroupId: firstFree,
+        retained: true,
+        barrierIntegrityPreconditionMet: false,
+        justification: "",
+        implementsSrs: [],
+      };
+      return { ...draft, screeningRecords: [...draft.screeningRecords, created] };
+    });
+  };
+  const deleteRecord = (id: string): void => {
+    mutateIe((draft) => ({ ...draft, screeningRecords: draft.screeningRecords.filter((r) => r.initiatorOrGroupId !== id) }));
+  };
+
   return (
     <>
       <div className="poscard">
@@ -915,61 +1174,171 @@ function ScreeningScreen(): JSX.Element {
           <div className="iegate__result"><span className="iegate__result-icon"><IEIcon.Check /></span><span>Eligible to screen</span></div>
         </div>
       </div>
-      <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Screening decisions</h3></div>
-        {records.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No screening records yet.</p> : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {records.map((rec, i) => {
-              const target = ie.initiators.find((x) => x.uuid === rec.initiatorOrGroupId);
-              const barrier = target?.barrierImpacts[0]?.state;
-              const risk = riskFromBarrier(barrier);
-              return (
-                <div key={i} className={`iescreen${!rec.barrierIntegrityPreconditionMet ? " iescreen--blocked" : ""}`}>
-                  <div className="iescreen__head">
-                    <div className="posrow" style={{ gap: 10 }}>
-                      <span className="posmono possubtle">{rec.initiatorOrGroupId}</span>
-                      <span className="possubtle">{target?.name ?? ""}</span>
-                    </div>
-                    {rec.retained ? <Badge kind="block">Retained (gate failed)</Badge> : <Badge kind="draft">Screened out</Badge>}
-                  </div>
-                  <div className="iescreen__gate">
-                    <span className={`iescreen__pre${rec.barrierIntegrityPreconditionMet ? " iescreen__pre--ok" : " iescreen__pre--fail"}`}>
-                      {rec.barrierIntegrityPreconditionMet ? <IEIcon.Check /> : <IEIcon.Close />} Barrier intact
-                    </span>
-                    {rec.criterion !== undefined ? <span className="poschip poschip--primary">{rec.criterion}</span> : <span className="poschip poschip--warn">No SCR, barrier gate blocks screening</span>}
-                    <span className={`poschip${risk.warn ? " poschip--warn" : ""}`}>Risk: {risk.label}</span>
-                  </div>
-                  <p className="iescreen__just">{rec.justification}</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+      {editable && availableTargets.length > 0 && (
+        <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecord}>+ Add record</button></div>
+      )}
+
+      {records.length === 0 ? (
+        <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No screening decisions recorded yet.{editable ? (availableTargets.length > 0 ? " Use Add record to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p></div>
+      ) : (
+        <div className="iegroup__list">
+          {records.map((rec) => (
+            <div key={rec.initiatorOrGroupId} className="poscard">
+              <div className="iegroup__head">
+                {editable
+                  ? <select className="ietbl__select iegroup__target" value={rec.initiatorOrGroupId} onChange={(e) => changeTarget(rec.initiatorOrGroupId, e.target.value)}>
+                      {[{ id: rec.initiatorOrGroupId, label: `${rec.initiatorOrGroupId} · ${targetName(rec.initiatorOrGroupId)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  : <><span className="posmono possubtle">{rec.initiatorOrGroupId}</span><span className="iegroup__name-text">{targetName(rec.initiatorOrGroupId)}</span></>}
+                {rec.retained ? <Badge kind="block">Retained</Badge> : <Badge kind="draft">Screened out</Badge>}
+                {editable && <button type="button" className="ietbl__del" onClick={() => deleteRecord(rec.initiatorOrGroupId)} aria-label="Delete screening record">✕</button>}
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">Disposition</span>
+                {editable
+                  ? <select className="ietbl__select iegroup__bounding" value={rec.retained ? "retained" : "screened"} onChange={(e) => patchRecord(rec.initiatorOrGroupId, { retained: e.target.value === "retained" })}>
+                      <option value="retained">Retained, kept in the analysis</option>
+                      <option value="screened">Screened out</option>
+                    </select>
+                  : <span className="ietbl__text">{rec.retained ? "Retained, kept in the analysis" : "Screened out"}</span>}
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">SCR criterion (IE-C9b)</span>
+                {editable
+                  ? <select className="ietbl__select iegroup__bounding" value={rec.criterion ?? ""} onChange={(e) => patchRecord(rec.initiatorOrGroupId, { criterion: e.target.value === "" ? undefined : (e.target.value as "SCR-1" | "SCR-2" | "SCR-3") })}>
+                      <option value="">No SCR criterion</option>
+                      <option value="SCR-1">SCR-1</option>
+                      <option value="SCR-2">SCR-2</option>
+                      <option value="SCR-3">SCR-3</option>
+                    </select>
+                  : <span className="ietbl__text">{rec.criterion ?? "No SCR criterion"}</span>}
+              </div>
+
+              <div className="iegroup__checks">
+                <button type="button" className={`iegroup__check${rec.barrierIntegrityPreconditionMet ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchRecord(rec.initiatorOrGroupId, { barrierIntegrityPreconditionMet: !rec.barrierIntegrityPreconditionMet })}>
+                  {rec.barrierIntegrityPreconditionMet ? <IEIcon.Check /> : <IEIcon.Warn />} Barrier-integrity precondition met (IE-C9a)
+                </button>
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">Justification</span>
+                {editable
+                  ? <EditCell value={rec.justification} rows={3} onChange={(v) => patchRecord(rec.initiatorOrGroupId, { justification: v })} />
+                  : <span className="ietbl__text">{rec.justification}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
 
+type FreqBasis = InitiatingEventFrequencyQuantification["basis"];
+
+const FREQ_BASIS_OPTIONS: { value: FreqBasis; label: string }[] = [
+  { value: "OPERATING_DATA", label: "Operating data" },
+  { value: "GENERIC_DATA", label: "Generic data" },
+  { value: "SIMILAR_PLANT_DATA", label: "Similar-plant data" },
+  { value: "DESIGN_BASED", label: "Design-based" },
+  { value: "FAULT_TREE", label: "Fault tree" },
+];
+
+function FreqInput({ value, onChange }: { value: number; onChange: (v: number) => void }): JSX.Element {
+  const [text, setText] = useState<string>(value > 0 ? String(value) : "");
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(value > 0 ? String(value) : "");
+  }, [value, focused]);
+  return (
+    <input
+      className="iefreq__input"
+      type="text"
+      inputMode="decimal"
+      value={text}
+      placeholder="e.g. 3e-2"
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        const t = e.target.value;
+        setText(t);
+        const n = Number(t);
+        if (t.trim() !== "" && isFinite(n) && n >= 0) onChange(n);
+      }}
+    />
+  );
+}
+
 function FrequencyScreen(): JSX.Element {
-  const { ie } = useIeWorkbook();
+  const { ie, editable, mutateIe } = useIeWorkbook();
   const records: InitiatingEventFrequencyQuantification[] = ie.quantifications;
+  const groups = ie.initiatingEventGroups;
+  const initiators = ie.initiators;
   const ranked = [...records].sort((a, b) => freqValue(b.meanFrequency) - freqValue(a.meanFrequency));
+
+  const recordedIds = new Set(records.map((r) => r.initiatorOrGroupId));
+  const availableTargets = [
+    ...groups.filter((g) => !recordedIds.has(g.uuid)).map((g) => ({ id: g.uuid, label: `${g.uuid} · ${g.name}` })),
+    ...initiators.filter((i) => !recordedIds.has(i.uuid)).map((i) => ({ id: i.uuid, label: `${i.uuid} · ${i.name}` })),
+  ];
   const labelFor = (id: string): string => {
-    const grp = ie.initiatingEventGroups.find((g) => g.uuid === id);
+    const grp = groups.find((g) => g.uuid === id);
     if (grp !== undefined) return grp.name;
-    const init = ie.initiators.find((i) => i.uuid === id);
-    return init?.name ?? id;
+    return initiators.find((i) => i.uuid === id)?.name ?? id;
   };
   const isPreop = (id: string): boolean => {
-    const init = ie.initiators.find((i) => i.uuid === id);
+    const init = initiators.find((i) => i.uuid === id);
     return (init?.preOperationalAssumptions ?? []).length > 0;
   };
+
+  const patchQuant = (id: string, patch: Partial<InitiatingEventFrequencyQuantification>): void => {
+    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === id ? { ...q, ...patch } : q)) }));
+  };
+  const patchMean = (id: string, n: number): void => {
+    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
+      if (q.initiatorOrGroupId !== id) return q;
+      const mf = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: n } : n;
+      return { ...q, meanFrequency: mf };
+    }) }));
+  };
+  const changeTarget = (oldId: string, newId: string): void => {
+    if (newId === oldId || newId === "") return;
+    mutateIe((draft) => {
+      if (draft.quantifications.some((q) => q.initiatorOrGroupId === newId)) return draft;
+      return { ...draft, quantifications: draft.quantifications.map((q) => (q.initiatorOrGroupId === oldId ? { ...q, initiatorOrGroupId: newId } : q)) };
+    });
+  };
+  const addQuant = (): void => {
+    mutateIe((draft) => {
+      const used = new Set(draft.quantifications.map((q) => q.initiatorOrGroupId));
+      const firstFree = [...draft.initiatingEventGroups.map((g) => g.uuid), ...draft.initiators.map((i) => i.uuid)].find((id) => !used.has(id));
+      if (firstFree === undefined) return draft;
+      const created: InitiatingEventFrequencyQuantification = {
+        initiatorOrGroupId: firstFree,
+        meanFrequency: 0,
+        basis: "GENERIC_DATA",
+        plantCalendarYearBasis: false,
+        posTimeFractionApplied: false,
+        dataSourceJustification: "",
+        recoveryActionsIncluded: false,
+        implementsSrs: [],
+      };
+      return { ...draft, quantifications: [...draft.quantifications, created] };
+    });
+  };
+  const deleteQuant = (id: string): void => {
+    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.filter((q) => q.initiatorOrGroupId !== id) }));
+  };
+
   const ticks = ["1e-6", "1e-5", "1e-4", "1e-3", "1e-2", "1e-1", "1e0"];
   return (
     <>
-      <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Annual frequencies</h3></div>
-        {records.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No quantifications yet.</p> : (
+      {records.length > 0 && (
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Annual frequencies</h3></div>
           <div className="iefreq">
             <div className="iefreq__axis">
               {ticks.map((t) => <span key={t} className="iefreq__tick" style={{ left: `${freqToPct(parseFloat(t))}%` }}>{fmtFreq(parseFloat(t))}</span>)}
@@ -999,8 +1368,71 @@ function FrequencyScreen(): JSX.Element {
               );
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {editable && availableTargets.length > 0 && (
+        <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}>+ Add quantification</button></div>
+      )}
+
+      {records.length === 0 ? (
+        <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No quantifications yet.{editable ? (availableTargets.length > 0 ? " Use Add quantification to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p></div>
+      ) : (
+        <div className="iegroup__list">
+          {ranked.map((q) => (
+            <div key={q.initiatorOrGroupId} className="poscard">
+              <div className="iegroup__head">
+                {editable
+                  ? <select className="ietbl__select iegroup__target" value={q.initiatorOrGroupId} onChange={(e) => changeTarget(q.initiatorOrGroupId, e.target.value)}>
+                      {[{ id: q.initiatorOrGroupId, label: `${q.initiatorOrGroupId} · ${labelFor(q.initiatorOrGroupId)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  : <><span className="posmono possubtle">{q.initiatorOrGroupId}</span><span className="iegroup__name-text">{labelFor(q.initiatorOrGroupId)}</span></>}
+                {isPreop(q.initiatorOrGroupId) && <span className="poschip" style={{ fontSize: 10, padding: "1px 6px", background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
+                {editable && <button type="button" className="ietbl__del" onClick={() => deleteQuant(q.initiatorOrGroupId)} aria-label="Delete quantification">✕</button>}
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">Mean frequency</span>
+                {editable
+                  ? <div className="iefreq__entry">
+                      <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(q.initiatorOrGroupId, n)} />
+                      <span className="iefreq__entry-unit">per plant-yr</span>
+                      {freqValue(q.meanFrequency) > 0 && <span className="poschip poschip--primary">{fmtFreq(q.meanFrequency)}</span>}
+                    </div>
+                  : <span className="ietbl__text">{fmtFreq(q.meanFrequency)} per plant-yr</span>}
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">Basis</span>
+                {editable
+                  ? <select className="ietbl__select iegroup__bounding" value={q.basis} onChange={(e) => patchQuant(q.initiatorOrGroupId, { basis: e.target.value as FreqBasis })}>
+                      {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  : <span className="ietbl__text">{BASIS_LABEL[q.basis] ?? q.basis}</span>}
+              </div>
+
+              <div className="iegroup__checks">
+                <button type="button" className={`iegroup__check${q.posTimeFractionApplied ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { posTimeFractionApplied: !q.posTimeFractionApplied })}>
+                  {q.posTimeFractionApplied ? <IEIcon.Check /> : <IEIcon.Warn />} POS time-fraction weighting applied
+                </button>
+                <button type="button" className={`iegroup__check${q.plantCalendarYearBasis ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { plantCalendarYearBasis: !q.plantCalendarYearBasis })}>
+                  {q.plantCalendarYearBasis ? <IEIcon.Check /> : <IEIcon.Warn />} Plant calendar-year basis
+                </button>
+                <button type="button" className={`iegroup__check${q.recoveryActionsIncluded ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { recoveryActionsIncluded: !q.recoveryActionsIncluded })}>
+                  {q.recoveryActionsIncluded ? <IEIcon.Check /> : <IEIcon.Warn />} Recovery actions included
+                </button>
+              </div>
+
+              <div className="iegroup__field">
+                <span className="iegroup__label">Data-source justification</span>
+                {editable
+                  ? <EditCell value={q.dataSourceJustification} rows={3} onChange={(v) => patchQuant(q.initiatorOrGroupId, { dataSourceJustification: v })} />
+                  : <span className="ietbl__text">{q.dataSourceJustification}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

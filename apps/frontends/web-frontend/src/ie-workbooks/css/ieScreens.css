@@ -7,6 +7,26 @@
 .poschip--method { background: rgba(80, 80, 90, 0.08); color: var(--color-text-muted); text-decoration: none; }
 
 .iecat-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.ieident__head-actions { display: flex; align-items: center; gap: 8px; }
+.ieident__id { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: var(--color-text-subtle); }
+.ieident__name { flex: 1; min-width: 0; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; padding: 4px 7px; font: inherit; font-size: 13px; font-weight: 600; color: var(--color-text); background: var(--color-surface-low); }
+.ieident__name:hover { border-color: var(--color-border); }
+.ieident__name:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); }
+.postable__name:has(.ieident__name) { display: flex; align-items: center; gap: 7px; }
+.ieident__cat { box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12.5px; color: var(--color-text); background: var(--color-surface); cursor: pointer; }
+.ieident__cat:focus { outline: none; border-color: var(--color-primary); }
+.ieident__del { border: none; background: transparent; cursor: pointer; font-size: 13px; color: var(--color-text-subtle); padding: 5px 7px; border-radius: 6px; }
+.ieident__del:hover { color: var(--color-error); background: rgba(186, 26, 26, 0.08); }
+.ietbl td { vertical-align: top; }
+.ietbl__cell { display: block; width: 100%; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 7px; padding: 5px 8px; resize: none; overflow: hidden; font: inherit; font-size: 12.5px; line-height: 1.45; color: var(--color-text); background: var(--color-surface); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ietbl__cell:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-focus); }
+.ietbl__cell--mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; }
+.ietbl__select { appearance: none; -webkit-appearance: none; width: 100%; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 7px; padding: 5px 26px 5px 8px; font: inherit; font-size: 12.5px; color: var(--color-text); background-color: var(--color-surface); background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12'%20height='12'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23888888'%20stroke-width='2.5'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M6%209l6%206%206-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ietbl__select:focus { outline: none; border-color: var(--color-primary); }
+.ietbl__text { display: block; font-size: 12.5px; color: var(--color-text); line-height: 1.5; white-space: pre-wrap; }
+.ietbl__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ietbl__del { border: none; background: transparent; cursor: pointer; font-size: 13px; color: var(--color-text-subtle); padding: 5px 7px; border-radius: 6px; }
+.ietbl__del:hover { color: var(--color-error); background: rgba(186, 26, 26, 0.08); }
 .iecat-blurb { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 12px; background: var(--color-surface-low); border-radius: 8px; font-size: 13px; line-height: 1.5; }
 
 /* Challenge spectrum */
@@ -112,6 +132,11 @@
 .iefreq__flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--color-text-subtle); }
 .iefreq__flag svg { width: 13px; height: 13px; }
 .iefreq__flag--ok { color: var(--color-success, #2e7d4f); }
+.iefreq__entry { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.iefreq__input { width: 150px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 7px; padding: 6px 9px; font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--color-text); background: var(--color-surface-low); }
+.iefreq__input:hover { border-color: var(--color-border-strong); }
+.iefreq__input:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); }
+.iefreq__entry-unit { font-size: 12px; color: var(--color-text-muted); }
 
 /* Completeness check list — icon-pill style matches reference */
 .iecheck-list { display: flex; flex-direction: column; gap: 8px; }
@@ -137,6 +162,13 @@
 .iecheck__dot--warn { color: #fff; background: var(--color-warning, #b86a00); }
 .iecheck__dot--warn svg { width: 100%; height: 100%; }
 .iecheck__dot--na { background: var(--color-surface-low); color: var(--color-text-subtle); font-weight: 700; }
+.iecheck__toggle { display: inline-flex; width: 24px; height: 24px; padding: 4px; border-radius: 50%; align-items: center; justify-content: center; border: none; cursor: pointer; color: #fff; }
+.iecheck__toggle svg { width: 100%; height: 100%; }
+.iecheck__toggle--ok { background: var(--color-success, #2e7d4f); }
+.iecheck__toggle--warn { background: var(--color-warning, #b86a00); }
+.iecheck__toggle:hover { box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.ie-savebar { position: fixed; bottom: 18px; right: 18px; z-index: 80; display: flex; align-items: center; gap: 12px; max-width: 420px; padding: 11px 14px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-error); color: var(--color-error); font-size: 13px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16); }
+.ie-savebar__dismiss { border: 1px solid var(--color-error); background: transparent; color: var(--color-error); border-radius: 7px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 
 /* ── Scope form fields ───────────────────────────────────────────────── */
 .iefield-grid { display: grid; gap: 14px 16px; }
@@ -272,6 +304,23 @@
 .iegroup__check svg { width: 13px; height: 13px; flex-shrink: 0; }
 .iegroup__check--ok { color: var(--color-success, #2e7d4f); border-color: rgba(46,125,79,0.3); background: rgba(46,125,79,0.06); }
 .iegroup__check--warn { color: var(--color-warning, #b86a00); border-color: rgba(184,106,0,0.3); background: rgba(184,106,0,0.06); }
+.iegroup__toolbar { display: flex; justify-content: flex-end; }
+.iegroup__list { display: flex; flex-direction: column; gap: 14px; }
+.iegroup__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.iegroup__name { flex: 1; min-width: 180px; box-sizing: border-box; border: 1px solid transparent; border-radius: 7px; padding: 4px 8px; font: inherit; font-size: 15px; font-weight: 600; color: var(--color-text); background: var(--color-surface-low); }
+.iegroup__name:hover { border-color: var(--color-border); }
+.iegroup__name:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); }
+.iegroup__name-text { flex: 1; font-size: 15px; font-weight: 600; color: var(--color-text); }
+.iegroup__field { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; }
+.iegroup__label { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-subtle); }
+.iegroup__member-x { border: none; background: transparent; cursor: pointer; color: var(--color-text-subtle); font-size: 11px; line-height: 1; padding: 0 0 0 2px; }
+.iegroup__member-x:hover { color: var(--color-error); }
+.iegroup__add { appearance: none; -webkit-appearance: none; border: 1px dashed var(--color-border-strong); border-radius: 7px; padding: 4px 9px; font: inherit; font-size: 12px; font-weight: 600; color: var(--color-primary); background: var(--color-surface); cursor: pointer; }
+.iegroup__add:focus { outline: none; border-color: var(--color-primary); }
+.iegroup__bounding { max-width: 340px; }
+.iegroup__target { flex: 1; min-width: 200px; max-width: 360px; }
+button.iegroup__check { font-family: inherit; cursor: pointer; }
+button.iegroup__check:disabled { cursor: default; opacity: 1; }
 
 /* Ghost hint card */
 .poscard--ghost { background: var(--color-surface-low); border-style: dashed; }

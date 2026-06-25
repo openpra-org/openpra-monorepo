@@ -5,6 +5,8 @@ import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useBodyParser("json", { limit: "25mb" });
+  app.useBodyParser("urlencoded", { limit: "25mb", extended: true });
   app.setGlobalPrefix("api");
   app.enableCors({
     origin: process.env["APP_BASE_URL"] ?? "http://localhost:4201",

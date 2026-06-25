@@ -1,10 +1,3 @@
-//! The structured quantification path on PBF.
-//!
-//! This replaces the old numeric Boolean contract. The input is a `FaultTree`
-//! (decoded from a PBF model), the settings select an engine and the
-//! deliverables, and the output is a name-based `QuantResult` that the PBF result
-//! codec serializes. Each engine is reused from the existing analysis stack.
-
 use std::collections::HashMap;
 
 use crate::algorithms::build::{build_bdd, enumerate_event_names, BuildOptions};
@@ -73,7 +66,6 @@ pub struct ProbabilityOut {
     pub approximation: Approximation,
 }
 
-/// A single cut set or prime implicant: literals are (event name, negated).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CutSetOut {
     pub literals: Vec<(String, bool)>,
@@ -162,8 +154,6 @@ fn approx_value(approximation: Approximation, probabilities: &[f64]) -> f64 {
     }
 }
 
-/// Quantify a fault tree. CCF groups are expanded first when `settings.ccf` is
-/// set, mirroring the command-line path.
 pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResult> {
     let mut owned;
     let ft: &FaultTree = if settings.ccf && !fault_tree.ccf_groups().is_empty() {
@@ -184,6 +174,17 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
 
     let mut result = QuantResult::default();
     let probs = event_probs(ft);
+
+    tracing::info!(
+        target: "praxis::quantify",
+        engine = ?settings.engine,
+        top = ft.top_event(),
+        gates = ft.gates().len(),
+        basic_events = ft.basic_events().len(),
+        cut_off = ?settings.cut_off,
+        limit_order = ?settings.limit_order,
+        "quantify start"
+    );
 
     match settings.engine {
         Engine::Bdd => {
@@ -271,12 +272,6 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
         Engine::MocusPi => {
             let pdag = Pdag::from_fault_tree(ft)?;
             let mut engine = NonCoherentMocus::new(&pdag, ft)?;
-            if let Some(n) = settings.limit_order {
-                engine = engine.with_max_order(n);
-            }
-            if let Some(c) = settings.cut_off {
-                engine = engine.with_cut_off(c);
-            }
             let primes = engine.analyze_primes();
             let mut per = Vec::with_capacity(primes.len());
             let mut max_order = 0;
@@ -360,12 +355,15 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
         });
     }
 
+    tracing::info!(
+        target: "praxis::quantify",
+        probability = ?result.probability.as_ref().map(|p| p.value),
+        cut_sets = ?result.cut_sets.as_ref().map(|c| c.products),
+        "quantify done"
+    );
     Ok(result)
 }
 
-/// The full structured path on bytes: decode a PBF model, quantify it under
-/// `settings`, and encode the PBF result. This is what replaces the old contract
-/// `quantify` entry point.
 pub fn quantify_bytes(model: &[u8], settings: &Settings) -> Result<Vec<u8>> {
     let fault_tree = crate::io::pbf::decode_fault_tree(model)?;
     let result = quantify(&fault_tree, settings)?;
@@ -378,7 +376,6 @@ mod tests {
     use crate::core::event::BasicEvent;
     use crate::core::gate::{Formula, Gate};
 
-    // top = (A and B) or (C and D), all at 0.1.
     fn demo() -> FaultTree {
         let mut ft = FaultTree::new("FT", "top").unwrap();
         let mut top = Gate::new("top".into(), Formula::Or).unwrap();
@@ -405,7 +402,7 @@ mod tests {
         let r = quantify(&ft, &Settings::default()).unwrap();
         let p = r.probability.unwrap();
         assert_eq!(p.approximation, Approximation::Exact);
-        // 1 - (1 - 0.01)^2 = 0.0199
+
         assert!((p.value - 0.0199).abs() < 1e-9);
     }
 
@@ -425,7 +422,7 @@ mod tests {
 
     #[test]
     fn mocus_pi_consensus() {
-        // (A and B) or (not A and C): prime implicants A&B, ~A&C, and consensus B&C.
+
         let mut ft = FaultTree::new("FT", "top").unwrap();
         let mut top = Gate::new("top".into(), Formula::Or).unwrap();
         top.add_operand("g1".into());

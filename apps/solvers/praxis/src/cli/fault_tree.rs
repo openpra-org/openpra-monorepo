@@ -403,12 +403,6 @@ fn run_pre_event_tree_impl(
         }
         let pdag = Pdag::from_fault_tree(&fault_tree)?;
         let mut engine = NonCoherentMocus::new(&pdag, &fault_tree)?;
-        if let Some(n) = cli.limit_order {
-            engine = engine.with_max_order(n as usize);
-        }
-        if let Some(c) = cli.cut_off {
-            engine = engine.with_cut_off(c);
-        }
         let primes = engine.analyze_primes();
         let probs: Vec<f64> = primes
             .iter()
@@ -602,11 +596,6 @@ fn run_pre_event_tree_impl(
         let _ = (pdag, order);
     }
 
-    // Report the approximation for the cut-set engines. MOCUS computes its cut
-    // sets but not the approximation, so it is finished here from the single
-    // approximation module. The ZBDD workflow already computed its approximation
-    // on the diagram (without enumerating), so that value is reused rather than
-    // recomputed. Both then print the same banner.
     if (cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd)
         && cli.approximation.is_some()
     {

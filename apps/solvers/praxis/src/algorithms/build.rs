@@ -1,13 +1,7 @@
-//! The single BDD construction entry point.
-//!
-//! Every analytic consumer (top-event probability, ZBDD cut sets, prime
-//! implicants, importance, uncertainty, event-tree sequence formulas) builds its
-//! diagram through [`build_bdd`]. This replaces the hand-copied
-//! `from_fault_tree -> dfs_metadata -> level_var_probs -> from_pdag_with_order_and_probs`
-//! sequence that used to appear at a dozen call sites.
-
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use tracing::info;
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
 use crate::algorithms::pdag::{NodeIndex, Pdag};
@@ -18,20 +12,15 @@ use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::Result;
 
-/// Optional transforms applied before the BDD is built. All default off: the BDD
-/// consumes every connective natively and folds constants and pass-through gates
-/// itself, so none of these change the resulting diagram. They exist for callers
-/// that want a smaller intermediate PDAG (house-event models) or a reordered
-/// diagram.
 #[derive(Debug, Clone, Copy)]
 pub struct BuildOptions {
-    /// Fold constant and house-event leaves through the gate logic.
+
     pub fold_constants: bool,
-    /// Splice out NULL pass-through gates and NOT gates.
+
     pub splice_null_gates: bool,
-    /// Reorder the variables with the given method before building.
+
     pub reorder: Option<ReorderMethod>,
-    /// Time budget for reordering.
+
     pub reorder_budget: Duration,
 }
 
@@ -46,9 +35,6 @@ impl Default for BuildOptions {
     }
 }
 
-/// The PDAG and its BDD, plus the variable order used to build it. The order and
-/// PDAG are needed by the cut-set and prime-implicant consumers to map BDD
-/// positions back to event identifiers.
 pub struct BddBuild {
     pub pdag: Pdag,
     pub var_of: HashMap<NodeIndex, usize>,
@@ -57,9 +43,10 @@ pub struct BddBuild {
     pub root: BddRef,
 }
 
-/// Build the PDAG and BDD for `fault_tree` under `opts`.
 pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild> {
+    let started = Instant::now();
     let mut pdag = Pdag::from_fault_tree(fault_tree)?;
+    info!(pdag_nodes = pdag.node_count(), "build_bdd: PDAG built");
     if opts.fold_constants {
         simplify::fold_constants(&mut pdag)?;
     }
@@ -67,11 +54,18 @@ pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild>
         simplify::splice_null_and_not(&mut pdag)?;
     }
 
+    let ordering = Instant::now();
     let order = if let Some(method) = opts.reorder {
         best_order(&pdag, method, opts.reorder_budget)
     } else {
         compute_dfs_metadata_pdag(&pdag)?.variable_order
     };
+    info!(
+        method = ?opts.reorder,
+        variables = order.len(),
+        elapsed_s = ordering.elapsed().as_secs_f64(),
+        "build_bdd: variable order ready"
+    );
 
     let mut var_of: HashMap<NodeIndex, usize> = HashMap::new();
     for (pos, &idx) in order.iter().enumerate() {
@@ -79,7 +73,14 @@ pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild>
     }
 
     let var_probs = pdag.level_var_probs(fault_tree, &var_of)?;
+    let constructing = Instant::now();
     let (bdd, root) = Bdd::from_pdag_with_order_and_probs(&pdag, &var_of, var_probs)?;
+    info!(
+        bdd_nodes = bdd.node_count(),
+        construct_s = constructing.elapsed().as_secs_f64(),
+        total_s = started.elapsed().as_secs_f64(),
+        "build_bdd: BDD constructed"
+    );
 
     Ok(BddBuild {
         pdag,
@@ -90,13 +91,6 @@ pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild>
     })
 }
 
-/// Order an already-rooted PDAG (a single sequence formula sharing a common
-/// event-tree PDAG) and build its BDD, taking per-variable probabilities from
-/// `event_probs` keyed by event id. This is the tail that the event-tree
-/// sequence builders share, distinct from [`build_bdd`] only in that the PDAG is
-/// supplied pre-built with its root already set and probabilities come from a map
-/// rather than a fault tree. Returns the DFS variable order, the BDD, and its
-/// root.
 pub fn build_sequence_bdd(
     pdag: &Pdag,
     event_probs: &HashMap<String, f64>,
@@ -107,10 +101,6 @@ pub fn build_sequence_bdd(
     Ok((meta.variable_order, bdd, root))
 }
 
-/// Enumerate the cut sets of a ZBDD into sorted lists of basic-event identifiers,
-/// mapping each diagram position back through the variable order and PDAG. This
-/// is the single enumeration both the command-line and the contract paths use to
-/// turn a ZBDD into named cut sets.
 pub fn enumerate_event_names(
     zbdd: &ZbddEngine,
     root: ZbddRef,

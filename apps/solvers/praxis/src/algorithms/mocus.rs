@@ -3,6 +3,7 @@ use crate::core::gate::Formula;
 use crate::error::{MefError, PraxisError};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
+use tracing::{debug, trace};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CutSet {
@@ -69,6 +70,14 @@ impl<'a> Mocus<'a> {
         self.cut_sets.clear();
         self.cut_sets_bits.clear();
 
+        debug!(
+            target: "praxis::mocus",
+            top = self.fault_tree.top_event(),
+            max_order = ?self.max_order,
+            cut_off = ?self.cut_off,
+            "mocus analyze start"
+        );
+
         self.validate_element_exists(self.fault_tree.top_event(), "top event".to_string())?;
 
         self.validate_no_cycles()?;
@@ -113,10 +122,18 @@ impl<'a> Mocus<'a> {
                     }
                 }
 
+                trace!(
+                    target: "praxis::mocus",
+                    op = "cut_set",
+                    literals = ?current_set,
+                    order = current_set.len(),
+                    "minimal cut set candidate"
+                );
                 self.try_add_minimal_cut_set(cut_set, cut_set_bits);
                 continue;
             }
 
+            trace!(target: "praxis::mocus", op = "expand", set = ?current_set, "expand gate set");
             if let Some(expanded) = self.expand_set(&current_set)? {
                 for next_set in expanded {
                     let Some(next_set) = self.canonicalize_set(&next_set) else {
@@ -129,6 +146,11 @@ impl<'a> Mocus<'a> {
             }
         }
 
+        debug!(
+            target: "praxis::mocus",
+            cut_sets = self.cut_sets.len(),
+            "mocus analyze done"
+        );
         Ok(&self.cut_sets)
     }
 

@@ -692,7 +692,6 @@ fn main() {
     let got = analyze(&p, "~((a&b)|c) success branch");
     check("success branch", &got, &["~a&~c", "~b&~c"]);
 
-    // a richer non-coherent mix: (a&b) | (~b&c&d) | (~a&d)
     let mut p = Pdag::new();
     let a = ev(&mut p, "a");
     let b = ev(&mut p, "b");

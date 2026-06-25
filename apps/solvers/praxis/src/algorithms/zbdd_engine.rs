@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing::trace;
+
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -65,9 +67,12 @@ pub struct ZbddEngine {
     nodes: Vec<ZbddNode>,
     unique: HashMap<ZbddNode, ZbddRef>,
     union_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
+    join_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     subtract_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     difference_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     minimize_cache: HashMap<ZbddRef, ZbddRef>,
+    purify_cache: HashMap<ZbddRef, ZbddRef>,
+    removevar_cache: HashMap<(ZbddRef, usize), ZbddRef>,
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
 }
@@ -84,9 +89,12 @@ impl ZbddEngine {
             nodes: vec![ZBDD_SENTINEL, ZBDD_SENTINEL],
             unique: HashMap::new(),
             union_cache: HashMap::new(),
+            join_cache: HashMap::new(),
             subtract_cache: HashMap::new(),
             difference_cache: HashMap::new(),
             minimize_cache: HashMap::new(),
+            purify_cache: HashMap::new(),
+            removevar_cache: HashMap::new(),
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
         }
@@ -230,10 +238,21 @@ impl ZbddEngine {
         }
         let r = self.alloc_node(key);
         self.unique_insert(key, r);
+        trace!(
+            target: "praxis::zbdd",
+            op = "make_node",
+            var,
+            high = high.raw(),
+            low = low.raw(),
+            node = r.raw(),
+            total = self.node_count(),
+            "zbdd node populated"
+        );
         r
     }
 
     pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() { return g; }
         if g.is_empty() { return f; }
         if f == g { return f; }
@@ -271,10 +290,58 @@ impl ZbddEngine {
     }
 
     pub(crate) fn multiply(&mut self, var: usize, f: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "multiply", var, f = f.raw(), "zbdd op");
         self.make_node(var, f, ZBDD_EMPTY)
     }
 
+    pub(crate) fn join(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "join", f = f.raw(), g = g.raw(), "zbdd op");
+        if f.is_empty() || g.is_empty() {
+            return ZBDD_EMPTY;
+        }
+        if f.is_base() {
+            return g;
+        }
+        if g.is_base() {
+            return f;
+        }
+        let key = if f < g { (f, g) } else { (g, f) };
+        if let Some(cached) = self.join_cache.get(&key).copied() {
+            return cached;
+        }
+        let fv = self.var_of(f);
+        let gv = self.var_of(g);
+        let result = if fv == gv {
+            let f1 = self.node(f).high;
+            let f0 = self.node(f).low;
+            let g1 = self.node(g).high;
+            let g0 = self.node(g).low;
+            let j11 = self.join(f1, g1);
+            let j10 = self.join(f1, g0);
+            let j01 = self.join(f0, g1);
+            let a = self.union(j11, j10);
+            let hi = self.union(a, j01);
+            let lo = self.join(f0, g0);
+            self.make_node(fv, hi, lo)
+        } else if fv < gv {
+            let f1 = self.node(f).high;
+            let f0 = self.node(f).low;
+            let hi = self.join(f1, g);
+            let lo = self.join(f0, g);
+            self.make_node(fv, hi, lo)
+        } else {
+            let g1 = self.node(g).high;
+            let g0 = self.node(g).low;
+            let hi = self.join(f, g1);
+            let lo = self.join(f, g0);
+            self.make_node(gv, hi, lo)
+        };
+        self.join_cache.insert(key, result);
+        result
+    }
+
     pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() {
             return ZBDD_EMPTY;
         }
@@ -349,6 +416,7 @@ impl ZbddEngine {
     }
 
     pub(crate) fn minimize(&mut self, f: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "minimize", f = f.raw(), "zbdd op");
         if f.is_terminal() { return f; }
 
         if let Some(cached) = self.minimize_cache.get(&f).copied() {
@@ -365,6 +433,52 @@ impl ZbddEngine {
         let result = self.make_node(var, hi_pruned, lo_min);
 
         self.minimize_cache.insert(f, result);
+        result
+    }
+
+    pub(crate) fn purify(&mut self, f: ZbddRef) -> ZbddRef {
+        trace!(target: "praxis::zbdd", op = "purify", f = f.raw(), "zbdd op");
+        if f.is_terminal() {
+            return f;
+        }
+        if let Some(&r) = self.purify_cache.get(&f) {
+            return r;
+        }
+        let var = self.var_of(f);
+        let hi = self.node(f).high;
+        let lo = self.node(f).low;
+        let hi_p = self.purify(hi);
+        let lo_p = self.purify(lo);
+        let hi_p = if var % 2 == 0 {
+            self.remove_var(hi_p, var + 1)
+        } else {
+            hi_p
+        };
+        let result = self.make_node(var, hi_p, lo_p);
+        self.purify_cache.insert(f, result);
+        result
+    }
+
+    pub(crate) fn remove_var(&mut self, f: ZbddRef, w: usize) -> ZbddRef {
+        if f.is_terminal() {
+            return f;
+        }
+        let var = self.var_of(f);
+        if var == w {
+            return self.node(f).low;
+        }
+        if var > w {
+            return f;
+        }
+        if let Some(&r) = self.removevar_cache.get(&(f, w)) {
+            return r;
+        }
+        let hi = self.node(f).high;
+        let lo = self.node(f).low;
+        let hi_r = self.remove_var(hi, w);
+        let lo_r = self.remove_var(lo, w);
+        let result = self.make_node(var, hi_r, lo_r);
+        self.removevar_cache.insert((f, w), result);
         result
     }
 
@@ -857,6 +971,42 @@ mod tests {
         let sets = z.enumerate(r);
         assert_eq!(sets.len(), 1);
         assert_eq!(sets[0], vec![0]);
+    }
+
+    #[test]
+    fn join_combines_cut_sets() {
+        let mut z = ZbddEngine::new();
+        let a = z.multiply(0, ZBDD_BASE);
+        let b = z.multiply(1, ZBDD_BASE);
+        let ab = z.join(a, b);
+        assert_eq!(z.enumerate(ab), vec![vec![0, 1]]);
+
+        let a_or_b = z.union(a, b);
+        let c = z.multiply(2, ZBDD_BASE);
+        let joined = z.join(a_or_b, c);
+        let mut got = z.enumerate(joined);
+        got.iter_mut().for_each(|s| s.sort());
+        got.sort();
+        assert_eq!(got, vec![vec![0, 2], vec![1, 2]]);
+
+        assert_eq!(z.join(ZBDD_BASE, a), a);
+        assert_eq!(z.join(a, ZBDD_BASE), a);
+        assert_eq!(z.join(ZBDD_EMPTY, a), ZBDD_EMPTY);
+        assert_eq!(z.join(a, ZBDD_EMPTY), ZBDD_EMPTY);
+    }
+
+    #[test]
+    fn purify_drops_contradictions() {
+        let mut z = ZbddEngine::new();
+
+        let pos0 = z.multiply(0, ZBDD_BASE);
+        let neg0 = z.multiply(1, ZBDD_BASE);
+        let contradiction = z.join(pos0, neg0);
+        let pos1 = z.multiply(2, ZBDD_BASE);
+        let valid = z.join(pos0, pos1);
+        let mixed = z.union(contradiction, valid);
+        let pure = z.purify(mixed);
+        assert_eq!(z.enumerate(pure), vec![vec![0, 2]]);
     }
 
     #[test]

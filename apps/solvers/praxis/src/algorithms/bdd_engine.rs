@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing::trace;
+
 use crate::algorithms::pdag::{Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode};
 use crate::error::{PraxisError, Result};
 
@@ -218,6 +220,16 @@ impl Bdd {
         }
         let r = self.alloc_node(key);
         self.unique_insert(key, r);
+        trace!(
+            target: "praxis::bdd",
+            op = "make_node",
+            var,
+            high = canon_high.raw(),
+            low = canon_low.raw(),
+            node = r.raw(),
+            total = self.node_count(),
+            "bdd node populated"
+        );
         if negate { r.complement() } else { r }
     }
 
@@ -290,6 +302,16 @@ impl Bdd {
         let result = self.make_node(top, t, e);
         self.compute_insert(key, result);
 
+        trace!(
+            target: "praxis::bdd",
+            op = "ite",
+            f = nf.raw(),
+            g = ng.raw(),
+            h = nh.raw(),
+            top,
+            result = result.raw(),
+            "bdd ite"
+        );
         if negate { result.complement() } else { result }
     }
 

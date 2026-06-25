@@ -1,12 +1,14 @@
+"""JSInp (SAPHIRE solver JSON) writer for pracciolini, consuming PBF bytes.
+
+write() emits the SAPHSOLVE input structure for And/Or/AtLeast trees. It rejects
+Not, Xor, Nand, and Nor (returns False) and returns True on success.
+"""
 from __future__ import annotations
+
 import json
 import os
-from model import (
-    Model, FaultTree, Gate,
-    EventRef, GateRef, AndExpr, OrExpr,
-    NotExpr, XorExpr, NandExpr, NorExpr, AtleastExpr,
-    LogicExpr,
-)
+
+import pbf
 
 _SPECIAL_EVENTS = [
     {"id": "99999", "corrgate": "0", "name": "<TRUE>",
@@ -25,54 +27,19 @@ _SPECIAL_EVENTS = [
 
 _TOP_GATE_ID = 80000
 _FT_ID = 139
+_UNSUPPORTED = {"Not", "Xor", "Nand", "Nor"}
 
 
-def _has_unsupported(expr: LogicExpr) -> bool:
-    if isinstance(expr, (NotExpr, XorExpr, NandExpr, NorExpr)):
-        return True
-    if isinstance(expr, (AndExpr, OrExpr, AtleastExpr)):
-        return any(_has_unsupported(a) for a in expr.args)
-    return False
-
-
-def _find_top_gate(ft: FaultTree) -> str | None:
-    if isinstance(ft.top, GateRef):
-        return ft.top.gate
-    referenced: set[str] = set()
-    for gate in ft.gates:
-        _collect_refs(gate.expr, referenced)
-    for gate in ft.gates:
-        if gate.name not in referenced:
-            return gate.name
-    return ft.gates[0].name if ft.gates else None
-
-
-def _collect_refs(expr: LogicExpr, out: set[str]) -> None:
-    if isinstance(expr, GateRef):
-        out.add(expr.gate)
-    elif isinstance(expr, (AndExpr, OrExpr, AtleastExpr)):
-        for a in expr.args:
-            _collect_refs(a, out)
-
-
-def write(model: Model, path: str, cutoff: float = 1e-12) -> bool:
-    if not model.fault_trees:
+def write(data: bytes, path: str, cutoff: float = 1e-12) -> bool:
+    ft = pbf.decode_fault_tree(data)
+    if not ft.gates:
         return False
-    ft = model.fault_trees[0]
-
-    for gate in ft.gates:
-        if _has_unsupported(gate.expr):
+    for gate in ft.gates.values():
+        if gate.formula in _UNSUPPORTED:
             return False
 
-    top_gate_name = _find_top_gate(ft)
-    if not top_gate_name:
-        return False
-
-    gate_map: dict[str, Gate] = {g.name: g for g in ft.gates}
-    event_probs: dict[str, float] = {
-        be.name: (be.p if isinstance(be.p, float) else 0.0)
-        for be in ft.basic_events
-    }
+    top_gate_name = ft.top
+    event_probs = {name: be.prob for name, be in ft.basic_events.items()}
 
     gate_id_map: dict[str, int] = {}
     event_id_map: dict[str, int] = {}
@@ -90,34 +57,27 @@ def write(model: Model, path: str, cutoff: float = 1e-12) -> bool:
             gid = child_counter[0]
         gate_id_map[gate_name] = gid
 
-        gate = gate_map.get(gate_name)
+        gate = ft.gates.get(gate_name)
         if gate is None:
             return gid
 
         gate_inputs: list[int] = []
         event_inputs: list[int] = []
-
-        def _add(e: LogicExpr) -> None:
-            if isinstance(e, GateRef):
-                gate_inputs.append(_visit(e.gate))
-            elif isinstance(e, EventRef):
-                if e.event not in event_id_map:
+        for op in gate.operands:
+            if op in ft.gates:
+                gate_inputs.append(_visit(op))
+            else:
+                if op not in event_id_map:
                     event_counter[0] += 1
-                    event_id_map[e.event] = event_counter[0]
-                event_inputs.append(event_id_map[e.event])
+                    event_id_map[op] = event_counter[0]
+                event_inputs.append(event_id_map[op])
 
-        expr = gate.expr
-        if isinstance(expr, (AndExpr, OrExpr)):
-            gate_type = "and" if isinstance(expr, AndExpr) else "or"
-            for arg in expr.args:
-                _add(arg)
-        elif isinstance(expr, AtleastExpr):
-            gate_type = f"{expr.k}/{len(expr.args)}"
-            for arg in expr.args:
-                _add(arg)
-        else:
+        if gate.formula == "And":
             gate_type = "and"
-            _add(expr)
+        elif gate.formula == "Or":
+            gate_type = "or"
+        else:  # AtLeast
+            gate_type = f"{gate.k}/{len(gate.operands)}"
 
         entry: dict = {
             "gateid": gid,

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use tracing::info;
+
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::analysis::width::compute_dfs_metadata_pdag;
 
@@ -647,6 +649,7 @@ pub(crate) fn best_order<S: ReorderSource>(
     if n < 2 {
         return seed;
     }
+    let started = Instant::now();
     let deadline = Instant::now() + budget;
     let mut var_of: HashMap<NodeIndex, usize> = HashMap::new();
     for (pos, &idx) in seed.iter().enumerate() {
@@ -655,18 +658,39 @@ pub(crate) fn best_order<S: ReorderSource>(
     let mut rb = RBdd::new(n, deadline);
     let root = build_pdag(&mut rb, source, &var_of);
     if rb.aborted {
+        info!(
+            method = ?method,
+            variables = n,
+            "reorder: working BDD exceeded the time budget, keeping the seed order"
+        );
         return seed;
     }
-    match method {
-        ReorderMethod::Sift => {
-            sift_swap(&mut rb, root, deadline);
-        }
-        ReorderMethod::Gsift => {
-            gsift_swap(&mut rb, root, deadline);
-        }
+    let initial = rb.reachable_count(root);
+    info!(method = ?method, variables = n, initial_bdd_nodes = initial, "reorder: start");
+    let final_root = match method {
+        ReorderMethod::Sift => Some(sift_swap(&mut rb, root, deadline)),
+        ReorderMethod::Gsift => Some(gsift_swap(&mut rb, root, deadline)),
         ReorderMethod::Ils => {
             ils_swap(&mut rb, root, deadline);
+            None
         }
+    };
+    match final_root {
+        Some(r) => info!(
+            method = ?method,
+            initial_bdd_nodes = initial,
+            final_bdd_nodes = rb.reachable_count(r),
+            aborted = rb.aborted,
+            elapsed_s = started.elapsed().as_secs_f64(),
+            "reorder: done"
+        ),
+        None => info!(
+            method = ?method,
+            initial_bdd_nodes = initial,
+            aborted = rb.aborted,
+            elapsed_s = started.elapsed().as_secs_f64(),
+            "reorder: done"
+        ),
     }
     rb.var_at_level.iter().map(|&pos| seed[pos]).collect()
 }

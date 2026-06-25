@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use tracing::{debug, trace};
+
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::core::fault_tree::FaultTree;
 use crate::Result;
@@ -15,7 +17,7 @@ impl SignedCutSet {
     }
 }
 
-enum Expansion {
+pub(crate) enum Expansion {
     Conjunction(Vec<NodeIndex>),
     Disjunction(Vec<NodeIndex>),
     AtLeast(usize, Vec<NodeIndex>),
@@ -25,18 +27,10 @@ enum Expansion {
 pub struct NonCoherentMocus {
     pdag: Pdag,
     prob: HashMap<NodeIndex, f64>,
-    max_order: Option<usize>,
-    cut_off: Option<f64>,
-    bound: HashMap<NodeIndex, f64>,
     cut_sets: Vec<Vec<NodeIndex>>,
 }
 
-/// Expand XOR and IFF gates into AND/OR/complement structure in place, so the
-/// consensus cut-set engine (which has no XOR/IFF expansion of its own) sees a
-/// graph built only from connectives it handles natively. Every other connective
-/// (AND, OR, NAND, NOR, NOT, NULL, ATLEAST) is consumed directly by
-/// `gate_expansion`, so only XOR and IFF are rewritten here. Function-preserving.
-fn normalize_xor_iff(pdag: &mut Pdag) -> Result<()> {
+pub(crate) fn normalize_xor_iff(pdag: &mut Pdag) -> Result<()> {
     let mut synth: usize = 0;
     let targets: Vec<NodeIndex> = pdag
         .nodes()
@@ -144,7 +138,7 @@ fn flip(ops: &[NodeIndex]) -> Vec<NodeIndex> {
     ops.iter().map(|&o| -o).collect()
 }
 
-fn gate_expansion(conn: Connective, neg: bool, ops: &[NodeIndex], min: Option<usize>) -> Expansion {
+pub(crate) fn gate_expansion(conn: Connective, neg: bool, ops: &[NodeIndex], min: Option<usize>) -> Expansion {
     match conn {
         Connective::And => {
             if neg {
@@ -228,7 +222,7 @@ fn consensus(a: &[NodeIndex], b: &[NodeIndex]) -> Option<Vec<NodeIndex>> {
     Some(out)
 }
 
-fn combinations(items: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
+pub(crate) fn combinations(items: &[NodeIndex], k: usize) -> Vec<Vec<NodeIndex>> {
     let mut out = Vec::new();
     let mut current = Vec::new();
     fn rec(items: &[NodeIndex], start: usize, k: usize, current: &mut Vec<NodeIndex>, out: &mut Vec<Vec<NodeIndex>>) {
@@ -263,21 +257,8 @@ impl NonCoherentMocus {
         Ok(Self {
             pdag: owned,
             prob,
-            max_order: None,
-            cut_off: None,
-            bound: HashMap::new(),
             cut_sets: Vec::new(),
         })
-    }
-
-    pub fn with_max_order(mut self, max_order: usize) -> Self {
-        self.max_order = Some(max_order);
-        self
-    }
-
-    pub fn with_cut_off(mut self, cut_off: f64) -> Self {
-        self.cut_off = Some(cut_off);
-        self
     }
 
     fn is_gate(&self, r: NodeIndex) -> bool {
@@ -286,10 +267,6 @@ impl NonCoherentMocus {
 
     fn is_basic(&self, r: NodeIndex) -> bool {
         matches!(self.pdag.get_node(r.abs()), Some(PdagNode::BasicEvent { .. }))
-    }
-
-    fn literal_count(&self, set: &[NodeIndex]) -> usize {
-        set.iter().filter(|&&r| self.is_basic(r)).count()
     }
 
     fn canonicalize(&self, set: &[NodeIndex]) -> Option<Vec<NodeIndex>> {
@@ -375,61 +352,6 @@ impl NonCoherentMocus {
         }
     }
 
-    fn node_bound(&mut self, r: NodeIndex) -> f64 {
-        if let Some(&v) = self.bound.get(&r) {
-            return v;
-        }
-        let value = match self.pdag.get_node(r.abs()).cloned() {
-            Some(PdagNode::BasicEvent { .. }) => {
-                let p = self.prob.get(&r.abs()).copied().unwrap_or(0.0);
-                if r < 0 {
-                    1.0 - p
-                } else {
-                    p
-                }
-            }
-            Some(PdagNode::Constant { value, .. }) => {
-                let v = if r < 0 { !value } else { value };
-                if v {
-                    1.0
-                } else {
-                    0.0
-                }
-            }
-            Some(PdagNode::Gate {
-                connective,
-                operands,
-                min_number,
-                ..
-            }) => match gate_expansion(connective, r < 0, &operands, min_number) {
-                Expansion::Conjunction(add) => {
-                    add.iter().map(|&o| self.node_bound(o)).product()
-                }
-                Expansion::Disjunction(refs) => {
-                    let complement: f64 = refs.iter().map(|&o| 1.0 - self.node_bound(o)).product();
-                    1.0 - complement
-                }
-                Expansion::AtLeast(k, refs) => {
-                    let mut bounds: Vec<f64> = refs.iter().map(|&o| self.node_bound(o)).collect();
-                    bounds.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-                    bounds.iter().take(k).product()
-                }
-                Expansion::Unsupported => 1.0,
-            },
-            None => 1.0,
-        };
-        self.bound.insert(r, value);
-        value
-    }
-
-    fn set_bound(&mut self, set: &[NodeIndex]) -> f64 {
-        let mut product = 1.0;
-        for &r in set {
-            product *= self.node_bound(r);
-        }
-        product
-    }
-
     fn is_subset(a: &[NodeIndex], b: &[NodeIndex]) -> bool {
         let mut i = 0;
         for &x in a {
@@ -457,6 +379,7 @@ impl NonCoherentMocus {
             return Vec::new();
         };
         let eff_root = if self.pdag.complement() { -root } else { root };
+        debug!(target: "praxis::noncoherent_mocus", root = eff_root, "noncoherent mocus analyze start");
 
         let mut queue: VecDeque<Vec<NodeIndex>> = VecDeque::new();
         let mut seen: HashSet<Vec<NodeIndex>> = HashSet::new();
@@ -469,23 +392,15 @@ impl NonCoherentMocus {
             let Some(set) = self.canonicalize(&set) else {
                 continue;
             };
-            if let Some(max) = self.max_order {
-                if self.literal_count(&set) > max {
-                    continue;
-                }
-            }
             if self.cut_sets.iter().any(|known| Self::is_subset(known, &set)) {
                 continue;
             }
-            if let Some(cut_off) = self.cut_off {
-                if self.set_bound(&set) < cut_off {
-                    continue;
-                }
-            }
             if set.iter().all(|&r| self.is_basic(r)) {
+                trace!(target: "praxis::noncoherent_mocus", op = "cut_set", literals = ?set, order = set.len(), "prime-implicant cut set candidate");
                 self.try_add(set);
                 continue;
             }
+            trace!(target: "praxis::noncoherent_mocus", op = "expand", set = ?set, "expand gate set");
             if let Some(children) = self.expand(&set) {
                 for child in children {
                     if let Some(child) = self.canonicalize(&child) {
@@ -497,6 +412,7 @@ impl NonCoherentMocus {
             }
         }
 
+        debug!(target: "praxis::noncoherent_mocus", cut_sets = self.cut_sets.len(), "noncoherent mocus analyze done");
         self.cut_sets
             .iter()
             .map(|c| SignedCutSet { literals: c.clone() })
@@ -510,25 +426,6 @@ impl NonCoherentMocus {
             product *= if r < 0 { 1.0 - p } else { p };
         }
         product
-    }
-
-    fn cube_within_limits(&self, cube: &[NodeIndex]) -> bool {
-        if let Some(max) = self.max_order {
-            if cube.len() > max {
-                return false;
-            }
-        }
-        if let Some(cut_off) = self.cut_off {
-            let mut p = 1.0;
-            for &r in cube {
-                let pe = self.prob.get(&r.abs()).copied().unwrap_or(0.0);
-                p *= if r < 0 { 1.0 - pe } else { pe };
-            }
-            if p < cut_off {
-                return false;
-            }
-        }
-        true
     }
 
     fn add_prime(
@@ -554,9 +451,7 @@ impl NonCoherentMocus {
             let mut produced: Vec<Vec<NodeIndex>> = Vec::new();
             for other in primes.iter() {
                 if let Some(cons) = consensus(&c, other) {
-                    if self.cube_within_limits(&cons) {
-                        produced.push(cons);
-                    }
+                    produced.push(cons);
                 }
             }
             for cube in produced {
@@ -567,16 +462,10 @@ impl NonCoherentMocus {
     }
 
     pub fn analyze_primes(&mut self) -> Vec<SignedCutSet> {
-        let saved_order = self.max_order.take();
-        let saved_cut_off = self.cut_off.take();
         let cover = self.analyze();
         let cubes: Vec<Vec<NodeIndex>> = cover.into_iter().map(|c| c.literals).collect();
-        let primes = self.consensus_complete(cubes);
-        self.max_order = saved_order;
-        self.cut_off = saved_cut_off;
-        primes
+        self.consensus_complete(cubes)
             .into_iter()
-            .filter(|cube| self.cube_within_limits(cube))
             .map(|literals| SignedCutSet { literals })
             .collect()
     }
@@ -779,18 +668,6 @@ mod tests {
         let mut got = full[0].literals.clone();
         got.sort();
         assert_eq!(got, bcd);
-
-        let limited = NonCoherentMocus::new(&p, &ft).unwrap()
-            .with_max_order(3)
-            .analyze_primes();
-        assert_eq!(
-            limited.len(),
-            1,
-            "order-3 limit dropped the in-limit prime b&c&d (parents are order 4)"
-        );
-        let mut got2 = limited[0].literals.clone();
-        got2.sort();
-        assert_eq!(got2, bcd);
     }
 
     #[test]
@@ -911,22 +788,5 @@ mod tests {
             engine, oracle,
             "preprocessed consensus engine must equal the QM oracle on the stress function"
         );
-    }
-
-    #[test]
-    fn cut_off_keeps_only_dominant_cover() {
-        let mut p = Pdag::new();
-        let a = p.add_basic_event("a".to_string());
-        let b = p.add_basic_event("b".to_string());
-        let g1 = p.add_gate("g1".to_string(), Connective::And, vec![a, -b], None).unwrap();
-        let top = p.add_gate("top".to_string(), Connective::Or, vec![g1, b], None).unwrap();
-        p.set_root(top).unwrap();
-        let ft = ft_with(&[("a", 0.5), ("b", 1e-3)]);
-        let full = NonCoherentMocus::new(&p, &ft).unwrap().analyze();
-        let truncated = NonCoherentMocus::new(&p, &ft).unwrap().with_cut_off(1e-2).analyze();
-        assert!(truncated.len() < full.len());
-        for cs in &truncated {
-            assert!(NonCoherentMocus::new(&p, &ft).unwrap().cut_set_probability(cs) >= 1e-2);
-        }
     }
 }

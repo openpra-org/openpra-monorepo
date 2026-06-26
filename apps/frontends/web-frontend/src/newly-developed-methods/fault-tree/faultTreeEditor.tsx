@@ -144,7 +144,7 @@ function DetailPopup({ x, y, node, onClose }: {
   );
 }
 
-function FaultTreeCanvas({ input, flavor }: { input: FtInputNode[]; flavor: FtFlavor }): JSX.Element {
+function FaultTreeCanvas({ input, flavor, embedded = false }: { input: FtInputNode[]; flavor: FtFlavor; embedded?: boolean }): JSX.Element {
   const initial = useMemo(() => buildGraph(input), [input]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -246,6 +246,8 @@ function FaultTreeCanvas({ input, flavor }: { input: FtInputNode[]; flavor: FtFl
           fitViewOptions={{ padding: 0.2, minZoom: 0.4, maxZoom: 1 }}
           minZoom={0.2}
           maxZoom={1.6}
+          zoomOnScroll={!embedded}
+          preventScrolling={!embedded}
           proOptions={{ hideAttribution: true }}
         >
           <Background gap={22} size={1} color="var(--color-border)" />
@@ -275,10 +277,10 @@ function FaultTreeCanvas({ input, flavor }: { input: FtInputNode[]; flavor: FtFl
   );
 }
 
-export function FaultTreeEditor({ nodes, flavor = "logic" }: { nodes: FtInputNode[]; flavor?: FtFlavor }): JSX.Element {
+export function FaultTreeEditor({ nodes, flavor = "logic", embedded = false }: { nodes: FtInputNode[]; flavor?: FtFlavor; embedded?: boolean }): JSX.Element {
   return (
     <ReactFlowProvider>
-      <FaultTreeCanvas input={nodes} flavor={flavor} />
+      <FaultTreeCanvas input={nodes} flavor={flavor} embedded={embedded} />
     </ReactFlowProvider>
   );
 }

@@ -26,6 +26,7 @@ export const PlantIdentitySchema = z.object({
   intermediateCoolant: z.string().optional(),
   powerConversionFluid: z.string().optional(),
   siteName: z.string().optional(),
+  numberOfModules: z.number().optional(),
 });
 
 export const TechnicalElementMetadataSchema = z.object({

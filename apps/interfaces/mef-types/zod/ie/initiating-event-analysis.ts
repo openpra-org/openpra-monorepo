@@ -169,6 +169,33 @@ export const InitiatingEventGroupSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const FrequencyFaultTreeNodeSchema = z.object({
+  id: z.string(),
+  parentId: z.string().optional(),
+  label: z.string(),
+  nodeType: z.enum(["GATE", "BASIC", "HOUSE", "TRANSFER", "UNDEVELOPED"]),
+  gate: z.enum(["AND", "OR", "NOT", "ATLEAST"]).optional(),
+  k: z.number().optional(),
+  detail: z.string().optional(),
+});
+
+export const FrequencyDataSourceSchema = z.object({
+  uuid: z.string(),
+  label: z.string(),
+  basis: QuantificationBasisSchema,
+  pedigree: z.enum(["TECHNOLOGY_SPECIFIC", "TECHNOLOGY_INDEPENDENT", "OTHER_INDUSTRY", "TEST_DATA"]).optional(),
+  perModule: z.boolean(),
+  sourceReference: z.string(),
+  eventCount: z.number().optional(),
+  exposureModuleYears: z.number().optional(),
+  priorMean: z.number().optional(),
+  priorWeightPseudoEvents: z.number().optional(),
+  distributionFamily: z.enum(["POINT", "GAMMA", "LOGNORMAL", "BETA"]).optional(),
+  distributionParameters: z.array(z.number()).optional(),
+  faultTreeTopMean: z.number().optional(),
+  faultTree: z.array(FrequencyFaultTreeNodeSchema).optional(),
+});
+
 export const InitiatingEventFrequencyQuantificationSchema = z.object({
   initiatorOrGroupId: z.string(),
   meanFrequency: FrequencyValueSchema,
@@ -222,6 +249,8 @@ export const InitiatingEventFrequencyQuantificationSchema = z.object({
     })
     .optional(),
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
+  dataSources: z.array(FrequencyDataSourceSchema).optional(),
+  primaryDataSourceId: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 

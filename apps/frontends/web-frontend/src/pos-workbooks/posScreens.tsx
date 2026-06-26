@@ -2185,9 +2185,6 @@ function DraftScreen({
             <button type="button" className="posnav__btn" onClick={downloadJson}>
               <POSIcon.Download /> Download JSON
             </button>
-            <button type="button" className="posnav__btn" onClick={() => onGenerate(ready)}>
-              <POSIcon.Eye /> Preview before generating
-            </button>
           </div>
         </div>
       </div>

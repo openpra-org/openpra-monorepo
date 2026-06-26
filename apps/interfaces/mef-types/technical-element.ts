@@ -71,6 +71,8 @@ export interface PlantIdentity {
   intermediateCoolant?: string;
   powerConversionFluid?: string;
   siteName?: string;
+  // Modules per site (set in step 01 scope); used for per-module vs per-site frequency conversion
+  numberOfModules?: number;
 }
 
 export interface TechnicalElementMetadata {

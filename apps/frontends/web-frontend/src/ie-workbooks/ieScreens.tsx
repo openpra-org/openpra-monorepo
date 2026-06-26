@@ -4,6 +4,7 @@ import {
   type InitiatorDefinition,
   type InitiatingEventGroup,
   type InitiatingEventFrequencyQuantification,
+  type FrequencyDataSource,
   type InitiatingEventScreeningRecord,
   type HazardAnalysis,
 } from "interfaces-mef-types/ie/initiating-event-analysis";
@@ -22,6 +23,8 @@ import { PhaEditor } from "../newly-developed-methods/process-hazard-analysis/ph
 import { OperatingExperienceEditor } from "../newly-developed-methods/operating-experience/operatingExperienceEditor";
 import { GenericCatalogueEditor } from "../newly-developed-methods/generic-catalogue/genericCatalogueEditor";
 import { buildWorksheetModel, buildPhaModel, buildOeModel, buildCatalogueModel } from "./methodEditorAdapters";
+import { IeFrequencyQuantificationEditor } from "../newly-developed-methods/ie-frequency-quantification/ieFrequencyQuantificationEditor";
+import { generateIeReport, computeIeReportToc } from "./ieDocx";
 
 const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
 
@@ -213,12 +216,19 @@ interface IfaceLane {
 }
 
 function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreenProps): JSX.Element {
-  const { ie, posLink } = useIeWorkbook();
+  const { ie, posLink, editable, mutateIe } = useIeWorkbook();
   const linked = posLink.linkedPosWorkbookId !== null;
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
 
-  const [siteConfig, setSiteConfig] = useState<"single" | "multi">("single");
-  const [unitCount, setUnitCount] = useState("2");
+  const numberOfModules = ie.metadata.plantIdentity?.numberOfModules ?? 1;
+  const siteConfig: "single" | "multi" = numberOfModules > 1 ? "multi" : "single";
+  const setModules = (n: number): void => {
+    mutateIe((draft) => {
+      const pi = draft.metadata.plantIdentity;
+      if (pi === undefined) return draft;
+      return { ...draft, metadata: { ...draft.metadata, plantIdentity: { ...pi, numberOfModules: n } } };
+    });
+  };
   const [selectedTe, setSelectedTe] = useState<string | null>(null);
 
   const multiUnitText = siteConfig === "single" ? "Not applicable" : "In scope";
@@ -365,7 +375,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
           {/* Site configuration */}
           <div className="iefield">
             <label className="iefield__label" htmlFor="ie-scope-site">Site configuration</label>
-            <select id="ie-scope-site" className="iefield__select" value={siteConfig} onChange={(e) => setSiteConfig(e.target.value as "single" | "multi")}>
+            <select id="ie-scope-site" className="iefield__select" value={siteConfig} disabled={!editable} onChange={(e) => setModules(e.target.value === "multi" ? Math.max(2, numberOfModules) : 1)}>
               <option value="single">Single-unit site</option>
               <option value="multi">Multi-unit site</option>
             </select>
@@ -376,7 +386,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
             <label className="iefield__label" htmlFor="ie-scope-units">Units at site</label>
             {siteConfig === "single"
               ? <input id="ie-scope-units" className="iefield__input iefield__input--locked" value="1" readOnly />
-              : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={unitCount} onChange={(e) => setUnitCount(e.target.value)} />}
+              : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={numberOfModules} disabled={!editable} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n >= 2) setModules(Math.min(6, Math.round(n))); }} />}
           </div>
 
           {/* Multi-unit IE-A16 */}
@@ -1333,6 +1343,32 @@ function FrequencyScreen(): JSX.Element {
     mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.filter((q) => q.initiatorOrGroupId !== id) }));
   };
 
+  const numberOfModules = ie.metadata.plantIdentity?.numberOfModules ?? 1;
+  const [openQuantId, setOpenQuantId] = useState<string | null>(null);
+  const setQuantSources = (id: string, nextSources: FrequencyDataSource[], nextPrimary: string | undefined, rolled: number | null): void => {
+    mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.map((q) => {
+      if (q.initiatorOrGroupId !== id) return q;
+      const primary = nextSources.find((s) => s.uuid === nextPrimary);
+      const updated: InitiatingEventFrequencyQuantification = {
+        ...q,
+        dataSources: nextSources,
+        primaryDataSourceId: nextPrimary,
+        basis: primary !== undefined ? primary.basis : q.basis,
+      };
+      if (rolled !== null && rolled > 0) {
+        updated.meanFrequency = typeof q.meanFrequency === "object" ? { ...q.meanFrequency, value: rolled } : rolled;
+      }
+      return updated;
+    }) }));
+  };
+  const openQuant = openQuantId !== null ? records.find((q) => q.initiatorOrGroupId === openQuantId) : undefined;
+  useEffect(() => {
+    if (openQuantId === null) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [openQuantId]);
+
   const ticks = ["1e-6", "1e-5", "1e-4", "1e-3", "1e-2", "1e-1", "1e0"];
   return (
     <>
@@ -1397,18 +1433,21 @@ function FrequencyScreen(): JSX.Element {
                   ? <div className="iefreq__entry">
                       <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(q.initiatorOrGroupId, n)} />
                       <span className="iefreq__entry-unit">per plant-yr</span>
-                      {freqValue(q.meanFrequency) > 0 && <span className="poschip poschip--primary">{fmtFreq(q.meanFrequency)}</span>}
                     </div>
                   : <span className="ietbl__text">{fmtFreq(q.meanFrequency)} per plant-yr</span>}
               </div>
 
               <div className="iegroup__field">
-                <span className="iegroup__label">Basis</span>
-                {editable
-                  ? <select className="ietbl__select iegroup__bounding" value={q.basis} onChange={(e) => patchQuant(q.initiatorOrGroupId, { basis: e.target.value as FreqBasis })}>
-                      {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  : <span className="ietbl__text">{BASIS_LABEL[q.basis] ?? q.basis}</span>}
+                <span className="iegroup__label">Data Sources and Basis</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  {editable
+                    ? <select className="ietbl__select iegroup__bounding" value={q.basis} onChange={(e) => patchQuant(q.initiatorOrGroupId, { basis: e.target.value as FreqBasis })}>
+                        {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    : <span className="ietbl__text">{BASIS_LABEL[q.basis] ?? q.basis}</span>}
+                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(q.initiatorOrGroupId)}>Open quantifier →</button>
+                  <span className="possubtle" style={{ fontSize: 12 }}>{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                </div>
               </div>
 
               <div className="iegroup__checks">
@@ -1433,6 +1472,28 @@ function FrequencyScreen(): JSX.Element {
           ))}
         </div>
       )}
+
+      {openQuant !== undefined && (
+        <div className="ftspace">
+          <div className="ftspace__head">
+            <button type="button" className="ftspace__back" onClick={() => setOpenQuantId(null)}>
+              <span className="ftspace__back-arrow">←</span> Back to workbook
+            </button>
+            <div className="ftspace__titlewrap">
+              <span className="ftspace__title">Frequency quantification: {openQuant.initiatorOrGroupId} · {labelFor(openQuant.initiatorOrGroupId)}</span>
+            </div>
+          </div>
+          <div className="ftspace__body">
+            <IeFrequencyQuantificationEditor
+              sources={openQuant.dataSources ?? []}
+              primaryId={openQuant.primaryDataSourceId}
+              numberOfModules={numberOfModules}
+              editable={editable}
+              onChange={(ns, np, rolled) => setQuantSources(openQuant.initiatorOrGroupId, ns, np, rolled)}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1444,51 +1505,33 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
   onSubmitDraft: (ready: boolean) => void;
   canSubmit: boolean;
 }): JSX.Element {
+  const { ie } = useIeWorkbook();
   const ready = scores.blocked === 0;
-  const TOC_ITEMS: [string, string][] = [
-    ["Executive summary", "5"],
-    ["Introduction", "6"],
-    ["    Purpose", "6"],
-    ["    Scope", "6"],
-    ["    Relationship to other documents", "6"],
-    ["    Document layout", "6"],
-    ["    Quality assurance", "6"],
-    ["    Freeze date", "6"],
-    ["Assumptions & limitations", "7"],
-    ["IE analysis methodologies", "8"],
-    ["    Plant evolution & operating states", "8"],
-    ["    IE selection approach", "8"],
-    ["        Master logic diagram", "8"],
-    ["        Plant heat balance fault tree", "8"],
-    ["        Further checks for completeness", "8"],
-    ["    Common-cause initiating events", "8"],
-    ["    IE identification", "8"],
-    ["        Master logic diagram", "8"],
-    ["        Plant heat balance fault tree", "8"],
-    ["        Failure modes & effects analysis", "8"],
-    ["        Further checks for completeness", "8"],
-    ["Operating modes & states selected", "9"],
-    ["Screening & grouping of initiating events", "10"],
-    ["    Screening of initiating events", "10"],
-    ["    Grouping of initiating events", "10"],
-    ["Initiating event definition", "11"],
-    ["Initiating event quantification", "12"],
-    ["    Frequency quantification methodology", "12"],
-    ["    Uncertainty quantification methodology", "12"],
-    ["    Initiating-event frequency sources", "12"],
-    ["Initiating event groups & frequencies", "13"],
-    ["References", "14"],
-  ];
+  const toc = computeIeReportToc(ie);
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(ie, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${ie.name} — IE Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
         <div className="posgen__preview-eyebrow">Generated preview · Word output</div>
-        <h1>IE Workbook</h1>
+        <h1>{ie.name}</h1>
         <h2>Preliminary Initiating Event Analysis</h2>
         <h3>Table of contents</h3>
         <div className="posgen__preview-toc">
-          {TOC_ITEMS.map(([t, p], i) => (
-            <div key={i} className="posgen__preview-toc-row"><span>{t}</span><span>{p}</span></div>
+          {toc.map((entry) => (
+            <div key={entry.title} className="posgen__preview-toc-row">
+              <span style={{ paddingLeft: entry.indent === 1 ? 24 : 0 }}>{entry.title}</span>
+              <span>{entry.page}</span>
+            </div>
           ))}
         </div>
       </div>
@@ -1514,14 +1557,12 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
                 <IEIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
               </button>
             )}
-          </div>
-        </div>
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Downstream interfaces</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>This IE list feeds the next elements directly.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><IEIcon.ArrowR /> Event Sequence Analysis (ES)</span>
-            <span className="poschip poschip--method"><IEIcon.ArrowR /> Event Sequence Quantification (ESQ)</span>
+            <button type="button" className="posnav__btn" onClick={() => { void generateIeReport(ie, ready); }}>
+              <IEIcon.Download /> Download draft (.docx)
+            </button>
+            <button type="button" className="posnav__btn" onClick={downloadJson}>
+              <IEIcon.Download /> Download JSON
+            </button>
           </div>
         </div>
       </div>

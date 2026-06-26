@@ -4,6 +4,9 @@ import {
   type IeSearchMethod,
   type InitiatorDefinition,
   type InitiatingEventFrequencyQuantification,
+  type FrequencyDataSource,
+  type FrequencyDataPedigree,
+  type FrequencyFaultTreeNode,
   type InitiatingEventScreeningRecord,
   type InitiatingEventGroup,
   type HazardAnalysis,
@@ -3193,6 +3196,79 @@ const SCREENING_RECORDS: InitiatingEventScreeningRecord[] = [
   },
 ];
 
+const QUANT_SOURCE_LABEL: Record<string, string> = {
+  FAULT_TREE: "Bounding fault tree",
+  DESIGN_BASED: "Design-based estimate",
+  SIMILAR_PLANT_DATA: "Similar-plant / fleet data",
+  GENERIC_DATA: "Generic industry data",
+  OPERATING_DATA: "Plant operating data",
+};
+
+const QUANT_SOURCE_REFERENCE: Record<string, string> = {
+  FAULT_TREE: "Top-event frequency of the bounding member, modeled as a fault tree. Generic industry data, HTGR design reliability, and gas-cooled fleet experience; with no plant operating history the design-adjusted prior is taken as the posterior.",
+  DESIGN_BASED: "Design-based engineering reliability estimate for the Generic HTGR; HTGR design reliability and gas-cooled fleet experience. Lognormal carries the uncertainty.",
+  SIMILAR_PLANT_DATA: "Gas-cooled fleet and similar-plant experience as the basis; design-adjusted prior taken as the posterior. Lognormal carries the uncertainty.",
+  GENERIC_DATA: "Generic industry data (NUREG/CR-5750 and CR-6928 class) as the prior; with no plant operating data the design-adjusted prior equals the posterior. Lognormal carries the uncertainty.",
+  OPERATING_DATA: "Plant operating experience.",
+};
+
+const QUANT_SOURCE_PEDIGREE: Record<string, FrequencyDataPedigree> = {
+  DESIGN_BASED: "TECHNOLOGY_SPECIFIC",
+  SIMILAR_PLANT_DATA: "TECHNOLOGY_INDEPENDENT",
+  GENERIC_DATA: "TECHNOLOGY_INDEPENDENT",
+};
+
+function buildGroupFaultTree(q: InitiatingEventFrequencyQuantification): FrequencyFaultTreeNode[] {
+  const group = INITIATING_EVENT_GROUPS.find((g) => g.uuid === q.initiatorOrGroupId);
+  if (group === undefined) return [];
+  const top: FrequencyFaultTreeNode = {
+    id: "TOP",
+    label: group.name,
+    nodeType: "GATE",
+    gate: "OR",
+    detail: q.faultTreeDetails?.topEvent ?? group.description,
+  };
+  const children = group.memberInitiatorIds.map((mid): FrequencyFaultTreeNode => {
+    const init = INITIATORS.find((i) => i.uuid === mid);
+    return {
+      id: mid,
+      parentId: "TOP",
+      label: init?.name ?? mid,
+      nodeType: "BASIC",
+      detail: mid === group.boundingInitiatorId ? "Bounding member" : undefined,
+    };
+  });
+  return [top, ...children];
+}
+
+function withDataSources(q: InitiatingEventFrequencyQuantification): InitiatingEventFrequencyQuantification {
+  const mf = q.meanFrequency;
+  const value = typeof mf === "number" ? mf : mf.value;
+  const dist = typeof mf === "object" ? mf.distribution : undefined;
+  const ef = dist?.parameters[1] ?? 3;
+  const sigma = Math.log(ef) / 1.645;
+  const median = value / Math.exp((sigma * sigma) / 2);
+  const source: FrequencyDataSource = {
+    uuid: "DS-1",
+    label: QUANT_SOURCE_LABEL[q.basis],
+    basis: q.basis,
+    perModule: false,
+    sourceReference: QUANT_SOURCE_REFERENCE[q.basis],
+  };
+  if (q.basis === "FAULT_TREE") {
+    source.faultTreeTopMean = value;
+    source.faultTree = buildGroupFaultTree(q);
+  } else if (q.basis === "OPERATING_DATA") {
+    source.distributionFamily = "POINT";
+    source.distributionParameters = [value];
+  } else {
+    source.distributionFamily = "LOGNORMAL";
+    source.distributionParameters = [median, ef];
+    source.pedigree = QUANT_SOURCE_PEDIGREE[q.basis];
+  }
+  return { ...q, dataSources: [source], primaryDataSourceId: "DS-1" };
+}
+
 const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
   {
     initiatorOrGroupId: "IEG-01",
@@ -3716,6 +3792,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
       intermediateCoolant: "None (direct steam cycle)",
       powerConversionFluid: "Steam (Rankine cycle)",
       siteName: "Generic site",
+      numberOfModules: 1,
     },
   },
   conformanceMatrix: [
@@ -3789,7 +3866,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
     improvementPlans: ["Complete the systematic identification across all seven challenge categories in steps 03 and 04."],
     implementsSrs: [sr("IE-D2", "D")],
   },
-  quantifications: QUANTIFICATIONS,
+  quantifications: QUANTIFICATIONS.map(withDataSources),
   screeningRecords: SCREENING_RECORDS,
   modelUncertainty: {
     uuid: "ie-mu-1",

@@ -157,10 +157,53 @@ export interface InitiatingEventGroup extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+// Frequency quantification basis, shared by the card dropdown and each data source (interim TS quantification tool; see plans/Technical-Elements.md)
+export type FrequencyQuantificationBasis =
+  | "OPERATING_DATA"
+  | "GENERIC_DATA"
+  | "SIMILAR_PLANT_DATA"
+  | "DESIGN_BASED"
+  | "FAULT_TREE";
+
+export type FrequencyDataPedigree =
+  | "TECHNOLOGY_SPECIFIC"
+  | "TECHNOLOGY_INDEPENDENT"
+  | "OTHER_INDUSTRY"
+  | "TEST_DATA";
+
+export type FrequencyDistributionFamily = "POINT" | "GAMMA" | "LOGNORMAL" | "BETA";
+
+export interface FrequencyFaultTreeNode {
+  id: string;
+  parentId?: string;
+  label: string;
+  nodeType: "GATE" | "BASIC" | "HOUSE" | "TRANSFER" | "UNDEVELOPED";
+  gate?: "AND" | "OR" | "NOT" | "ATLEAST";
+  k?: number;
+  detail?: string;
+}
+
+export interface FrequencyDataSource {
+  uuid: string;
+  label: string;
+  basis: FrequencyQuantificationBasis;
+  pedigree?: FrequencyDataPedigree;
+  perModule: boolean;
+  sourceReference: string;
+  eventCount?: number;
+  exposureModuleYears?: number;
+  priorMean?: number;
+  priorWeightPseudoEvents?: number;
+  distributionFamily?: FrequencyDistributionFamily;
+  distributionParameters?: number[];
+  faultTreeTopMean?: number;
+  faultTree?: FrequencyFaultTreeNode[];
+}
+
 export interface InitiatingEventFrequencyQuantification {
   initiatorOrGroupId: string;
   meanFrequency: Frequency | FrequencyWithDistribution;
-  basis: "OPERATING_DATA" | "GENERIC_DATA" | "SIMILAR_PLANT_DATA" | "DESIGN_BASED" | "FAULT_TREE";
+  basis: FrequencyQuantificationBasis;
   plantCalendarYearBasis: boolean;
   posTimeFractionApplied: boolean;
   dataSourceJustification: string;
@@ -200,6 +243,9 @@ export interface InitiatingEventFrequencyQuantification {
     probabilisticRepresentationProvided: boolean;
   };
   sensitivityStudies?: SensitivityStudy[];
+  // Interim TS quantification tool inputs (see plans/Technical-Elements.md)
+  dataSources?: FrequencyDataSource[];
+  primaryDataSourceId?: string;
   implementsSrs: SRReference[];
 }
 

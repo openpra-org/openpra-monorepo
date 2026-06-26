@@ -606,15 +606,9 @@ impl Builder {
             acc = self.zbdd.join_budgeted(acc, c, budget);
             acc = self.zbdd.purify(acc);
             acc = self.zbdd.minimize(acc);
-            if self.zbdd.node_count() > 2_000_000 {
-                self.zbdd.clear_op_caches();
-            }
             if acc == ZBDD_EMPTY {
                 return Ok(ZBDD_EMPTY);
             }
-        }
-        if self.zbdd.node_count() > 2_000_000 {
-            self.zbdd.clear_op_caches();
         }
 
         for t in deletes {
@@ -623,24 +617,8 @@ impl Builder {
             }
             let dmcs = self.cut_sets_b(t, budget)?;
             acc = self.delete_covered(acc, dmcs);
-            if self.zbdd.node_count() > 2_000_000 {
-                self.zbdd.clear_op_caches();
-            }
         }
         Ok(acc)
-    }
-
-    fn flatten_or(&self, r: NodeIndex, out: &mut Vec<NodeIndex>) {
-        let neg = r < 0;
-        if let NodeKind::Gate(conn, ops, min) = self.kind(r) {
-            if let Expansion::Disjunction(refs) = gate_expansion(conn, neg, &ops, min) {
-                for op in refs {
-                    self.flatten_or(op, out);
-                }
-                return;
-            }
-        }
-        out.push(r);
     }
 
     fn build_delterm(&mut self) -> Result<ZbddRef> {
@@ -729,129 +707,58 @@ pub fn build_zbdd_delterm_named(
         builder.setup_mutex(name)?;
     }
 
-    let root = builder
-        .pdag
-        .root()
-        .ok_or_else(|| PraxisError::Logic("direct ZBDD: PDAG has no root".to_string()))?;
-    let eff = if builder.pdag.complement() { -root } else { root };
-    let budget = builder.cut_off.unwrap_or(1e-300);
-    let dec = decompose(&builder.pdag)?;
-    builder.decomposition = Some(dec);
-
-    let mut disjuncts: Vec<NodeIndex> = Vec::new();
-    builder.flatten_or(eff, &mut disjuncts);
-    disjuncts.sort_unstable();
-    disjuncts.dedup();
-
-    let do_trim = std::env::var("PRAXIS_NOTRIM").is_err();
-    let flags: HashSet<usize> = (0..builder.var_probs.len())
-        .filter(|&v| v % 2 == 0 && builder.var_probs[v] >= 1.0)
-        .collect();
-    let mut init_levels: Vec<usize> = builder.initiators.iter().copied().collect();
-    init_levels.sort_unstable();
-    let gc_threshold: usize = std::env::var("PRAXIS_GC_NODES")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(20_000_000);
-
-    let mut accum: HashSet<Vec<usize>> = HashSet::new();
-    for &d in &disjuncts {
-        let mut z = builder.cut_sets_b(d, budget)?;
-        if init_levels.len() >= 2 {
-            let mut pairs = ZBDD_EMPTY;
-            for i in 0..init_levels.len() {
-                for j in (i + 1)..init_levels.len() {
-                    let inner = builder.zbdd.multiply(2 * init_levels[j], ZBDD_BASE);
-                    let pair = builder.zbdd.multiply(2 * init_levels[i], inner);
-                    pairs = builder.zbdd.union(pairs, pair);
-                }
-            }
-            z = builder.zbdd.nonsuperset(z, pairs);
-        }
-        if do_trim && !flags.is_empty() {
-            let mut cache: HashMap<ZbddRef, ZbddRef> = HashMap::new();
-            z = builder.zbdd.project_out_set(z, &flags, &mut cache);
-        }
-        z = builder.zbdd.minimize(z);
-        for mut cs in builder.zbdd.enumerate(z) {
-            cs.sort_unstable();
-            accum.insert(cs);
-        }
-        if builder.zbdd.node_count() > gc_threshold {
-            builder.zbdd.reset();
-            builder.cache.clear();
-            builder.budget_cache.clear();
-        } else {
-            builder.zbdd.clear_op_caches();
-        }
-    }
-
-    // Group by the single initiator. Cut sets with different initiators cannot
-    // subsume each other, so per-group subsumption equals global subsumption and
-    // each group's rebuild stays in bounded memory.
-    let mut groups: HashMap<Option<usize>, Vec<Vec<usize>>> = HashMap::new();
-    for cs in accum {
-        let init_var = cs
-            .iter()
-            .copied()
-            .find(|&v| v % 2 == 0 && builder.initiators.contains(&(v / 2)));
-        groups.entry(init_var).or_default().push(cs);
-    }
+    let root = builder.build_delterm()?;
 
     let mut inv: HashMap<usize, NodeIndex> = HashMap::new();
     for (&idx, &lvl) in &builder.level {
         inv.insert(lvl, idx);
     }
 
-    let none_sets: Vec<Vec<usize>> = groups.get(&None).cloned().unwrap_or_default();
+    let mut root = root;
+
+    if builder.initiators.len() >= 2 {
+        let mut levels: Vec<usize> = builder.initiators.iter().copied().collect();
+        levels.sort_unstable();
+        let mut pairs = ZBDD_EMPTY;
+        for i in 0..levels.len() {
+            for j in (i + 1)..levels.len() {
+                let inner = builder.zbdd.multiply(2 * levels[j], ZBDD_BASE);
+                let pair = builder.zbdd.multiply(2 * levels[i], inner);
+                pairs = builder.zbdd.union(pairs, pair);
+            }
+        }
+        root = builder.zbdd.nonsuperset(root, pairs);
+    }
+
+    if std::env::var("PRAXIS_NOTRIM").is_err() {
+        let flags: HashSet<usize> = (0..builder.var_probs.len())
+            .filter(|&v| v % 2 == 0 && builder.var_probs[v] >= 1.0)
+            .collect();
+        if !flags.is_empty() {
+            let mut cache: HashMap<ZbddRef, ZbddRef> = HashMap::new();
+            root = builder.zbdd.project_out_set(root, &flags, &mut cache);
+        }
+    }
+
+    root = builder.zbdd.minimize(root);
+
     let mut out: Vec<Vec<String>> = Vec::new();
-    for (init, mut sets) in groups {
-        if init.is_some() && !none_sets.is_empty() {
-            sets.extend_from_slice(&none_sets);
+    for cs in builder.zbdd.enumerate(root) {
+        let mut names: Vec<String> = Vec::new();
+        for v in cs {
+            let lvl = v / 2;
+            let neg = v % 2 == 1;
+            let name = inv
+                .get(&lvl)
+                .and_then(|idx| builder.pdag.get_node(*idx))
+                .and_then(|n| n.id())
+                .unwrap_or("?")
+                .to_string();
+            names.push(if neg { format!("~{}", name) } else { name });
         }
-        builder.zbdd.reset();
-        builder.cache.clear();
-        builder.budget_cache.clear();
-        let mut layer: Vec<ZbddRef> = Vec::with_capacity(sets.len());
-        for cs in &sets {
-            let mut prod = ZBDD_BASE;
-            for &v in cs.iter().rev() {
-                prod = builder.zbdd.multiply(v, prod);
-            }
-            layer.push(prod);
-        }
-        while layer.len() > 1 {
-            let mut next: Vec<ZbddRef> = Vec::with_capacity(layer.len() / 2 + 1);
-            let mut i = 0;
-            while i + 1 < layer.len() {
-                let u = builder.zbdd.union(layer[i], layer[i + 1]);
-                next.push(u);
-                i += 2;
-            }
-            if i < layer.len() {
-                next.push(layer[i]);
-            }
-            layer = next;
-        }
-        let mut gz = layer.first().copied().unwrap_or(ZBDD_EMPTY);
-        gz = builder.zbdd.minimize(gz);
-        for cs in builder.zbdd.enumerate(gz) {
-            let mut names: Vec<String> = Vec::new();
-            for v in cs {
-                let lvl = v / 2;
-                let neg = v % 2 == 1;
-                let name = inv
-                    .get(&lvl)
-                    .and_then(|idx| builder.pdag.get_node(*idx))
-                    .and_then(|n| n.id())
-                    .unwrap_or("?")
-                    .to_string();
-                names.push(if neg { format!("~{}", name) } else { name });
-            }
-            names.sort();
-            names.dedup();
-            out.push(names);
-        }
+        names.sort();
+        names.dedup();
+        out.push(names);
     }
     out.sort();
     out.dedup();

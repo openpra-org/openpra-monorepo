@@ -809,7 +809,7 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
                 put_uvarint(&mut out, (i - opos) as u64);
             }
         } else if let Some(be) = ft.get_basic_event(name) {
-            out.push(0x00);
+            out.push(0x00 | u8::from(be.is_initiator()));
             out.extend_from_slice(&be.probability().to_bits().to_le_bytes());
             match be.value() {
                 Some(expr) => {
@@ -849,7 +849,11 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
 
 enum DecNode {
     Gate { formula: Formula, ops: Vec<usize> },
-    Be { prob: f64, expr: Option<Expr> },
+    Be {
+        prob: f64,
+        expr: Option<Expr>,
+        initiator: bool,
+    },
     House { state: bool },
 }
 
@@ -889,7 +893,11 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
                 } else {
                     None
                 };
-                DecNode::Be { prob, expr }
+                DecNode::Be {
+                    prob,
+                    expr,
+                    initiator: tag & 1 == 1,
+                }
             }
             1 => {
                 let nibble = tag & 0x0f;
@@ -948,11 +956,16 @@ pub fn decode_fault_tree(bytes: &[u8]) -> Result<FaultTree> {
     for (i, node) in decoded.into_iter().enumerate() {
         let name = names[i].clone();
         match node {
-            DecNode::Be { prob, expr } => {
-                let be = match expr {
+            DecNode::Be {
+                prob,
+                expr,
+                initiator,
+            } => {
+                let mut be = match expr {
                     Some(e) => BasicEvent::with_value(name, prob, e)?,
                     None => BasicEvent::new(name, prob)?,
                 };
+                be.set_initiator(initiator);
                 ft.add_basic_event(be)?;
             }
             DecNode::House { state } => {

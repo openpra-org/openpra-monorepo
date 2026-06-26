@@ -73,6 +73,7 @@ class Gate:
 class BasicEvent:
     prob: float
     value: tuple | None = None   # optional sampling Expr
+    initiator: bool = False
 
 
 @dataclass
@@ -327,7 +328,7 @@ def encode_fault_tree(ft: FaultTree) -> bytes:
                 _put_uvarint(out, i - pos[op])
         elif name in ft.basic_events:
             be = ft.basic_events[name]
-            out.append(0x00)
+            out.append(0x00 | (1 if be.initiator else 0))
             _put_f64(out, be.prob)
             if be.value is not None:
                 out.append(1)
@@ -383,7 +384,7 @@ def decode_fault_tree(data: bytes) -> FaultTree:
         if kind == 0:
             prob = r.f64()
             expr = _decode_expr(r) if r.u8() == 1 else None
-            decoded.append(("be", prob, expr))
+            decoded.append(("be", prob, expr, tag & 1 == 1))
         elif kind == 1:
             nibble = tag & 0x0F
             k = r.uvarint() if nibble == 3 else None
@@ -420,7 +421,7 @@ def decode_fault_tree(data: bytes) -> FaultTree:
     for i, node in enumerate(decoded):
         name = names[i]
         if node[0] == "be":
-            ft.basic_events[name] = BasicEvent(prob=node[1], value=node[2])
+            ft.basic_events[name] = BasicEvent(prob=node[1], value=node[2], initiator=node[3])
         elif node[0] == "house":
             ft.house_events[name] = node[1]
         else:

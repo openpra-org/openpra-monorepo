@@ -75,6 +75,7 @@ pub struct ZbddEngine {
     removevar_cache: HashMap<(ZbddRef, usize), ZbddRef>,
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
+    maxprob_cache: HashMap<ZbddRef, f64>,
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
@@ -97,7 +98,32 @@ impl ZbddEngine {
             removevar_cache: HashMap::new(),
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
+            maxprob_cache: HashMap::new(),
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.nodes.truncate(2);
+        self.unique.clear();
+        self.union_cache.clear();
+        self.join_cache.clear();
+        self.subtract_cache.clear();
+        self.difference_cache.clear();
+        self.minimize_cache.clear();
+        self.purify_cache.clear();
+        self.removevar_cache.clear();
+        self.convert_cache.clear();
+        self.maxprob_cache.clear();
+    }
+
+    pub fn clear_op_caches(&mut self) {
+        self.union_cache.clear();
+        self.join_cache.clear();
+        self.subtract_cache.clear();
+        self.difference_cache.clear();
+        self.minimize_cache.clear();
+        self.purify_cache.clear();
+        self.removevar_cache.clear();
     }
 
     pub fn is_empty(f: ZbddRef) -> bool {
@@ -340,6 +366,62 @@ impl ZbddEngine {
         result
     }
 
+    pub(crate) fn join_budgeted(&mut self, f: ZbddRef, g: ZbddRef, min_prob: f64) -> ZbddRef {
+        self.ensure_maxprob(f);
+        self.ensure_maxprob(g);
+        let mut cache: HashMap<(ZbddRef, ZbddRef, u64), ZbddRef> = HashMap::new();
+        self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache)
+    }
+
+    fn join_budgeted_rec(
+        &mut self,
+        f: ZbddRef,
+        g: ZbddRef,
+        p_acc: f64,
+        min_prob: f64,
+        cache: &mut HashMap<(ZbddRef, ZbddRef, u64), ZbddRef>,
+    ) -> ZbddRef {
+        if f.is_empty() || g.is_empty() {
+            return ZBDD_EMPTY;
+        }
+        let mf = if f.is_base() { 1.0 } else { self.maxprob_cache[&f] };
+        let mg = if g.is_base() { 1.0 } else { self.maxprob_cache[&g] };
+        if p_acc * mf.min(mg) < min_prob {
+            return ZBDD_EMPTY;
+        }
+        if f.is_base() && g.is_base() {
+            return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
+        }
+        let key = (f, g, p_acc.to_bits());
+        if let Some(&r) = cache.get(&key) {
+            return r;
+        }
+        let fv = self.var_of(f);
+        let gv = self.var_of(g);
+        let v = fv.min(gv);
+        let p_v = self.var_probs[v];
+        let (f1, f0) = if fv == v {
+            (self.node(f).high, self.node(f).low)
+        } else {
+            (ZBDD_EMPTY, f)
+        };
+        let (g1, g0) = if gv == v {
+            (self.node(g).high, self.node(g).low)
+        } else {
+            (ZBDD_EMPTY, g)
+        };
+        let p_hi = p_acc * p_v;
+        let j11 = self.join_budgeted_rec(f1, g1, p_hi, min_prob, cache);
+        let j10 = self.join_budgeted_rec(f1, g0, p_hi, min_prob, cache);
+        let j01 = self.join_budgeted_rec(f0, g1, p_hi, min_prob, cache);
+        let a = self.union(j11, j10);
+        let hi = self.union(a, j01);
+        let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, cache);
+        let result = self.make_node(v, hi, lo);
+        cache.insert(key, result);
+        result
+    }
+
     pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
         trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() {
@@ -482,6 +564,30 @@ impl ZbddEngine {
         result
     }
 
+    pub(crate) fn project_out_set(
+        &mut self,
+        f: ZbddRef,
+        flags: &std::collections::HashSet<usize>,
+        cache: &mut HashMap<ZbddRef, ZbddRef>,
+    ) -> ZbddRef {
+        if f.is_terminal() {
+            return f;
+        }
+        if let Some(&r) = cache.get(&f) {
+            return r;
+        }
+        let ZbddNode { var, high: hi, low: lo } = *self.node(f);
+        let hi_r = self.project_out_set(hi, flags, cache);
+        let lo_r = self.project_out_set(lo, flags, cache);
+        let result = if flags.contains(&var) {
+            self.union(hi_r, lo_r)
+        } else {
+            self.make_node(var, hi_r, lo_r)
+        };
+        cache.insert(f, result);
+        result
+    }
+
     fn convert_bdd_inner(&mut self, bdd: &Bdd, f: BddRef) -> ZbddRef {
         if f.is_false() { return ZBDD_EMPTY; }
         if f.is_true() { return ZBDD_BASE; }
@@ -619,6 +725,7 @@ impl ZbddEngine {
 
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.var_probs = probs;
+        self.maxprob_cache.clear();
     }
 
     pub fn rare_event_probability(&self, root: ZbddRef) -> f64 {
@@ -683,8 +790,27 @@ impl ZbddEngine {
     }
 
     pub fn prune_below_probability(&mut self, f: ZbddRef, min_prob: f64) -> ZbddRef {
+        self.ensure_maxprob(f);
         let mut cache: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
         self.prune_below_rec(f, 1.0, min_prob, &mut cache)
+    }
+
+    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {
+        if f.is_empty() {
+            return 0.0;
+        }
+        if f.is_base() {
+            return 1.0;
+        }
+        if let Some(&v) = self.maxprob_cache.get(&f) {
+            return v;
+        }
+        let ZbddNode { var, high, low } = *self.node(f);
+        let ph = self.var_probs[var] * self.ensure_maxprob(high);
+        let pl = self.ensure_maxprob(low);
+        let r = ph.max(pl);
+        self.maxprob_cache.insert(f, r);
+        r
     }
 
     fn prune_below_rec(
@@ -697,8 +823,12 @@ impl ZbddEngine {
         if f.is_empty() {
             return ZBDD_EMPTY;
         }
+        let fmax = if f.is_base() { 1.0 } else { self.maxprob_cache[&f] };
+        if p_acc * fmax < min_prob {
+            return ZBDD_EMPTY;
+        }
         if f.is_base() {
-            return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
+            return ZBDD_BASE;
         }
         let key = (f, p_acc.to_bits());
         if let Some(&r) = cache.get(&key) {

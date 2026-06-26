@@ -8,6 +8,7 @@ pub struct BasicEvent {
     element: Element,
     probability: f64,
     value: Option<Expr>,
+    initiator: bool,
 }
 
 impl BasicEvent {
@@ -28,6 +29,7 @@ impl BasicEvent {
             element,
             probability,
             value: None,
+            initiator: false,
         })
     }
 
@@ -65,6 +67,14 @@ impl BasicEvent {
 
     pub fn value(&self) -> Option<&Expr> {
         self.value.as_ref()
+    }
+
+    pub fn is_initiator(&self) -> bool {
+        self.initiator
+    }
+
+    pub fn set_initiator(&mut self, initiator: bool) {
+        self.initiator = initiator;
     }
 
     pub fn set_value(&mut self, value: Option<Expr>) {

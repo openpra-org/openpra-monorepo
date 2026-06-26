@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tracing::{debug, trace};
 
@@ -35,6 +35,7 @@ struct Builder {
     budget_cache: HashMap<(NodeIndex, i32), ZbddRef>,
     maxcs_memo: HashMap<NodeIndex, f64>,
     decomposition: Option<Decomposition>,
+    initiators: HashSet<usize>,
 }
 
 impl Builder {
@@ -51,14 +52,20 @@ impl Builder {
 
         let mut level = HashMap::new();
         let mut var_probs: Vec<f64> = Vec::with_capacity(order.len() * 2);
+        let mut initiators: HashSet<usize> = HashSet::new();
         for (l, &raw) in order.iter().enumerate() {
             let e = raw.abs();
             level.insert(e, l);
             let p = match owned.get_node(e) {
-                Some(PdagNode::BasicEvent { id, .. }) => fault_tree
-                    .get_basic_event(id)
-                    .map(|b| b.probability())
-                    .unwrap_or(0.0),
+                Some(PdagNode::BasicEvent { id, .. }) => match fault_tree.get_basic_event(id) {
+                    Some(be) => {
+                        if be.is_initiator() {
+                            initiators.insert(l);
+                        }
+                        be.probability()
+                    }
+                    None => 0.0,
+                },
                 _ => 0.0,
             };
             var_probs.push(p);
@@ -83,6 +90,7 @@ impl Builder {
             budget_cache: HashMap::new(),
             maxcs_memo: HashMap::new(),
             decomposition: None,
+            initiators,
         })
     }
 
@@ -137,14 +145,7 @@ impl Builder {
         match self.pdag.get_node(r.abs()) {
             Some(PdagNode::BasicEvent { .. }) => {
                 let l = self.level[&r.abs()];
-                let p = self.var_prob(2 * l);
-                if p >= 1.0 {
-                    NodeKind::Constant(true)
-                } else if p <= 0.0 {
-                    NodeKind::Constant(false)
-                } else {
-                    NodeKind::Basic(l)
-                }
+                NodeKind::Basic(l)
             }
             Some(PdagNode::Constant { value, .. }) => NodeKind::Constant(*value),
             Some(PdagNode::Gate {
@@ -159,6 +160,33 @@ impl Builder {
 
     fn var_prob(&self, var: usize) -> f64 {
         self.var_probs.get(var).copied().unwrap_or(0.0)
+    }
+
+    fn as_delete_target(&self, ci: NodeIndex) -> Option<NodeIndex> {
+        if ci > 0 {
+            if let Some(PdagNode::Gate {
+                connective: Connective::Not,
+                operands,
+                ..
+            }) = self.pdag.get_node(ci)
+            {
+                let t = *operands.first()?;
+                if t > 0 {
+                    if let Some(PdagNode::Gate { .. }) = self.pdag.get_node(t) {
+                        return Some(t);
+                    }
+                }
+            }
+            None
+        } else if let Some(PdagNode::Gate { .. }) = self.pdag.get_node(ci.abs()) {
+            Some(ci.abs())
+        } else {
+            None
+        }
+    }
+
+    fn delete_covered(&mut self, acc: ZbddRef, dmcs: ZbddRef) -> ZbddRef {
+        self.zbdd.nonsuperset(acc, dmcs)
     }
 
     fn cut_sets(&mut self, r: NodeIndex) -> Result<ZbddRef> {
@@ -474,6 +502,20 @@ impl Builder {
                 return Ok(ZBDD_EMPTY);
             }
         }
+        if r > 0 {
+            if let Some(PdagNode::Gate {
+                connective: Connective::Not,
+                operands,
+                ..
+            }) = self.pdag.get_node(r)
+            {
+                if let Some(&t) = operands.first() {
+                    if t > 0 && matches!(self.pdag.get_node(t), Some(PdagNode::Gate { .. })) {
+                        return Ok(ZBDD_BASE);
+                    }
+                }
+            }
+        }
         let result = match self.kind(r) {
             NodeKind::Basic(l) => {
                 let var = if neg { 2 * l + 1 } else { 2 * l };
@@ -528,8 +570,17 @@ impl Builder {
     }
 
     fn and_build_b(&mut self, refs: &[NodeIndex], budget: f64) -> Result<ZbddRef> {
+        let mut pos: Vec<NodeIndex> = Vec::new();
+        let mut deletes: Vec<NodeIndex> = Vec::new();
+        for &c in refs {
+            match self.as_delete_target(c) {
+                Some(t) => deletes.push(t),
+                None => pos.push(c),
+            }
+        }
+
         let mut order: Vec<(f64, NodeIndex)> =
-            refs.iter().map(|&c| (self.maxcs(c), c)).collect();
+            pos.iter().map(|&c| (self.maxcs(c), c)).collect();
         order.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         let n = order.len();
 
@@ -552,15 +603,44 @@ impl Builder {
         let mut acc = ZBDD_BASE;
         for i in 0..n {
             let c = self.cut_sets_b(order[i].1, budgets[i])?;
-            acc = self.zbdd.join(acc, c);
+            acc = self.zbdd.join_budgeted(acc, c, budget);
             acc = self.zbdd.purify(acc);
-            acc = self.zbdd.prune_below_probability(acc, budget);
             acc = self.zbdd.minimize(acc);
+            if self.zbdd.node_count() > 2_000_000 {
+                self.zbdd.clear_op_caches();
+            }
             if acc == ZBDD_EMPTY {
                 return Ok(ZBDD_EMPTY);
             }
         }
+        if self.zbdd.node_count() > 2_000_000 {
+            self.zbdd.clear_op_caches();
+        }
+
+        for t in deletes {
+            if acc == ZBDD_EMPTY {
+                break;
+            }
+            let dmcs = self.cut_sets_b(t, budget)?;
+            acc = self.delete_covered(acc, dmcs);
+            if self.zbdd.node_count() > 2_000_000 {
+                self.zbdd.clear_op_caches();
+            }
+        }
         Ok(acc)
+    }
+
+    fn flatten_or(&self, r: NodeIndex, out: &mut Vec<NodeIndex>) {
+        let neg = r < 0;
+        if let NodeKind::Gate(conn, ops, min) = self.kind(r) {
+            if let Expansion::Disjunction(refs) = gate_expansion(conn, neg, &ops, min) {
+                for op in refs {
+                    self.flatten_or(op, out);
+                }
+                return;
+            }
+        }
+        out.push(r);
     }
 
     fn build_delterm(&mut self) -> Result<ZbddRef> {
@@ -571,7 +651,6 @@ impl Builder {
         let eff = if self.pdag.complement() { -root } else { root };
         let budget = self.cut_off.unwrap_or(1e-300);
         let dec = decompose(&self.pdag)?;
-        debug!(target: "praxis::direct_zbdd", modules = dec.modules().len(), "decomposition computed");
         self.decomposition = Some(dec);
         debug!(target: "praxis::direct_zbdd", root = eff, budget, "budgeted delterm build start");
         let r = self.cut_sets_b(eff, budget)?;
@@ -584,6 +663,7 @@ impl Builder {
         );
         Ok(r)
     }
+
 }
 
 fn budget_bucket(budget: f64) -> i32 {
@@ -648,31 +728,133 @@ pub fn build_zbdd_delterm_named(
     if let Some(name) = mutex_gate {
         builder.setup_mutex(name)?;
     }
-    let root = builder.build_delterm()?;
+
+    let root = builder
+        .pdag
+        .root()
+        .ok_or_else(|| PraxisError::Logic("direct ZBDD: PDAG has no root".to_string()))?;
+    let eff = if builder.pdag.complement() { -root } else { root };
+    let budget = builder.cut_off.unwrap_or(1e-300);
+    let dec = decompose(&builder.pdag)?;
+    builder.decomposition = Some(dec);
+
+    let mut disjuncts: Vec<NodeIndex> = Vec::new();
+    builder.flatten_or(eff, &mut disjuncts);
+    disjuncts.sort_unstable();
+    disjuncts.dedup();
+
+    let do_trim = std::env::var("PRAXIS_NOTRIM").is_err();
+    let flags: HashSet<usize> = (0..builder.var_probs.len())
+        .filter(|&v| v % 2 == 0 && builder.var_probs[v] >= 1.0)
+        .collect();
+    let mut init_levels: Vec<usize> = builder.initiators.iter().copied().collect();
+    init_levels.sort_unstable();
+    let gc_threshold: usize = std::env::var("PRAXIS_GC_NODES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(20_000_000);
+
+    let mut accum: HashSet<Vec<usize>> = HashSet::new();
+    for &d in &disjuncts {
+        let mut z = builder.cut_sets_b(d, budget)?;
+        if init_levels.len() >= 2 {
+            let mut pairs = ZBDD_EMPTY;
+            for i in 0..init_levels.len() {
+                for j in (i + 1)..init_levels.len() {
+                    let inner = builder.zbdd.multiply(2 * init_levels[j], ZBDD_BASE);
+                    let pair = builder.zbdd.multiply(2 * init_levels[i], inner);
+                    pairs = builder.zbdd.union(pairs, pair);
+                }
+            }
+            z = builder.zbdd.nonsuperset(z, pairs);
+        }
+        if do_trim && !flags.is_empty() {
+            let mut cache: HashMap<ZbddRef, ZbddRef> = HashMap::new();
+            z = builder.zbdd.project_out_set(z, &flags, &mut cache);
+        }
+        z = builder.zbdd.minimize(z);
+        for mut cs in builder.zbdd.enumerate(z) {
+            cs.sort_unstable();
+            accum.insert(cs);
+        }
+        if builder.zbdd.node_count() > gc_threshold {
+            builder.zbdd.reset();
+            builder.cache.clear();
+            builder.budget_cache.clear();
+        } else {
+            builder.zbdd.clear_op_caches();
+        }
+    }
+
+    // Group by the single initiator. Cut sets with different initiators cannot
+    // subsume each other, so per-group subsumption equals global subsumption and
+    // each group's rebuild stays in bounded memory.
+    let mut groups: HashMap<Option<usize>, Vec<Vec<usize>>> = HashMap::new();
+    for cs in accum {
+        let init_var = cs
+            .iter()
+            .copied()
+            .find(|&v| v % 2 == 0 && builder.initiators.contains(&(v / 2)));
+        groups.entry(init_var).or_default().push(cs);
+    }
 
     let mut inv: HashMap<usize, NodeIndex> = HashMap::new();
     for (&idx, &lvl) in &builder.level {
         inv.insert(lvl, idx);
     }
 
-    let mut out = Vec::new();
-    for cs in builder.zbdd.enumerate(root) {
-        let mut names = Vec::with_capacity(cs.len());
-        for v in cs {
-            let lvl = v / 2;
-            let neg = v % 2 == 1;
-            let name = inv
-                .get(&lvl)
-                .and_then(|idx| builder.pdag.get_node(*idx))
-                .and_then(|n| n.id())
-                .unwrap_or("?")
-                .to_string();
-            names.push(if neg { format!("~{}", name) } else { name });
+    let none_sets: Vec<Vec<usize>> = groups.get(&None).cloned().unwrap_or_default();
+    let mut out: Vec<Vec<String>> = Vec::new();
+    for (init, mut sets) in groups {
+        if init.is_some() && !none_sets.is_empty() {
+            sets.extend_from_slice(&none_sets);
         }
-        names.sort();
-        out.push(names);
+        builder.zbdd.reset();
+        builder.cache.clear();
+        builder.budget_cache.clear();
+        let mut layer: Vec<ZbddRef> = Vec::with_capacity(sets.len());
+        for cs in &sets {
+            let mut prod = ZBDD_BASE;
+            for &v in cs.iter().rev() {
+                prod = builder.zbdd.multiply(v, prod);
+            }
+            layer.push(prod);
+        }
+        while layer.len() > 1 {
+            let mut next: Vec<ZbddRef> = Vec::with_capacity(layer.len() / 2 + 1);
+            let mut i = 0;
+            while i + 1 < layer.len() {
+                let u = builder.zbdd.union(layer[i], layer[i + 1]);
+                next.push(u);
+                i += 2;
+            }
+            if i < layer.len() {
+                next.push(layer[i]);
+            }
+            layer = next;
+        }
+        let mut gz = layer.first().copied().unwrap_or(ZBDD_EMPTY);
+        gz = builder.zbdd.minimize(gz);
+        for cs in builder.zbdd.enumerate(gz) {
+            let mut names: Vec<String> = Vec::new();
+            for v in cs {
+                let lvl = v / 2;
+                let neg = v % 2 == 1;
+                let name = inv
+                    .get(&lvl)
+                    .and_then(|idx| builder.pdag.get_node(*idx))
+                    .and_then(|n| n.id())
+                    .unwrap_or("?")
+                    .to_string();
+                names.push(if neg { format!("~{}", name) } else { name });
+            }
+            names.sort();
+            names.dedup();
+            out.push(names);
+        }
     }
     out.sort();
+    out.dedup();
     Ok(out)
 }
 

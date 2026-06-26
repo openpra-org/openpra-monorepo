@@ -101,10 +101,10 @@ def read(path: str) -> bytes:
             parts = line.split()
             if len(parts) >= 2:
                 try:
-                    basic_events[parts[1]] = float(parts[0])
+                    basic_events[parts[1]] = (float(parts[0]), "I" in parts[2:])
                 except ValueError:
                     try:
-                        basic_events[parts[0]] = float(parts[1])
+                        basic_events[parts[0]] = (float(parts[1]), False)
                     except ValueError:
                         pass
 
@@ -129,8 +129,8 @@ def read(path: str) -> bytes:
             ft.gates[gname] = pbf.Gate("And", operands)
         else:
             ft.gates[gname] = pbf.Gate("AtLeast", operands, int(op))
-    for name, prob in basic_events.items():
-        ft.basic_events[name] = pbf.BasicEvent(prob=prob)
+    for name, (prob, init) in basic_events.items():
+        ft.basic_events[name] = pbf.BasicEvent(prob=prob, initiator=init)
     ft.top = top_events[0] if top_events else gate_order[0]
 
     return pbf.encode_fault_tree(ft)

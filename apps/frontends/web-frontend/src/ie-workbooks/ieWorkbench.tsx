@@ -1,4 +1,4 @@
-import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IEIcon } from "./ieIcons";
 import {
@@ -30,6 +30,7 @@ import {
 } from "./ieScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./ieReview";
 import { useIeWorkbook, type IeWorkbookData } from "./ieWorkbookContext";
+import { IeDrawer } from "./ieDrawer";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import "../workbooks/css/workbookWorkspace.css";
@@ -296,6 +297,8 @@ function IeWorkbench({
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
 
+  const { drawer, openDrawer } = useIeWorkbook();
+  const closeDrawer = useCallback(() => openDrawer(null), [openDrawer]);
   const visibleSteps = useMemo(() => stepsFromMef(data.ie, persona), [data.ie, persona]);
   const mefCcId = data.ie.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.ie.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
@@ -429,6 +432,7 @@ function IeWorkbench({
 
   return (
     <div className={`posw${isReviewer ? " posw--external posw--reviewer" : ""}${isApprover ? " posw--approver" : ""}`} data-screen-label={`IE — ${step.label}`}>
+      {drawer !== null && <IeDrawer context={drawer} onClose={closeDrawer} />}
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
       <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />

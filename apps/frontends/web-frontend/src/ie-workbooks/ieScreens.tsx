@@ -1,4 +1,4 @@
-import { JSX, useMemo, useState, useEffect, useRef, useLayoutEffect } from "react";
+import { Fragment, JSX, useMemo, useState, useEffect } from "react";
 import {
   InitiatingEventCategory,
   type InitiatorDefinition,
@@ -25,6 +25,7 @@ import { GenericCatalogueEditor } from "../newly-developed-methods/generic-catal
 import { buildWorksheetModel, buildPhaModel, buildOeModel, buildCatalogueModel } from "./methodEditorAdapters";
 import { IeFrequencyQuantificationEditor } from "../newly-developed-methods/ie-frequency-quantification/ieFrequencyQuantificationEditor";
 import { generateIeReport, computeIeReportToc } from "./ieDocx";
+import { AutoTextarea } from "./ieDrawer";
 
 const EDITOR_METHOD_IDS = new Set(["MLD", "HBFT", "FMEA", "HAZOP", "PHA", "OEREV", "GENLIST"]);
 
@@ -59,34 +60,6 @@ const BASIS_LABEL: Record<string, string> = {
   FAULT_TREE: "Fault tree",
 };
 
-function EditCell({ value, onChange, placeholder, mono, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean; rows?: number }): JSX.Element {
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const [focused, setFocused] = useState(false);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (el !== null) {
-      if (focused) {
-        el.style.height = "auto";
-        el.style.height = `${el.scrollHeight}px`;
-      } else {
-        el.style.height = "";
-      }
-    }
-  }, [value, focused]);
-  return (
-    <textarea
-      ref={ref}
-      className={`ietbl__cell${mono === true ? " ietbl__cell--mono" : ""}`}
-      rows={rows}
-      value={value}
-      placeholder={placeholder}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  );
-}
-
 function nextHazardId(hazards: HazardAnalysis[]): string {
   let max = 0;
   for (const h of hazards) {
@@ -97,14 +70,6 @@ function nextHazardId(hazards: HazardAnalysis[]): string {
   }
   return `HAZ-${max + 1}`;
 }
-
-const HAZARD_SCREENING_OPTIONS: { value: ScreeningStatus; label: string }[] = [
-  { value: ScreeningStatus.RETAINED, label: "Retained" },
-  { value: ScreeningStatus.SCREENED_OUT, label: "Screened out" },
-  { value: ScreeningStatus.QUALITATIVE_ANALYSIS, label: "Qualitative" },
-  { value: ScreeningStatus.FULL_ANALYSIS, label: "Full analysis" },
-  { value: ScreeningStatus.MERGED, label: "Merged" },
-];
 
 function hazardStatusKind(h: HazardAnalysis): "ok" | "draft" | "warn" {
   if (h.screeningStatus === "SCREENED_OUT") return "draft";
@@ -653,22 +618,13 @@ function nextInitiatorId(initiators: InitiatorDefinition[]): string {
 }
 
 function IdentifyScreen(): JSX.Element {
-  const { ie, editable, mutateIe } = useIeWorkbook();
+  const { ie, editable, mutateIe, openDrawer } = useIeWorkbook();
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const initiators = ie.initiators;
   const shown = activeCat !== null ? initiators.filter((i) => i.category === activeCat) : initiators;
   const total = initiators.length;
   const cat = activeCat !== null ? categoryById(activeCat) : undefined;
 
-  const setCategory = (uuid: string, category: InitiatingEventCategory): void => {
-    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.map((i) => (i.uuid === uuid ? { ...i, category } : i)) }));
-  };
-  const renameInitiator = (uuid: string, name: string): void => {
-    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.map((i) => (i.uuid === uuid ? { ...i, name } : i)) }));
-  };
-  const deleteInitiator = (uuid: string): void => {
-    mutateIe((draft) => ({ ...draft, initiators: draft.initiators.filter((i) => i.uuid !== uuid) }));
-  };
   const addInitiator = (): void => {
     const category = (activeCat as InitiatingEventCategory | null) ?? InitiatingEventCategory.TRANSIENT;
     const created: InitiatorDefinition = {
@@ -688,6 +644,7 @@ function IdentifyScreen(): JSX.Element {
       implementsSrs: [],
     };
     mutateIe((draft) => ({ ...draft, initiators: [...draft.initiators, created] }));
+    openDrawer({ kind: "initiator", id: created.uuid });
   };
 
   return (
@@ -746,33 +703,24 @@ function IdentifyScreen(): JSX.Element {
         </div>
         {shown.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No initiators identified yet.{editable ? " Use Add initiator to start the challenge spectrum." : ""}</p> : (
           <table className="postable">
-            <thead><tr><th>Initiator</th><th>Category</th><th>States</th><th>Barrier</th><th>Disposition</th>{editable && <th aria-label="Actions" />}</tr></thead>
+            <thead><tr><th>Initiator</th><th>Category</th><th>States</th><th>Barrier</th><th>Disposition</th></tr></thead>
             <tbody>
               {shown.map((i) => {
                 const c = categoryById(i.category);
                 const barrier = i.barrierImpacts[0]?.state ?? "—";
                 return (
-                  <tr key={i.uuid}>
+                  <tr key={i.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "initiator", id: i.uuid })}>
                     <td>
                       <div className="postable__name">
                         <span className="ieident__id">{i.uuid}</span>
-                        {editable
-                          ? <input className="ieident__name" value={i.name} placeholder="Initiator name" onChange={(e) => renameInitiator(i.uuid, e.target.value)} />
-                          : <span> · {i.name}</span>}
+                        <span> · {i.name}</span>
                       </div>
                       {(i.preOperationalAssumptions ?? []).length > 0 && <span className="poschip" style={{ marginLeft: 6, fontSize: 11, background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
                     </td>
-                    <td>
-                      {editable
-                        ? <select className="ieident__cat" value={i.category} onChange={(e) => setCategory(i.uuid, e.target.value as InitiatingEventCategory)}>
-                            {INITIATOR_CATEGORIES.map((cc) => <option key={cc.id} value={cc.id}>{cc.label}</option>)}
-                          </select>
-                        : <span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span>}
-                    </td>
+                    <td><span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span></td>
                     <td className="mono">{i.applicableStates.length}</td>
                     <td><span className={`poschip${barrier === "INTACT" ? "" : " poschip--warn"}`}>{barrier}</span></td>
                     <td><DispositionChip status={i.screeningStatus} /></td>
-                    {editable && <td><button type="button" className="ieident__del" onClick={() => deleteInitiator(i.uuid)} aria-label="Delete initiator">✕</button></td>}
                   </tr>
                 );
               })}
@@ -868,9 +816,8 @@ function CompletenessScreen(): JSX.Element {
 }
 
 function HazardsScreen(): JSX.Element {
-  const { ie, editable, mutateIe } = useIeWorkbook();
+  const { ie, editable, mutateIe, openDrawer } = useIeWorkbook();
   const hazards: HazardAnalysis[] = ie.hazardAnalyses ?? [];
-  const combos = hazards.flatMap((h) => h.potentialCombinations.map((text, idx) => ({ hazardUuid: h.uuid, idx, text })));
 
   const addHazard = (): void => {
     const created: HazardAnalysis = {
@@ -891,90 +838,33 @@ function HazardsScreen(): JSX.Element {
       implementsSrs: [],
     };
     mutateIe((draft) => ({ ...draft, hazardAnalyses: [...(draft.hazardAnalyses ?? []), created] }));
+    openDrawer({ kind: "hazard", id: created.uuid });
   };
-  const patchHazard = (uuid: string, patch: Partial<HazardAnalysis>): void => {
-    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, ...patch } : h)) }));
-  };
-  const deleteHazard = (uuid: string): void => {
-    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).filter((h) => h.uuid !== uuid) }));
-  };
-  const editCombo = (uuid: string, idx: number, text: string): void => {
-    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, potentialCombinations: h.potentialCombinations.map((t, j) => (j === idx ? text : t)) } : h)) }));
-  };
-  const moveCombo = (fromUuid: string, idx: number, toUuid: string): void => {
-    mutateIe((draft) => {
-      const hs = draft.hazardAnalyses ?? [];
-      const from = hs.find((h) => h.uuid === fromUuid);
-      if (from === undefined) return draft;
-      const text = from.potentialCombinations[idx];
-      return { ...draft, hazardAnalyses: hs.map((h) => {
-        if (h.uuid === fromUuid) return { ...h, potentialCombinations: h.potentialCombinations.filter((_, j) => j !== idx) };
-        if (h.uuid === toUuid) return { ...h, potentialCombinations: [...h.potentialCombinations, text] };
-        return h;
-      }) };
-    });
-  };
-  const deleteCombo = (uuid: string, idx: number): void => {
-    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === uuid ? { ...h, potentialCombinations: h.potentialCombinations.filter((_, j) => j !== idx) } : h)) }));
-  };
-  const addCombo = (): void => {
-    const first = hazards[0];
-    if (first === undefined) return;
-    mutateIe((draft) => ({ ...draft, hazardAnalyses: (draft.hazardAnalyses ?? []).map((h) => (h.uuid === first.uuid ? { ...h, potentialCombinations: [...h.potentialCombinations, ""] } : h)) }));
-  };
-
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Hazard analyses</h3>
           <div className="ieident__head-actions">
-            <span className="possubtle">IE-A5(e/f)</span>
+            <span className="possubtle">IE-A5(e/f) · IE-A6</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHazard}>+ Add hazard</button>}
           </div>
         </div>
-        <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12).</p>
+        <p className="poscard__sub">Hazard-induced frequencies are developed in the hazard PRA elements and imported here (IE-N-12). Hazard combinations are recorded per hazard (IE-A6).</p>
         {hazards.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard analyses recorded yet.{editable ? " Use Add hazard to start." : ""}</p> : (
           <table className="postable ietbl">
             <thead><tr>
-              <th style={{ width: "18%" }}>Hazard</th><th style={{ width: "9%" }}>Type</th><th style={{ width: "14%" }}>Subcategory</th><th style={{ width: "11%" }}>Screening</th><th>Screening basis</th><th style={{ width: "13%" }}>Induces</th>
-              {editable && <th aria-label="Actions" />}
+              <th style={{ width: "22%" }}>Hazard</th><th style={{ width: "10%" }}>Type</th><th style={{ width: "16%" }}>Subcategory</th><th style={{ width: "12%" }}>Screening</th><th>Induces</th><th style={{ width: "12%" }}>Combinations</th>
             </tr></thead>
             <tbody>
               {hazards.map((h) => (
-                <tr key={h.uuid}>
-                  <td>{editable ? <EditCell value={h.name} rows={1} onChange={(v) => patchHazard(h.uuid, { name: v })} /> : <span className="ietbl__text">{h.name}</span>}</td>
-                  <td>{editable ? <select className="ietbl__select" value={h.hazardType} onChange={(e) => patchHazard(h.uuid, { hazardType: e.target.value === "EXTERNAL" ? "EXTERNAL" : "INTERNAL" })}><option value="INTERNAL">Internal</option><option value="EXTERNAL">External</option></select> : <span className="ietbl__text">{h.hazardType === "INTERNAL" ? "Internal" : "External"}</span>}</td>
-                  <td>{editable ? <EditCell value={h.subcategory} rows={1} onChange={(v) => patchHazard(h.uuid, { subcategory: v })} /> : <span className="ietbl__text">{h.subcategory}</span>}</td>
-                  <td>{editable ? <select className="ietbl__select" value={h.screeningStatus} onChange={(e) => patchHazard(h.uuid, { screeningStatus: e.target.value as ScreeningStatus })}>{HAZARD_SCREENING_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <Badge kind={hazardStatusKind(h)}>{hazardStatusLabel(h)}</Badge>}</td>
-                  <td>{editable ? <EditCell value={h.screeningBasis} rows={2} onChange={(v) => patchHazard(h.uuid, { screeningBasis: v })} /> : <span className="ietbl__text">{h.screeningBasis}</span>}</td>
-                  <td>{editable ? <EditCell value={h.inducedInitiatorIds.join(", ")} rows={1} mono placeholder="IE-…" onChange={(v) => patchHazard(h.uuid, { inducedInitiatorIds: v.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} /> : <span className="ietbl__chips">{h.inducedInitiatorIds.map((id) => <span key={id} className="poschip">{id}</span>)}</span>}</td>
-                  {editable && <td><button type="button" className="ietbl__del" onClick={() => deleteHazard(h.uuid)} aria-label="Delete hazard">✕</button></td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Hazard combinations</h3>
-          <div className="ieident__head-actions">
-            <Badge kind="warn">IE-A6</Badge>
-            {editable && hazards.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCombo}>+ Add combination</button>}
-          </div>
-        </div>
-        <p className="poscard__sub">Hazard combinations must be considered explicitly (IE-A6), a frequent completeness gap.</p>
-        {combos.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No hazard combinations recorded yet.{editable && hazards.length > 0 ? " Use Add combination to record one." : ""}</p> : (
-          <table className="postable ietbl">
-            <thead><tr><th style={{ width: "26%" }}>Source hazard</th><th>Combination</th>{editable && <th aria-label="Actions" />}</tr></thead>
-            <tbody>
-              {combos.map((c) => (
-                <tr key={`${c.hazardUuid}-${c.idx}`}>
-                  <td>{editable ? <select className="ietbl__select" value={c.hazardUuid} onChange={(e) => moveCombo(c.hazardUuid, c.idx, e.target.value)}>{hazards.map((h) => <option key={h.uuid} value={h.uuid}>{h.name}</option>)}</select> : <span className="ietbl__text">{hazards.find((h) => h.uuid === c.hazardUuid)?.name ?? c.hazardUuid}</span>}</td>
-                  <td>{editable ? <EditCell value={c.text} rows={2} onChange={(v) => editCombo(c.hazardUuid, c.idx, v)} /> : <span className="ietbl__text">{c.text}</span>}</td>
-                  {editable && <td><button type="button" className="ietbl__del" onClick={() => deleteCombo(c.hazardUuid, c.idx)} aria-label="Delete combination">✕</button></td>}
+                <tr key={h.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "hazard", id: h.uuid })}>
+                  <td><span className="ietbl__text">{h.name}</span></td>
+                  <td><span className="ietbl__text">{h.hazardType === "INTERNAL" ? "Internal" : "External"}</span></td>
+                  <td><span className="ietbl__text">{h.subcategory}</span></td>
+                  <td><Badge kind={hazardStatusKind(h)}>{hazardStatusLabel(h)}</Badge></td>
+                  <td><span className="ietbl__chips">{h.inducedInitiatorIds.map((id) => <span key={id} className="poschip">{id}</span>)}</span></td>
+                  <td className="mono">{h.potentialCombinations.length}</td>
                 </tr>
               ))}
             </tbody>
@@ -997,13 +887,10 @@ function nextGroupId(groups: InitiatingEventGroup[]): string {
 }
 
 function GroupingScreen(): JSX.Element {
-  const { ie, editable, mutateIe } = useIeWorkbook();
+  const { ie, editable, mutateIe, openDrawer } = useIeWorkbook();
   const groups: InitiatingEventGroup[] = ie.initiatingEventGroups;
   const initiators = ie.initiators;
 
-  const patchGroup = (uuid: string, patch: Partial<InitiatingEventGroup>): void => {
-    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => (g.uuid === uuid ? { ...g, ...patch } : g)) }));
-  };
   const addGroup = (): void => {
     const created: InitiatingEventGroup = {
       uuid: nextGroupId(groups),
@@ -1020,23 +907,7 @@ function GroupingScreen(): JSX.Element {
       implementsSrs: [],
     };
     mutateIe((draft) => ({ ...draft, initiatingEventGroups: [...draft.initiatingEventGroups, created] }));
-  };
-  const deleteGroup = (uuid: string): void => {
-    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.filter((g) => g.uuid !== uuid) }));
-  };
-  const addMember = (uuid: string, initId: string): void => {
-    if (initId === "") return;
-    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => {
-      if (g.uuid !== uuid || g.memberInitiatorIds.includes(initId)) return g;
-      return { ...g, memberInitiatorIds: [...g.memberInitiatorIds, initId], boundingInitiatorId: g.boundingInitiatorId === "" ? initId : g.boundingInitiatorId };
-    }) }));
-  };
-  const removeMember = (uuid: string, initId: string): void => {
-    mutateIe((draft) => ({ ...draft, initiatingEventGroups: draft.initiatingEventGroups.map((g) => {
-      if (g.uuid !== uuid) return g;
-      const members = g.memberInitiatorIds.filter((m) => m !== initId);
-      return { ...g, memberInitiatorIds: members, boundingInitiatorId: g.boundingInitiatorId === initId ? (members[0] ?? "") : g.boundingInitiatorId };
-    }) }));
+    openDrawer({ kind: "group", id: created.uuid });
   };
 
   return (
@@ -1056,66 +927,30 @@ function GroupingScreen(): JSX.Element {
         <div className="iegroup__list">
           {groups.map((g) => {
             const boundingInit = initiators.find((i) => i.uuid === g.boundingInitiatorId);
-            const available = initiators.filter((i) => !g.memberInitiatorIds.includes(i.uuid));
             return (
               <div key={g.uuid} className="poscard">
                 <div className="iegroup__head">
                   <span className="posmono possubtle">{g.uuid}</span>
-                  {editable
-                    ? <input className="iegroup__name" value={g.name} onChange={(e) => patchGroup(g.uuid, { name: e.target.value })} />
-                    : <span className="iegroup__name-text">{g.name}</span>}
+                  <span className="iegroup__name-text">{g.name}</span>
                   {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
-                  {editable && <button type="button" className="ietbl__del" onClick={() => deleteGroup(g.uuid)} aria-label="Delete group">✕</button>}
+                  <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: "auto" }} onClick={() => openDrawer({ kind: "group", id: g.uuid })}>{editable ? "Edit" : "View"}</button>
                 </div>
-                <div className="iegroup__field">
-                  <span className="iegroup__label">Members</span>
-                  <div className="iegroup__members">
-                    {g.memberInitiatorIds.map((m) => {
-                      const init = initiators.find((i) => i.uuid === m);
-                      const isBounding = m === g.boundingInitiatorId;
-                      return (
-                        <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
-                          {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
-                          {init !== undefined && <CatIcon catId={init.category} size={12} />}
-                          <span className="iegroup__member-id">{m}</span>
-                          {editable && <button type="button" className="iegroup__member-x" onClick={() => removeMember(g.uuid, m)} aria-label="Remove member">✕</button>}
-                        </span>
-                      );
-                    })}
-                    {g.memberInitiatorIds.length === 0 && !editable && <span className="possubtle" style={{ fontSize: 12 }}>No members</span>}
-                    {editable && available.length > 0 && (
-                      <select className="iegroup__add" value="" onChange={(e) => addMember(g.uuid, e.target.value)}>
-                        <option value="">+ Add member…</option>
-                        {available.map((i) => <option key={i.uuid} value={i.uuid}>{i.uuid} · {i.name}</option>)}
-                      </select>
-                    )}
-                  </div>
+                <div className="iegroup__members" style={{ marginTop: 8 }}>
+                  {g.memberInitiatorIds.length === 0 && <span className="possubtle" style={{ fontSize: 12 }}>No members yet</span>}
+                  {g.memberInitiatorIds.map((m) => {
+                    const init = initiators.find((i) => i.uuid === m);
+                    const isBounding = m === g.boundingInitiatorId;
+                    return (
+                      <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
+                        {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
+                        {init !== undefined && <CatIcon catId={init.category} size={12} />}
+                        <span className="iegroup__member-id">{m}</span>
+                      </span>
+                    );
+                  })}
                 </div>
-
-                <div className="iegroup__field">
-                  <span className="iegroup__label">Bounding case</span>
-                  {editable
-                    ? <select className="ietbl__select iegroup__bounding" value={g.boundingInitiatorId} onChange={(e) => patchGroup(g.uuid, { boundingInitiatorId: e.target.value })}>
-                        <option value="">None selected</option>
-                        {g.memberInitiatorIds.map((m) => { const init = initiators.find((i) => i.uuid === m); return <option key={m} value={m}>{m}{init !== undefined ? ` · ${init.name}` : ""}</option>; })}
-                      </select>
-                    : <span className="ietbl__text">{g.boundingInitiatorId.length > 0 ? `${g.boundingInitiatorId}${boundingInit !== undefined ? ` · ${boundingInit.name}` : ""}` : "None selected"}</span>}
-                </div>
-
-                <div className="iegroup__field">
-                  <span className="iegroup__label">Grouping basis</span>
-                  {editable
-                    ? <EditCell value={g.groupingBasis} rows={3} onChange={(v) => patchGroup(g.uuid, { groupingBasis: v })} />
-                    : <span className="ietbl__text">{g.groupingBasis}</span>}
-                </div>
-
-                <div className="iegroup__checks">
-                  <button type="button" className={`iegroup__check${g.comparableImpactAcrossMembers ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchGroup(g.uuid, { comparableImpactAcrossMembers: !g.comparableImpactAcrossMembers })}>
-                    {g.comparableImpactAcrossMembers ? <IEIcon.Check /> : <IEIcon.Warn />} Comparable impact across members
-                  </button>
-                  <button type="button" className={`iegroup__check${g.groupingDoesNotMaskRiskSignificantSequences ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchGroup(g.uuid, { groupingDoesNotMaskRiskSignificantSequences: !g.groupingDoesNotMaskRiskSignificantSequences })}>
-                    {g.groupingDoesNotMaskRiskSignificantSequences ? <IEIcon.Check /> : <IEIcon.Warn />} Does not mask risk-significant sequences
-                  </button>
+                <div className="possubtle" style={{ fontSize: 12.5, marginTop: 8 }}>
+                  {g.boundingInitiatorId.length > 0 ? `Bounding case: ${g.boundingInitiatorId}${boundingInit !== undefined ? ` · ${boundingInit.name}` : ""}` : "No bounding case selected"}
                 </div>
               </div>
             );
@@ -1131,6 +966,15 @@ function ScreeningScreen(): JSX.Element {
   const records: InitiatingEventScreeningRecord[] = ie.screeningRecords;
   const groups = ie.initiatingEventGroups;
   const initiators = ie.initiators;
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string): void => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const recordedIds = new Set(records.map((r) => r.initiatorOrGroupId));
   const availableTargets = [
@@ -1154,19 +998,18 @@ function ScreeningScreen(): JSX.Element {
     });
   };
   const addRecord = (): void => {
-    mutateIe((draft) => {
-      const used = new Set(draft.screeningRecords.map((r) => r.initiatorOrGroupId));
-      const firstFree = [...draft.initiatingEventGroups.map((g) => g.uuid), ...draft.initiators.map((i) => i.uuid)].find((id) => !used.has(id));
-      if (firstFree === undefined) return draft;
-      const created: InitiatingEventScreeningRecord = {
-        initiatorOrGroupId: firstFree,
-        retained: true,
-        barrierIntegrityPreconditionMet: false,
-        justification: "",
-        implementsSrs: [],
-      };
-      return { ...draft, screeningRecords: [...draft.screeningRecords, created] };
-    });
+    const used = new Set(records.map((r) => r.initiatorOrGroupId));
+    const firstFree = [...groups.map((g) => g.uuid), ...initiators.map((i) => i.uuid)].find((id) => !used.has(id));
+    if (firstFree === undefined) return;
+    const created: InitiatingEventScreeningRecord = {
+      initiatorOrGroupId: firstFree,
+      retained: true,
+      barrierIntegrityPreconditionMet: false,
+      justification: "",
+      implementsSrs: [],
+    };
+    mutateIe((draft) => (draft.screeningRecords.some((r) => r.initiatorOrGroupId === firstFree) ? draft : { ...draft, screeningRecords: [...draft.screeningRecords, created] }));
+    setExpanded((prev) => new Set(prev).add(firstFree));
   };
   const deleteRecord = (id: string): void => {
     mutateIe((draft) => ({ ...draft, screeningRecords: draft.screeningRecords.filter((r) => r.initiatorOrGroupId !== id) }));
@@ -1185,64 +1028,83 @@ function ScreeningScreen(): JSX.Element {
         </div>
       </div>
 
-      {editable && availableTargets.length > 0 && (
-        <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecord}>+ Add record</button></div>
-      )}
-
-      {records.length === 0 ? (
-        <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No screening decisions recorded yet.{editable ? (availableTargets.length > 0 ? " Use Add record to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p></div>
-      ) : (
-        <div className="iegroup__list">
-          {records.map((rec) => (
-            <div key={rec.initiatorOrGroupId} className="poscard">
-              <div className="iegroup__head">
-                {editable
-                  ? <select className="ietbl__select iegroup__target" value={rec.initiatorOrGroupId} onChange={(e) => changeTarget(rec.initiatorOrGroupId, e.target.value)}>
-                      {[{ id: rec.initiatorOrGroupId, label: `${rec.initiatorOrGroupId} · ${targetName(rec.initiatorOrGroupId)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                    </select>
-                  : <><span className="posmono possubtle">{rec.initiatorOrGroupId}</span><span className="iegroup__name-text">{targetName(rec.initiatorOrGroupId)}</span></>}
-                {rec.retained ? <Badge kind="block">Retained</Badge> : <Badge kind="draft">Screened out</Badge>}
-                {editable && <button type="button" className="ietbl__del" onClick={() => deleteRecord(rec.initiatorOrGroupId)} aria-label="Delete screening record">✕</button>}
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">Disposition</span>
-                {editable
-                  ? <select className="ietbl__select iegroup__bounding" value={rec.retained ? "retained" : "screened"} onChange={(e) => patchRecord(rec.initiatorOrGroupId, { retained: e.target.value === "retained" })}>
-                      <option value="retained">Retained, kept in the analysis</option>
-                      <option value="screened">Screened out</option>
-                    </select>
-                  : <span className="ietbl__text">{rec.retained ? "Retained, kept in the analysis" : "Screened out"}</span>}
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">SCR criterion (IE-C9b)</span>
-                {editable
-                  ? <select className="ietbl__select iegroup__bounding" value={rec.criterion ?? ""} onChange={(e) => patchRecord(rec.initiatorOrGroupId, { criterion: e.target.value === "" ? undefined : (e.target.value as "SCR-1" | "SCR-2" | "SCR-3") })}>
-                      <option value="">No SCR criterion</option>
-                      <option value="SCR-1">SCR-1</option>
-                      <option value="SCR-2">SCR-2</option>
-                      <option value="SCR-3">SCR-3</option>
-                    </select>
-                  : <span className="ietbl__text">{rec.criterion ?? "No SCR criterion"}</span>}
-              </div>
-
-              <div className="iegroup__checks">
-                <button type="button" className={`iegroup__check${rec.barrierIntegrityPreconditionMet ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchRecord(rec.initiatorOrGroupId, { barrierIntegrityPreconditionMet: !rec.barrierIntegrityPreconditionMet })}>
-                  {rec.barrierIntegrityPreconditionMet ? <IEIcon.Check /> : <IEIcon.Warn />} Barrier-integrity precondition met (IE-C9a)
-                </button>
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">Justification</span>
-                {editable
-                  ? <EditCell value={rec.justification} rows={3} onChange={(v) => patchRecord(rec.initiatorOrGroupId, { justification: v })} />
-                  : <span className="ietbl__text">{rec.justification}</span>}
-              </div>
-            </div>
-          ))}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Screening decisions</h3>
+          {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecord}>+ Add record</button>}
         </div>
-      )}
+        {records.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No screening decisions recorded yet.{editable ? (availableTargets.length > 0 ? " Use Add record to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p>
+        ) : (
+          <table className="postable postable--expandable postable--mid">
+            <thead><tr><th style={{ width: 28 }} /><th>Target</th><th>Disposition</th><th>SCR criterion</th><th>Barrier precondition</th></tr></thead>
+            <tbody>
+              {records.map((rec) => {
+                const id = rec.initiatorOrGroupId;
+                const isOpen = expanded.has(id);
+                return (
+                  <Fragment key={id}>
+                    <tr className="postable__row--clickable" onClick={() => toggle(id)}>
+                      <td><span className={`postable__expand${isOpen ? " postable__expand--open" : ""}`}><IEIcon.Chevron /></span></td>
+                      <td>
+                        <div className="postable__name"><span className="posmono">{id}</span></div>
+                        <span className="postable__name-sub">{targetName(id)}</span>
+                      </td>
+                      <td>{rec.retained ? <Badge kind="block">Retained</Badge> : <Badge kind="draft">Screened out</Badge>}</td>
+                      <td className="mono">{rec.criterion ?? "—"}</td>
+                      <td>{rec.barrierIntegrityPreconditionMet ? <Badge kind="ok">Met</Badge> : <Badge kind="warn">Not met</Badge>}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="postable__expand-row">
+                        <td />
+                        <td colSpan={4}>
+                          <fieldset disabled={!editable} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                            <div className="posfield-grid">
+                              <div className="posfield">
+                                <label className="posfield__label">Target</label>
+                                <select className="posfield__input" value={id} onChange={(e) => changeTarget(id, e.target.value)}>
+                                  {[{ id, label: `${id} · ${targetName(id)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                                </select>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">Disposition</label>
+                                <select className="posfield__input" value={rec.retained ? "retained" : "screened"} onChange={(e) => patchRecord(id, { retained: e.target.value === "retained" })}>
+                                  <option value="retained">Retained, kept in the analysis</option>
+                                  <option value="screened">Screened out</option>
+                                </select>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">SCR criterion (IE-C9b)</label>
+                                <select className="posfield__input" value={rec.criterion ?? ""} onChange={(e) => patchRecord(id, { criterion: e.target.value === "" ? undefined : (e.target.value as "SCR-1" | "SCR-2" | "SCR-3") })}>
+                                  <option value="">No SCR criterion</option>
+                                  <option value="SCR-1">SCR-1</option>
+                                  <option value="SCR-2">SCR-2</option>
+                                  <option value="SCR-3">SCR-3</option>
+                                </select>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">Barrier precondition (IE-C9a)</label>
+                                <button type="button" className={`iegroup__check${rec.barrierIntegrityPreconditionMet ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchRecord(id, { barrierIntegrityPreconditionMet: !rec.barrierIntegrityPreconditionMet })}>
+                                  {rec.barrierIntegrityPreconditionMet ? <IEIcon.Check /> : <IEIcon.Warn />} {rec.barrierIntegrityPreconditionMet ? "Precondition met" : "Precondition not met"}
+                                </button>
+                              </div>
+                              <div className="posfield posfield-grid--span2">
+                                <label className="posfield__label">Justification</label>
+                                <AutoTextarea value={rec.justification} placeholder="Why this target screens the way it does." onChange={(v) => patchRecord(id, { justification: v })} />
+                              </div>
+                            </div>
+                            {editable && <div style={{ marginTop: 10 }}><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => deleteRecord(id)}><IEIcon.Close /> Delete record</button></div>}
+                          </fieldset>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </>
   );
 }
@@ -1288,6 +1150,15 @@ function FrequencyScreen(): JSX.Element {
   const groups = ie.initiatingEventGroups;
   const initiators = ie.initiators;
   const ranked = [...records].sort((a, b) => freqValue(b.meanFrequency) - freqValue(a.meanFrequency));
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string): void => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const recordedIds = new Set(records.map((r) => r.initiatorOrGroupId));
   const availableTargets = [
@@ -1322,22 +1193,21 @@ function FrequencyScreen(): JSX.Element {
     });
   };
   const addQuant = (): void => {
-    mutateIe((draft) => {
-      const used = new Set(draft.quantifications.map((q) => q.initiatorOrGroupId));
-      const firstFree = [...draft.initiatingEventGroups.map((g) => g.uuid), ...draft.initiators.map((i) => i.uuid)].find((id) => !used.has(id));
-      if (firstFree === undefined) return draft;
-      const created: InitiatingEventFrequencyQuantification = {
-        initiatorOrGroupId: firstFree,
-        meanFrequency: 0,
-        basis: "GENERIC_DATA",
-        plantCalendarYearBasis: false,
-        posTimeFractionApplied: false,
-        dataSourceJustification: "",
-        recoveryActionsIncluded: false,
-        implementsSrs: [],
-      };
-      return { ...draft, quantifications: [...draft.quantifications, created] };
-    });
+    const used = new Set(records.map((q) => q.initiatorOrGroupId));
+    const firstFree = [...groups.map((g) => g.uuid), ...initiators.map((i) => i.uuid)].find((id) => !used.has(id));
+    if (firstFree === undefined) return;
+    const created: InitiatingEventFrequencyQuantification = {
+      initiatorOrGroupId: firstFree,
+      meanFrequency: 0,
+      basis: "GENERIC_DATA",
+      plantCalendarYearBasis: false,
+      posTimeFractionApplied: false,
+      dataSourceJustification: "",
+      recoveryActionsIncluded: false,
+      implementsSrs: [],
+    };
+    mutateIe((draft) => (draft.quantifications.some((q) => q.initiatorOrGroupId === firstFree) ? draft : { ...draft, quantifications: [...draft.quantifications, created] }));
+    setExpanded((prev) => new Set(prev).add(firstFree));
   };
   const deleteQuant = (id: string): void => {
     mutateIe((draft) => ({ ...draft, quantifications: draft.quantifications.filter((q) => q.initiatorOrGroupId !== id) }));
@@ -1407,71 +1277,89 @@ function FrequencyScreen(): JSX.Element {
         </div>
       )}
 
-      {editable && availableTargets.length > 0 && (
-        <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}>+ Add quantification</button></div>
-      )}
-
-      {records.length === 0 ? (
-        <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No quantifications yet.{editable ? (availableTargets.length > 0 ? " Use Add quantification to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p></div>
-      ) : (
-        <div className="iegroup__list">
-          {ranked.map((q) => (
-            <div key={q.initiatorOrGroupId} className="poscard">
-              <div className="iegroup__head">
-                {editable
-                  ? <select className="ietbl__select iegroup__target" value={q.initiatorOrGroupId} onChange={(e) => changeTarget(q.initiatorOrGroupId, e.target.value)}>
-                      {[{ id: q.initiatorOrGroupId, label: `${q.initiatorOrGroupId} · ${labelFor(q.initiatorOrGroupId)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                    </select>
-                  : <><span className="posmono possubtle">{q.initiatorOrGroupId}</span><span className="iegroup__name-text">{labelFor(q.initiatorOrGroupId)}</span></>}
-                {isPreop(q.initiatorOrGroupId) && <span className="poschip" style={{ fontSize: 10, padding: "1px 6px", background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
-                {editable && <button type="button" className="ietbl__del" onClick={() => deleteQuant(q.initiatorOrGroupId)} aria-label="Delete quantification">✕</button>}
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">Mean frequency</span>
-                {editable
-                  ? <div className="iefreq__entry">
-                      <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(q.initiatorOrGroupId, n)} />
-                      <span className="iefreq__entry-unit">per plant-yr</span>
-                    </div>
-                  : <span className="ietbl__text">{fmtFreq(q.meanFrequency)} per plant-yr</span>}
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">Data Sources and Basis</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  {editable
-                    ? <select className="ietbl__select iegroup__bounding" value={q.basis} onChange={(e) => patchQuant(q.initiatorOrGroupId, { basis: e.target.value as FreqBasis })}>
-                        {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    : <span className="ietbl__text">{BASIS_LABEL[q.basis] ?? q.basis}</span>}
-                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(q.initiatorOrGroupId)}>Open quantifier →</button>
-                  <span className="possubtle" style={{ fontSize: 12 }}>{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
-                </div>
-              </div>
-
-              <div className="iegroup__checks">
-                <button type="button" className={`iegroup__check${q.posTimeFractionApplied ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { posTimeFractionApplied: !q.posTimeFractionApplied })}>
-                  {q.posTimeFractionApplied ? <IEIcon.Check /> : <IEIcon.Warn />} POS time-fraction weighting applied
-                </button>
-                <button type="button" className={`iegroup__check${q.plantCalendarYearBasis ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { plantCalendarYearBasis: !q.plantCalendarYearBasis })}>
-                  {q.plantCalendarYearBasis ? <IEIcon.Check /> : <IEIcon.Warn />} Plant calendar-year basis
-                </button>
-                <button type="button" className={`iegroup__check${q.recoveryActionsIncluded ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(q.initiatorOrGroupId, { recoveryActionsIncluded: !q.recoveryActionsIncluded })}>
-                  {q.recoveryActionsIncluded ? <IEIcon.Check /> : <IEIcon.Warn />} Recovery actions included
-                </button>
-              </div>
-
-              <div className="iegroup__field">
-                <span className="iegroup__label">Data-source justification</span>
-                {editable
-                  ? <EditCell value={q.dataSourceJustification} rows={3} onChange={(v) => patchQuant(q.initiatorOrGroupId, { dataSourceJustification: v })} />
-                  : <span className="ietbl__text">{q.dataSourceJustification}</span>}
-              </div>
-            </div>
-          ))}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Quantifications</h3>
+          {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}>+ Add quantification</button>}
         </div>
-      )}
+        {records.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No quantifications yet.{editable ? (availableTargets.length > 0 ? " Use Add quantification to start." : " Identify initiators (Step 3) or groups (Step 6) first.") : ""}</p>
+        ) : (
+          <table className="postable postable--expandable postable--mid">
+            <thead><tr><th style={{ width: 28 }} /><th>Target</th><th>Mean (per plant-yr)</th><th>Basis</th><th>Sources</th></tr></thead>
+            <tbody>
+              {ranked.map((q) => {
+                const id = q.initiatorOrGroupId;
+                const isOpen = expanded.has(id);
+                return (
+                  <Fragment key={id}>
+                    <tr className="postable__row--clickable" onClick={() => toggle(id)}>
+                      <td><span className={`postable__expand${isOpen ? " postable__expand--open" : ""}`}><IEIcon.Chevron /></span></td>
+                      <td>
+                        <div className="postable__name"><span className="posmono">{id}</span></div>
+                        <span className="postable__name-sub">{labelFor(id)}{isPreop(id) ? " · pre-op" : ""}</span>
+                      </td>
+                      <td className="mono">{fmtFreq(q.meanFrequency)}</td>
+                      <td><span className="poschip">{BASIS_LABEL[q.basis] ?? q.basis}</span></td>
+                      <td className="mono">{(q.dataSources ?? []).length}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr className="postable__expand-row">
+                        <td />
+                        <td colSpan={4}>
+                          <fieldset disabled={!editable} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                            <div className="posfield-grid">
+                              <div className="posfield">
+                                <label className="posfield__label">Target</label>
+                                <select className="posfield__input" value={id} onChange={(e) => changeTarget(id, e.target.value)}>
+                                  {[{ id, label: `${id} · ${labelFor(id)}` }, ...availableTargets].map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                                </select>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">Mean frequency (per plant-yr)</label>
+                                <div className="iefreq__entry">
+                                  <FreqInput value={freqValue(q.meanFrequency)} onChange={(n) => patchMean(id, n)} />
+                                  <span className="iefreq__entry-unit">per plant-yr</span>
+                                </div>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">Basis</label>
+                                <select className="posfield__input" value={q.basis} onChange={(e) => patchQuant(id, { basis: e.target.value as FreqBasis })}>
+                                  {FREQ_BASIS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                              </div>
+                              <div className="posfield">
+                                <label className="posfield__label">Data sources</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
+                                  <span className="possubtle" style={{ fontSize: 12 }}>{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                                </div>
+                              </div>
+                              <div className="posfield posfield-grid--span2">
+                                <label className="posfield__label">Flags</label>
+                                <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+                                  <button type="button" className={`iegroup__check${q.posTimeFractionApplied ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(id, { posTimeFractionApplied: !q.posTimeFractionApplied })}>{q.posTimeFractionApplied ? <IEIcon.Check /> : <IEIcon.Warn />} POS time-fraction weighting</button>
+                                  <button type="button" className={`iegroup__check${q.plantCalendarYearBasis ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(id, { plantCalendarYearBasis: !q.plantCalendarYearBasis })}>{q.plantCalendarYearBasis ? <IEIcon.Check /> : <IEIcon.Warn />} Plant calendar-year basis</button>
+                                  <button type="button" className={`iegroup__check${q.recoveryActionsIncluded ? " iegroup__check--ok" : " iegroup__check--warn"}`} disabled={!editable} onClick={() => patchQuant(id, { recoveryActionsIncluded: !q.recoveryActionsIncluded })}>{q.recoveryActionsIncluded ? <IEIcon.Check /> : <IEIcon.Warn />} Recovery actions included</button>
+                                </div>
+                              </div>
+                              <div className="posfield posfield-grid--span2">
+                                <label className="posfield__label">Data-source justification</label>
+                                <AutoTextarea value={q.dataSourceJustification} placeholder="How the frequency was derived and from what data." onChange={(v) => patchQuant(id, { dataSourceJustification: v })} />
+                              </div>
+                            </div>
+                            {editable && <div style={{ marginTop: 10 }}><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => deleteQuant(id)}><IEIcon.Close /> Delete quantification</button></div>}
+                          </fieldset>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {openQuant !== undefined && (
         <div className="ftspace">

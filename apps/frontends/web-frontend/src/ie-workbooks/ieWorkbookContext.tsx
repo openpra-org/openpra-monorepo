@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -13,9 +13,16 @@ interface IeWorkbookData {
 
 type IeMutator = (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis;
 
+interface IeDrawerContext {
+  kind: "initiator" | "hazard" | "group";
+  id: string;
+}
+
 interface IeWorkbookContextValue extends IeWorkbookData {
   editable: boolean;
   mutateIe: (mutator: IeMutator) => void;
+  drawer: IeDrawerContext | null;
+  openDrawer: (ctx: IeDrawerContext | null) => void;
 }
 
 const IeWorkbookContext = createContext<IeWorkbookContextValue | null>(null);
@@ -26,7 +33,11 @@ function IeWorkbookProvider({ data, editable, mutateIe, children }: {
   mutateIe: (mutator: IeMutator) => void;
   children: React.ReactNode;
 }): JSX.Element {
-  const value = useMemo<IeWorkbookContextValue>(() => ({ ...data, editable, mutateIe }), [data, editable, mutateIe]);
+  const [drawer, setDrawer] = useState<IeDrawerContext | null>(null);
+  const value = useMemo<IeWorkbookContextValue>(
+    () => ({ ...data, editable, mutateIe, drawer, openDrawer: setDrawer }),
+    [data, editable, mutateIe, drawer],
+  );
   return <IeWorkbookContext.Provider value={value}>{children}</IeWorkbookContext.Provider>;
 }
 
@@ -36,4 +47,4 @@ function useIeWorkbook(): IeWorkbookContextValue {
   return ctx;
 }
 
-export { IeWorkbookProvider, useIeWorkbook, type IeWorkbookData, type IeMutator };
+export { IeWorkbookProvider, useIeWorkbook, type IeWorkbookData, type IeMutator, type IeDrawerContext };

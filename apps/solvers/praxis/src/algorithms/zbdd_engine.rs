@@ -63,9 +63,31 @@ impl ZbddNode {
     }
 }
 
+const OP_UNION: u8 = 0;
+const OP_SUBTRACT: u8 = 2;
+const OP_MINIMIZE: u8 = 4;
+const OP_PURIFY: u8 = 5;
+const OP_REMOVEVAR: u8 = 6;
+
+// Ref-holding fixed-size computed cache entry (used only when gc_on). The cache
+// protects each entry's operands and result, so a cached slot cannot be recycled
+// while the entry lives; eviction on collision derefs them, which bounds the cache
+// and is itself the reclamation. No generation tags needed.
+#[derive(Clone, Copy, Default)]
+struct ComputedEntry {
+    op: u8,
+    used: bool,
+    b_is_node: bool,
+    a: u32,
+    b: u32,
+    result: u32,
+}
+
 pub struct ZbddEngine {
     nodes: Vec<ZbddNode>,
     unique: HashMap<ZbddNode, ZbddRef>,
+    computed: Vec<ComputedEntry>,
+    computed_mask: usize,
     union_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     join_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
     subtract_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
@@ -76,6 +98,10 @@ pub struct ZbddEngine {
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
     maxprob_cache: HashMap<ZbddRef, f64>,
+    refcounts: Vec<u32>,
+    generations: Vec<u32>,
+    free_list: Vec<u32>,
+    gc_on: bool,
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
@@ -86,9 +112,23 @@ const ZBDD_SENTINEL: ZbddNode = ZbddNode {
 
 impl ZbddEngine {
     pub fn new() -> Self {
+        let gc_on = std::env::var("PRAXIS_ZBDD_GC").map(|v| v == "1").unwrap_or(false);
+        let (computed, computed_mask) = if gc_on {
+            let bits = std::env::var("PRAXIS_ZBDD_CACHE_BITS")
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(23)
+                .clamp(10, 30);
+            let size = 1usize << bits;
+            (vec![ComputedEntry::default(); size], size - 1)
+        } else {
+            (Vec::new(), 0)
+        };
         Self {
             nodes: vec![ZBDD_SENTINEL, ZBDD_SENTINEL],
             unique: HashMap::new(),
+            computed,
+            computed_mask,
             union_cache: HashMap::new(),
             join_cache: HashMap::new(),
             subtract_cache: HashMap::new(),
@@ -99,6 +139,10 @@ impl ZbddEngine {
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
             maxprob_cache: HashMap::new(),
+            refcounts: vec![0, 0],
+            generations: vec![0, 0],
+            free_list: Vec::new(),
+            gc_on,
         }
     }
 
@@ -114,6 +158,12 @@ impl ZbddEngine {
         self.removevar_cache.clear();
         self.convert_cache.clear();
         self.maxprob_cache.clear();
+        self.refcounts.truncate(2);
+        self.generations.truncate(2);
+        self.free_list.clear();
+        for e in self.computed.iter_mut() {
+            e.used = false;
+        }
     }
 
     pub fn clear_op_caches(&mut self) {
@@ -152,6 +202,38 @@ impl ZbddEngine {
 
     pub fn node_count(&self) -> usize {
         self.nodes.len().saturating_sub(2)
+    }
+
+    pub fn reachable_count(&self, root: ZbddRef) -> usize {
+        let mut seen: std::collections::HashSet<u32> = std::collections::HashSet::new();
+        let mut stack = vec![root];
+        while let Some(f) = stack.pop() {
+            if f.is_terminal() {
+                continue;
+            }
+            if !seen.insert(f.raw()) {
+                continue;
+            }
+            let n = &self.nodes[f.index()];
+            stack.push(n.high);
+            stack.push(n.low);
+        }
+        seen.len()
+    }
+
+    pub fn unique_len(&self) -> usize {
+        self.unique.len()
+    }
+
+    pub fn op_cache_len(&self) -> usize {
+        self.union_cache.len()
+            + self.join_cache.len()
+            + self.subtract_cache.len()
+            + self.difference_cache.len()
+            + self.minimize_cache.len()
+            + self.purify_cache.len()
+            + self.removevar_cache.len()
+            + self.maxprob_cache.len()
     }
 
     pub fn clear_caches(&mut self) {
@@ -217,9 +299,121 @@ impl ZbddEngine {
     }
 
     pub(crate) fn alloc_node(&mut self, node: ZbddNode) -> ZbddRef {
+        if self.gc_on {
+            if let Some(idx) = self.free_list.pop() {
+                self.nodes[idx as usize] = node;
+                self.refcounts[idx as usize] = 0;
+                return ZbddRef(idx);
+            }
+        }
         let idx = self.nodes.len() as u32;
         self.nodes.push(node);
+        self.refcounts.push(0);
+        self.generations.push(0);
         ZbddRef(idx)
+    }
+
+    pub(crate) fn protect(&mut self, f: ZbddRef) {
+        if self.gc_on && !f.is_terminal() {
+            self.refcounts[f.index()] += 1;
+        }
+    }
+
+    pub(crate) fn deref(&mut self, f: ZbddRef) {
+        if !self.gc_on || f.is_terminal() {
+            return;
+        }
+        let i = f.index();
+        debug_assert!(self.refcounts[i] > 0, "zbdd deref underflow at slot {i}");
+        self.refcounts[i] -= 1;
+        if self.refcounts[i] == 0 {
+            self.free_node(f);
+        }
+    }
+
+    fn free_node(&mut self, f: ZbddRef) {
+        let i = f.index();
+        let node = self.nodes[i];
+        self.unique.remove(&node);
+        self.nodes[i] = ZBDD_SENTINEL;
+        self.generations[i] = self.generations[i].wrapping_add(1);
+        self.free_list.push(i as u32);
+        self.deref(node.high);
+        self.deref(node.low);
+    }
+
+    fn gen_of(&self, f: ZbddRef) -> u32 {
+        if f.is_terminal() {
+            0
+        } else {
+            self.generations[f.index()]
+        }
+    }
+
+    fn tag(&self, f: ZbddRef) -> (u32, u32) {
+        (f.raw(), self.gen_of(f))
+    }
+
+    fn untag(&self, t: (u32, u32)) -> Option<ZbddRef> {
+        let f = ZbddRef(t.0);
+        if f.is_terminal() {
+            return Some(f);
+        }
+        let i = f.index();
+        if self.generations[i] == t.1 && !self.nodes[i].is_sentinel() {
+            Some(f)
+        } else {
+            None
+        }
+    }
+
+    fn is_dead(&self, f: ZbddRef) -> bool {
+        !f.is_terminal() && self.nodes[f.index()].is_sentinel()
+    }
+
+    fn computed_idx(&self, op: u8, a: u32, b: u32) -> usize {
+        let mut h = (a as u64) | ((b as u64) << 32);
+        h ^= (op as u64).wrapping_shl(56);
+        h = h.wrapping_mul(0xD6E8FEB86659FD93);
+        h ^= h >> 32;
+        (h as usize) & self.computed_mask
+    }
+
+    fn computed_get(&mut self, op: u8, a: ZbddRef, b: u32) -> Option<ZbddRef> {
+        let idx = self.computed_idx(op, a.raw(), b);
+        let e = self.computed[idx];
+        if e.used && e.op == op && e.a == a.raw() && e.b == b {
+            let r = ZbddRef(e.result);
+            self.protect(r);
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    fn computed_put(&mut self, op: u8, a: ZbddRef, b: u32, b_is_node: bool, result: ZbddRef) {
+        let idx = self.computed_idx(op, a.raw(), b);
+        let old = self.computed[idx];
+        if old.used {
+            self.deref(ZbddRef(old.a));
+            if old.b_is_node {
+                self.deref(ZbddRef(old.b));
+            }
+            self.deref(ZbddRef(old.result));
+        }
+        self.protect(a);
+        if b_is_node {
+            self.protect(ZbddRef(b));
+        }
+        self.protect(result);
+        self.computed[idx] = ComputedEntry {
+            op,
+            used: true,
+            b_is_node,
+            a: a.raw(),
+            b,
+            result: result.raw(),
+        };
     }
 
     pub(crate) fn unique_get(&self, node: &ZbddNode) -> Option<ZbddRef> {
@@ -256,14 +450,19 @@ impl ZbddEngine {
 
     fn make_node(&mut self, var: usize, high: ZbddRef, low: ZbddRef) -> ZbddRef {
         if high.is_empty() {
+            self.protect(low);
             return low;
         }
         let key = ZbddNode::new(var, high, low);
         if let Some(r) = self.unique_get(&key) {
+            self.protect(r);
             return r;
         }
         let r = self.alloc_node(key);
         self.unique_insert(key, r);
+        self.protect(high);
+        self.protect(low);
+        self.protect(r);
         trace!(
             target: "praxis::zbdd",
             op = "make_node",
@@ -279,12 +478,17 @@ impl ZbddEngine {
 
     pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
         trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
-        if f.is_empty() { return g; }
-        if g.is_empty() { return f; }
-        if f == g { return f; }
+        if f.is_empty() { self.protect(g); return g; }
+        if g.is_empty() { self.protect(f); return f; }
+        if f == g { self.protect(f); return f; }
 
-        let key = if f < g { (f, g) } else { (g, f) };
-        if let Some(cached) = self.union_cache_get(key) {
+        let (ka, kb) = if f < g { (f, g) } else { (g, f) };
+        if self.gc_on {
+            if let Some(r) = self.computed_get(OP_UNION, ka, kb.raw()) {
+                return r;
+            }
+        } else if let Some(cached) = self.union_cache_get((ka, kb)) {
+            self.protect(cached);
             return cached;
         }
 
@@ -298,20 +502,31 @@ impl ZbddEngine {
             let g_lo = self.node(g).low;
             let hi = self.union(f_hi, g_hi);
             let lo = self.union(f_lo, g_lo);
-            self.make_node(f_var, hi, lo)
+            let r = self.make_node(f_var, hi, lo);
+            self.deref(hi);
+            self.deref(lo);
+            r
         } else if f_var < g_var {
             let f_hi = self.node(f).high;
             let f_lo = self.node(f).low;
             let lo = self.union(f_lo, g);
-            self.make_node(f_var, f_hi, lo)
+            let r = self.make_node(f_var, f_hi, lo);
+            self.deref(lo);
+            r
         } else {
             let g_hi = self.node(g).high;
             let g_lo = self.node(g).low;
             let lo = self.union(f, g_lo);
-            self.make_node(g_var, g_hi, lo)
+            let r = self.make_node(g_var, g_hi, lo);
+            self.deref(lo);
+            r
         };
 
-        self.union_cache_insert(key, result);
+        if self.gc_on {
+            self.computed_put(OP_UNION, ka, kb.raw(), true, result);
+        } else {
+            self.union_cache_insert((ka, kb), result);
+        }
         result
     }
 
@@ -326,14 +541,21 @@ impl ZbddEngine {
             return ZBDD_EMPTY;
         }
         if f.is_base() {
+            self.protect(g);
             return g;
         }
         if g.is_base() {
+            self.protect(f);
             return f;
         }
         let key = if f < g { (f, g) } else { (g, f) };
         if let Some(cached) = self.join_cache.get(&key).copied() {
-            return cached;
+            if self.is_dead(cached) {
+                self.join_cache.remove(&key);
+            } else {
+                self.protect(cached);
+                return cached;
+            }
         }
         let fv = self.var_of(f);
         let gv = self.var_of(g);
@@ -348,29 +570,51 @@ impl ZbddEngine {
             let a = self.union(j11, j10);
             let hi = self.union(a, j01);
             let lo = self.join(f0, g0);
-            self.make_node(fv, hi, lo)
+            let r = self.make_node(fv, hi, lo);
+            self.deref(j11);
+            self.deref(j10);
+            self.deref(j01);
+            self.deref(a);
+            self.deref(hi);
+            self.deref(lo);
+            r
         } else if fv < gv {
             let f1 = self.node(f).high;
             let f0 = self.node(f).low;
             let hi = self.join(f1, g);
             let lo = self.join(f0, g);
-            self.make_node(fv, hi, lo)
+            let r = self.make_node(fv, hi, lo);
+            self.deref(hi);
+            self.deref(lo);
+            r
         } else {
             let g1 = self.node(g).high;
             let g0 = self.node(g).low;
             let hi = self.join(f, g1);
             let lo = self.join(f, g0);
-            self.make_node(gv, hi, lo)
+            let r = self.make_node(gv, hi, lo);
+            self.deref(hi);
+            self.deref(lo);
+            r
         };
         self.join_cache.insert(key, result);
         result
     }
 
     pub(crate) fn join_budgeted(&mut self, f: ZbddRef, g: ZbddRef, min_prob: f64) -> ZbddRef {
+        if self.gc_on {
+            self.maxprob_cache.clear();
+        }
         self.ensure_maxprob(f);
         self.ensure_maxprob(g);
         let mut cache: HashMap<(ZbddRef, ZbddRef, u64), ZbddRef> = HashMap::new();
-        self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache)
+        let result = self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache);
+        if self.gc_on {
+            for &v in cache.values() {
+                self.deref(v);
+            }
+        }
+        result
     }
 
     fn join_budgeted_rec(
@@ -394,6 +638,7 @@ impl ZbddEngine {
         }
         let key = (f, g, p_acc.to_bits());
         if let Some(&r) = cache.get(&key) {
+            self.protect(r);
             return r;
         }
         let fv = self.var_of(f);
@@ -418,6 +663,13 @@ impl ZbddEngine {
         let hi = self.union(a, j01);
         let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, cache);
         let result = self.make_node(v, hi, lo);
+        self.deref(j11);
+        self.deref(j10);
+        self.deref(j01);
+        self.deref(a);
+        self.deref(hi);
+        self.deref(lo);
+        self.protect(result);
         cache.insert(key, result);
         result
     }
@@ -428,6 +680,7 @@ impl ZbddEngine {
             return ZBDD_EMPTY;
         }
         if g.is_empty() {
+            self.protect(f);
             return f;
         }
         if f == g {
@@ -435,7 +688,12 @@ impl ZbddEngine {
         }
         let key = (f, g);
         if let Some(r) = self.difference_cache.get(&key).copied() {
-            return r;
+            if self.is_dead(r) {
+                self.difference_cache.remove(&key);
+            } else {
+                self.protect(r);
+                return r;
+            }
         }
         let fv = self.var_of(f);
         let gv = self.var_of(g);
@@ -443,7 +701,9 @@ impl ZbddEngine {
             let f_hi = self.node(f).high;
             let f_lo = self.node(f).low;
             let lo = self.difference(f_lo, g);
-            self.make_node(fv, f_hi, lo)
+            let r = self.make_node(fv, f_hi, lo);
+            self.deref(lo);
+            r
         } else if fv > gv {
             let g_lo = self.node(g).low;
             self.difference(f, g_lo)
@@ -454,19 +714,26 @@ impl ZbddEngine {
             let g_lo = self.node(g).low;
             let hi = self.difference(f_hi, g_hi);
             let lo = self.difference(f_lo, g_lo);
-            self.make_node(fv, hi, lo)
+            let r = self.make_node(fv, hi, lo);
+            self.deref(hi);
+            self.deref(lo);
+            r
         };
         self.difference_cache.insert(key, result);
         result
     }
 
     pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
-        if g.is_empty() { return f; }
+        if g.is_empty() { self.protect(f); return f; }
         if g.is_base() { return ZBDD_EMPTY; }
         if f.is_empty() { return ZBDD_EMPTY; }
 
-        let key = (f, g);
-        if let Some(cached) = self.subtract_cache_get(key) {
+        if self.gc_on {
+            if let Some(r) = self.computed_get(OP_SUBTRACT, f, g.raw()) {
+                return r;
+            }
+        } else if let Some(cached) = self.subtract_cache_get((f, g)) {
+            self.protect(cached);
             return cached;
         }
 
@@ -481,19 +748,30 @@ impl ZbddEngine {
             let g_union = self.union(g_hi, g_lo);
             let hi = self.nonsuperset(f_hi, g_union);
             let lo = self.nonsuperset(f_lo, g_lo);
-            self.make_node(f_var, hi, lo)
+            let r = self.make_node(f_var, hi, lo);
+            self.deref(g_union);
+            self.deref(hi);
+            self.deref(lo);
+            r
         } else if f_var < g_var {
             let f_hi = self.node(f).high;
             let f_lo = self.node(f).low;
             let hi = self.nonsuperset(f_hi, g);
             let lo = self.nonsuperset(f_lo, g);
-            self.make_node(f_var, hi, lo)
+            let r = self.make_node(f_var, hi, lo);
+            self.deref(hi);
+            self.deref(lo);
+            r
         } else {
             let g_lo = self.node(g).low;
             self.nonsuperset(f, g_lo)
         };
 
-        self.subtract_cache_insert(key, result);
+        if self.gc_on {
+            self.computed_put(OP_SUBTRACT, f, g.raw(), true, result);
+        } else {
+            self.subtract_cache_insert((f, g), result);
+        }
         result
     }
 
@@ -501,7 +779,12 @@ impl ZbddEngine {
         trace!(target: "praxis::zbdd", op = "minimize", f = f.raw(), "zbdd op");
         if f.is_terminal() { return f; }
 
-        if let Some(cached) = self.minimize_cache.get(&f).copied() {
+        if self.gc_on {
+            if let Some(r) = self.computed_get(OP_MINIMIZE, f, 0) {
+                return r;
+            }
+        } else if let Some(cached) = self.minimize_cache.get(&f).copied() {
+            self.protect(cached);
             return cached;
         }
 
@@ -513,8 +796,15 @@ impl ZbddEngine {
         let hi_min = self.minimize(hi);
         let hi_pruned = self.nonsuperset(hi_min, lo_min);
         let result = self.make_node(var, hi_pruned, lo_min);
+        self.deref(lo_min);
+        self.deref(hi_min);
+        self.deref(hi_pruned);
 
-        self.minimize_cache.insert(f, result);
+        if self.gc_on {
+            self.computed_put(OP_MINIMIZE, f, 0, false, result);
+        } else {
+            self.minimize_cache.insert(f, result);
+        }
         result
     }
 
@@ -523,7 +813,12 @@ impl ZbddEngine {
         if f.is_terminal() {
             return f;
         }
-        if let Some(&r) = self.purify_cache.get(&f) {
+        if self.gc_on {
+            if let Some(r) = self.computed_get(OP_PURIFY, f, 0) {
+                return r;
+            }
+        } else if let Some(&r) = self.purify_cache.get(&f) {
+            self.protect(r);
             return r;
         }
         let var = self.var_of(f);
@@ -532,12 +827,20 @@ impl ZbddEngine {
         let hi_p = self.purify(hi);
         let lo_p = self.purify(lo);
         let hi_p = if var % 2 == 0 {
-            self.remove_var(hi_p, var + 1)
+            let hp = self.remove_var(hi_p, var + 1);
+            self.deref(hi_p);
+            hp
         } else {
             hi_p
         };
         let result = self.make_node(var, hi_p, lo_p);
-        self.purify_cache.insert(f, result);
+        self.deref(hi_p);
+        self.deref(lo_p);
+        if self.gc_on {
+            self.computed_put(OP_PURIFY, f, 0, false, result);
+        } else {
+            self.purify_cache.insert(f, result);
+        }
         result
     }
 
@@ -547,12 +850,20 @@ impl ZbddEngine {
         }
         let var = self.var_of(f);
         if var == w {
-            return self.node(f).low;
+            let low = self.node(f).low;
+            self.protect(low);
+            return low;
         }
         if var > w {
+            self.protect(f);
             return f;
         }
-        if let Some(&r) = self.removevar_cache.get(&(f, w)) {
+        if self.gc_on {
+            if let Some(r) = self.computed_get(OP_REMOVEVAR, f, w as u32) {
+                return r;
+            }
+        } else if let Some(&r) = self.removevar_cache.get(&(f, w)) {
+            self.protect(r);
             return r;
         }
         let hi = self.node(f).high;
@@ -560,7 +871,13 @@ impl ZbddEngine {
         let hi_r = self.remove_var(hi, w);
         let lo_r = self.remove_var(lo, w);
         let result = self.make_node(var, hi_r, lo_r);
-        self.removevar_cache.insert((f, w), result);
+        self.deref(hi_r);
+        self.deref(lo_r);
+        if self.gc_on {
+            self.computed_put(OP_REMOVEVAR, f, w as u32, false, result);
+        } else {
+            self.removevar_cache.insert((f, w), result);
+        }
         result
     }
 
@@ -574,7 +891,12 @@ impl ZbddEngine {
             return f;
         }
         if let Some(&r) = cache.get(&f) {
-            return r;
+            if self.is_dead(r) {
+                cache.remove(&f);
+            } else {
+                self.protect(r);
+                return r;
+            }
         }
         let ZbddNode { var, high: hi, low: lo } = *self.node(f);
         let hi_r = self.project_out_set(hi, flags, cache);
@@ -584,6 +906,8 @@ impl ZbddEngine {
         } else {
             self.make_node(var, hi_r, lo_r)
         };
+        self.deref(hi_r);
+        self.deref(lo_r);
         cache.insert(f, result);
         result
     }
@@ -775,7 +1099,12 @@ impl ZbddEngine {
         }
         let key = (f, budget);
         if let Some(&r) = cache.get(&key) {
-            return r;
+            if self.is_dead(r) {
+                cache.remove(&key);
+            } else {
+                self.protect(r);
+                return r;
+            }
         }
         let ZbddNode { var, high: hi, low: lo } = *self.node(f);
         let result = if budget == 0 {
@@ -783,16 +1112,28 @@ impl ZbddEngine {
         } else {
             let hi_r = self.limit_order_rec(hi, budget - 1, cache);
             let lo_r = self.limit_order_rec(lo, budget, cache);
-            self.make_node(var, hi_r, lo_r)
+            let r = self.make_node(var, hi_r, lo_r);
+            self.deref(hi_r);
+            self.deref(lo_r);
+            r
         };
         cache.insert(key, result);
         result
     }
 
     pub fn prune_below_probability(&mut self, f: ZbddRef, min_prob: f64) -> ZbddRef {
+        if self.gc_on {
+            self.maxprob_cache.clear();
+        }
         self.ensure_maxprob(f);
         let mut cache: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
-        self.prune_below_rec(f, 1.0, min_prob, &mut cache)
+        let result = self.prune_below_rec(f, 1.0, min_prob, &mut cache);
+        if self.gc_on {
+            for &v in cache.values() {
+                self.deref(v);
+            }
+        }
+        result
     }
 
     fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {
@@ -832,6 +1173,7 @@ impl ZbddEngine {
         }
         let key = (f, p_acc.to_bits());
         if let Some(&r) = cache.get(&key) {
+            self.protect(r);
             return r;
         }
         let ZbddNode { var, high: hi, low: lo } = *self.node(f);
@@ -839,6 +1181,9 @@ impl ZbddEngine {
         let hi_r = self.prune_below_rec(hi, p_acc * p_var, min_prob, cache);
         let lo_r = self.prune_below_rec(lo, p_acc, min_prob, cache);
         let result = self.make_node(var, hi_r, lo_r);
+        self.deref(hi_r);
+        self.deref(lo_r);
+        self.protect(result);
         cache.insert(key, result);
         result
     }

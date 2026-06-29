@@ -8,6 +8,7 @@ use crate::algorithms::noncoherent_mocus::{
 };
 use crate::algorithms::pdag::{Connective, NodeIndex, Pdag, PdagNode};
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef, ZBDD_BASE, ZBDD_EMPTY};
+use crate::algorithms::ordering;
 use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
 use crate::error::PraxisError;
@@ -18,6 +19,28 @@ enum NodeKind {
     Constant(bool),
     Gate(Connective, Vec<NodeIndex>, Option<usize>),
     Missing,
+}
+
+fn select_variable_order(pdag: &Pdag) -> Result<Vec<NodeIndex>> {
+    let which = std::env::var("PRAXIS_ORDER").unwrap_or_default();
+    let from_map = |map: HashMap<NodeIndex, usize>| -> Vec<NodeIndex> {
+        let mut v: Vec<(usize, NodeIndex)> = map.into_iter().map(|(e, p)| (p, e)).collect();
+        v.sort();
+        v.into_iter().map(|(_, e)| e).collect()
+    };
+    let order = match which.as_str() {
+        "force" => from_map(ordering::force_order(pdag)),
+        "sloan" => from_map(ordering::sloan_fac_order(pdag)),
+        "dfs_scram" => from_map(ordering::dfs_order(pdag, true)),
+        "dfs_plain" => from_map(ordering::dfs_order(pdag, false)),
+        "rev" => {
+            let mut o = compute_dfs_metadata_pdag(pdag)?.variable_order;
+            o.reverse();
+            o
+        }
+        _ => compute_dfs_metadata_pdag(pdag)?.variable_order,
+    };
+    Ok(order)
 }
 
 struct Builder {
@@ -36,6 +59,7 @@ struct Builder {
     maxcs_memo: HashMap<NodeIndex, f64>,
     decomposition: Option<Decomposition>,
     initiators: HashSet<usize>,
+    gc_cache: usize,
 }
 
 impl Builder {
@@ -48,7 +72,7 @@ impl Builder {
         let mut owned = pdag.clone();
         normalize_xor_iff(&mut owned)?;
 
-        let order = compute_dfs_metadata_pdag(&owned)?.variable_order;
+        let order = select_variable_order(&owned)?;
 
         let mut level = HashMap::new();
         let mut var_probs: Vec<f64> = Vec::with_capacity(order.len() * 2);
@@ -91,6 +115,10 @@ impl Builder {
             maxcs_memo: HashMap::new(),
             decomposition: None,
             initiators,
+            gc_cache: std::env::var("PRAXIS_GC_CACHE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
         })
     }
 
@@ -484,6 +512,12 @@ impl Builder {
                 buckets = self.budget_cache.len(),
                 "budgeted delterm exploring"
             );
+        }
+        if self.gc_cache > 0
+            && self.explored % 1024 == 0
+            && self.zbdd.op_cache_len() > self.gc_cache
+        {
+            self.zbdd.clear_op_caches();
         }
         let b = budget_bucket(budget);
         if let Some(&z) = self.budget_cache.get(&(r, b)) {

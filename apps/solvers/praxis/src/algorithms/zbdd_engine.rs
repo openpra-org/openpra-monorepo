@@ -63,6 +63,295 @@ impl ZbddNode {
     }
 }
 
+fn hash_key(var: u64, high: u32, low: u32) -> u64 {
+    let mut h = var;
+    h = h.wrapping_mul(0x9E3779B97F4A7C15).wrapping_add(high as u64);
+    h = h.wrapping_mul(0x9E3779B97F4A7C15).wrapping_add(low as u64);
+    h ^= h >> 32;
+    h = h.wrapping_mul(0xD6E8FEB86659FD93);
+    h ^= h >> 33;
+    h
+}
+
+#[derive(Clone, Copy)]
+struct UEntry {
+    var: u32,
+    high: u32,
+    low: u32,
+    val: u32,
+}
+
+const UEMPTY: UEntry = UEntry {
+    var: 0,
+    high: 0,
+    low: 0,
+    val: 0,
+};
+
+struct OpenUnique {
+    slots: Vec<UEntry>,
+    mask: usize,
+    len: usize,
+}
+
+impl OpenUnique {
+    fn new() -> Self {
+        let cap = 1usize << 10;
+        OpenUnique {
+            slots: vec![UEMPTY; cap],
+            mask: cap - 1,
+            len: 0,
+        }
+    }
+
+    fn get(&self, node: &ZbddNode) -> Option<ZbddRef> {
+        let var = node.var as u32;
+        let high = node.high.raw();
+        let low = node.low.raw();
+        let mut i = (hash_key(var as u64, high, low) as usize) & self.mask;
+        loop {
+            let e = self.slots[i];
+            if e.val == 0 {
+                return None;
+            }
+            if e.var == var && e.high == high && e.low == low {
+                return Some(ZbddRef::new(e.val));
+            }
+            i = (i + 1) & self.mask;
+        }
+    }
+
+    fn place(&mut self, var: u32, high: u32, low: u32, val: u32) {
+        let mut i = (hash_key(var as u64, high, low) as usize) & self.mask;
+        loop {
+            let e = self.slots[i];
+            if e.val == 0 {
+                self.slots[i] = UEntry { var, high, low, val };
+                self.len += 1;
+                return;
+            }
+            if e.var == var && e.high == high && e.low == low {
+                self.slots[i].val = val;
+                return;
+            }
+            i = (i + 1) & self.mask;
+        }
+    }
+
+    fn insert(&mut self, node: ZbddNode, r: ZbddRef) {
+        if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
+            self.grow();
+        }
+        self.place(node.var as u32, node.high.raw(), node.low.raw(), r.raw());
+    }
+
+    fn grow(&mut self) {
+        let new_cap = (self.mask + 1) * 2;
+        let old = std::mem::replace(&mut self.slots, vec![UEMPTY; new_cap]);
+        self.mask = new_cap - 1;
+        self.len = 0;
+        for e in old {
+            if e.val != 0 {
+                self.place(e.var, e.high, e.low, e.val);
+            }
+        }
+    }
+
+    fn remove(&mut self, node: &ZbddNode) {
+        let var = node.var as u32;
+        let high = node.high.raw();
+        let low = node.low.raw();
+        let mask = self.mask;
+        let mut i = (hash_key(var as u64, high, low) as usize) & mask;
+        loop {
+            let e = self.slots[i];
+            if e.val == 0 {
+                return;
+            }
+            if e.var == var && e.high == high && e.low == low {
+                break;
+            }
+            i = (i + 1) & mask;
+        }
+        self.len -= 1;
+        let mut j = i;
+        loop {
+            self.slots[i].val = 0;
+            loop {
+                j = (j + 1) & mask;
+                let e = self.slots[j];
+                if e.val == 0 {
+                    return;
+                }
+                let k = (hash_key(e.var as u64, e.high, e.low) as usize) & mask;
+                let anchored = if i <= j {
+                    i < k && k <= j
+                } else {
+                    i < k || k <= j
+                };
+                if !anchored {
+                    break;
+                }
+            }
+            self.slots[i] = self.slots[j];
+            i = j;
+        }
+    }
+
+    fn clear(&mut self) {
+        for e in self.slots.iter_mut() {
+            e.val = 0;
+        }
+        self.len = 0;
+    }
+}
+
+enum UniqueTable {
+    Std(HashMap<ZbddNode, ZbddRef>),
+    Open(OpenUnique),
+}
+
+impl UniqueTable {
+    fn new(open: bool) -> Self {
+        if open {
+            UniqueTable::Open(OpenUnique::new())
+        } else {
+            UniqueTable::Std(HashMap::new())
+        }
+    }
+
+    fn get(&self, node: &ZbddNode) -> Option<ZbddRef> {
+        match self {
+            UniqueTable::Std(m) => m.get(node).copied(),
+            UniqueTable::Open(t) => t.get(node),
+        }
+    }
+
+    fn insert(&mut self, node: ZbddNode, r: ZbddRef) {
+        match self {
+            UniqueTable::Std(m) => {
+                m.insert(node, r);
+            }
+            UniqueTable::Open(t) => t.insert(node, r),
+        }
+    }
+
+    fn remove(&mut self, node: &ZbddNode) {
+        match self {
+            UniqueTable::Std(m) => {
+                m.remove(node);
+            }
+            UniqueTable::Open(t) => t.remove(node),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            UniqueTable::Std(m) => m.len(),
+            UniqueTable::Open(t) => t.len,
+        }
+    }
+
+    fn clear(&mut self) {
+        match self {
+            UniqueTable::Std(m) => m.clear(),
+            UniqueTable::Open(t) => t.clear(),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct JEntry {
+    f: u32,
+    g: u32,
+    p: u64,
+    result: u32,
+    used: bool,
+}
+
+const JEMPTY: JEntry = JEntry {
+    f: 0,
+    g: 0,
+    p: 0,
+    result: 0,
+    used: false,
+};
+
+// Open-addressing cache for the budgeted join, keyed by (f, g, p_acc bits),
+// replacing a per-product std HashMap. A `used` flag is mandatory because the
+// join can legitimately cache ZBDD_EMPTY (ref 0) as a result, so value 0 cannot
+// double as the empty-slot marker.
+struct JoinCache {
+    slots: Vec<JEntry>,
+    mask: usize,
+    len: usize,
+}
+
+impl JoinCache {
+    fn new() -> Self {
+        let cap = 1usize << 12;
+        JoinCache {
+            slots: vec![JEMPTY; cap],
+            mask: cap - 1,
+            len: 0,
+        }
+    }
+
+    fn hash(f: u32, g: u32, p: u64) -> u64 {
+        let mut h = (f as u64) | ((g as u64) << 32);
+        h ^= p.wrapping_mul(0x9E3779B97F4A7C15);
+        h = h.wrapping_mul(0xD6E8FEB86659FD93);
+        h ^= h >> 32;
+        h
+    }
+
+    fn get(&self, f: u32, g: u32, p: u64) -> Option<u32> {
+        let mut i = (Self::hash(f, g, p) as usize) & self.mask;
+        loop {
+            let e = self.slots[i];
+            if !e.used {
+                return None;
+            }
+            if e.f == f && e.g == g && e.p == p {
+                return Some(e.result);
+            }
+            i = (i + 1) & self.mask;
+        }
+    }
+
+    fn place(&mut self, f: u32, g: u32, p: u64, result: u32) {
+        let mut i = (Self::hash(f, g, p) as usize) & self.mask;
+        loop {
+            let e = self.slots[i];
+            if !e.used {
+                self.slots[i] = JEntry { f, g, p, result, used: true };
+                self.len += 1;
+                return;
+            }
+            if e.f == f && e.g == g && e.p == p {
+                self.slots[i].result = result;
+                return;
+            }
+            i = (i + 1) & self.mask;
+        }
+    }
+
+    fn insert(&mut self, f: u32, g: u32, p: u64, result: u32) {
+        if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
+            let new_cap = (self.mask + 1) * 2;
+            let old = std::mem::replace(&mut self.slots, vec![JEMPTY; new_cap]);
+            self.mask = new_cap - 1;
+            self.len = 0;
+            for e in old {
+                if e.used {
+                    self.place(e.f, e.g, e.p, e.result);
+                }
+            }
+        }
+        self.place(f, g, p, result);
+    }
+}
+
 const OP_UNION: u8 = 0;
 const OP_SUBTRACT: u8 = 2;
 const OP_MINIMIZE: u8 = 4;
@@ -85,7 +374,7 @@ struct ComputedEntry {
 
 pub struct ZbddEngine {
     nodes: Vec<ZbddNode>,
-    unique: HashMap<ZbddNode, ZbddRef>,
+    unique: UniqueTable,
     computed: Vec<ComputedEntry>,
     computed_mask: usize,
     union_cache: HashMap<(ZbddRef, ZbddRef), ZbddRef>,
@@ -97,11 +386,14 @@ pub struct ZbddEngine {
     removevar_cache: HashMap<(ZbddRef, usize), ZbddRef>,
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
-    maxprob_cache: HashMap<ZbddRef, f64>,
+    maxprobs: Vec<f64>,
+    maxprob_stamp: Vec<u64>,
+    maxprob_epoch: u64,
     refcounts: Vec<u32>,
     generations: Vec<u32>,
     free_list: Vec<u32>,
     gc_on: bool,
+    use_computed: bool,
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
@@ -113,11 +405,18 @@ const ZBDD_SENTINEL: ZbddNode = ZbddNode {
 impl ZbddEngine {
     pub fn new() -> Self {
         let gc_on = std::env::var("PRAXIS_ZBDD_GC").map(|v| v == "1").unwrap_or(false);
-        let (computed, computed_mask) = if gc_on {
+        let open_unique = std::env::var("PRAXIS_UNIQUE").map(|v| v != "std").unwrap_or(true);
+        let array_opcache = std::env::var("PRAXIS_OPCACHE").map(|v| v != "hashmap").unwrap_or(true);
+        let use_computed = gc_on || array_opcache;
+        let (computed, computed_mask) = if use_computed {
+            // GC-on keeps a small cache to protect the 1E-12 memory wall (every
+            // slot pins live nodes). GC-off has headroom, and the op-cache is
+            // capacity-bound, so default larger; 2^26 is the measured 1E-9 knee.
+            let default_bits = if gc_on { 23 } else { 26 };
             let bits = std::env::var("PRAXIS_ZBDD_CACHE_BITS")
                 .ok()
                 .and_then(|s| s.parse::<usize>().ok())
-                .unwrap_or(23)
+                .unwrap_or(default_bits)
                 .clamp(10, 30);
             let size = 1usize << bits;
             (vec![ComputedEntry::default(); size], size - 1)
@@ -126,7 +425,7 @@ impl ZbddEngine {
         };
         Self {
             nodes: vec![ZBDD_SENTINEL, ZBDD_SENTINEL],
-            unique: HashMap::new(),
+            unique: UniqueTable::new(open_unique),
             computed,
             computed_mask,
             union_cache: HashMap::new(),
@@ -138,11 +437,14 @@ impl ZbddEngine {
             removevar_cache: HashMap::new(),
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
-            maxprob_cache: HashMap::new(),
+            maxprobs: vec![0.0, 0.0],
+            maxprob_stamp: vec![0, 0],
+            maxprob_epoch: 1,
             refcounts: vec![0, 0],
             generations: vec![0, 0],
             free_list: Vec::new(),
             gc_on,
+            use_computed,
         }
     }
 
@@ -157,7 +459,9 @@ impl ZbddEngine {
         self.purify_cache.clear();
         self.removevar_cache.clear();
         self.convert_cache.clear();
-        self.maxprob_cache.clear();
+        self.maxprobs.truncate(2);
+        self.maxprob_stamp.truncate(2);
+        self.maxprob_epoch += 1;
         self.refcounts.truncate(2);
         self.generations.truncate(2);
         self.free_list.clear();
@@ -233,7 +537,6 @@ impl ZbddEngine {
             + self.minimize_cache.len()
             + self.purify_cache.len()
             + self.removevar_cache.len()
-            + self.maxprob_cache.len()
     }
 
     pub fn clear_caches(&mut self) {
@@ -310,6 +613,8 @@ impl ZbddEngine {
         self.nodes.push(node);
         self.refcounts.push(0);
         self.generations.push(0);
+        self.maxprobs.push(0.0);
+        self.maxprob_stamp.push(0);
         ZbddRef(idx)
     }
 
@@ -393,7 +698,8 @@ impl ZbddEngine {
 
     fn computed_put(&mut self, op: u8, a: ZbddRef, b: u32, b_is_node: bool, result: ZbddRef) {
         let idx = self.computed_idx(op, a.raw(), b);
-        let old = self.computed[idx];
+        let target = idx;
+        let old = self.computed[target];
         if old.used {
             self.deref(ZbddRef(old.a));
             if old.b_is_node {
@@ -406,7 +712,7 @@ impl ZbddEngine {
             self.protect(ZbddRef(b));
         }
         self.protect(result);
-        self.computed[idx] = ComputedEntry {
+        self.computed[target] = ComputedEntry {
             op,
             used: true,
             b_is_node,
@@ -417,7 +723,7 @@ impl ZbddEngine {
     }
 
     pub(crate) fn unique_get(&self, node: &ZbddNode) -> Option<ZbddRef> {
-        self.unique.get(node).copied()
+        self.unique.get(node)
     }
 
     pub(crate) fn unique_insert(&mut self, node: ZbddNode, r: ZbddRef) {
@@ -476,14 +782,13 @@ impl ZbddEngine {
         r
     }
 
-    pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
-        trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
+    pub(crate) fn union(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "union", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() { self.protect(g); return g; }
         if g.is_empty() { self.protect(f); return f; }
         if f == g { self.protect(f); return f; }
 
         let (ka, kb) = if f < g { (f, g) } else { (g, f) };
-        if self.gc_on {
+        if self.use_computed {
             if let Some(r) = self.computed_get(OP_UNION, ka, kb.raw()) {
                 return r;
             }
@@ -522,7 +827,7 @@ impl ZbddEngine {
             r
         };
 
-        if self.gc_on {
+        if self.use_computed {
             self.computed_put(OP_UNION, ka, kb.raw(), true, result);
         } else {
             self.union_cache_insert((ka, kb), result);
@@ -602,16 +907,16 @@ impl ZbddEngine {
     }
 
     pub(crate) fn join_budgeted(&mut self, f: ZbddRef, g: ZbddRef, min_prob: f64) -> ZbddRef {
-        if self.gc_on {
-            self.maxprob_cache.clear();
-        }
         self.ensure_maxprob(f);
         self.ensure_maxprob(g);
-        let mut cache: HashMap<(ZbddRef, ZbddRef, u64), ZbddRef> = HashMap::new();
+        let mut cache = JoinCache::new();
         let result = self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache);
         if self.gc_on {
-            for &v in cache.values() {
-                self.deref(v);
+            for i in 0..cache.slots.len() {
+                let e = cache.slots[i];
+                if e.used {
+                    self.deref(ZbddRef(e.result));
+                }
             }
         }
         result
@@ -623,21 +928,21 @@ impl ZbddEngine {
         g: ZbddRef,
         p_acc: f64,
         min_prob: f64,
-        cache: &mut HashMap<(ZbddRef, ZbddRef, u64), ZbddRef>,
-    ) -> ZbddRef {
-        if f.is_empty() || g.is_empty() {
+        cache: &mut JoinCache,
+    ) -> ZbddRef {        if f.is_empty() || g.is_empty() {
             return ZBDD_EMPTY;
         }
-        let mf = if f.is_base() { 1.0 } else { self.maxprob_cache[&f] };
-        let mg = if g.is_base() { 1.0 } else { self.maxprob_cache[&g] };
+        let mf = if f.is_base() { 1.0 } else { self.maxprobs[f.index()] };
+        let mg = if g.is_base() { 1.0 } else { self.maxprobs[g.index()] };
         if p_acc * mf.min(mg) < min_prob {
             return ZBDD_EMPTY;
         }
         if f.is_base() && g.is_base() {
             return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
         }
-        let key = (f, g, p_acc.to_bits());
-        if let Some(&r) = cache.get(&key) {
+        let pb = p_acc.to_bits();
+        if let Some(r) = cache.get(f.raw(), g.raw(), pb) {
+            let r = ZbddRef(r);
             self.protect(r);
             return r;
         }
@@ -670,12 +975,11 @@ impl ZbddEngine {
         self.deref(hi);
         self.deref(lo);
         self.protect(result);
-        cache.insert(key, result);
+        cache.insert(f.raw(), g.raw(), pb, result.raw());
         result
     }
 
-    pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
-        trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
+    pub(crate) fn difference(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "difference", f = f.raw(), g = g.raw(), "zbdd op");
         if f.is_empty() {
             return ZBDD_EMPTY;
         }
@@ -723,12 +1027,11 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {
-        if g.is_empty() { self.protect(f); return f; }
+    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        if g.is_empty() { self.protect(f); return f; }
         if g.is_base() { return ZBDD_EMPTY; }
         if f.is_empty() { return ZBDD_EMPTY; }
 
-        if self.gc_on {
+        if self.use_computed {
             if let Some(r) = self.computed_get(OP_SUBTRACT, f, g.raw()) {
                 return r;
             }
@@ -767,7 +1070,7 @@ impl ZbddEngine {
             self.nonsuperset(f, g_lo)
         };
 
-        if self.gc_on {
+        if self.use_computed {
             self.computed_put(OP_SUBTRACT, f, g.raw(), true, result);
         } else {
             self.subtract_cache_insert((f, g), result);
@@ -775,11 +1078,10 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn minimize(&mut self, f: ZbddRef) -> ZbddRef {
-        trace!(target: "praxis::zbdd", op = "minimize", f = f.raw(), "zbdd op");
+    pub(crate) fn minimize(&mut self, f: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "minimize", f = f.raw(), "zbdd op");
         if f.is_terminal() { return f; }
 
-        if self.gc_on {
+        if self.use_computed {
             if let Some(r) = self.computed_get(OP_MINIMIZE, f, 0) {
                 return r;
             }
@@ -800,7 +1102,7 @@ impl ZbddEngine {
         self.deref(hi_min);
         self.deref(hi_pruned);
 
-        if self.gc_on {
+        if self.use_computed {
             self.computed_put(OP_MINIMIZE, f, 0, false, result);
         } else {
             self.minimize_cache.insert(f, result);
@@ -808,12 +1110,11 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn purify(&mut self, f: ZbddRef) -> ZbddRef {
-        trace!(target: "praxis::zbdd", op = "purify", f = f.raw(), "zbdd op");
+    pub(crate) fn purify(&mut self, f: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "purify", f = f.raw(), "zbdd op");
         if f.is_terminal() {
             return f;
         }
-        if self.gc_on {
+        if self.use_computed {
             if let Some(r) = self.computed_get(OP_PURIFY, f, 0) {
                 return r;
             }
@@ -836,7 +1137,7 @@ impl ZbddEngine {
         let result = self.make_node(var, hi_p, lo_p);
         self.deref(hi_p);
         self.deref(lo_p);
-        if self.gc_on {
+        if self.use_computed {
             self.computed_put(OP_PURIFY, f, 0, false, result);
         } else {
             self.purify_cache.insert(f, result);
@@ -844,8 +1145,7 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn remove_var(&mut self, f: ZbddRef, w: usize) -> ZbddRef {
-        if f.is_terminal() {
+    pub(crate) fn remove_var(&mut self, f: ZbddRef, w: usize) -> ZbddRef {        if f.is_terminal() {
             return f;
         }
         let var = self.var_of(f);
@@ -858,7 +1158,7 @@ impl ZbddEngine {
             self.protect(f);
             return f;
         }
-        if self.gc_on {
+        if self.use_computed {
             if let Some(r) = self.computed_get(OP_REMOVEVAR, f, w as u32) {
                 return r;
             }
@@ -873,7 +1173,7 @@ impl ZbddEngine {
         let result = self.make_node(var, hi_r, lo_r);
         self.deref(hi_r);
         self.deref(lo_r);
-        if self.gc_on {
+        if self.use_computed {
             self.computed_put(OP_REMOVEVAR, f, w as u32, false, result);
         } else {
             self.removevar_cache.insert((f, w), result);
@@ -1049,7 +1349,7 @@ impl ZbddEngine {
 
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.var_probs = probs;
-        self.maxprob_cache.clear();
+        self.maxprob_epoch += 1;
     }
 
     pub fn rare_event_probability(&self, root: ZbddRef) -> f64 {
@@ -1122,9 +1422,6 @@ impl ZbddEngine {
     }
 
     pub fn prune_below_probability(&mut self, f: ZbddRef, min_prob: f64) -> ZbddRef {
-        if self.gc_on {
-            self.maxprob_cache.clear();
-        }
         self.ensure_maxprob(f);
         let mut cache: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
         let result = self.prune_below_rec(f, 1.0, min_prob, &mut cache);
@@ -1136,21 +1433,23 @@ impl ZbddEngine {
         result
     }
 
-    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {
-        if f.is_empty() {
+    fn ensure_maxprob(&mut self, f: ZbddRef) -> f64 {        if f.is_empty() {
             return 0.0;
         }
         if f.is_base() {
             return 1.0;
         }
-        if let Some(&v) = self.maxprob_cache.get(&f) {
-            return v;
+        let i = f.index();
+        let stamp = (self.maxprob_epoch << 32) | (self.generations[i] as u64);
+        if self.maxprob_stamp[i] == stamp {
+            return self.maxprobs[i];
         }
         let ZbddNode { var, high, low } = *self.node(f);
         let ph = self.var_probs[var] * self.ensure_maxprob(high);
         let pl = self.ensure_maxprob(low);
         let r = ph.max(pl);
-        self.maxprob_cache.insert(f, r);
+        self.maxprobs[i] = r;
+        self.maxprob_stamp[i] = stamp;
         r
     }
 
@@ -1160,11 +1459,10 @@ impl ZbddEngine {
         p_acc: f64,
         min_prob: f64,
         cache: &mut HashMap<(ZbddRef, u64), ZbddRef>,
-    ) -> ZbddRef {
-        if f.is_empty() {
+    ) -> ZbddRef {        if f.is_empty() {
             return ZBDD_EMPTY;
         }
-        let fmax = if f.is_base() { 1.0 } else { self.maxprob_cache[&f] };
+        let fmax = if f.is_base() { 1.0 } else { self.maxprobs[f.index()] };
         if p_acc * fmax < min_prob {
             return ZBDD_EMPTY;
         }

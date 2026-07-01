@@ -3,9 +3,7 @@ use std::fs;
 use std::thread;
 use std::time::Instant;
 
-use praxis::algorithms::direct_zbdd::{
-    build_zbdd_delterm, build_zbdd_from_pdag, build_zbdd_topdown,
-};
+use praxis::algorithms::direct_zbdd::{build_zbdd_delterm, build_zbdd_from_pdag, build_zbdd_topdown};
 use praxis::algorithms::pdag::Pdag;
 use praxis::analysis::quantify::{quantify, Approximation, Engine, Settings};
 use praxis::core::fault_tree::FaultTree;
@@ -22,6 +20,7 @@ fn main() {
     let compare = args.iter().skip(2).any(|s| s == "compare");
     let topdown = args.iter().skip(2).any(|s| s == "td");
     let delterm = args.iter().skip(2).any(|s| s == "delterm");
+    let engine = args.iter().skip(2).any(|s| s == "q");
     let mutex = args
         .iter()
         .skip(2)
@@ -35,13 +34,40 @@ fn main() {
         parse_fault_tree(&xml).expect("parse")
     };
 
-    run(ft, cutoff, compare, topdown, delterm, mutex);
+    run(ft, cutoff, compare, topdown, delterm, engine, mutex);
 }
 
-fn run(ft: FaultTree, cutoff: f64, compare: bool, topdown: bool, delterm: bool, mutex: Option<String>) {
+fn run(
+    ft: FaultTree,
+    cutoff: f64,
+    compare: bool,
+    topdown: bool,
+    delterm: bool,
+    engine: bool,
+    mutex: Option<String>,
+) {
     let child = thread::Builder::new()
         .stack_size(2 * 1024 * 1024 * 1024)
         .spawn(move || {
+            if engine {
+                let settings = Settings {
+                    engine: Engine::ZbddDelterm,
+                    cut_off: Some(cutoff),
+                    approximation: Some(Approximation::RareEvent),
+                    ..Default::default()
+                };
+                let t = Instant::now();
+                let q = quantify(&ft, &settings).expect("quantify delterm");
+                let dt = t.elapsed().as_secs_f64();
+                let rare = q.probability.expect("prob").value;
+                let count = q.cut_sets.expect("cut sets").products;
+                println!(
+                    "q-delterm rare={:.6e}  cut_sets={}  time={:.2}s",
+                    rare, count, dt
+                );
+                return;
+            }
+
             let pdag = Pdag::from_fault_tree(&ft).expect("pdag");
             let t = Instant::now();
             let (dz, droot) = if delterm {

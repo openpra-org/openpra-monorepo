@@ -14,11 +14,11 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     if cli.approximation.is_some()
         && !matches!(
             cli.algorithm,
-            Algorithm::Mocus | Algorithm::MocusPi | Algorithm::Zbdd
+            Algorithm::Mocus | Algorithm::MocusPi | Algorithm::Zbdd | Algorithm::ZbddDelterm
         )
     {
         eprintln!(
-            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi' or '--algorithm zbdd'"
+            "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi', '--algorithm zbdd' or '--algorithm zbdd-delterm'"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -127,9 +127,14 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         cli.analysis,
         crate::cli::args::Analysis::CutsetsOnly | crate::cli::args::Analysis::CutsetsAndProbability
     );
-    if analysis_requires_cut_sets && !matches!(cli.algorithm, Algorithm::Mocus | Algorithm::Zbdd) {
+    if analysis_requires_cut_sets
+        && !matches!(
+            cli.algorithm,
+            Algorithm::Mocus | Algorithm::Zbdd | Algorithm::ZbddDelterm
+        )
+    {
         eprintln!(
-            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus' or '--algorithm zbdd'"
+            "error: the argument '--analysis <ANALYSIS>' with cut set modes can only be used with '--algorithm mocus', '--algorithm zbdd' or '--algorithm zbdd-delterm'"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -189,10 +194,10 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
                         verbose,
                     )?;
                 }
-                Algorithm::Mocus | Algorithm::MocusPi => {
+                Algorithm::Mocus | Algorithm::MocusPi | Algorithm::ZbddDelterm => {
                     if !cli.validate {
                         eprintln!(
-                            "error: cut-set algorithms (mocus, mocus-pi) are not supported for event-tree inputs"
+                            "error: cut-set algorithms (mocus, mocus-pi, zbdd-delterm) are not supported for event-tree inputs"
                         );
                         eprintln!();
                         eprintln!("For more information, try '--help'.");

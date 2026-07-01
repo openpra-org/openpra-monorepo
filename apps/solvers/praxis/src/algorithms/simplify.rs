@@ -235,6 +235,345 @@ pub fn fold_constants(pdag: &mut Pdag) -> Result<()> {
     Ok(())
 }
 
+/// Result-preserving constant propagation. Pushes the literal operands of every
+/// AND gate down into its sibling operands (cofactoring), deleting logically dead
+/// terms such as `A AND NOT A` before any diagram is built. It never folds P=1 or
+/// P=0 events away, so cut-set literals are preserved. Identical rebuilt gates are
+/// shared and a node cap bounds expansion on a shared graph; if the cap is hit the
+/// root is left untouched.
+pub fn propagate_constants(pdag: &mut Pdag) -> Result<()> {
+    let Some(root) = pdag.root() else {
+        return Ok(());
+    };
+    let cap = pdag.node_count() * 6 + 4096;
+    let mut cf = Cofactorer {
+        true_const: pdag.add_constant(true),
+        false_const: pdag.add_constant(false),
+        memo: std::collections::HashMap::new(),
+        gate_memo: std::collections::HashMap::new(),
+        next_id: 0,
+        created: 0,
+        cap,
+        aborted: false,
+    };
+    let env: std::collections::BTreeSet<NodeIndex> = std::collections::BTreeSet::new();
+    let new_root = cf.go(pdag, root, &env)?;
+    if !cf.aborted {
+        pdag.set_root(new_root)?;
+    }
+    Ok(())
+}
+
+struct Cofactorer {
+    true_const: NodeIndex,
+    false_const: NodeIndex,
+    memo: std::collections::HashMap<(NodeIndex, Vec<NodeIndex>), NodeIndex>,
+    gate_memo: std::collections::HashMap<(Connective, Option<usize>, Vec<NodeIndex>), NodeIndex>,
+    next_id: usize,
+    created: usize,
+    cap: usize,
+    aborted: bool,
+}
+
+impl Cofactorer {
+    fn k(&self, value: bool) -> NodeIndex {
+        if value {
+            self.true_const
+        } else {
+            self.false_const
+        }
+    }
+
+    fn cval(&self, pdag: &Pdag, node: NodeIndex) -> Option<bool> {
+        match pdag.get_node(node) {
+            Some(PdagNode::Constant { value, .. }) => Some(if node < 0 { !*value } else { *value }),
+            _ => None,
+        }
+    }
+
+    fn neg(&self, pdag: &Pdag, node: NodeIndex) -> NodeIndex {
+        match self.cval(pdag, node) {
+            Some(v) => self.k(!v),
+            None => -node,
+        }
+    }
+
+    fn gate(
+        &mut self,
+        pdag: &mut Pdag,
+        conn: Connective,
+        ops: Vec<NodeIndex>,
+        min: Option<usize>,
+    ) -> Result<NodeIndex> {
+        let mut sorted = ops.clone();
+        sorted.sort();
+        let key = (conn, min, sorted);
+        if let Some(&g) = self.gate_memo.get(&key) {
+            return Ok(g);
+        }
+        self.next_id += 1;
+        self.created += 1;
+        let g = pdag.add_gate(format!("__cf{}", self.next_id), conn, ops, min)?;
+        self.gate_memo.insert(key, g);
+        Ok(g)
+    }
+
+    fn go(
+        &mut self,
+        pdag: &mut Pdag,
+        node: NodeIndex,
+        env: &std::collections::BTreeSet<NodeIndex>,
+    ) -> Result<NodeIndex> {
+        if self.created > self.cap {
+            self.aborted = true;
+            return Ok(node);
+        }
+        let base = node.abs();
+        let neg = node < 0;
+        if env.contains(&base) {
+            return Ok(self.k(!neg));
+        }
+        if env.contains(&-base) {
+            return Ok(self.k(neg));
+        }
+        let key = (base, env.iter().copied().collect::<Vec<_>>());
+        if let Some(&m) = self.memo.get(&key) {
+            return Ok(if neg { self.neg(pdag, m) } else { m });
+        }
+        let cloned = pdag.get_node(base).cloned();
+        let result = match cloned {
+            Some(PdagNode::BasicEvent { .. }) => base,
+            Some(PdagNode::Constant { .. }) => base,
+            Some(PdagNode::Gate {
+                connective,
+                operands,
+                min_number,
+                ..
+            }) => self.gate_node(pdag, base, connective, operands, min_number, env)?,
+            None => self.k(false),
+        };
+        self.memo.insert(key, result);
+        Ok(if neg { self.neg(pdag, result) } else { result })
+    }
+
+    fn gate_node(
+        &mut self,
+        pdag: &mut Pdag,
+        base: NodeIndex,
+        conn: Connective,
+        operands: Vec<NodeIndex>,
+        min: Option<usize>,
+        env: &std::collections::BTreeSet<NodeIndex>,
+    ) -> Result<NodeIndex> {
+        match conn {
+            Connective::And | Connective::Nand => {
+                let mut sub = env.clone();
+                for &op in &operands {
+                    if matches!(pdag.get_node(op), Some(PdagNode::BasicEvent { .. })) {
+                        sub.insert(op);
+                    }
+                }
+                let value = if sub.iter().any(|&lit| sub.contains(&-lit)) {
+                    self.k(false)
+                } else {
+                    let mut kept: Vec<NodeIndex> = Vec::new();
+                    let mut seen: std::collections::HashSet<NodeIndex> =
+                        std::collections::HashSet::new();
+                    let mut dead = false;
+                    let mut changed = false;
+                    for &op in &operands {
+                        let is_lit = matches!(pdag.get_node(op), Some(PdagNode::BasicEvent { .. }));
+                        let c = if is_lit {
+                            if env.contains(&op) {
+                                changed = true;
+                                self.k(true)
+                            } else if env.contains(&-op) {
+                                changed = true;
+                                self.k(false)
+                            } else {
+                                op
+                            }
+                        } else {
+                            let cc = self.go(pdag, op, &sub)?;
+                            if cc != op {
+                                changed = true;
+                            }
+                            cc
+                        };
+                        match self.cval(pdag, c) {
+                            Some(false) => {
+                                dead = true;
+                                break;
+                            }
+                            Some(true) => {
+                                changed = true;
+                            }
+                            None => {
+                                if seen.contains(&self.neg(pdag, c)) {
+                                    dead = true;
+                                    break;
+                                }
+                                if seen.insert(c) {
+                                    kept.push(c);
+                                } else {
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                    if dead {
+                        self.k(false)
+                    } else if !changed {
+                        base
+                    } else if kept.is_empty() {
+                        self.k(true)
+                    } else if kept.len() == 1 {
+                        kept[0]
+                    } else {
+                        self.gate(pdag, Connective::And, kept, None)?
+                    }
+                };
+                Ok(if conn == Connective::Nand {
+                    if value == base {
+                        base
+                    } else {
+                        self.neg(pdag, value)
+                    }
+                } else {
+                    value
+                })
+            }
+            Connective::Or | Connective::Nor => {
+                let mut kept: Vec<NodeIndex> = Vec::new();
+                let mut seen: std::collections::HashSet<NodeIndex> =
+                    std::collections::HashSet::new();
+                let mut alive = false;
+                let mut changed = false;
+                for &op in &operands {
+                    let c = self.go(pdag, op, env)?;
+                    if c != op {
+                        changed = true;
+                    }
+                    match self.cval(pdag, c) {
+                        Some(true) => {
+                            alive = true;
+                            break;
+                        }
+                        Some(false) => {
+                            changed = true;
+                        }
+                        None => {
+                            if seen.contains(&self.neg(pdag, c)) {
+                                alive = true;
+                                break;
+                            }
+                            if seen.insert(c) {
+                                kept.push(c);
+                            } else {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                let value = if alive {
+                    self.k(true)
+                } else if !changed {
+                    base
+                } else if kept.is_empty() {
+                    self.k(false)
+                } else if kept.len() == 1 {
+                    kept[0]
+                } else {
+                    self.gate(pdag, Connective::Or, kept, None)?
+                };
+                Ok(if conn == Connective::Nor {
+                    if value == base {
+                        base
+                    } else {
+                        self.neg(pdag, value)
+                    }
+                } else {
+                    value
+                })
+            }
+            Connective::Not => {
+                if let Some(&op0) = operands.first() {
+                    let c = self.go(pdag, op0, env)?;
+                    if c == op0 {
+                        Ok(base)
+                    } else {
+                        Ok(self.neg(pdag, c))
+                    }
+                } else {
+                    Ok(base)
+                }
+            }
+            Connective::Null => {
+                if let Some(&op) = operands.first() {
+                    let c = self.go(pdag, op, env)?;
+                    if c == op {
+                        Ok(base)
+                    } else {
+                        Ok(c)
+                    }
+                } else {
+                    Ok(self.k(false))
+                }
+            }
+            Connective::AtLeast => {
+                let mut t = 0usize;
+                let mut kept: Vec<NodeIndex> = Vec::new();
+                let mut changed = false;
+                for &op in &operands {
+                    let c = self.go(pdag, op, env)?;
+                    if c != op {
+                        changed = true;
+                    }
+                    match self.cval(pdag, c) {
+                        Some(true) => t += 1,
+                        Some(false) => {}
+                        None => kept.push(c),
+                    }
+                }
+                let need = min.unwrap_or(1).saturating_sub(t);
+                if need == 0 {
+                    Ok(self.k(true))
+                } else if kept.len() < need {
+                    Ok(self.k(false))
+                } else if !changed {
+                    Ok(base)
+                } else if need == 1 {
+                    if kept.len() == 1 {
+                        Ok(kept[0])
+                    } else {
+                        self.gate(pdag, Connective::Or, kept, None)
+                    }
+                } else if need == kept.len() {
+                    self.gate(pdag, Connective::And, kept, None)
+                } else {
+                    self.gate(pdag, Connective::AtLeast, kept, Some(need))
+                }
+            }
+            Connective::Xor | Connective::Iff => {
+                let mut new_ops = Vec::with_capacity(operands.len());
+                let mut changed = false;
+                for &op in &operands {
+                    let c = self.go(pdag, op, env)?;
+                    if c != op {
+                        changed = true;
+                    }
+                    new_ops.push(c);
+                }
+                if !changed {
+                    Ok(base)
+                } else {
+                    self.gate(pdag, conn, new_ops, min)
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::algorithms::build::{build_bdd, enumerate_event_names, BuildOptions};
+use crate::algorithms::direct_zbdd::build_zbdd_delterm_named;
 use crate::algorithms::mocus::Mocus;
 use crate::algorithms::noncoherent_mocus::NonCoherentMocus;
 use crate::algorithms::pdag::Pdag;
@@ -18,6 +19,7 @@ use crate::Result;
 pub enum Engine {
     Bdd,
     Zbdd,
+    ZbddDelterm,
     Mocus,
     MocusPi,
     MonteCarlo,
@@ -237,6 +239,49 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                     value: exact,
                     approximation: Approximation::Exact,
                 },
+            });
+        }
+        Engine::ZbddDelterm => {
+            let pdag = Pdag::from_fault_tree(ft)?;
+            let named =
+                build_zbdd_delterm_named(&pdag, ft, settings.cut_off, settings.limit_order, None)?;
+            let mut per = Vec::with_capacity(named.len());
+            let mut max_order = 0;
+            let mut list = Vec::with_capacity(named.len());
+            for cs in &named {
+                let mut literals: Vec<(String, bool)> = Vec::with_capacity(cs.len());
+                let mut p = 1.0;
+                for lit in cs {
+                    let (name, negated) = match lit.strip_prefix('~') {
+                        Some(rest) => (rest.to_string(), true),
+                        None => (lit.clone(), false),
+                    };
+                    let pe = probs.get(&name).copied().unwrap_or(0.0);
+                    p *= if negated { 1.0 - pe } else { pe };
+                    literals.push((name, negated));
+                }
+                max_order = max_order.max(literals.len());
+                per.push(p);
+                list.push(CutSetOut {
+                    literals,
+                    probability: p,
+                });
+            }
+            list.sort_by(|a, b| a.literals.cmp(&b.literals));
+            let mut distribution = vec![0usize; max_order + 1];
+            for cs in &list {
+                distribution[cs.literals.len()] += 1;
+            }
+            result.cut_sets = Some(CutSetsOut {
+                prime_implicants: true,
+                products: list.len(),
+                distribution_by_order: distribution,
+                list,
+            });
+            let approximation = settings.approximation.unwrap_or(Approximation::Mcub);
+            result.probability = Some(ProbabilityOut {
+                value: approx_value(approximation, &per),
+                approximation,
             });
         }
         Engine::Mocus => {

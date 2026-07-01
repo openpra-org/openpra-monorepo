@@ -96,7 +96,12 @@ struct OpenUnique {
 
 impl OpenUnique {
     fn new() -> Self {
-        let cap = 1usize << 10;
+        let bits = std::env::var("PRAXIS_UNIQUE_BITS")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(10)
+            .clamp(10, 30);
+        let cap = 1usize << bits;
         OpenUnique {
             slots: vec![UEMPTY; cap],
             mask: cap - 1,
@@ -264,7 +269,9 @@ impl UniqueTable {
 struct JEntry {
     f: u32,
     g: u32,
-    p: u64,
+    bucket: u64,
+    mp: f64,
+    thr: f64,
     result: u32,
     used: bool,
 }
@@ -272,71 +279,104 @@ struct JEntry {
 const JEMPTY: JEntry = JEntry {
     f: 0,
     g: 0,
-    p: 0,
+    bucket: 0,
+    mp: 0.0,
+    thr: 0.0,
     result: 0,
     used: false,
 };
 
-// Open-addressing cache for the budgeted join, keyed by (f, g, p_acc bits),
-// replacing a per-product std HashMap. A `used` flag is mandatory because the
-// join can legitimately cache ZBDD_EMPTY (ref 0) as a result, so value 0 cannot
-// double as the empty-slot marker.
+// Open-addressing cache for the budgeted join. Within one min_prob the result of
+// join_budgeted_rec depends only on (f, g, threshold) where threshold = min_prob /
+// p_acc is the smallest product probability still worth keeping here. Keyed by
+// (f, g, mp=min_prob, bucket(thr)); each entry stores the EXACT thr it was computed
+// at and is reused only when its thr is at least as low (loose) as the query's, so
+// the reused result is a sound superset (bounded by the bucket width) cleaned by a
+// final exact truncation. min_prob is part of the key on purpose: across two
+// different min_prob values the per-product prune folds are independent floating
+// point sums, so a same-min_prob match keeps the superset exact in IEEE arithmetic,
+// not just in real arithmetic. Persisting the table across calls (Part C) is then
+// sound because every reuse is same-min_prob. A `used` flag is mandatory because
+// the join can cache ZBDD_EMPTY.
 struct JoinCache {
     slots: Vec<JEntry>,
     mask: usize,
     len: usize,
+    mant_bits: u32,
 }
 
 impl JoinCache {
     fn new() -> Self {
+        // Sub-octave granularity for the p_acc bucket (0 = power-of-2 buckets).
+        // Default 1 (half-octave) is the measured 1E-9 knee: ~full speedup at
+        // negligible over-keep. PRAXIS_JOIN_G=0 trades memory for the last few %.
+        let mant_bits = std::env::var("PRAXIS_JOIN_G")
+            .ok()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(1)
+            .min(52);
         let cap = 1usize << 12;
         JoinCache {
             slots: vec![JEMPTY; cap],
             mask: cap - 1,
             len: 0,
+            mant_bits,
         }
     }
 
-    fn hash(f: u32, g: u32, p: u64) -> u64 {
+    fn bucket(&self, thr: f64) -> u64 {
+        // Monotonic in thr for positive floats: the exponent plus the top
+        // mant_bits of the mantissa.
+        thr.to_bits() >> (52 - self.mant_bits)
+    }
+
+    fn hash(f: u32, g: u32, bucket: u64, mp: f64) -> u64 {
         let mut h = (f as u64) | ((g as u64) << 32);
-        h ^= p.wrapping_mul(0x9E3779B97F4A7C15);
+        h ^= bucket.wrapping_mul(0x9E3779B97F4A7C15);
+        h ^= mp.to_bits().wrapping_mul(0xFF51AFD7ED558CCD);
         h = h.wrapping_mul(0xD6E8FEB86659FD93);
         h ^= h >> 32;
         h
     }
 
-    fn get(&self, f: u32, g: u32, p: u64) -> Option<u32> {
-        let mut i = (Self::hash(f, g, p) as usize) & self.mask;
+    fn get(&self, f: u32, g: u32, thr: f64, mp: f64) -> Option<u32> {
+        let bucket = self.bucket(thr);
+        let mut i = (Self::hash(f, g, bucket, mp) as usize) & self.mask;
         loop {
             let e = self.slots[i];
             if !e.used {
                 return None;
             }
-            if e.f == f && e.g == g && e.p == p {
-                return Some(e.result);
+            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp {
+                // Reusable only if the cached threshold is at least as low (loose)
+                // as the query's, in which case the cached result is a sound superset.
+                return if e.thr <= thr { Some(e.result) } else { None };
             }
             i = (i + 1) & self.mask;
         }
     }
 
-    fn place(&mut self, f: u32, g: u32, p: u64, result: u32) {
-        let mut i = (Self::hash(f, g, p) as usize) & self.mask;
+    fn place(&mut self, f: u32, g: u32, bucket: u64, thr: f64, mp: f64, result: u32) {
+        let mut i = (Self::hash(f, g, bucket, mp) as usize) & self.mask;
         loop {
             let e = self.slots[i];
             if !e.used {
-                self.slots[i] = JEntry { f, g, p, result, used: true };
+                self.slots[i] = JEntry { f, g, bucket, mp, thr, result, used: true };
                 self.len += 1;
                 return;
             }
-            if e.f == f && e.g == g && e.p == p {
-                self.slots[i].result = result;
+            if e.f == f && e.g == g && e.bucket == bucket && e.mp == mp {
+                // Keep the lowest (loosest) threshold per key; it serves the most.
+                if thr < e.thr {
+                    self.slots[i] = JEntry { f, g, bucket, mp, thr, result, used: true };
+                }
                 return;
             }
             i = (i + 1) & self.mask;
         }
     }
 
-    fn insert(&mut self, f: u32, g: u32, p: u64, result: u32) {
+    fn insert(&mut self, f: u32, g: u32, thr: f64, mp: f64, result: u32) {
         if (self.len + 1) * 10 >= (self.mask + 1) * 7 {
             let new_cap = (self.mask + 1) * 2;
             let old = std::mem::replace(&mut self.slots, vec![JEMPTY; new_cap]);
@@ -344,11 +384,12 @@ impl JoinCache {
             self.len = 0;
             for e in old {
                 if e.used {
-                    self.place(e.f, e.g, e.p, e.result);
+                    self.place(e.f, e.g, e.bucket, e.thr, e.mp, e.result);
                 }
             }
         }
-        self.place(f, g, p, result);
+        let bucket = self.bucket(thr);
+        self.place(f, g, bucket, thr, mp, result);
     }
 }
 
@@ -394,6 +435,16 @@ pub struct ZbddEngine {
     free_list: Vec<u32>,
     gc_on: bool,
     use_computed: bool,
+    // Part A: per-node "known minimal" bit (parallel to nodes), plus a guaranteed
+    // non-evicting minimize memo for the GC-off throughput path.
+    minimal: Vec<bool>,
+    minimize_memo: HashMap<ZbddRef, ZbddRef>,
+    // Part C: persistent budgeted-join memo. The result of join_budgeted_rec
+    // depends only on (f, g, threshold=min_prob/p_acc), so one table can serve
+    // every join_budgeted call instead of allocating a cold one per call. Only
+    // safe with GC off, where node refs never recycle, so a Some here implies
+    // gc_on == false.
+    join_bcache: Option<JoinCache>,
 }
 
 const ZBDD_SENTINEL: ZbddNode = ZbddNode {
@@ -445,6 +496,13 @@ impl ZbddEngine {
             free_list: Vec::new(),
             gc_on,
             use_computed,
+            minimal: vec![false, false],
+            minimize_memo: HashMap::new(),
+            join_bcache: if !gc_on {
+                Some(JoinCache::new())
+            } else {
+                None
+            },
         }
     }
 
@@ -464,7 +522,12 @@ impl ZbddEngine {
         self.maxprob_epoch += 1;
         self.refcounts.truncate(2);
         self.generations.truncate(2);
+        self.minimal.truncate(2);
+        self.minimize_memo.clear();
         self.free_list.clear();
+        if self.join_bcache.is_some() {
+            self.join_bcache = Some(JoinCache::new());
+        }
         for e in self.computed.iter_mut() {
             e.used = false;
         }
@@ -606,6 +669,7 @@ impl ZbddEngine {
             if let Some(idx) = self.free_list.pop() {
                 self.nodes[idx as usize] = node;
                 self.refcounts[idx as usize] = 0;
+                self.minimal[idx as usize] = false;
                 return ZbddRef(idx);
             }
         }
@@ -613,6 +677,7 @@ impl ZbddEngine {
         self.nodes.push(node);
         self.refcounts.push(0);
         self.generations.push(0);
+        self.minimal.push(false);
         self.maxprobs.push(0.0);
         self.maxprob_stamp.push(0);
         ZbddRef(idx)
@@ -642,33 +707,19 @@ impl ZbddEngine {
         self.unique.remove(&node);
         self.nodes[i] = ZBDD_SENTINEL;
         self.generations[i] = self.generations[i].wrapping_add(1);
+        self.minimal[i] = false;
         self.free_list.push(i as u32);
         self.deref(node.high);
         self.deref(node.low);
     }
 
-    fn gen_of(&self, f: ZbddRef) -> u32 {
-        if f.is_terminal() {
-            0
-        } else {
-            self.generations[f.index()]
-        }
+    fn is_minimal(&self, f: ZbddRef) -> bool {
+        f.is_terminal() || self.minimal[f.index()]
     }
 
-    fn tag(&self, f: ZbddRef) -> (u32, u32) {
-        (f.raw(), self.gen_of(f))
-    }
-
-    fn untag(&self, t: (u32, u32)) -> Option<ZbddRef> {
-        let f = ZbddRef(t.0);
-        if f.is_terminal() {
-            return Some(f);
-        }
-        let i = f.index();
-        if self.generations[i] == t.1 && !self.nodes[i].is_sentinel() {
-            Some(f)
-        } else {
-            None
+    fn set_minimal(&mut self, f: ZbddRef) {
+        if !f.is_terminal() {
+            self.minimal[f.index()] = true;
         }
     }
 
@@ -909,9 +960,12 @@ impl ZbddEngine {
     pub(crate) fn join_budgeted(&mut self, f: ZbddRef, g: ZbddRef, min_prob: f64) -> ZbddRef {
         self.ensure_maxprob(f);
         self.ensure_maxprob(g);
-        let mut cache = JoinCache::new();
+        let persistent = self.join_bcache.is_some();
+        let mut cache = self.join_bcache.take().unwrap_or_else(JoinCache::new);
         let result = self.join_budgeted_rec(f, g, 1.0, min_prob, &mut cache);
-        if self.gc_on {
+        if persistent {
+            self.join_bcache = Some(cache);
+        } else if self.gc_on {
             for i in 0..cache.slots.len() {
                 let e = cache.slots[i];
                 if e.used {
@@ -929,7 +983,8 @@ impl ZbddEngine {
         p_acc: f64,
         min_prob: f64,
         cache: &mut JoinCache,
-    ) -> ZbddRef {        if f.is_empty() || g.is_empty() {
+    ) -> ZbddRef {
+        if f.is_empty() || g.is_empty() {
             return ZBDD_EMPTY;
         }
         let mf = if f.is_base() { 1.0 } else { self.maxprobs[f.index()] };
@@ -940,8 +995,7 @@ impl ZbddEngine {
         if f.is_base() && g.is_base() {
             return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
         }
-        let pb = p_acc.to_bits();
-        if let Some(r) = cache.get(f.raw(), g.raw(), pb) {
+        if let Some(r) = cache.get(f.raw(), g.raw(), min_prob / p_acc, min_prob) {
             let r = ZbddRef(r);
             self.protect(r);
             return r;
@@ -967,7 +1021,17 @@ impl ZbddEngine {
         let a = self.union(j11, j10);
         let hi = self.union(a, j01);
         let lo = self.join_budgeted_rec(f0, g0, p_acc, min_prob, cache);
-        let result = self.make_node(v, hi, lo);
+        // Part A: minimal-by-construction. Only worthwhile under GC, where the raw
+        // superset spine is reclaimed; in GC-off nothing is freed so it only adds
+        // interned nodes. With the minimal bit, re-minimizing is O(1).
+        let raw = self.make_node(v, hi, lo);
+        let result = if self.gc_on {
+            let m = self.minimize(raw);
+            self.deref(raw);
+            m
+        } else {
+            raw
+        };
         self.deref(j11);
         self.deref(j10);
         self.deref(j01);
@@ -975,7 +1039,7 @@ impl ZbddEngine {
         self.deref(hi);
         self.deref(lo);
         self.protect(result);
-        cache.insert(f.raw(), g.raw(), pb, result.raw());
+        cache.insert(f.raw(), g.raw(), min_prob / p_acc, min_prob, result.raw());
         result
     }
 
@@ -1027,7 +1091,8 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        if g.is_empty() { self.protect(f); return f; }
+    pub(crate) fn nonsuperset(&mut self, f: ZbddRef, g: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "subsume(nonsuperset)", f = f.raw(), g = g.raw(), "zbdd op: remove from f every set that is a superset of some set in g");
+        if g.is_empty() { self.protect(f); return f; }
         if g.is_base() { return ZBDD_EMPTY; }
         if f.is_empty() { return ZBDD_EMPTY; }
 
@@ -1078,14 +1143,19 @@ impl ZbddEngine {
         result
     }
 
-    pub(crate) fn minimize(&mut self, f: ZbddRef) -> ZbddRef {        trace!(target: "praxis::zbdd", op = "minimize", f = f.raw(), "zbdd op");
-        if f.is_terminal() { return f; }
-
-        if self.use_computed {
+    pub(crate) fn minimize(&mut self, f: ZbddRef) -> ZbddRef {
+        // Part A: O(1) short-circuit when f is already known minimal.
+        if self.is_minimal(f) {
+            self.protect(f);
+            return f;
+        }
+        // GC-on uses the bounded ref-holding computed cache (protect the wall);
+        // GC-off uses the guaranteed non-evicting minimize memo.
+        if self.gc_on {
             if let Some(r) = self.computed_get(OP_MINIMIZE, f, 0) {
                 return r;
             }
-        } else if let Some(cached) = self.minimize_cache.get(&f).copied() {
+        } else if let Some(&cached) = self.minimize_memo.get(&f) {
             self.protect(cached);
             return cached;
         }
@@ -1101,11 +1171,12 @@ impl ZbddEngine {
         self.deref(lo_min);
         self.deref(hi_min);
         self.deref(hi_pruned);
+        self.set_minimal(result);
 
-        if self.use_computed {
+        if self.gc_on {
             self.computed_put(OP_MINIMIZE, f, 0, false, result);
         } else {
-            self.minimize_cache.insert(f, result);
+            self.minimize_memo.insert(f, result);
         }
         result
     }

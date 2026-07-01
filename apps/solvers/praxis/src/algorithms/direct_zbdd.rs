@@ -38,9 +38,107 @@ fn select_variable_order(pdag: &Pdag) -> Result<Vec<NodeIndex>> {
             o.reverse();
             o
         }
+        "sift" | "gsift" | "ils" => {
+            let secs = std::env::var("PRAXIS_REORDER_BUDGET")
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok())
+                .unwrap_or(60);
+            let method = match which.as_str() {
+                "gsift" => crate::algorithms::reorder::ReorderMethod::Gsift,
+                "ils" => crate::algorithms::reorder::ReorderMethod::Ils,
+                _ => crate::algorithms::reorder::ReorderMethod::Sift,
+            };
+            crate::algorithms::reorder::best_order(pdag, method, std::time::Duration::from_secs(secs))
+        }
         _ => compute_dfs_metadata_pdag(pdag)?.variable_order,
     };
     Ok(order)
+}
+
+fn is_commutative(conn: Connective) -> bool {
+    matches!(
+        conn,
+        Connective::And
+            | Connective::Or
+            | Connective::Nand
+            | Connective::Nor
+            | Connective::Xor
+            | Connective::Iff
+            | Connective::AtLeast
+    )
+}
+
+fn structural_canon(pdag: &Pdag) -> HashMap<NodeIndex, NodeIndex> {
+    let mut canon: HashMap<NodeIndex, NodeIndex> = HashMap::new();
+    let root = match pdag.root() {
+        Some(r) => r.abs(),
+        None => return canon,
+    };
+    let mut order: Vec<NodeIndex> = Vec::new();
+    let mut done: HashSet<NodeIndex> = HashSet::new();
+    let mut stack: Vec<(NodeIndex, bool)> = vec![(root, false)];
+    while let Some((n, kids_done)) = stack.pop() {
+        if done.contains(&n) {
+            continue;
+        }
+        if kids_done {
+            done.insert(n);
+            order.push(n);
+        } else {
+            stack.push((n, true));
+            if let Some(PdagNode::Gate { operands, .. }) = pdag.get_node(n) {
+                for &op in operands {
+                    let a = op.abs();
+                    if !done.contains(&a) {
+                        stack.push((a, false));
+                    }
+                }
+            }
+        }
+    }
+    let mut sig_map: HashMap<(Connective, Option<usize>, Vec<NodeIndex>), NodeIndex> =
+        HashMap::new();
+    for &n in &order {
+        match pdag.get_node(n) {
+            Some(PdagNode::Gate {
+                connective,
+                operands,
+                min_number,
+                ..
+            }) => {
+                let conn = *connective;
+                let mut cops: Vec<NodeIndex> = operands
+                    .iter()
+                    .map(|&op| {
+                        let a = op.abs();
+                        let c = canon.get(&a).copied().unwrap_or(a);
+                        if op < 0 {
+                            -c
+                        } else {
+                            c
+                        }
+                    })
+                    .collect();
+                if is_commutative(conn) {
+                    cops.sort_unstable();
+                }
+                let sig = (conn, *min_number, cops);
+                match sig_map.get(&sig) {
+                    Some(&rep) => {
+                        canon.insert(n, rep);
+                    }
+                    None => {
+                        sig_map.insert(sig, n);
+                        canon.insert(n, n);
+                    }
+                }
+            }
+            _ => {
+                canon.insert(n, n);
+            }
+        }
+    }
+    canon
 }
 
 struct Builder {
@@ -59,6 +157,8 @@ struct Builder {
     maxcs_memo: HashMap<NodeIndex, f64>,
     decomposition: Option<Decomposition>,
     initiators: HashSet<usize>,
+    has_xor: bool,
+    canon: HashMap<NodeIndex, NodeIndex>,
     gc_cache: usize,
 }
 
@@ -69,8 +169,23 @@ impl Builder {
         cut_off: Option<f64>,
         limit_order: Option<usize>,
     ) -> Result<Self> {
+        let has_xor = pdag.nodes().values().any(|n| {
+            matches!(
+                n,
+                PdagNode::Gate {
+                    connective: Connective::Xor,
+                    ..
+                } | PdagNode::Gate {
+                    connective: Connective::Iff,
+                    ..
+                }
+            )
+        });
         let mut owned = pdag.clone();
         normalize_xor_iff(&mut owned)?;
+        if std::env::var("PRAXIS_NOSIMP").is_err() {
+            crate::algorithms::simplify::propagate_constants(&mut owned)?;
+        }
 
         let order = select_variable_order(&owned)?;
 
@@ -96,6 +211,12 @@ impl Builder {
             var_probs.push(1.0 - p);
         }
 
+        let canon = if std::env::var("PRAXIS_CSE").is_ok() {
+            structural_canon(&owned)
+        } else {
+            HashMap::new()
+        };
+
         let mut zbdd = ZbddEngine::new();
         zbdd.set_var_probs(var_probs.clone());
 
@@ -115,6 +236,8 @@ impl Builder {
             maxcs_memo: HashMap::new(),
             decomposition: None,
             initiators,
+            has_xor,
+            canon,
             gc_cache: std::env::var("PRAXIS_GC_CACHE")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -502,6 +625,18 @@ impl Builder {
         m
     }
 
+    fn canon_ref(&self, r: NodeIndex) -> NodeIndex {
+        if self.canon.is_empty() {
+            return r;
+        }
+        let c = self.canon.get(&r.abs()).copied().unwrap_or_else(|| r.abs());
+        if r < 0 {
+            -c
+        } else {
+            c
+        }
+    }
+
     fn cut_sets_b(&mut self, r: NodeIndex, budget: f64) -> Result<ZbddRef> {
         self.explored += 1;
         if self.explored % 50_000_000 == 0 {
@@ -520,12 +655,13 @@ impl Builder {
             self.zbdd.clear_op_caches();
         }
         let b = budget_bucket(budget);
-        if let Some(&z) = self.budget_cache.get(&(r, b)) {
+        let ck = self.canon_ref(r);
+        if let Some(&z) = self.budget_cache.get(&(ck, b)) {
             return Ok(self.zbdd.prune_below_probability(z, budget));
         }
         let build_budget = 10f64.powi(b);
         let family = self.compute_b(r, build_budget)?;
-        self.budget_cache.insert((r, b), family);
+        self.budget_cache.insert((ck, b), family);
         Ok(self.zbdd.prune_below_probability(family, budget))
     }
 
@@ -566,38 +702,43 @@ impl Builder {
                     ZBDD_EMPTY
                 }
             }
-            NodeKind::Gate(conn, ops, min) => match gate_expansion(conn, neg, &ops, min) {
-                Expansion::Conjunction(refs) => self.and_build_b(&refs, budget)?,
-                Expansion::Disjunction(refs) => {
-                    let mut acc = ZBDD_EMPTY;
-                    for op in refs {
-                        let c = self.cut_sets_b(op, budget)?;
-                        acc = self.zbdd.union(acc, c);
+            NodeKind::Gate(conn, ops, min) => {
+                let expansion = gate_expansion(conn, neg, &ops, min);
+                match expansion {
+                    Expansion::Conjunction(refs) => {
+                        self.and_build_b(&refs, budget)?
                     }
-                    let acc = self.zbdd.minimize(acc);
-                    self.zbdd.prune_below_probability(acc, budget)
-                }
-                Expansion::AtLeast(k, refs) => {
-                    if k == 0 {
-                        ZBDD_BASE
-                    } else if k > refs.len() {
-                        ZBDD_EMPTY
-                    } else {
+                    Expansion::Disjunction(refs) => {
                         let mut acc = ZBDD_EMPTY;
-                        for combo in combinations(&refs, k) {
-                            let prod = self.and_build_b(&combo, budget)?;
-                            acc = self.zbdd.union(acc, prod);
-                            acc = self.zbdd.prune_below_probability(acc, budget);
+                        for op in refs {
+                            let c = self.cut_sets_b(op, budget)?;
+                            acc = self.zbdd.union(acc, c);
                         }
-                        self.zbdd.minimize(acc)
+                        let acc = self.zbdd.minimize(acc);
+                        self.zbdd.prune_below_probability(acc, budget)
+                    }
+                    Expansion::AtLeast(k, refs) => {
+                        if k == 0 {
+                            ZBDD_BASE
+                        } else if k > refs.len() {
+                            ZBDD_EMPTY
+                        } else {
+                            let mut acc = ZBDD_EMPTY;
+                            for combo in combinations(&refs, k) {
+                                let prod = self.and_build_b(&combo, budget)?;
+                                acc = self.zbdd.union(acc, prod);
+                                acc = self.zbdd.prune_below_probability(acc, budget);
+                            }
+                            self.zbdd.minimize(acc)
+                        }
+                    }
+                    Expansion::Unsupported => {
+                        return Err(PraxisError::Logic(
+                            "direct ZBDD: XOR/IFF must be normalized before building".to_string(),
+                        ));
                     }
                 }
-                Expansion::Unsupported => {
-                    return Err(PraxisError::Logic(
-                        "direct ZBDD: XOR/IFF must be normalized before building".to_string(),
-                    ));
-                }
-            },
+            }
             NodeKind::Missing => ZBDD_EMPTY,
         };
         Ok(result)
@@ -664,18 +805,285 @@ impl Builder {
         let budget = self.cut_off.unwrap_or(1e-300);
         let dec = decompose(&self.pdag)?;
         self.decomposition = Some(dec);
-        debug!(target: "praxis::direct_zbdd", root = eff, budget, "budgeted delterm build start");
         let r = self.cut_sets_b(eff, budget)?;
-        debug!(
-            target: "praxis::direct_zbdd",
-            root_family = r.raw(),
-            total_nodes = self.zbdd.node_count(),
-            buckets = self.budget_cache.len(),
-            "budgeted delterm build done"
-        );
+        let r = self.filter_valid_cut_sets(r, eff)?;
         Ok(r)
     }
 
+    fn eval3(
+        pdag: &Pdag,
+        idx: NodeIndex,
+        true_set: &HashSet<NodeIndex>,
+        false_set: &HashSet<NodeIndex>,
+        default: i8,
+        cache: &mut HashMap<NodeIndex, i8>,
+    ) -> i8 {
+        let node = idx.abs();
+        let value = if let Some(&c) = cache.get(&node) {
+            c
+        } else {
+            let r = match pdag.get_node(node) {
+                Some(PdagNode::BasicEvent { .. }) => {
+                    if true_set.contains(&node) {
+                        1
+                    } else if false_set.contains(&node) {
+                        -1
+                    } else {
+                        default
+                    }
+                }
+                Some(PdagNode::Constant { value, .. }) => {
+                    if *value {
+                        1
+                    } else {
+                        -1
+                    }
+                }
+                Some(PdagNode::Gate {
+                    connective,
+                    operands,
+                    min_number,
+                    ..
+                }) => {
+                    let operands = operands.clone();
+                    let conn = *connective;
+                    let k = min_number.unwrap_or(1);
+                    match conn {
+                        Connective::And | Connective::Nand => {
+                            let mut r = 1i8;
+                            let mut has_x = false;
+                            for &o in &operands {
+                                let v = Self::eval3(pdag, o, true_set, false_set, default, cache);
+                                if v == -1 {
+                                    r = -1;
+                                    break;
+                                }
+                                if v == 0 {
+                                    has_x = true;
+                                }
+                            }
+                            let a = if r == -1 {
+                                -1
+                            } else if has_x {
+                                0
+                            } else {
+                                1
+                            };
+                            if conn == Connective::Nand {
+                                -a
+                            } else {
+                                a
+                            }
+                        }
+                        Connective::Or | Connective::Nor => {
+                            let mut r = -1i8;
+                            let mut has_x = false;
+                            for &o in &operands {
+                                let v = Self::eval3(pdag, o, true_set, false_set, default, cache);
+                                if v == 1 {
+                                    r = 1;
+                                    break;
+                                }
+                                if v == 0 {
+                                    has_x = true;
+                                }
+                            }
+                            let a = if r == 1 {
+                                1
+                            } else if has_x {
+                                0
+                            } else {
+                                -1
+                            };
+                            if conn == Connective::Nor {
+                                -a
+                            } else {
+                                a
+                            }
+                        }
+                        Connective::Not => operands
+                            .first()
+                            .map(|&o| -Self::eval3(pdag, o, true_set, false_set, default, cache))
+                            .unwrap_or(-1),
+                        Connective::Null => operands
+                            .first()
+                            .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
+                            .unwrap_or(-1),
+                        Connective::AtLeast => {
+                            let vals: Vec<i8> = operands
+                                .iter()
+                                .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
+                                .collect();
+                            let t = vals.iter().filter(|&&x| x == 1).count();
+                            let x = vals.iter().filter(|&&x| x == 0).count();
+                            if t >= k {
+                                1
+                            } else if t + x < k {
+                                -1
+                            } else {
+                                0
+                            }
+                        }
+                        Connective::Xor => {
+                            let vals: Vec<i8> = operands
+                                .iter()
+                                .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
+                                .collect();
+                            if vals.iter().any(|&x| x == 0) {
+                                0
+                            } else if vals.iter().filter(|&&x| x == 1).count() % 2 == 1 {
+                                1
+                            } else {
+                                -1
+                            }
+                        }
+                        Connective::Iff => {
+                            let vals: Vec<i8> = operands
+                                .iter()
+                                .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
+                                .collect();
+                            if vals.iter().any(|&x| x == 0) {
+                                0
+                            } else if vals.iter().all(|&x| x == vals[0]) {
+                                1
+                            } else {
+                                -1
+                            }
+                        }
+                    }
+                }
+                None => -1,
+            };
+            cache.insert(node, r);
+            trace!(target: "praxis::direct_zbdd", node = node, value = r, "eval3: ternary value (1=true, -1=false, 0=unknown)");
+            r
+        };
+        if idx < 0 {
+            -value
+        } else {
+            value
+        }
+    }
+
+    fn finish_named(&mut self, root: ZbddRef) -> Result<Vec<Vec<String>>> {
+        let mut inv: HashMap<usize, NodeIndex> = HashMap::new();
+        for (&idx, &lvl) in &self.level {
+            inv.insert(lvl, idx);
+        }
+        let mut root = root;
+        if self.initiators.len() >= 2 {
+            let mut levels: Vec<usize> = self.initiators.iter().copied().collect();
+            levels.sort_unstable();
+            let mut pairs = ZBDD_EMPTY;
+            for i in 0..levels.len() {
+                for j in (i + 1)..levels.len() {
+                    let inner = self.zbdd.multiply(2 * levels[j], ZBDD_BASE);
+                    let pair = self.zbdd.multiply(2 * levels[i], inner);
+                    pairs = self.zbdd.union(pairs, pair);
+                }
+            }
+            root = self.zbdd.nonsuperset(root, pairs);
+        }
+        if std::env::var("PRAXIS_NOTRIM").is_err() {
+            let flags: HashSet<usize> = (0..self.var_probs.len())
+                .filter(|&v| v % 2 == 0 && self.var_probs[v] >= 1.0)
+                .collect();
+            if !flags.is_empty() {
+                let mut cache: HashMap<ZbddRef, ZbddRef> = HashMap::new();
+                root = self.zbdd.project_out_set(root, &flags, &mut cache);
+            }
+        }
+        root = self.zbdd.minimize(root);
+        let mut out: Vec<Vec<String>> = Vec::new();
+        for cs in self.zbdd.enumerate(root) {
+            let mut names: Vec<String> = Vec::new();
+            for v in cs {
+                let lvl = v / 2;
+                let neg = v % 2 == 1;
+                let name = inv
+                    .get(&lvl)
+                    .and_then(|idx| self.pdag.get_node(*idx))
+                    .and_then(|n| n.id())
+                    .unwrap_or("?")
+                    .to_string();
+                names.push(if neg { format!("~{}", name) } else { name });
+            }
+            names.sort();
+            names.dedup();
+            out.push(names);
+        }
+        out.sort();
+        out.dedup();
+        Ok(out)
+    }
+
+    fn filter_valid_cut_sets(&mut self, root: ZbddRef, eff: NodeIndex) -> Result<ZbddRef> {
+        let default = if self.has_xor { 0 } else { -1 };
+        let mut inv: HashMap<usize, NodeIndex> = HashMap::new();
+        for (&idx, &lvl) in &self.level {
+            inv.insert(lvl, idx);
+        }
+        let cut_sets = self.zbdd.enumerate(root);
+        let pdag = &self.pdag;
+        let inv_ref = &inv;
+        let workers = std::thread::available_parallelism()
+            .map(|x| x.get())
+            .unwrap_or(4)
+            .min(16);
+        let chunk = ((cut_sets.len() + workers - 1) / workers).max(1);
+        let parts: Vec<Vec<Vec<usize>>> = std::thread::scope(|s| {
+            let handles: Vec<_> = cut_sets
+                .chunks(chunk)
+                .map(|slice| {
+                    std::thread::Builder::new()
+                        .stack_size(128 * 1024 * 1024)
+                        .spawn_scoped(s, move || {
+                            let mut lv: Vec<Vec<usize>> = Vec::new();
+                            for cs in slice {
+                                let mut true_set: HashSet<NodeIndex> = HashSet::new();
+                                let mut false_set: HashSet<NodeIndex> = HashSet::new();
+                                for &v in cs {
+                                    if let Some(&idx) = inv_ref.get(&(v / 2)) {
+                                        if v % 2 == 0 {
+                                            true_set.insert(idx);
+                                        } else {
+                                            false_set.insert(idx);
+                                        }
+                                    }
+                                }
+                                let mut cache: HashMap<NodeIndex, i8> = HashMap::new();
+                                let verdict =
+                                    Self::eval3(pdag, eff, &true_set, &false_set, default, &mut cache);
+                                if verdict != -1 {
+                                    lv.push(cs.clone());
+                                }
+                            }
+                            lv
+                        })
+                        .expect("spawn filter worker")
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| h.join().expect("filter worker join"))
+                .collect()
+        });
+        let mut valid: Vec<Vec<usize>> = Vec::new();
+        for lv in parts {
+            valid.extend(lv);
+        }
+        let mut out = ZBDD_EMPTY;
+        for cs in &valid {
+            let mut vars = cs.clone();
+            vars.sort_by(|a, b| (*b / 2).cmp(&(*a / 2)));
+            let mut prod = ZBDD_BASE;
+            for &v in &vars {
+                prod = self.zbdd.multiply(v, prod);
+            }
+            out = self.zbdd.union(out, prod);
+        }
+        Ok(out)
+    }
 }
 
 fn budget_bucket(budget: f64) -> i32 {
@@ -742,61 +1150,7 @@ pub fn build_zbdd_delterm_named(
     }
 
     let root = builder.build_delterm()?;
-
-    let mut inv: HashMap<usize, NodeIndex> = HashMap::new();
-    for (&idx, &lvl) in &builder.level {
-        inv.insert(lvl, idx);
-    }
-
-    let mut root = root;
-
-    if builder.initiators.len() >= 2 {
-        let mut levels: Vec<usize> = builder.initiators.iter().copied().collect();
-        levels.sort_unstable();
-        let mut pairs = ZBDD_EMPTY;
-        for i in 0..levels.len() {
-            for j in (i + 1)..levels.len() {
-                let inner = builder.zbdd.multiply(2 * levels[j], ZBDD_BASE);
-                let pair = builder.zbdd.multiply(2 * levels[i], inner);
-                pairs = builder.zbdd.union(pairs, pair);
-            }
-        }
-        root = builder.zbdd.nonsuperset(root, pairs);
-    }
-
-    if std::env::var("PRAXIS_NOTRIM").is_err() {
-        let flags: HashSet<usize> = (0..builder.var_probs.len())
-            .filter(|&v| v % 2 == 0 && builder.var_probs[v] >= 1.0)
-            .collect();
-        if !flags.is_empty() {
-            let mut cache: HashMap<ZbddRef, ZbddRef> = HashMap::new();
-            root = builder.zbdd.project_out_set(root, &flags, &mut cache);
-        }
-    }
-
-    root = builder.zbdd.minimize(root);
-
-    let mut out: Vec<Vec<String>> = Vec::new();
-    for cs in builder.zbdd.enumerate(root) {
-        let mut names: Vec<String> = Vec::new();
-        for v in cs {
-            let lvl = v / 2;
-            let neg = v % 2 == 1;
-            let name = inv
-                .get(&lvl)
-                .and_then(|idx| builder.pdag.get_node(*idx))
-                .and_then(|n| n.id())
-                .unwrap_or("?")
-                .to_string();
-            names.push(if neg { format!("~{}", name) } else { name });
-        }
-        names.sort();
-        names.dedup();
-        out.push(names);
-    }
-    out.sort();
-    out.dedup();
-    Ok(out)
+    builder.finish_named(root)
 }
 
 #[cfg(test)]

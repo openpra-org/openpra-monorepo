@@ -596,6 +596,63 @@ fn run_pre_event_tree_impl(
         let _ = (pdag, order);
     }
 
+    if cli.algorithm == Algorithm::ZbddDelterm {
+        if verbose {
+            eprintln!("\nRunning delete-term ZBDD analysis (non-coherent cut sets)...");
+        }
+        let settings = praxis::analysis::quantify::Settings {
+            engine: praxis::analysis::quantify::Engine::ZbddDelterm,
+            approximation: Some(match cli.approximation {
+                Some(Approximation::RareEvent) => {
+                    praxis::analysis::quantify::Approximation::RareEvent
+                }
+                _ => praxis::analysis::quantify::Approximation::Mcub,
+            }),
+            limit_order: cli.limit_order.map(|n| n as usize),
+            cut_off: cli.cut_off,
+            ..Default::default()
+        };
+        let quant = praxis::analysis::quantify::quantify(&fault_tree, &settings)?;
+        if let Some(prob) = quant.probability {
+            result.top_event_probability = prob.value;
+        }
+        if let Some(sets) = quant.cut_sets {
+            let cut_sets: Vec<CutSet> = sets
+                .list
+                .into_iter()
+                .map(|c| {
+                    CutSet::new(
+                        c.literals
+                            .into_iter()
+                            .map(|(name, negated)| {
+                                if negated {
+                                    format!("~{}", name)
+                                } else {
+                                    name
+                                }
+                            })
+                            .collect(),
+                    )
+                })
+                .collect();
+            if verbose {
+                eprintln!("Delete-term cut sets found: {}", cut_sets.len());
+            }
+            if cli.print || verbosity_level > 0 {
+                print_cut_sets_summary(
+                    "Delete-term ZBDD",
+                    fault_tree.element().id(),
+                    &cut_sets,
+                    verbosity_level,
+                );
+            }
+            computed_cut_sets = Some(cut_sets);
+        }
+        if verbose {
+            eprintln!("Top event probability: {}", result.top_event_probability);
+        }
+    }
+
     if (cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd)
         && cli.approximation.is_some()
     {

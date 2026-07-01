@@ -132,6 +132,7 @@ pub enum Vrt {
 pub enum Algorithm {
     Bdd,
     Zbdd,
+    ZbddDelterm,
     Mocus,
     MocusPi,
     MonteCarlo,

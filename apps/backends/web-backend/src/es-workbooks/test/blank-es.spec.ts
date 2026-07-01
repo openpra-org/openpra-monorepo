@@ -24,8 +24,8 @@ describe("ES MEF builders", () => {
   });
 
   it("seeds event trees, sequences, and families", () => {
-    expect((ES_ANALYSIS.eventTrees ?? []).length).toBe(8);
-    expect(ES_ANALYSIS.eventSequences.length).toBe(41);
+    expect((ES_ANALYSIS.eventTrees ?? []).length).toBe(25);
+    expect(ES_ANALYSIS.eventSequences.length).toBe(164);
     expect(ES_ANALYSIS.eventSequenceFamilies.length).toBe(5);
   });
 });

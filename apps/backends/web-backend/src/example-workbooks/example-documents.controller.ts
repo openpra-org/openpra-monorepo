@@ -30,7 +30,7 @@ function resolveDocumentPath(file: string): string | undefined {
 
 @Controller("example-documents")
 export class ExampleDocumentsController {
-  @Get("pos/:docId")
+  @Get(":element/:docId")
   @HttpCode(HttpStatus.OK)
   getPosDocument(@Param("docId") docId: string): StreamableFile {
     const entry = POS_DOCUMENT_FILES.get(docId);

@@ -9,8 +9,6 @@ import {
   FEASIBILITY_CRITERIA,
   ES_OPERATOR_ACTIONS,
   ES_PHENOMENA,
-  ES_SOURCE_CATALOG,
-  ES_SAFETY_FUNCTION_CATALOG,
   ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
   ES_SCREENING_LABELS,
@@ -21,6 +19,7 @@ import {
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
+import { type KeySafetyFunction, type DynamicRun } from "interfaces-mef-types/es/event-sequence-analysis";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
   eventTreesView,
@@ -33,6 +32,7 @@ import {
   type EventTreeView,
   type TreeNodeView,
   type SeqLeafRef,
+  type SeqLeafView,
   type DependencyView,
   type CcScore,
 } from "./esSelectors";
@@ -46,6 +46,10 @@ function NamedIcon({ name }: { name: string }): JSX.Element {
 
 function fmtExp(n: number | undefined): string {
   return n === undefined ? "—" : n.toExponential(1);
+}
+
+function fmtDur(h: number): string {
+  return h >= 8760 ? `${(h / 8760).toFixed(1)} yr` : `${Math.round(h)} h`;
 }
 
 function rcTone(rc: string | undefined): "block" | "warn" | "ok" {
@@ -497,10 +501,10 @@ interface EsIfaceLane {
 function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIeLink }: ScopeScreenProps): JSX.Element {
   const { es, posLink, ieLink, editable, mutateEs } = useEsWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const sourceIds = es.scopeDefinition.radioactiveMaterialSources;
-  const safetyFnIds = es.keySafetyFunctions;
+  const safetyFns = es.keySafetyFunctions;
   const posLinked = posLink.linkedPosWorkbookId !== null;
   const ieLinked = ieLink.linkedIeWorkbookId !== null;
+  const uniqueSources = Array.from(new Map(posLink.sources.map((s) => [s.name.trim().toLowerCase(), s])).values());
 
   function onScopeChange(value: string): void {
     if (!editable) return;
@@ -516,13 +520,27 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
     setStage(newStage);
     mutateEs((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
   }
+  function addSafetyFn(): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: [...draft.keySafetyFunctions, { id: crypto.randomUUID(), name: "New safety function", description: "", supportingSystems: [] }] }));
+  }
+  function updateSafetyFn(id: string, patch: Partial<KeySafetyFunction>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.map((f) => (f.id === id ? { ...f, ...patch } : f)) }));
+  }
+  function removeSafetyFn(id: string): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.filter((f) => f.id !== id) }));
+  }
 
   const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const familyLanes = familiesView(es);
+  const releaseCats = Array.from(new Set(familyLanes.flatMap((f) => f.releaseCategoryIds)));
   const ifaceLanes: EsIfaceLane[] = [
-    { code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in", columns: ["Operating state", "Mode"], rows: posLink.states.map((s) => ({ id: s.id, name: s.name, values: [s.operatingMode] })), empty: "No POS workbook linked yet.", linked: posLinked, linkAction: onOpenPosLink },
+    { code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in", columns: ["Operating state", "Mode", "Duration", "Entry freq (/yr)"], rows: posLink.states.map((s) => ({ id: s.id, name: s.name, values: [s.operatingMode, fmtDur(s.meanDurationHours), s.meanEntryFrequency === 0 ? "Base state" : fmtExp(s.meanEntryFrequency)] })), empty: "No POS workbook linked yet.", linked: posLinked, linkAction: onOpenPosLink },
     { code: "IE", element: "Initiating Events", role: "Initiating events", direction: "in", columns: ["Initiating event", "Category"], rows: ieLink.initiators.map((i) => ({ id: i.id, name: i.name, values: [i.category] })), empty: "No IE workbook linked yet.", linked: ieLinked, linkAction: onOpenIeLink },
-    { code: "ESQ", element: "Event Sequence Quantification", role: "Sequences and end states", direction: "out", columns: [], rows: [], empty: "Event Sequence Analysis hands the structured event sequences and end states to ESQ for frequency quantification.", linked: true },
-    { code: "MS", element: "Mechanistic Source Term", role: "Release categories", direction: "out", columns: [], rows: [], empty: "Each sequence's release category is handed to Mechanistic Source Term for source-term calculation.", linked: true },
+    { code: "ESQ", element: "Event Sequence Quantification", role: "Sequence families", direction: "out", columns: ["Family", "End state", "Members"], rows: familyLanes.map((f) => ({ id: f.id, name: f.name, values: [f.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : "Release", String(f.memberCount)] })), empty: "No sequence families delineated yet.", linked: true },
+    { code: "MS", element: "Mechanistic Source Term", role: "Release categories", direction: "out", columns: ["Release category", "Families mapped"], rows: releaseCats.map((rc) => ({ id: rc, name: rc, values: [String(familyLanes.filter((f) => f.releaseCategoryIds.includes(rc)).length)] })), empty: "No release categories mapped yet.", linked: true },
   ];
   const selectedLane = ifaceLanes.find((l) => l.code === selectedTe);
 
@@ -592,58 +610,63 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Sources &amp; radionuclide transport barriers</h3>
-          <ESProvenanceChip>POS · IE</ESProvenanceChip>
+          <ESProvenanceChip>POS</ESProvenanceChip>
         </div>
-        <p className="poscard__sub">For each source in scope, ES lists the barriers each scenario must watch to decide if there is a release (ES-A2).</p>
-        {sourceIds.length > 0 ? (
+        <p className="poscard__sub">Imported from the linked POS workbook. For each source, ES watches the barriers that decide whether a scenario ends in a release (ES-A2).</p>
+        {uniqueSources.length > 0 ? (
           <table className="postable">
-            <thead><tr><th>Source</th><th>Radionuclide transport barriers</th><th></th></tr></thead>
+            <thead><tr><th>Source</th><th>Location</th><th>Radionuclide transport barriers</th></tr></thead>
             <tbody>
-              {sourceIds.map((id) => {
-                const src = ES_SOURCE_CATALOG[id];
-                const name = src?.name ?? id;
-                const barriers = src?.barriers ?? es.scopeDefinition.radionuclideBarriers;
-                return (
-                  <tr key={id}>
-                    <td>
-                      <div className="postable__name"><span style={{ display: "inline-flex", width: 15, height: 15, verticalAlign: "-2px", marginRight: 6, color: "var(--color-primary)" }}><ESIcon.Radiation /></span>{name}</div>
-                      <span className="postable__name-sub">{id}</span>
-                    </td>
-                    <td><div className="posrow posrow--wrap" style={{ gap: 6 }}>{barriers.map((b) => <span key={b} className="poschip">{b}</span>)}</div></td>
-                    <td className="possubtle" style={{ fontSize: 12 }}>{src?.note ?? ""}</td>
-                  </tr>
-                );
-              })}
+              {uniqueSources.map((src) => (
+                <tr key={src.id}>
+                  <td>
+                    <div className="postable__name"><span style={{ display: "inline-flex", width: 15, height: 15, verticalAlign: "-2px", marginRight: 6, color: "var(--color-primary)" }}><ESIcon.Radiation /></span>{src.name}</div>
+                  </td>
+                  <td className="possubtle" style={{ fontSize: 12.5 }}>{src.location}</td>
+                  <td><div className="posrow posrow--wrap" style={{ gap: 6 }}>{src.barriers.map((b) => <span key={b} className="poschip">{b}</span>)}</div></td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        ) : <EsEmpty title="No radioactive sources yet" hint="Add the in-scope sources of radioactive material and the barriers that retain each one (ES-A2)." />}
+        ) : (
+          <div className="posrow" style={{ gap: 12, alignItems: "center" }}>
+            <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>No POS workbook linked, so no sources have been imported yet.</p>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={onOpenPosLink}><ESIcon.Link /> Link POS workbook</button>
+          </div>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Key reactor-specific safety functions</h3>
-          {safetyFnIds.length > 0 && <Badge kind="progress">{safetyFnIds.length} functions</Badge>}
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            {safetyFns.length > 0 && <Badge kind="progress">{safetyFns.length} functions</Badge>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSafetyFn}><ESIcon.Plus /> Add function</button>}
+          </div>
         </div>
         <p className="poscard__sub">The functions every scenario must satisfy to protect a barrier and reach a safe stable state (ES-A3, ES-A4).</p>
-        {safetyFnIds.length > 0 ? (
+        {safetyFns.length > 0 ? (
           <div className="essf-grid">
-            {safetyFnIds.map((id) => {
-              const sf = ES_SAFETY_FUNCTION_CATALOG[id];
-              const name = sf?.name ?? id;
-              return (
-                <div key={id} className="essf">
-                  <span className="essf__icon"><NamedIcon name={sf?.icon ?? "Shield"} /></span>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="posrow" style={{ gap: 8 }}>
-                      <span className="essf__name">{name}</span>
-                      {sf?.scId !== undefined && <ESProvenanceChip kind="sc">{sf.scId}</ESProvenanceChip>}
-                    </div>
-                    {sf?.desc !== undefined && <div className="essf__desc">{sf.desc}</div>}
-                    {sf?.systems !== undefined && <div className="essf__sys">{sf.systems.map((y) => <span key={y} className="poschip">{y}</span>)}</div>}
+            {safetyFns.map((sf) => (
+              <div key={sf.id} className="essf">
+                <span className="essf__icon"><NamedIcon name="Shield" /></span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+                    {editable
+                      ? <input className="posfield__input" style={{ fontWeight: 700, flex: 1, minWidth: 0 }} value={sf.name} onChange={(e) => updateSafetyFn(sf.id, { name: e.target.value })} />
+                      : <span className="essf__name">{sf.name}</span>}
+                    {sf.successCriteriaId !== undefined && sf.successCriteriaId.length > 0 && <ESProvenanceChip kind="sc">{sf.successCriteriaId}</ESProvenanceChip>}
+                    {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => removeSafetyFn(sf.id)}><ESIcon.Close /></button>}
                   </div>
+                  {editable
+                    ? <textarea className="posfield__textarea" style={{ minHeight: 42, marginTop: 6 }} value={sf.description} onChange={(e) => updateSafetyFn(sf.id, { description: e.target.value })} />
+                    : sf.description.length > 0 && <div className="essf__desc">{sf.description}</div>}
+                  {editable
+                    ? <input className="posfield__input" style={{ marginTop: 6 }} placeholder="Supporting systems, comma separated" value={sf.supportingSystems.join(", ")} onChange={(e) => updateSafetyFn(sf.id, { supportingSystems: e.target.value.split(",").map((x) => x.trim()).filter((x) => x.length > 0) })} />
+                    : sf.supportingSystems.length > 0 && <div className="essf__sys">{sf.supportingSystems.map((y) => <span key={y} className="poschip">{y}</span>)}</div>}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         ) : <EsEmpty title="No key safety functions yet" hint="Identify the reactor-specific safety functions every scenario is built around (ES-A3)." />}
       </div>
@@ -695,6 +718,193 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
   );
 }
 
+function fmtEsdProb(p: number): string {
+  if (p >= 0.1) return `${(p * 100).toFixed(1)}%`;
+  if (p >= 0.01) return `${(p * 100).toFixed(2)}%`;
+  return p.toExponential(1);
+}
+
+interface DynEsdNodeBox { key: string; x: number; y: number; fn?: string; condition: string; seqs: string[]; }
+interface DynEsdLink { startX: number; startY: number; splitX: number; endX: number; endY: number; kind: "S" | "F"; seqs: string[]; }
+interface DynEsdBLab { x: number; y: number; kind: "S" | "F"; text: string; }
+interface DynEsdLeafPos { seqId: string; y: number; timing?: string; }
+interface DynEsdLayout {
+  nodes: DynEsdNodeBox[]; links: DynEsdLink[]; labels: DynEsdBLab[]; leaves: DynEsdLeafPos[];
+  initX: number; initW: number; initRight: number; rootX: number; rootY: number;
+  xEnd: number; boxW: number; width: number; height: number;
+}
+
+function layoutDynEsd(run: DynamicRun): DynEsdLayout {
+  const INITX = 10;
+  const INITW = 84;
+  const LEFT = 128;
+  const COLW = 312;
+  const BOXW = 196;
+  const ROWH = 108;
+  const TOP = 48;
+  const SPLIT = 28;
+  const LEAFW = 182;
+  const PAD = 30;
+  const xOfDepth = (d: number): number => LEFT + d * COLW;
+
+  const depthOf = new Map<string, number>();
+  const yOfNode = new Map<string, number>();
+  const yOfLeaf = new Map<string, number>();
+  const leafOrder: DynEsdLeafPos[] = [];
+  let row = 0;
+  let maxDepth = 0;
+
+  function assignY(nodeId: string, depth: number): number {
+    const node = run.esdNodes[nodeId];
+    if (node === undefined) {
+      const y = TOP + (row + 0.5) * ROWH;
+      row += 1;
+      return y;
+    }
+    depthOf.set(nodeId, depth);
+    if (depth > maxDepth) maxDepth = depth;
+    const ys: number[] = [];
+    for (const b of node.branches) {
+      if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) {
+        ys.push(assignY(b.targetNodeId, depth + 1));
+      } else if (b.sequenceId !== undefined) {
+        const y = TOP + (row + 0.5) * ROWH;
+        row += 1;
+        yOfLeaf.set(b.sequenceId, y);
+        leafOrder.push({ seqId: b.sequenceId, y, timing: b.timing });
+        ys.push(y);
+      }
+    }
+    const y = ys.length > 0 ? ((ys[0] ?? 0) + (ys[ys.length - 1] ?? 0)) / 2 : TOP + (row + 0.5) * ROWH;
+    yOfNode.set(nodeId, y);
+    return y;
+  }
+  const rootY = assignY(run.rootNodeId, 0);
+  const xEnd = xOfDepth(maxDepth + 1);
+
+  const leafCache = new Map<string, string[]>();
+  function leafSeqs(nodeId: string): string[] {
+    const cached = leafCache.get(nodeId);
+    if (cached !== undefined) return cached;
+    const node = run.esdNodes[nodeId];
+    const acc: string[] = [];
+    if (node !== undefined) {
+      for (const b of node.branches) {
+        if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) acc.push(...leafSeqs(b.targetNodeId));
+        else if (b.sequenceId !== undefined) acc.push(b.sequenceId);
+      }
+    }
+    leafCache.set(nodeId, acc);
+    return acc;
+  }
+
+  const nodes: DynEsdNodeBox[] = [];
+  const links: DynEsdLink[] = [];
+  const labels: DynEsdBLab[] = [];
+  function build(nodeId: string): void {
+    const node = run.esdNodes[nodeId];
+    if (node === undefined) return;
+    const depth = depthOf.get(nodeId) ?? 0;
+    const ny = yOfNode.get(nodeId) ?? 0;
+    const bx = xOfDepth(depth);
+    nodes.push({ key: nodeId, x: bx, y: ny, fn: node.challengedFunctionId, condition: node.condition, seqs: leafSeqs(nodeId) });
+    for (const b of node.branches) {
+      const kind: "S" | "F" = b.outcome === "Success" ? "S" : "F";
+      const startX = bx + BOXW;
+      const startY = ny;
+      let endX: number;
+      let endY: number;
+      let seqs: string[];
+      if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) {
+        endY = yOfNode.get(b.targetNodeId) ?? 0;
+        endX = xOfDepth(depthOf.get(b.targetNodeId) ?? depth + 1);
+        seqs = leafSeqs(b.targetNodeId);
+        build(b.targetNodeId);
+      } else if (b.sequenceId !== undefined) {
+        endY = yOfLeaf.get(b.sequenceId) ?? 0;
+        endX = xEnd;
+        seqs = [b.sequenceId];
+      } else {
+        endY = startY;
+        endX = xEnd;
+        seqs = [];
+      }
+      const splitX = startX + SPLIT;
+      links.push({ startX, startY, splitX, endX, endY, kind, seqs });
+      const probTxt = b.probability !== undefined ? fmtEsdProb(b.probability) : "";
+      labels.push({ x: splitX + 5, y: (startY + endY) / 2, kind, text: `${kind === "S" ? "✓" : "✗"} ${probTxt}`.trim() });
+    }
+  }
+  build(run.rootNodeId);
+
+  return {
+    nodes, links, labels, leaves: leafOrder,
+    initX: INITX, initW: INITW, initRight: INITX + INITW, rootX: LEFT, rootY,
+    xEnd, boxW: BOXW, width: xEnd + LEAFW + PAD, height: TOP + row * ROWH + 20,
+  };
+}
+
+function DynamicEsdTree({ run, leaves, activeSeq, onHover, onSelect }: {
+  run: DynamicRun;
+  leaves: Map<string, SeqLeafView>;
+  activeSeq: string | null;
+  onHover: (id: string | null) => void;
+  onSelect: (id: string) => void;
+}): JSX.Element {
+  const L = useMemo(() => layoutDynEsd(run), [run]);
+  const isHot = (seqs: string[]): boolean => activeSeq !== null && seqs.includes(activeSeq);
+  return (
+    <div className="estree__scroll">
+      <div className="esdt" style={{ width: L.width, height: L.height }}>
+        <svg className="estree__svg" width={L.width} height={L.height}>
+          <defs>
+            <marker id="esdt-s" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--c-complete)" /></marker>
+            <marker id="esdt-f" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#c44d4d" /></marker>
+          </defs>
+          <path className="esdt__trunk" d={`M ${L.initRight} ${L.rootY} H ${L.rootX}`} />
+          {L.links.map((l, i) => (
+            <path key={i} className={`esdt__link esdt__link--${l.kind.toLowerCase()}${isHot(l.seqs) ? " esdt__link--hot" : ""}`}
+              d={`M ${l.startX} ${l.startY} H ${l.splitX} V ${l.endY} H ${l.endX}`} markerEnd={`url(#esdt-${l.kind.toLowerCase()})`} />
+          ))}
+        </svg>
+        <div className="esdt__ie" style={{ left: L.initX, top: L.rootY, width: L.initW }}>
+          <div className="esdt__ie-cap">Initiator</div>
+          <div className="esdt__ie-id">{run.initiatingEventId}</div>
+        </div>
+        {L.nodes.map((n) => (
+          <div key={n.key} className={`esdt__node${isHot(n.seqs) ? " esdt__node--hot" : ""}`} style={{ left: n.x, top: n.y, width: L.boxW }}>
+            {n.fn !== undefined && <span className="esdt__fn">{n.fn}</span>}
+            <span className="esdt__cond" title={n.condition}>{n.condition}</span>
+          </div>
+        ))}
+        {L.labels.map((b, i) => (
+          <div key={i} className={`esdt__blab esdt__blab--${b.kind.toLowerCase()}`} style={{ left: b.x, top: b.y }}>
+            {b.text}
+          </div>
+        ))}
+        {L.leaves.map((lf) => {
+          const s = leaves.get(lf.seqId);
+          const ok = s?.endState === "SUCCESSFUL_MITIGATION";
+          const label = ok ? "Safe stable state" : s?.releaseCategoryId !== undefined ? `Release · ${s.releaseCategoryId}` : "Release";
+          return (
+            <button key={lf.seqId} type="button"
+              className={`esdt__leaf esdt__leaf--${ok ? "ok" : "rel"}${activeSeq === lf.seqId ? " esdt__leaf--active" : ""}`}
+              style={{ left: L.xEnd + 6, top: lf.y }}
+              onMouseEnter={() => onHover(lf.seqId)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(lf.seqId)}>
+              <span className={`estree__seq-end estree__seq-end--${ok ? "ok" : "block"}`} />
+              <span className="esdt__leaf-main">
+                <span className="esdt__leaf-end">{label}</span>
+                <span className="esdt__leaf-id posmono">{lf.seqId}{s?.meanFrequency !== undefined ? ` · ${fmtExp(s.meanFrequency)}/yr` : ""}</span>
+                {lf.timing !== undefined && lf.timing.length > 0 && <span className="esdt__leaf-time">{lf.timing}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SequencesScreen(): JSX.Element {
   const { es, posLink } = useEsWorkbook();
   const trees = useMemo(() => eventTreesView(es), [es]);
@@ -718,24 +928,35 @@ function SequencesScreen(): JSX.Element {
   const okN = tree.sequences.filter((s) => s.endState === "SUCCESSFUL_MITIGATION").length;
   const relN = tree.sequences.length - okN;
   const reprMeta = ES_REPRESENTATIONS.find((r) => r.id === repr) ?? ES_REPRESENTATIONS[0];
+  const run = (es.dynamicRuns ?? []).find((r) => r.eventTreeId === tree.id);
 
   return (
     <>
       <ESQDeferBanner title="Event Sequence Analysis structures the scenarios. ESQ quantifies them later." />
 
+      {run !== undefined && (
+        <div className="poscard" style={{ borderLeft: "3px solid var(--color-primary)" }}>
+          <div className="posrow posrow--wrap" style={{ gap: 12, alignItems: "center" }}>
+            <span className="poschip poschip--method"><ESIcon.Bolt /> Dynamic PRA · {run.tool}</span>
+            <span style={{ fontSize: 13, color: "var(--color-text)", flex: 1, minWidth: 220 }}>These scenarios are generated by the EMRALD discrete-event model from the plant physics — the branching and end states come from the decay-heat and containment analysis, not from hand-drawn assertions.</span>
+            <span className="possubtle" style={{ fontSize: 12 }}>Model {run.modelRef ?? "—"} · {(run.trials ?? 0).toLocaleString()} trials</span>
+          </div>
+        </div>
+      )}
+
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Coverage</h3>
-          <span className="possubtle">{coverage.trees.length} sequence sets · {coverage.states.length} states × {coverage.trees.length} initiating events</span>
+          <span className="possubtle">{Object.keys(coverage.cellTree).length} sequence sets · {coverage.states.length} states × {coverage.ies.length} initiating events</span>
         </div>
-        <p className="poscard__sub">ES lays out a sequence set for every operating-state and initiating-event pair, where a filled cell means a set exists that you can click to open.</p>
+        <p className="poscard__sub">ES lays out a sequence set for every operating-state and initiating-event pair, where a filled cell means a set exists that you can click to open. Empty cells are pairs that have not been laid out yet.</p>
         <div className="esmatrix-wrap">
           <table className="esmatrix">
             <thead>
               <tr>
                 <th className="esmatrix__corner">Operating state</th>
-                {coverage.trees.map((t) => (
-                  <th key={t.id} className={`esmatrix__col${t.id === treeId ? " esmatrix__col--active" : ""}`}>{t.initiatingEventId}</th>
+                {coverage.ies.map((ie) => (
+                  <th key={ie.id} className={`esmatrix__col${tree.initiatingEventId === ie.id ? " esmatrix__col--active" : ""}`}>{ie.id}</th>
                 ))}
               </tr>
             </thead>
@@ -746,14 +967,15 @@ function SequencesScreen(): JSX.Element {
                     <span className="esmatrix__rowh-id">{st.id}</span>
                     {st.name.length > 0 && <span className="esmatrix__rowh-name">{st.name}</span>}
                   </th>
-                  {coverage.trees.map((t) => {
-                    const on = coverage.onCells.has(`${t.id}|${st.id}`);
-                    const sel = on && t.id === treeId && st.id === posId;
+                  {coverage.ies.map((ie) => {
+                    const cellTreeId = coverage.cellTree[`${ie.id}|${st.id}`];
+                    const on = cellTreeId !== undefined;
+                    const sel = on && cellTreeId === treeId;
                     return (
-                      <td key={t.id}
+                      <td key={ie.id}
                         className={`esmatrix__cell${on ? " esmatrix__cell--on" : ""}${sel ? " esmatrix__cell--sel" : ""}`}
-                        onClick={on ? () => { setTreeId(t.id); setPosId(st.id); } : undefined}
-                        title={on ? `${t.initiatingEventId} in ${st.id}` : `Not applicable in ${st.id}`}>
+                        onClick={on ? () => { setTreeId(cellTreeId); setPosId(st.id); } : undefined}
+                        title={on ? `${ie.id} in ${st.id}` : `${ie.id} not laid out in ${st.id}`}>
                         {on ? <span className="esmatrix__dot" /> : <span className="esmatrix__na">·</span>}
                       </td>
                     );
@@ -765,8 +987,8 @@ function SequencesScreen(): JSX.Element {
         </div>
         <div className="estree__legend" style={{ borderTop: "none", padding: "10px 0 0", background: "none" }}>
           <span className="estree__legend-item"><span className="esmatrix__dot" /> Event sequences laid out</span>
-          <span className="estree__legend-item"><span className="esmatrix__na" style={{ fontWeight: 700 }}>·</span> Initiator cannot occur in this state</span>
-          <span className="estree__legend-item">{coverage.trees.length} initiating events from IE · {coverage.states.length} operating states from POS</span>
+          <span className="estree__legend-item"><span className="esmatrix__na" style={{ fontWeight: 700 }}>·</span> Not laid out yet</span>
+          <span className="estree__legend-item">{coverage.ies.length} initiating events from IE · {coverage.states.length} operating states from POS</span>
         </div>
       </div>
 
@@ -798,31 +1020,6 @@ function SequencesScreen(): JSX.Element {
         <p className="possubtle" style={{ fontSize: 11.5, marginTop: 8, marginBottom: 0 }}>Sequence frequencies are summed across the {tree.applicableStates.length} state{tree.applicableStates.length === 1 ? "" : "s"} where this initiator occurs, with IE having already applied the per-state time weighting (IE-C8).</p>
       </div>
 
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Scenario representations</h3>
-          <span className="possubtle">Diagram, event tree, and sequence record</span>
-        </div>
-        <p className="poscard__sub">Walk each scenario the way the operators would, following the reactor response and the symptom-based procedures. Lay the scenarios out as diagrams first, then derive the event trees.</p>
-        <div className="esflow">
-          {ES_REPRESENTATIONS.map((r, i) => (
-            <Fragment key={r.id}>
-              {i > 0 && <span className="esflow__arrow"><ESIcon.ArrowR /></span>}
-              <button type="button" className={`esflow__step${r.id === repr ? " esflow__step--active" : ""}${r.primary === true ? " esflow__step--primary" : ""}`} onClick={() => setRepr(r.id)}>
-                <div className="esflow__step-top">
-                  <span className="esflow__step-icon"><NamedIcon name={r.icon} /></span>
-                  <span className="esflow__step-order">{r.order}</span>
-                </div>
-                <div className="esflow__step-label">{r.label}</div>
-                <div className="esflow__step-blurb">{r.blurb}</div>
-                {r.method !== undefined
-                  ? <span className="esflow__step-method"><ESIcon.Bolt /> {r.method}</span>
-                  : <span className="esflow__step-method esflow__step-method--neutral">Shared source of truth</span>}
-              </button>
-            </Fragment>
-          ))}
-        </div>
-      </div>
 
       <div className="estree">
         <div className="estree__bar">
@@ -885,13 +1082,28 @@ function SequencesScreen(): JSX.Element {
 
         {repr === "esd" && (
           <>
-            <EventSeqDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
+            {run !== undefined ? (
+              <DynamicEsdTree run={run} leaves={new Map(tree.sequences.map((s) => [s.id, s]))} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
+            ) : (
+              <EventSeqDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
+            )}
             <div className="estree__legend">
-              <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--operator" /> Operator action / decision</span>
-              <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--auto" /> Automatic actuation</span>
-              <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--passive" /> Passive / inherent</span>
-              <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>S</strong> succeeds · <strong style={{ color: "#b73b3b" }}>F</strong> fails</span>
-              <span className="estree__legend-item">Each block is a question, in the order the operators meet it</span>
+              {run !== undefined ? (
+                <>
+                  <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>✓</strong> heat removed / boundary holds · <strong style={{ color: "#b73b3b" }}>✗</strong> function fails</span>
+                  <span className="estree__legend-item">Each block is a physical decision point; the note is the decay-heat-versus-cooling race from the EMRALD run</span>
+                  <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "var(--c-complete)" }} /> safe stable state · <span className="estree__legend-dot" style={{ background: "#c44d4d" }} /> release category</span>
+                  <span className="estree__legend-item">The model explores every branch; only reachable end states become sequences</span>
+                </>
+              ) : (
+                <>
+                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--operator" /> Operator action / decision</span>
+                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--auto" /> Automatic actuation</span>
+                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--passive" /> Passive / inherent</span>
+                  <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>S</strong> succeeds · <strong style={{ color: "#b73b3b" }}>F</strong> fails</span>
+                  <span className="estree__legend-item">Each block is a question, in the order the operators meet it</span>
+                </>
+              )}
             </div>
           </>
         )}

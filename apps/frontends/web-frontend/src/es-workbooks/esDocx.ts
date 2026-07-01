@@ -142,7 +142,7 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   out.push(para(`Operating states in scope: ${a.scopeDefinition.plantOperatingStateIds.length}. Initiating events in scope: ${a.scopeDefinition.initiatingEventIds.length}.`));
   out.push(para(doc.successCriteriaBases));
   out.push(para(doc.keySafetyFunctionsIdentification));
-  for (const f of a.keySafetyFunctions) out.push(bullet(f));
+  for (const f of a.keySafetyFunctions) out.push(bullet(`${f.name} — ${f.description}`));
   out.push(dataTable(
     ["Event tree", "Initiator", "Safety design mitigation strategy"],
     trees.map((t) => [t.name, t.initiatingEventId, t.mitigationStrategy ?? "—"]),

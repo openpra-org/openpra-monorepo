@@ -98,8 +98,8 @@ export class EsIeLinkService {
       return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
     }
     if (es.linkedIeWorkbookId === EXAMPLE_SENTINEL) {
-      const bundle = await this.exampleWorkbooksService.getIeBundle();
-      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName: "IE Workbook Example", initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
+      const bundle = await this.exampleWorkbooksService.getIeBundle("sfr");
+      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName: "Generic SFR IE Workbook", initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
     }
     const ie = await this.ieWorkbookModel.findOne({ workbookId: es.linkedIeWorkbookId }).exec();
     if (!ie) return { linkedIeWorkbookId: es.linkedIeWorkbookId, linkedName: null, initiators: [] };

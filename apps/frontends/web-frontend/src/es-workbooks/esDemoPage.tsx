@@ -1,12 +1,15 @@
 import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
+import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { EsWorkbench } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
+import { EsDocumentsCard } from "./esDocumentsCard";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
-import { ES_POS_NAMES, type EsPersona } from "./esViewData";
+import { type EsPersona } from "./esViewData";
 
 interface EsExampleResponse {
   slug: string;
@@ -21,28 +24,46 @@ interface EsBundleResponse {
   newlyDevelopedMethods: EsExampleResponse[];
 }
 
-function deriveDemoPosLink(es: EventSequenceAnalysis): EsPosLinkStatus {
+interface PosBundleResponse {
+  pos: { mef: unknown };
+}
+
+interface IeBundleResponse {
+  ie: { mef: unknown };
+}
+
+function buildDemoPosLink(pos: PlantOperatingStatesAnalysis): EsPosLinkStatus {
+  const states = pos.plantOperatingStates.map((s) => ({
+    id: s.uuid,
+    name: s.name,
+    operatingMode: s.operatingMode,
+    meanDurationHours: s.meanDurationHours,
+    meanEntryFrequency: typeof s.meanEntryFrequency === "number" ? s.meanEntryFrequency : s.meanEntryFrequency.value,
+  }));
+  const sourceById = new Map<string, { id: string; name: string; location: string; barriers: string[] }>();
+  for (const s of pos.plantOperatingStates) {
+    for (const src of s.radioactiveMaterialSources) {
+      if (!sourceById.has(src.uuid)) sourceById.set(src.uuid, { id: src.uuid, name: src.name, location: src.location, barriers: src.barriers });
+    }
+  }
   return {
     linkedPosWorkbookId: "example",
-    linkedName: "POS Workbook Example",
-    states: es.scopeDefinition.plantOperatingStateIds.map((id) => ({
-      id,
-      name: ES_POS_NAMES[id] ?? id,
-      operatingMode: "—",
-      meanDurationHours: 0,
-      meanEntryFrequency: 0,
-    })),
-    sources: [],
+    linkedName: `${pos.metadata.plantIdentity?.name ?? "Generic SFR"} POS Workbook`,
+    states,
+    sources: Array.from(sourceById.values()),
   };
 }
 
-function deriveDemoIeLink(es: EventSequenceAnalysis): EsIeLinkStatus {
+function buildDemoIeLink(ie: InitiatingEventsAnalysis): EsIeLinkStatus {
   return {
     linkedIeWorkbookId: "example",
-    linkedName: "IE Workbook Example",
-    initiators: es.scopeDefinition.initiatingEventIds.map((id) => ({ id, name: id, category: "—" })),
+    linkedName: ie.name,
+    initiators: ie.initiators.map((i) => ({ id: i.uuid, name: i.name, category: i.category })),
   };
 }
+
+const EMPTY_POS_LINK: EsPosLinkStatus = { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
+const EMPTY_IE_LINK: EsIeLinkStatus = { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
 
 function EsDemoPage(): JSX.Element {
   const [data, setData] = useState<EsWorkbookData | null>(null);
@@ -51,16 +72,20 @@ function EsDemoPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    fetchJson<EsBundleResponse>("/api/example-workbooks/es-bundle")
-      .then((res) => {
+    Promise.all([
+      fetchJson<EsBundleResponse>("/api/example-workbooks/es-bundle"),
+      fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle?example=sfr").catch((): PosBundleResponse | null => null),
+      fetchJson<IeBundleResponse>("/api/example-workbooks/ie-bundle?example=sfr").catch((): IeBundleResponse | null => null),
+    ])
+      .then(([res, posRes, ieRes]) => {
         if (cancelled) return;
         const es = res.es.mef as EventSequenceAnalysis;
         setData({
           es,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
-          posLink: deriveDemoPosLink(es),
-          ieLink: deriveDemoIeLink(es),
+          posLink: posRes !== null ? buildDemoPosLink(posRes.pos.mef as PlantOperatingStatesAnalysis) : EMPTY_POS_LINK,
+          ieLink: ieRes !== null ? buildDemoIeLink(ieRes.ie.mef as InitiatingEventsAnalysis) : EMPTY_IE_LINK,
         });
       })
       .catch((err: unknown) => {
@@ -93,6 +118,7 @@ function EsDemoPage(): JSX.Element {
           workbookName: data.es.name,
           workbookVersion: data.es.version,
         }}
+        renderDocuments={() => <EsDocumentsCard canEdit={false} />}
       />
     </EsWorkbookProvider>
   );

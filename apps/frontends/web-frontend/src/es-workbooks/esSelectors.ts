@@ -1,4 +1,4 @@
-import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import {
@@ -6,7 +6,6 @@ import {
   ES_STEPS,
   ES_PERSONA_STEPS,
   ES_FE_SC_MAP,
-  ES_IE_POS_COVERAGE,
   ES_POS_NAMES,
   type ConformanceItem,
   type EsPersona,
@@ -57,7 +56,7 @@ interface ScopeView {
   initiatorIds: string[];
   sources: string[];
   barriers: string[];
-  keySafetyFunctions: string[];
+  keySafetyFunctions: KeySafetyFunction[];
 }
 
 const MS_PER_HOUR = 1000 * 60 * 60;
@@ -491,33 +490,78 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
   });
 }
 
+function buildBranchesFromPaths(
+  treeId: string,
+  feOrder: string[],
+  seqs: { id: string; path: Record<string, "SUCCESS" | "FAILURE"> }[],
+): { branches: Record<string, EventTreeBranch>; initialBranchId: string } {
+  const branches: Record<string, EventTreeBranch> = {};
+  let counter = 0;
+  function build(prefixFes: string[], prefixStates: Record<string, "SUCCESS" | "FAILURE">): { target: string; targetType: "BRANCH" | "SEQUENCE" } {
+    const matching = seqs.filter((s) => prefixFes.every((fe) => s.path[fe] === prefixStates[fe]));
+    const nextFe = feOrder.find((fe) => !prefixFes.includes(fe) && matching.some((s) => s.path[fe] !== undefined));
+    if (nextFe === undefined) {
+      return { target: matching[0]?.id ?? "", targetType: "SEQUENCE" };
+    }
+    const branchId = `${treeId}-b${counter}`;
+    counter += 1;
+    const sChild = build([...prefixFes, nextFe], { ...prefixStates, [nextFe]: "SUCCESS" });
+    const fChild = build([...prefixFes, nextFe], { ...prefixStates, [nextFe]: "FAILURE" });
+    branches[branchId] = {
+      uuid: branchId,
+      name: nextFe,
+      functionalEventId: nextFe,
+      paths: [
+        { state: "SUCCESS", target: sChild.target, targetType: sChild.targetType },
+        { state: "FAILURE", target: fChild.target, targetType: fChild.targetType },
+      ],
+    };
+    return { target: branchId, targetType: "BRANCH" };
+  }
+  const root = build([], {});
+  return { branches, initialBranchId: root.targetType === "BRANCH" ? root.target : "" };
+}
+
 interface CoverageStateView {
   id: string;
   name: string;
 }
 
+interface CoverageIeView {
+  id: string;
+  treeCount: number;
+}
+
 interface CoverageView {
+  ies: CoverageIeView[];
   states: CoverageStateView[];
-  trees: { id: string; initiatingEventId: string }[];
-  onCells: Set<string>;
+  cellTree: Record<string, string>;
 }
 
 function coverageView(es: EventSequenceAnalysis, posLink?: EsPosLinkStatus): CoverageView {
   const nameById = new Map<string, string>();
   for (const st of posLink?.states ?? []) nameById.set(st.id, st.name);
   const states: CoverageStateView[] = es.scopeDefinition.plantOperatingStateIds.map((id) => ({ id, name: nameById.get(id) ?? ES_POS_NAMES[id] ?? "" }));
-  const trees = eventTreesView(es).map((t) => ({ id: t.id, initiatingEventId: t.initiatingEventId }));
-  const onCells = new Set<string>();
-  for (const t of eventTreesView(es)) {
-    const coverageStates = ES_IE_POS_COVERAGE[t.initiatingEventId] ?? t.applicableStates;
-    for (const stateId of coverageStates) onCells.add(`${t.id}|${stateId}`);
+  const cellTree: Record<string, string> = {};
+  const ieCount = new Map<string, number>();
+  for (const tree of es.eventTrees ?? []) {
+    const pos = tree.plantOperatingStateId;
+    if (pos === undefined || pos.length === 0) continue;
+    cellTree[`${tree.initiatingEventId}|${pos}`] = tree.uuid;
+    ieCount.set(tree.initiatingEventId, (ieCount.get(tree.initiatingEventId) ?? 0) + 1);
   }
-  return { states, trees, onCells };
+  const ieIds = es.scopeDefinition.initiatingEventIds.slice();
+  for (const tree of es.eventTrees ?? []) {
+    if (!ieIds.includes(tree.initiatingEventId)) ieIds.push(tree.initiatingEventId);
+  }
+  const ies: CoverageIeView[] = ieIds.map((id) => ({ id, treeCount: ieCount.get(id) ?? 0 }));
+  return { ies, states, cellTree };
 }
 
 export {
   eventTreesView,
   coverageView,
+  buildBranchesFromPaths,
   type EventTreeView,
   type TreeNodeView,
   type SeqLeafRef,
@@ -525,6 +569,7 @@ export {
   type FeView,
   type CoverageView,
   type CoverageStateView,
+  type CoverageIeView,
 };
 
 interface DependencyView {

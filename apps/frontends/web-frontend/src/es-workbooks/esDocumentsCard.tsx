@@ -1,6 +1,7 @@
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { ESIcon } from "./esIcons";
 import { listEsDocuments, uploadEsDocument, deleteEsDocument, getEsDocumentDownload, type EsDocumentEntry } from "./esWorkbookApi";
+import { useEsWorkbook } from "./esWorkbookContext";
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -8,12 +9,15 @@ function fmtSize(bytes: number): string {
   return `${bytes} B`;
 }
 
-function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit: boolean }): JSX.Element {
-  const [docs, setDocs] = useState<EsDocumentEntry[] | null>(null);
+function EsDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit: boolean }): JSX.Element {
+  const { es } = useEsWorkbook();
+  const exampleDocs = es.exampleDocuments ?? [];
+  const [docs, setDocs] = useState<EsDocumentEntry[] | null>(workbookId === undefined ? [] : null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (workbookId === undefined) return;
     let cancelled = false;
     listEsDocuments(workbookId)
       .then((d) => { if (!cancelled) setDocs(d); })
@@ -22,13 +26,14 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
   }, [workbookId]);
 
   async function refresh(): Promise<void> {
+    if (workbookId === undefined) return;
     setDocs(await listEsDocuments(workbookId));
   }
 
   function onUpload(e: ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file === undefined) return;
+    if (file === undefined || workbookId === undefined) return;
     setBusy(true);
     setError(null);
     uploadEsDocument(workbookId, file)
@@ -38,22 +43,29 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
   }
 
   function onDelete(documentId: string): void {
+    if (workbookId === undefined) return;
     deleteEsDocument(workbookId, documentId)
       .then(refresh)
       .catch((err: unknown) => setError((err as { message?: string }).message ?? "Could not delete"));
   }
 
   function onDownload(documentId: string): void {
+    if (workbookId === undefined) return;
     getEsDocumentDownload(workbookId, documentId)
       .then(({ url }) => { window.open(url, "_blank", "noopener"); })
       .catch((err: unknown) => setError((err as { message?: string }).message ?? "Could not download"));
   }
 
+  const uploads = docs ?? [];
+  const showUploads = uploads.length > 0;
+  const showExamples = !showUploads && exampleDocs.length > 0;
+  const canUpload = canEdit && workbookId !== undefined;
+
   return (
     <div className="poscard">
       <div className="poscard__head">
         <h3 className="poscard__title">Supporting documents</h3>
-        {canEdit && (
+        {canUpload && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <ESIcon.Plus /> {busy ? "Uploading…" : "Upload"}
             <input type="file" hidden onChange={onUpload} disabled={busy} />
@@ -64,13 +76,11 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
       {error !== null && <p className="possubtle" style={{ color: "#b73b3b" }}>{error}</p>}
       {docs === null ? (
         <p className="possubtle">Loading documents…</p>
-      ) : docs.length === 0 ? (
-        <p className="possubtle">No documents uploaded yet.</p>
-      ) : (
+      ) : showUploads ? (
         <table className="postable">
           <thead><tr><th>File</th><th>Size</th><th>Uploaded by</th><th></th></tr></thead>
           <tbody>
-            {docs.map((d) => (
+            {uploads.map((d) => (
               <tr key={d.documentId}>
                 <td>
                   <button type="button" onClick={() => onDownload(d.documentId)} style={{ background: "none", border: "none", color: "var(--color-primary)", cursor: "pointer", padding: 0, textAlign: "left", font: "inherit" }}>{d.filename}</button>
@@ -78,7 +88,7 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
                 <td className="posmono">{fmtSize(d.size)}</td>
                 <td>{d.uploadedBy}</td>
                 <td style={{ textAlign: "right" }}>
-                  {canEdit && (
+                  {canUpload && (
                     <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => onDelete(d.documentId)}><ESIcon.Close /></button>
                   )}
                 </td>
@@ -86,6 +96,26 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
             ))}
           </tbody>
         </table>
+      ) : showExamples ? (
+        <table className="postable">
+          <thead><tr><th>Document</th><th>Source</th><th>What it provides</th></tr></thead>
+          <tbody>
+            {exampleDocs.map((d) => (
+              <tr key={d.id}>
+                <td>
+                  {d.url !== undefined
+                    ? <button type="button" onClick={() => { if (d.url !== undefined) window.open(d.url, "_blank", "noopener"); }} style={{ background: "none", border: "none", color: "var(--color-primary)", cursor: "pointer", padding: 0, textAlign: "left", font: "inherit" }}>{d.name}</button>
+                    : <span>{d.name}</span>}
+                  <span className="postable__name-sub">{d.uploadedLabel}</span>
+                </td>
+                <td className="possubtle">{d.sizeLabel}</td>
+                <td className="possubtle" style={{ fontSize: 12.5 }}>{d.extracted}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="possubtle">No documents uploaded yet.</p>
       )}
     </div>
   );

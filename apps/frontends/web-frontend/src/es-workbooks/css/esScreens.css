@@ -570,3 +570,54 @@
 .esdg-swatch--operator { border-color: var(--color-primary); }
 .esdg-swatch--auto { border-color: var(--color-border-strong); }
 .esdg-swatch--passive { border-color: var(--c-complete); }
+
+/* Dynamic ESD rendered horizontally as an event tree from an EMRALD run (esdNodes) */
+.esdt { position: relative; }
+.esdt__trunk { fill: none; stroke: var(--color-border-strong); stroke-width: 1.6; }
+.esdt__link { fill: none; stroke-width: 1.6; opacity: 0.85; }
+.esdt__link--s { stroke: var(--c-complete); }
+.esdt__link--f { stroke: #c44d4d; }
+.esdt__link--hot { stroke-width: 2.8; opacity: 1; }
+.esdt__ie {
+  position: absolute; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 2px; padding: 8px 9px; text-align: center;
+  border: 1.5px solid var(--color-primary); border-radius: 8px; background: rgba(80, 120, 220, 0.06);
+}
+.esdt__ie-cap { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.65; }
+.esdt__ie-id { font-size: 12px; font-weight: 700; color: var(--color-primary); }
+.esdt__node {
+  position: absolute; transform: translateY(-50%);
+  padding: 8px 11px; border: 1px solid var(--color-border-strong); border-radius: 8px;
+  background: var(--color-surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.esdt__node--hot { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(80, 120, 220, 0.16); }
+.esdt__fn {
+  display: inline-block; margin-bottom: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 4px; background: rgba(80, 120, 220, 0.10);
+  color: var(--color-primary); border: 1px solid var(--color-primary);
+}
+.esdt__cond {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 11.5px; line-height: 1.32; font-weight: 600; color: var(--color-text);
+}
+.esdt__blab {
+  position: absolute; transform: translateY(-50%); white-space: nowrap;
+  padding: 1px 5px; border-radius: 4px; background: var(--color-surface);
+  font-size: 11px; font-weight: 700;
+}
+.esdt__blab--s { color: var(--c-complete); }
+.esdt__blab--f { color: #b73b3b; }
+.esdt__leaf {
+  position: absolute; transform: translateY(-50%); cursor: pointer; font: inherit; text-align: left;
+  display: flex; align-items: center; gap: 8px; padding: 6px 11px;
+  border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface);
+}
+.esdt__leaf--ok { border-color: var(--c-complete); background: rgba(60, 160, 90, 0.07); }
+.esdt__leaf--rel { border-color: #c44d4d; background: rgba(196, 77, 77, 0.07); }
+.esdt__leaf--active { box-shadow: 0 0 0 2px rgba(80, 120, 220, 0.25); }
+.esdt__leaf-main { display: flex; flex-direction: column; gap: 1px; }
+.esdt__leaf-end { font-size: 12px; font-weight: 600; }
+.esdt__leaf--ok .esdt__leaf-end { color: var(--c-complete); }
+.esdt__leaf--rel .esdt__leaf-end { color: #b73b3b; }
+.esdt__leaf-id { font-size: 10.5px; opacity: 0.72; }
+.esdt__leaf-time { font-size: 10.5px; font-style: italic; opacity: 0.68; }

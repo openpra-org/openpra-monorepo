@@ -289,6 +289,35 @@ export interface EventTree extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export interface EsdBranchOutcome {
+  outcome: string;
+  probability?: number;
+  timing?: string;
+  targetNodeId?: string;
+  sequenceId?: EventSequenceReference;
+}
+
+export interface EsdNode {
+  id: string;
+  condition: string;
+  challengedFunctionId?: string;
+  branches: EsdBranchOutcome[];
+}
+
+export interface DynamicRun extends Unique {
+  tool: string;
+  toolVersion?: string;
+  modelRef?: string;
+  runDate?: string;
+  initiatingEventId: InitiatingEventReference;
+  plantOperatingStateId: PlantOperatingStateReference;
+  trials?: number;
+  esdNodes: Record<string, EsdNode>;
+  rootNodeId: string;
+  eventTreeId?: string;
+  notes?: string;
+}
+
 export interface RepairCreditRecord extends Unique {
   eventSequenceId: EventSequenceReference;
   repairCredited: boolean;
@@ -325,6 +354,25 @@ export interface EventSequenceDocumentation {
   implementsSrs: SRReference[];
 }
 
+export interface KeySafetyFunction {
+  id: string;
+  name: string;
+  description: string;
+  supportingSystems: string[];
+  successCriteriaId?: string;
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
+}
+
 export interface EventSequenceAnalysis
   extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
   praScope: string;
@@ -335,7 +383,8 @@ export interface EventSequenceAnalysis
     radioactiveMaterialSources: string[];
     radionuclideBarriers: string[];
   };
-  keySafetyFunctions: string[];
+  keySafetyFunctions: KeySafetyFunction[];
+  exampleDocuments?: ExampleDocumentRef[];
 
   eventSequences: EventSequence[];
   sequenceDesignators?: SequenceDesignator[];
@@ -344,6 +393,7 @@ export interface EventSequenceAnalysis
   intermediateEndStates?: IntermediateEndState[];
 
   eventTrees?: EventTree[];
+  dynamicRuns?: DynamicRun[];
 
   dependencyModels?: DependencyModels;
   releaseCategoryMappings?: ReleaseCategoryMapping[];

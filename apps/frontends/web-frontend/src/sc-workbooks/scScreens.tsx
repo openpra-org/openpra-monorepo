@@ -9,7 +9,6 @@ import {
   SC_ANALYSIS_TYPES,
   SC_RC_TONES,
   SC_SAFE_STABLE_CONDITIONS,
-  SC_DOWNSTREAM_LINKS,
   SC_END_STATE_NAMES,
   SC_SYSTEM_DEPS,
   SC_PASSIVE_SYSTEMS,
@@ -26,8 +25,8 @@ import {
 } from "./scViewData";
 import { ccScore, type CcScore } from "./scSelectors";
 import { useScWorkbook } from "./scWorkbookContext";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import { generateScReport } from "./scDocx";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 function NamedIcon({ name }: { name: string }): JSX.Element {
   const Icon = SCIcon[name] ?? SCIcon.Link;
@@ -52,32 +51,50 @@ function Drawer({ onClose, children }: { onClose: () => void; children: ReactNod
   );
 }
 
-function ScScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
+function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
 }): JSX.Element {
-  const { sc } = useScWorkbook();
+  const { sc, editable, mutateSc } = useScWorkbook();
   const barriers = sc.radionuclideBarrierCriteria;
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateSc((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateSc((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateSc((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <SCProvenanceChip kind="sc">Linked</SCProvenanceChip>
-        </div>
-        <p className="poscard__sub">Criteria differ per state and per challenge. Operating states come from POS, challenges from IE, and ES-A3 names a function that SC-A5 specifies.</p>
-        <WorkbookUpstreamBar element="SC" />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Success Criteria and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="SC" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">Read mid-stream by three elements</span>
-        </div>
-        <WorkbookInterfaceMap element="SC" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this success-criteria analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope operating states, initiating-event groups, and explicit exclusions."
+          rows={4}
+          value={sc.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -121,7 +138,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
             const active = c.id === ccId;
             const score = ccScore(sc, c.id, stage);
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -145,7 +162,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="sc-stage" value={val} checked={stage === val} onChange={() => { setStage(val); onAction(`Plant stage set to ${title}`); }} />
+                <input type="radio" name="sc-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>
@@ -800,6 +817,17 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }): JSX.Element {
   const { sc } = useScWorkbook();
   const ready = scores.blocked === 0;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(sc, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sc.name} — SC Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -821,7 +849,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–7 and advances the workbook to <strong>Internal Technical Review</strong>.</>
@@ -834,15 +862,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
               </button>
             )}
             <button type="button" className="posnav__btn" onClick={() => { void generateScReport(sc, ready); }}><SCIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>These criteria are read by the three elements that consume them.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {SC_DOWNSTREAM_LINKS.map((d) => (
-              <span key={d.id} className="poschip poschip--method"><SCIcon.ArrowR /> {d.element}</span>
-            ))}
+            <button type="button" className="posnav__btn" onClick={downloadJson}><SCIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

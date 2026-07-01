@@ -19,6 +19,7 @@ import {
 } from "./scWorkbookApi";
 import { ScWorkbench, type ScWorkbenchActions } from "./scWorkbench";
 import { ScWorkbookProvider, type ScWorkbookData } from "./scWorkbookContext";
+import { useScMefPatch } from "./useScMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { ScDocumentsCard } from "./scDocumentsCard";
 import { type ScPersona } from "./scViewData";
@@ -53,6 +54,7 @@ function ScWorkbookPage(): JSX.Element {
   const [data, setData] = useState<ScWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<ScWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -95,6 +97,14 @@ function ScWorkbookPage(): JSX.Element {
   const updateSc = useCallback((sc: SuccessCriteriaDevelopment): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sc }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useScMefPatch(id ?? "", data?.sc ?? null, handleSaveOk, handleSaveErr);
+  const mutateSc = useCallback((mutator: (sc: SuccessCriteriaDevelopment) => SuccessCriteriaDevelopment): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, sc: mutator(prev.sc) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<ScWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -153,11 +163,12 @@ function ScWorkbookPage(): JSX.Element {
 
   const workflowState = data.sc.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <ScWorkbookProvider data={data}>
+    <ScWorkbookProvider data={data} editable={editable} mutateSc={mutateSc}>
       <ScWorkbench
         data={data}
         persona={persona}
@@ -165,10 +176,6 @@ function ScWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.sc, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as SuccessCriteriaDevelopment;
-          updateSc(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -187,6 +194,12 @@ function ScWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <ScDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as ScWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

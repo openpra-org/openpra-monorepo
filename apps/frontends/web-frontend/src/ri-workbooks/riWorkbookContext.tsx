@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -9,16 +9,32 @@ interface RiWorkbookData {
   nms: NewlyDevelopedMethod[];
 }
 
-const RiWorkbookContext = createContext<RiWorkbookData | null>(null);
+type RiMutator = (ri: RiskIntegration) => RiskIntegration;
 
-function RiWorkbookProvider({ data, children }: { data: RiWorkbookData; children: React.ReactNode }): JSX.Element {
-  return <RiWorkbookContext.Provider value={data}>{children}</RiWorkbookContext.Provider>;
+interface RiWorkbookContextValue extends RiWorkbookData {
+  editable: boolean;
+  mutateRi: (mutator: RiMutator) => void;
 }
 
-function useRiWorkbook(): RiWorkbookData {
+const RiWorkbookContext = createContext<RiWorkbookContextValue | null>(null);
+
+function RiWorkbookProvider({ data, editable, mutateRi, children }: {
+  data: RiWorkbookData;
+  editable: boolean;
+  mutateRi: (mutator: RiMutator) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const value = useMemo<RiWorkbookContextValue>(
+    () => ({ ...data, editable, mutateRi }),
+    [data, editable, mutateRi],
+  );
+  return <RiWorkbookContext.Provider value={value}>{children}</RiWorkbookContext.Provider>;
+}
+
+function useRiWorkbook(): RiWorkbookContextValue {
   const ctx = useContext(RiWorkbookContext);
   if (ctx === null) throw new Error("useRiWorkbook must be used inside RiWorkbookProvider");
   return ctx;
 }
 
-export { RiWorkbookProvider, useRiWorkbook, type RiWorkbookData };
+export { RiWorkbookProvider, useRiWorkbook, type RiWorkbookData, type RiMutator };

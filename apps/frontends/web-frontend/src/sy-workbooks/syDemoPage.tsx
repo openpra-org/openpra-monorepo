@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function SyDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateSy = useCallback((mutator: (sy: SystemsAnalysis) => SystemsAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, sy: mutator(prev.sy) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function SyDemoPage(): JSX.Element {
   }
 
   return (
-    <SyWorkbookProvider data={data}>
+    <SyWorkbookProvider data={data} editable={persona === "preparer"} mutateSy={mutateSy}>
       <SyWorkbench
         data={data}
         persona={persona}

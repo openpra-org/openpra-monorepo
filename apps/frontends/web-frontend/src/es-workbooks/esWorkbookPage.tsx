@@ -25,6 +25,7 @@ import {
 } from "./esWorkbookApi";
 import { EsWorkbench, type EsWorkbenchActions } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
+import { useEsMefPatch } from "./useEsMefPatch";
 import { EsPosLinkModal } from "./esPosLinkModal";
 import { EsIeLinkModal } from "./esIeLinkModal";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
@@ -62,6 +63,7 @@ function EsWorkbookPage(): JSX.Element {
   const [data, setData] = useState<EsWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<EsWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [posLinkOpen, setPosLinkOpen] = useState(false);
   const [ieLinkOpen, setIeLinkOpen] = useState(false);
@@ -110,6 +112,14 @@ function EsWorkbookPage(): JSX.Element {
   const updateEs = useCallback((es: EventSequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, es }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useEsMefPatch(id ?? "", data?.es ?? null, handleSaveOk, handleSaveErr);
+  const mutateEs = useCallback((mutator: (es: EventSequenceAnalysis) => EventSequenceAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, es: mutator(prev.es) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const refreshLinks = useCallback(async (): Promise<void> => {
     if (id === undefined) return;
@@ -174,11 +184,12 @@ function EsWorkbookPage(): JSX.Element {
 
   const workflowState = data.es.workflowState;
   const canLink = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canLink && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <EsWorkbookProvider data={data}>
+    <EsWorkbookProvider data={data} editable={editable} mutateEs={mutateEs}>
       <EsWorkbench
         data={data}
         persona={persona}
@@ -188,10 +199,6 @@ function EsWorkbookPage(): JSX.Element {
         onOpenRoles={() => setRolesOpen(true)}
         onOpenPosLink={canLink ? () => setPosLinkOpen(true) : undefined}
         onOpenIeLink={canLink ? () => setIeLinkOpen(true) : undefined}
-        onStageChange={(s) => {
-          const newMef = { ...data.es, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as EventSequenceAnalysis;
-          updateEs(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -210,6 +217,12 @@ function EsWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <EsDocumentsCard workbookId={id} canEdit={canLink} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsWorkbookRoleName[])} />}
       {posLinkOpen && (
         <EsPosLinkModal

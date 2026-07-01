@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function ScDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateSc = useCallback((mutator: (sc: SuccessCriteriaDevelopment) => SuccessCriteriaDevelopment): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, sc: mutator(prev.sc) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function ScDemoPage(): JSX.Element {
   }
 
   return (
-    <ScWorkbookProvider data={data}>
+    <ScWorkbookProvider data={data} editable={persona === "preparer"} mutateSc={mutateSc}>
       <ScWorkbench
         data={data}
         persona={persona}

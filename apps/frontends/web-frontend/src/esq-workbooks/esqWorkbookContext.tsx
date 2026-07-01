@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -9,16 +9,32 @@ interface EsqWorkbookData {
   nms: NewlyDevelopedMethod[];
 }
 
-const EsqWorkbookContext = createContext<EsqWorkbookData | null>(null);
+type EsqMutator = (esq: EventSequenceQuantification) => EventSequenceQuantification;
 
-function EsqWorkbookProvider({ data, children }: { data: EsqWorkbookData; children: React.ReactNode }): JSX.Element {
-  return <EsqWorkbookContext.Provider value={data}>{children}</EsqWorkbookContext.Provider>;
+interface EsqWorkbookContextValue extends EsqWorkbookData {
+  editable: boolean;
+  mutateEsq: (mutator: EsqMutator) => void;
 }
 
-function useEsqWorkbook(): EsqWorkbookData {
+const EsqWorkbookContext = createContext<EsqWorkbookContextValue | null>(null);
+
+function EsqWorkbookProvider({ data, editable, mutateEsq, children }: {
+  data: EsqWorkbookData;
+  editable: boolean;
+  mutateEsq: (mutator: EsqMutator) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const value = useMemo<EsqWorkbookContextValue>(
+    () => ({ ...data, editable, mutateEsq }),
+    [data, editable, mutateEsq],
+  );
+  return <EsqWorkbookContext.Provider value={value}>{children}</EsqWorkbookContext.Provider>;
+}
+
+function useEsqWorkbook(): EsqWorkbookContextValue {
   const ctx = useContext(EsqWorkbookContext);
   if (ctx === null) throw new Error("useEsqWorkbook must be used inside EsqWorkbookProvider");
   return ctx;
 }
 
-export { EsqWorkbookProvider, useEsqWorkbook, type EsqWorkbookData };
+export { EsqWorkbookProvider, useEsqWorkbook, type EsqWorkbookData, type EsqMutator };

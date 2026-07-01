@@ -11,7 +11,6 @@ import {
   SY_LOGIC_MODELS,
   SY_SYSTEM_DOSSIERS,
   SY_SYSTEM_RESULTS,
-  SY_SYSTEM_BREAKDOWN,
   MODELED_FAILURES,
   SCREENING_CRITERIA,
   UNAVAILABILITY,
@@ -22,7 +21,7 @@ import {
 } from "./syViewData";
 import { ccScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 
 interface SyDrawerContext {
   kind: "system" | "ccf" | "hfe";
@@ -216,94 +215,44 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
 }): JSX.Element {
-  const { sy } = useSyWorkbook();
+  const { sy, editable, mutateSy } = useSyWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const repById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const lm of sy.systemLogicModels) m.set(lm.systemReference, lm.modelRepresentation);
-    return m;
-  }, [sy.systemLogicModels]);
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateSy((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateSy((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    onAction(`Plant stage set to ${newStage === "operational" ? "Operational" : "Pre-operational"}`);
+    mutateSy((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <SYProvenanceChip>Linked</SYProvenanceChip>
-        </div>
-        <p className="poscard__sub">ES names the functions and their systems, SC sets each top event, POS sets the alignments.</p>
-        <WorkbookUpstreamBar element="SY" />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Systems Analysis and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="SY" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">Densest interface surface of any element</span>
-        </div>
-        <p className="poscard__sub">SY pulls parameters from DA, hands human events to HR, and delivers branch failure to ESQ.</p>
-        <WorkbookInterfaceMap element="SY" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Systems in scope</h3>
-          <Badge kind="progress">{sy.systemDefinitions.length} systems</Badge>
-        </div>
-        <p className="poscard__sub">The recipe runs once per system. Frontline systems carry a logic model, support systems serve them.</p>
-        <table className="postable">
-          <thead><tr><th>System</th><th>Function</th><th>Model</th><th>Mission</th><th>Status</th></tr></thead>
-          <tbody>
-            {sy.systemDefinitions.map((s) => {
-              const meta = SY_SYSTEM_META[s.uuid];
-              return (
-                <tr key={s.uuid}>
-                  <td>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
-                      <span style={{ color: "var(--color-primary)", display: "inline-flex" }}><NamedIcon name={meta?.icon ?? "Settings"} /></span>
-                      {s.name}
-                      <span className="syk-kind">{meta?.kind === "support" ? "Support" : "Frontline"}</span>
-                    </span>
-                  </td>
-                  <td>{meta !== undefined ? safetyFnName(meta.sf) : "—"}</td>
-                  <td><span className="syk-rep">{repById.get(s.uuid) ?? "System-level"}</span></td>
-                  <td className="posmono">{s.missionTimeHours !== undefined ? `${s.missionTimeHours} h` : "—"}</td>
-                  <td>{meta?.status === "warn" ? <Badge kind="warn">Open item</Badge> : <Badge kind="ok">Modeled</Badge>}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">System breakdown structure</h3>
-          <SYProvenanceChip>Methodology report</SYProvenanceChip>
-        </div>
-        <p className="poscard__sub">How the systems are scoped, screened, selected and grouped for the analysis.</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div className="syboundary">
-            <div className="syboundary__head"><SYIcon.Target /> Scoping</div>
-            <p className="possubtle" style={{ fontSize: 12.5, margin: "6px 0 0", lineHeight: 1.45 }}>{SY_SYSTEM_BREAKDOWN.scoping}</p>
-          </div>
-          <div className="syboundary">
-            <div className="syboundary__head"><SYIcon.Sparkle /> Screening</div>
-            <p className="possubtle" style={{ fontSize: 12.5, margin: "6px 0 0", lineHeight: 1.45 }}>{SY_SYSTEM_BREAKDOWN.screeningCriterion}</p>
-          </div>
-          <div className="syboundary">
-            <div className="syboundary__head"><SYIcon.Cube /> Selected for detailed analysis</div>
-            <div className="syboundary__list" style={{ marginTop: 8 }}>
-              {SY_SYSTEM_BREAKDOWN.selected.map((id) => <span key={id} className="syboundary__tag">{SY_SYSTEM_META[id]?.short ?? id}</span>)}
-            </div>
-            <div className="syboundary__support">
-              <span className="syboundary__support-k">System level only</span>
-              {SY_SYSTEM_BREAKDOWN.systemLevel.map((id) => <span key={id} className="poschip">{SY_SYSTEM_META[id]?.short ?? id}</span>)}
-            </div>
-          </div>
-          <div className="syboundary">
-            <div className="syboundary__head"><SYIcon.Group /> Grouping</div>
-            <p className="possubtle" style={{ fontSize: 12.5, margin: "6px 0 0", lineHeight: 1.45 }}>{SY_SYSTEM_BREAKDOWN.grouping}</p>
-          </div>
-        </div>
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this systems analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope systems, the modelling depth, and explicit exclusions."
+          rows={4}
+          value={sy.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -317,7 +266,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
             const active = c.id === ccId;
             const score = ccScore(sy, c.id, stage);
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -341,7 +290,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="sy-stage" value={val} checked={stage === val} onChange={() => { setStage(val); onAction(`Plant stage set to ${title}`); }} />
+                <input type="radio" name="sy-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function EsqDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function EsqDemoPage(): JSX.Element {
   }
 
   return (
-    <EsqWorkbookProvider data={data}>
+    <EsqWorkbookProvider data={data} editable={persona === "preparer"} mutateEsq={mutateEsq}>
       <EsqWorkbench
         data={data}
         persona={persona}

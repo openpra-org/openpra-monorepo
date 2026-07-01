@@ -3,7 +3,6 @@ import { HRIcon } from "./hrIcons";
 import { Badge, HRProvenanceChip, hepText } from "./hrShared";
 import {
   CAPABILITY_CATEGORIES,
-  THREE_MOMENTS,
   HRA_METHODS,
   ACTIVITY_TYPES,
   ACTIVITY_SOURCES,
@@ -16,7 +15,7 @@ import {
 } from "./hrViewData";
 import { ccScore } from "./hrSelectors";
 import { useHrWorkbook } from "./hrWorkbookContext";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 
 interface HrDrawerContext {
   kind: "activity" | "prehfe" | "posthfe" | "dependence" | "recovery";
@@ -53,64 +52,50 @@ function exposureLabel(hours: number | undefined): string {
   return `${hours} h`;
 }
 
-function MomentsStrip(): JSX.Element {
-  return (
-    <div className="hrmoments">
-      <div className="hrmoments__axis">
-        <span className="hrmoments__axis-line" />
-        <span className="hrmoments__initiator"><span className="hrmoments__initiator-dot" />Initiating event</span>
-      </div>
-      <div className="hrmoments__row">
-        {THREE_MOMENTS.map((m) => (
-          <div key={m.id} className={`hrmoments__card hrmoments__card--${m.color}`}>
-            <div className="hrmoments__card-head">
-              <span className="hrmoments__icon"><NamedIcon name={m.icon} /></span>
-              <div>
-                <div className="hrmoments__label">{m.label}</div>
-                <div className="hrmoments__tag">{m.tag}</div>
-              </div>
-              <span className="hrmoments__hlr">{m.hlrs}</span>
-            </div>
-            <p className="hrmoments__desc">{m.desc}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
+function ScopeScreen({ ccId, setCcId, stage, setStage }: {
   ccId: string;
   setCcId: (id: string) => void;
   stage: Stage;
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
 }): JSX.Element {
-  const { hr } = useHrWorkbook();
+  const { hr, editable, mutateHr } = useHrWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateHr((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateHr((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateHr((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Human failure events relative to the initiating event</h3></div>
-        <MomentsStrip />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Human Reliability Analysis and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="HR" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <HRProvenanceChip>Linked</HRProvenanceChip>
-        </div>
-        <p className="poscard__sub">POS sets the per-state context, ES names the actions, SC sets the time available, SY places the events.</p>
-        <WorkbookUpstreamBar element="HR" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">Most interfaced element in the model</span>
-        </div>
-        <p className="poscard__sub">HR pulls operator contributions from IE, data from DA, and delivers the human error probabilities to ESQ.</p>
-        <WorkbookInterfaceMap element="HR" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this human reliability analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope operating states, human failure events, and explicit exclusions."
+          rows={4}
+          value={hr.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -124,7 +109,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
             const active = c.id === ccId;
             const score = ccScore(hr, c.id, stage);
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -152,7 +137,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="hr-stage" value={val} checked={stage === val} onChange={() => { setStage(val); onAction(`Plant stage set to ${title}`); }} />
+                <input type="radio" name="hr-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

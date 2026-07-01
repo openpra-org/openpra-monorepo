@@ -1,4 +1,4 @@
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import {
   type ElementCode,
   type LaneEntry,
@@ -110,6 +110,83 @@ function WorkbookInterfaceMap({ element, mode = "full" }: { element: ElementCode
   );
 }
 
+interface InterfaceTile {
+  code: ElementCode;
+  name: string;
+  role: string;
+  direction: "in" | "bi" | "out";
+  detail: string;
+  bridges: string[];
+}
+
+function interfaceTilesFor(element: ElementCode): InterfaceTile[] {
+  const tiles: InterfaceTile[] = [];
+  for (const { entry, lane } of inputSideLanes(element)) {
+    tiles.push({
+      code: entry.element,
+      name: elementMeta(entry.element).name,
+      role: entry.role,
+      direction: lane,
+      detail: entry.detail,
+      bridges: bridgesFor(entry.element, element),
+    });
+  }
+  for (const entry of elementInterface(element).outputs) {
+    tiles.push({
+      code: entry.element,
+      name: elementMeta(entry.element).name,
+      role: entry.role,
+      direction: "out",
+      detail: entry.detail,
+      bridges: bridgesFor(element, entry.element),
+    });
+  }
+  return tiles;
+}
+
+function WorkbookInterfaceTiles({ element }: { element: ElementCode }): JSX.Element {
+  const tiles = interfaceTilesFor(element);
+  const [selected, setSelected] = useState<string | null>(null);
+  const active = tiles.find((t) => `${t.direction}-${t.code}` === selected);
+  const selfName = elementMeta(element).name;
+  return (
+    <>
+      <div className="poshandoff__grid">
+        {tiles.map((tile) => {
+          const key = `${tile.direction}-${tile.code}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              className={`poshandoff__tile${selected === key ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelected(selected === key ? null : key)}
+            >
+              <span className="poshandoff__tile-code">{tile.code}</span>
+              <span className="poshandoff__tile-name">{tile.name}</span>
+              <span className="poshandoff__tile-role">{tile.direction === "out" ? "Consumes · " : tile.direction === "bi" ? "Exchanges · " : "Provides · "}{tile.role}</span>
+            </button>
+          );
+        })}
+      </div>
+      {active !== undefined && (
+        <div style={{ marginTop: 16 }}>
+          <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+            {active.direction === "out"
+              ? `${active.name} receives ${active.role.toLowerCase()} from ${selfName}`
+              : `${selfName} receives ${active.role.toLowerCase()} from ${active.name}`}
+          </div>
+          <p className="posmuted" style={{ margin: 0 }}>{active.detail}</p>
+          {active.bridges.length > 0 && (
+            <div className="posrow posrow--wrap" style={{ gap: 6, marginTop: 10 }}>
+              {active.bridges.map((b) => <span key={b} className="poschip posmono">{b}</span>)}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function DockDependsChip({ element, sr }: { element: ElementCode; sr: string }): JSX.Element | null {
   const deps = dockDependenciesForSr(element, sr);
   if (deps.length === 0) return null;
@@ -122,4 +199,4 @@ function DockDependsChip({ element, sr }: { element: ElementCode; sr: string }):
   );
 }
 
-export { WorkbookUpstreamBar, WorkbookInterfaceMap, DockDependsChip };
+export { WorkbookUpstreamBar, WorkbookInterfaceMap, WorkbookInterfaceTiles, DockDependsChip };

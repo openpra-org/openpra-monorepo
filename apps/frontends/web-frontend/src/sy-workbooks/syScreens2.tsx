@@ -1,4 +1,4 @@
-import { JSX, useState } from "react";
+import { JSX } from "react";
 import { SYIcon } from "./syIcons";
 import { Badge, type BadgeKind } from "./syShared";
 import {
@@ -13,7 +13,6 @@ import {
   LEVEL_OF_DETAIL,
   SY_LABELING_SCHEME,
   SY_METHODOLOGY_TOC,
-  SY_SYSTEM_TOC,
   DEP_KIND,
   type CapabilityCategory,
 } from "./syViewData";
@@ -412,36 +411,29 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }): JSX.Element {
   const { sy } = useSyWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
-  const [report, setReport] = useState<"methodology" | "system">("methodology");
-  const [docSysId, setDocSysId] = useState<string>(sy.systemDefinitions[0]?.uuid ?? "");
-  const docSys = sy.systemDefinitions.find((s) => s.uuid === docSysId) ?? sy.systemDefinitions[0];
-  const toc = report === "methodology" ? SY_METHODOLOGY_TOC : SY_SYSTEM_TOC;
-  const reportTitle = report === "methodology" ? "Systems Analysis Methodology" : `Preliminary Systems Analysis, ${docSys?.name ?? ""}`;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(sy, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sy.name} — SY Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
         <div className="posgen__preview-eyebrow">Generated preview · Word output</div>
         <h1>{sy.name}</h1>
-        <h2>{reportTitle}</h2>
+        <h2>Systems Analysis Methodology</h2>
         <h3>Table of contents</h3>
         <div className="posgen__preview-toc">
-          {toc.map(([t, p], i) => (<div key={i} className="posgen__preview-toc-row"><span>{t}</span><span>{p}</span></div>))}
+          {SY_METHODOLOGY_TOC.map(([t, p], i) => (<div key={i} className="posgen__preview-toc-row"><span>{t}</span><span>{p}</span></div>))}
         </div>
       </div>
       <div className="posgen__side">
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Report</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>Systems Analysis produces two documents. Pick which to preview.</p>
-          <div className="posrow" style={{ gap: 6, marginBottom: 10 }}>
-            <button type="button" className={`poschip${report === "methodology" ? " poschip--primary" : ""}`} onClick={() => setReport("methodology")}>Methodology</button>
-            <button type="button" className={`poschip${report === "system" ? " poschip--primary" : ""}`} onClick={() => setReport("system")}>Per-system</button>
-          </div>
-          {report === "system" && (
-            <select className="posfield__select" value={docSysId} onChange={(e) => setDocSysId(e.target.value)} style={{ width: "100%" }}>
-              {sy.systemDefinitions.map((s) => <option key={s.uuid} value={s.uuid}>{s.name}</option>)}
-            </select>
-          )}
-        </div>
         <div className="posgen__readout">
           <h3 className="posgen__readout-h">Conformance check</h3>
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
@@ -451,7 +443,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1 to 7 and advances the workbook to <strong>Internal Technical Review</strong>.</>
@@ -460,19 +452,11 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && (
               <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}>
-                <SYIcon.Send /> {ready ? "Submit draft to internal review" : "Submit working draft to review"}
+                <SYIcon.Send /> Submit draft to internal review
               </button>
             )}
-            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, report, docSysId, ready); }}><SYIcon.Download /> Download {report === "methodology" ? "methodology" : "per-system"} (.docx)</button>
-          </div>
-        </div>
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>Linked into the event trees and quantified by ESQ.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><SYIcon.ArrowR /> Event Sequence Quantification (ESQ)</span>
-            <span className="poschip poschip--method"><SYIcon.ArrowR /> Human Reliability (HR)</span>
-            <span className="poschip poschip--method"><SYIcon.ArrowR /> Data Analysis (DA)</span>
+            <button type="button" className="posnav__btn" onClick={() => { void generateSyReport(sy, "methodology", "", ready); }}><SYIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><SYIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

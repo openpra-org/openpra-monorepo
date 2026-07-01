@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -9,16 +9,32 @@ interface ScWorkbookData {
   nms: NewlyDevelopedMethod[];
 }
 
-const ScWorkbookContext = createContext<ScWorkbookData | null>(null);
+type ScMutator = (sc: SuccessCriteriaDevelopment) => SuccessCriteriaDevelopment;
 
-function ScWorkbookProvider({ data, children }: { data: ScWorkbookData; children: React.ReactNode }): JSX.Element {
-  return <ScWorkbookContext.Provider value={data}>{children}</ScWorkbookContext.Provider>;
+interface ScWorkbookContextValue extends ScWorkbookData {
+  editable: boolean;
+  mutateSc: (mutator: ScMutator) => void;
 }
 
-function useScWorkbook(): ScWorkbookData {
+const ScWorkbookContext = createContext<ScWorkbookContextValue | null>(null);
+
+function ScWorkbookProvider({ data, editable, mutateSc, children }: {
+  data: ScWorkbookData;
+  editable: boolean;
+  mutateSc: (mutator: ScMutator) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const value = useMemo<ScWorkbookContextValue>(
+    () => ({ ...data, editable, mutateSc }),
+    [data, editable, mutateSc],
+  );
+  return <ScWorkbookContext.Provider value={value}>{children}</ScWorkbookContext.Provider>;
+}
+
+function useScWorkbook(): ScWorkbookContextValue {
   const ctx = useContext(ScWorkbookContext);
   if (ctx === null) throw new Error("useScWorkbook must be used inside ScWorkbookProvider");
   return ctx;
 }
 
-export { ScWorkbookProvider, useScWorkbook, type ScWorkbookData };
+export { ScWorkbookProvider, useScWorkbook, type ScWorkbookData, type ScMutator };

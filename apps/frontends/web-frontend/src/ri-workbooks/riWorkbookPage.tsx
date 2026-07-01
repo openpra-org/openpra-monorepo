@@ -19,6 +19,7 @@ import {
 } from "./riWorkbookApi";
 import { RiWorkbench, type RiWorkbenchActions } from "./riWorkbench";
 import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
+import { useRiMefPatch } from "./useRiMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { type RiPersona } from "./riViewData";
@@ -52,6 +53,7 @@ function RiWorkbookPage(): JSX.Element {
   const [data, setData] = useState<RiWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<RiWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -94,6 +96,14 @@ function RiWorkbookPage(): JSX.Element {
   const updateRi = useCallback((ri: RiskIntegration): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ri }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useRiMefPatch(id ?? "", data?.ri ?? null, handleSaveOk, handleSaveErr);
+  const mutateRi = useCallback((mutator: (ri: RiskIntegration) => RiskIntegration): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ri: mutator(prev.ri) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<RiWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -152,11 +162,12 @@ function RiWorkbookPage(): JSX.Element {
 
   const workflowState = data.ri.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data}>
+    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi}>
       <RiWorkbench
         data={data}
         persona={persona}
@@ -182,6 +193,12 @@ function RiWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <RiDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RiWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

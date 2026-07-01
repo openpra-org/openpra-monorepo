@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function MsDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateMs = useCallback((mutator: (ms: MechanisticSourceTermAnalysis) => MechanisticSourceTermAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ms: mutator(prev.ms) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function MsDemoPage(): JSX.Element {
   }
 
   return (
-    <MsWorkbookProvider data={data}>
+    <MsWorkbookProvider data={data} editable={persona === "preparer"} mutateMs={mutateMs}>
       <MsWorkbench
         data={data}
         persona={persona}

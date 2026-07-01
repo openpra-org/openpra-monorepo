@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function RcDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateRc = useCallback((mutator: (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenceAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, rc: mutator(prev.rc) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function RcDemoPage(): JSX.Element {
   }
 
   return (
-    <RcWorkbookProvider data={data}>
+    <RcWorkbookProvider data={data} editable={persona === "preparer"} mutateRc={mutateRc}>
       <RcWorkbench
         data={data}
         persona={persona}

@@ -458,6 +458,17 @@ function UncertScreen({ stage }: { stage: Stage }): JSX.Element {
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: CapabilityCategory; scores: CcScore; stage: Stage; onSubmitDraft: () => void; canSubmit: boolean }): JSX.Element {
   const { esq } = useEsqWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(esq, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${esq.name} — ESQ Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -483,7 +494,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 8 and moves to <strong>Internal Technical Review</strong>.</>
@@ -492,15 +503,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><ESQIcon.Send /> Submit draft to internal review</button>}
             <button type="button" className="posnav__btn" onClick={() => { void generateEsqReport(esq, false); }}><ESQIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>The family frequencies flow into Risk Integration, and the release inputs flow into the source term.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><ESQIcon.ArrowR /> Risk Integration (RI)</span>
-            <span className="poschip poschip--method"><ESQIcon.ArrowR /> Mechanistic Source Term (MS)</span>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><ESQIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

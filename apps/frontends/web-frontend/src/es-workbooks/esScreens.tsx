@@ -37,7 +37,6 @@ import {
   type CcScore,
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 import "./css/esScreens.css";
 
 function NamedIcon({ name }: { name: string }): JSX.Element {
@@ -483,29 +482,111 @@ interface ScopeScreenProps extends ScreenProps {
   onOpenIeLink: () => void;
 }
 
-function EsScopeScreen({ ccId, setCcId, stage, setStage }: ScopeScreenProps): JSX.Element {
-  const { es } = useEsWorkbook();
+interface EsIfaceLane {
+  code: string;
+  element: string;
+  role: string;
+  direction: "in" | "out";
+  columns: string[];
+  rows: { id: string; name: string; values: string[] }[];
+  empty: string;
+  linked: boolean;
+  linkAction?: () => void;
+}
+
+function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIeLink }: ScopeScreenProps): JSX.Element {
+  const { es, posLink, ieLink, editable, mutateEs } = useEsWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const sourceIds = es.scopeDefinition.radioactiveMaterialSources;
   const safetyFnIds = es.keySafetyFunctions;
+  const posLinked = posLink.linkedPosWorkbookId !== null;
+  const ieLinked = ieLink.linkedIeWorkbookId !== null;
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateEs((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateEs((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const ifaceLanes: EsIfaceLane[] = [
+    { code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in", columns: ["Operating state", "Mode"], rows: posLink.states.map((s) => ({ id: s.id, name: s.name, values: [s.operatingMode] })), empty: "No POS workbook linked yet.", linked: posLinked, linkAction: onOpenPosLink },
+    { code: "IE", element: "Initiating Events", role: "Initiating events", direction: "in", columns: ["Initiating event", "Category"], rows: ieLink.initiators.map((i) => ({ id: i.id, name: i.name, values: [i.category] })), empty: "No IE workbook linked yet.", linked: ieLinked, linkAction: onOpenIeLink },
+    { code: "ESQ", element: "Event Sequence Quantification", role: "Sequences and end states", direction: "out", columns: [], rows: [], empty: "Event Sequence Analysis hands the structured event sequences and end states to ESQ for frequency quantification.", linked: true },
+    { code: "MS", element: "Mechanistic Source Term", role: "Release categories", direction: "out", columns: [], rows: [], empty: "Each sequence's release category is handed to Mechanistic Source Term for source-term calculation.", linked: true },
+  ];
+  const selectedLane = ifaceLanes.find((l) => l.code === selectedTe);
+
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <ESProvenanceChip>Linked</ESProvenanceChip>
+          <h3 className="poscard__title">Interfaces</h3>
+          {posLinked || ieLinked ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
         </div>
-        <p className="poscard__sub">Event Sequence Analysis builds on the initiating events from IE and the operating states from POS.</p>
-        <WorkbookUpstreamBar element="ES" />
+        <p className="poscard__sub">Event Sequence Analysis reads the operating states from POS and the initiating events from IE, and hands its end states and release categories downstream. Select an element to see the data exchanged.</p>
+        <div className="poshandoff__grid">
+          {ifaceLanes.map((lane) => (
+            <button key={lane.code} type="button"
+              className={`poshandoff__tile${selectedTe === lane.code ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.code ? null : lane.code)}>
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+              {selectedLane.direction === "in"
+                ? `Event Sequence Analysis receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`
+                : `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Event Sequence Analysis`}
+            </div>
+            {selectedLane.rows.length > 0 ? (
+              <table className="postable postable--mid">
+                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                <tbody>
+                  {selectedLane.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="postable__name">{r.name}</div></td>
+                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="posrow" style={{ gap: 12, alignItems: "center" }}>
+                <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
+                {!selectedLane.linked && selectedLane.linkAction !== undefined && (
+                  <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={selectedLane.linkAction}><ESIcon.Link /> Link {selectedLane.code} workbook</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <ESProvenanceChip>Downstream</ESProvenanceChip>
-        </div>
-        <p className="poscard__sub">ES hands its structured scenarios, end states, and release categories to the elements downstream.</p>
-        <WorkbookInterfaceMap element="ES" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this event-sequence analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope operating states, initiating-event groups, and explicit exclusions."
+          rows={4}
+          value={es.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -577,7 +658,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage }: ScopeScreenProps): JS
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontFamily: "'Literata', serif", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
@@ -600,7 +681,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage }: ScopeScreenProps): JS
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="es-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <input type="radio" name="es-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12.5 }}>{body}</div>
@@ -1423,6 +1504,17 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }): JSX.Element {
   const { es } = useEsWorkbook();
   const ready = scores.blocked === 0;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(es, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${es.name} — ES Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   const TOC_ITEMS: [string, string][] = [
     ["Executive summary", "5"],
     ["Introduction", "6"],
@@ -1472,7 +1564,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>, so making the draft locks Steps 1-8 and moves the workbook to <strong>Internal Technical Review</strong>.</>
@@ -1483,15 +1575,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
               <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onSubmitDraft(ready)}><ESIcon.Send /> Submit draft to internal review</button>
             )}
             <button type="button" className="posnav__btn" onClick={() => { void generateEsReport(es, ready); }}><ESIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>The sequences feed the next steps directly.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><ESIcon.ArrowR /> Event Sequence Quantification (ESQ)</span>
-            <span className="poschip poschip--method"><ESIcon.ArrowR /> Mechanistic Source Term (MS)</span>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><ESIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

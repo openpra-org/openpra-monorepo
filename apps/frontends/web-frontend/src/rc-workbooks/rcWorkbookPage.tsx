@@ -19,6 +19,7 @@ import {
 } from "./rcWorkbookApi";
 import { RcWorkbench, type RcWorkbenchActions } from "./rcWorkbench";
 import { RcWorkbookProvider, type RcWorkbookData } from "./rcWorkbookContext";
+import { useRcMefPatch } from "./useRcMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
@@ -54,6 +55,7 @@ function RcWorkbookPage(): JSX.Element {
   const [data, setData] = useState<RcWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<RcWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -96,6 +98,14 @@ function RcWorkbookPage(): JSX.Element {
   const updateRc = useCallback((rc: RadiologicalConsequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, rc }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useRcMefPatch(id ?? "", data?.rc ?? null, handleSaveOk, handleSaveErr);
+  const mutateRc = useCallback((mutator: (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenceAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, rc: mutator(prev.rc) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<RcWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -154,11 +164,12 @@ function RcWorkbookPage(): JSX.Element {
 
   const workflowState = data.rc.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider data={data}>
+    <RcWorkbookProvider data={data} editable={editable} mutateRc={mutateRc}>
       <RcWorkbench
         data={data}
         persona={persona}
@@ -184,6 +195,12 @@ function RcWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <RcDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as RcWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

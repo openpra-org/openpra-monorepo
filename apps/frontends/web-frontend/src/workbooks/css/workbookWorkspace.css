@@ -544,6 +544,8 @@
   box-shadow: 0 0 0 3px var(--color-primary-focus);
 }
 .posfield__textarea { min-height: 88px; resize: vertical; line-height: 1.5; font-family: inherit; }
+.ie-savebar { position: fixed; bottom: 18px; right: 18px; z-index: 80; display: flex; align-items: center; gap: 12px; max-width: 420px; padding: 11px 14px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-error); color: var(--color-error); font-size: 13px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16); }
+.ie-savebar__dismiss { border: 1px solid var(--color-error); background: transparent; color: var(--color-error); border-radius: 7px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .posfield__select {
   appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7388' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");

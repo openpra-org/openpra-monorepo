@@ -19,6 +19,7 @@ import {
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
 import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
+import { useEsqMefPatch } from "./useEsqMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { EsqDocumentsCard } from "./esqDocumentsCard";
 import { type EsqPersona } from "./esqViewData";
@@ -54,6 +55,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [data, setData] = useState<EsqWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<EsqWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -96,6 +98,14 @@ function EsqWorkbookPage(): JSX.Element {
   const updateEsq = useCallback((esq: EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useEsqMefPatch(id ?? "", data?.esq ?? null, handleSaveOk, handleSaveErr);
+  const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<EsqWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -154,11 +164,12 @@ function EsqWorkbookPage(): JSX.Element {
 
   const workflowState = data.esq.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <EsqWorkbookProvider data={data}>
+    <EsqWorkbookProvider data={data} editable={editable} mutateEsq={mutateEsq}>
       <EsqWorkbench
         data={data}
         persona={persona}
@@ -166,10 +177,6 @@ function EsqWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.esq, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as EventSequenceQuantification;
-          updateEsq(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -188,6 +195,12 @@ function EsqWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <EsqDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as EsqWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

@@ -4,7 +4,6 @@ import { Badge, RiProvenanceChip, valText } from "./riShared";
 import { useRiWorkbook } from "./riWorkbookContext";
 import { generateRiReport } from "./riDocx";
 import {
-  APPLICATION_TYPES,
   FAMILY_NAMES,
   FAMILY_HAZARD,
   FAMILY_NOTES,
@@ -17,7 +16,6 @@ import {
   SIG_LABELS,
   SS_SR,
   RI_TOC,
-  type AppTypeId,
   type CapabilityCategory,
   type DispatchCardSpec,
 } from "./riViewData";
@@ -330,16 +328,26 @@ function FeedbackScreen(): JSX.Element {
 }
 
 // ─── 07 — Draft (the RI report template) ───────────────────────────────────
-function DraftScreen({ cc, scores, appType, onSubmitDraft, canSubmit }: {
+function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
   cc: CapabilityCategory;
   scores: CcScore;
-  appType: AppTypeId;
   onSubmitDraft: () => void;
   canSubmit: boolean;
 }): JSX.Element {
   const { ri } = useRiWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
-  const app = APPLICATION_TYPES.find((a) => a.id === appType) ?? APPLICATION_TYPES[0];
+  const stage = ri.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(ri, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${ri.name} — RI Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -358,14 +366,14 @@ function DraftScreen({ cc, scores, appType, onSubmitDraft, canSubmit }: {
         <div className="posgen__readout">
           <h3 className="posgen__readout-h">Conformance check</h3>
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
-          <div className="posgen__bar"><span className="posgen__bar-label">Application</span><span style={{ fontWeight: 700 }}>{app.tag}</span></div>
+          <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
           {scores.warn > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "var(--color-warning)" }}>Needs attention</span><span className="posmono">{scores.warn}</span></div>}
           {scores.na > 0 && <div className="posgen__bar"><span className="posgen__bar-label">Not applicable</span><span className="posmono">{scores.na}</span></div>}
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 6 and moves to <strong>Internal Technical Review</strong>.</>
@@ -374,16 +382,7 @@ function DraftScreen({ cc, scores, appType, onSubmitDraft, canSubmit }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><RIIcon.Send /> Submit draft to internal review</button>}
             <button type="button" className="posnav__btn" onClick={() => { void generateRiReport(ri, false); }}><RIIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>RI is the terminal element, so the integrated risk goes to the safety case and the feedback dispatches back to every upstream element.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><RIIcon.ArrowR /> Event Sequence Quantification (ESQ)</span>
-            <span className="poschip poschip--method"><RIIcon.ArrowR /> Mechanistic Source Term (MS)</span>
-            <span className="poschip poschip--method"><RIIcon.ArrowR /> Radiological Consequence (RC)</span>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><RIIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

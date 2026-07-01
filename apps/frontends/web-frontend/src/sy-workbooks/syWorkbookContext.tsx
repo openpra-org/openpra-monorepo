@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -9,16 +9,32 @@ interface SyWorkbookData {
   nms: NewlyDevelopedMethod[];
 }
 
-const SyWorkbookContext = createContext<SyWorkbookData | null>(null);
+type SyMutator = (sy: SystemsAnalysis) => SystemsAnalysis;
 
-function SyWorkbookProvider({ data, children }: { data: SyWorkbookData; children: React.ReactNode }): JSX.Element {
-  return <SyWorkbookContext.Provider value={data}>{children}</SyWorkbookContext.Provider>;
+interface SyWorkbookContextValue extends SyWorkbookData {
+  editable: boolean;
+  mutateSy: (mutator: SyMutator) => void;
 }
 
-function useSyWorkbook(): SyWorkbookData {
+const SyWorkbookContext = createContext<SyWorkbookContextValue | null>(null);
+
+function SyWorkbookProvider({ data, editable, mutateSy, children }: {
+  data: SyWorkbookData;
+  editable: boolean;
+  mutateSy: (mutator: SyMutator) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const value = useMemo<SyWorkbookContextValue>(
+    () => ({ ...data, editable, mutateSy }),
+    [data, editable, mutateSy],
+  );
+  return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
+}
+
+function useSyWorkbook(): SyWorkbookContextValue {
   const ctx = useContext(SyWorkbookContext);
   if (ctx === null) throw new Error("useSyWorkbook must be used inside SyWorkbookProvider");
   return ctx;
 }
 
-export { SyWorkbookProvider, useSyWorkbook, type SyWorkbookData };
+export { SyWorkbookProvider, useSyWorkbook, type SyWorkbookData, type SyMutator };

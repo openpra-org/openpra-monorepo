@@ -1,11 +1,12 @@
 import { JSX, useState } from "react";
+import { type PlantStage } from "interfaces-mef-types/core/pra-common";
 import { RCIcon } from "./rcIcons";
 import { Badge, RcProvenanceChip } from "./rcShared";
 import { useRcWorkbook } from "./rcWorkbookContext";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   RC_METHODS,
-  RC_STEPS,
   SITE_OPTIONS,
   HANDOFF_INPUTS,
   CONSEQUENCE_METRIC_NOTES,
@@ -22,7 +23,8 @@ import {
   type SiteBasis,
 } from "./rcViewData";
 import { categoryInputById } from "./rcSelectors";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
+
+type Stage = "pre_operational" | "operational";
 
 interface RcDrawerContext {
   kind: "family";
@@ -42,25 +44,6 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
   );
 }
 
-// ─── The pipeline overview (RC is a composite of eight sub-elements) ───────
-function PipelineOverview(): JSX.Element {
-  const stages = RC_STEPS.filter((s) => s.se !== undefined);
-  return (
-    <div className="rcpipe">
-      {stages.map((s, i) => (
-        <span key={s.id} style={{ display: "contents" }}>
-          <div className={`rcpipe__stage rcpipe__stage--${s.seTone ?? "primary"}`}>
-            <span className="rcpipe__se">{s.se}</span>
-            <span className="rcpipe__name">{s.label}</span>
-            <span className="rcpipe__role">{s.sub}</span>
-          </div>
-          {i < stages.length - 1 && <span className="rcpipe__arrow"><RCIcon.ArrowR /></span>}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 // ─── 01 — Scope & Handoff (RCRE) ───────────────────────────────────────────
 function HandoffScreen({ ccId, setCcId, site, setSite }: {
   ccId: string;
@@ -68,11 +51,27 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
   site: SiteBasis;
   setSite: (s: SiteBasis) => void;
 }): JSX.Element {
-  const { rc } = useRcWorkbook();
+  const { rc, editable, mutateRc } = useRcWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
   const inputs = rc.releaseCategoryToConsequence.releaseCategoryInputs;
   const [catId, setCatId] = useState<string>(inputs.find((c) => c.releaseCategory === "RC-3")?.releaseCategory ?? inputs[0]?.releaseCategory ?? "");
   const cat = categoryInputById(rc, catId);
+  const stage: Stage = rc.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateRc((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateRc((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    const plantStage: PlantStage = newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL";
+    mutateRc((draft) => ({ ...draft, plantStage }));
+  }
 
   function inputValue(id: string): string {
     if (cat === undefined) return "n/a";
@@ -94,30 +93,22 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <RcProvenanceChip>Linked</RcProvenanceChip>
-        </div>
-        <p className="poscard__sub">Three elements feed the consequence, the source-term table, the release-category definitions, and the consequence metric.</p>
-        <WorkbookUpstreamBar element="RC" />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Radiological Consequence and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="RC" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">The consequence pipeline</h3>
-          <span className="possubtle">Eight sub-elements in formation</span>
-        </div>
-        <p className="poscard__sub">RC is a composite, so it runs as a pipeline from the handoff through the physics chain to the quantification.</p>
-        <PipelineOverview />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">The only element that leaves the site fence</span>
-        </div>
-        <p className="poscard__sub">RC takes the source term, the categories and the metric, and it delivers the consequence table to risk integration.</p>
-        <WorkbookInterfaceMap element="RC" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this radiological-consequence analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope release categories, the consequence metrics, and explicit exclusions."
+          rows={4}
+          value={rc.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -130,7 +121,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -152,7 +143,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
           <h3 className="poscard__title">The site fork</h3>
           <RcProvenanceChip>RCRE-A1</RcProvenanceChip>
         </div>
-        <p className="poscard__sub">RC has no pre-operational stage, so the fork is the site itself, an identified site or a justified bounding site.</p>
+        <p className="poscard__sub">The site fork is the site itself, an identified site or a justified bounding site.</p>
         <div className="rcsite">
           {SITE_OPTIONS.map((o) => {
             const Icon = RCIcon[o.icon] ?? RCIcon.Pin;
@@ -178,6 +169,27 @@ function HandoffScreen({ ccId, setCcId, site, setSite }: {
             <span>{rc.releaseCategoryToConsequence.siteInformation.boundingSite.description} {rc.releaseCategoryToConsequence.siteInformation.boundingSite.boundingJustification}</span>
           </div>
         )}
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
+        <div className="posrow posrow--wrap" style={{ gap: 12 }}>
+          {([
+            ["pre_operational", "Pre-operational", "Plant-response data comes from general or design calculations, with gaps from the not-yet-built plant written down as assumptions."],
+            ["operational", "Operational", "Real data and procedures from the running plant are available to confirm the consequence analysis."],
+          ] as [Stage, string, string][]).map(([val, title, body]) => (
+            <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
+              <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
+                <input type="radio" name="rc-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <div>
+                  <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
+                  <div className="possubtle" style={{ fontSize: 12.5 }}>{body}</div>
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="poscard">

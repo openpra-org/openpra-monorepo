@@ -2,6 +2,7 @@ import { JSX } from "react";
 import { MSIcon } from "./msIcons";
 import { Badge, MsProvenanceChip, valText, fracText, pctText } from "./msShared";
 import { useMsWorkbook } from "./msWorkbookContext";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   MS_METHODS,
@@ -19,7 +20,6 @@ import {
   type Stage,
 } from "./msViewData";
 import { categoryIsRiskSignificant, categoryIsWarn, assignedFamilies, headlineRelease } from "./msSelectors";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface MsDrawerContext {
   kind: "category" | "inventory" | "barrier" | "sourceterm";
@@ -41,25 +41,43 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
 
 // ─── 01 — Scope & Inputs ───────────────────────────────────────────────────
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
+  const { ms, editable, mutateMs } = useMsWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateMs((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateMs((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateMs((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <MsProvenanceChip>Linked</MsProvenanceChip>
-        </div>
-        <p className="poscard__sub">Three elements feed the source term, the release-category definitions, the source and barrier inventory, and the risk-significance.</p>
-        <WorkbookUpstreamBar element="MS" />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Mechanistic Source Term and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="MS" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">The first element on the consequence side</span>
-        </div>
-        <p className="poscard__sub">MS takes the categories, the inventory and the significance, and it delivers the source term to the consequence analysis.</p>
-        <WorkbookInterfaceMap element="MS" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this mechanistic source-term analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope release categories, sources of radioactive material, and explicit exclusions."
+          rows={4}
+          value={ms.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -72,7 +90,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -99,7 +117,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="ms-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <input type="radio" name="ms-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

@@ -10,8 +10,8 @@ import {
   type RiStep,
 } from "./riViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, appTypeFromMef, stepsFromMef, type CommentView } from "./riSelectors";
-import { ConvergeScreen, CriteriaScreen, IntegrateScreen, type RiDrawerContext } from "./riScreens";
-import { AggregateScreen, UncertaintyScreen, FeedbackScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./riScreens2";
+import { ConvergeScreen, CriteriaScreen, IntegrateScreen } from "./riScreens";
+import { AggregateScreen, UncertaintyScreen, FeedbackScreen, DraftScreen, PlaceholderScreen } from "./riScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./riReview";
 import { useRiWorkbook, type RiWorkbookData } from "./riWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -245,23 +245,6 @@ function ConformanceDock({ ccId, appType, onGoToCriteria, onClose, mobileOpen }:
   );
 }
 
-function RiDrawer({ context, onClose }: { context: RiDrawerContext; onClose: () => void }): JSX.Element {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent): void { if (e.key === "Escape") onClose(); }
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-  return (
-    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="posdrawer" role="dialog" aria-modal="true">
-        <DrawerContent context={context} onClose={onClose} />
-      </div>
-    </div>
-  );
-}
-
 interface RiWorkbenchActions {
   postComment: (text: string, severity: "MAJOR" | "MINOR" | "OBSERVATION", stepId: string) => Promise<void>;
   toggleResolve: (commentId: string, nextResolved: boolean) => Promise<void>;
@@ -306,7 +289,6 @@ function RiWorkbench({
   const [railMobileOpen, setRailMobileOpen] = useState(false);
   const [dockMobileOpen, setDockMobileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<RiDrawerContext | null>(null);
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -375,7 +357,7 @@ function RiWorkbench({
       case "converge":
         return (
           <>
-            <ConvergeScreen openDrawer={setDrawer} />
+            <ConvergeScreen />
             {renderDocuments?.()}
           </>
         );
@@ -384,7 +366,7 @@ function RiWorkbench({
       case "aggregate": return <AggregateScreen />;
       case "uncertainty": return <UncertaintyScreen />;
       case "feedback": return <FeedbackScreen />;
-      case "draft": return <DraftScreen cc={cc} scores={scores} appType={appType} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
+      case "draft": return <DraftScreen cc={cc} scores={scores} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
         <InternalReviewScreen
@@ -461,7 +443,6 @@ function RiWorkbench({
         )}
       </div>
 
-      {drawer !== null && <RiDrawer context={drawer} onClose={() => setDrawer(null)} />}
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 
       {(isReviewer || isApprover) && (

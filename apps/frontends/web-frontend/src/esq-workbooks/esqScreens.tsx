@@ -2,6 +2,7 @@ import { JSX } from "react";
 import { ESQIcon } from "./esqIcons";
 import { Badge, EsqProvenanceChip, valText, pctText } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   ESQ_METHODS,
@@ -13,7 +14,6 @@ import {
   type Stage,
 } from "./esqViewData";
 import { familyMeanFrequency, familyIsRiskSignificant, familyIsWarn } from "./esqSelectors";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface EsqDrawerContext {
   kind: "family" | "barrier";
@@ -44,25 +44,43 @@ function FamilyContribBar({ frac }: { frac: number }): JSX.Element {
 
 // ─── 01 — Scope & Inputs ───────────────────────────────────────────────────
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateEsq((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateEsq((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateEsq((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <EsqProvenanceChip>Linked</EsqProvenanceChip>
-        </div>
-        <p className="poscard__sub">Each element supplies a distinct piece, combined per source, initiating-event group, hazard group and operating state.</p>
-        <WorkbookUpstreamBar element="ESQ" />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Event Sequence Quantification and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="ESQ" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">The funnel of every element and the auditor of every screen</span>
-        </div>
-        <p className="poscard__sub">ESQ delivers the family frequencies to Risk Integration and the release inputs to the source term, and feeds risk significance back to every input.</p>
-        <WorkbookInterfaceMap element="ESQ" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this event-sequence quantification covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope sources, initiating-event groups, hazard groups, operating states, and explicit exclusions."
+          rows={4}
+          value={esq.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -75,7 +93,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -102,7 +120,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="esq-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <input type="radio" name="esq-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

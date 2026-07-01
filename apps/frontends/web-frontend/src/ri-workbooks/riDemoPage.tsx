@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function RiDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateRi = useCallback((mutator: (ri: RiskIntegration) => RiskIntegration): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ri: mutator(prev.ri) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function RiDemoPage(): JSX.Element {
   }
 
   return (
-    <RiWorkbookProvider data={data}>
+    <RiWorkbookProvider data={data} editable={persona === "preparer"} mutateRi={mutateRi}>
       <RiWorkbench
         data={data}
         persona={persona}

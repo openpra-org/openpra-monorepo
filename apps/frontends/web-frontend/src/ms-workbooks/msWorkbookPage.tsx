@@ -19,6 +19,7 @@ import {
 } from "./msWorkbookApi";
 import { MsWorkbench, type MsWorkbenchActions } from "./msWorkbench";
 import { MsWorkbookProvider, type MsWorkbookData } from "./msWorkbookContext";
+import { useMsMefPatch } from "./useMsMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { MsDocumentsCard } from "./msDocumentsCard";
 import { type MsPersona } from "./msViewData";
@@ -52,6 +53,7 @@ function MsWorkbookPage(): JSX.Element {
   const [data, setData] = useState<MsWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<MsWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -94,6 +96,14 @@ function MsWorkbookPage(): JSX.Element {
   const updateMs = useCallback((ms: MechanisticSourceTermAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ms }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useMsMefPatch(id ?? "", data?.ms ?? null, handleSaveOk, handleSaveErr);
+  const mutateMs = useCallback((mutator: (ms: MechanisticSourceTermAnalysis) => MechanisticSourceTermAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, ms: mutator(prev.ms) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<MsWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -152,11 +162,12 @@ function MsWorkbookPage(): JSX.Element {
 
   const workflowState = data.ms.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <MsWorkbookProvider data={data}>
+    <MsWorkbookProvider data={data} editable={editable} mutateMs={mutateMs}>
       <MsWorkbench
         data={data}
         persona={persona}
@@ -164,10 +175,6 @@ function MsWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.ms, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as MechanisticSourceTermAnalysis;
-          updateMs(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -186,6 +193,12 @@ function MsWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <MsDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as MsWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

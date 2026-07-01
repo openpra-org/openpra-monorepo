@@ -2,6 +2,7 @@ import { JSX } from "react";
 import { DAIcon } from "./daIcons";
 import { Badge, DaProvenanceChip, valText, unitText } from "./daShared";
 import { useDaWorkbook } from "./daWorkbookContext";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   EVIDENCE_LADDER,
@@ -14,37 +15,10 @@ import {
   type Stage,
 } from "./daViewData";
 import { modelLabel, paramIsWarn } from "./daSelectors";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
 
 interface DaDrawerContext {
   kind: "param" | "boundary" | "grouping" | "estimate";
   id: string;
-}
-
-function LadderStrip(): JSX.Element {
-  return (
-    <div className="daladder">
-      {EVIDENCE_LADDER.map((r, i) => {
-        const Icon = DAIcon[r.icon] ?? DAIcon.Database;
-        return (
-          <div key={r.id} className={`daladder__rung daladder__rung--${r.color}`}>
-            <span className="daladder__rung-num">{i + 1}</span>
-            <span className="daladder__icon"><Icon /></span>
-            <div className="daladder__main">
-              <div className="daladder__label">{r.label}</div>
-              <div className="daladder__tag">{r.tag}</div>
-              <p className="daladder__desc">{r.desc}</p>
-            </div>
-            <span className="daladder__sr posmono">{r.rung}</span>
-          </div>
-        );
-      })}
-      <div className="daladder__foot">
-        <DAIcon.Tag />
-        <span>The rung the estimate stands on is always recorded.</span>
-      </div>
-    </div>
-  );
 }
 
 function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Element | null {
@@ -82,34 +56,43 @@ function LadderPosition({ rung }: { rung: string }): JSX.Element {
 
 // ─── 01 — Scope & Sources ──────────────────────────────────────────────────
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
+  const { da, editable, mutateDa } = useDaWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateDa((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    setCcId(newCcId);
+    mutateDa((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateDa((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">The evidence ladder</h3>
-          <span className="possubtle">Strongest pedigree first</span>
-        </div>
-        <p className="poscard__sub">DA fills the empty numeric slots from the model with numbers, each carrying a pedigree.</p>
-        <LadderStrip />
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Data Analysis and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="DA" />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <DaProvenanceChip>Linked</DaProvenanceChip>
-        </div>
-        <p className="poscard__sub">SY hands DA the list of basic events to fill, and POS sets the per-state context and the outage timelines.</p>
-        <WorkbookUpstreamBar element="DA" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">The only sideways supplier in the model</span>
-        </div>
-        <p className="poscard__sub">DA delivers frequencies to IE, basic-event probabilities and CCF parameters to SY, parameters to HR, and every number to ESQ.</p>
-        <WorkbookInterfaceMap element="DA" />
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this data analysis covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope parameters, operating states, and explicit exclusions."
+          rows={4}
+          value={da.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
@@ -122,7 +105,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
@@ -149,7 +132,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="da-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <input type="radio" name="da-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

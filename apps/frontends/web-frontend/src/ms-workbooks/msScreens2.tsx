@@ -355,7 +355,18 @@ function UncertScreen({ stage }: { stage: Stage }): JSX.Element {
 // ─── 07 — Draft (the report template) ──────────────────────────────────────
 function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: CapabilityCategory; scores: CcScore; stage: Stage; onSubmitDraft: () => void; canSubmit: boolean }): JSX.Element {
   const { ms } = useMsWorkbook();
-  const ready = scores.blocked === 0 && scores.warn === 0;
+  const ready = scores.blocked === 0;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(ms, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${ms.name} — MS Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -381,7 +392,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 6 and moves to <strong>Internal Technical Review</strong>.</>
@@ -389,16 +400,8 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onSubmitDraft}><MSIcon.Send /> Submit draft to internal review</button>}
-            <button type="button" className="posnav__btn" onClick={() => { void generateMsReport(ms, false); }}><MSIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>The source-term table flows into the radiological consequence analysis, and risk integration pairs it with the frequency.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="poschip poschip--method"><MSIcon.ArrowR /> Radiological Consequence (RC)</span>
-            <span className="poschip poschip--method"><MSIcon.ArrowR /> Risk Integration (RI)</span>
+            <button type="button" className="posnav__btn" onClick={() => { void generateMsReport(ms, ready); }}><MSIcon.Download /> Download draft (.docx)</button>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><MSIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

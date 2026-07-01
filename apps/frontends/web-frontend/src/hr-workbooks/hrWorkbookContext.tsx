@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -9,16 +9,32 @@ interface HrWorkbookData {
   nms: NewlyDevelopedMethod[];
 }
 
-const HrWorkbookContext = createContext<HrWorkbookData | null>(null);
+type HrMutator = (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis;
 
-function HrWorkbookProvider({ data, children }: { data: HrWorkbookData; children: React.ReactNode }): JSX.Element {
-  return <HrWorkbookContext.Provider value={data}>{children}</HrWorkbookContext.Provider>;
+interface HrWorkbookContextValue extends HrWorkbookData {
+  editable: boolean;
+  mutateHr: (mutator: HrMutator) => void;
 }
 
-function useHrWorkbook(): HrWorkbookData {
+const HrWorkbookContext = createContext<HrWorkbookContextValue | null>(null);
+
+function HrWorkbookProvider({ data, editable, mutateHr, children }: {
+  data: HrWorkbookData;
+  editable: boolean;
+  mutateHr: (mutator: HrMutator) => void;
+  children: React.ReactNode;
+}): JSX.Element {
+  const value = useMemo<HrWorkbookContextValue>(
+    () => ({ ...data, editable, mutateHr }),
+    [data, editable, mutateHr],
+  );
+  return <HrWorkbookContext.Provider value={value}>{children}</HrWorkbookContext.Provider>;
+}
+
+function useHrWorkbook(): HrWorkbookContextValue {
   const ctx = useContext(HrWorkbookContext);
   if (ctx === null) throw new Error("useHrWorkbook must be used inside HrWorkbookProvider");
   return ctx;
 }
 
-export { HrWorkbookProvider, useHrWorkbook, type HrWorkbookData };
+export { HrWorkbookProvider, useHrWorkbook, type HrWorkbookData, type HrMutator };

@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function DaDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function DaDemoPage(): JSX.Element {
   }
 
   return (
-    <DaWorkbookProvider data={data}>
+    <DaWorkbookProvider data={data} editable={persona === "preparer"} mutateDa={mutateDa}>
       <DaWorkbench
         data={data}
         persona={persona}

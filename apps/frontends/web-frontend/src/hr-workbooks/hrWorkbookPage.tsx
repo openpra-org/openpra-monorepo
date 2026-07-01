@@ -19,6 +19,7 @@ import {
 } from "./hrWorkbookApi";
 import { HrWorkbench, type HrWorkbenchActions } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
+import { useHrMefPatch } from "./useHrMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { HrDocumentsCard } from "./hrDocumentsCard";
 import { type HrPersona } from "./hrViewData";
@@ -55,6 +56,7 @@ function HrWorkbookPage(): JSX.Element {
   const [data, setData] = useState<HrWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<HrWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -97,6 +99,14 @@ function HrWorkbookPage(): JSX.Element {
   const updateHr = useCallback((hr: HumanReliabilityAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, hr }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useHrMefPatch(id ?? "", data?.hr ?? null, handleSaveOk, handleSaveErr);
+  const mutateHr = useCallback((mutator: (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, hr: mutator(prev.hr) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<HrWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -155,11 +165,12 @@ function HrWorkbookPage(): JSX.Element {
 
   const workflowState = data.hr.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <HrWorkbookProvider data={data}>
+    <HrWorkbookProvider data={data} editable={editable} mutateHr={mutateHr}>
       <HrWorkbench
         data={data}
         persona={persona}
@@ -167,10 +178,6 @@ function HrWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.hr, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as HumanReliabilityAnalysis;
-          updateHr(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -189,6 +196,12 @@ function HrWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <HrDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as HrWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

@@ -19,6 +19,7 @@ import {
 } from "./syWorkbookApi";
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
 import { SyWorkbookProvider, type SyWorkbookData } from "./syWorkbookContext";
+import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
@@ -53,6 +54,7 @@ function SyWorkbookPage(): JSX.Element {
   const [data, setData] = useState<SyWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<SyWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -95,6 +97,14 @@ function SyWorkbookPage(): JSX.Element {
   const updateSy = useCallback((sy: SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useSyMefPatch(id ?? "", data?.sy ?? null, handleSaveOk, handleSaveErr);
+  const mutateSy = useCallback((mutator: (sy: SystemsAnalysis) => SystemsAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, sy: mutator(prev.sy) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<SyWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -153,11 +163,12 @@ function SyWorkbookPage(): JSX.Element {
 
   const workflowState = data.sy.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <SyWorkbookProvider data={data}>
+    <SyWorkbookProvider data={data} editable={editable} mutateSy={mutateSy}>
       <SyWorkbench
         data={data}
         persona={persona}
@@ -165,10 +176,6 @@ function SyWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.sy, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as SystemsAnalysis;
-          updateSy(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -187,6 +194,12 @@ function SyWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <SyDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as SyWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -70,6 +70,10 @@ function EsDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateEs = useCallback((mutator: (es: EventSequenceAnalysis) => EventSequenceAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, es: mutator(prev.es) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -78,7 +82,7 @@ function EsDemoPage(): JSX.Element {
   }
 
   return (
-    <EsWorkbookProvider data={data}>
+    <EsWorkbookProvider data={data} editable={persona === "preparer"} mutateEs={mutateEs}>
       <EsWorkbench
         data={data}
         persona={persona}

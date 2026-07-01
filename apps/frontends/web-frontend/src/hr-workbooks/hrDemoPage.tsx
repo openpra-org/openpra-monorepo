@@ -1,4 +1,4 @@
-import { JSX, useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
@@ -43,6 +43,10 @@ function HrDemoPage(): JSX.Element {
     return () => { cancelled = true; };
   }, []);
 
+  const mutateHr = useCallback((mutator: (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, hr: mutator(prev.hr) }));
+  }, []);
+
   if (error !== null) {
     return <div className="posw"><main className="posmain"><p className="pws-status pws-status--error">{error}</p></main></div>;
   }
@@ -51,7 +55,7 @@ function HrDemoPage(): JSX.Element {
   }
 
   return (
-    <HrWorkbookProvider data={data}>
+    <HrWorkbookProvider data={data} editable={persona === "preparer"} mutateHr={mutateHr}>
       <HrWorkbench
         data={data}
         persona={persona}

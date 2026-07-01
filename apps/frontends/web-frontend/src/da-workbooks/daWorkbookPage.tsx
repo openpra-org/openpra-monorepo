@@ -19,6 +19,7 @@ import {
 } from "./daWorkbookApi";
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
 import { DaWorkbookProvider, type DaWorkbookData } from "./daWorkbookContext";
+import { useDaMefPatch } from "./useDaMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { DaDocumentsCard } from "./daDocumentsCard";
 import { type DaPersona } from "./daViewData";
@@ -55,6 +56,7 @@ function DaWorkbookPage(): JSX.Element {
   const [data, setData] = useState<DaWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<DaWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
@@ -97,6 +99,14 @@ function DaWorkbookPage(): JSX.Element {
   const updateDa = useCallback((da: DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da }));
   }, []);
+
+  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
+  const { patchDebounced } = useDaMefPatch(id ?? "", data?.da ?? null, handleSaveOk, handleSaveErr);
+  const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
+    setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
+    patchDebounced(mutator);
+  }, [patchDebounced]);
 
   const actions = useMemo<DaWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;
@@ -155,11 +165,12 @@ function DaWorkbookPage(): JSX.Element {
 
   const workflowState = data.da.workflowState;
   const canEdit = myRoles.includes("preparer") || myRoles.includes("co_preparer");
+  const editable = persona === "preparer" && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canLoadExample = canEdit && (workflowState === "DRAFT" || workflowState === "REVISION_REQUIRED");
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <DaWorkbookProvider data={data}>
+    <DaWorkbookProvider data={data} editable={editable} mutateDa={mutateDa}>
       <DaWorkbench
         data={data}
         persona={persona}
@@ -167,10 +178,6 @@ function DaWorkbookPage(): JSX.Element {
         showPersonaPicker={availablePersonas.length > 1}
         availablePersonas={availablePersonas}
         onOpenRoles={() => setRolesOpen(true)}
-        onStageChange={(s) => {
-          const newMef = { ...data.da, plantStage: s === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" } as DataAnalysis;
-          updateDa(newMef);
-        }}
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
@@ -189,6 +196,12 @@ function DaWorkbookPage(): JSX.Element {
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
         renderDocuments={() => <DaDocumentsCard workbookId={id} canEdit={canEdit} />}
       />
+      {saveError !== null && (
+        <div className="ie-savebar" role="alert">
+          <span>Could not save changes: {saveError}</span>
+          <button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button>
+        </div>
+      )}
       {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(res) => setMyRoles(res.myRoles as DaWorkbookRoleName[])} />}
       {loadExOpen && (
         <LoadExampleModal

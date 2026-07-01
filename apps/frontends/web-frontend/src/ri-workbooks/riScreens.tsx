@@ -1,28 +1,27 @@
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import { RIIcon } from "./riIcons";
-import { RiProvenanceChip, valText } from "./riShared";
+import { Badge, RiProvenanceChip, valText } from "./riShared";
 import { useRiWorkbook } from "./riWorkbookContext";
-import { WorkbookUpstreamBar, WorkbookInterfaceMap } from "../workbooks/workbookInterfaces";
+import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   APPLICATION_TYPES,
-  SCOPE_POS_TEXT,
-  SCOPE_NOTE,
-  FAMILY_NAMES,
+  CAPABILITY_CATEGORIES,
   CONSEQUENCE_MEASURE_META,
   CRITERIA_LEVELS,
   REPORTING_FLOOR_NOTES,
   CALC_APPROACHES,
   FC_META,
   CCDF_NOTE,
-  SIG_LABELS,
   type AppTypeId,
 } from "./riViewData";
-import { familySignificance, consequenceOf } from "./riSelectors";
+import { familySignificance } from "./riSelectors";
 
 interface RiDrawerContext {
   kind: "family";
   id: string;
 }
+
+type Stage = "pre_operational" | "operational";
 
 // ─── Log-scale helpers for the plots ───────────────────────────────────────
 function log10(v: number): number {
@@ -37,58 +36,34 @@ function expTick(p: number): string {
 }
 
 // ─── 01 — Scope (RI-B1) ────────────────────────────────────────────────────
-function ConvergeScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => void }): JSX.Element {
-  const { ri } = useRiWorkbook();
+function ConvergeScreen(): JSX.Element {
+  const { ri, editable, mutateRi } = useRiWorkbook();
   const scope = ri.scopeDefinition;
-  const latentMetric = ri.integratedRiskResults.metrics[0];
+  const ccId = ri.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
+  const [stage, setStage] = useState<Stage>(ri.plantStage === "OPERATIONAL" ? "operational" : "pre_operational");
+
+  function onScopeChange(value: string): void {
+    if (!editable) return;
+    mutateRi((draft) => ({ ...draft, praScope: value }));
+  }
+  function onCcChange(newCcId: string): void {
+    if (!editable) return;
+    mutateRi((draft) => ({ ...draft, capabilityCategory: newCcId === "cc-i" ? "CC-I" : "CC-II" }));
+  }
+  function onStageChange(newStage: Stage): void {
+    if (!editable) return;
+    setStage(newStage);
+    mutateRi((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
+  }
+
+  const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Upstream inputs</h3>
-          <RiProvenanceChip>RI-B1</RiProvenanceChip>
-        </div>
-        <p className="poscard__sub">RI compiles two pipelines, the family frequencies from ESQ and the family consequences from RC.</p>
-        <WorkbookUpstreamBar element="RI" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
-          <span className="possubtle">Where RI sits in the model</span>
-        </div>
-        <p className="poscard__sub">RI is the convergence point, so it consumes from every upstream element and dispatches the risk significance back down.</p>
-        <WorkbookInterfaceMap element="RI" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">The risk equation</h3>
-          <RiProvenanceChip>RI-B1 · B2</RiProvenanceChip>
-        </div>
-        <p className="poscard__sub">The frequency jaw and the consequence jaw finally close, and RI multiplies them into the integrated risk.</p>
-        <div className="rieq">
-          <div className="rieq__term rieq__term--freq">
-            <span className="rieq__cap">Frequency jaw</span>
-            <span className="rieq__val">{ri.compiledRiskInputs.length} families</span>
-            <span className="rieq__sub">The family frequencies from HLR-ESQ-D.</span>
-            <span className="rieq__src">ESQ · RI-B1</span>
-          </div>
-          <div className="rieq__op">&times;</div>
-          <div className="rieq__term rieq__term--cons">
-            <span className="rieq__cap">Consequence jaw</span>
-            <span className="rieq__val">{scope.releaseCategoryRefs?.length ?? 0} categories</span>
-            <span className="rieq__sub">The consequence table from HLR-RCQ-D.</span>
-            <span className="rieq__src">RC · RI-B1</span>
-          </div>
-          <div className="rieq__op">=</div>
-          <div className="rieq__term rieq__term--risk">
-            <span className="rieq__cap">Integrated risk</span>
-            <span className="rieq__val">{valText(latentMetric?.value)}</span>
-            <span className="rieq__sub">Per plant-year latent cancer risk.</span>
-            <span className="rieq__src">RI-B2</span>
-          </div>
-        </div>
+        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <p className="poscard__sub">What flows into Risk Integration and what it feeds. Select an element to see the data exchanged.</p>
+        <WorkbookInterfaceTiles element="RI" />
       </div>
 
       <div className="poscard">
@@ -110,56 +85,67 @@ function ConvergeScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => 
               {scope.hazardGroups.map((h) => <span key={h} className="poschip">{h}</span>)}
             </div>
           </div>
-          <div className="posfield"><label className="posfield__label">Plant operating states</label><div style={{ fontSize: 12.5 }}>{SCOPE_POS_TEXT}</div></div>
+          <div className="posfield"><label className="posfield__label">Plant operating states</label><div style={{ fontSize: 12.5 }}>{scope.plantOperatingStateRefs.join(", ")}</div></div>
           <div className="posfield"><label className="posfield__label">Radioactive sources</label><div style={{ fontSize: 12.5 }}>{scope.radioactiveMaterialSources.join(", ")}</div></div>
           <div className="posfield"><label className="posfield__label">Families compiled</label><div className="posmono" style={{ fontWeight: 700 }}>{ri.compiledRiskInputs.length}</div></div>
           <div className="posfield"><label className="posfield__label">Release categories</label><div className="posmono" style={{ fontWeight: 700 }}>{scope.releaseCategoryRefs?.length ?? 0}</div></div>
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RIIcon.Gauge />
-          <span>{SCOPE_NOTE}</span>
-        </div>
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <p className="poscard__sub">Describe what this risk integration covers and what it excludes.</p>
+        <textarea
+          className="posfield__textarea"
+          placeholder="State the in-scope consequence measures, hazard groups, and explicit exclusions."
+          rows={4}
+          value={ri.praScope}
+          disabled={!editable}
+          onChange={(e) => onScopeChange(e.target.value)}
+        />
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Compiled inputs</h3>
-          <RiProvenanceChip>RI-B1</RiProvenanceChip>
+          <h3 className="poscard__title">Capability category</h3>
+          <Badge kind="progress">{cc.tag}</Badge>
         </div>
-        <p className="poscard__sub">Each family carries a frequency from ESQ and a consequence from the release category that bounds it.</p>
-        <div className="rifam">
-          {ri.compiledRiskInputs.map((f) => {
-            const sig = familySignificance(ri, f.eventSequenceFamilyRef);
-            const sigCls = sig === "HIGH" ? "high" : sig === "MEDIUM" ? "medium" : "low";
-            const latent = consequenceOf(f, "Latent cancer risk");
+        <p className="poscard__sub">This sets how detailed the risk integration must be.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+          {CAPABILITY_CATEGORIES.map((c) => {
+            const active = c.id === ccId;
             return (
-              <div key={f.uuid} className={`rifam__card${sig === "LOW" ? " rifam__card--low" : ""}`} onClick={() => openDrawer({ kind: "family", id: f.eventSequenceFamilyRef })}>
-                <div className="rifam__head">
-                  <div className="rifam__head-main">
-                    <div className="rifam__id posmono">{f.eventSequenceFamilyRef}{f.releaseCategoryRef !== undefined ? ` · bounds ${f.releaseCategoryRef}` : ""}</div>
-                    <div className="rifam__name">{FAMILY_NAMES[f.eventSequenceFamilyRef] ?? f.eventSequenceFamilyRef}</div>
-                  </div>
-                  <span className={`rifam__sig rifam__sig--${sigCls}`}>{SIG_LABELS[sig]}</span>
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
+                style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Literata', serif", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
+                  <span className="possubtle" style={{ fontSize: 12 }}>{c.tag}</span>
                 </div>
-                <div className="rifam__jaws">
-                  <div className="rifam__jaw rifam__jaw--freq">
-                    <span className="rifam__jaw-k"><RIIcon.Tree /> Frequency</span>
-                    <span className="rifam__jaw-v posmono">{valText(f.frequency)}</span>
-                    <span className="rifam__jaw-u">per plant-year</span>
-                  </div>
-                  <div className="rifam__jaw rifam__jaw--cons">
-                    <span className="rifam__jaw-k"><RIIcon.Wind /> Consequence</span>
-                    <span className="rifam__jaw-v posmono">{valText(latent)}</span>
-                    <span className="rifam__jaw-u">latent risk per event</span>
-                  </div>
-                </div>
-              </div>
+                <div className="possubtle">{c.description}</div>
+              </button>
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RIIcon.Sigma />
-          <span>The two early-release families drive the total, since they pair a mid frequency with the highest consequence.</span>
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
+        <div className="posrow posrow--wrap" style={{ gap: 12 }}>
+          {([
+            ["pre_operational", "Pre-operational", "Plant-response data comes from general or design calculations, with gaps from the not-yet-built plant written down as assumptions."],
+            ["operational", "Operational", "Real data and procedures from the running plant are available to confirm the integrated risk results."],
+          ] as [Stage, string, string][]).map(([val, title, body]) => (
+            <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
+              <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
+                <input type="radio" name="ri-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <div>
+                  <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
+                  <div className="possubtle" style={{ fontSize: 12.5 }}>{body}</div>
+                </div>
+              </div>
+            </label>
+          ))}
         </div>
       </div>
     </>

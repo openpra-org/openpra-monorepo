@@ -21,7 +21,6 @@ import {
   HRA_METHODS,
   DEPENDENCE_THEME,
   HR_TOC,
-  HR_DOWNSTREAM_LINKS,
   type CapabilityCategory,
 } from "./hrViewData";
 import { type CcScore } from "./hrSelectors";
@@ -474,6 +473,17 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }): JSX.Element {
   const { hr } = useHrWorkbook();
   const ready = scores.blocked === 0 && scores.warn === 0;
+  function downloadJson(): void {
+    const blob = new Blob([JSON.stringify(hr, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${hr.name} — HR Analysis.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
   return (
     <div className="posgen">
       <div className="posgen__preview" aria-hidden="true">
@@ -495,7 +505,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Send to internal review</h3>
+          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 9 and moves to <strong>Internal Technical Review</strong>.</>
@@ -508,15 +518,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
               </button>
             )}
             <button type="button" className="posnav__btn" onClick={() => { void generateHrReport(hr, ready); }}><HRIcon.Download /> Download draft (.docx)</button>
-          </div>
-        </div>
-        <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Where it goes next</h3>
-          <p style={{ margin: "0 0 10px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>The human error probabilities are multiplied through the sequences by ESQ.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {HR_DOWNSTREAM_LINKS.map((d) => <span key={d.id} className="poschip poschip--method"><HRIcon.ArrowR /> {d.element}</span>)}
-            <span className="poschip poschip--method"><HRIcon.ArrowR /> Systems Analysis (SY)</span>
-            <span className="poschip poschip--method"><HRIcon.ArrowR /> Event Sequence Analysis (ES)</span>
+            <button type="button" className="posnav__btn" onClick={downloadJson}><HRIcon.Download /> Download JSON</button>
           </div>
         </div>
       </div>

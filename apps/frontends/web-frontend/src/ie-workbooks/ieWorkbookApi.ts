@@ -22,8 +22,17 @@ async function patchIeWorkbook(workbookId: string, mef: InitiatingEventsAnalysis
   return patchJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}`, { mef });
 }
 
-async function loadIeExample(workbookId: string): Promise<IeWorkbookResponse> {
-  return postJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}/load-example`, {});
+interface IeExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getIeExampleOptions(): Promise<IeExampleOption[]> {
+  return fetchJson<IeExampleOption[]>("/api/example-workbooks/ie-examples");
+}
+
+async function loadIeExample(workbookId: string, exampleId?: string): Promise<IeWorkbookResponse> {
+  return postJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadIeExample(workbookId: string): Promise<IeWorkbookResponse> {
@@ -107,6 +116,7 @@ async function getIeDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getIeWorkbook,
   patchIeWorkbook,
+  getIeExampleOptions,
   loadIeExample,
   unloadIeExample,
   getIePosLink,
@@ -124,4 +134,5 @@ export {
   type ImportedPosState,
   type ImportedPosSource,
   type IeDocumentEntry,
+  type IeExampleOption,
 };

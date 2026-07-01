@@ -62,6 +62,27 @@
 .iefq__add:hover {
   background: var(--color-primary-hover, var(--color-primary));
 }
+.iefq__hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.iefq__ghost {
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.iefq__ghost:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
 
 /* Body */
 .iefq__body {
@@ -124,6 +145,43 @@
   accent-color: var(--color-primary);
   cursor: pointer;
 }
+.iefq-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+.iefq-card__toggle:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.iefq-card__toggle--open {
+  transform: rotate(90deg);
+}
+.iefq-card__chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.iefq-card--primary .iefq-card__chip {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
 .iefq-card__label {
   flex: 1;
   min-width: 160px;
@@ -146,9 +204,19 @@
 }
 .iefq-card__label-text {
   flex: 1;
+  min-width: 140px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px 4px;
+  font: inherit;
   font-size: 14.5px;
   font-weight: 700;
   color: var(--color-text);
+}
+.iefq-card__label-text:hover {
+  color: var(--color-primary);
 }
 .iefq-card__badge {
   font-size: 11px;
@@ -318,19 +386,54 @@
   padding: 0 16px 16px;
 }
 
-/* Embedded fault tree */
-.iefq-ft {
-  position: relative;
-  height: 400px;
-  margin: 4px 16px 0;
+/* Fault-tree summary in the data-source card */
+.iefq-ftsummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 16px 12px;
+  padding: 12px 14px;
   border: 1px solid var(--color-border);
   border-radius: 11px;
-  overflow: hidden;
   background: var(--color-bg-to);
 }
-.iefq-ft > .fted {
-  position: absolute;
+.iefq-ftsummary__text {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+/* Full-screen fault-tree editor (portaled to <body>, so it fills the viewport) */
+.iefq-ftmodal {
+  position: fixed;
   inset: 0;
+  z-index: 1000;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+}
+.iefq-ftmodal__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+.iefq-ftmodal__title {
+  font-family: 'Literata', serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--color-text);
+}
+.iefq-ftmodal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
 }
 
 /* Footer */

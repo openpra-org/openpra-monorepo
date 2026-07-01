@@ -78,7 +78,7 @@ export class IeWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<IeWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<IeWorkbookResponse> {
     const doc = await this.ieWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("IE workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -88,7 +88,7 @@ export class IeWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getIeBundle();
+    const example = await this.exampleWorkbooksService.getIeBundle(exampleId);
     const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(example.ie.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

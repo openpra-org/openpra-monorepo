@@ -20,10 +20,12 @@ import {
   getIeWorkbook,
   getIePosLink,
   linkPosWorkbook,
+  getIeExampleOptions,
   loadIeExample,
   unloadIeExample,
   type IeWorkbookRoleName,
   type IePosLinkStatus,
+  type IeExampleOption,
 } from "./ieWorkbookApi";
 import { IeWorkbench, type IeWorkbenchActions } from "./ieWorkbench";
 import { IeWorkbookProvider, type IeWorkbookData } from "./ieWorkbookContext";
@@ -69,10 +71,19 @@ function IeWorkbookPage(): JSX.Element {
   const [posLinkOpen, setPosLinkOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
+  const [exampleOptions, setExampleOptions] = useState<IeExampleOption[]>([]);
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [projectName, setProjectName] = useState<string>("");
   const workbookName = data?.ie.name ?? "";
   const workbookVersion = data?.ie.version ?? "1";
+
+  useEffect(() => {
+    let cancelled = false;
+    getIeExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (id === undefined) return;
@@ -247,9 +258,10 @@ function IeWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="IE"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadIeExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadIeExample(id, exampleId);
             updateIe(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             await refreshPosLink();

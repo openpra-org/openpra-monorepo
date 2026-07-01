@@ -26,6 +26,11 @@ interface PosBundleResponse {
   pos: { mef: unknown };
 }
 
+interface IeExampleOption {
+  id: string;
+  label: string;
+}
+
 function buildPosLink(ie: InitiatingEventsAnalysis, pos: PlantOperatingStatesAnalysis): IePosLinkStatus {
   const wanted = new Set(ie.applicablePlantOperatingStates);
   const wantedStates = pos.plantOperatingStates.filter((s) => wanted.has(s.uuid));
@@ -44,24 +49,46 @@ function buildPosLink(ie: InitiatingEventsAnalysis, pos: PlantOperatingStatesAna
       }
     }
   }
+  const plantName = pos.metadata.plantIdentity?.name ?? "Generic";
   return {
     linkedPosWorkbookId: "example",
-    linkedName: "Generic HTGR POS Workbook",
+    linkedName: `${plantName} POS Workbook`,
     states,
     sources: Array.from(sourceById.values()),
   };
 }
 
 function IeDemoPage(): JSX.Element {
+  const [examples, setExamples] = useState<IeExampleOption[]>([]);
+  const [selected, setSelected] = useState<string>("");
   const [data, setData] = useState<IeWorkbookData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [persona, setPersona] = useState<IePersona>("preparer");
 
   useEffect(() => {
     let cancelled = false;
+    fetchJson<IeExampleOption[]>("/api/example-workbooks/ie-examples")
+      .then((res) => {
+        if (cancelled) return;
+        setExamples(res);
+        setSelected((cur) => (cur.length > 0 ? cur : res[0]?.id ?? "htgr"));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelected((cur) => (cur.length > 0 ? cur : "htgr"));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (selected.length === 0) return () => { cancelled = true; };
+    setData(null);
+    setError(null);
+    const query = `?example=${encodeURIComponent(selected)}`;
     Promise.all([
-      fetchJson<IeBundleResponse>("/api/example-workbooks/ie-bundle"),
-      fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle"),
+      fetchJson<IeBundleResponse>(`/api/example-workbooks/ie-bundle${query}`),
+      fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle${query}`),
     ])
       .then(([res, posRes]) => {
         if (cancelled) return;
@@ -79,7 +106,7 @@ function IeDemoPage(): JSX.Element {
         setError((err as { message?: string }).message ?? "Could not load the example workbook");
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [selected]);
 
   const mutateIe = useCallback((mutator: (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ie: mutator(prev.ie) }));
@@ -96,12 +123,15 @@ function IeDemoPage(): JSX.Element {
   const stageLabel = data.ie.plantStage === "OPERATIONAL" ? "Operational" : "Pre-operational";
 
   return (
-    <IeWorkbookProvider data={data} editable={persona === "preparer"} mutateIe={mutateIe}>
+    <IeWorkbookProvider key={selected} data={data} editable={persona === "preparer"} mutateIe={mutateIe}>
       <IeWorkbench
         data={data}
         persona={persona}
         setPersona={setPersona}
         showPersonaPicker={true}
+        exampleOptions={examples}
+        selectedExample={selected}
+        onSelectExample={setSelected}
         headerMeta={{
           projectName: identity !== undefined ? `${identity.name} ${stageLabel} PRA` : "Generic HTGR Pre-operational PRA",
           workbookName: data.ie.name,

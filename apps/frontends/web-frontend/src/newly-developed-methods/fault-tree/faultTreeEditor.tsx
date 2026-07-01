@@ -1,4 +1,4 @@
-import { JSX, useMemo, useRef, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -6,6 +6,7 @@ import ReactFlow, {
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   type Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -152,6 +153,12 @@ function FaultTreeCanvas({ input, flavor, embedded = false }: { input: FtInputNo
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [editing, setEditing] = useState<MenuState | null>(null);
   const [detail, setDetail] = useState<MenuState | null>(null);
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => fitView({ padding: 0.2, minZoom: 0.4, maxZoom: 1 }));
+    return () => cancelAnimationFrame(raf);
+  }, [fitView]);
 
   const newId = (): string => {
     const id = `ft-${seq.current}`;
@@ -251,8 +258,8 @@ function FaultTreeCanvas({ input, flavor, embedded = false }: { input: FtInputNo
           proOptions={{ hideAttribution: true }}
         >
           <Background gap={22} size={1} color="var(--color-border)" />
-          <Controls showInteractive={false} />
-          <MiniMap pannable zoomable nodeStrokeWidth={2} />
+          <Controls showInteractive={false} position={embedded ? "top-left" : "bottom-left"} />
+          {!embedded && <MiniMap pannable zoomable nodeStrokeWidth={2} />}
         </ReactFlow>
       </div>
       {menu !== null && menuNode !== null && (

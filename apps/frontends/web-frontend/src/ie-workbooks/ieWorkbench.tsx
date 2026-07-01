@@ -67,7 +67,7 @@ interface HeaderMeta {
 }
 
 function WorkspaceHeader({
-  persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, onToggleRail, onToggleDock,
+  persona, setPersona, workflowState, showPersonaPicker, availablePersonas, onOpenRoles, onLoadExample, onUnloadExample, headerMeta, onToggleRail, onToggleDock, exampleOptions, selectedExample, onSelectExample,
 }: {
   persona: IePersona;
   setPersona: (p: IePersona) => void;
@@ -80,6 +80,9 @@ function WorkspaceHeader({
   headerMeta: HeaderMeta;
   onToggleRail?: () => void;
   onToggleDock?: () => void;
+  exampleOptions?: { id: string; label: string }[];
+  selectedExample?: string;
+  onSelectExample?: (id: string) => void;
 }): JSX.Element {
   const navigate = useNavigate();
   const isReviewer = persona === "reviewer";
@@ -126,6 +129,16 @@ function WorkspaceHeader({
       <div className="poshd__spacer" />
 
       <div className="poshd__actions">
+        {exampleOptions !== undefined && exampleOptions.length > 1 && onSelectExample !== undefined && (
+          <label className="poshd__perspective" title="Switch the worked example">
+            <span className="poshd__perspective-label">Example</span>
+            <select className="poshd__perspective-select" value={selectedExample} onChange={(e) => onSelectExample(e.target.value)}>
+              {exampleOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {showPersonaPicker && availablePersonas.length > 1 && (
           <label className="poshd__perspective" title="Switch perspective">
             <span className="poshd__perspective-label">View as</span>
@@ -275,7 +288,7 @@ interface IeWorkbenchActions {
 const DEFAULT_PERSONAS: IePersona[] = ["preparer", "reviewer", "approver"];
 
 function IeWorkbench({
-  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster,
+  data, persona, setPersona, showPersonaPicker, availablePersonas = DEFAULT_PERSONAS, onOpenRoles, onLoadExample, onUnloadExample, onOpenPosLink, onStageChange, actions, headerMeta, renderApprovalTable, renderSignCard, renderRoster, exampleOptions, selectedExample, onSelectExample,
 }: {
   data: IeWorkbookData;
   persona: IePersona;
@@ -292,6 +305,9 @@ function IeWorkbench({
   renderApprovalTable?: () => JSX.Element | null;
   renderSignCard?: () => JSX.Element | null;
   renderRoster?: () => JSX.Element | null;
+  exampleOptions?: { id: string; label: string }[];
+  selectedExample?: string;
+  onSelectExample?: (id: string) => void;
 }): JSX.Element {
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
@@ -435,7 +451,7 @@ function IeWorkbench({
       {drawer !== null && <IeDrawer context={drawer} onClose={closeDrawer} />}
       {isReviewer && <div className="poshd__extbar" />}
       {isApprover && <div className="poshd__apprbar" />}
-      <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} />
+      <WorkspaceHeader persona={persona} setPersona={setPersona} workflowState={workflowState} showPersonaPicker={showPersonaPicker} availablePersonas={availablePersonas} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailMobileOpen((v) => !v)} onToggleDock={() => { setDockOpen(true); setDockMobileOpen((v) => !v); }} exampleOptions={exampleOptions} selectedExample={selectedExample} onSelectExample={onSelectExample} />
 
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
         <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />

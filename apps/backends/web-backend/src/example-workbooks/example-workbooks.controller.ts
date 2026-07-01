@@ -6,6 +6,7 @@ import {
   type PosExampleBundle,
   type PosExampleOption,
   type IeExampleBundle,
+  type IeExampleOption,
   type EsExampleBundle,
   type ScExampleBundle,
   type SyExampleBundle,
@@ -34,10 +35,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getPosBundle(example);
   }
 
+  @Get("ie-examples")
+  @HttpCode(HttpStatus.OK)
+  getIeExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getIeExamples();
+  }
+
   @Get("ie-bundle")
   @HttpCode(HttpStatus.OK)
-  getIeBundle(): Promise<IeExampleBundle> {
-    return this.exampleWorkbooksService.getIeBundle();
+  getIeBundle(@Query("example") example?: string): Promise<IeExampleBundle> {
+    return this.exampleWorkbooksService.getIeBundle(example);
   }
 
   @Get("es-bundle")

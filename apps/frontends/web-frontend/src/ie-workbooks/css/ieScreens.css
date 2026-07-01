@@ -132,11 +132,21 @@
 .iefreq__flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--color-text-subtle); }
 .iefreq__flag svg { width: 13px; height: 13px; }
 .iefreq__flag--ok { color: var(--color-success, #2e7d4f); }
-.iefreq__entry { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.iefreq__input { width: 150px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 7px; padding: 6px 9px; font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--color-text); background: var(--color-surface-low); }
+.iefreq__entry { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 40px; }
+.iefreq__input { flex: 0 0 auto; width: 150px; box-sizing: border-box; border: 1px solid var(--color-border); border-radius: 8px; padding: 9px 12px; font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--color-text); background: var(--color-surface-low); }
 .iefreq__input:hover { border-color: var(--color-border-strong); }
-.iefreq__input:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); }
-.iefreq__entry-unit { font-size: 12px; color: var(--color-text-muted); }
+.iefreq__input:focus { outline: none; border-color: var(--color-primary); background: var(--color-surface); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.iefreq__entry-unit { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
+
+/* Frequency-step quantification expand row (shared by both example reactors) */
+.iefreq__fieldset { border: 0; margin: 0; min-inline-size: 0; }
+/* Uniform 40px control height across Target, Mean frequency, Basis and the quantifier button, text vertically centered */
+.iefreq__fieldset .posfield__input,
+.iefreq__input { box-sizing: border-box; height: 40px; }
+.iefreq__sources { display: flex; align-items: center; gap: 10px; min-height: 40px; flex-wrap: wrap; }
+.iefreq__sources .posnav__btn { box-sizing: border-box; height: 40px; align-items: center; }
+.iefreq__sources .possubtle { font-size: 12px; }
+.iefreq__danger { margin-top: 4px; }
 
 /* Completeness check list — icon-pill style matches reference */
 .iecheck-list { display: flex; flex-direction: column; gap: 8px; }

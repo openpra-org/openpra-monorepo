@@ -1058,7 +1058,7 @@ function ScreeningScreen(): JSX.Element {
                       <tr className="postable__expand-row">
                         <td />
                         <td colSpan={4}>
-                          <fieldset disabled={!editable} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                          <fieldset disabled={!editable} className="postable__expand-body iefreq__fieldset">
                             <div className="posfield-grid">
                               <div className="posfield">
                                 <label className="posfield__label">Target</label>
@@ -1307,7 +1307,7 @@ function FrequencyScreen(): JSX.Element {
                       <tr className="postable__expand-row">
                         <td />
                         <td colSpan={4}>
-                          <fieldset disabled={!editable} className="postable__expand-body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                          <fieldset disabled={!editable} className="postable__expand-body iefreq__fieldset">
                             <div className="posfield-grid">
                               <div className="posfield">
                                 <label className="posfield__label">Target</label>
@@ -1330,9 +1330,9 @@ function FrequencyScreen(): JSX.Element {
                               </div>
                               <div className="posfield">
                                 <label className="posfield__label">Data sources</label>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div className="iefreq__sources">
                                   <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setOpenQuantId(id)}>Open quantifier →</button>
-                                  <span className="possubtle" style={{ fontSize: 12 }}>{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
+                                  <span className="possubtle">{(q.dataSources ?? []).length} source{(q.dataSources ?? []).length === 1 ? "" : "s"}</span>
                                 </div>
                               </div>
                               <div className="posfield posfield-grid--span2">
@@ -1348,7 +1348,7 @@ function FrequencyScreen(): JSX.Element {
                                 <AutoTextarea value={q.dataSourceJustification} placeholder="How the frequency was derived and from what data." onChange={(v) => patchQuant(id, { dataSourceJustification: v })} />
                               </div>
                             </div>
-                            {editable && <div style={{ marginTop: 10 }}><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => deleteQuant(id)}><IEIcon.Close /> Delete quantification</button></div>}
+                            {editable && <div className="iefreq__danger"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => deleteQuant(id)}><IEIcon.Close /> Delete quantification</button></div>}
                           </fieldset>
                         </td>
                       </tr>
@@ -1373,6 +1373,7 @@ function FrequencyScreen(): JSX.Element {
           </div>
           <div className="ftspace__body">
             <IeFrequencyQuantificationEditor
+              key={openQuant.initiatorOrGroupId}
               sources={openQuant.dataSources ?? []}
               primaryId={openQuant.primaryDataSourceId}
               numberOfModules={numberOfModules}

@@ -207,7 +207,7 @@ const modelIntegration: ModelIntegration = {
   integrationVerification: "The integrated model is checked against the sequence delineation and the system models before quantification.",
   scopeCoverage: {
     radionuclideSources: ["SRC-CORE", "SRC-COVER-GAS"],
-    initiatingEventGroups: ["IEG-TRANS", "IEG-LOF", "IEG-LOOP", "IEG-NA-LEAK", "IEG-RIT", "IEG-LHS"],
+    initiatingEventGroups: ["IEG-01", "IEG-02", "IEG-03", "IEG-04", "IEG-05", "IEG-06", "IEG-07", "IEG-08", "IEG-09", "IEG-10", "IEG-11", "IEG-12", "IEG-13", "HZ-FIRE", "HZ-SEIS"],
     hazardGroups: ["Internal events", "Seismic", "External flood"],
     plantOperatingStates: ["POS-1", "POS-2", "POS-3", "POS-4", "POS-5", "POS-6", "POS-7", "POS-8", "POS-9"],
     plantEvolutions: ["EVOL-STARTUP", "EVOL-FULL-POWER", "EVOL-SHUTDOWN", "EVOL-REFUELING"],

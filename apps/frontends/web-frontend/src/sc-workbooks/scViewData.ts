@@ -98,12 +98,12 @@ interface InitiatorSpec {
 }
 
 const SC_INITIATORS: Record<string, InitiatorSpec> = {
-  "IEG-LOHS": { id: "IEG-LOHS", name: "Loss of heat sink", short: "LOHS", icon: "Thermo" },
-  "IEG-LOFA": { id: "IEG-LOFA", name: "Loss of primary flow (ULOF)", short: "LOFA", icon: "Wind" },
-  "IEG-RCB": { id: "IEG-RCB", name: "Primary sodium boundary leak", short: "RCB", icon: "Pipe" },
-  "IEG-TRANS": { id: "IEG-TRANS", name: "General transient", short: "TRANS", icon: "Bolt" },
-  "IE-15": { id: "IE-15", name: "Internal sodium fire", short: "FIRE", icon: "Beaker" },
-  "IE-17": { id: "IE-17", name: "Seismic event", short: "SEIS", icon: "Network" },
+  "IEG-03": { id: "IEG-03", name: "Loss of heat sink", short: "LOHS", icon: "Thermo" },
+  "IEG-01": { id: "IEG-01", name: "Loss of primary flow (ULOF)", short: "LOFA", icon: "Wind" },
+  "IEG-07": { id: "IEG-07", name: "Primary sodium boundary leak", short: "RCB", icon: "Pipe" },
+  "IEG-06": { id: "IEG-06", name: "General transient", short: "TRANS", icon: "Bolt" },
+  "HZ-FIRE": { id: "HZ-FIRE", name: "Internal sodium fire", short: "FIRE", icon: "Beaker" },
+  "HZ-SEIS": { id: "HZ-SEIS", name: "Seismic event", short: "SEIS", icon: "Network" },
 };
 
 const SC_POS_NAMES: Record<string, string> = {
@@ -274,11 +274,11 @@ const SC_PASSIVE_NOTES: Record<string, string> = {
 };
 
 const SC_MISSION_IE: Record<string, string> = {
-  "MT-LOHS": "IEG-LOHS",
-  "MT-LOFA": "IEG-LOFA",
-  "MT-RCB": "IEG-RCB",
-  "MT-SEIS": "IE-17",
-  "MT-FIRE": "IE-15",
+  "MT-LOHS": "IEG-03",
+  "MT-LOFA": "IEG-01",
+  "MT-RCB": "IEG-07",
+  "MT-SEIS": "HZ-SEIS",
+  "MT-FIRE": "HZ-FIRE",
 };
 
 const SC_MISSION_SEQ: Record<string, string> = {
@@ -290,14 +290,14 @@ const SC_MISSION_SEQ: Record<string, string> = {
 };
 
 const SC_CRITERION_SYSTEMS: Record<string, string[]> = {
-  "SF-RC|IEG-LOHS": ["SYS-RPS", "SYS-FEEDBACK"],
-  "SF-DHR|IEG-LOHS": ["SYS-DRACS"],
-  "SF-DHR|IEG-LOFA": ["SYS-PRIMARY", "SYS-DRACS"],
-  "SF-INV|IEG-RCB": ["SYS-GUARD", "SYS-ISOL"],
-  "SF-RC|IEG-TRANS": ["SYS-RPS", "SYS-FEEDBACK"],
-  "SF-CONF|IEG-LOHS": ["SYS-CONF"],
-  "SF-DHR|IE-15": ["SYS-DRACS", "SYS-SUPP"],
-  "SF-INV|IE-17": ["SYS-GUARD"],
+  "SF-RC|IEG-03": ["SYS-RPS", "SYS-FEEDBACK"],
+  "SF-DHR|IEG-03": ["SYS-DRACS"],
+  "SF-DHR|IEG-01": ["SYS-PRIMARY", "SYS-DRACS"],
+  "SF-INV|IEG-07": ["SYS-GUARD", "SYS-ISOL"],
+  "SF-RC|IEG-06": ["SYS-RPS", "SYS-FEEDBACK"],
+  "SF-CONF|IEG-03": ["SYS-CONF"],
+  "SF-DHR|HZ-FIRE": ["SYS-DRACS", "SYS-SUPP"],
+  "SF-INV|HZ-SEIS": ["SYS-GUARD"],
 };
 
 export type {

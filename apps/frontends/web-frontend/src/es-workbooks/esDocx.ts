@@ -11,7 +11,8 @@ import {
   BorderStyle,
 } from "docx";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
-import { ES_LBE_CLASSES, ES_LICENSING_BASIS_EVENTS } from "./esViewData";
+import { ES_LBE_CLASSES } from "./esViewData";
+import { lbeView } from "./esSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({
@@ -178,13 +179,13 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   out.push(heading("Preliminary point-estimate licensing basis events", HeadingLevel.HEADING_1));
   out.push(para("Each sequence family is placed into a preliminary licensing-basis-event class by its point-estimate frequency, pending the full ESQ uncertainty quantification."));
   out.push(dataTable(
-    ["LBE", "Source family", "RC", "Point estimate", "Class"],
-    ES_LICENSING_BASIS_EVENTS.map((lbe) => [`${lbe.id}: ${lbe.name}`, lbe.basis, lbe.releaseCategoryId ?? "Safe state", fmtFreq(lbe.meanFrequency), ES_LBE_CLASSES[lbe.lbeClass].label]),
+    ["Family", "RC", "Point estimate", "Class"],
+    lbeView(a).map((lbe) => [`${lbe.familyId}: ${lbe.name}`, lbe.releaseCategoryId ?? "Safe state", fmtFreq(lbe.meanFrequency), lbe.lbeClass !== undefined ? ES_LBE_CLASSES[lbe.lbeClass].label : "Below 5E-7 /yr"]),
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));
   out.push(bullet("Generic-1 event-sequence model package"));
-  out.push(bullet("Plant-response T/H calculations (RELAP/SAS)"));
+  out.push(bullet("Plant-response thermal-hydraulic calculations"));
   out.push(bullet("Success-criteria workbook (linked)"));
   out.push(bullet("IE Workbook: groups & frequencies"));
   out.push(bullet("Dependency & CCF basis memo"));

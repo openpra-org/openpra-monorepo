@@ -189,7 +189,6 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
   const timingComplete = es.eventSequences.some((s) => (s.timing?.length ?? 0) > 0);
   const endStatesComplete = (es.releaseCategoryMappings ?? []).length > 0;
   const familiesComplete = es.eventSequenceFamilies.length > 0;
-  const screeningComplete = es.screeningRecords.length > 0;
   const quantComplete = es.eventSequenceFamilies.some((f) => f.meanFrequency !== undefined);
   const draftComplete = es.workflowState !== "DRAFT" && es.workflowState !== "REVISION_REQUIRED";
   const reviewComplete = es.workflowState === "FINAL";
@@ -206,7 +205,6 @@ function stepsFromMef(es: EventSequenceAnalysis, persona: EsPersona): EsStep[] {
       case "timing": return { ...s, status: status(timingComplete) };
       case "endstates": return { ...s, status: status(endStatesComplete) };
       case "families": return { ...s, status: status(familiesComplete) };
-      case "screening": return { ...s, status: status(screeningComplete) };
       case "quant": return { ...s, status: status(quantComplete) };
       case "draft": return { ...s, status: status(draftComplete) };
       case "review": return { ...s, status: status(reviewComplete) };
@@ -279,6 +277,39 @@ function familiesView(es: EventSequenceAnalysis): FamilyView[] {
       similarityBasis: f.similarityBasis,
     };
   });
+}
+
+type LbeClass = "AOO" | "DBE" | "BDBE";
+
+interface LbeRowView {
+  familyId: string;
+  name: string;
+  releaseCategoryId?: string;
+  meanFrequency?: number;
+  lbeClass?: LbeClass;
+}
+
+function lbeClassOf(freq: number | undefined): LbeClass | undefined {
+  if (freq === undefined) return undefined;
+  if (freq >= 1e-2) return "AOO";
+  if (freq >= 1e-4) return "DBE";
+  if (freq >= 5e-7) return "BDBE";
+  return undefined;
+}
+
+function lbeView(es: EventSequenceAnalysis): LbeRowView[] {
+  return es.eventSequenceFamilies
+    .map((f) => {
+      const freq = freqValue(f.meanFrequency);
+      return {
+        familyId: f.uuid,
+        name: f.name,
+        releaseCategoryId: (f.releaseCategoryIds ?? [])[0],
+        meanFrequency: freq,
+        lbeClass: lbeClassOf(freq),
+      };
+    })
+    .sort((a, b) => (b.meanFrequency ?? 0) - (a.meanFrequency ?? 0));
 }
 
 interface ReleaseMappingView {
@@ -356,6 +387,7 @@ export {
   sequencesView,
   familiesView,
   releaseMappingsView,
+  lbeView,
   screeningView,
   quantView,
   freqValue,
@@ -370,6 +402,7 @@ export {
   type SequenceView,
   type FamilyView,
   type ReleaseMappingView,
+  type LbeRowView,
   type ScreeningView,
   type QuantView,
 };

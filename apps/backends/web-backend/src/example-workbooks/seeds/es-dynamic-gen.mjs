@@ -73,60 +73,89 @@ const FE_META = {
 };
 
 const INITIATORS = {
-  "IEG-LOHS": { prefix: "ESL", short: "LOHS", label: "Loss of heat sink", functions: ["RT", "SDHR", "DRACS", "CONF"] },
-  "IEG-RCB": { prefix: "ESR", short: "RCB", label: "Small primary sodium boundary leak", functions: ["RT", "ISOL", "DRACS", "CONF"] },
-  "IEG-LOFA": { prefix: "ESF", short: "LOFA", label: "Loss of primary sodium flow (ULOF)", functions: ["RT", "NC", "DRACS", "CONF"] },
-  "IEG-TRANS": { prefix: "EST", short: "TRANS", label: "General transient", functions: ["RT", "SDHR", "DRACS", "CONF"] },
-  "IE-11": { prefix: "ESG", short: "CGAS", label: "Cover-gas system breach", functions: ["RT", "ISOL", "CONF"] },
-  "IE-15": { prefix: "ESI", short: "FIRE", label: "Internal sodium fire", functions: ["RT", "SUPP", "DRACS", "CONF"] },
-  "IE-17": { prefix: "ESS", short: "SEIS", label: "Seismic event", functions: ["RT", "SDHR", "DRACS", "CONF"] },
-  "IE-18": { prefix: "ESD", short: "DRAIN", label: "Erroneous RCS drain-down", functions: ["DETECT", "MAKEUP", "DRACS", "CONF"] },
+  "IEG-01": { prefix: "ESF", short: "LOFA", label: "Loss of forced primary flow", functions: ["RT", "NC", "DRACS", "CONF"] },
+  "IEG-02": { prefix: "ESE", short: "LOEP", label: "Loss of electric power", functions: ["RT", "NC", "DRACS", "CONF"] },
+  "IEG-03": { prefix: "ESL", short: "LOHS", label: "Loss of heat sink", functions: ["RT", "SDHR", "DRACS", "CONF"] },
+  "IEG-04": { prefix: "ESO", short: "TOP", label: "Transient overpower", functions: ["RT", "SDHR", "DRACS", "CONF"] },
+  "IEG-05": { prefix: "ESC", short: "OCOOL", label: "Overcooling-driven reactivity", functions: ["RT", "SDHR", "DRACS", "CONF"] },
+  "IEG-06": { prefix: "EST", short: "TRANS", label: "General transient", functions: ["RT", "SDHR", "DRACS", "CONF"] },
+  "IEG-07": { prefix: "ESR", short: "RCB", label: "Primary sodium boundary breach", functions: ["RT", "ISOL", "DRACS", "CONF"] },
+  "IEG-08": { prefix: "ESG", short: "CGAS", label: "Cover-gas boundary breach", functions: ["RT", "ISOL", "CONF"] },
+  "IEG-09": { prefix: "ESW", short: "SWR", label: "Sodium-water reaction (SGTR)", functions: ["RT", "ISOL", "DRACS", "CONF"] },
+  "IEG-10": { prefix: "ESH", short: "LDHR", label: "Loss of dedicated decay-heat removal", functions: ["SDHR", "DRACS", "CONF"] },
+  "IEG-11": { prefix: "ESN", short: "LOCF", label: "Local in-core fault", functions: ["DETECT", "ISOL", "CONF"], confContains: true },
+  "IEG-12": { prefix: "ESD", short: "DRAIN", label: "Refuelling-configuration drain-down", functions: ["DETECT", "MAKEUP", "DRACS", "CONF"], confContains: true },
+  "IEG-13": { prefix: "ESM", short: "OPIHR", label: "Operator-induced loss of intermediate heat removal", functions: ["RT", "SDHR", "DRACS", "CONF"] },
+  "HZ-FIRE": { prefix: "ESI", short: "FIRE", label: "Internal sodium fire", functions: ["RT", "SUPP", "DRACS", "CONF"] },
+  "HZ-SEIS": { prefix: "ESS", short: "SEIS", label: "Seismic event", functions: ["RT", "SDHR", "DRACS", "CONF"] },
 };
 
 const CELLS = {
-  "IEG-LOHS": ["POS-01", "POS-02", "POS-03", "POS-08"],
-  "IEG-RCB": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"],
-  "IEG-LOFA": ["POS-01", "POS-02", "POS-03"],
-  "IEG-TRANS": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"],
-  "IE-11": ["POS-01", "POS-06", "POS-09"],
-  "IE-15": ["POS-01", "POS-08"],
-  "IE-17": ["POS-01"],
-  "IE-18": ["POS-04", "POS-05"],
+  "IEG-01": ["POS-01", "POS-02"],
+  "IEG-02": ["POS-01", "POS-02", "POS-03", "POS-04"],
+  "IEG-03": ["POS-01", "POS-02", "POS-03"],
+  "IEG-04": ["POS-01", "POS-02", "POS-03"],
+  "IEG-05": ["POS-01", "POS-02", "POS-03"],
+  "IEG-06": ["POS-01", "POS-02", "POS-03"],
+  "IEG-07": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
+  "IEG-08": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"],
+  "IEG-09": ["POS-01", "POS-02", "POS-03", "POS-04"],
+  "IEG-10": ["POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
+  "IEG-11": ["POS-01", "POS-02"],
+  "IEG-12": ["POS-05", "POS-06"],
+  "IEG-13": ["POS-01", "POS-02", "POS-03"],
+  "HZ-FIRE": ["POS-01", "POS-08"],
+  "HZ-SEIS": ["POS-01"],
 };
 
 const SUBCRITICAL = new Set(["POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-09"]);
 
-const IE_AT_POWER = {
-  "IEG-LOHS": 5e-2,
-  "IEG-RCB": 2.5e-3,
-  "IEG-LOFA": 5.5e-2,
-  "IEG-TRANS": 2.6,
-  "IE-11": 2.2e-4,
-  "IE-15": 5e-3,
-  "IE-17": 1e-4,
-  "IE-18": 3e-3,
+const IE_GROUP_FREQ = {
+  "IEG-01": 0.79,
+  "IEG-02": 0.2,
+  "IEG-03": 1.0,
+  "IEG-04": 0.31,
+  "IEG-05": 0.4,
+  "IEG-06": 0.7,
+  "IEG-07": 1.1e-8,
+  "IEG-08": 1.0e-3,
+  "IEG-09": 2.0e-4,
+  "IEG-10": 5.8e-3,
+  "IEG-11": 4.8,
+  "IEG-12": 1.06,
+  "IEG-13": 6.0e-2,
+  "HZ-FIRE": 5e-3,
+  "HZ-SEIS": 1e-4,
 };
 
-const POS_EXPOSURE = {
-  "POS-02": 0.5,
-  "POS-03": 0.3,
-  "POS-04": 0.12,
-  "POS-05": 0.1,
-  "POS-06": 0.1,
-  "POS-07": 0.07,
-  "POS-08": 0.4,
-  "POS-09": 0.15,
+const POS_ANNUAL_HOURS = {
+  "POS-01": 5978,
+  "POS-02": 700,
+  "POS-03": 1200,
+  "POS-04": 1760,
+  "POS-05": 5440,
+  "POS-06": 380,
+  "POS-07": 24,
+  "POS-08": 150,
+  "POS-09": 64,
 };
 
 const LEGACY_ET = {
-  "IEG-LOHS": "ET-LOHS",
-  "IEG-RCB": "ET-RCB",
-  "IEG-LOFA": "ET-LOFA",
-  "IEG-TRANS": "ET-TRANS",
-  "IE-11": "ET-CGAS",
-  "IE-15": "ET-FIRE",
-  "IE-17": "ET-SEIS",
-  "IE-18": "ET-DRAIN",
+  "IEG-01": "ET-LOFA",
+  "IEG-02": "ET-LOEP",
+  "IEG-03": "ET-LOHS",
+  "IEG-04": "ET-TOP",
+  "IEG-05": "ET-OCOOL",
+  "IEG-06": "ET-TRANS",
+  "IEG-07": "ET-RCB",
+  "IEG-08": "ET-CGAS",
+  "IEG-09": "ET-SWR",
+  "IEG-10": "ET-LDHR",
+  "IEG-11": "ET-LOCF",
+  "IEG-12": "ET-DRAIN",
+  "IEG-13": "ET-OPIHR",
+  "HZ-FIRE": "ET-FIRE",
+  "HZ-SEIS": "ET-SEIS",
 };
 
 const POS_LABEL = {
@@ -162,10 +191,8 @@ const OUTCOME_PHRASE = {
 };
 
 function ieFreq(ie, pos) {
-  const base = IE_AT_POWER[ie];
-  if (pos === "POS-01") return base;
-  if (ie === "IE-18") return pos === "POS-04" ? 3e-3 : 3e-3 * 0.8;
-  return base * POS_EXPOSURE[pos];
+  const totalHours = CELLS[ie].reduce((a, p) => a + POS_ANNUAL_HOURS[p], 0);
+  return IE_GROUP_FREQ[ie] * (POS_ANNUAL_HOURS[pos] / totalHours);
 }
 
 function functionsForCell(ie, pos) {
@@ -312,10 +339,16 @@ function classifyLeaf(ie, d0, pathStates, succeededHR, atwsRole) {
     return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "thermal breach, cladding limit at " + fmt(tLimit) + " h", race: thermal.race, bestC: thermal.bestC, tMitigateH: null, tBreachH: tLimit };
   }
 
+  if (INITIATORS[ie].confContains) {
+    if (confSuccess) {
+      return { endState: "SUCCESSFUL_MITIGATION", rc: null, family: "ESF-OK", timing: "local breach collected by cover-gas clean-up; confinement intact", race: thermal.race, bestC: thermal.bestC, tMitigateH: null, tBreachH: null };
+    }
+    return { endState: "RADIONUCLIDE_RELEASE", rc: "RC-3", family: "ESF-LEAK", timing: "local breach activity vents through failed confinement isolation", race: thermal.race, bestC: thermal.bestC, tMitigateH: null, tBreachH: null };
+  }
   const rc = confSuccess ? "RC-3" : "RC-1";
   const family = confSuccess ? "ESF-LEAK" : "ESF-EARLY";
   const breach = bnd.failed.length ? bnd.failed.join("+") + " boundary breach" : "boundary breach";
-  return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "cooling intact; release via " + breach, race: thermal.race, bestC: thermal.bestC, tMitigateH: thermal.race && thermal.race.mitigated ? thermal.race.tCross : null, tBreachH: null };
+  return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "cooling intact; release via " + breach, race: thermal.race, bestC: thermal.bestC, tMitigateH: null, tBreachH: null };
 }
 
 function buildDet(ie, pos) {
@@ -928,6 +961,11 @@ for (const s of genEventSequences) {
   rcFrequency[s.releaseCategoryId] = (rcFrequency[s.releaseCategoryId] ?? 0) + s.meanFrequency;
 }
 
+const familyFrequency = {};
+for (const s of genEventSequences) {
+  familyFrequency[s.sequenceFamilyId] = (familyFrequency[s.sequenceFamilyId] ?? 0) + s.meanFrequency;
+}
+
 const header =
   'import type {\n' +
   '  EventTree,\n' +
@@ -949,6 +987,9 @@ const out =
   "\n];\n\n" +
   "export const GEN_FAMILY_MEMBERS: Record<string, string[]> = " +
   familyLiteral +
+  ";\n\n" +
+  "export const GEN_FAMILY_FREQUENCY: Record<string, number> = " +
+  JSON.stringify(familyFrequency, null, 1) +
   ";\n\n" +
   "export const GEN_RC_MEMBERS: Record<string, string[]> = " +
   JSON.stringify(rcMembers, null, 1) +

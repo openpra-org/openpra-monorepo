@@ -8,15 +8,14 @@ import {
   FEASIBILITY_CRITERIA,
   ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
-  ES_SCREENING_LABELS,
   ES_LBE_CLASSES,
-  ES_LICENSING_BASIS_EVENTS,
   feActor,
   ES_FE_ACTOR_META,
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
-import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord } from "interfaces-mef-types/es/event-sequence-analysis";
+import { EndState } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
@@ -28,6 +27,8 @@ import {
   dependenciesView,
   sequencesView,
   timelineView,
+  freqValue,
+  lbeView,
   type EventTreeView,
   type TreeNodeView,
   type SeqLeafRef,
@@ -331,7 +332,7 @@ function EventSeqDiagram({ view, showFreq, activeSeq, onHover, onSelect }: {
   );
 }
 
-type DrawerCtx = { kind: "sequence"; id: string } | { kind: "dependency"; id: string } | { kind: "operatorAction"; id: string } | { kind: "phenomenon"; id: string } | { kind: "releaseCategory"; id: string };
+type DrawerCtx = { kind: "sequence"; id: string } | { kind: "dependency"; id: string } | { kind: "operatorAction"; id: string } | { kind: "phenomenon"; id: string } | { kind: "releaseCategory"; id: string } | { kind: "family"; id: string } | { kind: "screening"; id: string } | { kind: "safetyFn"; id: string };
 
 function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; trees: EventTreeView[]; deps: DependencyView[]; onClose: () => void }): JSX.Element | null {
   const found = trees.flatMap((t) => t.sequences.map((s) => ({ s, t }))).find((x) => x.s.id === seqId);
@@ -346,7 +347,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         <div>
           <div className="posdrawer__cap">Event sequence · {s.id}</div>
           <h2 className="posdrawer__title">{t.name}</h2>
-          <div className="posdrawer__sub">{t.initiatingEventId}{t.plantOperatingStateId !== undefined ? ` · ${t.plantOperatingStateId}` : ""}{t.missionTime !== undefined ? ` · mission time ${t.missionTime} ${t.missionTimeUnits ?? ""}` : ""}</div>
+          <div className="posdrawer__sub">{t.initiatingEventId}{t.plantOperatingStateId !== undefined ? ` · ${t.plantOperatingStateId}` : ""}{t.missionTime !== undefined ? ` · mission time ${t.missionTime} ${t.missionTimeUnits ?? ""}` : ""}{s.meanFrequency !== undefined ? ` · ${fmtExp(s.meanFrequency)}/yr` : ""}</div>
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><ESIcon.Close /></button>
       </div>
@@ -364,9 +365,9 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
               return (
                 <Fragment key={fe.id}>
                   <span className="espath__arrow"><ESIcon.ArrowR /></span>
-                  <div className={`espath__node espath__node--${st === "SUCCESS" ? "s" : "f"}`}>
+                  <div className={`espath__node espath__node--${st === "SUCCESS" ? "s" : "f"}`} title={fe.label}>
                     <span className="espath__node-fe">{fe.id}</span>
-                    <span className="espath__node-state">{st === "SUCCESS" ? "Success" : "Failure"}</span>
+                    <span className="espath__node-state"><span className={`esqlight__dot esqlight__dot--${st === "SUCCESS" ? "s" : "f"}`} />{st === "SUCCESS" ? "Success" : "Failure"}</span>
                   </div>
                 </Fragment>
               );
@@ -381,12 +382,12 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Outcome</h3></div>
           <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Risk importance</label><div>{imp.label === "—" ? <span className="possubtle">—</span> : <Badge kind={imp.kind}>{imp.label}</Badge>}</div></div>
-            <div className="posfield"><label className="posfield__label">End state</label><div>{isOk ? "Safe stable state" : "Radionuclide release"}</div></div>
-            <div className="posfield"><label className="posfield__label">Release category</label><div>{s.releaseCategoryId === undefined ? "None (no release)" : s.releaseCategoryId}</div></div>
-            {s.familyId !== undefined && <div className="posfield"><label className="posfield__label">Sequence family</label><div className="posrow" style={{ gap: 8 }}><span className="poschip poschip--primary">{s.familyId}</span></div></div>}
+            <div className="posfield"><label className="posfield__label">End state</label><div className="posmono">{isOk ? "Safe stable state" : "Radionuclide release"}</div></div>
+            <div className="posfield"><label className="posfield__label">Mean frequency</label><div className="posmono">{s.meanFrequency !== undefined ? `${fmtExp(s.meanFrequency)} /yr` : "—"}</div></div>
+            <div className="posfield"><label className="posfield__label">Release category</label><div className="posmono">{s.releaseCategoryId === undefined ? "None (no release)" : s.releaseCategoryId}</div></div>
+            {s.familyId !== undefined && <div className="posfield"><label className="posfield__label">Sequence family</label><div className="posmono">{s.familyId}</div></div>}
+            {imp.label !== "—" && <div className="posfield"><label className="posfield__label">Risk importance</label><div className="posmono">{imp.label}</div></div>}
           </div>
-          <div className="eswarn"><span className="eswarn__icon"><ESIcon.Clock /></span><span>Sequence frequency is quantified downstream in Event Sequence Quantification (ESQ), not here.</span></div>
         </div>
 
         <div className="poscard">
@@ -820,6 +821,249 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
   );
 }
 
+function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: () => void }): JSX.Element | null {
+  const { es, editable, mutateEs } = useEsWorkbook();
+  const f = es.eventSequenceFamilies.find((x) => x.uuid === familyId);
+  if (f === undefined) return null;
+  const freqOf = new Map(es.eventSequences.map((s) => [s.uuid, freqValue(s.meanFrequency) ?? 0]));
+  const representativeId = [...f.memberSequenceIds].sort((a, b) => (freqOf.get(b) ?? 0) - (freqOf.get(a) ?? 0))[0];
+  const inOtherFamily = new Set(es.eventSequenceFamilies.filter((x) => x.uuid !== familyId).flatMap((x) => x.memberSequenceIds));
+  const eligible = es.eventSequences
+    .filter((s) => s.endState === f.endState && !f.memberSequenceIds.includes(s.uuid) && !inOtherFamily.has(s.uuid))
+    .map((s) => s.uuid);
+  const ieOptions = Array.from(new Set(es.eventSequences.map((s) => s.initiatingEventId)));
+  const posOptions = Array.from(new Set(es.eventSequences.map((s) => s.plantOperatingStateId)));
+
+  function patch(patchObj: Partial<EventSequenceFamily>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, eventSequenceFamilies: draft.eventSequenceFamilies.map((x) => (x.uuid === familyId ? { ...x, ...patchObj } : x)) }));
+  }
+  function toggleMember(seqId: string): void {
+    const cur = f?.memberSequenceIds ?? [];
+    const next = cur.includes(seqId) ? cur.filter((x) => x !== seqId) : [...cur, seqId];
+    patch({ memberSequenceIds: next, meanFrequency: next.reduce((a, id) => a + (freqOf.get(id) ?? 0), 0) });
+  }
+  function removeFamily(): void {
+    if (!editable) return;
+    onClose();
+    mutateEs((draft) => ({ ...draft, eventSequenceFamilies: draft.eventSequenceFamilies.filter((x) => x.uuid !== familyId) }));
+  }
+
+  const isOk = f.endState === "SUCCESSFUL_MITIGATION";
+  const rc = (f.releaseCategoryIds ?? [])[0] ?? "";
+  return (
+    <>
+      <div className="posdrawer__head">
+        <div>
+          <div className="posdrawer__cap">Sequence family · {f.uuid}</div>
+          {editable
+            ? <input className="posfield__input" style={{ fontSize: 16, fontWeight: 700 }} value={f.name} onChange={(e) => patch({ name: e.target.value })} />
+            : <h2 className="posdrawer__title">{f.name}</h2>}
+          <div className="posdrawer__sub">{f.memberSequenceIds.length} member sequences · mean {fmtExp(freqValue(f.meanFrequency))}/yr · one source-term calculation (ES-C8)</div>
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><ESIcon.Close /></button>
+      </div>
+      <div className="posdrawer__body">
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Representative plant response</h3></div>
+          {editable
+            ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="How the plant responds in every member of this family" value={f.representativePlantResponse} onChange={(e) => patch({ representativePlantResponse: e.target.value })} />
+            : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{f.representativePlantResponse}</p>}
+        </div>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Classification</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield"><label className="posfield__label">End state</label>
+              {editable
+                ? <select className="posfield__select" value={f.endState} onChange={(e) => patch({ endState: e.target.value === "SUCCESSFUL_MITIGATION" ? EndState.SUCCESSFUL_MITIGATION : EndState.RADIONUCLIDE_RELEASE, releaseCategoryIds: e.target.value === "SUCCESSFUL_MITIGATION" ? [] : f.releaseCategoryIds })}>
+                    <option value="SUCCESSFUL_MITIGATION">Safe stable state</option>
+                    <option value="RADIONUCLIDE_RELEASE">Radionuclide release</option>
+                  </select>
+                : <div>{isOk ? "Safe stable state" : "Radionuclide release"}</div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Release category</label>
+              {editable
+                ? <select className="posfield__select" value={rc} disabled={isOk} onChange={(e) => patch({ releaseCategoryIds: e.target.value.length === 0 ? [] : [e.target.value] })}>
+                    <option value="">None</option>
+                    {ES_RELEASE_CATEGORIES.map((r) => <option key={r.id} value={r.id}>{r.id} · {r.name}</option>)}
+                  </select>
+                : <div>{rc.length > 0 ? rc : "—"}</div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Representative initiating event</label>
+              {editable
+                ? <select className="posfield__select" value={f.representativeInitiatingEventId} onChange={(e) => patch({ representativeInitiatingEventId: e.target.value })}>
+                    {ieOptions.map((ie) => <option key={ie} value={ie}>{ie}</option>)}
+                  </select>
+                : <div className="posmono">{f.representativeInitiatingEventId}</div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Representative operating state</label>
+              {editable
+                ? <select className="posfield__select" value={f.representativePlantOperatingStateId} onChange={(e) => patch({ representativePlantOperatingStateId: e.target.value })}>
+                    {posOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                : <div className="posmono">{f.representativePlantOperatingStateId}</div>}
+            </div>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Similarity check (leave empty when resolved)</label>
+              {editable
+                ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="Open ES-C3 check on whether the representative bounds every member" value={f.similarityBasis ?? ""} onChange={(e) => patch({ similarityBasis: e.target.value.length === 0 ? undefined : e.target.value })} />
+                : <div>{f.similarityBasis ?? "Resolved"}</div>}
+            </div>
+          </div>
+        </div>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Member sequences</h3></div>
+          <p className="poscard__sub">The highest-frequency member <span className="posmono">{representativeId ?? "—"}</span> is the representative sequence.</p>
+          <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+            {f.memberSequenceIds.map((id) => (
+              <span key={id} className={`poschip${id === representativeId ? " poschip--primary" : ""}`} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {id === representativeId && <ESIcon.Target />} {id}
+                {editable && <button type="button" title="Remove" onClick={() => toggleMember(id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>}
+              </span>
+            ))}
+            {editable && eligible.length > 0 && (
+              <select className="posfield__select" style={{ maxWidth: 220 }} value="" onChange={(e) => { if (e.target.value.length > 0) toggleMember(e.target.value); }}>
+                <option value="">Add a sequence…</option>
+                {eligible.map((id) => <option key={id} value={id}>{id}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+        {editable && (
+          <div className="posrow" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={removeFamily}><ESIcon.Close /> Remove family</button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function ScreeningDrawerBody({ recordId, onClose }: { recordId: string; onClose: () => void }): JSX.Element | null {
+  const { es, editable, mutateEs } = useEsWorkbook();
+  const r = es.screeningRecords.find((x) => x.sequenceId === recordId);
+  if (r === undefined) return null;
+  const seq = es.eventSequences.find((s) => s.uuid === recordId);
+  const isOk = seq?.endState === "SUCCESSFUL_MITIGATION";
+
+  function patch(patchObj: Partial<EventSequenceScreeningRecord>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, screeningRecords: draft.screeningRecords.map((x) => (x.sequenceId === recordId ? { ...x, ...patchObj } : x)) }));
+  }
+  function removeRecord(): void {
+    if (!editable) return;
+    onClose();
+    mutateEs((draft) => ({ ...draft, screeningRecords: draft.screeningRecords.filter((x) => x.sequenceId !== recordId) }));
+  }
+
+  return (
+    <>
+      <div className="posdrawer__head">
+        <div>
+          <div className="posdrawer__cap">Screening record · {r.sequenceId}</div>
+          <h2 className="posdrawer__title">{seq?.name ?? r.sequenceId}</h2>
+          <div className="posdrawer__sub">{seq !== undefined
+            ? `${seq.initiatingEventId} · ${seq.plantOperatingStateId} · ${isOk ? "safe stable state" : seq.releaseCategoryId ?? "release"} · ${fmtExp(freqValue(seq.meanFrequency))}/yr`
+            : "Not in the sequence model (screened out before sequence development)"}</div>
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><ESIcon.Close /></button>
+      </div>
+      <div className="posdrawer__body">
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Disposition</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield"><label className="posfield__label">Decision</label>
+              {editable
+                ? <select className="posfield__select" value={r.retained ? "retained" : "screened"} onChange={(e) => patch(e.target.value === "retained" ? { retained: true, criterion: undefined } : { retained: false, criterion: r.criterion ?? "SCR-3" })}>
+                    <option value="retained">Retained</option>
+                    <option value="screened">Screened out</option>
+                  </select>
+                : <div>{r.retained ? "Retained" : "Screened out"}</div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Screening criterion</label>
+              {editable && !r.retained
+                ? <select className="posfield__select" value={r.criterion ?? "SCR-3"} onChange={(e) => patch({ criterion: e.target.value === "SCR-1" ? "SCR-1" : e.target.value === "SCR-2" ? "SCR-2" : "SCR-3" })}>
+                    <option value="SCR-1">SCR-1</option>
+                    <option value="SCR-2">SCR-2</option>
+                    <option value="SCR-3">SCR-3</option>
+                  </select>
+                : <div className="posmono">{r.retained ? "—" : r.criterion ?? "—"}</div>}
+            </div>
+          </div>
+        </div>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Justification</h3></div>
+          {editable
+            ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} placeholder="Why this sequence is kept, or the SCR basis for dropping it" value={r.justification} onChange={(e) => patch({ justification: e.target.value })} />
+            : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{r.justification}</p>}
+        </div>
+        {editable && (
+          <div className="posrow" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={removeRecord}><ESIcon.Close /> Remove record</button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function SafetyFnDrawerBody({ fnId, onClose }: { fnId: string; onClose: () => void }): JSX.Element | null {
+  const { es, editable, mutateEs } = useEsWorkbook();
+  const sf = es.keySafetyFunctions.find((x) => x.id === fnId);
+  if (sf === undefined) return null;
+
+  function patch(patchObj: Partial<KeySafetyFunction>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.map((x) => (x.id === fnId ? { ...x, ...patchObj } : x)) }));
+  }
+  function removeFn(): void {
+    if (!editable) return;
+    onClose();
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.filter((x) => x.id !== fnId) }));
+  }
+
+  return (
+    <>
+      <div className="posdrawer__head" style={{ borderBottom: "none" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="posdrawer__cap">Key safety function{sf.successCriteriaId !== undefined && sf.successCriteriaId.length > 0 ? ` · ${sf.successCriteriaId}` : ""}</div>
+          {editable
+            ? <input className="posfield__input" style={{ fontSize: 16, fontWeight: 700 }} value={sf.name} onChange={(e) => patch({ name: e.target.value })} />
+            : <h2 className="posdrawer__title">{sf.name}</h2>}
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><ESIcon.Close /></button>
+      </div>
+      <div className="posdrawer__body" style={{ paddingTop: 4 }}>
+        <div>
+          <div className="poscard__head"><h3 className="poscard__title">What it must do</h3></div>
+          {editable
+            ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="What every scenario must satisfy to protect the barrier" value={sf.description} onChange={(e) => patch({ description: e.target.value })} />
+            : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{sf.description.length > 0 ? sf.description : "—"}</p>}
+        </div>
+        <div>
+          <div className="poscard__head"><h3 className="poscard__title">Basis</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield"><label className="posfield__label">Success criteria reference</label>
+              {editable
+                ? <input className="posfield__input posmono" placeholder="SC-xx" value={sf.successCriteriaId ?? ""} onChange={(e) => patch({ successCriteriaId: e.target.value.length === 0 ? undefined : e.target.value })} />
+                : <div className="posmono">{sf.successCriteriaId ?? "—"}</div>}
+            </div>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Supporting systems (comma separated)</label>
+              {editable
+                ? <input className="posfield__input" value={sf.supportingSystems.join(", ")} onChange={(e) => patch({ supportingSystems: csvList(e.target.value) })} />
+                : <div className="posrow posrow--wrap" style={{ gap: 6 }}>{sf.supportingSystems.map((y) => <span key={y} className="poschip">{y}</span>)}</div>}
+            </div>
+          </div>
+        </div>
+        {editable && (
+          <div className="posrow" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={removeFn}><ESIcon.Close /> Remove function</button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function DrawerHost({ ctx, onClose }: { ctx: DrawerCtx; onClose: () => void }): JSX.Element {
   const { es } = useEsWorkbook();
   const trees = useMemo(() => eventTreesView(es), [es]);
@@ -839,6 +1083,9 @@ function DrawerHost({ ctx, onClose }: { ctx: DrawerCtx; onClose: () => void }): 
         {ctx.kind === "operatorAction" && <OperatorActionDrawerBody actionId={ctx.id} trees={trees} onClose={onClose} />}
         {ctx.kind === "phenomenon" && <PhenomenonDrawerBody phenId={ctx.id} onClose={onClose} />}
         {ctx.kind === "releaseCategory" && <ReleaseCategoryDrawerBody mappingId={ctx.id} onClose={onClose} />}
+        {ctx.kind === "family" && <FamilyDrawerBody familyId={ctx.id} onClose={onClose} />}
+        {ctx.kind === "screening" && <ScreeningDrawerBody recordId={ctx.id} onClose={onClose} />}
+        {ctx.kind === "safetyFn" && <SafetyFnDrawerBody fnId={ctx.id} onClose={onClose} />}
       </div>
     </div>
   );
@@ -887,17 +1134,12 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
     setStage(newStage);
     mutateEs((draft) => ({ ...draft, plantStage: newStage === "operational" ? "OPERATIONAL" : "PRE_OPERATIONAL" }));
   }
+  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
   function addSafetyFn(): void {
     if (!editable) return;
-    mutateEs((draft) => ({ ...draft, keySafetyFunctions: [...draft.keySafetyFunctions, { id: crypto.randomUUID(), name: "New safety function", description: "", supportingSystems: [] }] }));
-  }
-  function updateSafetyFn(id: string, patch: Partial<KeySafetyFunction>): void {
-    if (!editable) return;
-    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.map((f) => (f.id === id ? { ...f, ...patch } : f)) }));
-  }
-  function removeSafetyFn(id: string): void {
-    if (!editable) return;
-    mutateEs((draft) => ({ ...draft, keySafetyFunctions: draft.keySafetyFunctions.filter((f) => f.id !== id) }));
+    const id = crypto.randomUUID();
+    mutateEs((draft) => ({ ...draft, keySafetyFunctions: [...draft.keySafetyFunctions, { id, name: "New safety function", description: "", supportingSystems: [] }] }));
+    setDrawer({ kind: "safetyFn", id });
   }
 
   const [selectedTe, setSelectedTe] = useState<string | null>(null);
@@ -998,28 +1240,21 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSafetyFn}><ESIcon.Plus /> Add function</button>}
           </div>
         </div>
-        <p className="poscard__sub">The functions every scenario must satisfy to protect a barrier and reach a safe stable state (ES-A3, ES-A4).</p>
+        <p className="poscard__sub">The functions every scenario must satisfy to protect a barrier and reach a safe stable state (ES-A3, ES-A4). Click a function to edit it.</p>
         {safetyFns.length > 0 ? (
           <div className="essf-grid">
             {safetyFns.map((sf) => (
-              <div key={sf.id} className="essf">
+              <button key={sf.id} type="button" className="essf essf--clickable" onClick={() => setDrawer({ kind: "safetyFn", id: sf.id })}>
                 <span className="essf__icon"><NamedIcon name="Shield" /></span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-                    {editable
-                      ? <input className="posfield__input" style={{ fontWeight: 700, flex: 1, minWidth: 0 }} value={sf.name} onChange={(e) => updateSafetyFn(sf.id, { name: e.target.value })} />
-                      : <span className="essf__name">{sf.name}</span>}
+                    <span className="essf__name">{sf.name}</span>
                     {sf.successCriteriaId !== undefined && sf.successCriteriaId.length > 0 && <ESProvenanceChip kind="sc">{sf.successCriteriaId}</ESProvenanceChip>}
-                    {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => removeSafetyFn(sf.id)}><ESIcon.Close /></button>}
                   </div>
-                  {editable
-                    ? <textarea className="posfield__textarea" style={{ minHeight: 42, marginTop: 6 }} value={sf.description} onChange={(e) => updateSafetyFn(sf.id, { description: e.target.value })} />
-                    : sf.description.length > 0 && <div className="essf__desc">{sf.description}</div>}
-                  {editable
-                    ? <input className="posfield__input" style={{ marginTop: 6 }} placeholder="Supporting systems, comma separated" value={sf.supportingSystems.join(", ")} onChange={(e) => updateSafetyFn(sf.id, { supportingSystems: e.target.value.split(",").map((x) => x.trim()).filter((x) => x.length > 0) })} />
-                    : sf.supportingSystems.length > 0 && <div className="essf__sys">{sf.supportingSystems.map((y) => <span key={y} className="poschip">{y}</span>)}</div>}
+                  {sf.description.length > 0 && <div className="essf__desc">{sf.description}</div>}
+                  {sf.supportingSystems.length > 0 && <div className="essf__sys">{sf.supportingSystems.map((y) => <span key={y} className="poschip">{y}</span>)}</div>}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ) : <EsEmpty title="No key safety functions yet" hint="Identify the reactor-specific safety functions every scenario is built around (ES-A3)." />}
@@ -1068,6 +1303,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
           ))}
         </div>
       </div>
+      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );
 }
@@ -2032,53 +2268,96 @@ function EndStatesScreen(): JSX.Element {
 }
 
 function FamiliesScreen(): JSX.Element {
-  const { es } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const families = useMemo(() => familiesView(es), [es]);
+  const seqs = useMemo(() => sequencesView(es), [es]);
+  const seqById = useMemo(() => new Map(seqs.map((s) => [s.id, s])), [seqs]);
   const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
-  if (families.length === 0) {
-    return (
-      <div className="poscard">
-        <EsEmpty title="No sequence families yet" hint="Group sequences sharing an end state, release category and similar plant response into families, each mapping to one source-term calculation (ES-C8)." />
-      </div>
-    );
+  const [selFamGroup, setSelFamGroup] = useState<{ fam: string; ie: string } | null>(null);
+
+  function addFamily(): void {
+    if (!editable) return;
+    const id = crypto.randomUUID();
+    const family: EventSequenceFamily = {
+      uuid: id,
+      name: "New family",
+      groupingCriteriaId: "GC-1",
+      representativeInitiatingEventId: seqs[0]?.initiatingEventId ?? "",
+      representativePlantOperatingStateId: seqs[0]?.plantOperatingStateId ?? "",
+      representativePlantResponse: "",
+      releaseCategoryIds: [],
+      memberSequenceIds: [],
+      endState: EndState.RADIONUCLIDE_RELEASE,
+      implementsSrs: [],
+    };
+    mutateEs((draft) => ({ ...draft, eventSequenceFamilies: [...draft.eventSequenceFamilies, family] }));
+    setDrawer({ kind: "family", id });
   }
+
   return (
     <>
-      <p className="possubtle" style={{ fontSize: 12, lineHeight: 1.55, margin: "2px 2px 12px" }}>Families share an end state, release category, plant response, and timing band. Each maps to one source-term calculation (ES-C8, HLR-MS-A).</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {families.map((f) => {
-          const rc = f.releaseCategoryIds[0];
-          const tone = rcTone(rc);
-          const isOk = f.endState === "SUCCESSFUL_MITIGATION";
-          return (
-            <div key={f.id} className="poscard">
-              <div className="poscard__head">
-                <div className="posrow" style={{ gap: 10 }}>
-                  <span className="posmono possubtle">{f.id}</span>
-                  <h3 className="poscard__title" style={{ fontSize: 16 }}>{f.name}</h3>
-                  {f.similarityBasis === undefined ? <Badge kind="ok">Resolved</Badge> : <Badge kind="warn">Check open</Badge>}
-                </div>
-                <span className={`estree__seq-rcpill estree__seq-rcpill--${isOk ? "ok" : tone}`}>{isOk ? "Safe state" : (rc ?? "Release")}</span>
-              </div>
-              <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 10 }}>{f.response}</div>
-              <div className="posrow posrow--wrap" style={{ gap: 18, fontSize: 12.5, marginBottom: 8 }}>
-                <span><span className="possubtle">End state</span> <strong style={{ color: "var(--color-text)" }}>{isOk ? "Safe stable" : "Release"}</strong></span>
-                <span><span className="possubtle">Members</span> <strong style={{ color: "var(--color-text)" }}>{f.memberCount}</strong></span>
-                {f.representativeId !== undefined && <span><span className="possubtle">Representative</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{f.representativeId}</strong></span>}
-              </div>
-              <div className="posrow posrow--wrap" style={{ gap: 5 }}>
-                {f.members.map((m) => (
-                  <span key={m} className={`poschip${m === f.representativeId ? " poschip--primary" : ""}`} style={{ cursor: "pointer" }} onClick={() => setDrawer({ kind: "sequence", id: m })}>
-                    {m === f.representativeId && <ESIcon.Target />} {m}
-                  </span>
-                ))}
-              </div>
-              {f.similarityBasis !== undefined && (
-                <div className="eswarn"><span className="eswarn__icon"><ESIcon.Warn /></span><span>{f.similarityBasis}</span></div>
-              )}
-            </div>
-          );
-        })}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Sequence families</h3>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <ESProvenanceChip kind="es">ES-C8 → MS</ESProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFamily}><ESIcon.Plus /> Add family</button>}
+          </div>
+        </div>
+        <p className="poscard__sub">Families share an end state, release category, plant response and timing band, and each maps to one source-term calculation (ES-C8, HLR-MS-A). Click a family to edit its grouping, response and members.</p>
+        {families.length > 0 ? (
+          <table className="postable">
+            <thead><tr><th>Family</th><th>Members</th><th>Release</th><th style={{ textAlign: "right" }}>Mean (/yr)</th><th>Status</th></tr></thead>
+            <tbody>
+              {families.map((f) => {
+                const rc = f.releaseCategoryIds[0];
+                const tone = rcTone(rc);
+                const isOk = f.endState === "SUCCESSFUL_MITIGATION";
+                const byIe = new Map<string, string[]>();
+                for (const id of f.members) {
+                  const ie = seqById.get(id)?.initiatingEventId ?? "Unlinked";
+                  const arr = byIe.get(ie);
+                  if (arr === undefined) byIe.set(ie, [id]);
+                  else arr.push(id);
+                }
+                const openGroup = selFamGroup !== null && selFamGroup.fam === f.id ? byIe.get(selFamGroup.ie) : undefined;
+                return (
+                  <tr key={f.id} className="postable__row--clickable" onClick={() => setDrawer({ kind: "family", id: f.id })}>
+                    <td>
+                      <div className="postable__name">{f.name}</div>
+                      <span className="postable__name-sub">{f.id} · {f.memberCount} sequence{f.memberCount === 1 ? "" : "s"}</span>
+                    </td>
+                    <td>
+                      <div className="posrow posrow--wrap" style={{ gap: 5, alignItems: "center" }}>
+                        {Array.from(byIe.entries()).map(([ie, ids]) => {
+                          const active = selFamGroup !== null && selFamGroup.fam === f.id && selFamGroup.ie === ie;
+                          return (
+                            <button key={ie} type="button" className={`esrcgrp${active ? " esrcgrp--active" : ""}`}
+                              onClick={(ev) => { ev.stopPropagation(); setSelFamGroup(active ? null : { fam: f.id, ie }); }}>
+                              {ie} <span className="esrcgrp__n">{ids.length}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {openGroup !== undefined && (
+                        <div className="posrow posrow--wrap" style={{ gap: 5, paddingTop: 7 }}>
+                          {openGroup.map((id) => (
+                            <span key={id} className={`poschip${id === f.representativeId ? " poschip--primary" : ""}`} style={{ cursor: "pointer" }} onClick={(ev) => { ev.stopPropagation(); setDrawer({ kind: "sequence", id }); }}>
+                              {id === f.representativeId && <ESIcon.Target />} {id}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td><span className={`estree__seq-rcpill estree__seq-rcpill--${isOk ? "ok" : tone}`}>{isOk ? "Safe state" : (rc ?? "Release")}</span></td>
+                    <td className="posmono" style={{ textAlign: "right" }}>{fmtExp(f.meanFrequency)}</td>
+                    <td>{f.similarityBasis === undefined ? <Badge kind="ok">Resolved</Badge> : <Badge kind="warn">Check open</Badge>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : <EsEmpty title="No sequence families yet" hint="Group sequences sharing an end state, release category and similar plant response into families, each mapping to one source-term calculation (ES-C8)." />}
       </div>
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
@@ -2086,73 +2365,68 @@ function FamiliesScreen(): JSX.Element {
 }
 
 function ScreeningScreen(): JSX.Element {
-  const { es } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const records = useMemo(() => screeningView(es), [es]);
-  if (records.length === 0) {
-    return (
-      <div className="poscard">
-        <EsEmpty title="No screening records yet" hint="Every sequence is kept by default; record the basis for any sequence screened out under SCR-3 (ES-A7)." />
-      </div>
-    );
+  const seqs = useMemo(() => sequencesView(es), [es]);
+  const seqById = useMemo(() => new Map(seqs.map((s) => [s.id, s])), [seqs]);
+  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
+  const eligible = seqs.filter((s) => !records.some((r) => r.sequenceId === s.id)).map((s) => s.id);
+
+  function addRecord(seqId: string): void {
+    if (!editable || seqId.length === 0) return;
+    mutateEs((draft) => ({ ...draft, screeningRecords: [...draft.screeningRecords, { sequenceId: seqId, retained: true, justification: "", implementsSrs: [] }] }));
+    setDrawer({ kind: "screening", id: seqId });
   }
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {records.map((s) => {
-        const label = ES_SCREENING_LABELS[s.sequenceId];
-        return (
-          <div key={s.sequenceId} className="poscard" style={{ borderLeft: `3px solid ${s.retained ? "var(--c-complete)" : "var(--color-border-strong)"}` }}>
-            <div className="poscard__head" style={{ marginBottom: 8 }}>
-              <div className="posrow" style={{ gap: 10 }}>
-                <span className="posmono possubtle">{s.sequenceId}</span>
-                <span style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14 }}>{label?.targetLabel ?? s.sequenceId}</span>
-              </div>
-              {s.retained ? <Badge kind="ok">Retained</Badge> : <Badge kind="draft">Screened · {s.criterion}</Badge>}
-            </div>
-            <p className="possubtle" style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55 }}>{s.justification}</p>
-            <div className="posrow" style={{ gap: 8, marginTop: 8 }}>
-              <span className="poschip">Target {s.sequenceId}</span>
-              {label?.riskImpact !== undefined && <span className="poschip">Risk impact: {label.riskImpact}</span>}
-            </div>
+    <>
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Screening decisions</h3>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <ESProvenanceChip kind="es">ES-A7 · SCR-3</ESProvenanceChip>
+            {editable && eligible.length > 0 && (
+              <select className="posfield__select" style={{ maxWidth: 200 }} value="" onChange={(e) => addRecord(e.target.value)}>
+                <option value="">Add a record for…</option>
+                {eligible.map((id) => <option key={id} value={id}>{id}</option>)}
+              </select>
+            )}
           </div>
-        );
-      })}
-    </div>
+        </div>
+        <p className="poscard__sub">Every sequence is kept by default. A sequence may only be dropped when it is not risk-significant and meets a screening criterion (SCR-3, Table 1.10-1); the basis for each decision is recorded here (ES-A7). Click a record to edit it.</p>
+        {records.length > 0 ? (
+          <table className="postable">
+            <thead><tr><th>Sequence</th><th>Basis</th><th>Status</th></tr></thead>
+            <tbody>
+              {records.map((r) => {
+                const seq = seqById.get(r.sequenceId);
+                return (
+                  <tr key={r.sequenceId} className="postable__row--clickable" onClick={() => setDrawer({ kind: "screening", id: r.sequenceId })}>
+                    <td>
+                      <div className="postable__name posmono">{r.sequenceId}</div>
+                      <span className="postable__name-sub">{seq !== undefined ? `${seq.initiatingEventId} · ${seq.plantOperatingStateId}` : "Pre-layout scenario"}</span>
+                    </td>
+                    <td><span className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5 }}>{r.justification.length > 0 ? r.justification : "—"}</span></td>
+                    <td>{r.retained ? <Badge kind="ok">Retained</Badge> : <Badge kind="draft">Screened · {r.criterion}</Badge>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : <EsEmpty title="No screening records yet" hint="Every sequence is kept by default; record the basis for any sequence screened out under SCR-3 (ES-A7)." />}
+      </div>
+      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
+    </>
   );
 }
 
-interface EsqMcs { rank: number; events: string[]; freq: string; }
-interface EsqOverlay { mcs: EsqMcs[]; }
-
-function esqBounds(mean: number | undefined): { p5: string; p95: string } {
-  if (mean === undefined) return { p5: "—", p95: "—" };
-  return { p5: (mean * 0.25).toExponential(1), p95: (mean * 3.5).toExponential(1) };
-}
-
-const ESQ_OVERLAY: EsqOverlay[] = [
-  { mcs: [
-    { rank: 1, events: ["IE-LOHS", "RPS-FTR"], freq: "2.1e-5" },
-    { rank: 2, events: ["IE-ATWS", "CCF-SHX"], freq: "1.8e-5" },
-    { rank: 3, events: ["IE-LOHS", "DHR-FTR", "HFE-12"], freq: "3.1e-6" },
-  ] },
-  { mcs: [
-    { rank: 1, events: ["IE-LOHS", "DHR-FTR", "HFE-12"], freq: "1.4e-5" },
-    { rank: 2, events: ["IE-SBO", "DRACS-DEG"], freq: "5.2e-6" },
-    { rank: 3, events: ["IE-LOHS", "CCF-HEX", "HFE-08"], freq: "1.1e-6" },
-  ] },
-  { mcs: [
-    { rank: 1, events: ["IE-SBO", "DRACS-FTR", "HFE-08"], freq: "5.1e-6" },
-    { rank: 2, events: ["IE-LOHS", "DHR-LATE"], freq: "2.9e-6" },
-    { rank: 3, events: ["IE-TRANS", "CCF-PUMP", "HFE-07"], freq: "6.8e-7" },
-  ] },
-];
-
 function QuantScreen(): JSX.Element {
   const { es } = useEsWorkbook();
-  const trees = useMemo(() => eventTreesView(es), [es]);
   const families = useMemo(() => familiesView(es), [es]);
-  const deps = useMemo(() => dependenciesView(es), [es]);
-  const screening = useMemo(() => screeningView(es), [es]);
-  const seqCount = es.eventSequences.length;
+  const lbes = useMemo(() => lbeView(es), [es]);
+  const trees = useMemo(() => eventTreesView(es), [es]);
+  const leafById = useMemo(() => new Map(trees.flatMap((t) => t.sequences.map((leaf) => [leaf.id, { leaf, tree: t }] as const))), [trees]);
+  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
   const relFams = families.filter((f) => f.endState === "RADIONUCLIDE_RELEASE").sort((a, b) => (b.meanFrequency ?? 0) - (a.meanFrequency ?? 0));
 
   if (families.length === 0) {
@@ -2163,80 +2437,8 @@ function QuantScreen(): JSX.Element {
     );
   }
 
-  const esqResults = relFams.slice(0, ESQ_OVERLAY.length).map((f, i) => {
-    const bounds = esqBounds(f.meanFrequency);
-    return {
-      familyId: f.id,
-      rc: f.releaseCategoryIds[0],
-      label: f.name,
-      mean: fmtExp(f.meanFrequency),
-      p5: bounds.p5,
-      p95: bounds.p95,
-      mcs: ESQ_OVERLAY[i].mcs,
-    };
-  });
-
-  const esInputs: { label: string; value: number; detail: string }[] = [
-    { label: "Event trees", value: trees.length, detail: `${seqCount} delineated sequences` },
-    { label: "Sequence families", value: families.length, detail: `${relFams.length} release  +  ${families.length - relFams.length} safe-stable` },
-    { label: "Dependency links", value: deps.length, detail: "functional, CCF, and HEP couplings" },
-    { label: "Operator-action windows", value: (es.operatorActionWindows ?? []).length, detail: "time available vs. time required" },
-    { label: "Screening dispositions", value: screening.length, detail: `${screening.filter((s) => s.retained).length} retained for quantification` },
-  ];
-
   return (
     <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">ESQ Inputs</h3>
-          <ESProvenanceChip kind="es">ES → ESQ · ES-A1c</ESProvenanceChip>
-        </div>
-        <p className="poscard__sub">ESQ augments this model with system fault trees, parameter data, and HEPs to quantify each sequence.</p>
-        <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-          {esInputs.map((item, i) => (
-            <div key={item.label} className="posrow" style={{ gap: 12, padding: "9px 14px", alignItems: "center",
-              borderBottom: i < esInputs.length - 1 ? "1px solid var(--color-border)" : "none",
-              background: i % 2 === 0 ? "var(--color-surface-2, var(--color-surface-low))" : "transparent" }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text)", minWidth: 180 }}>{item.label}</span>
-              <span className="posmono" style={{ fontWeight: 700, fontSize: 14, minWidth: 28, color: "var(--color-text)" }}>{item.value}</span>
-              <span className="possubtle" style={{ fontSize: 12 }}>{item.detail}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Release family frequencies</h3>
-          <ESProvenanceChip kind="es">ESQ → ES</ESProvenanceChip>
-        </div>
-        <p className="poscard__sub">Mean frequency and 5th/95th percentile epistemic bounds per release family, reflecting propagated parameter and model uncertainty.</p>
-        {esqResults.length > 0 ? (
-          <table className="postable">
-            <thead>
-              <tr>
-                <th>Family</th>
-                <th>RC</th>
-                <th style={{ textAlign: "right" }}>Mean (/yr)</th>
-                <th style={{ textAlign: "right" }}>5th %ile</th>
-                <th style={{ textAlign: "right" }}>95th %ile</th>
-              </tr>
-            </thead>
-            <tbody>
-              {esqResults.map((r) => (
-                <tr key={r.familyId}>
-                  <td><div className="postable__name">{r.familyId}</div><span className="postable__name-sub">{r.label}</span></td>
-                  <td><span className={`estree__seq-rcpill estree__seq-rcpill--${rcTone(r.rc)}`}>{r.rc}</span></td>
-                  <td style={{ textAlign: "right" }}><span className="posmono" style={{ fontWeight: 700 }}>{r.mean}</span></td>
-                  <td style={{ textAlign: "right" }}><span className="posmono possubtle">{r.p5}</span></td>
-                  <td style={{ textAlign: "right" }}><span className="posmono possubtle">{r.p95}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p className="possubtle" style={{ margin: 0 }}>No release families to quantify.</p>}
-      </div>
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Preliminary point-estimate licensing basis events</h3>
@@ -2246,67 +2448,83 @@ function QuantScreen(): JSX.Element {
         <table className="postable">
           <thead>
             <tr>
-              <th>LBE</th>
-              <th>Source family</th>
+              <th>Family</th>
               <th>RC</th>
               <th style={{ textAlign: "right" }}>Point est. (/yr)</th>
               <th>Class</th>
             </tr>
           </thead>
           <tbody>
-            {ES_LICENSING_BASIS_EVENTS.map((lbe) => {
-              const cls = ES_LBE_CLASSES[lbe.lbeClass];
+            {lbes.map((lbe) => {
+              const cls = lbe.lbeClass !== undefined ? ES_LBE_CLASSES[lbe.lbeClass] : undefined;
               return (
-                <tr key={lbe.id}>
-                  <td><div className="postable__name">{lbe.id}</div><span className="postable__name-sub">{lbe.name}</span></td>
-                  <td><span className="posmono possubtle" style={{ fontSize: 11.5 }}>{lbe.basis}</span></td>
+                <tr key={lbe.familyId}>
+                  <td><div className="postable__name">{lbe.familyId}</div><span className="postable__name-sub">{lbe.name}</span></td>
                   <td>{lbe.releaseCategoryId !== undefined
                     ? <span className={`estree__seq-rcpill estree__seq-rcpill--${rcTone(lbe.releaseCategoryId)}`}>{lbe.releaseCategoryId}</span>
                     : <span className="poschip">Safe state</span>}</td>
                   <td style={{ textAlign: "right" }}><span className="posmono" style={{ fontWeight: 700 }}>{fmtExp(lbe.meanFrequency)}</span></td>
-                  <td><Badge kind={cls.tone}>{cls.label}</Badge></td>
+                  <td>{cls !== undefined ? <Badge kind={cls.tone}>{cls.label}</Badge> : <Badge kind="draft">Below 5E-7 /yr</Badge>}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <p className="possubtle" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>Classes follow the LMP frequency bands: AOO at or above 1E-2/yr, DBE from 1E-4 to 1E-2/yr, and BDBE from 5E-7 to 1E-4/yr. The bands firm up once ESQ returns the mean frequencies and uncertainty.</p>
+        <p className="possubtle" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>Classes follow the LMP frequency bands: AOO at or above 1E-2/yr, DBE from 1E-4 to 1E-2/yr, and BDBE from 5E-7 to 1E-4/yr. Families below 5E-7/yr fall outside the LBE range.</p>
       </div>
 
-      {esqResults.length > 0 && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Dominant minimal cut sets</h3>
-            <ESProvenanceChip kind="es">ESQ → ES · HLR-ESQ-B</ESProvenanceChip>
-          </div>
-          <p className="poscard__sub">Top-ranked minimal cut sets per release family, used to verify that the dependency structure captured the dominant failure combinations.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {esqResults.map((r) => (
-              <div key={r.familyId}>
-                <div className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                  <span className="posmono possubtle" style={{ fontSize: 12 }}>{r.familyId}</span>
-                  <span style={{ fontWeight: 600, fontSize: 13, color: "var(--color-text)" }}>{r.label}</span>
-                  <span className="poscomment__foot-spacer" />
-                  <span className={`estree__seq-rcpill estree__seq-rcpill--${rcTone(r.rc)}`}>{r.rc}</span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                  {r.mcs.map((mcs) => (
-                    <div key={mcs.rank} className="posrow" style={{ gap: 8, padding: "7px 10px", background: "var(--color-surface-2, var(--color-surface-low))", borderRadius: 6, alignItems: "center" }}>
-                      <span className="posmono possubtle" style={{ fontSize: 11, minWidth: 44 }}>MCS-{mcs.rank}</span>
-                      <div className="posrow posrow--wrap" style={{ gap: 5, flex: 1 }}>
-                        {mcs.events.map((ev) => (
-                          <span key={ev} className="poschip posmono" style={{ fontSize: 11 }}>{ev}</span>
-                        ))}
-                      </div>
-                      <span className="posmono possubtle" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{mcs.freq} /yr</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Returned quantification</h3>
+          <ESProvenanceChip kind="es">ESQ → ES · HLR-ESQ-B</ESProvenanceChip>
         </div>
-      )}
+        <div className="esqdom-list">
+          {relFams.map((f) => {
+            const top = f.members
+              .flatMap((id) => { const found = leafById.get(id); return found === undefined ? [] : [found]; })
+              .sort((a, b) => (b.leaf.meanFrequency ?? 0) - (a.leaf.meanFrequency ?? 0))
+              .slice(0, 3);
+            const topFreq = top[0]?.leaf.meanFrequency ?? 0;
+            const tone = rcTone(f.releaseCategoryIds[0]);
+            const rcMeta = ES_RELEASE_CATEGORIES.find((r) => r.id === f.releaseCategoryIds[0]);
+            return (
+              <div key={f.id} className={`esqdom esqdom--${tone}`}>
+                <div className="esqdom__head">
+                  <span className="posmono possubtle" style={{ fontSize: 11.5 }}>{f.id}</span>
+                  <span className="esqdom__name">{f.name}</span>
+                  <span className="poscomment__foot-spacer" />
+                  <span className="posmono possubtle" style={{ fontSize: 11 }}>{fmtExp(f.meanFrequency)}/yr</span>
+                  <span className={`estree__seq-rcpill estree__seq-rcpill--${tone}`}>{f.releaseCategoryIds[0]}</span>
+                </div>
+                {top.map(({ leaf, tree }, i) => (
+                  <button key={leaf.id} type="button" className="esqdom__row" onClick={() => setDrawer({ kind: "sequence", id: leaf.id })}>
+                    <span className="esqdom__rank posmono">{i + 1}</span>
+                    <span className="posmono" style={{ fontSize: 11.5, fontWeight: 700, color: "var(--color-text)" }}>{leaf.id}</span>
+                    <span className="esqdom__path">
+                      <span className="esqdom__ietxt possubtle">{tree.name}</span>
+                      <span className="esqdom__arrow">→</span>
+                      {tree.functionalEvents.map((fe) => {
+                        const st = leaf.path[fe.id];
+                        if (st === undefined) return null;
+                        return (
+                          <span key={fe.id} className="esqlight posmono" title={`${fe.label}: ${st === "SUCCESS" ? "success" : "failure"}`}>
+                            <span className={`esqlight__dot esqlight__dot--${st === "SUCCESS" ? "s" : "f"}`} />{fe.id}
+                          </span>
+                        );
+                      })}
+                      <span className="esqdom__arrow">→</span>
+                      <span className="esqdom__endtxt possubtle">{rcMeta?.name ?? "Safe stable state"}</span>
+                    </span>
+                    <span className="esqdom__bar"><span className={`esqdom__fill esqdom__fill--${tone}`} style={{ width: `${topFreq > 0 ? Math.max(4, Math.round(((leaf.meanFrequency ?? 0) / topFreq) * 100)) : 4}%` }} /></span>
+                    <span className="esqdom__freq posmono possubtle">{fmtExp(leaf.meanFrequency)} /yr</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );
 }

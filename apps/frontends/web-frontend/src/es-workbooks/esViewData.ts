@@ -18,12 +18,11 @@ const ES_STEPS: EsStep[] = [
   { id: "deps", num: "03", label: "Dependencies", sub: "Functional · human · phenomena", status: "idle" },
   { id: "timing", num: "04", label: "Timing & Phenomena", sub: "Mission times · time windows", status: "idle" },
   { id: "endstates", num: "05", label: "End States & Releases", sub: "Safe state · release categories", status: "idle" },
-  { id: "families", num: "06", label: "Sequence Families", sub: "Group sequences for ESQ", status: "idle" },
-  { id: "screening", num: "07", label: "Screening", sub: "SCR-3 · retain by default", status: "idle" },
-  { id: "quant", num: "08", label: "ESQ", sub: "Package for ESQ", status: "idle" },
-  { id: "draft", num: "09", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
-  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "11", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
+  { id: "families", num: "06", label: "Families & Screening", sub: "Group for ESQ · retain by default", status: "idle" },
+  { id: "quant", num: "07", label: "ESQ", sub: "Package for ESQ", status: "idle" },
+  { id: "draft", num: "08", label: "Draft", sub: "Produce ES report", status: "idle", terminal: true },
+  { id: "review", num: "09", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "10", label: "Approval", sub: "Everyone signs", status: "idle", terminal: true },
 ];
 
 type EsPersona = "preparer" | "reviewer" | "approver";
@@ -82,17 +81,6 @@ const ES_POS_NAMES: Record<string, string> = {
   "POS-07": "Post-trip cooldown (DRACS)",
   "POS-08": "IHX loop drained, primary hot",
   "POS-09": "Cover-gas adjustment",
-};
-
-const ES_IE_POS_COVERAGE: Record<string, string[]> = {
-  "IEG-LOHS": ["POS-01", "POS-02", "POS-03", "POS-08"],
-  "IEG-RCB": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"],
-  "IEG-LOFA": ["POS-01", "POS-02", "POS-03"],
-  "IEG-TRANS": ["POS-01", "POS-02", "POS-03", "POS-04", "POS-07"],
-  "IE-11": ["POS-01", "POS-06", "POS-09"],
-  "IE-15": ["POS-01", "POS-08"],
-  "IE-17": ["POS-01"],
-  "IE-18": ["POS-04", "POS-05"],
 };
 
 interface SourceSpec {
@@ -234,25 +222,6 @@ const ES_LBE_CLASSES: Record<LbeClassId, LbeClassSpec> = {
   BDBE: { id: "BDBE", label: "BDBE", name: "Beyond design basis event", band: "5E-7 to 1E-4 /yr", tone: "block" },
 };
 
-interface LicensingBasisEvent {
-  id: string;
-  name: string;
-  basis: string;
-  releaseCategoryId?: string;
-  meanFrequency: number;
-  lbeClass: LbeClassId;
-}
-
-const ES_LICENSING_BASIS_EVENTS: LicensingBasisEvent[] = [
-  { id: "LBE-1", name: "General transient, mitigated to safe state", basis: "EST-01 · ESF-OK", meanFrequency: 2.55, lbeClass: "AOO" },
-  { id: "LBE-2", name: "Loss of flow, mitigated to safe state", basis: "ESF-01 · ESF-OK", meanFrequency: 5.3e-2, lbeClass: "AOO" },
-  { id: "LBE-3", name: "Sodium boundary leak, isolated and mitigated", basis: "ESR-01 · ESF-OK", meanFrequency: 2.2e-3, lbeClass: "DBE" },
-  { id: "LBE-4", name: "Cover-gas breach, isolated and mitigated", basis: "ESG-01 · ESF-OK", meanFrequency: 2.1e-4, lbeClass: "DBE" },
-  { id: "LBE-5", name: "DHR failure, late filtered release", basis: "ESF-LATE", releaseCategoryId: "RC-2", meanFrequency: 5.1e-5, lbeClass: "BDBE" },
-  { id: "LBE-6", name: "Unprotected transient (ATWS) release", basis: "ESF-ATWS", releaseCategoryId: "RC-1", meanFrequency: 2.7e-5, lbeClass: "BDBE" },
-  { id: "LBE-7", name: "Confinement failure, early release", basis: "ESF-EARLY", releaseCategoryId: "RC-1", meanFrequency: 5.4e-6, lbeClass: "BDBE" },
-];
-
 interface FeasibilityCriterion {
   id: string;
   label: string;
@@ -266,18 +235,6 @@ const FEASIBILITY_CRITERIA: FeasibilityCriterion[] = [
   { id: "train", label: "Training", hint: "Crews train on it under similar conditions" },
   { id: "equip", label: "Equipment", hint: "Needed equipment is available and ready" },
 ];
-
-interface ScreeningLabel {
-  targetLabel: string;
-  riskImpact: string;
-}
-
-const ES_SCREENING_LABELS: Record<string, ScreeningLabel> = {
-  "ESR-02": { targetLabel: "Small leak · DHR fail · confinement intact (RC-3)", riskImpact: "Low" },
-  "ESL-04": { targetLabel: "LOHS · DHR + confinement fail (RC-1)", riskImpact: "High" },
-  "ESX-07": { targetLabel: "Spurious confinement isolation during POS-09 (cover-gas)", riskImpact: "Low" },
-  "ESX-11": { targetLabel: "Load-follow power oscillation (POS-02)", riskImpact: "Low" },
-};
 
 type ConformanceStatus = "ok" | "warn" | "blocked" | "na";
 type Stage = "pre_operational" | "operational";
@@ -375,11 +332,9 @@ export type {
   SafetyFunctionSpec,
   RepresentationSpec,
   DependencyTypeSpec,
-  ScreeningLabel,
   FeActor,
   LbeClassId,
   LbeClassSpec,
-  LicensingBasisEvent,
 };
 
 export {
@@ -393,7 +348,6 @@ export {
   FEASIBILITY_CRITERIA,
   ES_UPSTREAM_META,
   ES_POS_NAMES,
-  ES_IE_POS_COVERAGE,
   ES_SOURCE_CATALOG,
   ES_SAFETY_FUNCTION_CATALOG,
   ES_FE_SC_MAP,
@@ -401,7 +355,5 @@ export {
   ES_FE_ACTOR_META,
   ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
-  ES_SCREENING_LABELS,
   ES_LBE_CLASSES,
-  ES_LICENSING_BASIS_EVENTS,
 };

@@ -39,7 +39,6 @@ const STEP_SR_HINT: Record<string, string | undefined> = {
   timing: "ES-A6",
   endstates: "ES-C1",
   families: "ES-C8",
-  screening: "ES-A7",
   quant: "ES-C8",
 };
 

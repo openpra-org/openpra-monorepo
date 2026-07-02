@@ -31,12 +31,11 @@ function headersFor(stepId: string): StepHeader {
     case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3)." };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
     case "endstates": return { eyebrow: "Step 05", title: "End states & release categories", sub: "Assign each sequence a safe stable state or a release category; release categories are handed to Mechanistic Source Term (HLR-ES-C)." };
-    case "families": return { eyebrow: "Step 06", title: "Sequence families", sub: "Group sequences by shared end state, release category, and plant response; each group maps to one source-term calculation (ES-C8)." };
-    case "screening": return { eyebrow: "Step 07", title: "Screening", sub: "Every sequence is kept by default; one may only be dropped if it is not risk-significant and meets SCR-3 (ES-A7, Table 1.10-1)." };
-    case "quant": return { eyebrow: "Step 08", title: "ESQ Interface", sub: "ES transmits the structured scenario model to ESQ and receives sequence frequencies, uncertainty bounds, and dominant cut sets in return (ES-A1c)." };
-    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
-    case "review": return { eyebrow: "Step 10 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
-    case "approval": return { eyebrow: "Step 11 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
+    case "families": return { eyebrow: "Step 06", title: "Families & screening", sub: "Group sequences by shared end state, release category and plant response (ES-C8); every sequence is kept by default and may only be dropped under SCR-3 (ES-A7)." };
+    case "quant": return { eyebrow: "Step 07", title: "ESQ Interface", sub: "ES transmits the structured scenario model to ESQ and receives sequence frequencies, uncertainty bounds, and dominant cut sets in return (ES-A1c)." };
+    case "draft": return { eyebrow: "Step 08 · Draft", title: "Produce the draft", sub: "Build the ES report from everything you entered; sending it moves the workbook to internal technical review." };
+    case "review": return { eyebrow: "Step 09 · Review", title: "Internal technical review", sub: "Reviewers and the approver leave comments and the preparer replies, with the workbook moving to Approval once every comment is resolved." };
+    case "approval": return { eyebrow: "Step 10 · Approval", title: "Approval & sign-off", sub: "Everyone on the workbook signs, with the approver signing last and only after all comments are resolved." };
     default: return { eyebrow: "", title: "" };
   }
 }
@@ -383,8 +382,7 @@ function EsWorkbench({
       case "deps": return <DependenciesScreen />;
       case "timing": return <TimingScreen />;
       case "endstates": return <EndStatesScreen />;
-      case "families": return <FamiliesScreen />;
-      case "screening": return <ScreeningScreen />;
+      case "families": return <><FamiliesScreen /><ScreeningScreen /></>;
       case "quant": return <QuantScreen />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":

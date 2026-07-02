@@ -182,14 +182,16 @@
 .estree__legend-dot { width: 9px; height: 9px; border-radius: 50%; }
 
 /* ─── Sequence inspector (drawer reuse + path strip) ────────────────── */
-.espath { display: flex; flex-wrap: wrap; gap: 0; align-items: center; }
+.espath { display: flex; flex-wrap: wrap; row-gap: 8px; gap: 0; align-items: center; }
 .espath__node {
   display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 6px 12px; border-radius: 9px; border: 1px solid var(--color-border);
-  background: var(--color-surface-low); min-width: 84px;
+  background: var(--color-surface); min-width: 84px;
 }
+.espath__node--s { border-color: rgba(46, 125, 79, 0.35); background: rgba(46, 125, 79, 0.05); }
+.espath__node--f { border-color: rgba(196, 77, 77, 0.35); background: rgba(196, 77, 77, 0.05); }
 .espath__node-fe { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--color-text-subtle); font-weight: 700; letter-spacing: 0.04em; }
-.espath__node-state { font-size: 12px; font-weight: 700; }
+.espath__node-state { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
 .espath__node--s .espath__node-state { color: var(--c-complete); }
 .espath__node--f .espath__node-state { color: #b73b3b; }
 .espath__arrow { color: var(--color-border-strong); margin: 0 6px; }
@@ -246,6 +248,7 @@
   padding: 1px 6px; border-radius: 999px;
   background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid var(--color-primary-focus);
   letter-spacing: 0.02em;
+  white-space: nowrap; flex-shrink: 0;
 }
 .esprov svg { width: 10px; height: 10px; }
 .esprov--sc  { background: rgba(63, 111, 74, 0.10); color: var(--color-approver, #3f6f4a); border-color: rgba(63, 111, 74, 0.28); }
@@ -275,6 +278,11 @@
   border: 1px solid var(--color-border); border-radius: 11px; padding: 14px 16px; background: var(--color-surface);
   display: flex; gap: 12px;
 }
+.essf--clickable {
+  font: inherit; text-align: left; cursor: pointer; width: 100%;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.essf--clickable:hover { border-color: var(--color-primary); box-shadow: 0 4px 14px rgba(121, 57, 177, 0.1); }
 .essf__icon {
   width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -493,6 +501,46 @@ button.esact__check { cursor: pointer; }
 .esrcgrp:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .esrcgrp--active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
 .esrcgrp__n { font-weight: 400; color: var(--color-text-subtle); margin-left: 2px; }
+
+/* ─── ESQ hand-off (step 07) ────────────────────────────────────────── */
+.esqdom-list { display: flex; flex-direction: column; gap: 12px; }
+.esqdom {
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-surface); overflow: hidden;
+  padding: 10px 12px 8px;
+}
+.esqdom--block { border-left: 3px solid #c44d4d; }
+.esqdom--warn  { border-left: 3px solid #c97a18; }
+.esqdom--ok    { border-left: 3px solid var(--c-complete); }
+.esqdom__head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.esqdom__name { font-weight: 600; font-size: 13px; color: var(--color-text); }
+.esqdom__row {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 6px 4px; border: none; border-top: 1px solid var(--color-border);
+  background: none; font: inherit; text-align: left; cursor: pointer;
+}
+.esqdom__row:hover { background: var(--color-surface-low); }
+.esqdom__rank {
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--color-border-strong); color: var(--color-text-muted);
+  font-size: 10px; font-weight: 700;
+}
+.esqdom__path { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+.esqdom__ietxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; min-width: 36px; }
+.esqdom__arrow { color: var(--color-border-strong); flex-shrink: 0; }
+.esqdom__endtxt { white-space: nowrap; flex-shrink: 0; }
+.esqlight { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: var(--color-text-subtle); flex-shrink: 0; }
+.esqlight__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.esqlight__dot--s { background: var(--c-complete); }
+.esqlight__dot--f { background: #c44d4d; }
+.esqdom__bar { flex: 0 0 110px; height: 5px; border-radius: 3px; background: var(--color-surface-low); overflow: hidden; }
+.esqdom__fill { display: block; height: 100%; border-radius: 3px; }
+.esqdom__fill--block { background: #c44d4d; }
+.esqdom__fill--warn  { background: #c97a18; }
+.esqdom__fill--ok    { background: var(--c-complete); }
+.esqdom__freq { font-size: 11px; white-space: nowrap; min-width: 74px; text-align: right; }
+@media (max-width: 700px) { .esqdom__bar { display: none; } .esqdom__ietxt { display: none; } .esqdom__endtxt { display: none; } }
 .esact__check svg { width: 11px; height: 11px; }
 .esact__check--warn { background: rgba(196, 122, 24, 0.14); color: var(--c-review-inreview); border-color: rgba(196, 122, 24, 0.32); }
 .esact__check--block { background: rgba(196, 77, 77, 0.14); color: #b73b3b; border-color: rgba(196, 77, 77, 0.3); }

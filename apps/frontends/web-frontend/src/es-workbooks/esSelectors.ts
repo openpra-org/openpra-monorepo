@@ -282,6 +282,7 @@ function familiesView(es: EventSequenceAnalysis): FamilyView[] {
 }
 
 interface ReleaseMappingView {
+  uuid: string;
   releaseCategoryId: string;
   sequenceIds: string[];
   sequenceCount: number;
@@ -289,10 +290,12 @@ interface ReleaseMappingView {
   mappingBasis: string;
   commonCharacteristics: string[];
   physicalReleaseCharacteristics: string[];
+  processedByRiskIntegration?: boolean;
 }
 
 function releaseMappingsView(es: EventSequenceAnalysis): ReleaseMappingView[] {
   return (es.releaseCategoryMappings ?? []).map((m) => ({
+    uuid: m.uuid,
     releaseCategoryId: m.releaseCategoryId,
     sequenceIds: m.eventSequenceIds,
     sequenceCount: m.eventSequenceIds.length,
@@ -300,6 +303,7 @@ function releaseMappingsView(es: EventSequenceAnalysis): ReleaseMappingView[] {
     mappingBasis: m.mappingBasis,
     commonCharacteristics: m.commonCharacteristics,
     physicalReleaseCharacteristics: m.physicalReleaseCharacteristics,
+    processedByRiskIntegration: m.processedByRiskIntegration,
   }));
 }
 

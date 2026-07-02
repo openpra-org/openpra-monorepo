@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -6,8 +6,30 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 const TAU = 0.2;
 const P_ATWS = 0.055;
-const RUN_DATE = "2026-07-01";
-const TRIALS = 100000;
+
+const DET_RESULTS = JSON.parse(readFileSync(join(HERE, "es-det-results.json"), "utf8"));
+const RUN_DATE = DET_RESULTS.runDate;
+const ENGINE_VERSION = DET_RESULTS.engineVersion;
+
+function pathKey(states) {
+  return Object.entries(states).map(([fn, st]) => fn + ":" + st).sort().join("|");
+}
+
+const DET_LOOKUP = {};
+for (const cellKey of Object.keys(DET_RESULTS.cells)) {
+  const m = new Map();
+  for (const s of DET_RESULTS.cells[cellKey]) m.set(pathKey(s.path), s.conditional);
+  DET_LOOKUP[cellKey] = m;
+}
+
+function detConditional(ie, pos, pathStates) {
+  const cellKey = ie + "-" + pos;
+  const m = DET_LOOKUP[cellKey];
+  if (!m) throw new Error("no DET results for cell " + cellKey);
+  const p = m.get(pathKey(pathStates));
+  if (p === undefined) throw new Error("no DET result for path " + pathKey(pathStates) + " in " + cellKey);
+  return p;
+}
 
 const decay0 = {
   "POS-01": 0.06,
@@ -506,7 +528,7 @@ function emitCell(ie, pos, det) {
       timing: seqTimings(leaf, seqId),
       endState: leaf.cls.endState,
       sequenceFamilyId: leaf.cls.family,
-      meanFrequency: ifreq * leaf.prob,
+      meanFrequency: ifreq * detConditional(ie, pos, leaf.pathStates),
       implementsSrs: [],
     };
     if (leaf.cls.rc) rec.releaseCategoryId = leaf.cls.rc;
@@ -652,12 +674,11 @@ function emitCell(ie, pos, det) {
   const dynamicRun = {
     uuid: drId,
     tool: "DDET",
-    toolVersion: "1.0",
+    toolVersion: ENGINE_VERSION,
     modelRef: "es-dynamic-model.json#" + ie + "-" + pos,
     runDate: RUN_DATE,
     initiatingEventId: ie,
     plantOperatingStateId: pos,
-    trials: TRIALS,
     esdNodes,
     rootNodeId: rootBranchId,
     eventTreeId: etId,
@@ -898,6 +919,15 @@ function withEndStateEnums(literal) {
     .split('"endState": "RADIONUCLIDE_RELEASE"').join('"endState": EndState.RADIONUCLIDE_RELEASE');
 }
 
+const rcMembers = {};
+const rcFrequency = {};
+for (const s of genEventSequences) {
+  if (!s.releaseCategoryId) continue;
+  rcMembers[s.releaseCategoryId] = rcMembers[s.releaseCategoryId] ?? [];
+  rcMembers[s.releaseCategoryId].push(s.uuid);
+  rcFrequency[s.releaseCategoryId] = (rcFrequency[s.releaseCategoryId] ?? 0) + s.meanFrequency;
+}
+
 const header =
   'import type {\n' +
   '  EventTree,\n' +
@@ -919,6 +949,12 @@ const out =
   "\n];\n\n" +
   "export const GEN_FAMILY_MEMBERS: Record<string, string[]> = " +
   familyLiteral +
+  ";\n\n" +
+  "export const GEN_RC_MEMBERS: Record<string, string[]> = " +
+  JSON.stringify(rcMembers, null, 1) +
+  ";\n\n" +
+  "export const GEN_RC_FREQUENCY: Record<string, number> = " +
+  JSON.stringify(rcFrequency, null, 1) +
   ";\n";
 
 const outPath = join(HERE, "es-seed-dynamic.generated.ts");

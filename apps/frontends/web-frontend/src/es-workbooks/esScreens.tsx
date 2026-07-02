@@ -16,7 +16,7 @@ import {
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
-import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping } from "interfaces-mef-types/es/event-sequence-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
@@ -331,7 +331,7 @@ function EventSeqDiagram({ view, showFreq, activeSeq, onHover, onSelect }: {
   );
 }
 
-type DrawerCtx = { kind: "sequence"; id: string } | { kind: "dependency"; id: string } | { kind: "operatorAction"; id: string } | { kind: "phenomenon"; id: string };
+type DrawerCtx = { kind: "sequence"; id: string } | { kind: "dependency"; id: string } | { kind: "operatorAction"; id: string } | { kind: "phenomenon"; id: string } | { kind: "releaseCategory"; id: string };
 
 function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; trees: EventTreeView[]; deps: DependencyView[]; onClose: () => void }): JSX.Element | null {
   const found = trees.flatMap((t) => t.sequences.map((s) => ({ s, t }))).find((x) => x.s.id === seqId);
@@ -728,6 +728,98 @@ function PhenomenonDrawerBody({ phenId, onClose }: { phenId: string; onClose: ()
   );
 }
 
+function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; onClose: () => void }): JSX.Element | null {
+  const { es, editable, mutateEs } = useEsWorkbook();
+  const m = (es.releaseCategoryMappings ?? []).find((x) => x.uuid === mappingId);
+  if (m === undefined) return null;
+  const rcMeta = ES_RELEASE_CATEGORIES.find((r) => r.id === m.releaseCategoryId);
+  const mappedElsewhere = new Set((es.releaseCategoryMappings ?? []).filter((x) => x.uuid !== mappingId).flatMap((x) => x.eventSequenceIds));
+  const eligible = es.eventSequences
+    .filter((s) => s.endState === "RADIONUCLIDE_RELEASE" && !m.eventSequenceIds.includes(s.uuid) && !mappedElsewhere.has(s.uuid))
+    .map((s) => s.uuid);
+
+  function patch(patchObj: Partial<ReleaseCategoryMapping>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({ ...draft, releaseCategoryMappings: (draft.releaseCategoryMappings ?? []).map((x) => (x.uuid === mappingId ? { ...x, ...patchObj } : x)) }));
+  }
+  function toggleMember(seqId: string): void {
+    const cur = m?.eventSequenceIds ?? [];
+    patch({ eventSequenceIds: cur.includes(seqId) ? cur.filter((x) => x !== seqId) : [...cur, seqId] });
+  }
+  function removeMapping(): void {
+    if (!editable) return;
+    onClose();
+    mutateEs((draft) => ({ ...draft, releaseCategoryMappings: (draft.releaseCategoryMappings ?? []).filter((x) => x.uuid !== mappingId) }));
+  }
+
+  return (
+    <>
+      <div className="posdrawer__head">
+        <div>
+          <div className="posdrawer__cap">Release category · {m.uuid}</div>
+          <h2 className="posdrawer__title">{m.releaseCategoryId}{rcMeta !== undefined ? ` · ${rcMeta.name}` : ""}</h2>
+          <div className="posdrawer__sub">{m.eventSequenceIds.length} sequences mapped · handed to Mechanistic Source Term (ES-C8)</div>
+        </div>
+        <button type="button" className="posdrawer__close" onClick={onClose}><ESIcon.Close /></button>
+      </div>
+      <div className="posdrawer__body">
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Mapping basis</h3></div>
+          {editable
+            ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="Why these sequences share one source-term calculation" value={m.mappingBasis} onChange={(e) => patch({ mappingBasis: e.target.value })} />
+            : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{m.mappingBasis}</p>}
+        </div>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Characteristics</h3></div>
+          <div className="posfield-grid">
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Common characteristics (comma separated)</label>
+              {editable
+                ? <input className="posfield__input" value={m.commonCharacteristics.join(", ")} onChange={(e) => patch({ commonCharacteristics: csvList(e.target.value) })} />
+                : <div className="posrow posrow--wrap" style={{ gap: 6 }}>{m.commonCharacteristics.map((c) => <span key={c} className="poschip">{c}</span>)}</div>}
+            </div>
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Physical release characteristics (comma separated)</label>
+              {editable
+                ? <input className="posfield__input" value={m.physicalReleaseCharacteristics.join(", ")} onChange={(e) => patch({ physicalReleaseCharacteristics: csvList(e.target.value) })} />
+                : <div className="posrow posrow--wrap" style={{ gap: 6 }}>{m.physicalReleaseCharacteristics.map((c) => <span key={c} className="poschip poschip--warn">{c}</span>)}</div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Processed by risk integration</label>
+              {editable
+                ? <select className="posfield__select" value={m.processedByRiskIntegration === true ? "yes" : m.processedByRiskIntegration === false ? "no" : ""} onChange={(e) => patch({ processedByRiskIntegration: e.target.value.length === 0 ? undefined : e.target.value === "yes" })}>
+                    <option value="">Not set</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                : <div>{m.processedByRiskIntegration === true ? "Yes" : m.processedByRiskIntegration === false ? "No" : "—"}</div>}
+            </div>
+          </div>
+        </div>
+        <div className="poscard">
+          <div className="poscard__head"><h3 className="poscard__title">Member sequences</h3></div>
+          <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+            {m.eventSequenceIds.map((id) => (
+              <span key={id} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {id}
+                {editable && <button type="button" title="Remove" onClick={() => toggleMember(id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>}
+              </span>
+            ))}
+            {editable && eligible.length > 0 && (
+              <select className="posfield__select" style={{ maxWidth: 220 }} value="" onChange={(e) => { if (e.target.value.length > 0) toggleMember(e.target.value); }}>
+                <option value="">Add a release sequence…</option>
+                {eligible.map((id) => <option key={id} value={id}>{id}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+        {editable && (
+          <div className="posrow" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={removeMapping}><ESIcon.Close /> Remove category mapping</button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function DrawerHost({ ctx, onClose }: { ctx: DrawerCtx; onClose: () => void }): JSX.Element {
   const { es } = useEsWorkbook();
   const trees = useMemo(() => eventTreesView(es), [es]);
@@ -746,6 +838,7 @@ function DrawerHost({ ctx, onClose }: { ctx: DrawerCtx; onClose: () => void }): 
         {ctx.kind === "dependency" && <DependencyDrawerBody depId={ctx.id} deps={deps} trees={trees} onClose={onClose} />}
         {ctx.kind === "operatorAction" && <OperatorActionDrawerBody actionId={ctx.id} trees={trees} onClose={onClose} />}
         {ctx.kind === "phenomenon" && <PhenomenonDrawerBody phenId={ctx.id} onClose={onClose} />}
+        {ctx.kind === "releaseCategory" && <ReleaseCategoryDrawerBody mappingId={ctx.id} onClose={onClose} />}
       </div>
     </div>
   );
@@ -1325,13 +1418,13 @@ function SequencesScreen(): JSX.Element {
         {repr === "tree" && (
           <>
             <div className="esderived"><ESIcon.Split /> Derived from the event-sequence diagram. Each question becomes a branch heading, kept in the same order the operators meet it.</div>
+            <div className="possubtle" style={{ textAlign: "right", fontSize: 11.5, padding: "6px 16px 0" }}>Click on any end state to see its path</div>
             <EventTreeDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
-            <div className="estree__legend">
+            <div className="estree__legend" style={{ justifyContent: "center" }}>
               <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "var(--c-complete)" }} /> Safe stable state</span>
               <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "#c44d4d" }} /> Radionuclide release</span>
               <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>S</strong> mitigating function succeeds</span>
               <span className="estree__legend-item"><strong style={{ color: "#b73b3b" }}>F</strong> function fails</span>
-              <span className="estree__legend-item">Click any sequence to see its path, its dependencies and its end state</span>
             </div>
           </>
         )}
@@ -1343,7 +1436,7 @@ function SequencesScreen(): JSX.Element {
             ) : (
               <EventSeqDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
             )}
-            <div className="estree__legend">
+            <div className="estree__legend" style={{ justifyContent: "center" }}>
               {run !== undefined ? (
                 <>
                   <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>✓</strong> heat removed / boundary holds · <strong style={{ color: "#b73b3b" }}>✗</strong> function fails</span>
@@ -1486,6 +1579,17 @@ function TimingScreen(): JSX.Element {
   }, [TL.milestones]);
   const selGroup = selT !== null ? dotGroups.find((g) => g.t === selT) : undefined;
   const KIND_LABEL: Record<string, string> = { init: "Initiating event", auto: "Automatic / passive", cue: "Operator cue", op: "Operator window opens", limit: "Damage limit" };
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railW, setRailW] = useState<number>(900);
+  useLayoutEffect(() => {
+    const el = railRef.current;
+    if (el === null) return;
+    const measure = (): void => { if (el.clientWidth > 0) setRailW(el.clientWidth); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => { ro.disconnect(); };
+  }, [TL.milestones.length]);
   const windows = es.operatorActionWindows ?? [];
   const phens = es.dependencyModels?.phenomenologicalDependencies ?? [];
   const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
@@ -1501,6 +1605,43 @@ function TimingScreen(): JSX.Element {
     { t: 1440, label: "24 h" }, { t: 2880, label: "48 h" },
   ];
   const ticks = tickCandidates.filter((tk) => tk.t <= tMax);
+
+  const rail = useMemo(() => {
+    const laneH = 15;
+    const charW = 5.8;
+    const dots = dotGroups.map((g) => {
+      const label = fmtMin(g.t);
+      return { t: g.t, kind: g.kind, items: g.items, x: (pos(g.t) / 100) * railW, label, w: label.length * charW + 6 };
+    });
+    const clusters: (typeof dots)[] = [];
+    let cur: typeof dots = [];
+    for (const d of dots) {
+      const prev = cur[cur.length - 1];
+      if (prev !== undefined && d.x - prev.x < d.w + prev.w + 12) cur.push(d);
+      else { if (cur.length > 0) clusters.push(cur); cur = [d]; }
+    }
+    if (cur.length > 0) clusters.push(cur);
+    const placed: { t: number; kind: string; items: typeof dotGroups[number]["items"]; x: number; label: string; lane: number; anchor: "center" | "left" | "right" }[] = [];
+    let maxLane = 0;
+    for (const cl of clusters) {
+      if (cl.length === 1) {
+        placed.push({ ...cl[0], lane: 0, anchor: "center" });
+        continue;
+      }
+      const nearLeftEdge = cl[0].x - cl[0].w - 8 < 0;
+      cl.forEach((d, j) => {
+        const lane = nearLeftEdge ? cl.length - 1 - j : j;
+        placed.push({ ...d, lane, anchor: nearLeftEdge ? "right" : "left" });
+        if (lane > maxLane) maxLane = lane;
+      });
+    }
+    const stripH = 18;
+    const labelY = (lane: number): number => stripH + 4 + (maxLane - lane) * laneH;
+    const stemTop = (lane: number): number => labelY(lane) + 11;
+    const axisY = stripH + 4 + (maxLane + 1) * laneH + 14;
+    const height = axisY + 38;
+    return { placed, labelY, stemTop, axisY, height };
+  }, [dotGroups, railW, tMax]);
 
   function addWindow(): void {
     if (!editable) return;
@@ -1564,28 +1705,31 @@ function TimingScreen(): JSX.Element {
           <EsEmpty title="No timing data for this sequence set" hint="The dynamic-PRA run for this cell has no sequence timing entries." />
         ) : (
           <>
-            <div className="estl estl--dots">
+            <div className="estl estl--dots" ref={railRef} style={{ height: rail.height }}>
               {TL.damageFrom !== null && (
-                <div className="estl__band" style={{ left: `${pos(TL.damageFrom)}%` }}>
+                <div className="estl__band" style={{ left: `${pos(TL.damageFrom)}%`, top: 18, bottom: rail.height - rail.axisY - 8 }}>
                   <span className="estl__band-label">Cladding damage if no DHR</span>
                 </div>
               )}
-              {dotGroups.map((g, i) => {
-                const lane = i % 2 ? "lo" : "hi";
+              {rail.placed.map((g) => {
+                const labStyle: { left: number; top: number; transform?: string } = { left: g.x, top: rail.labelY(g.lane) };
+                if (g.anchor === "center") labStyle.transform = "translateX(-50%)";
+                else if (g.anchor === "left") { labStyle.left = g.x - 4; labStyle.transform = "translateX(-100%)"; }
+                else labStyle.left = g.x + 4;
                 return (
                   <Fragment key={g.t}>
-                    <span className={`estl__stem estl__stem--${lane}`} style={{ left: `${pos(g.t)}%` }} />
-                    <span className={`estl__stemlab estl__stemlab--${lane}`} style={{ left: `${pos(g.t)}%` }}>{fmtMin(g.t)}</span>
+                    <span className="estl__stem" style={{ left: g.x, top: rail.stemTop(g.lane), height: rail.axisY - rail.stemTop(g.lane) }} />
+                    <span className="estl__stemlab" style={labStyle}>{g.label}</span>
                     <button type="button"
                       className={`estl__dotbtn estl__dotbtn--${g.kind}${selT === g.t ? " estl__dotbtn--sel" : ""}`}
-                      style={{ left: `${pos(g.t)}%` }}
-                      title={`${fmtMin(g.t)} · ${g.items.length} event${g.items.length === 1 ? "" : "s"}`}
+                      style={{ left: g.x, top: rail.axisY + 1 }}
+                      title={`${g.label} · ${g.items.length} event${g.items.length === 1 ? "" : "s"}`}
                       onClick={() => setSelT(selT === g.t ? null : g.t)} />
                   </Fragment>
                 );
               })}
-              <div className="estl__axis" />
-              <div className="estl__ticks">
+              <div className="estl__axis" style={{ top: rail.axisY }} />
+              <div className="estl__ticks" style={{ top: rail.axisY + 10 }}>
                 {ticks.map((tk, i) => (
                   <span key={i} className="estl__tick" style={{ left: `${pos(tk.t)}%` }}>{tk.label}</span>
                 ))}
@@ -1698,13 +1842,65 @@ function TimingScreen(): JSX.Element {
 }
 
 function EndStatesScreen(): JSX.Element {
-  const { es } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const seqs = useMemo(() => sequencesView(es), [es]);
   const mappings = useMemo(() => releaseMappingsView(es), [es]);
   const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
-  const mappingByRc = new Map(mappings.map((m) => [m.releaseCategoryId, m]));
-  const rcInUse = ES_RELEASE_CATEGORIES.filter((r) => mappingByRc.has(r.id));
+  const [selSeg, setSelSeg] = useState<{ ie: string; seg: string } | null>(null);
+  const [openIeName, setOpenIeName] = useState<string | null>(null);
+  const [selRcGroup, setSelRcGroup] = useState<{ rc: string; ie: string } | null>(null);
+  const seqById = useMemo(() => new Map(seqs.map((s) => [s.id, s])), [seqs]);
   const hasContent = seqs.length > 0;
+  const unusedRcIds = ES_RELEASE_CATEGORIES.map((r) => r.id).filter((id) => !mappings.some((m) => m.releaseCategoryId === id));
+
+  const SEG_META: Record<string, { label: string; color: string }> = {
+    OK: { label: "Safe stable state", color: "var(--c-complete)" },
+    "RC-1": { label: "RC-1 early unfiltered", color: "#c44d4d" },
+    "RC-2": { label: "RC-2 late filtered", color: "#c97a18" },
+    "RC-3": { label: "RC-3 intact-confinement leak", color: "#d9a94a" },
+  };
+  const distribution = useMemo(() => {
+    const byIe = new Map<string, { name: string; segs: Map<string, typeof seqs> }>();
+    for (const s of seqs) {
+      const seg = s.endState === "SUCCESSFUL_MITIGATION" ? "OK" : s.releaseCategoryId ?? "REL";
+      let row = byIe.get(s.initiatingEventId);
+      if (row === undefined) {
+        row = { name: "", segs: new Map() };
+        byIe.set(s.initiatingEventId, row);
+      }
+      const arr = row.segs.get(seg);
+      if (arr === undefined) row.segs.set(seg, [s]);
+      else arr.push(s);
+    }
+    const trees = eventTreesView(es);
+    for (const [ie, row] of byIe) {
+      const names = trees.filter((t) => t.initiatingEventId === ie).map((t) => t.name);
+      row.name = names.sort((a, b) => a.length - b.length)[0] ?? ie;
+    }
+    return Array.from(byIe.entries()).map(([ie, row]) => ({
+      ie,
+      name: row.name,
+      total: Array.from(row.segs.values()).reduce((a, v) => a + v.length, 0),
+      segs: ["OK", "RC-1", "RC-2", "RC-3", "REL"].filter((k) => row.segs.has(k)).map((k) => ({ key: k, members: row.segs.get(k) ?? [] })),
+    }));
+  }, [seqs, es]);
+
+  function addMapping(): void {
+    if (!editable || unusedRcIds.length === 0) return;
+    const id = crypto.randomUUID();
+    const mapping: ReleaseCategoryMapping = {
+      uuid: id,
+      eventSequenceIds: [],
+      releaseCategoryId: unusedRcIds[0],
+      mappingBasis: "",
+      commonCharacteristics: [],
+      physicalReleaseCharacteristics: [],
+      implementsSrs: [],
+    };
+    mutateEs((draft) => ({ ...draft, releaseCategoryMappings: [...(draft.releaseCategoryMappings ?? []), mapping] }));
+    setDrawer({ kind: "releaseCategory", id });
+  }
+
   return (
     <>
       <div className="poscard">
@@ -1713,84 +1909,121 @@ function EndStatesScreen(): JSX.Element {
           <span className="possubtle">ES-A8 · ES-C1</span>
         </div>
         <p className="poscard__sub">Each sequence resolves to a safe stable state or a release category handed to Mechanistic Source Term (ES-A8, ES-C1).</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div className="posrow posrow--wrap" style={{ gap: 10, marginBottom: 14 }}>
           {ES_END_STATES.map((e) => {
             const n = seqs.filter((s) => (e.id === "OK" ? s.endState === "SUCCESSFUL_MITIGATION" : s.endState === "RADIONUCLIDE_RELEASE")).length;
             return (
-              <div key={e.id} className="poscard" style={{ borderLeft: `4px solid ${e.tone === "ok" ? "var(--c-complete)" : "#c44d4d"}` }}>
-                <div className="posrow" style={{ gap: 8, marginBottom: 4 }}>
-                  <span className={`estree__seq-end estree__seq-end--${e.tone === "ok" ? "ok" : "block"}`} />
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text)" }}>{e.label}</span>
-                  <span className="poscomment__foot-spacer" />
-                  <Badge kind={e.tone === "ok" ? "ok" : "block"}>{n} sequences</Badge>
-                </div>
-                <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5 }}>{e.desc}</div>
-                <div className="posmono possubtle" style={{ marginTop: 6, fontSize: 11 }}>{e.kind}</div>
+              <div key={e.id} className={`esend-tile esend-tile--${e.tone === "ok" ? "ok" : "block"}`} title={e.desc}>
+                <span className={`estree__seq-end estree__seq-end--${e.tone === "ok" ? "ok" : "block"}`} />
+                <span className="esend-tile__label">{e.label}</span>
+                <span className="esend-tile__count posmono">{n}</span>
               </div>
             );
           })}
         </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Release categories</h3>
-          <span className="poschip poschip--method"><ESIcon.ArrowR /> Mechanistic Source Term</span>
-        </div>
-        <p className="poscard__sub">Categories differ by release timing, magnitude, and whether filtration is credited (ES-C2, ES-C3).</p>
-        {rcInUse.length > 0 ? (
-          <div className="esrc-grid">
-            {rcInUse.map((r) => {
-              const m = mappingByRc.get(r.id);
-              return (
-                <div key={r.id} className={`esrc esrc--${r.tone}`}>
-                  <div className="esrc__head">
-                    <span className="esrc__id">{r.id}</span>
-                    <span className="esrc__name">{r.name}</span>
-                  </div>
-                  <div className="esrc__desc">{r.desc}</div>
-                  <div className="esrc__meta">
-                    <span><span className="esrc__meta-k">Timing</span> <span className="esrc__meta-v">{r.timing}</span></span>
-                    <span><span className="esrc__meta-k">Magnitude</span> <span className="esrc__meta-v">{r.magnitude}</span></span>
-                    <span><span className="esrc__meta-k">Filtered</span> <span className="esrc__meta-v">{r.scrubbed ? "Yes" : "No"}</span></span>
-                  </div>
-                  <ul className="esrc__chars">{r.chars.map((c) => <li key={c}>{c}</li>)}</ul>
-                  <div className="posrow" style={{ gap: 8, marginTop: 2 }}>
-                    {r.msReady ? <Badge kind="ok"><ESIcon.Check /> Mapped to MS</Badge> : <Badge kind="warn">MS mapping pending</Badge>}
-                    <span className="possubtle">{m?.sequenceCount ?? 0} sequences</span>
-                  </div>
+        <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 12.5, marginBottom: 8 }}>Where the end states come from, by initiating event. Click a segment to see its sequences.</div>
+        <div className="esdist">
+          {distribution.map((row) => (
+            <Fragment key={row.ie}>
+              <div className="esdist__row">
+                <div className="esdist__label">
+                  <button type="button" className="esdist__iebtn posmono" title="Click to show the initiating-event group name"
+                    onClick={() => setOpenIeName(openIeName === row.ie ? null : row.ie)}>{row.ie}</button>
+                  {openIeName === row.ie && <span className="esdist__name">{row.name}</span>}
                 </div>
-              );
-            })}
-          </div>
-        ) : <EsEmpty title="No release categories yet" hint="Sort release sequences into reactor-specific release categories handed to Mechanistic Source Term (ES-C1, ES-C2)." />}
+                <div className="esdist__bar">
+                  {row.segs.map((seg) => {
+                    const meta = SEG_META[seg.key] ?? { label: seg.key, color: "#999" };
+                    const active = selSeg !== null && selSeg.ie === row.ie && selSeg.seg === seg.key;
+                    return (
+                      <button key={seg.key} type="button"
+                        className={`esdist__seg${active ? " esdist__seg--active" : ""}`}
+                        style={{ flexGrow: seg.members.length, background: meta.color }}
+                        title={`${meta.label} · ${seg.members.length} sequence${seg.members.length === 1 ? "" : "s"}`}
+                        onClick={() => setSelSeg(active ? null : { ie: row.ie, seg: seg.key })} />
+                    );
+                  })}
+                </div>
+                <span className="esdist__counts posmono possubtle">
+                  <span className="esdist__count-n">{row.segs.filter((s) => s.key === "OK").reduce((a, s) => a + s.members.length, 0)}</span> safe · <span className="esdist__count-n">{row.total - row.segs.filter((s) => s.key === "OK").reduce((a, s) => a + s.members.length, 0)}</span> release
+                </span>
+              </div>
+              {selSeg !== null && selSeg.ie === row.ie && (
+                <div className="esdist__expand">
+                  <span className="possubtle" style={{ fontSize: 11.5 }}>{(SEG_META[selSeg.seg] ?? { label: selSeg.seg }).label}:</span>
+                  {(row.segs.find((s) => s.key === selSeg.seg)?.members ?? []).map((s) => (
+                    <span key={s.id} className="poschip" style={{ cursor: "pointer" }} onClick={() => setDrawer({ kind: "sequence", id: s.id })}>{s.id}</span>
+                  ))}
+                </div>
+              )}
+            </Fragment>
+          ))}
+        </div>
+        <div className="estree__legend" style={{ borderTop: "none", padding: "10px 0 0", background: "none", justifyContent: "center" }}>
+          {Object.keys(SEG_META).map((k) => (
+            <span key={k} className="estree__legend-item"><span className="estree__legend-dot" style={{ background: SEG_META[k].color }} /> {SEG_META[k].label}</span>
+          ))}
+        </div>
       </div>
 
       {hasContent && (
         <div className="poscard">
           <div className="poscard__head">
             <h3 className="poscard__title">Release-category mapping</h3>
-            <ESProvenanceChip kind="es">ES-C8 → MS</ESProvenanceChip>
+            <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+              <ESProvenanceChip kind="es">ES-C8 → MS</ESProvenanceChip>
+              {editable && unusedRcIds.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMapping}><ESIcon.Plus /> Add category</button>}
+            </div>
           </div>
-          <p className="poscard__sub">This shows which sequences land in each release category, and is what MS reads to set each one&apos;s source term.</p>
-          <table className="postable">
-            <thead><tr><th>Release category</th><th>Sequences</th><th>Status</th></tr></thead>
-            <tbody>
-              {rcInUse.map((r) => {
-                const m = mappingByRc.get(r.id);
-                const members = m?.sequenceIds ?? [];
-                return (
-                  <tr key={r.id}>
-                    <td><div className="postable__name">{r.id}</div><span className="postable__name-sub">{r.name}</span></td>
-                    <td><div className="posrow posrow--wrap" style={{ gap: 5 }}>{members.map((id) => (
-                      <span key={id} className="poschip" style={{ cursor: "pointer" }} onClick={() => setDrawer({ kind: "sequence", id })}>{id}</span>
-                    ))}</div></td>
-                    <td>{r.msReady ? <Badge kind="ok">Ready</Badge> : <Badge kind="warn">Pending</Badge>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <p className="poscard__sub">Categories differ by release timing, magnitude, and whether filtration is credited (ES-C2, ES-C3). Click a category to edit its basis, characteristics and member sequences.</p>
+          {mappings.length > 0 ? (
+            <table className="postable">
+              <thead><tr><th>Release category</th><th>Sequences</th><th>Status</th></tr></thead>
+              <tbody>
+                {mappings.map((m) => {
+                  const meta = ES_RELEASE_CATEGORIES.find((r) => r.id === m.releaseCategoryId);
+                  const byIe = new Map<string, string[]>();
+                  for (const id of m.sequenceIds) {
+                    const ie = seqById.get(id)?.initiatingEventId ?? "Unlinked";
+                    const arr = byIe.get(ie);
+                    if (arr === undefined) byIe.set(ie, [id]);
+                    else arr.push(id);
+                  }
+                  const openGroup = selRcGroup !== null && selRcGroup.rc === m.uuid ? byIe.get(selRcGroup.ie) : undefined;
+                  return (
+                    <tr key={m.uuid} className="postable__row--clickable" onClick={() => setDrawer({ kind: "releaseCategory", id: m.uuid })}>
+                      <td>
+                        <div className="postable__name">{m.releaseCategoryId}</div>
+                        <span className="postable__name-sub">{meta?.name ?? ""}</span>
+                        <span className="postable__name-sub">{m.sequenceCount} sequence{m.sequenceCount === 1 ? "" : "s"}</span>
+                      </td>
+                      <td>
+                        <div className="posrow posrow--wrap" style={{ gap: 5, alignItems: "center" }}>
+                          {Array.from(byIe.entries()).map(([ie, ids]) => {
+                            const active = selRcGroup !== null && selRcGroup.rc === m.uuid && selRcGroup.ie === ie;
+                            return (
+                              <button key={ie} type="button" className={`esrcgrp${active ? " esrcgrp--active" : ""}`}
+                                onClick={(ev) => { ev.stopPropagation(); setSelRcGroup(active ? null : { rc: m.uuid, ie }); }}>
+                                {ie} <span className="esrcgrp__n">{ids.length}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {openGroup !== undefined && (
+                          <div className="posrow posrow--wrap" style={{ gap: 5, paddingTop: 7 }}>
+                            {openGroup.map((id) => (
+                              <span key={id} className="poschip" style={{ cursor: "pointer" }} onClick={(ev) => { ev.stopPropagation(); setDrawer({ kind: "sequence", id }); }}>{id}</span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>{m.processedByRiskIntegration === true ? <Badge kind="ok">Processed</Badge> : <Badge kind="warn">Pending</Badge>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : <EsEmpty title="No release categories yet" hint="Sort release sequences into reactor-specific release categories handed to Mechanistic Source Term (ES-C1, ES-C2)." />}
         </div>
       )}
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}

@@ -3,7 +3,7 @@
   "name": "SFR Event-Sequence Dynamic PRA Model",
   "desc": "State-diagram model of the sodium-cooled fast reactor mitigation systems and accident scenarios for the Event Sequence Analysis example. Component diagrams model each safety function as Operating/Failed with a per-demand failure event; scenario diagrams (one per initiating-event x plant-operating-state) start at the initiator with its initial decay-heat state, progress through the challenged functions, and end in key states (safe, RC-1, RC-2, RC-3) that mirror the discrete dynamic event tree. Reference an individual scenario as es-dynamic-model.json#<IE>-<POS>.",
   "version": "unofficial-sim",
-  "runDate": "2026-07-01",
+  "runDate": "2026-07-02",
   "DiagramList": [
     {
       "name": "Sys_RT",

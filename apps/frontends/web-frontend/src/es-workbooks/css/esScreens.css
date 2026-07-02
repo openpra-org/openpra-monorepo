@@ -224,28 +224,6 @@
 .esdep__tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
 .esdep__right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 
-/* ─── Release-category cards ────────────────────────────────────────── */
-.esrc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-@media (max-width: 900px) { .esrc-grid { grid-template-columns: 1fr; } }
-.esrc {
-  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
-  padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
-  border-top: 4px solid var(--color-border-strong);
-}
-.esrc--block { border-top-color: #c44d4d; }
-.esrc--warn  { border-top-color: var(--color-warning); }
-.esrc--ok    { border-top-color: var(--c-complete); }
-.esrc__head { display: flex; align-items: baseline; gap: 8px; }
-.esrc__id { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 700; color: var(--color-text); }
-.esrc__name { font-family: 'Literata', Georgia, serif; font-weight: 700; font-size: 15px; color: var(--color-text); }
-.esrc__desc { font-size: 12.5px; color: var(--color-text-muted); line-height: 1.5; }
-.esrc__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; }
-.esrc__meta-k { color: var(--color-text-subtle); }
-.esrc__meta-v { color: var(--color-text); font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-.esrc__chars { display: flex; flex-direction: column; gap: 5px; margin: 2px 0 0; padding: 0; list-style: none; }
-.esrc__chars li { font-size: 12px; color: var(--color-text-muted); padding-left: 16px; position: relative; line-height: 1.4; }
-.esrc__chars li::before { content: ""; position: absolute; left: 4px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--color-border-strong); }
-
 /* ─── Timing rail ───────────────────────────────────────────────────── */
 .estiming { display: flex; flex-direction: column; gap: 0; }
 .estiming__row {
@@ -422,29 +400,23 @@
   position: absolute; transform: translateX(-50%); font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 10px; color: var(--color-text-subtle); white-space: nowrap;
 }
-.estl__legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--color-text-subtle); margin-top: 6px; }
+.estl__legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--color-text-subtle); margin-top: 6px; justify-content: center; }
 .estl__legend-item { display: inline-flex; align-items: center; gap: 6px; }
 
 /* dots-only timeline: milestones collapse to clickable dots, details on demand.
-   The top 16px strip is reserved for the damage-band label so no stem or stem
-   label can overlap it. */
+   Vertical geometry (rail height, axis, lanes, stems) is computed per render
+   with pixel-measured collision handling, so no label overlaps a bar or
+   another label; the top strip stays reserved for the damage-band label. */
 .estl--dots { height: 126px; }
-.estl--dots .estl__axis { top: 88px; }
-.estl--dots .estl__band { top: 18px; bottom: 30px; }
 .estl--dots .estl__band-label { top: -16px; left: 0; right: auto; transform: translateX(-50%); }
-.estl--dots .estl__ticks { top: 98px; }
 .estl__stem { position: absolute; width: 1px; background: var(--color-border-strong); z-index: 1; }
-.estl__stem--hi { top: 40px; height: 48px; }
-.estl__stem--lo { top: 60px; height: 28px; }
 .estl__stemlab {
-  position: absolute; transform: translateX(-50%);
+  position: absolute;
   font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px;
   color: var(--color-text-subtle); white-space: nowrap;
 }
-.estl__stemlab--hi { top: 26px; }
-.estl__stemlab--lo { top: 46px; }
 .estl__dotbtn {
-  position: absolute; top: 89px; transform: translate(-50%, -50%);
+  position: absolute; transform: translate(-50%, -50%);
   width: 13px; height: 13px; border-radius: 50%;
   border: 2px solid var(--color-surface); padding: 0; cursor: pointer; z-index: 2;
 }
@@ -485,6 +457,42 @@ button.esact__check { cursor: pointer; }
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .esact--click:hover { border-color: var(--color-primary); box-shadow: 0 4px 14px rgba(121, 57, 177, 0.1); }
+.esend-tile {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border: 1px solid var(--color-border); border-radius: 9px;
+  background: var(--color-surface);
+}
+.esend-tile--ok { border-left: 3px solid var(--c-complete); }
+.esend-tile--block { border-left: 3px solid #c44d4d; }
+.esend-tile__label { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.esend-tile__count { font-size: 13px; font-weight: 700; color: var(--color-text); }
+.esdist { display: flex; flex-direction: column; gap: 14px; }
+.esdist__row { display: flex; align-items: center; gap: 12px; }
+.esdist__label { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 130px; flex-shrink: 0; }
+.esdist__iebtn {
+  background: none; border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 1px 7px; font-size: 11px; font-weight: 700; color: var(--color-text); cursor: pointer;
+}
+.esdist__iebtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.esdist__name { font-size: 11.5px; font-weight: 600; color: var(--color-text); line-height: 1.2; }
+.esdist__bar { display: flex; flex: 1; height: 16px; border-radius: 5px; overflow: hidden; gap: 1px; }
+.esdist__seg { border: none; padding: 0; min-width: 8px; cursor: pointer; opacity: 0.85; transition: opacity 0.12s, box-shadow 0.12s; }
+.esdist__seg:hover { opacity: 1; }
+.esdist__seg--active { opacity: 1; box-shadow: inset 0 0 0 2px var(--color-surface); }
+.esdist__counts { width: 150px; flex-shrink: 0; font-size: 11px; text-align: right; white-space: pre; }
+.esdist__count-n { display: inline-block; width: 3ch; text-align: right; }
+.esdist__expand {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  padding: 4px 0 6px; margin: 0 0 3px 142px;
+}
+.esrcgrp {
+  background: none; border: 1px solid var(--color-border); border-radius: 6px;
+  padding: 1px 7px; font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10.5px; font-weight: 700; color: var(--color-text); cursor: pointer;
+}
+.esrcgrp:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.esrcgrp--active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+.esrcgrp__n { font-weight: 400; color: var(--color-text-subtle); margin-left: 2px; }
 .esact__check svg { width: 11px; height: 11px; }
 .esact__check--warn { background: rgba(196, 122, 24, 0.14); color: var(--c-review-inreview); border-color: rgba(196, 122, 24, 0.32); }
 .esact__check--block { background: rgba(196, 77, 77, 0.14); color: #b73b3b; border-color: rgba(196, 77, 77, 0.3); }

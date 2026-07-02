@@ -609,13 +609,13 @@
 .esdt__blab--f { color: #b73b3b; }
 .esdt__leaf {
   position: absolute; transform: translateY(-50%); cursor: pointer; font: inherit; text-align: left;
-  display: flex; align-items: center; gap: 8px; padding: 6px 11px;
+  display: flex; align-items: center; gap: 8px; padding: 6px 11px; box-sizing: border-box;
   border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface);
 }
 .esdt__leaf--ok { border-color: var(--c-complete); background: rgba(60, 160, 90, 0.07); }
 .esdt__leaf--rel { border-color: #c44d4d; background: rgba(196, 77, 77, 0.07); }
 .esdt__leaf--active { box-shadow: 0 0 0 2px rgba(80, 120, 220, 0.25); }
-.esdt__leaf-main { display: flex; flex-direction: column; gap: 1px; }
+.esdt__leaf-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow-wrap: anywhere; }
 .esdt__leaf-end { font-size: 12px; font-weight: 600; }
 .esdt__leaf--ok .esdt__leaf-end { color: var(--c-complete); }
 .esdt__leaf--rel .esdt__leaf-end { color: #b73b3b; }

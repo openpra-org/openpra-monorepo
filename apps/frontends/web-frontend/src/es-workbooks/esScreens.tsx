@@ -1,4 +1,4 @@
-import { Fragment, JSX, ReactNode, useEffect, useMemo, useState } from "react";
+import { Fragment, JSX, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ESIcon } from "./esIcons";
 import { Badge, ESProvenanceChip, fmtImportance } from "./esShared";
 import {
@@ -64,19 +64,6 @@ function EsEmpty({ title, hint }: { title: string; hint: string }): JSX.Element 
       <ESIcon.Tree />
       <div className="esempty__title">{title}</div>
       <div className="esempty__hint">{hint}</div>
-    </div>
-  );
-}
-
-function ESQDeferBanner({ title, children }: { title: string; children?: ReactNode }): JSX.Element {
-  return (
-    <div className="esdefer">
-      <span className="esdefer__icon"><ESIcon.Clock /></span>
-      <div className="esdefer__body">
-        <div className="esdefer__title">{title}</div>
-        {children !== undefined && <div className="esdefer__sub">{children}</div>}
-      </div>
-      <span className="esdefer__link">Go to ESQ <ESIcon.ArrowR /></span>
     </div>
   );
 }
@@ -506,10 +493,6 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
   const ieLinked = ieLink.linkedIeWorkbookId !== null;
   const uniqueSources = Array.from(new Map(posLink.sources.map((s) => [s.name.trim().toLowerCase(), s])).values());
 
-  function onScopeChange(value: string): void {
-    if (!editable) return;
-    mutateEs((draft) => ({ ...draft, praScope: value }));
-  }
   function onCcChange(newCcId: string): void {
     if (!editable) return;
     setCcId(newCcId);
@@ -592,19 +575,6 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
             )}
           </div>
         )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
-        <p className="poscard__sub">Describe what this event-sequence analysis covers and what it excludes.</p>
-        <textarea
-          className="posfield__textarea"
-          placeholder="State the in-scope operating states, initiating-event groups, and explicit exclusions."
-          rows={4}
-          value={es.praScope}
-          disabled={!editable}
-          onChange={(e) => onScopeChange(e.target.value)}
-        />
       </div>
 
       <div className="poscard">
@@ -731,21 +701,22 @@ interface DynEsdLeafPos { seqId: string; y: number; timing?: string; }
 interface DynEsdLayout {
   nodes: DynEsdNodeBox[]; links: DynEsdLink[]; labels: DynEsdBLab[]; leaves: DynEsdLeafPos[];
   initX: number; initW: number; initRight: number; rootX: number; rootY: number;
-  xEnd: number; boxW: number; width: number; height: number;
+  xEnd: number; boxW: number; leafW: number; width: number; height: number;
 }
 
-function layoutDynEsd(run: DynamicRun): DynEsdLayout {
+function layoutDynEsd(run: DynamicRun, availW: number): DynEsdLayout {
   const INITX = 10;
   const INITW = 84;
   const LEFT = 128;
-  const COLW = 312;
   const BOXW = 196;
   const ROWH = 108;
   const TOP = 48;
   const SPLIT = 28;
-  const LEAFW = 182;
-  const PAD = 30;
-  const xOfDepth = (d: number): number => LEFT + d * COLW;
+  const NAT_COLW = 312;
+  const PW = 200;
+  const LEAFGAP = 6;
+  const RIGHTPAD = 10;
+  const reserved = LEAFGAP + PW + RIGHTPAD;
 
   const depthOf = new Map<string, number>();
   const yOfNode = new Map<string, number>();
@@ -780,7 +751,12 @@ function layoutDynEsd(run: DynamicRun): DynEsdLayout {
     return y;
   }
   const rootY = assignY(run.rootNodeId, 0);
-  const xEnd = xOfDepth(maxDepth + 1);
+  const spans = maxDepth + 1;
+  const naturalWidth = LEFT + spans * NAT_COLW + reserved;
+  const width = availW > naturalWidth ? availW : naturalWidth;
+  const COLW = (width - LEFT - reserved) / spans;
+  const xOfDepth = (d: number): number => LEFT + d * COLW;
+  const xEnd = width - reserved;
 
   const leafCache = new Map<string, string[]>();
   function leafSeqs(nodeId: string): string[] {
@@ -840,7 +816,7 @@ function layoutDynEsd(run: DynamicRun): DynEsdLayout {
   return {
     nodes, links, labels, leaves: leafOrder,
     initX: INITX, initW: INITW, initRight: INITX + INITW, rootX: LEFT, rootY,
-    xEnd, boxW: BOXW, width: xEnd + LEAFW + PAD, height: TOP + row * ROWH + 20,
+    xEnd, boxW: BOXW, leafW: PW, width, height: TOP + row * ROWH + 20,
   };
 }
 
@@ -851,10 +827,21 @@ function DynamicEsdTree({ run, leaves, activeSeq, onHover, onSelect }: {
   onHover: (id: string | null) => void;
   onSelect: (id: string) => void;
 }): JSX.Element {
-  const L = useMemo(() => layoutDynEsd(run), [run]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [availW, setAvailW] = useState<number>(0);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el === null) return;
+    const measure = (): void => setAvailW(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => { ro.disconnect(); };
+  }, []);
+  const L = useMemo(() => layoutDynEsd(run, availW), [run, availW]);
   const isHot = (seqs: string[]): boolean => activeSeq !== null && seqs.includes(activeSeq);
   return (
-    <div className="estree__scroll">
+    <div className="estree__scroll" ref={scrollRef}>
       <div className="esdt" style={{ width: L.width, height: L.height }}>
         <svg className="estree__svg" width={L.width} height={L.height}>
           <defs>
@@ -889,7 +876,7 @@ function DynamicEsdTree({ run, leaves, activeSeq, onHover, onSelect }: {
           return (
             <button key={lf.seqId} type="button"
               className={`esdt__leaf esdt__leaf--${ok ? "ok" : "rel"}${activeSeq === lf.seqId ? " esdt__leaf--active" : ""}`}
-              style={{ left: L.xEnd + 6, top: lf.y }}
+              style={{ left: L.xEnd + 6, top: lf.y, width: L.leafW }}
               onMouseEnter={() => onHover(lf.seqId)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(lf.seqId)}>
               <span className={`estree__seq-end estree__seq-end--${ok ? "ok" : "block"}`} />
               <span className="esdt__leaf-main">
@@ -932,22 +919,9 @@ function SequencesScreen(): JSX.Element {
 
   return (
     <>
-      <ESQDeferBanner title="Event Sequence Analysis structures the scenarios. ESQ quantifies them later." />
-
-      {run !== undefined && (
-        <div className="poscard" style={{ borderLeft: "3px solid var(--color-primary)" }}>
-          <div className="posrow posrow--wrap" style={{ gap: 12, alignItems: "center" }}>
-            <span className="poschip poschip--method"><ESIcon.Bolt /> Dynamic PRA · {run.tool}</span>
-            <span style={{ fontSize: 13, color: "var(--color-text)", flex: 1, minWidth: 220 }}>These scenarios are generated by the EMRALD discrete-event model from the plant physics — the branching and end states come from the decay-heat and containment analysis, not from hand-drawn assertions.</span>
-            <span className="possubtle" style={{ fontSize: 12 }}>Model {run.modelRef ?? "—"} · {(run.trials ?? 0).toLocaleString()} trials</span>
-          </div>
-        </div>
-      )}
-
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Coverage</h3>
-          <span className="possubtle">{Object.keys(coverage.cellTree).length} sequence sets · {coverage.states.length} states × {coverage.ies.length} initiating events</span>
         </div>
         <p className="poscard__sub">ES lays out a sequence set for every operating-state and initiating-event pair, where a filled cell means a set exists that you can click to open. Empty cells are pairs that have not been laid out yet.</p>
         <div className="esmatrix-wrap">
@@ -1000,24 +974,15 @@ function SequencesScreen(): JSX.Element {
         {tree.description !== undefined && <p className="poscard__sub">{tree.description}</p>}
         <div className="posrow posrow--wrap" style={{ gap: 6, marginBottom: 12 }}>
           <span className="possubtle" style={{ fontSize: 12, marginRight: 2 }}>Operating state</span>
-          <button type="button" className={`poschip${posId === "all" ? " poschip--primary" : ""}`} onClick={() => setPosId("all")}>All states</button>
           {tree.applicableStates.map((p) => (
             <button key={p} type="button" className={`poschip${posId === p ? " poschip--primary" : ""}`} onClick={() => setPosId(p)}>{p}</button>
           ))}
         </div>
         <div className="posrow posrow--wrap" style={{ gap: 18, fontSize: 12.5 }}>
-          <span><span className="possubtle">Occurs in</span> <strong style={{ color: "var(--color-text)" }}>{tree.applicableStates.length} state{tree.applicableStates.length === 1 ? "" : "s"}</strong></span>
           <span><span className="possubtle">IE frequency</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{fmtExp(tree.ieFreq)}/plant-yr</strong></span>
           <span><span className="possubtle">Mission time</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{tree.missionTime ?? "—"} {tree.missionTimeUnits ?? ""}</strong></span>
           <span><span className="possubtle">Sequences</span> <strong style={{ color: "var(--color-text)" }}>{tree.sequences.length}</strong> <span className="possubtle">({okN} safe · {relN} release)</span></span>
         </div>
-        {tree.mitigationStrategy !== undefined && (
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 12, padding: "10px 12px", background: "var(--color-surface-2, var(--color-surface-low))", borderRadius: 8, borderLeft: "3px solid var(--color-primary)" }}>
-            <span className="possubtle" style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", marginTop: 1 }}>Safety design mitigation strategy</span>
-            <span style={{ fontSize: 12.5, color: "var(--color-text)", lineHeight: 1.45 }}>{tree.mitigationStrategy}</span>
-          </div>
-        )}
-        <p className="possubtle" style={{ fontSize: 11.5, marginTop: 8, marginBottom: 0 }}>Sequence frequencies are summed across the {tree.applicableStates.length} state{tree.applicableStates.length === 1 ? "" : "s"} where this initiator occurs, with IE having already applied the per-state time weighting (IE-C8).</p>
       </div>
 
 
@@ -1091,9 +1056,7 @@ function SequencesScreen(): JSX.Element {
               {run !== undefined ? (
                 <>
                   <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>✓</strong> heat removed / boundary holds · <strong style={{ color: "#b73b3b" }}>✗</strong> function fails</span>
-                  <span className="estree__legend-item">Each block is a physical decision point; the note is the decay-heat-versus-cooling race from the EMRALD run</span>
                   <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "var(--c-complete)" }} /> safe stable state · <span className="estree__legend-dot" style={{ background: "#c44d4d" }} /> release category</span>
-                  <span className="estree__legend-item">The model explores every branch; only reachable end states become sequences</span>
                 </>
               ) : (
                 <>
@@ -1108,17 +1071,6 @@ function SequencesScreen(): JSX.Element {
           </>
         )}
       </div>
-      <p className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, margin: "2px 2px 0" }}>The event sequences are the record. The diagram lays them out, the event tree re-expresses them, and ESQ quantifies them later.</p>
-
-      <div className="poscard" style={{ background: "var(--color-primary-soft)", borderColor: "var(--color-primary-focus)" }}>
-        <div className="posrow" style={{ gap: 12 }}>
-          <div style={{ color: "var(--color-primary)", flexShrink: 0 }}><ESIcon.Sparkle /></div>
-          <div style={{ fontSize: 13, lineHeight: 1.55 }}>
-            Every later step reads the <strong>sequences</strong> rather than the view, so whether you author them as an ESD or read them as an event tree, end states, release categories, families and screening all work from the same list.
-          </div>
-        </div>
-      </div>
-
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );

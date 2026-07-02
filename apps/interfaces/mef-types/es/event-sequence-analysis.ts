@@ -44,14 +44,35 @@ export interface TimeWindow {
   deterministicAnalysisReferences?: string[];
 }
 
+export type SequenceTimingCategory = "INITIATOR" | "AUTOMATIC" | "OPERATOR_CUE" | "OPERATOR_ACTION" | "DAMAGE_LIMIT";
+
 export interface SequenceTiming extends Unique {
   event: string;
   timeAfterInitiator: number;
+  category?: SequenceTimingCategory;
   duration?: number;
   timeWindow?: TimeWindow;
   basis?: string;
   deterministicAnalysisReferences?: string[];
   uncertaintyRange?: [number, number];
+}
+
+export type FeasibilityState = "OK" | "MARGINAL" | "NOT_MET";
+
+export interface OperatorActionWindow extends Unique {
+  humanActionId: HumanActionReference;
+  action: string;
+  cue?: string;
+  cueMinutes?: number;
+  windowStartMinutes: number;
+  windowEndMinutes: number;
+  requiredMinutes: number;
+  hepPointEstimate?: number;
+  feasibility?: Record<string, FeasibilityState>;
+  applicableInitiatingEvents?: InitiatingEventReference[];
+  applicablePlantOperatingStates?: PlantOperatingStateReference[];
+  note?: string;
+  implementsSrs: SRReference[];
 }
 
 export interface Dependency extends Unique {
@@ -192,6 +213,7 @@ export interface FunctionalDependencyModel extends Unique, Named {
 export interface PhenomenologicalDependencyModel extends Unique, Named {
   description: string;
   phenomenon: string;
+  onsetTiming?: string;
   affectedSystems: SystemReference[];
   environmentalConditions?: string[];
   systemSpecificImpacts?: Record<SystemReference, string>;
@@ -394,6 +416,8 @@ export interface EventSequenceAnalysis
 
   eventTrees?: EventTree[];
   dynamicRuns?: DynamicRun[];
+
+  operatorActionWindows?: OperatorActionWindow[];
 
   dependencyModels?: DependencyModels;
   releaseCategoryMappings?: ReleaseCategoryMapping[];

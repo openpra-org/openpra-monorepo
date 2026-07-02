@@ -24,6 +24,7 @@ const decay0 = {
 const CAPACITY = { SDHR: 0.1, DRACS: 0.045, NC: 0.05 };
 const HEAT_REMOVAL = new Set(["SDHR", "DRACS", "NC"]);
 const BOUNDARY = new Set(["ISOL", "SUPP", "DETECT", "MAKEUP"]);
+const DEMAND_MIN = { RT: 0.5, SDHR: 6, NC: 8, DRACS: 30, ISOL: 15, SUPP: 10, DETECT: 5, MAKEUP: 30, CONF: 20 };
 
 const RELY = {
   RT: 0.99999,
@@ -243,6 +244,8 @@ function classifyLeaf(ie, d0, pathStates, succeededHR, atwsRole) {
       timing: "inherent feedback caps power at " + P_ATWS.toFixed(3) + "; DRACS " + raceTiming(drRace),
       race: drRace,
       bestC: CAPACITY.DRACS,
+      tMitigateH: drRace.tCross,
+      tBreachH: null,
     };
   }
   if (atwsRole === "RELEASE") {
@@ -254,6 +257,8 @@ function classifyLeaf(ie, d0, pathStates, succeededHR, atwsRole) {
       timing: "unprotected, passive DHR lost; " + raceTiming(drRace),
       race: drRace,
       bestC: 0,
+      tMitigateH: null,
+      tBreachH: drRace.tLimit,
     };
   }
 
@@ -265,7 +270,7 @@ function classifyLeaf(ie, d0, pathStates, succeededHR, atwsRole) {
     let timing;
     if (thermal.noHeatChallenge) timing = "boundary contained, normal cooling intact";
     else timing = raceTiming(thermal.race) + "; boundary contained";
-    return { endState: "SUCCESSFUL_MITIGATION", rc: null, family: "ESF-OK", timing, race: thermal.race, bestC: thermal.bestC };
+    return { endState: "SUCCESSFUL_MITIGATION", rc: null, family: "ESF-OK", timing, race: thermal.race, bestC: thermal.bestC, tMitigateH: thermal.race ? thermal.race.tCross : null, tBreachH: null };
   }
 
   if (!thermal.thermalOK) {
@@ -282,13 +287,13 @@ function classifyLeaf(ie, d0, pathStates, succeededHR, atwsRole) {
       rc = "RC-3";
       family = "ESF-LEAK";
     }
-    return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "thermal breach, cladding limit at " + fmt(tLimit) + " h", race: thermal.race, bestC: thermal.bestC };
+    return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "thermal breach, cladding limit at " + fmt(tLimit) + " h", race: thermal.race, bestC: thermal.bestC, tMitigateH: null, tBreachH: tLimit };
   }
 
   const rc = confSuccess ? "RC-3" : "RC-1";
   const family = confSuccess ? "ESF-LEAK" : "ESF-EARLY";
   const breach = bnd.failed.length ? bnd.failed.join("+") + " boundary breach" : "boundary breach";
-  return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "cooling intact; release via " + breach, race: thermal.race, bestC: thermal.bestC };
+  return { endState: "RADIONUCLIDE_RELEASE", rc, family, timing: "cooling intact; release via " + breach, race: thermal.race, bestC: thermal.bestC, tMitigateH: thermal.race && thermal.race.mitigated ? thermal.race.tCross : null, tBreachH: null };
 }
 
 function buildDet(ie, pos) {
@@ -437,6 +442,57 @@ function emitCell(ie, pos, det) {
   }
 
   const ifreq = ieFreq(ie, pos);
+  const modelBasis = "es-dynamic-model.json#" + ie + "-" + pos;
+
+  function seqTimings(leaf, seqId) {
+    const entries = [];
+    let n = 0;
+    function push(minutes, event, category) {
+      n += 1;
+      entries.push({
+        uuid: seqId + "-t" + n,
+        event,
+        timeAfterInitiator: Math.round(minutes * 10) / 10,
+        category,
+        basis: modelBasis,
+      });
+    }
+    push(0, info.label, "INITIATOR");
+    let lastDemand = 0;
+    for (const fn of det.orderedFes) {
+      const st = leaf.pathStates[fn];
+      if (!st) continue;
+      const t = DEMAND_MIN[fn];
+      if (fn === "RT") {
+        if (st === "SUCCESS") {
+          push(t, "Reactor trip (RPS / inherent)", "AUTOMATIC");
+        } else {
+          push(t, "Reactor trip fails (ATWS)", "AUTOMATIC");
+          push(2, "Inherent feedback caps power at " + P_ATWS.toFixed(3) + " of nominal", "AUTOMATIC");
+        }
+        continue;
+      }
+      const name = FE_META[fn].name;
+      if (HEAT_REMOVAL.has(fn)) {
+        push(t, st === "SUCCESS" ? name + " established" : name + " unavailable", "AUTOMATIC");
+        if (st === "SUCCESS" && t > lastDemand) lastDemand = t;
+      } else if (fn === "CONF") {
+        push(t, st === "SUCCESS" ? "Confinement isolated + filtration aligned" : "Confinement isolation fails", "AUTOMATIC");
+      } else {
+        push(t, st === "SUCCESS" ? name + " succeeds" : name + " fails", "AUTOMATIC");
+      }
+    }
+    const cls = leaf.cls;
+    if (cls.tMitigateH !== null && cls.tMitigateH !== undefined && isFinite(cls.tMitigateH)) {
+      const tm = Math.max(cls.tMitigateH * 60, lastDemand + 2);
+      push(tm, "Decay heat below removal capacity, safe stable state", "AUTOMATIC");
+    }
+    if (cls.tBreachH !== null && cls.tBreachH !== undefined && isFinite(cls.tBreachH)) {
+      push(cls.tBreachH * 60, "Cladding limit reached", "DAMAGE_LIMIT");
+    }
+    entries.sort((a, b) => a.timeAfterInitiator - b.timeAfterInitiator);
+    return entries;
+  }
 
   function makeSeqRecord(leaf) {
     const seqId = nextSeqId();
@@ -447,6 +503,7 @@ function emitCell(ie, pos, det) {
       plantOperatingStateId: pos,
       eventTreeId: etId,
       functionalEventStates: { ...leaf.pathStates },
+      timing: seqTimings(leaf, seqId),
       endState: leaf.cls.endState,
       sequenceFamilyId: leaf.cls.family,
       meanFrequency: ifreq * leaf.prob,
@@ -594,9 +651,9 @@ function emitCell(ie, pos, det) {
 
   const dynamicRun = {
     uuid: drId,
-    tool: "EMRALD",
-    toolVersion: "unofficial-sim",
-    modelRef: "es-emrald-model.json#" + ie + "-" + pos,
+    tool: "DDET",
+    toolVersion: "1.0",
+    modelRef: "es-dynamic-model.json#" + ie + "-" + pos,
     runDate: RUN_DATE,
     initiatingEventId: ie,
     plantOperatingStateId: pos,
@@ -617,7 +674,7 @@ const KEYSTATE_META = {
   "ESF-ATWS": { key: "RC1atws", label: "RC-1 unprotected release" },
 };
 
-function buildEmraldScenario(ie, pos, emitted, det) {
+function buildScenarioDiagram(ie, pos, emitted, det) {
   const info = det.info;
   const key = ie + "-" + pos;
   const dgName = "Scenario_" + key;
@@ -725,7 +782,7 @@ function buildEmraldScenario(ie, pos, emitted, det) {
   return { diagram, states, events, actions };
 }
 
-function buildEmraldSystemDiagrams(usedFns) {
+function buildSystemDiagrams(usedFns) {
   const diagrams = [];
   const states = [];
   const events = [];
@@ -755,10 +812,10 @@ const genEventSequences = [];
 const genDynamicRuns = [];
 const familyMembers = { "ESF-OK": [], "ESF-LEAK": [], "ESF-LATE": [], "ESF-EARLY": [], "ESF-ATWS": [] };
 
-const emraldDiagrams = [];
-const emraldStates = [];
-const emraldEvents = [];
-const emraldActions = [];
+const scenarioDiagrams = [];
+const scenarioStates = [];
+const scenarioEvents = [];
+const scenarioActions = [];
 const usedSystems = new Set();
 
 let cellCount = 0;
@@ -773,28 +830,28 @@ for (const ie of Object.keys(CELLS)) {
       familyMembers[seq.sequenceFamilyId].push(seq.uuid);
     }
     for (const fn of det.orderedFes) usedSystems.add(fn);
-    const scen = buildEmraldScenario(ie, pos, emitted, det);
-    emraldDiagrams.push(scen.diagram);
-    emraldStates.push(...scen.states);
-    emraldEvents.push(...scen.events);
-    emraldActions.push(...scen.actions);
+    const scen = buildScenarioDiagram(ie, pos, emitted, det);
+    scenarioDiagrams.push(scen.diagram);
+    scenarioStates.push(...scen.states);
+    scenarioEvents.push(...scen.events);
+    scenarioActions.push(...scen.actions);
     cellCount += 1;
   }
 }
 
 const sysOrder = ["RT", "SDHR", "NC", "DRACS", "ISOL", "SUPP", "DETECT", "MAKEUP", "CONF"].filter((f) => usedSystems.has(f));
-const sys = buildEmraldSystemDiagrams(sysOrder);
-const emraldModel = {
-  id: "es-emrald-model",
-  name: "SFR Event-Sequence EMRALD Model",
+const sys = buildSystemDiagrams(sysOrder);
+const dynamicModel = {
+  id: "es-dynamic-model",
+  name: "SFR Event-Sequence Dynamic PRA Model",
   desc:
-    "State-diagram model of the sodium-cooled fast reactor mitigation systems and accident scenarios for the Event Sequence Analysis example. Component diagrams model each safety function as Operating/Failed with a per-demand failure event; scenario diagrams (one per initiating-event x plant-operating-state) start at the initiator with its initial decay-heat state, progress through the challenged functions, and end in key states (safe, RC-1, RC-2, RC-3) that mirror the discrete dynamic event tree. Reference an individual scenario as es-emrald-model.json#<IE>-<POS>.",
+    "State-diagram model of the sodium-cooled fast reactor mitigation systems and accident scenarios for the Event Sequence Analysis example. Component diagrams model each safety function as Operating/Failed with a per-demand failure event; scenario diagrams (one per initiating-event x plant-operating-state) start at the initiator with its initial decay-heat state, progress through the challenged functions, and end in key states (safe, RC-1, RC-2, RC-3) that mirror the discrete dynamic event tree. Reference an individual scenario as es-dynamic-model.json#<IE>-<POS>.",
   version: "unofficial-sim",
   runDate: RUN_DATE,
-  DiagramList: [...sys.diagrams, ...emraldDiagrams],
-  StateList: [...sys.states, ...emraldStates],
-  ActionList: [...sys.actions, ...emraldActions],
-  EventList: [...sys.events, ...emraldEvents],
+  DiagramList: [...sys.diagrams, ...scenarioDiagrams],
+  StateList: [...sys.states, ...scenarioStates],
+  ActionList: [...sys.actions, ...scenarioActions],
+  EventList: [...sys.events, ...scenarioEvents],
   VariableList: [
     { name: "DecayHeatFraction", varScope: "gtGlobal", type: "double", value: 0, desc: "Decay-heat fraction of nominal at the current time, decaying as decay0*(t/1h)^-0.2." },
     { name: "TimeHours", varScope: "gtGlobal", type: "double", value: 0, desc: "Scenario clock in hours since the initiating event." },
@@ -811,6 +868,7 @@ function serializeSequence(seq) {
   parts.push('plantOperatingStateId: ' + JSON.stringify(seq.plantOperatingStateId));
   parts.push('eventTreeId: ' + JSON.stringify(seq.eventTreeId));
   parts.push('functionalEventStates: ' + JSON.stringify(seq.functionalEventStates));
+  parts.push('timing: ' + JSON.stringify(seq.timing));
   parts.push('endState: EndState.' + seq.endState);
   if (seq.releaseCategoryId) parts.push('releaseCategoryId: ' + JSON.stringify(seq.releaseCategoryId));
   parts.push('sequenceFamilyId: ' + JSON.stringify(seq.sequenceFamilyId));
@@ -866,8 +924,8 @@ const out =
 const outPath = join(HERE, "es-seed-dynamic.generated.ts");
 writeFileSync(outPath, out, "utf8");
 
-const emraldPath = join(HERE, "es-emrald-model.json");
-writeFileSync(emraldPath, JSON.stringify(emraldModel, null, 2) + "\n", "utf8");
+const modelPath = join(HERE, "es-dynamic-model.json");
+writeFileSync(modelPath, JSON.stringify(dynamicModel, null, 2) + "\n", "utf8");
 
 const releaseCdf = genEventSequences
   .filter((s) => s.endState === "RADIONUCLIDE_RELEASE")
@@ -885,4 +943,4 @@ console.log("dynamic runs:", genDynamicRuns.length);
 console.log("family counts:", JSON.stringify(byFamily));
 console.log("release CDF (sum of release-seq freq):", releaseCdf.toExponential(3));
 console.log("wrote:", outPath);
-console.log("wrote:", emraldPath, "(" + emraldModel.DiagramList.length + " diagrams, " + emraldModel.StateList.length + " states)");
+console.log("wrote:", modelPath, "(" + dynamicModel.DiagramList.length + " diagrams, " + dynamicModel.StateList.length + " states)");

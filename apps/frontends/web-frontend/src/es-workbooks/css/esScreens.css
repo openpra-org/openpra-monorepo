@@ -411,32 +411,12 @@
   position: absolute; top: 4px; right: 8px; font-size: 10.5px; font-weight: 700;
   color: #b73b3b; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
 }
-.estl__pin { position: absolute; top: 0; bottom: 0; width: 0; }
-.estl__dot {
-  position: absolute; top: 91px; left: -5px; width: 12px; height: 12px; border-radius: 50%;
-  border: 2px solid var(--color-surface); z-index: 2;
-}
-.estl__dot--init  { background: var(--color-text); }
-.estl__dot--auto  { background: var(--c-complete); }
-.estl__dot--cue   { background: var(--color-warning); }
-.estl__dot--op    { background: var(--color-primary); }
-.estl__dot--limit { background: #c44d4d; }
-.estl__flag { position: absolute; left: 6px; width: 116px; padding-left: 8px; border-left: 1px solid var(--color-border); }
-.estl__flag--hi { top: 2px; }
-.estl__flag--lo { top: 112px; }
-.estl__flag--end {
-  left: auto; right: 6px; padding-left: 0; padding-right: 8px;
-  border-left: none; border-right: 1px solid var(--color-border); text-align: right;
-}
-.estl__flag--end .estl__flag-sub { margin-left: 0; margin-right: 13px; }
 .estl__flag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 5px; }
 .estl__flag-dot--init  { background: var(--color-text); }
 .estl__flag-dot--auto  { background: var(--c-complete); }
 .estl__flag-dot--cue   { background: var(--color-warning); }
 .estl__flag-dot--op    { background: var(--color-primary); }
 .estl__flag-dot--limit { background: #c44d4d; }
-.estl__flag-label { font-size: 11.5px; font-weight: 700; color: var(--color-text); line-height: 1.15; }
-.estl__flag-sub { display: block; font-size: 10.5px; color: var(--color-text-subtle); margin-top: 1px; margin-left: 13px; }
 .estl__ticks { position: absolute; left: 0; right: 0; top: 104px; }
 .estl__tick {
   position: absolute; transform: translateX(-50%); font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -444,6 +424,43 @@
 }
 .estl__legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11.5px; color: var(--color-text-subtle); margin-top: 6px; }
 .estl__legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+/* dots-only timeline: milestones collapse to clickable dots, details on demand.
+   The top 16px strip is reserved for the damage-band label so no stem or stem
+   label can overlap it. */
+.estl--dots { height: 126px; }
+.estl--dots .estl__axis { top: 88px; }
+.estl--dots .estl__band { top: 18px; bottom: 30px; }
+.estl--dots .estl__band-label { top: -16px; left: 0; right: auto; transform: translateX(-50%); }
+.estl--dots .estl__ticks { top: 98px; }
+.estl__stem { position: absolute; width: 1px; background: var(--color-border-strong); z-index: 1; }
+.estl__stem--hi { top: 40px; height: 48px; }
+.estl__stem--lo { top: 60px; height: 28px; }
+.estl__stemlab {
+  position: absolute; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px;
+  color: var(--color-text-subtle); white-space: nowrap;
+}
+.estl__stemlab--hi { top: 26px; }
+.estl__stemlab--lo { top: 46px; }
+.estl__dotbtn {
+  position: absolute; top: 89px; transform: translate(-50%, -50%);
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid var(--color-surface); padding: 0; cursor: pointer; z-index: 2;
+}
+.estl__dotbtn:hover { box-shadow: 0 0 0 3px rgba(80, 120, 220, 0.14); }
+.estl__dotbtn--sel { box-shadow: 0 0 0 3px rgba(80, 120, 220, 0.3); }
+.estl__dotbtn--init  { background: var(--color-text); }
+.estl__dotbtn--auto  { background: var(--c-complete); }
+.estl__dotbtn--cue   { background: var(--color-warning); }
+.estl__dotbtn--op    { background: var(--color-primary); }
+.estl__dotbtn--limit { background: #c44d4d; }
+.estl__detail {
+  border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 14px; margin-top: 4px;
+  background: var(--color-surface-low); display: flex; flex-direction: column; gap: 7px;
+}
+.estl__detail-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.estl__detail-row { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; flex-wrap: wrap; }
 
 /* ─── Operator-action windows (Step 4) ──────────────────────────────── */
 .esact { border: 1px solid var(--color-border); border-radius: 11px; padding: 13px 15px; margin-bottom: 10px; background: var(--color-surface); }
@@ -458,13 +475,20 @@
 .esact__feas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
 .esact__check {
   display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+  font-family: inherit; line-height: 1.4;
   padding: 2px 8px; border-radius: 999px;
   background: rgba(46, 125, 79, 0.12); color: var(--c-complete); border: 1px solid rgba(46, 125, 79, 0.28);
 }
+button.esact__check { cursor: pointer; }
+.esact--click {
+  display: block; width: 100%; font: inherit; text-align: left; cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.esact--click:hover { border-color: var(--color-primary); box-shadow: 0 4px 14px rgba(121, 57, 177, 0.1); }
 .esact__check svg { width: 11px; height: 11px; }
 .esact__check--warn { background: rgba(196, 122, 24, 0.14); color: var(--c-review-inreview); border-color: rgba(196, 122, 24, 0.32); }
 .esact__check--block { background: rgba(196, 77, 77, 0.14); color: #b73b3b; border-color: rgba(196, 77, 77, 0.3); }
-@media (max-width: 900px) { .estl__flag { width: 96px; } }
+
 
 /* ─── App additions (blank-state + legacy compatibility) ────────────── */
 .esempty {
@@ -571,7 +595,7 @@
 .esdg-swatch--auto { border-color: var(--color-border-strong); }
 .esdg-swatch--passive { border-color: var(--c-complete); }
 
-/* Dynamic ESD rendered horizontally as an event tree from an EMRALD run (esdNodes) */
+/* Dynamic ESD rendered horizontally as an event tree from a dynamic-PRA run (esdNodes) */
 .esdt { position: relative; }
 .esdt__trunk { fill: none; stroke: var(--color-border-strong); stroke-width: 1.6; }
 .esdt__link { fill: none; stroke-width: 1.6; opacity: 0.85; }

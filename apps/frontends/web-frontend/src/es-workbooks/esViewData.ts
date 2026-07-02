@@ -253,42 +253,6 @@ const ES_LICENSING_BASIS_EVENTS: LicensingBasisEvent[] = [
   { id: "LBE-7", name: "Confinement failure, early release", basis: "ESF-EARLY", releaseCategoryId: "RC-1", meanFrequency: 5.4e-6, lbeClass: "BDBE" },
 ];
 
-interface TimelineMilestone {
-  t: number;
-  label: string;
-  sub: string;
-  kind: "init" | "auto" | "cue" | "op" | "limit";
-  basis?: string;
-}
-
-interface EsTimeline {
-  label: string;
-  reference: string;
-  missionTime: string;
-  tMin: number;
-  tMax: number;
-  damageFrom: number;
-  milestones: TimelineMilestone[];
-}
-
-const ES_TIMELINE: EsTimeline = {
-  label: "Loss of heat sink at full power",
-  reference: "ESL-02 path · passive DHR credited",
-  missionTime: "72 h",
-  tMin: 0.1,
-  tMax: 600,
-  damageFrom: 240,
-  milestones: [
-    { t: 0.1, label: "Initiating event", sub: "Heat sink lost", kind: "init", basis: "TH-CALC-06" },
-    { t: 0.4, label: "Reactor trips", sub: "RPS · automatic", kind: "auto", basis: "TH-CALC-04" },
-    { t: 10, label: "Loss-of-heat-sink alarm", sub: "Operator cue", kind: "cue", basis: "TH-CALC-06" },
-    { t: 30, label: "DRACS natural circulation", sub: "Passive · established", kind: "auto", basis: "TH-CALC-09" },
-    { t: 40, label: "Backup-DHR window opens", sub: "Operator action available", kind: "op", basis: "TH-CALC-06" },
-    { t: 240, label: "Cladding limit · earliest", sub: "If no DHR · lower bound", kind: "limit", basis: "TH-CALC-06" },
-    { t: 480, label: "Cladding limit · best estimate", sub: "If no DHR", kind: "limit", basis: "TH-CALC-06" },
-  ],
-};
-
 interface FeasibilityCriterion {
   id: string;
   label: string;
@@ -301,43 +265,6 @@ const FEASIBILITY_CRITERIA: FeasibilityCriterion[] = [
   { id: "proc", label: "Procedures", hint: "A written procedure exists" },
   { id: "train", label: "Training", hint: "Crews train on it under similar conditions" },
   { id: "equip", label: "Equipment", hint: "Needed equipment is available and ready" },
-];
-
-interface OperatorAction {
-  id: string;
-  action: string;
-  cue: string;
-  startMin: number;
-  byMin: number;
-  requiredMin: number;
-  available: string;
-  required: string;
-  margin: string;
-  hep: string;
-  feasible: Record<string, "ok" | "warn" | "block">;
-  note?: string;
-}
-
-const ES_OPERATOR_ACTIONS: OperatorAction[] = [
-  { id: "HFE-08", action: "Diagnose loss of heat sink", cue: "Loss-of-heat-sink alarm (~10 min)", startMin: 10, byMin: 240, requiredMin: 12, available: "≈ 3.8 h", required: "≈ 12 min", margin: "Wide", hep: "3.0e-2", feasible: { time: "ok", env: "ok", proc: "ok", train: "ok", equip: "ok" } },
-  { id: "HFE-12", action: "Align the backup decay-heat path", cue: "After diagnosis (HFE-08)", startMin: 40, byMin: 240, requiredMin: 35, available: "≈ 3.3 h", required: "≈ 35 min", margin: "Adequate", hep: "8.0e-3", feasible: { time: "ok", env: "warn", proc: "ok", train: "ok", equip: "ok" }, note: "Environment is flagged because a sodium fire (PH-1) can limit access to the backup-DHR alignment, the DEP-4 link." },
-];
-
-interface Phenomenon {
-  id: string;
-  name: string;
-  icon: string;
-  affects: string[];
-  harsh: string[];
-  timing: string;
-  desc: string;
-  det: string;
-}
-
-const ES_PHENOMENA: Phenomenon[] = [
-  { id: "PH-1", name: "Sodium pool fire", icon: "Flame", affects: ["DRACS actuation", "RPS cabling"], harsh: ["Temperature", "Aerosol", "Smoke obscuration"], timing: "Minutes after a leak ignites", desc: "Burning sodium fills the primary cell with thick smoke and heat, linked to DEP-4.", det: "F-PRA element" },
-  { id: "PH-2", name: "Sodium–CO₂ interaction", icon: "Beaker", affects: ["PCS boundary", "Confinement pressure"], harsh: ["Pressure", "Reaction products"], timing: "On IHX / PCS tube leak", desc: "A sodium-to-CO₂ leak in the power-conversion boundary raises confinement pressure and forms reaction products.", det: "TH-CALC-11" },
-  { id: "PH-3", name: "Cover-gas activity transport", icon: "Radiation", affects: ["Cover-gas boundary", "Filtration load"], harsh: ["Activity"], timing: "Continuous once boundary degraded", desc: "Moving activated argon sets the RC-3 source term when only the cover-gas boundary is challenged.", det: "MS element" },
 ];
 
 interface ScreeningLabel {
@@ -442,11 +369,7 @@ export type {
   Stage,
   EndStateSpec,
   ReleaseCategorySpec,
-  TimelineMilestone,
-  EsTimeline,
   FeasibilityCriterion,
-  OperatorAction,
-  Phenomenon,
   UpstreamMeta,
   SourceSpec,
   SafetyFunctionSpec,
@@ -467,10 +390,7 @@ export {
   CONFORMANCE_ITEMS,
   ES_END_STATES,
   ES_RELEASE_CATEGORIES,
-  ES_TIMELINE,
   FEASIBILITY_CRITERIA,
-  ES_OPERATOR_ACTIONS,
-  ES_PHENOMENA,
   ES_UPSTREAM_META,
   ES_POS_NAMES,
   ES_IE_POS_COVERAGE,

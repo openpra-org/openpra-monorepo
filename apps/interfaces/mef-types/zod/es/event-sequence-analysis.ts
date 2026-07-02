@@ -33,15 +33,37 @@ export const TimeWindowSchema = z.object({
   deterministicAnalysisReferences: z.array(z.string()).optional(),
 });
 
+export const SequenceTimingCategorySchema = z.enum(["INITIATOR", "AUTOMATIC", "OPERATOR_CUE", "OPERATOR_ACTION", "DAMAGE_LIMIT"]);
+
 export const SequenceTimingSchema = z.object({
   uuid: z.string(),
   event: z.string(),
   timeAfterInitiator: z.number(),
+  category: SequenceTimingCategorySchema.optional(),
   duration: z.number().optional(),
   timeWindow: TimeWindowSchema.optional(),
   basis: z.string().optional(),
   deterministicAnalysisReferences: z.array(z.string()).optional(),
   uncertaintyRange: z.tuple([z.number(), z.number()]).optional(),
+});
+
+export const FeasibilityStateSchema = z.enum(["OK", "MARGINAL", "NOT_MET"]);
+
+export const OperatorActionWindowSchema = z.object({
+  uuid: z.string(),
+  humanActionId: z.string(),
+  action: z.string(),
+  cue: z.string().optional(),
+  cueMinutes: z.number().optional(),
+  windowStartMinutes: z.number(),
+  windowEndMinutes: z.number(),
+  requiredMinutes: z.number(),
+  hepPointEstimate: z.number().optional(),
+  feasibility: z.record(z.string(), FeasibilityStateSchema).optional(),
+  applicableInitiatingEvents: z.array(z.string()).optional(),
+  applicablePlantOperatingStates: z.array(z.string()).optional(),
+  note: z.string().optional(),
+  implementsSrs: z.array(SRReferenceSchema),
 });
 
 export const DependencySchema = z.object({
@@ -201,6 +223,7 @@ export const PhenomenologicalDependencyModelSchema = z.object({
   name: z.string(),
   description: z.string(),
   phenomenon: z.string(),
+  onsetTiming: z.string().optional(),
   affectedSystems: z.array(z.string()),
   environmentalConditions: z.array(z.string()).optional(),
   systemSpecificImpacts: z.record(z.string(), z.string()).optional(),
@@ -408,6 +431,7 @@ export const EventSequenceAnalysisSchema = z.object({
     eventTreeId: z.string().optional(),
     notes: z.string().optional(),
   })).optional(),
+  operatorActionWindows: z.array(OperatorActionWindowSchema).optional(),
   dependencyModels: DependencyModelsSchema.optional(),
   releaseCategoryMappings: z.array(ReleaseCategoryMappingSchema).optional(),
   screeningRecords: z.array(EventSequenceScreeningRecordSchema),

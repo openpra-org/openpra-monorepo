@@ -28,7 +28,7 @@ function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "See the sources, barriers, and key safety functions every scenario is built around, all coming in from IE and POS (ES-A1, A2, A3)." };
     case "sequences": return { eyebrow: "Step 02", title: "Event sequences", sub: "Lay out each scenario from its initiating event to one end state, a safe stable state or a release (ES-A5, A7)." };
-    case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "Capture every link between functions, systems and operator actions so no linked failure is treated as independent (HLR-ES-B)." };
+    case "deps": return { eyebrow: "Step 03", title: "Dependencies", sub: "A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3)." };
     case "timing": return { eyebrow: "Step 04", title: "Timing & phenomena", sub: "Order functional events, assign operator-action windows, and identify sequence-induced phenomenological conditions (ES-A6, B3)." };
     case "endstates": return { eyebrow: "Step 05", title: "End states & release categories", sub: "Assign each sequence a safe stable state or a release category; release categories are handed to Mechanistic Source Term (HLR-ES-C)." };
     case "families": return { eyebrow: "Step 06", title: "Sequence families", sub: "Group sequences by shared end state, release category, and plant response; each group maps to one source-term calculation (ES-C8)." };

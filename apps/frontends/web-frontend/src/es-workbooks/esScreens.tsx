@@ -19,7 +19,8 @@ import {
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
-import { type KeySafetyFunction, type DynamicRun } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType } from "interfaces-mef-types/es/event-sequence-analysis";
+import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { useEsWorkbook } from "./esWorkbookContext";
 import {
   eventTreesView,
@@ -404,11 +405,47 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
 }
 
 function DependencyDrawerBody({ depId, deps, trees, onClose }: { depId: string; deps: DependencyView[]; trees: EventTreeView[]; onClose: () => void }): JSX.Element | null {
+  const { editable, mutateEs, ieLink } = useEsWorkbook();
   const d = deps.find((x) => x.id === depId);
   if (d === undefined) return null;
   const meta = ES_DEPENDENCY_TYPES[d.type];
   const imp = fmtImportance(d.importance);
-  const treeName = (ie: string): string => trees.find((t) => t.initiatingEventId === ie)?.name ?? ie;
+  const ieName = (ie: string): string => ieLink.initiators.find((i) => i.id === ie)?.name ?? trees.find((t) => t.initiatingEventId === ie)?.name ?? ie;
+  const ieChipLabel = (ie: string): string => (ieName(ie) === ie ? ie : `${ie} · ${ieName(ie)}`);
+  const ieOptions = Array.from(new Set([...ieLink.initiators.map((i) => i.id), ...trees.map((t) => t.initiatingEventId), ...d.initiatingEvents]));
+
+  function patchDep(patch: Partial<Dependency>): void {
+    if (!editable) return;
+    mutateEs((draft) => ({
+      ...draft,
+      dependencyModels: {
+        ...draft.dependencyModels,
+        functionalDependencies: (draft.dependencyModels?.functionalDependencies ?? []).map((m) => ({
+          ...m,
+          dependencies: m.dependencies.map((x) => (x.uuid === depId ? { ...x, ...patch } : x)),
+        })),
+      },
+    }));
+  }
+  function toggleIe(ie: string): void {
+    const cur = d?.initiatingEvents ?? [];
+    patchDep({ applicableInitiatingEvents: cur.includes(ie) ? cur.filter((x) => x !== ie) : [...cur, ie] });
+  }
+  function removeDep(): void {
+    if (!editable) return;
+    onClose();
+    mutateEs((draft) => ({
+      ...draft,
+      dependencyModels: {
+        ...draft.dependencyModels,
+        functionalDependencies: (draft.dependencyModels?.functionalDependencies ?? []).map((m) => ({
+          ...m,
+          dependencies: m.dependencies.filter((x) => x.uuid !== depId),
+        })),
+      },
+    }));
+  }
+
   return (
     <>
       <div className="posdrawer__head">
@@ -421,18 +458,82 @@ function DependencyDrawerBody({ depId, deps, trees, onClose }: { depId: string; 
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Description</h3>{imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
-          <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{d.desc}</p>
+          <div className="poscard__head"><h3 className="poscard__title">Description</h3>{!editable && imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
+          {editable
+            ? <textarea className="posfield__textarea" style={{ minHeight: 64 }} placeholder="What links these two elements, and how is it modelled?" value={d.desc} onChange={(e) => patchDep({ description: e.target.value })} />
+            : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{d.desc}</p>}
         </div>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Modelling</h3></div>
           <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Type</label><div><Badge kind={meta?.tone === "warn" ? "warn" : "progress"}>{meta?.label ?? d.type}</Badge></div></div>
-            <div className="posfield"><label className="posfield__label">Time-phased</label><div>{d.timePhased ? "Yes, it changes as the event progresses" : "No"}</div></div>
+            {editable && (
+              <>
+                <div className="posfield"><label className="posfield__label">Dependent element</label>
+                  <input className="posfield__input" value={d.from} onChange={(e) => patchDep({ dependentElement: e.target.value })} />
+                </div>
+                <div className="posfield"><label className="posfield__label">Depends upon</label>
+                  <input className="posfield__input" value={d.to} onChange={(e) => patchDep({ dependedUponElement: e.target.value })} />
+                </div>
+              </>
+            )}
+            <div className="posfield"><label className="posfield__label">Type</label>
+              {editable
+                ? <select className="posfield__select" value={d.type} onChange={(e) => patchDep({ dependencyType: e.target.value as DependencyType })}>
+                    {Object.entries(ES_DEPENDENCY_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                : <div><Badge kind={meta?.tone === "warn" ? "warn" : "progress"}>{meta?.label ?? d.type}</Badge></div>}
+            </div>
+            <div className="posfield"><label className="posfield__label">Time-phased</label>
+              {editable
+                ? <select className="posfield__select" value={d.timePhased ? "yes" : "no"} onChange={(e) => patchDep({ timePhased: e.target.value === "yes" })}>
+                    <option value="no">No</option>
+                    <option value="yes">Yes, it changes as the event progresses</option>
+                  </select>
+                : <div>{d.timePhased ? "Yes, it changes as the event progresses" : "No"}</div>}
+            </div>
+            {editable && (
+              <div className="posfield"><label className="posfield__label">Importance</label>
+                <select className="posfield__select" value={d.importance ?? ""} onChange={(e) => patchDep({ importanceLevel: e.target.value.length === 0 ? undefined : (e.target.value as ImportanceLevel) })}>
+                  <option value="">Not set</option>
+                  <option value={ImportanceLevel.HIGH}>High</option>
+                  <option value={ImportanceLevel.MEDIUM}>Medium</option>
+                  <option value={ImportanceLevel.LOW}>Low</option>
+                </select>
+              </div>
+            )}
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Appears in</label>
-              <div className="posrow posrow--wrap" style={{ gap: 6 }}>{d.initiatingEvents.map((ie) => <span key={ie} className="poschip">{ie} · {treeName(ie)}</span>)}</div></div>
+              {editable ? (
+                <>
+                  {d.initiatingEvents.length > 0 && (
+                    <div className="posrow posrow--wrap" style={{ gap: 6, marginBottom: 8 }}>
+                      {d.initiatingEvents.map((ie) => (
+                        <span key={ie} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {ieChipLabel(ie)}
+                          <button type="button" title="Remove" onClick={() => toggleIe(ie)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {ieOptions.filter((ie) => !d.initiatingEvents.includes(ie)).length > 0 && (
+                    <select className="posfield__select" value="" onChange={(e) => { if (e.target.value.length > 0) toggleIe(e.target.value); }}>
+                      <option value="">Add an initiating event…</option>
+                      {ieOptions.filter((ie) => !d.initiatingEvents.includes(ie)).map((ie) => <option key={ie} value={ie}>{ieChipLabel(ie)}</option>)}
+                    </select>
+                  )}
+                </>
+              ) : (
+                <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+                  {d.initiatingEvents.map((ie) => <span key={ie} className="poschip">{ieChipLabel(ie)}</span>)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        {editable && (
+          <div className="posrow" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={removeDep}><ESIcon.Close /> Remove dependency</button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -1077,20 +1178,44 @@ function SequencesScreen(): JSX.Element {
 }
 
 function DependenciesScreen(): JSX.Element {
-  const { es } = useEsWorkbook();
+  const { es, editable, mutateEs } = useEsWorkbook();
   const deps = useMemo(() => dependenciesView(es), [es]);
   const [filter, setFilter] = useState<string>("all");
   const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
   const types = Array.from(new Set(deps.map((d) => d.type)));
-  const shown = filter === "all" ? deps : deps.filter((d) => d.type === filter);
+  const shown = filter === "all" || !types.includes(filter) ? deps : deps.filter((d) => d.type === filter);
+
+  function addDependency(): void {
+    if (!editable) return;
+    const id = crypto.randomUUID();
+    const dep: Dependency = {
+      uuid: id,
+      dependentElement: "New dependent element",
+      dependedUponElement: "Depended-upon element",
+      dependencyType: DependencyType.FUNCTIONAL,
+      description: "",
+      timePhased: false,
+      applicableInitiatingEvents: [],
+      implementsSrs: [],
+    };
+    mutateEs((draft) => {
+      const models = draft.dependencyModels?.functionalDependencies ?? [];
+      const next = models.length > 0
+        ? models.map((m, i) => (i === 0 ? { ...m, dependencies: [...m.dependencies, dep] } : m))
+        : [{ uuid: crypto.randomUUID(), name: "Event-sequence dependency catalogue", description: "Dependencies linking successes and failures across the event sequences (HLR-ES-B).", involvedSystems: [], dependencies: [dep], implementsSrs: [] }];
+      return { ...draft, dependencyModels: { ...draft.dependencyModels, functionalDependencies: next } };
+    });
+    setFilter("all");
+    setDrawer({ kind: "dependency", id });
+  }
+
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Dependencies across the event sequences</h3>
-          <span className="possubtle">{deps.length} modelled · HLR-ES-B</span>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDependency}><ESIcon.Plus /> Add dependency</button>}
         </div>
-        <p className="poscard__sub">A dependency links the success or failure of one function, system or operator action to another (ES-B1, ES-B2, ES-B3).</p>
         {deps.length === 0 ? (
           <EsEmpty title="No dependencies modelled yet" hint="Catalogue the functional, common-cause, human, operational, physical and phenomenological links across the event sequences (HLR-ES-B)." />
         ) : (
@@ -1132,7 +1257,6 @@ function DependenciesScreen(): JSX.Element {
           </>
         )}
       </div>
-      {deps.length > 0 && <p className="possubtle" style={{ fontSize: 12, lineHeight: 1.55, margin: "2px 2px 0" }}>Dependencies enter through functional-event ordering or the linked system fault trees; those that cannot be ordered, such as common-cause links, are flagged here and settled during quantification (ES-B4, ES-B5).</p>}
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );

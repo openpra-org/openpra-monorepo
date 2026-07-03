@@ -98,10 +98,19 @@ interface InitiatorSpec {
 }
 
 const SC_INITIATORS: Record<string, InitiatorSpec> = {
+  "IEG-01": { id: "IEG-01", name: "Loss of forced primary flow", short: "LOFA", icon: "Wind" },
+  "IEG-02": { id: "IEG-02", name: "Loss of electric power", short: "LOEP", icon: "Bolt" },
   "IEG-03": { id: "IEG-03", name: "Loss of heat sink", short: "LOHS", icon: "Thermo" },
-  "IEG-01": { id: "IEG-01", name: "Loss of primary flow (ULOF)", short: "LOFA", icon: "Wind" },
-  "IEG-07": { id: "IEG-07", name: "Primary sodium boundary leak", short: "RCB", icon: "Pipe" },
-  "IEG-06": { id: "IEG-06", name: "General transient", short: "TRANS", icon: "Bolt" },
+  "IEG-04": { id: "IEG-04", name: "Transient overpower", short: "TOP", icon: "Atom" },
+  "IEG-05": { id: "IEG-05", name: "Overcooling-driven reactivity", short: "OVC", icon: "Atom" },
+  "IEG-06": { id: "IEG-06", name: "General reactor trip and spurious scram", short: "TRIP", icon: "Bolt" },
+  "IEG-07": { id: "IEG-07", name: "Primary sodium boundary breach", short: "RCB", icon: "Pipe" },
+  "IEG-08": { id: "IEG-08", name: "Cover-gas boundary breach", short: "CGB", icon: "Wind" },
+  "IEG-09": { id: "IEG-09", name: "Sodium-water reaction interfacing breach", short: "SWR", icon: "Beaker" },
+  "IEG-10": { id: "IEG-10", name: "Loss of dedicated decay-heat removal", short: "LDHR", icon: "Thermo" },
+  "IEG-11": { id: "IEG-11", name: "Local in-core faults", short: "LIF", icon: "Atom" },
+  "IEG-12": { id: "IEG-12", name: "Refuelling and shutdown-configuration faults", short: "REF", icon: "Radiation" },
+  "IEG-13": { id: "IEG-13", name: "Operator-induced loss of intermediate heat removal", short: "OIHR", icon: "Thermo" },
   "HZ-FIRE": { id: "HZ-FIRE", name: "Internal sodium fire", short: "FIRE", icon: "Beaker" },
   "HZ-SEIS": { id: "HZ-SEIS", name: "Seismic event", short: "SEIS", icon: "Network" },
 };

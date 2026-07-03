@@ -25,9 +25,9 @@ describe("SC MEF builders", () => {
   });
 
   it("seeds success criteria, mission times, and engineering analyses", () => {
-    expect(SC_ANALYSIS.safetyFunctionSuccessCriteria.length).toBe(19);
+    expect(SC_ANALYSIS.safetyFunctionSuccessCriteria.length).toBe(147);
     expect(SC_ANALYSIS.missionTimes.length).toBe(5);
-    expect(SC_ANALYSIS.engineeringAnalyses.length).toBe(7);
+    expect(SC_ANALYSIS.engineeringAnalyses.length).toBe(8);
     expect(SC_ANALYSIS.endStateDefinitions.length).toBe(4);
   });
 

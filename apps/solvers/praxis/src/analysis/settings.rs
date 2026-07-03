@@ -1,8 +1,9 @@
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Approximation {
 
+    #[default]
     None,
 
     RareEvent,
@@ -48,13 +49,6 @@ impl Approximation {
             Approximation::Mcub => "Minimal Cut Upper Bound: Conservative upper bound estimate",
             Approximation::MonteCarlo => "Monte Carlo simulation: Statistical sampling method",
         }
-    }
-}
-
-impl Default for Approximation {
-
-    fn default() -> Self {
-        Approximation::None
     }
 }
 

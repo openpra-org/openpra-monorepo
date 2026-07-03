@@ -1198,7 +1198,7 @@ impl ZbddEngine {
         let lo = self.node(f).low;
         let hi_p = self.purify(hi);
         let lo_p = self.purify(lo);
-        let hi_p = if var % 2 == 0 {
+        let hi_p = if var.is_multiple_of(2) {
             let hp = self.remove_var(hi_p, var + 1);
             self.deref(hi_p);
             hp

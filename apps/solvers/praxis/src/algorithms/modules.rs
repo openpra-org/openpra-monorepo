@@ -75,7 +75,7 @@ pub fn decompose(pdag: &Pdag) -> Result<Decomposition> {
             event_index.entry(index.abs()).or_insert(n);
         }
     }
-    let words = (event_index.len() + 63) / 64;
+    let words = event_index.len().div_ceil(64);
 
     let mut ctx = Ctx {
         pdag,
@@ -197,7 +197,7 @@ fn find_modules(ctx: &Ctx, root: NodeIndex) -> HashSet<NodeIndex> {
 
     let mut dominated: HashMap<NodeIndex, usize> = HashMap::new();
     for &n in &ctx.topo {
-        if !ctx.pdag.get_node(n).map_or(false, |x| x.is_basic_event()) {
+        if !ctx.pdag.get_node(n).is_some_and(|x| x.is_basic_event()) {
             continue;
         }
         let mut cur = idom.get(&n).copied();
@@ -212,7 +212,7 @@ fn find_modules(ctx: &Ctx, root: NodeIndex) -> HashSet<NodeIndex> {
 
     let mut modules = HashSet::new();
     for (&node, supp) in &ctx.support {
-        if !ctx.pdag.get_node(node).map_or(false, |x| x.is_gate()) {
+        if !ctx.pdag.get_node(node).is_some_and(|x| x.is_gate()) {
             continue;
         }
         let size: usize = supp.iter().map(|w| w.count_ones() as usize).sum();

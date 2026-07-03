@@ -128,7 +128,7 @@ fn extract_rec(
     }
     let node = *z.node(f);
     let v = node.var / 2;
-    let (lit, p) = if node.var % 2 == 0 {
+    let (lit, p) = if node.var.is_multiple_of(2) {
         (var_event[v], var_prob[v])
     } else {
         (-var_event[v], 1.0 - var_prob[v])

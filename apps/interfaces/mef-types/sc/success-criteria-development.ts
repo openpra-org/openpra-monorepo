@@ -1,6 +1,6 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique, Named } from "../core/meta";
-import { ImportanceLevel, SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
+import { SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
 import {
   BaseDesignInformation,
   BaseModelUncertaintyDocumentation,

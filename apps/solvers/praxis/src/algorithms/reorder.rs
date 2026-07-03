@@ -599,8 +599,7 @@ fn gsift_swap(rb: &mut RBdd, root: i32, deadline: Instant) -> i32 {
 }
 
 fn restore_order(rb: &mut RBdd, target: &[usize]) {
-    for l in 0..target.len() {
-        let v = target[l];
+    for (l, &v) in target.iter().enumerate() {
         let cur = rb.level_of[v];
         if cur != l {
             move_var(rb, cur, l);

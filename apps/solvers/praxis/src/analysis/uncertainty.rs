@@ -166,13 +166,21 @@ pub fn propagate_uncertainty(
         let chunk = remaining.min(CHUNK);
         let mut columns: Vec<Vec<f64>> = nominal.iter().map(|&p| vec![p; chunk]).collect();
 
-        for j in 0..chunk {
+        let mut rows: Vec<Vec<f64>> = Vec::with_capacity(chunk);
+        for _ in 0..chunk {
             let ctx = EvalContext::correlated(fault_tree.parameters(), mission_time);
+            let mut row = nominal.clone();
             for (event_id, event) in fault_tree.basic_events() {
                 let sampled = event.sample_probability(&ctx, &mut rng);
                 if let Some(&pos) = var_pos.get(event_id) {
-                    columns[pos][j] = sampled;
+                    row[pos] = sampled;
                 }
+            }
+            rows.push(row);
+        }
+        for (pos, col) in columns.iter_mut().enumerate() {
+            for (j, row) in rows.iter().enumerate() {
+                col[j] = row[pos];
             }
         }
 

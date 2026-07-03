@@ -37,8 +37,8 @@ fn dfs(
     }
     match pdag.get_node(a) {
         Some(PdagNode::BasicEvent { .. }) => {
-            if !pos.contains_key(&a) {
-                pos.insert(a, *counter);
+            if let std::collections::hash_map::Entry::Vacant(e) = pos.entry(a) {
+                e.insert(*counter);
                 *counter += 1;
             }
         }
@@ -63,8 +63,8 @@ pub fn dfs_order(pdag: &Pdag, scram: bool) -> HashMap<NodeIndex, usize> {
         dfs(pdag, root.abs(), scram, &mut pos, &mut visited, &mut counter);
     }
     for &be in &basic_events(pdag) {
-        if !pos.contains_key(&be) {
-            pos.insert(be, counter);
+        if let std::collections::hash_map::Entry::Vacant(e) = pos.entry(be) {
+            e.insert(counter);
             counter += 1;
         }
     }

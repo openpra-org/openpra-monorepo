@@ -447,7 +447,7 @@ impl Builder {
         prefix: f64,
     ) -> Result<ZbddRef> {
         self.explored += 1;
-        if self.explored % 50_000_000 == 0 {
+        if self.explored.is_multiple_of(50_000_000) {
             tracing::info!(
                 target: "praxis::direct_zbdd",
                 explored = self.explored,
@@ -465,7 +465,7 @@ impl Builder {
             Some(parts) => parts,
             None => {
                 self.progress += 1;
-                if self.progress % 10_000 == 0 {
+                if self.progress.is_multiple_of(10_000) {
                     tracing::info!(
                         target: "praxis::direct_zbdd",
                         cut_sets = self.progress,
@@ -639,7 +639,7 @@ impl Builder {
 
     fn cut_sets_b(&mut self, r: NodeIndex, budget: f64) -> Result<ZbddRef> {
         self.explored += 1;
-        if self.explored % 50_000_000 == 0 {
+        if self.explored.is_multiple_of(50_000_000) {
             tracing::info!(
                 target: "praxis::direct_zbdd",
                 explored = self.explored,
@@ -649,7 +649,7 @@ impl Builder {
             );
         }
         if self.gc_cache > 0
-            && self.explored % 1024 == 0
+            && self.explored.is_multiple_of(1024)
             && self.zbdd.op_cache_len() > self.gc_cache
         {
             self.zbdd.clear_op_caches();
@@ -764,9 +764,9 @@ impl Builder {
             for i in 0..n {
                 let ci = order[i].1;
                 let mut others = f64::INFINITY;
-                for j in 0..n {
-                    if j != i && order[j].0 > 0.0 && dec.disjoint(order[j].1, ci) {
-                        others = others.min(order[j].0);
+                for (j, oj) in order.iter().enumerate() {
+                    if j != i && oj.0 > 0.0 && dec.disjoint(oj.1, ci) {
+                        others = others.min(oj.0);
                     }
                 }
                 if others.is_finite() {
@@ -929,7 +929,7 @@ impl Builder {
                                 .iter()
                                 .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
                                 .collect();
-                            if vals.iter().any(|&x| x == 0) {
+                            if vals.contains(&0) {
                                 0
                             } else if vals.iter().filter(|&&x| x == 1).count() % 2 == 1 {
                                 1
@@ -942,7 +942,7 @@ impl Builder {
                                 .iter()
                                 .map(|&o| Self::eval3(pdag, o, true_set, false_set, default, cache))
                                 .collect();
-                            if vals.iter().any(|&x| x == 0) {
+                            if vals.contains(&0) {
                                 0
                             } else if vals.iter().all(|&x| x == vals[0]) {
                                 1
@@ -1030,7 +1030,7 @@ impl Builder {
             .map(|x| x.get())
             .unwrap_or(4)
             .min(16);
-        let chunk = ((cut_sets.len() + workers - 1) / workers).max(1);
+        let chunk = cut_sets.len().div_ceil(workers).max(1);
         let parts: Vec<Vec<Vec<usize>>> = std::thread::scope(|s| {
             let handles: Vec<_> = cut_sets
                 .chunks(chunk)
@@ -1075,7 +1075,7 @@ impl Builder {
         let mut out = ZBDD_EMPTY;
         for cs in &valid {
             let mut vars = cs.clone();
-            vars.sort_by(|a, b| (*b / 2).cmp(&(*a / 2)));
+            vars.sort_by_key(|v| std::cmp::Reverse(*v / 2));
             let mut prod = ZBDD_BASE;
             for &v in &vars {
                 prod = self.zbdd.multiply(v, prod);
@@ -1087,7 +1087,7 @@ impl Builder {
 }
 
 fn budget_bucket(budget: f64) -> i32 {
-    if !(budget > 0.0) {
+    if budget.is_nan() || budget <= 0.0 {
         return 1;
     }
     if budget >= 1.0 {

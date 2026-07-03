@@ -1,6 +1,6 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis, SuccessCriteriaId } from "../core/shared-patterns";
+import { SensitivityStudy, BaseUncertaintyAnalysis, SuccessCriteriaId } from "../core/shared-patterns";
 import { BasicEvent, DistributionType } from "../core/events";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { Component, ComponentReference, ComponentTypeReference } from "../core/component";

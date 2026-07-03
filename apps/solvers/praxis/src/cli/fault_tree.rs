@@ -47,18 +47,17 @@ fn cli_build_options(cli: &Args) -> BuildOptions {
     }
 }
 
+type BuiltPdagAndBdd = (
+    Pdag,
+    Vec<NodeIndex>,
+    BddEngine,
+    praxis::algorithms::bdd_engine::BddRef,
+);
+
 fn build_pdag_and_bdd(
     fault_tree: &praxis::core::fault_tree::FaultTree,
     opts: BuildOptions,
-) -> Result<
-    (
-        Pdag,
-        Vec<NodeIndex>,
-        BddEngine,
-        praxis::algorithms::bdd_engine::BddRef,
-    ),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<BuiltPdagAndBdd, Box<dyn std::error::Error>> {
     let built = praxis::algorithms::build::build_bdd(fault_tree, opts)?;
     Ok((built.pdag, built.order, built.bdd, built.root))
 }
@@ -653,54 +652,53 @@ fn run_pre_event_tree_impl(
         }
     }
 
-    if (cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd)
-        && cli.approximation.is_some()
-    {
-        let approximation = cli.approximation.expect("approximation present");
+    if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {
+        if let Some(approximation) = cli.approximation {
 
-        if cli.algorithm == Algorithm::Mocus {
-            if let Some(ref cut_sets) = computed_cut_sets {
-                let event_probs: std::collections::HashMap<String, f64> = fault_tree
-                    .basic_events()
-                    .iter()
-                    .map(|(id, event)| (id.clone(), event.probability()))
-                    .collect();
-                let probs: Vec<f64> = cut_sets
-                    .iter()
-                    .map(|cs| {
-                        cs.events
-                            .iter()
-                            .map(|event_id| event_probs.get(event_id).copied().unwrap_or(0.0))
-                            .product()
-                    })
-                    .collect();
-                result.top_event_probability = match approximation {
-                    Approximation::RareEvent => praxis::analysis::approximations::rare_event(&probs),
-                    Approximation::Mcub => praxis::analysis::approximations::mcub(&probs),
-                };
-            } else if verbose {
-                eprintln!("Warning: --approximation requires cut sets (use --algorithm mocus or --algorithm zbdd)");
-            }
-        }
-
-        let value = result.top_event_probability;
-        if cli.print || verbose {
-            match approximation {
-                Approximation::RareEvent => {
-                    println!("\n=== Rare Event Approximation ===");
-                    println!("REA Approximation:       {:.6e}", value);
-                    println!();
-                    println!("Note: REA sums cut set probabilities (assumes disjoint sets)");
-                    println!("      Works well when cut set probabilities are << 1");
-                    println!("================================\n");
+            if cli.algorithm == Algorithm::Mocus {
+                if let Some(ref cut_sets) = computed_cut_sets {
+                    let event_probs: std::collections::HashMap<String, f64> = fault_tree
+                        .basic_events()
+                        .iter()
+                        .map(|(id, event)| (id.clone(), event.probability()))
+                        .collect();
+                    let probs: Vec<f64> = cut_sets
+                        .iter()
+                        .map(|cs| {
+                            cs.events
+                                .iter()
+                                .map(|event_id| event_probs.get(event_id).copied().unwrap_or(0.0))
+                                .product()
+                        })
+                        .collect();
+                    result.top_event_probability = match approximation {
+                        Approximation::RareEvent => praxis::analysis::approximations::rare_event(&probs),
+                        Approximation::Mcub => praxis::analysis::approximations::mcub(&probs),
+                    };
+                } else if verbose {
+                    eprintln!("Warning: --approximation requires cut sets (use --algorithm mocus or --algorithm zbdd)");
                 }
-                Approximation::Mcub => {
-                    println!("\n=== MCUB Approximation ===");
-                    println!("MCUB Approximation:      {:.6e}", value);
-                    println!();
-                    println!("Note: MCUB uses 1 - ∏(1 - P_cs) formula");
-                    println!("      Provides upper bound on probability");
-                    println!("==========================\n");
+            }
+
+            let value = result.top_event_probability;
+            if cli.print || verbose {
+                match approximation {
+                    Approximation::RareEvent => {
+                        println!("\n=== Rare Event Approximation ===");
+                        println!("REA Approximation:       {:.6e}", value);
+                        println!();
+                        println!("Note: REA sums cut set probabilities (assumes disjoint sets)");
+                        println!("      Works well when cut set probabilities are << 1");
+                        println!("================================\n");
+                    }
+                    Approximation::Mcub => {
+                        println!("\n=== MCUB Approximation ===");
+                        println!("MCUB Approximation:      {:.6e}", value);
+                        println!();
+                        println!("Note: MCUB uses 1 - ∏(1 - P_cs) formula");
+                        println!("      Provides upper bound on probability");
+                        println!("==========================\n");
+                    }
                 }
             }
         }

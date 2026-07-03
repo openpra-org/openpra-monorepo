@@ -809,7 +809,7 @@ pub fn encode_fault_tree(ft: &FaultTree) -> Result<Vec<u8>> {
                 put_uvarint(&mut out, (i - opos) as u64);
             }
         } else if let Some(be) = ft.get_basic_event(name) {
-            out.push(0x00 | u8::from(be.is_initiator()));
+            out.push(u8::from(be.is_initiator()));
             out.extend_from_slice(&be.probability().to_bits().to_le_bytes());
             match be.value() {
                 Some(expr) => {

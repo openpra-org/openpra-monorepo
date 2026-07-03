@@ -59,10 +59,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getEsBundle(example);
   }
 
+  @Get("sc-examples")
+  @HttpCode(HttpStatus.OK)
+  getScExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getScExamples();
+  }
+
   @Get("sc-bundle")
   @HttpCode(HttpStatus.OK)
-  getScBundle(): Promise<ScExampleBundle> {
-    return this.exampleWorkbooksService.getScBundle();
+  getScBundle(@Query("example") example?: string): Promise<ScExampleBundle> {
+    return this.exampleWorkbooksService.getScBundle(example);
   }
 
   @Get("sy-bundle")

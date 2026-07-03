@@ -14,7 +14,7 @@ interface ScStep {
 
 const SC_STEPS: ScStep[] = [
   { id: "scope", num: "01", label: "Scope", sub: "Inputs · consumers · barriers", status: "idle" },
-  { id: "stable", num: "02", label: "Safe Stable State", sub: "Endpoint · end states", status: "idle" },
+  { id: "stable", num: "02", label: "End States", sub: "Endpoints · release categories", status: "idle" },
   { id: "criteria", num: "03", label: "Success Criteria", sub: "Function by event by state", status: "idle" },
   { id: "mission", num: "04", label: "Mission Times", sub: "24 hour rule · components", status: "idle" },
   { id: "bases", num: "05", label: "Engineering Bases", sub: "Analyses · codes · barriers", status: "idle" },
@@ -106,6 +106,44 @@ const SC_INITIATORS: Record<string, InitiatorSpec> = {
   "HZ-SEIS": { id: "HZ-SEIS", name: "Seismic event", short: "SEIS", icon: "Network" },
 };
 
+const SC_INITIATORS_HTGR: Record<string, InitiatorSpec> = {
+  "IEG-01": { id: "IEG-01", name: "Pressurized loss of forced cooling", short: "PLOFC", icon: "Thermo" },
+  "IEG-02": { id: "IEG-02", name: "Loss of shutdown cooling in shutdown", short: "SCSL", icon: "Thermo" },
+  "IEG-03": { id: "IEG-03", name: "Loss of offsite power", short: "LOOP", icon: "Bolt" },
+  "IEG-04": { id: "IEG-04", name: "Loss of vital DC and instrument power", short: "LODC", icon: "Bolt" },
+  "IEG-05": { id: "IEG-05", name: "Loss of mechanical support cooling and HVAC", short: "LOSUP", icon: "Thermo" },
+  "IEG-06": { id: "IEG-06", name: "Transient overpower (rod withdrawal)", short: "TOP", icon: "Atom" },
+  "IEG-07": { id: "IEG-07", name: "Power-distribution and overcooling reactivity", short: "OVRC", icon: "Atom" },
+  "IEG-08": { id: "IEG-08", name: "Startup and shutdown reactivity mis-positioning", short: "RMIS", icon: "Atom" },
+  "IEG-09": { id: "IEG-09", name: "Small helium leak with forced cooling", short: "SHL", icon: "Wind" },
+  "IEG-10": { id: "IEG-10", name: "Intermediate depressurization break", short: "IDEP", icon: "Wind" },
+  "IEG-11": { id: "IEG-11", name: "Large break depressurized loss of forced cooling", short: "LDEP", icon: "Wind" },
+  "IEG-12": { id: "IEG-12", name: "Inadvertent depressurization in shutdown", short: "ODEP", icon: "Wind" },
+  "IEG-13": { id: "IEG-13", name: "Slow moisture ingress", short: "SMI", icon: "Beaker" },
+  "IEG-14": { id: "IEG-14", name: "Moderate water ingress (SGTR)", short: "SGTR", icon: "Pipe" },
+  "IEG-15": { id: "IEG-15", name: "Large SGTR water ingress with relief lift", short: "LWI", icon: "Beaker" },
+  "IEG-16": { id: "IEG-16", name: "SCS heat-exchanger water ingress in shutdown", short: "HXI", icon: "Beaker" },
+  "IEG-17": { id: "IEG-17", name: "Ex-boundary interfacing release", short: "EXB", icon: "Pipe" },
+  "IEG-18": { id: "IEG-18", name: "Fuel-handling source events", short: "FHS", icon: "Radiation" },
+  "IEG-19": { id: "IEG-19", name: "Loss of cooling to stored fuel", short: "SFC", icon: "Thermo" },
+  "IEG-20": { id: "IEG-20", name: "Wet depressurization SGTR breach", short: "WDEP", icon: "Pipe" },
+  "IEG-21": { id: "IEG-21", name: "Loss of helium inventory and pressure control", short: "HINV", icon: "Radiation" },
+};
+
+const SC_SAFETY_FUNCTIONS_HTGR: Record<string, SafetyFunctionSpec> = {
+  "SF-RC": { id: "SF-RC", name: "Reactivity control", icon: "Atom", desc: "Trip the reactor or let the negative temperature feedback cap the power." },
+  "SF-DHR": { id: "SF-DHR", name: "Core heat removal", icon: "Thermo", desc: "Remove core heat by forced circulation or the passive conduction path." },
+  "SF-HPB": { id: "SF-HPB", name: "Helium pressure boundary", icon: "Pipe", desc: "Keep the helium boundary intact or isolate the affected path." },
+  "SF-CONF": { id: "SF-CONF", name: "Filtered confinement", icon: "Shield", desc: "Hold back and filter releases through the reactor building." },
+};
+
+const SC_RAD_BARRIERS_HTGR: Record<string, BarrierSpec> = {
+  "BAR-TRISO": { id: "BAR-TRISO", name: "TRISO coatings", short: "TRISO", icon: "Shield", desc: "The coated fuel particles holding fission products at temperature." },
+  "BAR-GRAPHITE": { id: "BAR-GRAPHITE", name: "Fuel-element graphite", short: "Graphite", icon: "Shield", desc: "The graphite blocks slowing release from a failed particle." },
+  "BAR-HPB": { id: "BAR-HPB", name: "Helium pressure boundary", short: "He boundary", icon: "Pipe", desc: "The vessel and cross-duct holding the primary helium." },
+  "BAR-RB": { id: "BAR-RB", name: "Reactor building", short: "Building", icon: "Radiation", desc: "The filtered building that sets the release category if inner barriers fail." },
+};
+
 const SC_POS_NAMES: Record<string, string> = {
   "POS-01": "Full power, normal alignment",
   "POS-02": "Load-follow (reduced power)",
@@ -117,6 +155,40 @@ const SC_POS_NAMES: Record<string, string> = {
   "POS-08": "IHX loop drained, primary hot",
   "POS-09": "Cover-gas adjustment",
 };
+
+const SC_POS_NAMES_HTGR: Record<string, string> = {
+  "POS-01": "Full power",
+  "POS-02": "Load follow",
+  "POS-03": "Hot standby",
+  "POS-04": "Forced cooldown on SCS",
+  "POS-05": "Cold shutdown, primary closed",
+  "POS-06": "Refuelling, vessel open",
+  "POS-07": "Post-trip, passive cooling",
+  "POS-08": "Maintenance, SCS out of service",
+  "POS-09": "Maintenance, primary depressurised",
+};
+
+const HTGR_SC_UUID = "sc-generic-2";
+
+function scIsHtgr(scUuid: string): boolean {
+  return scUuid === HTGR_SC_UUID;
+}
+
+function scInitiatorsFor(scUuid: string): Record<string, InitiatorSpec> {
+  return scIsHtgr(scUuid) ? SC_INITIATORS_HTGR : SC_INITIATORS;
+}
+
+function scSafetyFunctionsFor(scUuid: string): Record<string, SafetyFunctionSpec> {
+  return scIsHtgr(scUuid) ? SC_SAFETY_FUNCTIONS_HTGR : SC_SAFETY_FUNCTIONS;
+}
+
+function scBarriersFor(scUuid: string): Record<string, BarrierSpec> {
+  return scIsHtgr(scUuid) ? SC_RAD_BARRIERS_HTGR : SC_RAD_BARRIERS;
+}
+
+function scPosNamesFor(scUuid: string): Record<string, string> {
+  return scIsHtgr(scUuid) ? SC_POS_NAMES_HTGR : SC_POS_NAMES;
+}
 
 interface AnalysisTypeSpec {
   label: string;
@@ -200,19 +272,6 @@ function buildConformanceItems(): ConformanceItem[] {
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = buildConformanceItems();
 
-interface SafeStableConditionSpec {
-  id: string;
-  label: string;
-  icon: string;
-  detail: string;
-}
-
-const SC_SAFE_STABLE_CONDITIONS: SafeStableConditionSpec[] = [
-  { id: "ssc-1", label: "Subcritical", icon: "Atom", detail: "Below decay-heat level with shutdown margin." },
-  { id: "ssc-2", label: "Heat path stable", icon: "Thermo", detail: "One heat-removal path established and self-sustaining." },
-  { id: "ssc-3", label: "Temperatures bounded", icon: "Gauge", detail: "Peak cladding and sodium temperatures stable or falling." },
-  { id: "ssc-4", label: "Boundary intact", icon: "Pipe", detail: "Boundary holds and sodium covers the core." },
-];
 
 interface UpstreamLinkSpec {
   id: string;
@@ -251,43 +310,6 @@ const SC_END_STATE_NAMES: Record<string, string> = {
   "RC-3": "Intact-confinement leakage",
 };
 
-const SC_SYSTEM_DEPS: Record<string, string> = {
-  "SYS-DRACS": "No AC power and no operator action required.",
-  "SYS-RPS": "Class-1E DC power for the trip logic.",
-  "SYS-PRIMARY": "Pump coastdown and open flow path.",
-  "SYS-GUARD": "Shares the support skirt with the reactor vessel.",
-  "SYS-CONF": "Isolation signal and cover-gas clean-up train.",
-};
-
-const SC_PASSIVE_SYSTEMS = ["SYS-DRACS", "SYS-PRIMARY", "SYS-GUARD"];
-const SC_REALISTIC_ANALYSES = ["TF-CALC-06", "TF-CALC-09", "TF-CALC-12", "ST-CALC-21"];
-const SC_WARN_CODES = ["CODE-NACOM"];
-
-const SC_PASSIVE_WARN: Record<string, string> = {
-  "PSV-NATCIRC": "Coastdown-curve uncertainty under review for the loss-of-flow group.",
-};
-
-const SC_PASSIVE_NOTES: Record<string, string> = {
-  "PSV-DRACS": "Small driving forces, so uncertainty is quantified not assumed.",
-  "PSV-FEEDBACK": "Credited only for unprotected transients where the trip rods fail.",
-  "PSV-NATCIRC": "Establishment timing is the sensitive variable, not steady-state capacity.",
-};
-
-const SC_MISSION_IE: Record<string, string> = {
-  "MT-LOHS": "IEG-03",
-  "MT-LOFA": "IEG-01",
-  "MT-RCB": "IEG-07",
-  "MT-SEIS": "HZ-SEIS",
-  "MT-FIRE": "HZ-FIRE",
-};
-
-const SC_MISSION_SEQ: Record<string, string> = {
-  "MT-LOHS": "ESF-OK family, loss of heat sink",
-  "MT-LOFA": "ESF-OK family, loss of flow",
-  "MT-RCB": "ESR-04 inventory loss, confinement intact",
-  "MT-SEIS": "Seismic sequences",
-  "MT-FIRE": "Sodium-fire sequences",
-};
 
 const SC_CRITERION_SYSTEMS: Record<string, string[]> = {
   "SF-RC|IEG-03": ["SYS-RPS", "SYS-FEEDBACK"],
@@ -299,6 +321,22 @@ const SC_CRITERION_SYSTEMS: Record<string, string[]> = {
   "SF-DHR|HZ-FIRE": ["SYS-DRACS", "SYS-SUPP"],
   "SF-INV|HZ-SEIS": ["SYS-GUARD"],
 };
+
+const SC_CRITERION_SYSTEMS_HTGR: Record<string, string[]> = {
+  "SF-RC|IEG-06": ["SYS-RPS"],
+  "SF-DHR|IEG-01": ["SYS-SCS", "SYS-RCCS"],
+  "SF-DHR|IEG-03": ["SYS-SCS", "SYS-RCCS"],
+  "SF-DHR|IEG-02": ["SYS-RCCS"],
+  "SF-DHR|IEG-11": ["SYS-RCCS"],
+  "SF-HPB|IEG-13": ["SYS-SGISO"],
+  "SF-HPB|IEG-14": ["SYS-SGISO"],
+  "SF-HPB|IEG-21": ["SYS-RB"],
+  "SF-CONF|IEG-11": ["SYS-RB"],
+};
+
+function scCriterionSystemsFor(scUuid: string): Record<string, string[]> {
+  return scIsHtgr(scUuid) ? SC_CRITERION_SYSTEMS_HTGR : SC_CRITERION_SYSTEMS;
+}
 
 export type {
   ScStep,
@@ -314,7 +352,6 @@ export type {
   BarrierSpec,
   InitiatorSpec,
   AnalysisTypeSpec,
-  SafeStableConditionSpec,
   UpstreamLinkSpec,
   DownstreamLinkSpec,
 };
@@ -331,17 +368,14 @@ export {
   SC_POS_NAMES,
   SC_ANALYSIS_TYPES,
   SC_RC_TONES,
-  SC_SAFE_STABLE_CONDITIONS,
+  scInitiatorsFor,
+  scSafetyFunctionsFor,
+  scBarriersFor,
+  scPosNamesFor,
+  scCriterionSystemsFor,
+  scIsHtgr,
   SC_UPSTREAM_LINKS,
   SC_DOWNSTREAM_LINKS,
   SC_END_STATE_NAMES,
-  SC_SYSTEM_DEPS,
-  SC_PASSIVE_SYSTEMS,
-  SC_REALISTIC_ANALYSES,
-  SC_WARN_CODES,
-  SC_PASSIVE_WARN,
-  SC_PASSIVE_NOTES,
-  SC_MISSION_IE,
-  SC_MISSION_SEQ,
   SC_CRITERION_SYSTEMS,
 };

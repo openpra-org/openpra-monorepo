@@ -9,7 +9,7 @@ import {
   type Stage,
 } from "./scViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, stepsFromMef, type CommentView } from "./scSelectors";
-import { ScScopeScreen, StableScreen, CriteriaScreen, MissionScreen, BasesScreen, PassiveScreen, ConsistencyScreen, DraftScreen, PlaceholderScreen } from "./scScreens";
+import { ScScopeScreen, EndStatesScreen, CriteriaScreen, MissionScreen, BasesScreen, PassiveScreen, ConsistencyScreen, DraftScreen, PlaceholderScreen } from "./scScreens";
 import { InternalReviewScreen, ReviewerCommentDock } from "./scReview";
 import { useScWorkbook, type ScWorkbookData } from "./scWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -27,7 +27,7 @@ interface StepHeader {
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
     case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "See the radionuclide barriers, operating states, and challenges every criterion is built around, with states from POS and challenges from IE (SC-A4)." };
-    case "stable": return { eyebrow: "Step 02", title: "Safe stable state", sub: "Define the SFR endpoint of every non-release sequence and the end states, reusing the Mechanistic Source Term release categories (SC-A1, A2, A3)." };
+    case "stable": return { eyebrow: "Step 02", title: "End states", sub: "Define the end state of every sequence, from the safe stable state to the Mechanistic Source Term release categories (SC-A1, A2, A3)." };
     case "criteria": return { eyebrow: "Step 03", title: "Success criteria", sub: "State a success criterion for each key safety function, per initiating event and per operating state (SC-A5)." };
     case "mission": return { eyebrow: "Step 04", title: "Mission times", sub: "Set a mission time with a 24 hour minimum for sequences reaching a safe stable state, and check component times support it (SC-A7, A8)." };
     case "bases": return { eyebrow: "Step 05", title: "Engineering bases", sub: "Ground each criterion in a validated, applicable analysis, with barrier loads against capacity and expert judgment where needed (SC-B1, B4, B6)." };
@@ -368,7 +368,7 @@ function ScWorkbench({
             {renderDocuments?.()}
           </>
         );
-      case "stable": return <StableScreen />;
+      case "stable": return <EndStatesScreen />;
       case "criteria": return <CriteriaScreen />;
       case "mission": return <MissionScreen />;
       case "bases": return <BasesScreen />;

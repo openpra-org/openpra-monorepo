@@ -34,6 +34,7 @@ function ScDemoPage(): JSX.Element {
           sc: res.sc.mef as SuccessCriteriaDevelopment,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
       })
       .catch((err: unknown) => {

@@ -76,7 +76,7 @@ export class ScWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<ScWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<ScWorkbookResponse> {
     const doc = await this.scWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SC workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -86,7 +86,7 @@ export class ScWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getScBundle();
+    const example = await this.exampleWorkbooksService.getScBundle(exampleId);
     const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(example.sc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

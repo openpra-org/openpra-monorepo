@@ -155,6 +155,7 @@ export const PassiveSafetyFunctionCriterionSchema = z.object({
   modelUncertaintyCharacterization: z.string(),
   inputDataUncertaintyCharacterization: z.string(),
   passiveFunctionalReliabilityBasis: z.string(),
+  openItem: z.string().optional(),
   engineeringAnalysisReferences: z.array(z.string()),
   implementsSrs: z.array(SRReferenceSchema),
 });
@@ -234,6 +235,7 @@ export const EngineeringAnalysisSchema = z.object({
   validationVerificationBasis: z.string().optional(),
   analyst: z.string().optional(),
   applicabilityToPlantConditions: z.string(),
+  usesRealisticMethods: z.boolean().optional(),
   keyParametersAndResults: z.record(z.string(), z.string()),
   referenceDocuments: z.array(z.string()).optional(),
   limitations: z.array(z.string()).optional(),
@@ -302,6 +304,7 @@ export const ComputerCodeValidationSchema = z.object({
     }),
   ),
   limitations: z.array(z.string()),
+  validationGap: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -369,6 +372,16 @@ export const SuccessCriteriaDevelopmentSchema = z.object({
   systemSuccessCriteria: z.array(SystemSuccessCriteriaDefinitionSchema).optional(),
   componentSuccessCriteria: z.array(ComponentSuccessCriteriaDefinitionSchema).optional(),
   humanActionSuccessCriteria: z.array(HumanActionSuccessCriteriaDefinitionSchema).optional(),
+  exampleDocuments: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    kind: z.enum(["doc", "sheet", "image"]),
+    sizeLabel: z.string(),
+    uploadedLabel: z.string(),
+    extracted: z.string(),
+    linked: z.number(),
+    url: z.string().optional(),
+  })).optional(),
   radionuclideBarrierCriteria: z.array(RadionuclideBarrierCriterionSchema),
   passiveSafetyFunctionCriteria: z.array(PassiveSafetyFunctionCriterionSchema).optional(),
   sharedResources: z.array(SharedResourceDefinitionSchema).optional(),

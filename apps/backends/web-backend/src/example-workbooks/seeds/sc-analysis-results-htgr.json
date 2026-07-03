@@ -1,0 +1,367 @@
+{
+ "runDate": "2026-07-03",
+ "engineVersion": "4.1.1",
+ "method": "DDET",
+ "tau": 2,
+ "d0": {
+  "POS-01": 0.06,
+  "POS-02": 0.04,
+  "POS-03": 0.0091,
+  "POS-04": 0.0046,
+  "POS-05": 0.0026,
+  "POS-06": 0.0019,
+  "POS-07": 0.01,
+  "POS-08": 0.0016,
+  "POS-09": 0.0016
+ },
+ "fuelLimitH": {
+  "POS-01": 33.3,
+  "POS-02": 50,
+  "POS-03": 219.8,
+  "POS-04": 434.8,
+  "POS-05": 769.2,
+  "POS-06": 1052.6,
+  "POS-07": 200,
+  "POS-08": 1250,
+  "POS-09": 1250
+ },
+ "scs": {
+  "POS-01": {
+   "oneTrainSufficient": false,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 33.3,
+   "safeAtHOneTrain": null,
+   "safeAtHTwoTrain": 7.6,
+   "deadlineBracketedByEngine": true
+  },
+  "POS-02": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 50,
+   "safeAtHOneTrain": 32,
+   "safeAtHTwoTrain": 1,
+   "deadlineBracketedByEngine": true
+  },
+  "POS-03": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 219.8,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-04": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 434.8,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-05": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 769.2,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-06": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 1052.6,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-07": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 200,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-08": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 1250,
+   "safeAtHOneTrain": 0.5,
+   "safeAtHTwoTrain": 0.5
+  },
+  "POS-09": {
+   "oneTrainSufficient": true,
+   "twoTrainSufficient": true,
+   "startDeadlineH": 1250,
+   "safeAtHOneTrain": null,
+   "safeAtHTwoTrain": null
+  }
+ },
+ "rccsMinCapacity": {
+  "POS-01": {
+   "minSufficientFraction": 0.03,
+   "maxInsufficientFraction": 0.025,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    false,
+    false,
+    false,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-02": {
+   "minSufficientFraction": 0.02,
+   "maxInsufficientFraction": 0.015,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    false,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-03": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-04": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-05": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-06": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-07": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-08": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  },
+  "POS-09": {
+   "minSufficientFraction": 0.015,
+   "maxInsufficientFraction": null,
+   "testedFractions": [
+    0.015,
+    0.02,
+    0.025,
+    0.03,
+    0.045,
+    0.06
+   ],
+   "outcomes": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ]
+  }
+ },
+ "passive": {
+  "rccsReliability": {
+   "POS-01": {
+    "reliability": 1,
+    "nominalD0": 0.06
+   },
+   "POS-02": {
+    "reliability": 1,
+    "nominalD0": 0.04
+   },
+   "POS-03": {
+    "reliability": 1,
+    "nominalD0": 0.0091
+   },
+   "POS-04": {
+    "reliability": 1,
+    "nominalD0": 0.0046
+   },
+   "POS-05": {
+    "reliability": 1,
+    "nominalD0": 0.0026
+   },
+   "POS-06": {
+    "reliability": 1,
+    "nominalD0": 0.0019
+   },
+   "POS-07": {
+    "reliability": 1,
+    "nominalD0": 0.01
+   },
+   "POS-08": {
+    "reliability": 1,
+    "nominalD0": 0.0016
+   },
+   "POS-09": {
+    "reliability": 1,
+    "nominalD0": 0.0016
+   }
+  },
+  "scsWindowH": {
+   "POS-01": {
+    "p5": 25.817974871205948,
+    "p50": 33.349811048194894,
+    "p95": 42.76216625199966
+   },
+   "POS-02": {
+    "p5": 38.73239798464851,
+    "p50": 50.008753213250976,
+    "p95": 64.10488182928125
+   },
+   "POS-03": {
+    "p5": 170.20611923089908,
+    "p50": 219.8267118792299,
+    "p95": 282.3023272549846
+   },
+   "POS-04": {
+    "p5": 337.13746816070415,
+    "p50": 434.6537699419899,
+    "p95": 557.44292057215
+   },
+   "POS-05": {
+    "p5": 596.1148152636066,
+    "p50": 769.5023675675376,
+    "p95": 986.6152294356185
+   },
+   "POS-06": {
+    "p5": 815.028262580804,
+    "p50": 1052.7405179264765,
+    "p95": 1350.4358265059245
+   },
+   "POS-07": {
+    "p5": 155.1330871307334,
+    "p50": 200.14084025503544,
+    "p95": 256.70814289277797
+   },
+   "POS-08": {
+    "p5": 967.7542259748799,
+    "p50": 1249.2678229516598,
+    "p95": 1603.9570866154738
+   },
+   "POS-09": {
+    "p5": 967.7956885624783,
+    "p50": 1249.903645802907,
+    "p95": 1605.1739946816797
+   }
+  },
+  "feedbackReliability": 1,
+  "samples": 200000
+ },
+ "probes": 76
+}

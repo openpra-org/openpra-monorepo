@@ -21,8 +21,17 @@ async function patchScWorkbook(workbookId: string, mef: SuccessCriteriaDevelopme
   return patchJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}`, { mef });
 }
 
-async function loadScExample(workbookId: string): Promise<ScWorkbookResponse> {
-  return postJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}/load-example`, {});
+interface ScExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getScExampleOptions(): Promise<ScExampleOption[]> {
+  return fetchJson<ScExampleOption[]>("/api/example-workbooks/sc-examples");
+}
+
+async function loadScExample(workbookId: string, exampleId?: string): Promise<ScWorkbookResponse> {
+  return postJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadScExample(workbookId: string): Promise<ScWorkbookResponse> {
@@ -59,8 +68,10 @@ async function getScDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getScWorkbook,
   patchScWorkbook,
+  getScExampleOptions,
   loadScExample,
   unloadScExample,
+  type ScExampleOption,
   listScDocuments,
   uploadScDocument,
   deleteScDocument,

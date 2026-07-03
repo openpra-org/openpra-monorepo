@@ -148,6 +148,7 @@ export interface PassiveSafetyFunctionCriterion extends Unique, Named {
   modelUncertaintyCharacterization: string;
   inputDataUncertaintyCharacterization: string;
   passiveFunctionalReliabilityBasis: string;
+  openItem?: string;
   engineeringAnalysisReferences: EngineeringAnalysisReference[];
   implementsSrs: SRReference[];
 }
@@ -221,6 +222,7 @@ export interface EngineeringAnalysis extends Unique {
   validationVerificationBasis?: string;
   analyst?: string;
   applicabilityToPlantConditions: string;
+  usesRealisticMethods?: boolean;
   keyParametersAndResults: Record<string, string>;
   referenceDocuments?: string[];
   limitations?: string[];
@@ -273,6 +275,7 @@ export interface ComputerCodeValidation extends Unique, Named {
     reference: string;
   }[];
   limitations: string[];
+  validationGap?: string;
   implementsSrs: SRReference[];
 }
 
@@ -306,6 +309,17 @@ export interface ExpertJudgment extends Unique {
   implementsSrs: SRReference[];
 }
 
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
+}
+
 export interface ScDocumentation {
   processDescription: string;
   endStateDefinitionsBasis: string;
@@ -335,6 +349,7 @@ export interface SuccessCriteriaDevelopment
   systemSuccessCriteria?: SystemSuccessCriteriaDefinition[];
   componentSuccessCriteria?: ComponentSuccessCriteriaDefinition[];
   humanActionSuccessCriteria?: HumanActionSuccessCriteriaDefinition[];
+  exampleDocuments?: ExampleDocumentRef[];
 
   radionuclideBarrierCriteria: RadionuclideBarrierCriterion[];
   passiveSafetyFunctionCriteria?: PassiveSafetyFunctionCriterion[];

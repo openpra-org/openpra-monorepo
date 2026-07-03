@@ -1,0 +1,5191 @@
+{
+ "runDate": "2026-07-03",
+ "engineVersion": "4.1.1",
+ "method": "DDET",
+ "cells": {
+  "IEG-01-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-01-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-01-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-01-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-01-POS-07": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-02-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-02-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-02-POS-07": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-02-POS-09": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-03-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-03-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-03-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-03-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-03-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-03-POS-06": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-03-POS-07": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-03-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-04-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-04-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-04-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-04-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-04-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-04-POS-06": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-04-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-05-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-05-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-05-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-05-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-05-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-05-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-06-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-06-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-06-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-07-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-07-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-07-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-08-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-08-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-08-POS-06": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-09-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-09-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-09-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-09-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-09-POS-05": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-09-POS-08": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-10-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-10-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-10-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-10-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-10-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-10-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-11-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-11-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-11-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9799902
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019989800100000003
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-11-POS-04": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-11-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-11-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-12-POS-04": [
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9746124500000001
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0048485745
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0196911495
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004826745
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000048975500000000006
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000989505
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000024255
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019890050000000004
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009850500000000002
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000048755
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.995000000000001e-7
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 2.4499999999999998e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 4.9500000000000006e-8
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.950000000000001e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5e-10
+   }
+  ],
+  "IEG-12-POS-05": [
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9746124500000001
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0048485745
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0196911495
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004826745
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000048975500000000006
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000989505
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000024255
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019890050000000004
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009850500000000002
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000048755
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.995000000000001e-7
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 2.4499999999999998e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 4.9500000000000006e-8
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.950000000000001e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5e-10
+   }
+  ],
+  "IEG-12-POS-08": [
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9746124500000001
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0048485745
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0196911495
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004826745
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000048975500000000006
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000989505
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000024255
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019890050000000004
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009850500000000002
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000048755
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.995000000000001e-7
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 2.4499999999999998e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 4.9500000000000006e-8
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.950000000000001e-8
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5e-10
+   }
+  ],
+  "IEG-13-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-13-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-13-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-13-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9702
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701999999999999
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000098
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000197901
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009801000000000002
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019990000000000003
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.900000000000001e-8
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.900000000000003e-8
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1e-9
+   }
+  ],
+  "IEG-14-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-14-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-14-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.970190298
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701902980000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009799902000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00019789902099000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000980090199
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019989800100000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.899901000000002e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.899901000000001e-8
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000002e-10
+   }
+  ],
+  "IEG-14-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9702
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701999999999999
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000098
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000197901
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009801000000000002
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019990000000000003
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.900000000000001e-8
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.900000000000003e-8
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1e-9
+   }
+  ],
+  "IEG-14-POS-05": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.9702
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009701999999999999
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000098
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000197901
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009801000000000002
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000019990000000000003
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 9.900000000000001e-8
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.900000000000003e-8
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1e-9
+   }
+  ],
+  "IEG-15-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-15-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-15-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-15-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-16-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-16-POS-05": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-16-POS-06": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-16-POS-08": [
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9895050000000001
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00989505
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00049005
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009995
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00000495
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.0000000000000004e-8
+   }
+  ],
+  "IEG-17-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.9899901
+   },
+   {
+    "path": {
+     "RT": "FAILURE"
+    },
+    "conditional": 0.00001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009999900000000002
+   }
+  ],
+  "IEG-17-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.9899901
+   },
+   {
+    "path": {
+     "RT": "FAILURE"
+    },
+    "conditional": 0.00001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009999900000000002
+   }
+  ],
+  "IEG-17-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.9899901
+   },
+   {
+    "path": {
+     "RT": "FAILURE"
+    },
+    "conditional": 0.00001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009999900000000002
+   }
+  ],
+  "IEG-17-POS-04": [
+   {
+    "path": {
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.99
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0099
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001
+   }
+  ],
+  "IEG-17-POS-05": [
+   {
+    "path": {
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.99
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0099
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001
+   }
+  ],
+  "IEG-17-POS-06": [
+   {
+    "path": {
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.99
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0099
+   },
+   {
+    "path": {
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001
+   }
+  ],
+  "IEG-18-POS-06": [
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "ISOL": "SUCCESS"
+    },
+    "conditional": 0.98505
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "ISOL": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0049005
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0098505
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "ISOL": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000049500000000000004
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "ISOL": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000049500000000000004
+   },
+   {
+    "path": {
+     "DETECT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000995
+   },
+   {
+    "path": {
+     "DETECT": "FAILURE",
+     "ISOL": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 5.000000000000001e-7
+   }
+  ],
+  "IEG-19-POS-05": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-19-POS-06": [
+   {
+    "path": {
+     "SCS": "SUCCESS"
+    },
+    "conditional": 0.98
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.01999
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "SCS": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-19-POS-08": [
+   {
+    "path": {
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9995
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000495
+   },
+   {
+    "path": {
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000005
+   }
+  ],
+  "IEG-20-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-20-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-20-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.98949510495
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.009894951049500002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004900450995000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00009994900050000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049499505000000005
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "ISOL": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 4.9999500000000004e-8
+   }
+  ],
+  "IEG-21-POS-01": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9795002049000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00048509514900000006
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019989800100000003
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000004899951000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-21-POS-02": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9795002049000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00048509514900000006
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019989800100000003
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000004899951000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-21-POS-03": [
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.9795002049000001
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.000009995000000000002
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.019789902099000004
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.00048509514900000006
+   },
+   {
+    "path": {
+     "RT": "FAILURE",
+     "RCCS": "FAILURE"
+    },
+    "conditional": 5e-9
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.00019989800100000003
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.000009899901000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.000004899951000000001
+   },
+   {
+    "path": {
+     "RT": "SUCCESS",
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 9.999900000000001e-8
+   }
+  ],
+  "IEG-21-POS-04": [
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.97951
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004851
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001999
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-21-POS-05": [
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.97951
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004851
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001999
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ],
+  "IEG-21-POS-08": [
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "SUCCESS"
+    },
+    "conditional": 0.97951
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0197901
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0004851
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "SUCCESS",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0001999
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "SUCCESS"
+    },
+    "conditional": 0.0000099
+   },
+   {
+    "path": {
+     "MAKEUP": "SUCCESS",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 0.0000049
+   },
+   {
+    "path": {
+     "MAKEUP": "FAILURE",
+     "RCCS": "FAILURE",
+     "CONF": "FAILURE"
+    },
+    "conditional": 1.0000000000000001e-7
+   }
+  ]
+ }
+}

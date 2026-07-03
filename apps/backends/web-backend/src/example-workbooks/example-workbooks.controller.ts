@@ -47,10 +47,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getIeBundle(example);
   }
 
+  @Get("es-examples")
+  @HttpCode(HttpStatus.OK)
+  getEsExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getEsExamples();
+  }
+
   @Get("es-bundle")
   @HttpCode(HttpStatus.OK)
-  getEsBundle(): Promise<EsExampleBundle> {
-    return this.exampleWorkbooksService.getEsBundle();
+  getEsBundle(@Query("example") example?: string): Promise<EsExampleBundle> {
+    return this.exampleWorkbooksService.getEsBundle(example);
   }
 
   @Get("sc-bundle")

@@ -119,8 +119,8 @@ const ES_FE_SC_MAP: Record<string, string> = {
 
 type FeActor = "operator" | "auto" | "passive";
 
-const ES_FE_OPERATOR_IDS = ["SDHR", "ISOL", "DETECT", "MAKEUP", "SUPP"];
-const ES_FE_PASSIVE_IDS = ["DRACS", "NC", "STRUCT"];
+const ES_FE_OPERATOR_IDS = ["SDHR", "SCS", "ISOL", "DETECT", "MAKEUP", "SUPP"];
+const ES_FE_PASSIVE_IDS = ["DRACS", "NC", "RCCS", "STRUCT"];
 
 function feActor(feId: string): FeActor {
   if (ES_FE_OPERATOR_IDS.includes(feId)) return "operator";
@@ -201,9 +201,9 @@ interface ReleaseCategorySpec {
 }
 
 const ES_RELEASE_CATEGORIES: ReleaseCategorySpec[] = [
-  { id: "RC-1", name: "Early confinement bypass / failure", tone: "block", timing: "Early (< 8 h)", magnitude: "Large", scrubbed: false, chars: ["Confinement open or bypassed at release", "No filtration credit", "Driven by sodium fire or ATWS energy"], desc: "The largest and earliest release, with confinement failed or bypassed before the source term can be held back.", msReady: true },
-  { id: "RC-2", name: "Late filtered release", tone: "warn", timing: "Late (> 24 h)", magnitude: "Moderate", scrubbed: true, chars: ["Confinement intact, leakage at design rate", "Cover-gas clean-up + filtration credited", "Aerosol settling over delay period"], desc: "Confinement holds, so the release is delayed and filtered into a much smaller mechanistic source term.", msReady: true },
-  { id: "RC-3", name: "Intact-confinement leakage", tone: "warn", timing: "Very late (> 72 h)", magnitude: "Small", scrubbed: true, chars: ["Design-leakage only", "Full filtration + plate-out", "No barrier breach beyond cladding"], desc: "Only design-basis confinement leakage occurs — the worst-case small release for sequences that lose cooling but keep all outer barriers.", msReady: false },
+  { id: "RC-1", name: "Early confinement bypass / failure", tone: "block", timing: "Early (< 8 h)", magnitude: "Large", scrubbed: false, chars: ["Confinement open or bypassed at release", "No filtration credit", "Driven by the energetic phase of the sequence"], desc: "The largest and earliest release, with confinement failed or bypassed before the source term can be held back.", msReady: true },
+  { id: "RC-2", name: "Late filtered release", tone: "warn", timing: "Late (> 24 h)", magnitude: "Moderate", scrubbed: true, chars: ["Confinement intact, leakage at design rate", "Clean-up and filtration credited", "Aerosol settling over delay period"], desc: "Confinement holds, so the release is delayed and filtered into a much smaller mechanistic source term.", msReady: true },
+  { id: "RC-3", name: "Intact-confinement leakage", tone: "warn", timing: "Very late (> 72 h)", magnitude: "Small", scrubbed: true, chars: ["Design-leakage only", "Full filtration + plate-out", "No barrier breach beyond cladding"], desc: "Only design-basis confinement leakage occurs, the worst-case small release for sequences that keep all outer barriers.", msReady: false },
 ];
 
 type LbeClassId = "AOO" | "DBE" | "BDBE";

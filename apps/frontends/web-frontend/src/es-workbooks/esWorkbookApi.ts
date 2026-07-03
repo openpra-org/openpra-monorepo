@@ -23,8 +23,17 @@ async function patchEsWorkbook(workbookId: string, mef: EventSequenceAnalysis): 
   return patchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`, { mef });
 }
 
-async function loadEsExample(workbookId: string): Promise<EsWorkbookResponse> {
-  return postJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}/load-example`, {});
+interface EsExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getEsExampleOptions(): Promise<EsExampleOption[]> {
+  return fetchJson<EsExampleOption[]>("/api/example-workbooks/es-examples");
+}
+
+async function loadEsExample(workbookId: string, exampleId?: string): Promise<EsWorkbookResponse> {
+  return postJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadEsExample(workbookId: string): Promise<EsWorkbookResponse> {
@@ -118,8 +127,10 @@ async function unlinkIeWorkbook(workbookId: string): Promise<EsIeLinkStatus> {
 export {
   getEsWorkbook,
   patchEsWorkbook,
+  getEsExampleOptions,
   loadEsExample,
   unloadEsExample,
+  type EsExampleOption,
   getEsPosLink,
   getAvailablePosWorkbooks,
   linkPosWorkbook,

@@ -184,7 +184,7 @@ function buildChildren(a: EventSequenceAnalysis, final: boolean): (Paragraph | T
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));
-  out.push(bullet("Generic-1 event-sequence model package"));
+  out.push(bullet(`${a.name} model package`));
   out.push(bullet("Plant-response thermal-hydraulic calculations"));
   out.push(bullet("Success-criteria workbook (linked)"));
   out.push(bullet("IE Workbook: groups & frequencies"));

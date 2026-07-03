@@ -25,6 +25,9 @@ export class EsWorkbook {
 
   @Prop({ type: String, required: false, default: null })
   linkedIeWorkbookId!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  exampleVariant!: string | null;
 }
 
 export const EsWorkbookSchema = SchemaFactory.createForClass(EsWorkbook);

@@ -98,8 +98,9 @@ export class EsIeLinkService {
       return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
     }
     if (es.linkedIeWorkbookId === EXAMPLE_SENTINEL) {
-      const bundle = await this.exampleWorkbooksService.getIeBundle("sfr");
-      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName: "Generic SFR IE Workbook", initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
+      const variant = es.exampleVariant === "htgr" ? "htgr" : "sfr";
+      const bundle = await this.exampleWorkbooksService.getIeBundle(variant);
+      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR IE Workbook" : "Generic SFR IE Workbook", initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
     }
     const ie = await this.ieWorkbookModel.findOne({ workbookId: es.linkedIeWorkbookId }).exec();
     if (!ie) return { linkedIeWorkbookId: es.linkedIeWorkbookId, linkedName: null, initiators: [] };

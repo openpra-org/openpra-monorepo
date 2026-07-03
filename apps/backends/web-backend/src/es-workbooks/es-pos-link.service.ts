@@ -135,9 +135,10 @@ export class EsPosLinkService {
       return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
     }
     if (es.linkedPosWorkbookId === EXAMPLE_SENTINEL) {
-      const bundle = await this.exampleWorkbooksService.getPosBundle("sfr");
+      const variant = es.exampleVariant === "htgr" ? "htgr" : "sfr";
+      const bundle = await this.exampleWorkbooksService.getPosBundle(variant);
       const { states, sources } = this.collectImported(bundle.pos.mef as PosMefShape);
-      return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: "Generic SFR POS Workbook", states, sources };
+      return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR POS Workbook" : "Generic SFR POS Workbook", states, sources };
     }
     const pos = await this.posWorkbookModel.findOne({ workbookId: es.linkedPosWorkbookId }).exec();
     if (!pos) return { linkedPosWorkbookId: es.linkedPosWorkbookId, linkedName: null, states: [], sources: [] };

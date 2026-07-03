@@ -80,7 +80,7 @@ export class EsWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<EsWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<EsWorkbookResponse> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ES workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -90,7 +90,7 @@ export class EsWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getEsBundle();
+    const example = await this.exampleWorkbooksService.getEsBundle(exampleId);
     const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
@@ -102,6 +102,7 @@ export class EsWorkbooksService {
     doc.mef = cleaned;
     doc.linkedPosWorkbookId = "example";
     doc.linkedIeWorkbookId = "example";
+    doc.exampleVariant = exampleId === "sfr" || exampleId === "htgr" ? exampleId : "htgr";
     await doc.save();
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.esDocumentsService.removeAllForWorkbook(workbookId);

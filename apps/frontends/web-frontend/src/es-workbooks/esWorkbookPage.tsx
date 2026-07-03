@@ -17,8 +17,10 @@ import {
   getEsIeLink,
   linkPosWorkbook,
   linkIeWorkbook,
+  getEsExampleOptions,
   loadEsExample,
   unloadEsExample,
+  type EsExampleOption,
   type EsWorkbookRoleName,
   type EsPosLinkStatus,
   type EsIeLinkStatus,
@@ -68,6 +70,7 @@ function EsWorkbookPage(): JSX.Element {
   const [ieLinkOpen, setIeLinkOpen] = useState(false);
   const [loadExOpen, setLoadExOpen] = useState(false);
   const [unloadExOpen, setUnloadExOpen] = useState(false);
+  const [exampleOptions, setExampleOptions] = useState<EsExampleOption[]>([]);
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
@@ -107,6 +110,14 @@ function EsWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEsExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { if (!cancelled) setExampleOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   const updateEs = useCallback((es: EventSequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, es }));
@@ -254,9 +265,10 @@ function EsWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="ES"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadEsExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadEsExample(id, exampleId);
             updateEs(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             await refreshLinks();

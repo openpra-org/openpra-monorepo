@@ -83,16 +83,6 @@ function hazardStatusLabel(h: HazardAnalysis): string {
   return "Draft";
 }
 
-function CatIcon({ catId, size = 14 }: { catId: string; size?: number }): JSX.Element {
-  const cat = categoryById(catId);
-  const Ico = (cat !== undefined && IEIcon[cat.icon as keyof typeof IEIcon] !== undefined) ? IEIcon[cat.icon as keyof typeof IEIcon] : IEIcon.Bolt;
-  return (
-    <span style={{ display: "inline-flex", width: size, height: size, color: CATEGORY_COLORS[catId] }}>
-      <Ico />
-    </span>
-  );
-}
-
 function DispositionChip({ status }: { status: string }): JSX.Element {
   if (status === "RETAINED") return <span className="poschip poschip--ok-soft">Retained</span>;
   if (status === "MERGED") return <span className="poschip">Grouped</span>;
@@ -389,9 +379,9 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
           <table className="postable iesrc-table">
             <thead>
               <tr>
-                <th><div className="iesrc-th">Source <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
-                <th><div className="iesrc-th">Barriers <span className="ieprov ieprov--sm"><IEIcon.Link /> POS-A3</span></div></th>
-                <th><div className="iesrc-th">Escape mechanisms <span className="ieprov ieprov--ie ieprov--sm"><IEIcon.Bolt /> IE-A2</span></div></th>
+                <th><div className="iesrc-th">Source <span className="ieprov ieprov--sm">POS-A3</span></div></th>
+                <th><div className="iesrc-th">Barriers <span className="ieprov ieprov--sm">POS-A3</span></div></th>
+                <th><div className="iesrc-th">Escape mechanisms <span className="ieprov ieprov--ie ieprov--sm">IE-A2</span></div></th>
               </tr>
             </thead>
             <tbody>
@@ -687,7 +677,6 @@ function IdentifyScreen(): JSX.Element {
         </div>
         {cat !== undefined && (
           <div className="iecat-blurb">
-            <CatIcon catId={cat.id} size={18} />
             <div><strong>{cat.label}</strong> <span className="possubtle">— {cat.blurb}</span></div>
           </div>
         )}
@@ -717,7 +706,7 @@ function IdentifyScreen(): JSX.Element {
                       </div>
                       {(i.preOperationalAssumptions ?? []).length > 0 && <span className="poschip" style={{ marginLeft: 6, fontSize: 11, background: "rgba(184,106,0,0.1)", color: "var(--color-warning)" }}><IEIcon.Warn /> Pre-op</span>}
                     </td>
-                    <td><span className="iecat-tag"><CatIcon catId={i.category} size={13} /> {c?.label ?? i.category}</span></td>
+                    <td><span className="iecat-tag">{c?.label ?? i.category}</span></td>
                     <td className="mono">{i.applicableStates.length}</td>
                     <td><span className={`poschip${barrier === "INTACT" ? "" : " poschip--warn"}`}>{barrier}</span></td>
                     <td><DispositionChip status={i.screeningStatus} /></td>
@@ -766,11 +755,10 @@ function CompletenessScreen(): JSX.Element {
         <p className="poscard__sub">Audits that the forward search was exhaustive, each check mapped to an SR.</p>
         <div className="iecheck-list">
           {checks.map((c, i) => {
-            const Ico = IEIcon[c.icon as keyof typeof IEIcon] ?? IEIcon.Check;
             const field = c.field;
             return (
               <div key={i} className={`iecheck iecheck--${c.ok ? "ok" : "warn"}`}>
-                <span className="iecheck__icon"><Ico /></span>
+                <span className="iecheck__num">{i + 1}</span>
                 <div className="iecheck__main">
                   <div className="iecheck__label">{c.label}</div>
                   {c.detail.length > 0 && <div className="iecheck__detail">{c.detail}</div>}
@@ -800,7 +788,7 @@ function CompletenessScreen(): JSX.Element {
             <tbody>
               {INITIATOR_CATEGORIES.map((cat) => (
                 <tr key={cat.id}>
-                  <td className="iecov__rowh"><CatIcon catId={cat.id} size={13} /> <span>{cat.label}</span></td>
+                  <td className="iecov__rowh"><span>{cat.label}</span></td>
                   {ie.applicablePlantOperatingStates.map((s) => {
                     const hit = ie.initiators.some((i) => i.category === cat.id && i.applicableStates.includes(s));
                     return <td key={s} className="iecov__cell">{hit && <span className="iecov__dot" style={{ background: CATEGORY_COLORS[cat.id] }} />}</td>;
@@ -912,15 +900,6 @@ function GroupingScreen(): JSX.Element {
 
   return (
     <>
-      <div className="poscard poscard--ghost">
-        <div className="posrow" style={{ gap: 12, alignItems: "flex-start" }}>
-          <span style={{ display: "inline-flex", width: 20, height: 20, color: "var(--color-text-muted)", flexShrink: 0, marginTop: 1 }}><IEIcon.Branch /></span>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.55 }}>
-            Group events only when they are alike in plant response, success criteria, and timing, or bounded by the worst case. Never group to hide risk-significant sequences.
-          </p>
-        </div>
-      </div>
-
       {editable && <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button></div>}
 
       {groups.length === 0 ? <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p></div> : (
@@ -942,8 +921,6 @@ function GroupingScreen(): JSX.Element {
                     const isBounding = m === g.boundingInitiatorId;
                     return (
                       <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
-                        {isBounding && <span className="iegroup__member-crown"><IEIcon.Target /></span>}
-                        {init !== undefined && <CatIcon catId={init.category} size={12} />}
                         <span className="iegroup__member-id">{m}</span>
                       </span>
                     );

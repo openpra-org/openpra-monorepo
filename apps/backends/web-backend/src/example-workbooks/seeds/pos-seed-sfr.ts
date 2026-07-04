@@ -996,6 +996,19 @@ const POS_ANALYSIS_SFR: PlantOperatingStatesAnalysis = {
   documentation,
   configurationControlRecordId: "cc-2026.04.18-001",
   decayHeatOperatingDays: 180,
+  decayHeatCurve: {
+    name: "Generic SFR design decay-heat curve",
+    points: [
+      { hours: 0.1, fractionOfPower: 0.0155 },
+      { hours: 1, fractionOfPower: 0.00976 },
+      { hours: 2, fractionOfPower: 0.00832 },
+      { hours: 24, fractionOfPower: 0.00416 },
+      { hours: 240, fractionOfPower: 0.00176 },
+      { hours: 336, fractionOfPower: 0.00144 },
+      { hours: 504, fractionOfPower: 0.00144 },
+      { hours: 720, fractionOfPower: 0.00144 },
+    ],
+  },
   newlyDevelopedMethodIds: [],
   exampleDocuments: [
     { id: "DOC-01", name: "EBR-II SHRT Benchmark Specifications", kind: "doc", sizeLabel: "Argonne", uploadedLabel: "ANL-ARC-226", extracted: "Core thermal power 62.5 MWt, primary sodium flow, core inlet and outlet temperatures, pool geometry, steady full-power conditions", linked: 5, url: "/api/example-documents/pos/sfr-benchmark", citation: "Benchmark Specifications and Data Requirements for EBR-II Shutdown Heat Removal Tests SHRT-17 and SHRT-45R, Argonne ANL-ARC-226, 2012 (https://www.osti.gov/biblio/1432465)" },

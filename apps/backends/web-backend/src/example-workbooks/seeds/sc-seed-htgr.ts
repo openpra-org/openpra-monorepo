@@ -142,7 +142,7 @@ const safetyFunctionSuccessCriteria = SF_CRIT_SRC.flatMap((c) =>
 
 export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
   uuid: "sc-generic-2",
-  name: "Generic-2 Success Criteria Development",
+  name: "SC Workbook 1",
   type: TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT,
   version: "2",
   created: CREATED,
@@ -162,7 +162,7 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
       { id: "rev-3", name: "Priya Subramanian", role: "INTERNAL_REVIEWER", title: "Independent Reviewer, Passive Systems", organization: "Nuclear Safety Associates" },
       { id: "ewhitmore", name: "Dr. Elaine Whitmore", role: "INTERNAL_APPROVER", title: "PRA Technical Authority", organization: "Generic Atomics" },
     ],
-    scope: "Success-criteria development for the Generic-2 helium-cooled high-temperature reactor across pre-operational plant operating states and identified initiating events.",
+    scope: "Success-criteria development for the Generic HTGR across pre-operational plant operating states and identified initiating events.",
     limitations: ["Pre-operational: criteria and engineering bases rest on design information pending as-built confirmation."],
     lastModifiedDate: NOW,
     lastModifiedBy: "tferreira",
@@ -181,9 +181,9 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
   },
   activePeerReviewIds: [],
   activeAuditIds: [],
-  praScope: "Full-scope success-criteria development for the Generic-2 modular HTGR, pre-operational stage, capability category CC-II.",
+  praScope: "Full-scope success-criteria development for the Generic HTGR, pre-operational stage, capability category CC-II.",
   safeStableStateDefinition: {
-    definition: "Generic-2 is safe and stable when the reactor is shut down or feedback-capped, core heat goes to forced cooling or the conduction-cooldown path, and peak fuel temperature stays below the TRISO limit.",
+    definition: "The Generic HTGR is safe and stable when the reactor is shut down or feedback-capped, core heat goes to forced cooling or the conduction-cooldown path, and peak fuel temperature stays below the TRISO limit.",
     basis: "HTGR-specific endpoint, not the LWR definition. Windows and margins from the coupled sequence campaign TF-CALC-H01.",
     implementsSrs: srs("SC-A1"),
   },
@@ -575,7 +575,7 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
     {
       uuid: "CV-SC",
       successCriteriaId: "OSC-PLOFC",
-      designBasesVerification: { isConsistent: true, description: "Two SCS trains, four RCCS duct groups and the filtered building match the design.", references: ["Generic-2 design freeze 2026-04-18"] },
+      designBasesVerification: { isConsistent: true, description: "Two SCS trains, four RCCS duct groups and the filtered building match the design.", references: ["Generic HTGR design freeze 2026-04-18"] },
       licensingBasesVerification: { isConsistent: true, description: "Trip plus conduction cooldown matches the safety-analysis basis.", references: ["Safety analysis report chapter 15"] },
       operationalPracticesVerification: { isConsistent: false, description: "The two-train start procedure timing is open pending the as-operated procedures.", references: ["Operations concept rev 2"] },
       implementsSrs: srs("SC-A9"),

@@ -129,7 +129,7 @@ const safetyFunctionSuccessCriteria = SF_CRIT_SRC.flatMap((c) =>
 
 export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
   uuid: "sc-generic-1",
-  name: "Generic-1 Success Criteria Development",
+  name: "SC Workbook 2",
   type: TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT,
   version: "3",
   created: CREATED,
@@ -149,7 +149,7 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
       { id: "rev-3", name: "Priya Subramanian", role: "INTERNAL_REVIEWER", title: "Independent Reviewer, Passive Systems", organization: "Nuclear Safety Associates" },
       { id: "ewhitmore", name: "Dr. Elaine Whitmore", role: "INTERNAL_APPROVER", title: "PRA Technical Authority", organization: "Generic Atomics" },
     ],
-    scope: "Success-criteria development for the Generic-1 sodium-cooled fast reactor across pre-operational plant operating states and identified initiating events.",
+    scope: "Success-criteria development for the Generic SFR across pre-operational plant operating states and identified initiating events.",
     limitations: ["Pre-operational: criteria and engineering bases rest on design information pending as-built confirmation."],
     lastModifiedDate: NOW,
     lastModifiedBy: "tferreira",
@@ -168,9 +168,9 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
   },
   activePeerReviewIds: [],
   activeAuditIds: [],
-  praScope: "Full-scope success-criteria development for the Generic-1 SFR, pre-operational stage, capability category CC-II.",
+  praScope: "Full-scope success-criteria development for the Generic SFR, pre-operational stage, capability category CC-II.",
   safeStableStateDefinition: {
-    definition: "Generic-1 is safe and stable when subcritical, decay heat is removed by a stable path, and sodium temperatures are falling.",
+    definition: "The Generic SFR is safe and stable when subcritical, decay heat is removed by a stable path, and sodium temperatures are falling.",
     basis: "SFR-specific endpoint, not the LWR definition. Thresholds from TF-CALC-01.",
     implementsSrs: srs("SC-A1"),
   },
@@ -562,7 +562,7 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
     {
       uuid: "CV-SC",
       successCriteriaId: "OSC-LOHS",
-      designBasesVerification: { isConsistent: true, description: "As-designed DRACS, guard vessel and confinement, not an LWR import.", references: ["Generic-1 design freeze 2026-04-18"] },
+      designBasesVerification: { isConsistent: true, description: "As-designed DRACS, guard vessel and confinement, not an LWR import.", references: ["Generic SFR design freeze 2026-04-18"] },
       licensingBasesVerification: { isConsistent: true, description: "Operator-action criteria match the EOPs.", references: ["EOP set rev B"] },
       operationalPracticesVerification: { isConsistent: false, description: "Load-follow criterion assumes the old alignment, open pending the update.", references: ["Operations concept rev 2"] },
       implementsSrs: srs("SC-A9"),

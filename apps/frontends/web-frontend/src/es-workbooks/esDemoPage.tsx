@@ -114,7 +114,7 @@ function EsDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: "Generic SFR Pre-operational PRA",
           workbookName: data.es.name,
           workbookVersion: data.es.version,
         }}

@@ -103,13 +103,13 @@ interface MethodSpec {
 const METHOD_REGISTRY: Record<string, MethodSpec> = {
   MLD:     { name: "Master logic diagram",        icon: "Network", scope: "",                                                              coverage: "All 7 categories",    note: "Heat-removal, reactivity-control, and inventory branches expanded to component level." },
   FMEA:    { name: "FMEA",                         icon: "Sheet",   scope: "Each system to subsystem / train level (IE-A9, IE-A15)",       coverage: "Transient · Special", note: "Main and support systems swept. HAZOPS overlay on coupled systems." },
-  HBFT:    { name: "Heat-balance fault trees",     icon: "Gauge",   scope: "",                                                              coverage: "Transient · RCB breach", note: "Power-conversion train modelled as a frequency-producing top event." },
-  OEREV:   { name: "Operating-experience review",  icon: "History", scope: "Similar plants & comparable systems (IE-A8, IE-A11, IE-A14)", coverage: "Completeness check",  note: "Generic operating experience and similar-plant data reviewed.", statusMessage: "Experience review for one initiator class still open." },
-  GENLIST: { name: "Generic initiator catalog",    icon: "Doc",     scope: "NUREG/CR-5750 + comparable catalogs",                          coverage: "Seed list",           note: "Generic list filtered for plant-specific applicability." },
+  HBFT:    { name: "Heat-balance fault trees",     icon: "Network", scope: "",                                                              coverage: "Transient · RCB breach", note: "Power-conversion train modelled as a frequency-producing top event." },
+  OEREV:   { name: "Operating-experience review",  icon: "Doc",     scope: "Similar plants & comparable systems (IE-A8, IE-A11, IE-A14)", coverage: "Completeness check",  note: "Generic operating experience and similar-plant data reviewed.", statusMessage: "Experience review for one initiator class still open." },
+  GENLIST: { name: "Generic initiator catalog",    icon: "Sheet",   scope: "NUREG/CR-5750 + comparable catalogs",                          coverage: "Seed list",           note: "Generic list filtered for plant-specific applicability." },
 };
 
 function methodSpec(id: string): MethodSpec {
-  return METHOD_REGISTRY[id] ?? { name: id, icon: "Network", scope: "", note: "", coverage: "" };
+  return METHOD_REGISTRY[id] ?? { name: id, icon: "Sheet", scope: "", note: "", coverage: "" };
 }
 
 interface CompletenessCheckMeta {

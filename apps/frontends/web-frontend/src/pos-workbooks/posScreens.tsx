@@ -37,6 +37,7 @@ import {
   formatDuration,
   formatFrequency,
   DECAY_HEAT_METHODS,
+  decayHeatFromCurve,
   type DecayHeatMethod,
   preOpsForState,
   ccScore,
@@ -1623,10 +1624,7 @@ function GroupingScreen({ openDrawer, canEdit, onAddGroup }: ScreenProps): JSX.E
           <div key={g.id} className="poscard">
             <div className="poscard__head">
               <div>
-                <div className="posrow" style={{ gap: 10 }}>
-                  <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
-                  {g.status === "ok" ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Incomplete</Badge>}
-                </div>
+                <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
                 <div className="possubtle" style={{ marginTop: 6 }}>
                   Members: {g.members.map((m) => m.label).join(", ")} · Total time {g.durationSum}
                 </div>
@@ -1636,6 +1634,7 @@ function GroupingScreen({ openDrawer, canEdit, onAddGroup }: ScreenProps): JSX.E
             <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, marginBottom: 10 }}>{g.rationale}</div>
             <div className="posrow" style={{ gap: 22, fontSize: 12.5 }}>
               <div><span className="possubtle">Bounding by</span> <strong style={{ color: "var(--color-text)" }}>{g.boundingCharacteristic}</strong></div>
+              <span style={{ marginLeft: "auto" }}>{g.status === "ok" ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Incomplete</Badge>}</span>
             </div>
             {g.statusMessage !== undefined && (
               <div style={{ marginTop: 10, padding: 10, background: "rgba(196,122,24,0.08)", borderLeft: "3px solid var(--color-warning)", borderRadius: 4, fontSize: 12.5, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -1894,6 +1893,8 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
   );
 }
 
+const DECAY_FONT = "'Nunito Sans', sans-serif";
+
 function patchStateDecayHeat(pos: PlantOperatingStatesAnalysis, uuid: string, fields: { timeHours?: number; mw?: number; basis?: string }): PlantOperatingStatesAnalysis {
   const round = (n: number): number => Number(n.toFixed(3));
   const plantOperatingStates = pos.plantOperatingStates.map((s) => {
@@ -1938,7 +1939,7 @@ function DecayHeatRow({ state, recorded, powerMw, operatingDays, method, canEdit
   const [mwText, setMwText] = useState(state.decayHeatLevelDefined ? String(state.rcsParameters.decayHeatLevel.representative) : "");
   const mwNum = Number(mwText);
   const fractionPercent = mwText.trim().length > 0 && !Number.isNaN(mwNum) && powerMw !== undefined && powerMw > 0 ? (mwNum / powerMw) * 100 : undefined;
-  const canCompute = canEdit && mefPatch !== undefined && powerMw !== undefined && operatingDays !== undefined;
+  const canCompute = canEdit && mefPatch !== undefined && powerMw !== undefined && (!method.needsOperatingDays || operatingDays !== undefined);
   function onTime(v: string): void {
     setTimeText(v);
     if (!canEdit || mefPatchDebounced === undefined) return;
@@ -1955,9 +1956,10 @@ function DecayHeatRow({ state, recorded, powerMw, operatingDays, method, canEdit
   }
   function compute(): void {
     const t = Number(timeText);
-    if (!canCompute || powerMw === undefined || operatingDays === undefined) return;
+    if (!canCompute || powerMw === undefined) return;
+    if (method.needsOperatingDays && operatingDays === undefined) return;
     if (timeText.trim().length === 0 || Number.isNaN(t) || t <= 0) return;
-    const mw = method.compute(t, powerMw, operatingDays);
+    const mw = method.compute(t, powerMw, operatingDays ?? 0);
     setMwText(mw.toFixed(2));
     mefPatch?.((d) => patchStateDecayHeat(d, state.uuid, { timeHours: t, mw, basis: `${method.label} at ${t} h after shutdown.` }));
   }
@@ -1967,10 +1969,10 @@ function DecayHeatRow({ state, recorded, powerMw, operatingDays, method, canEdit
         <div className="postable__name">{stateLabel(state.name)}</div>
         <span className="postable__name-sub">{state.description}</span>
       </td>
-      <td><input className="posfield__input" value={timeText} placeholder="hours" style={{ width: 90 }} disabled={!canEdit} onChange={(e) => onTime(e.target.value)} /></td>
+      <td><input className="posfield__input" value={timeText} placeholder="hours" style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onTime(e.target.value)} /></td>
       <td>
         <div className="posrow" style={{ gap: 6, alignItems: "center" }}>
-          <input className="posfield__input" value={mwText} style={{ width: 90 }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
+          <input className="posfield__input" value={mwText} style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
           {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!canCompute} onClick={compute}>Compute</button>}
         </div>
       </td>
@@ -2000,7 +2002,7 @@ function OperatingDaysField({ days, canEdit, mefPatchDebounced }: {
   return (
     <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 10 }}>
       <span className="possubtle">Full-power operating time before shutdown (days)</span>
-      <input className="posfield__input" value={text} placeholder="days" style={{ width: 110 }} disabled={!canEdit} onChange={(e) => onChange(e.target.value)} />
+      <input className="posfield__input" value={text} placeholder="days" style={{ width: 130, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -2012,18 +2014,35 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
   const operatingDays = pos.decayHeatOperatingDays;
   const lpsd = pos.plantOperatingStates.filter((s) => s.operatingMode !== "POWER");
   const characterized = new Set(pos.decayHeatCharacterizations.map((d) => d.posId));
-  const [methodId, setMethodId] = useState(DECAY_HEAT_METHODS[0].id);
-  const method = DECAY_HEAT_METHODS.find((m) => m.id === methodId) ?? DECAY_HEAT_METHODS[0];
+  const curve = pos.decayHeatCurve;
+  const curvePoints = (curve?.points ?? []).filter((pt) => pt.hours > 0 && pt.fractionOfPower > 0);
+  const curveStateMarkers = operatingPowerMw === undefined ? [] : lpsd
+    .filter((st) => st.decayHeatLevelDefined && (st.meanTimeAfterShutdownHours ?? 0) > 0 && st.rcsParameters.decayHeatLevel.representative > 0)
+    .map((st) => ({ hours: st.meanTimeAfterShutdownHours ?? 0, fraction: st.rcsParameters.decayHeatLevel.representative / operatingPowerMw, name: stateLabel(st.name) }));
+  const methods: DecayHeatMethod[] = [
+    ...DECAY_HEAT_METHODS,
+    ...(curve !== undefined && curvePoints.length >= 2
+      ? [{
+          id: "design-curve",
+          label: curve.name.length > 0 ? curve.name : "Plant decay-heat curve",
+          needsOperatingDays: false,
+          compute: (t: number, p: number) => decayHeatFromCurve(curve.points, t, p),
+        }]
+      : []),
+  ];
+  const [methodId, setMethodId] = useState(methods[0].id);
+  const method = methods.find((m) => m.id === methodId) ?? methods[0];
   const [computeVersion, setComputeVersion] = useState(0);
-  const canComputeAll = canEdit && mefPatch !== undefined && operatingPowerMw !== undefined && operatingDays !== undefined && lpsd.length > 0;
+  const canComputeAll = canEdit && mefPatch !== undefined && operatingPowerMw !== undefined && (!method.needsOperatingDays || operatingDays !== undefined) && lpsd.length > 0;
   function computeAll(): void {
-    if (!canComputeAll || operatingPowerMw === undefined || operatingDays === undefined) return;
+    if (!canComputeAll || operatingPowerMw === undefined) return;
+    if (method.needsOperatingDays && operatingDays === undefined) return;
     mefPatch?.((d) => {
       let next = d;
       for (const s of lpsd) {
         const t = s.meanTimeAfterShutdownHours;
         if (t === undefined || t <= 0) continue;
-        next = patchStateDecayHeat(next, s.uuid, { timeHours: t, mw: method.compute(t, operatingPowerMw, operatingDays), basis: `${method.label} at ${t} h after shutdown.` });
+        next = patchStateDecayHeat(next, s.uuid, { timeHours: t, mw: method.compute(t, operatingPowerMw, operatingDays ?? 0), basis: `${method.label} at ${t} h after shutdown.` });
       }
       return next;
     });
@@ -2042,18 +2061,18 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
         </div>
         <p className="poscard__sub">Enter the decay heat for each state, or compute it from a correlation.</p>
         <OperatingDaysField days={operatingDays} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
-        {DECAY_HEAT_METHODS.length > 1 && (
+        {methods.length > 1 && (
           <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 10 }}>
-            <span className="possubtle">Correlation</span>
-            <select className="posfield__input" style={{ width: 240 }} value={methodId} disabled={!canEdit} onChange={(e) => setMethodId(e.target.value)}>
-              {DECAY_HEAT_METHODS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            <span className="possubtle">Method</span>
+            <select className="posfield__input" style={{ width: 280, fontFamily: DECAY_FONT }} value={methodId} disabled={!canEdit} onChange={(e) => setMethodId(e.target.value)}>
+              {methods.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           </div>
         )}
         {operatingPowerMw === undefined && (
           <p className="posfield__hint" style={{ marginBottom: 10 }}>Set the core thermal power in the plant setup to compute decay heat from a correlation.</p>
         )}
-        {operatingDays === undefined && (
+        {operatingDays === undefined && method.needsOperatingDays && (
           <p className="posfield__hint" style={{ marginBottom: 10 }}>Set the operating days before shutdown to compute decay heat from a correlation.</p>
         )}
         {lpsd.length === 0 ? (
@@ -2077,8 +2096,215 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
         </table>
         )}
       </div>
+
+      <DecayHeatCurveCard curve={curve} powerMw={operatingPowerMw} stateMarkers={curveStateMarkers} canEdit={canEdit} mefPatch={mefPatch} mefPatchDebounced={mefPatchDebounced} />
     </>
   );
+}
+
+function patchDecayHeatCurve(pos: PlantOperatingStatesAnalysis, curve: { name: string; points: { hours: number; fractionOfPower: number }[] }): PlantOperatingStatesAnalysis {
+  return { ...pos, decayHeatCurve: curve };
+}
+
+interface CurveStateMarker {
+  hours: number;
+  fraction: number;
+  name: string;
+}
+
+function smoothMonotonePath(pts: { x: number; y: number }[]): string {
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  const dx: number[] = [];
+  const slope: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const h = pts[i + 1].x - pts[i].x;
+    dx.push(h);
+    slope.push(h === 0 ? 0 : (pts[i + 1].y - pts[i].y) / h);
+  }
+  const m: number[] = new Array(n);
+  m[0] = slope[0];
+  m[n - 1] = slope[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    m[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  }
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / slope[i];
+    const b = m[i + 1] / slope[i];
+    const sum = a * a + b * b;
+    if (sum > 9) {
+      const tau = 3 / Math.sqrt(sum);
+      m[i] = tau * a * slope[i];
+      m[i + 1] = tau * b * slope[i];
+    }
+  }
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i];
+    const c1x = pts[i].x + h / 3;
+    const c1y = pts[i].y + (m[i] * h) / 3;
+    const c2x = pts[i + 1].x - h / 3;
+    const c2y = pts[i + 1].y - (m[i + 1] * h) / 3;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${pts[i + 1].x.toFixed(1)},${pts[i + 1].y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function DecayCurvePlot({ points, stateMarkers }: { points: { hours: number; fractionOfPower: number }[]; stateMarkers: CurveStateMarker[] }): JSX.Element {
+  const usable = points.filter((pt) => pt.hours > 0 && pt.fractionOfPower > 0).sort((a, b) => a.hours - b.hours);
+  const W = 560;
+  const H = 300;
+  const L = 52;
+  const R = 14;
+  const T = 12;
+  const B = 40;
+  const xs = usable.map((pt) => pt.hours).concat(stateMarkers.map((m) => m.hours));
+  const ys = usable.map((pt) => pt.fractionOfPower).concat(stateMarkers.map((m) => m.fraction));
+  const xMin = Math.min(...xs);
+  const xMax = Math.max(...xs) * 1.4;
+  const yMin = Math.min(...ys);
+  const yMax = Math.max(...ys) * 1.5;
+  const lx = (v: number): number => L + ((Math.log10(v) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin))) * (W - L - R);
+  const ly = (v: number): number => H - B - ((Math.log10(v) - Math.log10(yMin)) / (Math.log10(yMax) - Math.log10(yMin))) * (H - T - B);
+  const xTicks: number[] = [];
+  for (let k = Math.ceil(Math.log10(xMin)); k <= Math.floor(Math.log10(xMax)); k++) xTicks.push(Math.pow(10, k));
+  const yTicks: number[] = [];
+  for (let k = Math.ceil(Math.log10(yMin)); k <= Math.floor(Math.log10(yMax)); k++) yTicks.push(Math.pow(10, k));
+  const fmtHours = (v: number): string => (v >= 1 ? String(v) : String(v));
+  const fmtFrac = (v: number): string => {
+    const pct = v * 100;
+    return pct >= 1 ? `${pct}%` : `${pct.toPrecision(1)}%`;
+  };
+  const linePath = smoothMonotonePath(usable.map((pt) => ({ x: lx(pt.hours), y: ly(pt.fractionOfPower) })));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Decay-heat curve">
+      {xTicks.map((v) => (
+        <g key={`x${v}`}>
+          <line x1={lx(v)} y1={T} x2={lx(v)} y2={H - B} stroke="var(--color-border)" strokeWidth="1" />
+          <text x={lx(v)} y={H - B + 16} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtHours(v)}</text>
+        </g>
+      ))}
+      {yTicks.map((v) => (
+        <g key={`y${v}`}>
+          <line x1={L} y1={ly(v)} x2={W - R} y2={ly(v)} stroke="var(--color-border)" strokeWidth="1" />
+          <text x={L - 6} y={ly(v) + 3} textAnchor="end" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtFrac(v)}</text>
+        </g>
+      ))}
+      <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--color-border-strong)" strokeWidth="1" />
+      <line x1={L} y1={T} x2={L} y2={H - B} stroke="var(--color-border-strong)" strokeWidth="1" />
+      <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">HOURS AFTER SHUTDOWN</text>
+      <text x={13} y={(T + H - B) / 2} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)" transform={`rotate(-90 13 ${(T + H - B) / 2})`}>FRACTION OF FULL POWER</text>
+      {usable.length >= 2 && <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="2" />}
+      {usable.map((pt, i) => (
+        <circle key={`p${i}`} cx={lx(pt.hours)} cy={ly(pt.fractionOfPower)} r="3.5" fill="var(--color-primary)" />
+      ))}
+      {stateMarkers.map((m, i) => (
+        <g key={`s${i}`}>
+          <circle cx={lx(m.hours)} cy={ly(m.fraction)} r="4.5" fill="none" stroke="#2e7d4f" strokeWidth="2" />
+          <title>{`${m.name}: ${m.hours} h`}</title>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function DecayHeatCurveCard({ curve, powerMw, stateMarkers, canEdit, mefPatch, mefPatchDebounced }: {
+  curve?: { name: string; points: { hours: number; fractionOfPower: number }[] };
+  powerMw?: number;
+  stateMarkers: CurveStateMarker[];
+  canEdit: boolean;
+  mefPatch?: (mutator: Mutator) => void;
+  mefPatchDebounced?: (mutator: Mutator) => void;
+}): JSX.Element {
+  const points = curve?.points ?? [];
+  const name = curve?.name ?? "";
+  const plottable = points.filter((pt) => pt.hours > 0 && pt.fractionOfPower > 0);
+  function commit(next: { name: string; points: { hours: number; fractionOfPower: number }[] }, debounced: boolean): void {
+    if (!canEdit) return;
+    const patch = debounced ? mefPatchDebounced : mefPatch;
+    patch?.((d) => patchDecayHeatCurve(d, next));
+  }
+  function onName(v: string): void {
+    commit({ name: v, points }, true);
+  }
+  function onPoint(index: number, field: "hours" | "fractionOfPower", v: string): void {
+    const n = Number(v);
+    if (v.trim().length === 0 || Number.isNaN(n) || n < 0) return;
+    commit({ name, points: points.map((pt, i) => (i === index ? { ...pt, [field]: n } : pt)) }, true);
+  }
+  function addPoint(): void {
+    commit({ name, points: [...points, { hours: 0, fractionOfPower: 0 }] }, false);
+  }
+  function removePoint(index: number): void {
+    commit({ name, points: points.filter((_, i) => i !== index) }, false);
+  }
+  return (
+    <div className="poscard">
+      <div className="poscard__head">
+        <h3 className="poscard__title">Plant decay-heat curve</h3>
+      </div>
+      <p className="poscard__sub">Decay power as a fraction of full power against time after shutdown. With two or more points the curve becomes a computation method above. Rings mark the characterised states.</p>
+      <div className="posfield" style={{ maxWidth: 340, marginBottom: 14 }}>
+        <label className="posfield__label">Curve name</label>
+        {canEdit ? <CurveNameInput value={name} onCommit={onName} /> : <div>{name.length > 0 ? name : "—"}</div>}
+      </div>
+      {points.length === 0 ? (
+        <div className="posrow" style={{ gap: 12, alignItems: "center" }}>
+          <p className="posmuted" style={{ margin: 0 }}>No curve points yet. Add the points from the plant decay-heat analysis.</p>
+          {canEdit && mefPatch !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={addPoint}><POSIcon.Plus /> Add point</button>}
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ display: "inline-block" }}>
+              {canEdit && mefPatch !== undefined && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                  <button type="button" className="posnav__btn posnav__btn--sm" onClick={addPoint}><POSIcon.Plus /> Add point</button>
+                </div>
+              )}
+              <table className="postable postable--mid" style={{ width: "100%" }}>
+              <thead>
+                <tr>
+                  <th>Time after shutdown (h)</th>
+                  <th>Fraction of full power</th>
+                  <th style={{ textAlign: "right" }}>Decay heat{powerMw !== undefined ? ` at ${powerMw} MWth` : ""}</th>
+                  {canEdit && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((pt, i) => (
+                  <tr key={i}>
+                    <td>{canEdit ? <CurveNumberInput value={pt.hours} width={92} onCommit={(v) => onPoint(i, "hours", v)} /> : <span className="mono">{pt.hours}</span>}</td>
+                    <td>{canEdit ? <CurveNumberInput value={pt.fractionOfPower} width={120} onCommit={(v) => onPoint(i, "fractionOfPower", v)} /> : <span className="mono">{pt.fractionOfPower}</span>}</td>
+                    <td className="mono" style={{ textAlign: "right" }}>{powerMw !== undefined && pt.fractionOfPower > 0 ? (pt.fractionOfPower * powerMw).toFixed(2) : "—"}</td>
+                    {canEdit && <td style={{ textAlign: "right" }}><button type="button" className="posnav__btn posnav__btn--sm" title="Remove point" onClick={() => removePoint(i)}><POSIcon.Close /></button></td>}
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+          </div>
+          <div style={{ margin: "16px auto 0", maxWidth: 640 }}>
+            {plottable.length >= 2
+              ? <DecayCurvePlot points={points} stateMarkers={stateMarkers} />
+              : <p className="posmuted" style={{ margin: 0 }}>Two or more valid points draw the curve.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CurveNameInput({ value, onCommit }: { value: string; onCommit: (v: string) => void }): JSX.Element {
+  const [text, setText] = useState(value);
+  return <input className="posfield__input" style={{ fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
+}
+
+function CurveNumberInput({ value, width, onCommit }: { value: number; width: number; onCommit: (v: string) => void }): JSX.Element {
+  const [text, setText] = useState(String(value));
+  return <input className="posfield__input" style={{ width, fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
 }
 
 function DraftScreen({

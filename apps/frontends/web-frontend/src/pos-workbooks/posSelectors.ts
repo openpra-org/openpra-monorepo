@@ -1045,12 +1045,32 @@ function decayHeatWignerWay(timeAfterShutdownHours: number, operatingPowerMw: nu
 interface DecayHeatMethod {
   id: string;
   label: string;
+  needsOperatingDays: boolean;
   compute: (timeAfterShutdownHours: number, operatingPowerMw: number, operatingDays: number) => number;
 }
 
 const DECAY_HEAT_METHODS: DecayHeatMethod[] = [
-  { id: "wigner-way", label: "Wigner-Way correlation", compute: decayHeatWignerWay },
+  { id: "wigner-way", label: "Wigner-Way correlation", needsOperatingDays: true, compute: decayHeatWignerWay },
 ];
+
+function decayHeatFromCurve(points: { hours: number; fractionOfPower: number }[], timeAfterShutdownHours: number, operatingPowerMw: number): number {
+  const usable = points.filter((p) => p.hours > 0 && p.fractionOfPower > 0).sort((a, b) => a.hours - b.hours);
+  if (usable.length === 0) return 0;
+  const t = timeAfterShutdownHours;
+  if (t <= usable[0].hours) return usable[0].fractionOfPower * operatingPowerMw;
+  const last = usable[usable.length - 1];
+  if (t >= last.hours) return last.fractionOfPower * operatingPowerMw;
+  for (let i = 0; i < usable.length - 1; i++) {
+    const a = usable[i];
+    const b = usable[i + 1];
+    if (t >= a.hours && t <= b.hours) {
+      const u = (Math.log(t) - Math.log(a.hours)) / (Math.log(b.hours) - Math.log(a.hours));
+      const lf = Math.log(a.fractionOfPower) + u * (Math.log(b.fractionOfPower) - Math.log(a.fractionOfPower));
+      return Math.exp(lf) * operatingPowerMw;
+    }
+  }
+  return last.fractionOfPower * operatingPowerMw;
+}
 
 export {
   type Stage,
@@ -1071,6 +1091,7 @@ export {
   quantStatesView,
   groupRollupView,
   DECAY_HEAT_METHODS,
+  decayHeatFromCurve,
   type RcsView,
   type StateView,
   type EvolutionView,

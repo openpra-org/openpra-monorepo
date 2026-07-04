@@ -22,11 +22,6 @@ import { type PreOperationalAssumption } from "interfaces-mef-types/core/documen
 import { useScWorkbook } from "./scWorkbookContext";
 import { generateScReport } from "./scDocx";
 
-function NamedIcon({ name }: { name: string }): JSX.Element {
-  const Icon = SCIcon[name] ?? SCIcon.Link;
-  return <Icon />;
-}
-
 interface ScIfaceLane {
   key: string;
   code: string;
@@ -216,10 +211,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
               return (
                 <tr key={b.uuid} className="postable__row--clickable" onClick={() => setOpenBarrierId(b.uuid)}>
                   <td>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
-                      <span style={{ color: "var(--color-primary)", display: "inline-flex" }}><NamedIcon name={spec?.icon ?? "Shield"} /></span>
-                      {spec?.name ?? b.barrierId}
-                    </span>
+                    <span style={{ fontWeight: 700 }}>{spec?.name ?? b.barrierId}</span>
                   </td>
                   <td>{pp !== undefined && pp.parameter.length > 0 ? pp.parameter : "—"}</td>
                   <td>{pp !== undefined && pp.criterion.length > 0 ? pp.criterion : "—"}</td>
@@ -699,7 +691,7 @@ function CriteriaScreen(): JSX.Element {
             return (
               <button key={g.key} type="button" className="sccrit__card" onClick={() => setOpenKey(g.key)}>
                 <div className="sccrit__bar">
-                  <span className="sccrit__sf"><span className="sccrit__sf-icon"><NamedIcon name={sf?.icon ?? "Target"} /></span>{sf?.name ?? g.sf}</span>
+                  <span className="sccrit__sf">{sf?.name ?? g.sf}</span>
                   <span className="sccrit__dim sccrit__dim--ie">{ie?.short ?? g.ie}</span>
                   <span className="sccrit__bar-spacer" />
                   <span className={`sccrit__rs sccrit__rs--${rs ? "yes" : "no"}`}>{rs ? "Risk significant" : "Not risk significant"}</span>
@@ -732,7 +724,6 @@ function CriteriaScreen(): JSX.Element {
             {(sc.systemSuccessCriteria ?? []).map((s) => (
               <button key={s.uuid} type="button" className="scsys__card scsys__card--clickable" onClick={() => setOpenSysId(s.uuid)}>
                 <div className="scsys__head">
-                  <span className="scsys__icon"><SCIcon.Settings /></span>
                   <span className="scsys__name">{s.description}</span>
                 </div>
                 <div className="scsys__cap">
@@ -764,7 +755,6 @@ function CriteriaScreen(): JSX.Element {
             {(sc.sharedResources ?? []).map((r) => (
               <button key={r.uuid} type="button" className="scsys__card scsys__card--clickable" onClick={() => setOpenShrId(r.uuid)}>
                 <div className="scsys__head">
-                  <span className="scsys__icon"><SCIcon.Group /></span>
                   <span className="scsys__name">{r.name}</span>
                 </div>
                 <div className="scsys__cap">
@@ -1330,7 +1320,6 @@ function BasesScreen(): JSX.Element {
             return (
               <button key={a.uuid} type="button" className="scanal__card" onClick={() => setOpenId(a.uuid)}>
                 <div className="scanal__top">
-                  <span className="scanal__type"><NamedIcon name={type.icon} /></span>
                   <div>
                     <div className="scanal__id">{a.analysisId} · {type.label}</div>
                   </div>
@@ -1383,7 +1372,6 @@ function BasesScreen(): JSX.Element {
             return (
               <button type="button" key={b.uuid} className="scbar__card scbar__card--clickable" onClick={() => setOpenBarId(b.uuid)}>
                 <div className="scbar__head">
-                  <span className="scbar__barname-icon"><NamedIcon name={spec?.icon ?? "Shield"} /></span>
                   <span className="scbar__name">{spec?.short ?? b.barrierId}</span>
                   <span className={`scbar__method scbar__method--${b.effectivenessEvaluationMethod.toLowerCase()}`} style={{ marginLeft: "auto" }}>{b.effectivenessEvaluationMethod === "REALISTIC" ? "Realistic (CC-II)" : "Conservative (CC-I)"}</span>
                 </div>
@@ -1424,7 +1412,6 @@ function BasesScreen(): JSX.Element {
           {(sc.expertJudgments ?? []).map((e) => (
             <button type="button" key={e.uuid} className="scsys__card scsys__card--clickable" style={{ marginTop: 4, width: "100%" }} onClick={() => setOpenEjId(e.uuid)}>
               <div className="scsys__head">
-                <span className="scsys__icon"><SCIcon.Person /></span>
                 <span className="scsys__name">{e.topic}</span>
               </div>
               <div className="scanal__meta"><strong>Why.</strong> {e.justification}</div>
@@ -1814,7 +1801,6 @@ function PassiveScreen(): JSX.Element {
         return (
           <button type="button" key={p.uuid} className={`scpsv__card scpsv__card--clickable${warn ? " scpsv__card--warn" : ""}`} onClick={() => setOpenPsvId(p.uuid)}>
             <div className="scpsv__head">
-              <span className="scpsv__icon"><NamedIcon name={scSafetyFunctionsFor(sc.uuid)[p.safetyFunctionId]?.icon ?? "Atom"} /></span>
               <div>
                 <div className="scpsv__name">{p.name}</div>
                 <div className="scpsv__phenom">{p.passivePhenomena.map((ph) => <span key={ph} className="scpsv__phenom-tag">{ph}</span>)}</div>
@@ -1822,16 +1808,16 @@ function PassiveScreen(): JSX.Element {
             </div>
             <div className="scpsv__grid">
               <div className="scpsv__item scpsv__item--wide">
-                <div className="scpsv__item-k"><SCIcon.Beaker /> Mechanistic model</div>
+                <div className="scpsv__item-k">Mechanistic model</div>
                 <div className="scpsv__item-v">{p.mechanisticModelDescription}</div>
                 <div className="scpsv__data">{p.empiricalDataReferences.map((d) => <span key={d} className="scpsv__data-tag">{d}</span>)}</div>
               </div>
               <div className="scpsv__item">
-                <div className="scpsv__item-k"><SCIcon.Ruler /> Model uncertainty</div>
+                <div className="scpsv__item-k">Model uncertainty</div>
                 <div className="scpsv__item-v">{p.modelUncertaintyCharacterization}</div>
               </div>
               <div className="scpsv__item">
-                <div className="scpsv__item-k"><SCIcon.Gauge /> Input uncertainty</div>
+                <div className="scpsv__item-k">Input uncertainty</div>
                 <div className="scpsv__item-v">{p.inputDataUncertaintyCharacterization}</div>
               </div>
             </div>

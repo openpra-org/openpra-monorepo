@@ -15,10 +15,9 @@ function Badge({ kind, children }: { kind?: BadgeKind; children: ReactNode }): J
 type ProvenanceKind = "sc" | "es";
 
 function SCProvenanceChip({ kind, children }: { kind?: ProvenanceKind; children: ReactNode }): JSX.Element {
-  const Icon = kind === "es" ? SCIcon.Network : SCIcon.Gauge;
   return (
     <span className={`scprov${kind !== undefined ? ` scprov--${kind}` : ""}`}>
-      <Icon /> {children}
+      {children}
     </span>
   );
 }

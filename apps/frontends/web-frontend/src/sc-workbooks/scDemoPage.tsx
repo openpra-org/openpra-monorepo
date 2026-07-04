@@ -63,7 +63,7 @@ function ScDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: "Generic SFR Pre-operational PRA",
           workbookName: data.sc.name,
           workbookVersion: data.sc.version,
         }}

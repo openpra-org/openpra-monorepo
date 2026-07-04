@@ -428,6 +428,12 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
   // additional-to-example
   decayHeatOperatingDays: z.number().optional(),
+  decayHeatCurve: z
+    .object({
+      name: z.string(),
+      points: z.array(z.object({ hours: z.number(), fractionOfPower: z.number() })),
+    })
+    .optional(),
   // additional-to-example
   exampleDocuments: z.array(z.object({
     id: z.string(),

@@ -39,11 +39,6 @@ import {
 import { generateEsReport } from "./esDocx";
 import "./css/esScreens.css";
 
-function NamedIcon({ name }: { name: string }): JSX.Element {
-  const Icon = ESIcon[name] ?? ESIcon.Link;
-  return <Icon />;
-}
-
 function fmtExp(n: number | undefined): string {
   return n === undefined ? "—" : n.toExponential(1);
 }
@@ -61,7 +56,6 @@ function rcTone(rc: string | undefined): "block" | "warn" | "ok" {
 function EsEmpty({ title, hint }: { title: string; hint: string }): JSX.Element {
   return (
     <div className="esempty">
-      <ESIcon.Tree />
       <div className="esempty__title">{title}</div>
       <div className="esempty__hint">{hint}</div>
     </div>
@@ -374,7 +368,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
             })}
             <span className="espath__arrow"><ESIcon.ArrowR /></span>
             <span className={`espath__end espath__end--${isOk ? "ok" : "block"}`}>
-              {isOk ? <><ESIcon.Check /> Safe state</> : <><ESIcon.Radiation /> {s.releaseCategoryId}</>}
+              {isOk ? "Safe state" : s.releaseCategoryId}
             </span>
           </div>
         </div>
@@ -916,7 +910,7 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {f.memberSequenceIds.map((id) => (
               <span key={id} className={`poschip${id === representativeId ? " poschip--primary" : ""}`} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                {id === representativeId && <ESIcon.Target />} {id}
+                {id}
                 {editable && <button type="button" title="Remove" onClick={() => toggleMember(id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "inherit", font: "inherit", lineHeight: 1 }}>×</button>}
               </span>
             ))}
@@ -1216,7 +1210,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
               {uniqueSources.map((src) => (
                 <tr key={src.id}>
                   <td>
-                    <div className="postable__name"><span style={{ display: "inline-flex", width: 15, height: 15, verticalAlign: "-2px", marginRight: 6, color: "var(--color-primary)" }}><ESIcon.Radiation /></span>{src.name}</div>
+                    <div className="postable__name">{src.name}</div>
                   </td>
                   <td className="possubtle" style={{ fontSize: 12.5 }}>{src.location}</td>
                   <td><div className="posrow posrow--wrap" style={{ gap: 6 }}>{src.barriers.map((b) => <span key={b} className="poschip">{b}</span>)}</div></td>
@@ -1245,7 +1239,6 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
           <div className="essf-grid">
             {safetyFns.map((sf) => (
               <button key={sf.id} type="button" className="essf essf--clickable" onClick={() => setDrawer({ kind: "safetyFn", id: sf.id })}>
-                <span className="essf__icon"><NamedIcon name="Shield" /></span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
                     <span className="essf__name">{sf.name}</span>
@@ -1608,7 +1601,6 @@ function SequencesScreen(): JSX.Element {
 
       <div className="estree">
         <div className="estree__bar">
-          <NamedIcon name={reprMeta.icon} />
           <span className="estree__bar-title">{reprMeta.label}</span>
           <span className={`poschip${reprMeta.primary === true ? " poschip--primary" : ""}`}>{reprMeta.order}</span>
           <div className="estree__selector">
@@ -1618,7 +1610,7 @@ function SequencesScreen(): JSX.Element {
           </div>
           <span className="estree__bar-spacer" />
           {reprMeta.method !== undefined
-            ? <span className="poschip poschip--method"><ESIcon.Bolt /> Method {reprMeta.method}</span>
+            ? <span className="poschip poschip--method">Method {reprMeta.method}</span>
             : <span className="poschip poschip--primary">Main record</span>}
         </div>
 
@@ -1653,7 +1645,7 @@ function SequencesScreen(): JSX.Element {
 
         {repr === "tree" && (
           <>
-            <div className="esderived"><ESIcon.Split /> Derived from the event-sequence diagram. Each question becomes a branch heading, kept in the same order the operators meet it.</div>
+            <div className="esderived">Derived from the event-sequence diagram. Each question becomes a branch heading, kept in the same order the operators meet it.</div>
             <div className="possubtle" style={{ textAlign: "right", fontSize: 11.5, padding: "6px 16px 0" }}>Click on any end state to see its path</div>
             <EventTreeDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
             <div className="estree__legend" style={{ justifyContent: "center" }}>
@@ -1751,7 +1743,6 @@ function DependenciesScreen(): JSX.Element {
                 const imp = fmtImportance(d.importance);
                 return (
                   <button key={d.id} type="button" className="esdep" onClick={() => setDrawer({ kind: "dependency", id: d.id })}>
-                    <span className={`esdep__icon${meta?.tone === "warn" ? " esdep__icon--warn" : ""}`}><NamedIcon name={meta?.icon ?? "Network"} /></span>
                     <div style={{ minWidth: 0 }}>
                       <div className="esdep__flow">
                         <span className="esdep__from">{d.from}</span>
@@ -1761,7 +1752,7 @@ function DependenciesScreen(): JSX.Element {
                       <div className="esdep__desc">{d.desc}</div>
                       <div className="esdep__tags">
                         <Badge kind={meta?.tone === "warn" ? "warn" : "progress"}>{meta?.label ?? d.type}</Badge>
-                        {d.timePhased && <span className="poschip"><ESIcon.Clock /> Time-phased</span>}
+                        {d.timePhased && <span className="poschip">Time-phased</span>}
                         {d.initiatingEvents.map((ie) => <span key={ie} className="poschip">{ie}</span>)}
                       </div>
                     </div>
@@ -2054,12 +2045,11 @@ function TimingScreen(): JSX.Element {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {phens.map((p) => (
             <button key={p.uuid} type="button" className="esdep" onClick={() => setDrawer({ kind: "phenomenon", id: p.uuid })}>
-              <span className="esdep__icon esdep__icon--warn"><ESIcon.Flame /></span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div className="esdep__flow"><span className="esdep__from">{p.name}</span></div>
                 <div className="esdep__desc">{p.description}</div>
                 <div className="esdep__tags">
-                  {p.onsetTiming !== undefined && <span className="poschip"><ESIcon.Clock /> {p.onsetTiming}</span>}
+                  {p.onsetTiming !== undefined && <span className="poschip">{p.onsetTiming}</span>}
                   {(p.environmentalConditions ?? []).map((h) => <span key={h} className="poschip poschip--warn">{h}</span>)}
                   {p.affectedSystems.map((s) => <span key={s} className="poschip">↯ {s}</span>)}
                 </div>
@@ -2343,7 +2333,7 @@ function FamiliesScreen(): JSX.Element {
                         <div className="posrow posrow--wrap" style={{ gap: 5, paddingTop: 7 }}>
                           {openGroup.map((id) => (
                             <span key={id} className={`poschip${id === f.representativeId ? " poschip--primary" : ""}`} style={{ cursor: "pointer" }} onClick={(ev) => { ev.stopPropagation(); setDrawer({ kind: "sequence", id }); }}>
-                              {id === f.representativeId && <ESIcon.Target />} {id}
+                              {id}
                             </span>
                           ))}
                         </div>
@@ -2621,7 +2611,6 @@ function PlaceholderScreen({ label }: { label: string }): JSX.Element {
   return (
     <div className="poscard">
       <div className="esplaceholder">
-        <ESIcon.Tree />
         <div style={{ fontWeight: 700, color: "var(--color-text)" }}>{label}</div>
         <div className="possubtle">This step is part of the Event Sequence Analysis build and lands in a later phase.</div>
       </div>

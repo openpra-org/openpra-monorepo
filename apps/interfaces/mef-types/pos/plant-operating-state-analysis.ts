@@ -428,6 +428,11 @@ export interface PlantOperatingStatesAnalysis
   // additional-to-example
   decayHeatOperatingDays?: number;
   // additional-to-example
+  decayHeatCurve?: {
+    name: string;
+    points: { hours: number; fractionOfPower: number }[];
+  };
+  // additional-to-example
   exampleDocuments?: ExampleDocumentRef[];
 }
 

@@ -16,7 +16,7 @@ const NOW = "2026-04-22T12:00:00.000Z";
 
 export const ES_ANALYSIS: EventSequenceAnalysis = {
   uuid: "es-generic-1",
-  name: "Generic-1 Event Sequence Analysis",
+  name: "ES Workbook 2",
   type: TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
   version: "2",
   created: "2026-04-02T09:00:00.000Z",
@@ -36,7 +36,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
       { id: "rev-3", name: "Priya Subramanian", role: "INTERNAL_REVIEWER", title: "Independent Reviewer · Phenomena", organization: "Nuclear Safety Associates" },
       { id: "ewhitmore", name: "Dr. Elaine Whitmore", role: "INTERNAL_APPROVER", title: "PRA Technical Authority", organization: "Generic Atomics" },
     ],
-    scope: "Event sequence delineation for the Generic-1 sodium-cooled fast reactor across all pre-operational plant operating states and identified initiating events.",
+    scope: "Event sequence delineation for the Generic SFR across all pre-operational plant operating states and identified initiating events.",
     limitations: ["Pre-operational: sequences rest on design information pending as-built confirmation."],
     lastModifiedDate: NOW,
     lastModifiedBy: "apatel",
@@ -70,7 +70,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
   },
   activePeerReviewIds: [],
   activeAuditIds: [],
-  praScope: "Full-scope internal-event event sequence analysis for the Generic-1 SFR, pre-operational stage, capability category CC-II.",
+  praScope: "Full-scope internal-event event sequence analysis for the Generic SFR, pre-operational stage, capability category CC-II.",
   scopeDefinition: {
     plantOperatingStateIds: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"],
     initiatingEventIds: ["IEG-01", "IEG-02", "IEG-03", "IEG-04", "IEG-05", "IEG-06", "IEG-07", "IEG-08", "IEG-09", "IEG-10", "IEG-11", "IEG-12", "IEG-13", "HZ-FIRE", "HZ-SEIS"],
@@ -172,7 +172,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     functionalDependencies: [
       {
         uuid: "DM-1",
-        name: "Generic-1 event-sequence dependency catalogue",
+        name: "Generic SFR event-sequence dependency catalogue",
         description: "Functional, common-cause, human, operational, physical, and phenomenological dependencies that link successes and failures across the event sequences (HLR-ES-B).",
         involvedSystems: ["DRACS", "Class-1E DC power", "RPS", "Intermediate loop", "Guard vessel"],
         dependencies: [

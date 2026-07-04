@@ -1126,6 +1126,19 @@ const POS_ANALYSIS: PlantOperatingStatesAnalysis = {
   documentation,
   configurationControlRecordId: "cc-2026.04.18-001",
   decayHeatOperatingDays: 540,
+  decayHeatCurve: {
+    name: "Generic HTGR design decay-heat curve",
+    points: [
+      { hours: 0.1, fractionOfPower: 0.0158 },
+      { hours: 1, fractionOfPower: 0.01 },
+      { hours: 2, fractionOfPower: 0.0091429 },
+      { hours: 18, fractionOfPower: 0.0045714 },
+      { hours: 96, fractionOfPower: 0.0025714 },
+      { hours: 240, fractionOfPower: 0.0018571 },
+      { hours: 336, fractionOfPower: 0.0015714 },
+      { hours: 504, fractionOfPower: 0.0015714 },
+    ],
+  },
   newlyDevelopedMethodIds: [],
   exampleDocuments: [
     { id: "DOC-01", name: "MHTGR-350 Core Design Benchmark", kind: "doc", sizeLabel: "OECD/NEA", uploadedLabel: "MHTGR-350 benchmark", extracted: "Core thermal power, helium pressure, core inlet and outlet temperatures, mass flow, prismatic core design", linked: 5, url: "/api/example-documents/pos/mhtgr-benchmark", citation: "OECD/NEA MHTGR-350 MW Core Design Benchmark, INL results, OSTI 1129932 (https://www.osti.gov/biblio/1129932)" },

@@ -16,7 +16,7 @@ const NOW = "2026-04-22T12:00:00.000Z";
 
 export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
   uuid: "es-generic-2",
-  name: "Generic-2 Event Sequence Analysis",
+  name: "ES Workbook 1",
   type: TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
   version: "2",
   created: "2026-04-02T09:00:00.000Z",
@@ -36,7 +36,7 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
       { id: "rev-3", name: "Priya Subramanian", role: "INTERNAL_REVIEWER", title: "Independent Reviewer · Phenomena", organization: "Nuclear Safety Associates" },
       { id: "ewhitmore", name: "Dr. Elaine Whitmore", role: "INTERNAL_APPROVER", title: "PRA Technical Authority", organization: "Generic Atomics" },
     ],
-    scope: "Event sequence delineation for the Generic-2 helium-cooled high-temperature reactor across all pre-operational plant operating states and identified initiating events.",
+    scope: "Event sequence delineation for the Generic HTGR across all pre-operational plant operating states and identified initiating events.",
     limitations: ["Pre-operational: sequences rest on design information pending as-built confirmation."],
     lastModifiedDate: NOW,
     lastModifiedBy: "apatel",
@@ -69,7 +69,7 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
   },
   activePeerReviewIds: [],
   activeAuditIds: [],
-  praScope: "Full-scope internal-event event sequence analysis for the Generic-2 modular HTGR, pre-operational stage, capability category CC-II.",
+  praScope: "Full-scope internal-event event sequence analysis for the Generic HTGR, pre-operational stage, capability category CC-II.",
   scopeDefinition: {
     plantOperatingStateIds: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"],
     initiatingEventIds: ["IEG-01", "IEG-02", "IEG-03", "IEG-04", "IEG-05", "IEG-06", "IEG-07", "IEG-08", "IEG-09", "IEG-10", "IEG-11", "IEG-12", "IEG-13", "IEG-14", "IEG-15", "IEG-16", "IEG-17", "IEG-18", "IEG-19", "IEG-20", "IEG-21"],
@@ -172,7 +172,7 @@ export const ES_ANALYSIS_HTGR: EventSequenceAnalysis = {
     functionalDependencies: [
       {
         uuid: "DM-1",
-        name: "Generic-2 event-sequence dependency catalogue",
+        name: "Generic HTGR event-sequence dependency catalogue",
         description: "Functional, common-cause, human, operational, physical, and phenomenological dependencies that link successes and failures across the event sequences (HLR-ES-B).",
         involvedSystems: ["SCS", "RCCS", "Class 1E power", "RPS", "Steam-generator isolation", "Reactor building"],
         dependencies: [

@@ -1,19 +1,14 @@
-import { JSX, useMemo } from "react";
+import { JSX, useMemo, useState } from "react";
 import { SYIcon } from "./syIcons";
 import { Badge, SYProvenanceChip } from "./syShared";
 import {
   CAPABILITY_CATEGORIES,
-  SY_SYSTEM_META,
-  SY_SAFETY_FUNCTIONS,
   FAILURE_MODE_TYPES,
   CCF_MODELS,
-  SHARED_CAUSE_LABELS,
-  SY_LOGIC_MODELS,
-  SY_SYSTEM_DOSSIERS,
-  SY_SYSTEM_RESULTS,
-  MODELED_FAILURES,
+  ccfParams,
+  ccfModelCheck,
+  toExp,
   SCREENING_CRITERIA,
-  UNAVAILABILITY,
   type Stage,
   type SyTreeNode,
   type SyGateNode,
@@ -21,20 +16,10 @@ import {
 } from "./syViewData";
 import { ccScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
-import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 
 interface SyDrawerContext {
-  kind: "system" | "ccf" | "hfe";
+  kind: "system" | "ccf" | "hfe" | "screening" | "exclusion" | "unavail" | "ssc" | "spc" | "inv" | "dic" | "loop" | "confirm" | "oc" | "unc" | "assum" | "sens" | "be";
   id: string;
-}
-
-function NamedIcon({ name }: { name: string }): JSX.Element {
-  const Icon = SYIcon[name] ?? SYIcon.Link;
-  return <Icon />;
-}
-
-function safetyFnName(id: string): string {
-  return SY_SAFETY_FUNCTIONS[id]?.name ?? id;
 }
 
 const FT = { NODE_W: 184, NODE_H: 66, H_GAP: 24, SYM_H: 30, SYM_GAP: 12, LEVEL_GAP: 36, BUS_GAP: 16 };
@@ -111,7 +96,8 @@ function FtSymbol({ node, cx, top }: { node: SyTreeNode; cx: number; top: number
   );
 }
 
-function FtBox({ node, cx, top, openDrawer }: { node: SyTreeNode; cx: number; top: number; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
+function FtBox({ node, cx, top, onTransfer, onSelectBe }: { node: SyTreeNode; cx: number; top: number; onTransfer: (systemId: string) => void; onSelectBe: (beId: string) => void }): JSX.Element {
+  const { sy, shortOf } = useSyWorkbook();
   const left = cx - FT.NODE_W / 2;
   if (node.type === "OR" || node.type === "AND" || node.type === "KN") {
     const gate = node as SyGateNode;
@@ -125,33 +111,34 @@ function FtBox({ node, cx, top, openDrawer }: { node: SyTreeNode; cx: number; to
     );
   }
   if (node.type === "TR") {
-    const meta = SY_SYSTEM_META[node.transfer];
     return (
-      <div className="ftbox ftbox--tr" style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }} onClick={() => openDrawer({ kind: "system", id: node.transfer })}>
+      <div className="ftbox ftbox--tr" style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }} title="Open the transferred tree" onClick={() => onTransfer(node.transfer)}>
         <span className="ftbox__kind">Transfer</span>
         <span className="ftbox__name">{node.name}</span>
-        {meta !== undefined && <span className="ftbox__to">To {meta.short} tree</span>}
+        <span className="ftbox__to">To {shortOf(node.transfer)} tree</span>
       </div>
     );
   }
   const be = node as SyBeNode;
   const fm = FAILURE_MODE_TYPES[be.mode];
+  const beData = sy.systemLogicModels.flatMap((m) => m.basicEvents).find((b) => b.uuid === be.be);
+  const repair = beData?.repairModeled === true;
   return (
-    <div className={`ftbox ftbox--be${be.ccf === true ? " ftbox--ccf" : ""}`} style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }}>
+    <div className={`ftbox ftbox--be${be.ccf === true ? " ftbox--ccf" : ""}`} style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }} title="Open the basic event" onClick={() => onSelectBe(be.be)}>
       <span className="ftbox__name">{be.name}</span>
       <span className="ftbox__be-meta">
         <span className="ftbox__id">{be.be}</span>
         <span className={`ftbox__fm ftbox__fm--${(fm?.short ?? "x").toLowerCase()}`}>{fm?.short ?? be.mode}</span>
         <span className="ftbox__prob">{be.prob}</span>
       </span>
+      {repair && <span className="ftbox__repair">Repair credited</span>}
     </div>
   );
 }
 
-function FaultTree({ systemId, openDrawer }: { systemId: string; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element | null {
-  const lm = SY_LOGIC_MODELS[systemId];
-  const layout = useMemo(() => (lm !== undefined ? computeFtLayout(lm.root) : null), [systemId, lm]);
-  if (lm === undefined || layout === null) return null;
+function FaultTree({ tree, onTransfer, onSelectBe }: { tree: SyTreeNode; onTransfer: (systemId: string) => void; onSelectBe: (beId: string) => void }): JSX.Element | null {
+  const layout = useMemo(() => computeFtLayout(tree), [tree]);
+  if (layout === null) return null;
   const { nodes, width, height } = layout;
   const lines: { x1: number; y1: number; x2: number; y2: number; key: string }[] = [];
   nodes.forEach((n) => {
@@ -172,7 +159,7 @@ function FaultTree({ systemId, openDrawer }: { systemId: string; openDrawer: (ct
           {lines.map((l) => <line key={l.key} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} className="ftline" />)}
           {nodes.map((n) => <FtSymbol key={`${n.node.id}-sym`} node={n.node} cx={n.cx} top={n.top} />)}
         </svg>
-        {nodes.map((n) => <FtBox key={`${n.node.id}-box`} node={n.node} cx={n.cx} top={n.top} openDrawer={openDrawer} />)}
+        {nodes.map((n) => <FtBox key={`${n.node.id}-box`} node={n.node} cx={n.cx} top={n.top} onTransfer={onTransfer} onSelectBe={onSelectBe} />)}
       </div>
     </div>
   );
@@ -196,16 +183,24 @@ function FtLegend(): JSX.Element {
   );
 }
 
-function LogicModelTree({ systemId, openDrawer }: { systemId: string; openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element | null {
-  const lm = SY_LOGIC_MODELS[systemId];
-  if (lm === undefined) return null;
+function LogicModelTree({ tree, onTransfer, onSelectBe }: { tree: SyTreeNode; onTransfer: (systemId: string) => void; onSelectBe: (beId: string) => void }): JSX.Element {
   return (
     <div className="sytree">
-      <FaultTree systemId={systemId} openDrawer={openDrawer} />
+      <FaultTree tree={tree} onTransfer={onTransfer} onSelectBe={onSelectBe} />
       <FtLegend />
-      <div className="sytree__note"><SYIcon.Sparkle /><span>{lm.note}</span></div>
     </div>
   );
+}
+
+interface SyIfaceLane {
+  key: string;
+  code: string;
+  element: string;
+  role: string;
+  direction: "in" | "out";
+  columns: string[];
+  rows: { id: string; name: string; values: string[] }[];
+  empty: string;
 }
 
 function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
@@ -215,13 +210,43 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
   setStage: (s: Stage) => void;
   onAction: (msg: string) => void;
 }): JSX.Element {
-  const { sy, editable, mutateSy } = useSyWorkbook();
+  const { sy, links, editable, mutateSy } = useSyWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const ifaceLanes: SyIfaceLane[] = [
+    {
+      key: "in-POS", code: "POS", element: "Plant Operating States", role: "Operating states", direction: "in",
+      columns: ["Operating state", "Decay heat", "Duration (h)"],
+      rows: (links?.posStates ?? []).map((st) => ({ id: st.id, name: `${st.id} · ${st.name}`, values: [st.decayLabel, String(st.durationHours)] })),
+      empty: "Load an example to pull the operating states the systems align to.",
+    },
+    {
+      key: "in-SC", code: "SC", element: "Success Criteria", role: "System success criteria", direction: "in",
+      columns: ["System", "Required capacities"],
+      rows: (links?.scSystems ?? []).map((y) => ({ id: y.id, name: y.name, values: [y.capacities] })),
+      empty: "Load an example to pull the system success criteria this analysis models.",
+    },
+    {
+      key: "out-HR", code: "HR", element: "Human Reliability", role: "Human failure events", direction: "out",
+      columns: ["Human failure event", "System", "Task"],
+      rows: sy.humanFailureEventIntegrations.map((h) => ({ id: h.uuid, name: h.hfeReference, values: [h.system, h.taskDescription] })),
+      empty: "No human failure events integrated yet.",
+    },
+    {
+      key: "out-DA", code: "DA", element: "Data Analysis", role: "Basic events", direction: "out",
+      columns: ["Basic event", "Failure mode", "Point estimate"],
+      rows: (sy.systemBasicEvents ?? []).map((b) => ({ id: b.uuid, name: b.name, values: [String(b.failureMode ?? ""), b.probability !== undefined ? b.probability.toExponential(1) : ""] })),
+      empty: "No basic events defined yet.",
+    },
+    {
+      key: "out-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "System fault trees", direction: "out",
+      columns: ["System", "Top event", "Mission (h)"],
+      rows: sy.systemDefinitions.map((d) => ({ id: d.uuid, name: d.name, values: [d.description ?? "", String(d.missionTimeHours)] })),
+      empty: "No system models defined yet.",
+    },
+  ];
+  const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
 
-  function onScopeChange(value: string): void {
-    if (!editable) return;
-    mutateSy((draft) => ({ ...draft, praScope: value }));
-  }
   function onCcChange(newCcId: string): void {
     if (!editable) return;
     setCcId(newCcId);
@@ -237,22 +262,46 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
-        <p className="poscard__sub">What flows into Systems Analysis and what it feeds. Select an element to see the data exchanged.</p>
-        <WorkbookInterfaceTiles element="SY" />
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
-        <p className="poscard__sub">Describe what this systems analysis covers and what it excludes.</p>
-        <textarea
-          className="posfield__textarea"
-          placeholder="State the in-scope systems, the modelling depth, and explicit exclusions."
-          rows={4}
-          value={sy.praScope}
-          disabled={!editable}
-          onChange={(e) => onScopeChange(e.target.value)}
-        />
+        <div className="poscard__head">
+          <h3 className="poscard__title">Interfaces</h3>
+          {links !== null ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
+        </div>
+        <p className="poscard__sub">Systems Analysis reads the system success criteria from SC and the operating states from POS, then hands its fault-tree models to ESQ, its basic events to DA, and its human failure events to HR. Select an element to see the data exchanged.</p>
+        <div className="poshandoff__grid">
+          {ifaceLanes.map((lane) => (
+            <button key={lane.key} type="button"
+              className={`poshandoff__tile${selectedTe === lane.key ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.key ? null : lane.key)}>
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.direction === "in" ? "Provides · " : "Consumes · "}{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+              {selectedLane.direction === "in"
+                ? `Systems Analysis receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`
+                : `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Systems Analysis`}
+            </div>
+            {selectedLane.rows.length > 0 ? (
+              <table className="postable postable--mid">
+                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                <tbody>
+                  {selectedLane.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="postable__name">{r.name}</div></td>
+                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="poscard">
@@ -309,13 +358,13 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
 }): JSX.Element {
-  const { sy } = useSyWorkbook();
+  const { sy, shortOf } = useSyWorkbook();
   const sysDef = sy.systemDefinitions.find((s) => s.uuid === sysId) ?? sy.systemDefinitions[0];
-  const meta = SY_SYSTEM_META[sysDef.uuid];
   const logic = sy.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
-  const hasTree = SY_LOGIC_MODELS[sysDef.uuid] !== undefined;
-  const dossier = SY_SYSTEM_DOSSIERS[sysDef.uuid];
-  const results = SY_SYSTEM_RESULTS[sysDef.uuid];
+  const faultTree = logic?.faultTree as SyTreeNode | undefined;
+  const supportSystems = sy.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid).map((d) => d.supportingSystem);
+  const varCrit = (sy.variableSuccessCriteria ?? []).filter((v) => v.systemReference === sysDef.uuid);
+  const applicablePos = sysDef.applicablePlantOperatingStates ?? [];
   return (
     <>
       <div className="poscard">
@@ -323,142 +372,77 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
           <h3 className="poscard__title">System</h3>
           <span className="possubtle">{sy.systemDefinitions.length} systems · SY-A1, A7, A8</span>
         </div>
-        <p className="poscard__sub">Pick a system to see its boundary, alignments and logic model.</p>
-        <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+        <p className="poscard__sub">Select a system to see its boundary and logic model.</p>
+        <select className="posfield__select" style={{ maxWidth: 360 }} value={sysDef.uuid} onChange={(e) => setSysId(e.target.value)}>
           {sy.systemDefinitions.map((s) => (
-            <button key={s.uuid} type="button" className={`poschip${sysId === s.uuid ? " poschip--primary" : ""}`} onClick={() => setSysId(s.uuid)}>
-              {SY_SYSTEM_META[s.uuid]?.short ?? s.name}
-            </button>
+            <option key={s.uuid} value={s.uuid}>{shortOf(s.uuid)}: {s.name}</option>
           ))}
-        </div>
+        </select>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title" style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-            <span style={{ color: "var(--color-primary)", display: "inline-flex" }}><NamedIcon name={meta?.icon ?? "Settings"} /></span>
-            {sysDef.name}
-          </h3>
-          {meta?.status === "warn" ? <Badge kind="warn">Open item</Badge> : <Badge kind="ok">Modeled</Badge>}
+          <h3 className="poscard__title">{sysDef.name}</h3>
         </div>
-        <div className="sytop">
-          <span className="sytop__icon"><SYIcon.Target /></span>
-          <div>
-            <div className="sytop__cap">Top event</div>
-            <div className="sytop__text">{sysDef.description ?? sysDef.name}</div>
-            {meta !== undefined && <div className="sytop__crit">Success criterion. {meta.criterion}</div>}
+        <div className="sysd">
+          <div className="sysd__card">
+            <div className="sysd__head"><span className="sysd__name">Top event</span></div>
+            <div className="sysd__body">{sysDef.description ?? sysDef.name}</div>
           </div>
-        </div>
-        <div className="syfacts">
-          <div className="syfacts__cell"><span className="syfacts__k">Function</span><span className="syfacts__v">{meta !== undefined ? safetyFnName(meta.sf) : "—"}</span></div>
-          <div className="syfacts__cell"><span className="syfacts__k">Representation</span><span className="syfacts__v">{logic?.modelRepresentation ?? "System-level"}</span></div>
-          <div className="syfacts__cell"><span className="syfacts__k">Mission time</span><span className="syfacts__v posmono">{sysDef.missionTimeHours !== undefined ? `${sysDef.missionTimeHours} h` : "—"}</span></div>
-          <div className="syfacts__cell"><span className="syfacts__k">Alignments</span><span className="syfacts__v">{meta?.alignments ?? 1} modeled</span></div>
-          <div className="syfacts__cell"><span className="syfacts__k">Components</span><span className="syfacts__v posmono">{meta?.components ?? "—"}</span></div>
-          <div className="syfacts__cell"><span className="syfacts__k">Basic events</span><span className="syfacts__v posmono">{logic?.basicEvents.length ?? meta?.basicEvents ?? 0}</span></div>
-        </div>
-        <div className="syboundary">
-          <div className="syboundary__head"><SYIcon.Cube /> Model boundary (SY-A8)</div>
-          <div className="syboundary__list">
-            {sysDef.boundaries.map((b, i) => <span key={i} className="syboundary__tag">{b}</span>)}
-          </div>
-          {meta !== undefined && meta.supportNeeds.length > 0 && (
-            <div className="syboundary__support">
-              <span className="syboundary__support-k">Support interfaces</span>
-              {meta.supportNeeds.map((id) => <span key={id} className="poschip">{SY_SYSTEM_META[id]?.short ?? id}</span>)}
+          <div className="sysd__card">
+            <div className="sysd__head"><span className="sysd__name">Success criterion</span></div>
+            <div className="sysd__body">{sysDef.successCriterion ?? "—"}
+              {varCrit.length > 0 && (
+                <div className="syvsc">
+                  {varCrit.map((v) => (
+                    <div key={v.uuid} className="syvsc__row">
+                      <span className="syvsc__when">{v.plantOperatingStateId ?? v.scenarioCondition ?? "Condition"}</span>
+                      <span className="syvsc__crit">{v.basis}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-          {meta?.detailed === false && (
-            <div className="eswarn" style={{ marginTop: 10 }}><span className="eswarn__icon"><SYIcon.Sparkle /></span><span>System-level model (SY-A9). {meta.detailNote}</span></div>
-          )}
+          </div>
+          <div className="sysd__card">
+            <div className="sysd__head"><span className="sysd__name">Model boundary</span><span className="sysd__cap">SY-A8</span></div>
+            <div className="sysd__body"><div className="syboundary__list">{sysDef.boundaries.map((b, i) => <span key={i} className="syboundary__tag">{b}</span>)}</div></div>
+          </div>
+          <div className="sysd__card">
+            <div className="sysd__head"><span className="sysd__name">Support interfaces</span></div>
+            <div className="sysd__body">
+              {supportSystems.length > 0
+                ? <div className="syboundary__list">{supportSystems.map((id) => <span key={id} className="syboundary__tag">{shortOf(id)}</span>)}</div>
+                : <span className="possubtle">None</span>}
+            </div>
+          </div>
+          <div className="sysd__card">
+            <div className="sysd__head"><span className="sysd__name">Operating states</span><span className="sysd__cap">POS</span></div>
+            <div className="sysd__body">
+              {applicablePos.length > 0
+                ? <div className="syboundary__list">{applicablePos.map((pid) => <span key={pid} className="syboundary__tag">{pid}</span>)}</div>
+                : <span className="possubtle">All states</span>}
+            </div>
+          </div>
         </div>
+        {logic?.nonDetailedModelJustification !== undefined && (
+          <div className="eswarn" style={{ marginTop: 12 }}><span>System-level model (SY-A9). {logic.nonDetailedModelJustification}</span></div>
+        )}
       </div>
 
-      {dossier !== undefined && (
+      {faultTree !== undefined ? (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">System dossier</h3>
-            <SYProvenanceChip>Per-system report</SYProvenanceChip>
-          </div>
-          <p className="poscard__sub">The descriptive information the per-system report carries alongside the logic model.</p>
-          <div className="syfacts">
-            <div className="syfacts__cell"><span className="syfacts__k">Safety classification</span><span className="syfacts__v">{dossier.safetyClass}</span></div>
-            <div className="syfacts__cell"><span className="syfacts__k">Defense in depth</span><span className="syfacts__v">{dossier.defenseInDepth}</span></div>
-            <div className="syfacts__cell"><span className="syfacts__k">Technical specifications</span><span className="syfacts__v">{dossier.techSpecs}</span></div>
-            <div className="syfacts__cell"><span className="syfacts__k">Operating history</span><span className="syfacts__v">{dossier.operatingHistory}</span></div>
-          </div>
-          <div className="syboundary" style={{ marginTop: 12 }}>
-            <div className="syboundary__head"><SYIcon.Settings /> Function and operation</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-              <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.45 }}><strong style={{ color: "var(--color-text)" }}>Normal.</strong> {dossier.operation.normal}</div>
-              <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.45 }}><strong style={{ color: "var(--color-text)" }}>Abnormal.</strong> {dossier.operation.abnormal}</div>
-              <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.45 }}><strong style={{ color: "var(--color-text)" }}>Emergency.</strong> {dossier.operation.emergency}</div>
-            </div>
-            <div className="syboundary__support">
-              <span className="syboundary__support-k">Operating procedures</span>
-              {dossier.procedures.map((p, i) => <span key={i} className="poschip">{p}</span>)}
-            </div>
-          </div>
-          <p className="possubtle" style={{ fontSize: 12, marginTop: 10, marginBottom: 0, lineHeight: 1.45 }}>
-            <strong style={{ color: "var(--color-text)" }}>Initiating-event contribution.</strong> {dossier.ieContribution}
-          </p>
-        </div>
-      )}
-
-      {results !== undefined && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Model results · {meta?.short ?? sysDef.name}</h3>
-            <SYProvenanceChip>Per-system quantification</SYProvenanceChip>
-          </div>
-          <p className="poscard__sub">The system fault tree quantified on its own, separate from the full-plant quantification that ESQ performs.</p>
-          <div className="syfacts">
-            <div className="syfacts__cell"><span className="syfacts__k">Unavailability</span><span className="syfacts__v posmono">{results.unavailability}</span></div>
-            <div className="syfacts__cell"><span className="syfacts__k">5th percentile</span><span className="syfacts__v posmono">{results.p5}</span></div>
-            <div className="syfacts__cell"><span className="syfacts__k">95th percentile</span><span className="syfacts__v posmono">{results.p95}</span></div>
-          </div>
-          <div className="essec" style={{ marginTop: 12 }}>Minimal cut sets</div>
-          <table className="postable" style={{ marginTop: 6 }}>
-            <thead><tr><th>Rank</th><th>Events</th><th style={{ textAlign: "right" }}>Probability</th></tr></thead>
-            <tbody>
-              {results.cutSets.map((c) => (
-                <tr key={c.rank}>
-                  <td className="posmono" style={{ whiteSpace: "nowrap" }}>MCS-{c.rank}</td>
-                  <td><div className="posrow posrow--wrap" style={{ gap: 5 }}>{c.events.map((e, j) => <span key={j} className="poschip posmono" style={{ fontSize: 11 }}>{e}</span>)}</div></td>
-                  <td style={{ textAlign: "right" }}><span className="posmono">{c.prob}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="essec" style={{ marginTop: 12 }}>Importance measures</div>
-          <table className="postable" style={{ marginTop: 6 }}>
-            <thead><tr><th>Contributor</th><th style={{ textAlign: "right" }}>Fussell-Vesely</th><th style={{ textAlign: "right" }}>RAW</th></tr></thead>
-            <tbody>
-              {results.importance.map((im, i) => (
-                <tr key={i}>
-                  <td style={{ fontWeight: 600 }}>{im.item}</td>
-                  <td style={{ textAlign: "right" }}><span className="posmono">{im.fv.toFixed(2)}</span></td>
-                  <td style={{ textAlign: "right" }}><span className="posmono">{im.raw}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {hasTree ? (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Logic model · {meta?.short ?? sysDef.name}</h3>
+            <h3 className="poscard__title">Logic model · {shortOf(sysDef.uuid)}</h3>
             <SYProvenanceChip>SY-A7 · SY-A14</SYProvenanceChip>
           </div>
-          <p className="poscard__sub">The fault tree is a common representation of the system logic model, and other representations could be used. Pick another system above to see its tree.</p>
-          <LogicModelTree systemId={sysDef.uuid} openDrawer={openDrawer} />
+          <p className="poscard__sub">The fault tree is a common representation of the system logic model, and other representations could be used. Click a basic event to edit it.</p>
+          <LogicModelTree tree={faultTree} onTransfer={setSysId} onSelectBe={(beId) => openDrawer({ kind: "be", id: beId })} />
         </div>
       ) : (
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Logic model · {meta?.short ?? sysDef.name}</h3></div>
-          <div className="eswarn"><span className="eswarn__icon"><SYIcon.Sparkle /></span><span>Modeled at the system level, so no decomposed fault tree is built (SY-A9).</span></div>
+          <div className="poscard__head"><h3 className="poscard__title">Logic model · {shortOf(sysDef.uuid)}</h3></div>
+          <div className="eswarn"><span>Modeled at the system level, so no decomposed fault tree is built (SY-A9).</span></div>
         </div>
       )}
     </>
@@ -466,48 +450,71 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
 }
 
 function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
-  const { sy } = useSyWorkbook();
+  const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
+  function addUnavailability(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateSy((draft) => ({
+      ...draft,
+      simultaneousUnavailabilityEvents: [...(draft.simultaneousUnavailabilityEvents ?? []), {
+        uuid, description: "", componentIds: [], plannedActivityBasis: "", implementsSrs: [{ sr: "SY-A27", hlr: "A" as const }],
+      }],
+    }));
+    openDrawer({ kind: "unavail", id: uuid });
+  }
+  function addHfe(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateSy((draft) => ({
+      ...draft,
+      humanFailureEventIntegrations: [...draft.humanFailureEventIntegrations, {
+        uuid, hfeReference: "", system: draft.systemDefinitions[0]?.uuid ?? "", taskDescription: "", hfeType: "PRE_INITIATOR" as const, isTestMaintenance: false, implementsSrs: [{ sr: "SY-A21", hlr: "A" as const }],
+      }],
+    }));
+    openDrawer({ kind: "hfe", id: uuid });
+  }
+  function addScreening(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateSy((draft) => ({
+      ...draft,
+      componentScreeningJustifications: [...(draft.componentScreeningJustifications ?? []), {
+        uuid, systemReference: draft.systemDefinitions[0]?.uuid ?? "", componentId: "", screeningCriterion: "a" as const, quantitativeJustification: "", implementsSrs: [{ sr: "SY-A20", hlr: "A" as const }],
+      }],
+    }));
+    openDrawer({ kind: "screening", id: uuid });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">What goes in the model</h3>
+          <h3 className="poscard__title">Exclusions and diversion paths</h3>
           <span className="possubtle">SY-A16, A17, A18</span>
         </div>
-        <p className="poscard__sub">Include the failures that defeat the criterion, leave out the ones that help it, and model diversion paths.</p>
-        <div className="syfail">
-          {MODELED_FAILURES.map((m) => {
-            const meta = SY_SYSTEM_META[m.system];
-            const def = sy.systemDefinitions.find((s) => s.uuid === m.system);
-            return (
-              <div key={m.id} className="syfail__card">
-                <div className="syfail__head">
-                  <span className="syfail__sys">{meta?.short ?? m.system}</span>
-                  <span className="syfail__sysname">{def?.name ?? ""}</span>
-                </div>
-                <div className="syfail__row syfail__row--in">
-                  <span className="syfail__row-k"><SYIcon.Check /> Included</span>
-                  <span className="syfail__chips">{m.included.map((x, i) => <span key={i} className="syfail__chip">{x}</span>)}</span>
-                </div>
-                <div className="syfail__row syfail__row--out">
-                  <span className="syfail__row-k"><SYIcon.Close /> Left out</span>
-                  <span className="syfail__out-text">{m.excludedMode}</span>
-                </div>
-                {m.flowDiversion !== null && (
-                  <div className="syfail__div"><SYIcon.Pipe /><span>{m.flowDiversion}</span></div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <p className="poscard__sub">The included failure modes are the fault trees in step 02. This table records what each model deliberately leaves out and which diversion paths it models. Click a row to edit it.</p>
+        <table className="postable">
+          <thead><tr><th>System</th><th>Left out</th><th>Diversion path</th></tr></thead>
+          <tbody>
+            {sy.systemDefinitions.map((def) => (
+              <tr key={def.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "exclusion", id: def.uuid })} style={{ cursor: "pointer" }}>
+                <td style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{shortOf(def.uuid)}</td>
+                <td className="possubtle" style={{ fontSize: 12.5 }}>{(def.justificationForExclusionOfComponents ?? []).join(" ")}</td>
+                <td className="possubtle" style={{ fontSize: 12.5 }}>{def.flowDiversionConsiderations?.[0] ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Screening</h3>
-          <SYProvenanceChip>SY-A20</SYProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <SYProvenanceChip>SY-A20</SYProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScreening}><SYIcon.Plus /> Add component</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Unlike success criteria, SY allows screening, but only against stated criteria.</p>
+        <p className="poscard__sub">Unlike success criteria, SY allows screening, but only against stated criteria. Click a row to edit it.</p>
         <div className="syscreen__crit">
           {SCREENING_CRITERIA.map((c) => (
             <div key={c.code} className="syscreen__crit-item">
@@ -520,11 +527,10 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
           <thead><tr><th>Component</th><th>System</th><th>Justification</th><th>Criterion</th></tr></thead>
           <tbody>
             {(sy.componentScreeningJustifications ?? []).map((c) => {
-              const meta = SY_SYSTEM_META[c.systemReference];
               return (
-                <tr key={c.uuid}>
+                <tr key={c.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "screening", id: c.uuid })} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600 }}>{c.componentId}</td>
-                  <td>{meta?.short ?? c.systemReference}</td>
+                  <td>{shortOf(c.systemReference)}</td>
                   <td className="possubtle" style={{ fontSize: 12 }}>{c.quantitativeJustification}</td>
                   <td><span className="syscreen__pill">Criterion {c.screeningCriterion}</span></td>
                 </tr>
@@ -536,45 +542,44 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Out-of-service unavailability</h3>
-          <span className="possubtle">SY-A25, A26, A27</span>
+          <h3 className="poscard__title">Simultaneous unavailability</h3>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <span className="possubtle">SY-A27</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUnavailability}><SYIcon.Plus /> Add record</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Model unavailability per the actual maintenance practice, or an assumed basis before operation.</p>
-        <div className="syua">
-          {UNAVAILABILITY.map((u) => {
-            const meta = SY_SYSTEM_META[u.system];
-            return (
-              <div key={u.id} className={`syua__row${u.preop ? " syua__row--preop" : ""}`}>
-                <div className="syua__main">
-                  <div className="syua__item">{u.item}</div>
-                  <div className="syua__basis">{u.basis} {u.note}</div>
-                </div>
-                <div className="syua__tags">
-                  <span className="syua__type">{u.type}</span>
-                  <span className="possubtle posmono" style={{ fontSize: 10.5 }}>{meta?.short ?? u.system}</span>
-                  {u.preop && <span className="poschip poschip--preop"><SYIcon.Warn /> Pre-op</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <p className="poscard__sub">Single-train test and maintenance lives in the fault trees as unavailability events. This table records redundant equipment planned out of service at the same time. Click a row to edit it.</p>
+        <table className="postable">
+          <thead><tr><th>Planned activity</th><th>Components</th><th>DA parameter</th></tr></thead>
+          <tbody>
+            {(sy.simultaneousUnavailabilityEvents ?? []).map((u) => (
+              <tr key={u.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "unavail", id: u.uuid })} style={{ cursor: "pointer" }}>
+                <td style={{ fontWeight: 600 }}>{u.description}</td>
+                <td><div className="posrow posrow--wrap" style={{ gap: 5 }}>{u.componentIds.map((c) => <span key={c} className="poschip">{c}</span>)}</div></td>
+                <td className="posmono" style={{ fontSize: 11 }}>{u.dataAnalysisRef ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Human failure events placed in the models</h3>
-          <SYProvenanceChip>SY-A21 · SY-A23</SYProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <SYProvenanceChip>SY-A21 · SY-A23</SYProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHfe}><SYIcon.Plus /> Add event</button>}
+          </div>
         </div>
-        <p className="poscard__sub">SY places the event in the model and hands it to Human Reliability to quantify.</p>
+        <p className="poscard__sub">SY places the event in the model and hands it to Human Reliability to quantify. Click a row to edit it.</p>
         <table className="postable">
           <thead><tr><th>Task</th><th>System</th><th>Type</th><th>HR reference</th></tr></thead>
           <tbody>
             {sy.humanFailureEventIntegrations.map((h) => {
-              const meta = SY_SYSTEM_META[h.system];
               return (
                 <tr key={h.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "hfe", id: h.uuid })} style={{ cursor: "pointer" }}>
                   <td style={{ fontWeight: 600 }}>{h.taskDescription}</td>
-                  <td>{meta?.short ?? h.system}</td>
+                  <td>{shortOf(h.system)}</td>
                   <td>{h.hfeType === "PRE_INITIATOR" ? <Badge kind="warn">Pre-initiator</Badge> : <Badge kind="progress">Post-initiator</Badge>}</td>
                   <td className="posmono" style={{ fontSize: 11 }}>{h.hfeReference}</td>
                 </tr>
@@ -588,38 +593,42 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
 }
 
 function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
-  const { sy } = useSyWorkbook();
+  const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
   const groups = sy.commonCauseFailureGroups;
   const intra = groups.filter((g) => g.scope === "INTRASYSTEM");
   const inter = groups.filter((g) => g.scope === "INTERSYSTEM");
+  function addGroup(scope: "INTRASYSTEM" | "INTERSYSTEM"): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateSy((draft) => ({
+      ...draft,
+      commonCauseFailureGroups: [...draft.commonCauseFailureGroups, {
+        uuid, name: "", description: "", scope, affectedComponents: [], affectedSystems: [draft.systemDefinitions[0]?.uuid ?? ""], modelType: "BETA_FACTOR",
+        modelSpecificParameters: { betaFactorParameters: { beta: 0.05, totalFailureProbability: 0 } },
+        members: { basicEvents: [] }, sharedCauseFactors: {}, implementsSrs: [{ sr: scope === "INTRASYSTEM" ? "SY-B1" : "SY-B2", hlr: "B" as const }],
+      }],
+    }));
+    openDrawer({ kind: "ccf", id: uuid });
+  }
   function GroupCard({ g }: { g: (typeof groups)[number] }): JSX.Element {
     const model = CCF_MODELS[g.modelType];
-    const warn = (g.riskSignificanceJustification ?? "").startsWith("Open");
-    const shared = g.sharedCauseFactors ?? {};
-    const sharedKeys = Object.keys(shared).filter((k) => shared[k as keyof typeof shared] === true);
-    const otherList = Array.isArray(shared.otherFactors) ? shared.otherFactors : [];
+    const par = ccfParams(g);
     const affects = g.affectedSystems.filter((a) => a !== g.affectedSystems[0]);
     return (
-      <div className={`syccf__card${warn ? " syccf__card--warn" : ""}`} onClick={() => openDrawer({ kind: "ccf", id: g.uuid })}>
+      <div className="syccf__card" onClick={() => openDrawer({ kind: "ccf", id: g.uuid })}>
         <div className="syccf__head">
-          <span className="syccf__icon"><SYIcon.Group /></span>
           <div className="syccf__head-main">
-            <div className="syccf__name">{g.name}</div>
-            <div className="syccf__scope">{g.scope === "INTRASYSTEM" ? "Within one system" : "Across systems"} · {model?.label ?? g.modelType}</div>
+            <div className="syccf__name">{g.name.length > 0 ? g.name : "New group"}</div>
+            <div className="syccf__scope">{g.scope === "INTRASYSTEM" ? "Within one system" : "Across systems"} · {model?.label ?? g.modelType}{par === null ? "" : ` · ${par.short}`}</div>
           </div>
-          {warn ? <Badge kind="warn">Open</Badge> : <Badge kind="ok">Set</Badge>}
         </div>
         <div className="syccf__members">
           {g.affectedComponents.map((m) => <span key={m} className="syccf__member">{m}</span>)}
         </div>
-        <div className="syccf__shared">
-          {sharedKeys.map((s) => <span key={s} className="syccf__shared-tag">{SHARED_CAUSE_LABELS[s] ?? s}</span>)}
-          {otherList.map((s) => <span key={s} className="syccf__shared-tag">{s}</span>)}
-        </div>
         <div className="syccf__basis">{g.description}</div>
         <div className="syccf__foot">
-          <span className="syccf__da"><SYIcon.Link /> {g.dataAnalysisCCFParameterRef ?? "—"}</span>
-          {affects.length > 0 && <span className="syccf__affects">Couples {affects.map((a) => SY_SYSTEM_META[a]?.short ?? a).join(", ")}</span>}
+          <span className="syccf__da">{g.dataAnalysisCCFParameterRef ?? "—"}</span>
+          {affects.length > 0 && <span className="syccf__affects">Couples {affects.map((a) => shortOf(a)).join(", ")}</span>}
         </div>
       </div>
     );
@@ -628,51 +637,48 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Common cause failure</h3>
-          <span className="possubtle">{groups.length} groups · SY-B1 to B4</span>
-        </div>
-        <p className="poscard__sub">Redundancy on paper is not redundancy in reality, so the model couples components that can fail together.</p>
-        <div className="syccf__banner">
-          <span className="syccf__banner-icon"><SYIcon.Group /></span>
-          <span>A common cause failure group is a claim that these components can fail together from a shared cause.</span>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
           <h3 className="poscard__title">Within a system</h3>
-          <SYProvenanceChip>SY-B1</SYProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <SYProvenanceChip>SY-B1</SYProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => addGroup("INTRASYSTEM")}><SYIcon.Plus /> Add group</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Redundant trains in one system that share a make, a crew or a room.</p>
+        <p className="poscard__sub">Redundant trains in one system that share a make, a crew or a room. Click a group to edit it.</p>
         <div className="syccf">{intra.map((g) => <GroupCard key={g.uuid} g={g} />)}</div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Across systems</h3>
-          <SYProvenanceChip>SY-B2</SYProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <SYProvenanceChip>SY-B2</SYProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => addGroup("INTERSYSTEM")}><SYIcon.Plus /> Add group</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Shared parts and a shared software image that couple more than one system at once.</p>
+        <p className="poscard__sub">Shared parts and a shared software image that couple more than one system at once. Click a group to edit it.</p>
         <div className="syccf">{inter.map((g) => <GroupCard key={g.uuid} g={g} />)}</div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consistency with Data Analysis</h3>
+          <h3 className="poscard__title">Consistency with the models and Data Analysis</h3>
           <SYProvenanceChip>SY-B4</SYProvenanceChip>
         </div>
-        <p className="poscard__sub">The group structure and the parameters must match the common cause model Data Analysis uses.</p>
+        <p className="poscard__sub">Each group probability derives from its parameters and must match the common cause event in the logic model.</p>
         <table className="postable">
-          <thead><tr><th>Group</th><th>Model</th><th>DA parameter</th><th>Status</th></tr></thead>
+          <thead><tr><th>Group</th><th>Parameters</th><th>Group probability</th><th>Model event</th><th>DA parameter</th><th>Status</th></tr></thead>
           <tbody>
             {groups.map((g) => {
-              const warn = (g.riskSignificanceJustification ?? "").startsWith("Open");
+              const par = ccfParams(g);
+              const check = ccfModelCheck(g, sy.systemLogicModels);
               return (
                 <tr key={g.uuid}>
-                  <td style={{ fontWeight: 600 }}>{g.name}</td>
-                  <td>{CCF_MODELS[g.modelType]?.label ?? g.modelType}</td>
+                  <td style={{ fontWeight: 600 }}>{g.name.length > 0 ? g.name : "New group"}</td>
+                  <td className="posmono" style={{ fontSize: 11 }}>{par === null ? "—" : par.detail}</td>
+                  <td className="posmono" style={{ fontSize: 11 }}>{check.expected === null ? "—" : toExp(check.expected)}</td>
+                  <td className="posmono" style={{ fontSize: 11 }}>{check.eventId ?? "—"}</td>
                   <td className="posmono" style={{ fontSize: 11 }}>{g.dataAnalysisCCFParameterRef ?? "—"}</td>
-                  <td>{warn ? <Badge kind="warn">Pending</Badge> : <Badge kind="ok">Consistent</Badge>}</td>
+                  <td><span className="sylight"><span className={`sylight__dot sylight__dot--${check.ok ? "s" : "f"}`} /> {check.ok ? "Consistent" : "Inconsistent"}</span></td>
                 </tr>
               );
             })}

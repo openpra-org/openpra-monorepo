@@ -224,6 +224,8 @@ const INITIATOR_SEEDS: InitiatorSeed[] = [
   { id: "IE-29", name: "Operator subassembly loading / orificing error during refuelling (SFLE)", category: C.HUMAN_FAILURE, subcategory: "Operator refuelling error", states: ["POS-05"], method: "FMEA", trip: "Pre-startup flow test / reactivity-balance check", safety: ["Remove core heat", "Control reactivity"], barrier: BarrierImpactState.INTACT, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.LOW, basis: "ANL-NSE-2 Sec. 5.2.12 (Table 5.10) records a subassembly loading or orificing error during fuel handling at about 6E-2/yr (one detected loading error in 25 years of EBR-II operation, caught before operation). It is the credible refuelling-state human-failure initiator, applicable only during in-vessel fuel handling under sodium, and is detected by the argon flow test and reactivity-balance checks. Identified by FMEA of the fuel-handling line-up." },
   { id: "IE-30", name: "Operator inadvertent secondary-sodium dump / loss of intermediate heat removal", category: C.HUMAN_FAILURE, subcategory: "Operator-induced loss of heat sink", states: ["POS-01", "POS-02", "POS-03"], method: "HAZOP", trip: "High primary (pool) temperature / loss of intermediate flow", safety: ["Remove core heat"], barrier: BarrierImpactState.INTACT, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, basis: "ANL-NSE-2 Sec. 5.2.5 lists an inadvertent secondary-sodium dump and a secondary-pump controller error among the contributors to loss of intermediate heat removal (TSEC). An operator commission error that dumps the secondary sodium or drives the secondary pump to zero during an evolution is the human-failure path into the loss-of-heat-sink state, distinct from the hardware-driven TSEC initiator. Bounded by the inlet-temperature coefficient and the passive pool heat sink. Surfaced by HAZOP of the secondary line-up (deviation: no intermediate flow)." },
   { id: "IE-31", name: "Operator-induced overcooling maneuver (erroneous pump run-up / steam-side)", category: C.HUMAN_FAILURE, subcategory: "Operator-induced overcooling", states: ["POS-01", "POS-02"], method: "HAZOP", trip: "High flux / low core-inlet temperature", safety: ["Control reactivity", "Remove core heat"], barrier: BarrierImpactState.INTACT, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.LOW, basis: "ANL-NSE-2 Sec. 5.2.6 carries overcooling transients (steam-side leak, primary- and secondary-pump run-up) as reactivity initiators. The human-failure subset is an erroneous primary-flow or secondary-side maneuver that overcools the core and inserts positive reactivity through the negative temperature coefficient, applicable only when the core is critical. Bounded by the negative feedback and the high-flux trip. Surfaced by HAZOP of the flow-control line-up (deviation: more flow / colder inlet)." },
+  { id: "IE-32", name: "Internal sodium fire (spray or pool) affecting decay-heat-removal cabling", category: C.SPECIAL, subcategory: "Internal hazard - liquid-metal fire", states: ["POS-01", "POS-08"], method: "PHA", trip: "Fire and smoke detection / area high temperature", safety: ["Remove core heat", "Control reactivity"], barrier: BarrierImpactState.INTACT, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.MEDIUM, basis: "The dominant non-seismic internal hazard (HAZ-1): a secondary-sodium or NaK shutdown-cooler leak under the operating-floor deck plates burns through the CRDM, reactor-shutdown-system and primary-pump cabling in one fire zone, defeating forced flow, scram and a decay-heat-removal train together. Carried as the HZ-FIRE non-internal hazard group with fire detection and suppression credited downstream; the under-deck fire sequences drive the non-seismic external aggregate of about 3.6E-6/yr." },
+  { id: "IE-33", name: "Seismic event (design-ground-motion exceedance)", category: C.SPECIAL, subcategory: "External hazard - seismic", states: ["POS-01"], method: "PHA", trip: "Seismic trip / loss of off-site power", safety: ["Control reactivity", "Remove core heat", "Maintain coolant inventory and the sodium boundary"], barrier: BarrierImpactState.INTACT, screening: ScreeningStatus.RETAINED, importance: ImportanceLevel.HIGH, basis: "The controlling external hazard (HAZ-8): vibratory ground motion at the site whose dominant fragility is the primary-tank and guard-vessel structure. Carried as the HZ-SEIS non-internal hazard group; the seismic contribution to fuel-damage frequency is 1.7E-5/yr (Roglans and Hill 1994), an order of magnitude above internal events, with the control-rod-drive system shown to retain high seismic capacity and passive natural circulation credited downstream." },
 ];
 
 const INITIATORS: InitiatorDefinition[] = INITIATOR_SEEDS.map(buildInitiator);
@@ -1081,6 +1083,38 @@ const INITIATING_EVENT_GROUPS: InitiatingEventGroup[] = [
     riskImportance: ImportanceLevel.MEDIUM,
     implementsSrs: [sr("IE-B4", "B")],
   },
+  {
+    uuid: "HZ-FIRE",
+    name: "Internal sodium fire",
+    description: "Non-internal hazard group for the internal liquid-metal (sodium/NaK) fire: an under-deck spray or pool fire that can defeat forced flow, scram cabling and a decay-heat-removal train in one fire zone. Detection and suppression are credited in the downstream event tree before the decay-heat-removal challenge.",
+    memberInitiatorIds: ["IE-32"],
+    boundingInitiatorId: "IE-32",
+    groupingBasis: "The internal sodium fire (HAZ-1) is carried as a single non-internal hazard group represented by IE-32, distinct from the internal-events initiators it could also induce; the fire-zone spatial mechanism of multi-train cable defeat is what drives the risk, so it is grouped and quantified on its own rather than folded into a hardware initiator.",
+    similarMitigationRequirements: ["Fire detection and suppression", "Reactor trip", "Passive decay-heat removal", "Confinement"],
+    groupingDoesNotMaskRiskSignificantSequences: true,
+    comparableImpactAcrossMembers: true,
+    challengedSafetyFunctions: ["Remove core heat", "Control reactivity"],
+    applicableStates: ["POS-01", "POS-08"],
+    meanFrequency: { value: 5.0e-3, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3e-3, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-1 fire hazard analysis of the under-deck liquid-metal fire sequences with the EBR-II fire-protection survey." },
+    riskImportance: ImportanceLevel.MEDIUM,
+    implementsSrs: [sr("IE-B4", "B")],
+  },
+  {
+    uuid: "HZ-SEIS",
+    name: "Seismic event",
+    description: "Non-internal hazard group for vibratory ground motion at the site: the dominant fragility is the primary-tank and guard-vessel structure, whose failure defeats reactivity control and decay-heat removal together. The seismically qualified paths (control-rod drives, passive natural circulation) are credited in the downstream event tree.",
+    memberInitiatorIds: ["IE-33"],
+    boundingInitiatorId: "IE-33",
+    groupingBasis: "Seismic ground motion (HAZ-8) is carried as a single non-internal hazard group represented by IE-33; the correlated multi-target failure of the shutdown system, the passive-cooling structures and the primary tank is analyzed as one seismic hazard rather than decomposed into hardware initiators.",
+    similarMitigationRequirements: ["Reactor trip", "Passive decay-heat removal", "Primary-tank and guard-vessel integrity"],
+    groupingDoesNotMaskRiskSignificantSequences: true,
+    comparableImpactAcrossMembers: true,
+    challengedSafetyFunctions: ["Control reactivity", "Remove core heat", "Maintain coolant inventory and the sodium boundary"],
+    applicableStates: ["POS-01"],
+    meanFrequency: { value: 1.0e-4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [5e-5, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-8 site PSHA with the primary-tank fragility (Roglans and Hill 1994)." },
+    riskImportance: ImportanceLevel.HIGH,
+    implementsSrs: [sr("IE-B4", "B")],
+  },
 ];
 
 const SCREENING_RECORDS: InitiatingEventScreeningRecord[] = [
@@ -1115,6 +1149,8 @@ const SCREENING_RECORDS: InitiatingEventScreeningRecord[] = [
   { initiatorOrGroupId: "IE-29", retained: true, barrierIntegrityPreconditionMet: true, justification: "An operator subassembly loading / orificing error (SFLE, data-based 6E-2/yr, one detected error in 25 years) leaves the barriers intact, so the precondition is met. It is the credible refuelling-state human-failure initiator, governed by the loading plan, count-rate trips and pre-startup verification; not bounded by a higher-frequency event and not benign, so the SCR test fails and it is retained.", implementsSrs: [sr("IE-C9", "C")] },
   { initiatorOrGroupId: "IE-30", retained: true, barrierIntegrityPreconditionMet: true, justification: "An operator inadvertent secondary-sodium dump (a listed contributor to the loss-of-intermediate-heat-removal TSEC event) leaves the barriers intact, so the precondition is met. It is the at-initiator human-failure path into the loss-of-heat-sink state, quantified by a human error probability times the demand rate, not bounded by a higher-frequency event and not benign; the SCR test fails and it is retained.", implementsSrs: [sr("IE-C9", "C")] },
   { initiatorOrGroupId: "IE-31", retained: true, barrierIntegrityPreconditionMet: true, justification: "An operator-induced overcooling maneuver (erroneous primary-flow or secondary-side action) inserts positive reactivity through the negative inlet-temperature coefficient with the barriers intact, so the precondition is met. It is a credible human-failure overcooling challenge not bounded by a higher-frequency event and not self-correcting; the SCR test fails and it is retained.", implementsSrs: [sr("IE-C9", "C")] },
+  { initiatorOrGroupId: "IE-32", retained: true, barrierIntegrityPreconditionMet: true, justification: "The internal sodium fire is a retained non-internal hazard group (HZ-FIRE): its risk comes from a spatial multi-train-defeat mechanism, is not bounded by any modeled internal initiator and is not benign, so the SCR test fails and it is carried as its own hazard group with fire detection and suppression credited downstream.", implementsSrs: [sr("IE-C9", "C")] },
+  { initiatorOrGroupId: "IE-33", retained: true, barrierIntegrityPreconditionMet: true, justification: "Seismic ground motion is the controlling external hazard (HZ-SEIS), retained and carried as its own hazard group: the primary-tank fragility can defeat reactivity control and decay-heat removal together, is not bounded by any higher-frequency event, so the SCR test fails and it is retained.", implementsSrs: [sr("IE-C9", "C")] },
 ];
 
 const QUANT_SOURCE_LABEL: Record<string, string> = {
@@ -1170,6 +1206,8 @@ const MEMBER_QUANT: Record<string, MemberQuant> = {
   "IE-29": { label: "Subassembly loading / orificing error (SFLE)", basis: "OPERATING_DATA", value: 0.06, ef: 5, eventCount: 1, exposure: 25, ref: "ANL-NSE-2 Sec. 5.2.12, Table 5.10. One detected loading error in 25 years (caught before operation) via (2N+1)/2T; the credible refuelling-state human-failure initiator." },
   "IE-30": { label: "Operator inadvertent secondary-sodium dump", basis: "FAULT_TREE", value: 0.06, ef: 10, ftLeaves: ["Operator inadvertent secondary-sodium dump (THERP/SPAR-H human error probability)", "Demand rate of the secondary line-up evolution"], ref: "ANL-NSE-2 Sec. 5.2.5. Human-error initiator: a per-demand human error probability times the demand rate; the inadvertent dump is a listed contributor to the TSEC loss-of-intermediate-heat-removal event." },
   "IE-31": { label: "Operator-induced overcooling maneuver", basis: "FAULT_TREE", value: 0.001, ef: 10, ftLeaves: ["Operator erroneous flow / secondary maneuver (THERP/SPAR-H human error probability)", "Demand rate of the maneuver"], ref: "ANL-NSE-2 Sec. 5.2.6. Human-error initiator: a per-demand human error probability times the demand rate; the operator-error subset of the overcooling reactivity initiators." },
+  "IE-32": { label: "Internal sodium fire (HZ-FIRE)", basis: "DESIGN_BASED", value: 5e-3, ef: 10, ref: "HAZ-1 fire hazard analysis; under-deck liquid-metal fire sequences (SDFR/SSFR about 5.8E-7 to 2.1E-6/yr) aggregated with the leak-to-rupture 99:1 split." },
+  "IE-33": { label: "Seismic event (HZ-SEIS)", basis: "DESIGN_BASED", value: 1e-4, ef: 10, ref: "HAZ-8 seismic hazard analysis; site PSHA with the primary-tank fragility (Roglans and Hill 1994)." },
 };
 
 function buildMemberFaultTree(id: string, m: MemberQuant): FrequencyFaultTreeNode[] {
@@ -1401,6 +1439,30 @@ const QUANTIFICATIONS: InitiatingEventFrequencyQuantification[] = [
     uncertaintyCharacterization: { riskSignificant: false, method: "Lognormal on the HEP-times-demand product with EF 10 (screening human-error data); propagated downstream by Monte Carlo.", probabilisticRepresentationProvided: true },
     implementsSrs: [sr("IE-C11", "C"), sr("IE-C13", "C"), sr("IE-C8", "C"), sr("IE-C19", "C")],
   },
+  {
+    initiatorOrGroupId: "HZ-FIRE",
+    meanFrequency: { value: 5.0e-3, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [3e-3, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-1 fire hazard analysis." },
+    basis: "DESIGN_BASED",
+    plantCalendarYearBasis: true,
+    posTimeFractionApplied: true,
+    dataSourceJustification: "The internal sodium-fire hazard-group frequency of about 5E-3/yr aggregates the under-deck liquid-metal fire sequences (SDFR-3 5.8E-7/yr, SDFR-6 2.1E-6/yr, SSFR-6 1.5E-6/yr) with the probabilistic leak-to-rupture 99:1 split and the EBR-II Fire Protection Survey, carried at a large error factor pending the dedicated fire-zone model.",
+    recoveryActionsIncluded: false,
+    recoveryActionJustifications: ["Fire detection and suppression are credited as downstream event-tree branches, not as an initiator-frequency reducer."],
+    uncertaintyCharacterization: { riskSignificant: true, method: "Lognormal about the design-based mean with EF 10; propagated downstream by Monte Carlo.", probabilisticRepresentationProvided: true },
+    implementsSrs: [sr("IE-C1", "C"), sr("IE-C8", "C"), sr("IE-C19", "C")],
+  },
+  {
+    initiatorOrGroupId: "HZ-SEIS",
+    meanFrequency: { value: 1.0e-4, units: FrequencyUnit.PER_PLANT_YEAR, distribution: { type: DistributionType.LOGNORMAL, parameters: [5e-5, 10] }, source: "Step-09 quantification, DESIGN_BASED basis; HAZ-8 site PSHA." },
+    basis: "DESIGN_BASED",
+    plantCalendarYearBasis: true,
+    posTimeFractionApplied: true,
+    dataSourceJustification: "The seismic hazard-group frequency of about 1E-4/yr for the design-ground-motion exceedance that challenges the primary tank comes from the site PSHA convolved with the primary-tank and guard-vessel fragility (Roglans and Hill 1994); the seismic contribution to fuel damage is 1.7E-5/yr once the credited passive paths are applied downstream.",
+    recoveryActionsIncluded: false,
+    recoveryActionJustifications: ["Seismically qualified scram and passive natural circulation are credited as downstream event-tree branches, not as an initiator-frequency reducer."],
+    uncertaintyCharacterization: { riskSignificant: true, method: "Lognormal about the design-based mean with EF 10; propagated downstream by Monte Carlo.", probabilisticRepresentationProvided: true },
+    implementsSrs: [sr("IE-C1", "C"), sr("IE-C8", "C"), sr("IE-C19", "C")],
+  },
 ];
 
 const NOW = "2026-06-24T12:00:00.000Z";
@@ -1472,8 +1534,8 @@ export const IE_ANALYSIS_SFR: InitiatingEventsAnalysis = {
   internalReviewComments: { openCount: 0, resolvedCount: 0, comments: [] },
   activePeerReviewIds: [],
   activeAuditIds: [],
-  praScope: "Internal events across all retained plant operating states for the full operating cycle of the Generic SFR.",
-  includesNonInternalHazardGroups: false,
+  praScope: "Internal events plus the internal sodium-fire and seismic hazard groups across all retained plant operating states for the full operating cycle of the Generic SFR.",
+  includesNonInternalHazardGroups: true,
   applicablePlantOperatingStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08"],
   searchMethods,
   initiators: INITIATORS,

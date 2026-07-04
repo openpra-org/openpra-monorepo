@@ -13,12 +13,14 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getSyWorkbook,
+  getSyExampleOptions,
   loadSyExample,
   unloadSyExample,
   type SyWorkbookRoleName,
+  type SyExampleOption,
 } from "./syWorkbookApi";
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
-import { SyWorkbookProvider, type SyWorkbookData } from "./syWorkbookContext";
+import { SyWorkbookProvider, type SyWorkbookData, type SyLinkedInputs } from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
@@ -47,6 +49,38 @@ interface SyBundleResponse {
   newlyDevelopedMethods: SyExampleResponse[];
 }
 
+interface LinkedScMef {
+  systemSuccessCriteria?: { uuid: string; systemId: string; description: string; requiredCapacities?: { parameter: string; value: string }[] }[];
+}
+
+interface LinkedPosMef {
+  plantOperatingStates?: { uuid: string; name: string; meanDurationHours: number; decayHeat?: { representative?: number; max?: number; units?: string } }[];
+}
+
+async function fetchSyLinkedInputs(variant: string): Promise<SyLinkedInputs> {
+  const [scBundle, posBundle] = await Promise.all([
+    fetchJson<{ sc: { mef: unknown } }>(`/api/example-workbooks/sc-bundle?example=${variant}`),
+    fetchJson<{ pos: { mef: unknown } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
+  ]);
+  const scMef = scBundle.sc.mef as LinkedScMef;
+  const posMef = posBundle.pos.mef as LinkedPosMef;
+  const label = variant === "htgr" ? "Generic HTGR" : "Generic SFR";
+  return {
+    scName: `${label} SC Workbook`,
+    posName: `${label} POS Workbook`,
+    scSystems: (scMef.systemSuccessCriteria ?? []).map((y) => ({
+      id: y.systemId,
+      name: y.description,
+      capacities: (y.requiredCapacities ?? []).map((c) => `${c.parameter}: ${c.value}`).join(" · "),
+    })),
+    posStates: (posMef.plantOperatingStates ?? []).map((st) => {
+      const rep = st.decayHeat?.representative ?? st.decayHeat?.max ?? 0;
+      const units = st.decayHeat?.units ?? "MW";
+      return { id: st.uuid, name: st.name, decayLabel: rep > 0 ? `${rep} ${units}` : "At power", durationHours: st.meanDurationHours };
+    }),
+  };
+}
+
 function SyWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -61,6 +95,7 @@ function SyWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -77,6 +112,7 @@ function SyWorkbookPage(): JSX.Element {
           sy: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
@@ -93,6 +129,25 @@ function SyWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSyExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { if (!cancelled) setExampleOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const syUuid = data?.sy.uuid ?? "";
+  useEffect(() => {
+    const variant = syUuid === "sy-generic-1" ? "sfr" : syUuid === "sy-generic-2" ? "htgr" : null;
+    if (variant === null) return;
+    let cancelled = false;
+    fetchSyLinkedInputs(variant)
+      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    return () => { cancelled = true; };
+  }, [syUuid]);
 
   const updateSy = useCallback((sy: SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy }));
@@ -204,9 +259,10 @@ function SyWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="SY"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadSyExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadSyExample(id, exampleId);
             updateSy(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

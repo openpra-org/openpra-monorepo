@@ -7,6 +7,7 @@ import { ES_ANALYSIS_HTGR } from "./es-seed-htgr";
 import { SC_ANALYSIS } from "./sc-seed";
 import { SC_ANALYSIS_HTGR } from "./sc-seed-htgr";
 import { SY_ANALYSIS } from "./sy-seed";
+import { SY_ANALYSIS_HTGR } from "./sy-seed-htgr";
 import { HR_ANALYSIS } from "./hr-seed";
 import { DA_ANALYSIS } from "./da-seed";
 import { ESQ_ANALYSIS } from "./esq-seed";
@@ -31,6 +32,7 @@ const ES_GENERIC_2_SLUG = "es-generic-2";
 const SC_GENERIC_1_SLUG = "sc-generic-1";
 const SC_GENERIC_2_SLUG = "sc-generic-2";
 const SY_GENERIC_1_SLUG = "sy-generic-1";
+const SY_GENERIC_2_SLUG = "sy-generic-2";
 const HR_GENERIC_1_SLUG = "hr-generic-1";
 const DA_GENERIC_1_SLUG = "da-generic-1";
 const ESQ_GENERIC_1_SLUG = "esq-generic-1";
@@ -69,6 +71,11 @@ const SC_EXAMPLES: PosExampleEntry[] = [
   { id: "sfr", label: "Generic SFR", slug: SC_GENERIC_1_SLUG },
 ];
 
+const SY_EXAMPLES: PosExampleEntry[] = [
+  { id: "htgr", label: "Generic HTGR", slug: SY_GENERIC_2_SLUG },
+  { id: "sfr", label: "Generic SFR", slug: SY_GENERIC_1_SLUG },
+];
+
 const SEEDS: SeedEntry[] = [
   { slug: POS_GENERIC_1_SLUG, kind: "POS", mef: POS_ANALYSIS },
   { slug: POS_GENERIC_2_SLUG, kind: "POS", mef: POS_ANALYSIS_SFR },
@@ -79,6 +86,7 @@ const SEEDS: SeedEntry[] = [
   { slug: SC_GENERIC_1_SLUG, kind: "SC", mef: SC_ANALYSIS },
   { slug: SC_GENERIC_2_SLUG, kind: "SC", mef: SC_ANALYSIS_HTGR },
   { slug: SY_GENERIC_1_SLUG, kind: "SY", mef: SY_ANALYSIS },
+  { slug: SY_GENERIC_2_SLUG, kind: "SY", mef: SY_ANALYSIS_HTGR },
   { slug: HR_GENERIC_1_SLUG, kind: "HRA", mef: HR_ANALYSIS },
   { slug: DA_GENERIC_1_SLUG, kind: "DA", mef: DA_ANALYSIS },
   { slug: ESQ_GENERIC_1_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS },
@@ -89,4 +97,4 @@ const SEEDS: SeedEntry[] = [
   ...NM_INSTANCES.map((nm) => ({ slug: nmSlug(nm.uuid), kind: "NEWLY_DEVELOPED_METHOD" as const, mef: nm })),
 ];
 
-export { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };
+export { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, SY_GENERIC_2_SLUG, HR_GENERIC_1_SLUG, DA_GENERIC_1_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };

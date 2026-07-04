@@ -163,9 +163,11 @@ export interface SystemConfirmationRecord extends Unique {
 
 export interface SystemDefinition extends Unique, Named {
   description?: string;
+  abbreviation?: string;
   boundaries: string[];
   components?: Record<ComponentReference, SystemComponent>;
   successCriteriaIds: SuccessCriteriaId[];
+  successCriterion?: string;
   missionTimeHours?: number;
   schematic?: {
     reference: string;
@@ -216,10 +218,16 @@ export interface SystemDefinition extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export type SystemFaultTreeNode =
+  | { id: string; type: "OR" | "AND" | "KN"; name: string; k?: number; children: SystemFaultTreeNode[] }
+  | { id: string; type: "BE"; name: string; be: string; mode: string; source: string; prob: string; ccf?: boolean }
+  | { id: string; type: "TR"; name: string; transfer: string };
+
 export interface SystemLogicModel extends Unique {
   systemReference: SystemReference;
   description: string;
   modelRepresentation: string;
+  faultTree?: SystemFaultTreeNode;
   basicEvents: SystemBasicEvent[];
   nonDetailedModelJustification?: string;
   logicLoopResolutions?: {
@@ -571,6 +579,19 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
 
   configurationControlRecordId?: string;
   newlyDevelopedMethodIds?: string[];
+  // additional-to-example
+  exampleDocuments?: ExampleDocumentRef[];
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
 }
 
 export const SY_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

@@ -586,7 +586,7 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
     { uuid: "PA-3", assumptionId: "PA-3", description: "Code applicability taken from design conditions, to re-check against as-built.", influenceOnDefinition: "Documentation", status: "OPEN", limitations: ["As-built configuration pending"], riskImpact: ImportanceLevel.LOW, closureBasis: "Re-check code applicability against the as-built configuration.", plannedClosureActions: ["Update the code applicability dossier at as-built"], affectedElementIds: ["computerCodeValidations"] },
   ],
   sensitivityStudies: [
-    { uuid: "SS-1", name: "DRACS loop count sensitivity", description: "DRACS loop count sensitivity", variedParameters: ["DRACS loops credited"], parameterRanges: { "DRACS loops": [1, 3] }, results: "One of three meets the criterion with margin, and two of three adds no risk benefit." },
+    { uuid: "SS-1", name: "DRACS loop count sensitivity", description: "DRACS loop count sensitivity", variedParameters: ["DRACS loops credited"], parameterRanges: { "DRACS loops": [1, 3] }, results: "At full power two of three loops are required, since a single loop loses the decay-heat race; in the other operating states one of three meets the criterion with margin. The 41-probe dynamic campaign set the capacity frontier at 2.38 to 2.41 MW." },
     { uuid: "SS-2", name: "Coastdown-curve sweep", description: "Coastdown-curve sweep", variedParameters: ["Pump coastdown time constant"], parameterRanges: { "Coastdown time constant (s)": [4, 12] }, results: "Timing stays within margin across the coastdown range, with the slowest case open." },
   ],
   documentation: {

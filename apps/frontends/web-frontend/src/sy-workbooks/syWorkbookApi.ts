@@ -21,8 +21,17 @@ async function patchSyWorkbook(workbookId: string, mef: SystemsAnalysis): Promis
   return patchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`, { mef });
 }
 
-async function loadSyExample(workbookId: string): Promise<SyWorkbookResponse> {
-  return postJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}/load-example`, {});
+interface SyExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getSyExampleOptions(): Promise<SyExampleOption[]> {
+  return fetchJson<SyExampleOption[]>("/api/example-workbooks/sy-examples");
+}
+
+async function loadSyExample(workbookId: string, exampleId?: string): Promise<SyWorkbookResponse> {
+  return postJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadSyExample(workbookId: string): Promise<SyWorkbookResponse> {
@@ -59,6 +68,7 @@ async function getSyDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getSyWorkbook,
   patchSyWorkbook,
+  getSyExampleOptions,
   loadSyExample,
   unloadSyExample,
   listSyDocuments,
@@ -67,5 +77,6 @@ export {
   getSyDocumentDownload,
   type SyWorkbookResponse,
   type SyWorkbookRoleName,
+  type SyExampleOption,
   type SyDocumentEntry,
 };

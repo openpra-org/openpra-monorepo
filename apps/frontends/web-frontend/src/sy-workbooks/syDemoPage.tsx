@@ -34,6 +34,7 @@ function SyDemoPage(): JSX.Element {
           sy: res.sy.mef as SystemsAnalysis,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
       })
       .catch((err: unknown) => {

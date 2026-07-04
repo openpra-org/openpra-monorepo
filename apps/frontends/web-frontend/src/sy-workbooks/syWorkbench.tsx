@@ -383,9 +383,9 @@ function SyWorkbench({
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <DepsScreen />;
-      case "integrity": return <IntegrityScreen stage={stage} />;
-      case "uncert": return <UncertScreen />;
+      case "deps": return <DepsScreen openDrawer={setDrawer} />;
+      case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
+      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

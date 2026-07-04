@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { SystemsAnalysis } from "../../sy/systems-analysis";
+import type { SystemsAnalysis, SystemFaultTreeNode } from "../../sy/systems-analysis";
 import { DependencyType, FailureModeType } from "../../sy/systems-analysis";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
@@ -168,11 +168,20 @@ export const SystemConfirmationRecordSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(() =>
+  z.union([
+    z.object({ id: z.string(), type: z.enum(["OR", "AND", "KN"]), name: z.string(), k: z.number().optional(), children: z.array(SystemFaultTreeNodeSchema) }),
+    z.object({ id: z.string(), type: z.literal("BE"), name: z.string(), be: z.string(), mode: z.string(), source: z.string(), prob: z.string(), ccf: z.boolean().optional() }),
+    z.object({ id: z.string(), type: z.literal("TR"), name: z.string(), transfer: z.string() }),
+  ]),
+);
+
 export const SystemLogicModelSchema = z.object({
   uuid: z.string(),
   systemReference: z.string(),
   description: z.string(),
   modelRepresentation: z.string(),
+  faultTree: SystemFaultTreeNodeSchema.optional(),
   basicEvents: z.array(SystemBasicEventSchema),
   nonDetailedModelJustification: z.string().optional(),
   logicLoopResolutions: z
@@ -214,9 +223,11 @@ export const SystemDefinitionSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  abbreviation: z.string().optional(),
   boundaries: z.array(z.string()),
   components: z.record(z.string(), SystemComponentSchema).optional(),
   successCriteriaIds: z.array(SuccessCriteriaIdSchema),
+  successCriterion: z.string().optional(),
   missionTimeHours: z.number().optional(),
   schematic: z
     .object({
@@ -672,6 +683,16 @@ export const SystemsAnalysisSchema = z.object({
   documentation: SyDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  exampleDocuments: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    kind: z.enum(["doc", "sheet", "image"]),
+    sizeLabel: z.string(),
+    uploadedLabel: z.string(),
+    extracted: z.string(),
+    linked: z.number(),
+    url: z.string().optional(),
+  })).optional(),
 });
 
 type Expect<T extends true> = T;

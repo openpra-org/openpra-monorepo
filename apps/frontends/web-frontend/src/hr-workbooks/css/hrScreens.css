@@ -15,8 +15,7 @@
   --hr-red-ink: #eaa0a0;
 }
 
-.hrprov { display: inline-flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace; font-size: 11px; padding: 3px 9px; border-radius: 7px; background: var(--color-primary-soft); color: var(--color-primary); }
-.hrprov svg { width: 13px; height: 13px; }
+.hrprov { display: inline-flex; align-items: center; font-family: "JetBrains Mono", monospace; font-size: 11px; padding: 3px 9px; border-radius: 7px; background: var(--color-primary-soft); color: var(--color-primary); }
 
 .hrempty { padding: 28px 18px; text-align: center; }
 .hrempty__title { font-family: "Literata", Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
@@ -93,11 +92,7 @@
 @media (max-width: 900px) { .hrra { grid-template-columns: 1fr; } }
 .hrra__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; display: flex; flex-direction: column; gap: 9px; }
 .hrra__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgba(121, 57, 177, 0.1); }
-.hrra__card--multi { border-left: 4px solid var(--hr-indigo); }
-.hrra__card--warn { border-left: 4px solid var(--color-warning); }
 .hrra__head { display: flex; align-items: center; gap: 10px; }
-.hrra__icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
-.hrra__icon svg { width: 16px; height: 16px; }
 .hrra__head-main { flex: 1; min-width: 0; }
 .hrra__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); line-height: 1.2; }
 .hrra__type { font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; }
@@ -170,8 +165,6 @@
 .hrdeps .hrdep:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgba(121, 57, 177, 0.1); }
 .hrdep--floor { border-left: 4px solid var(--hr-red); }
 .hrdep__head { display: flex; align-items: center; gap: 11px; }
-.hrdep__icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: rgba(91, 89, 201, 0.12); color: var(--hr-indigo-ink); }
-.hrdep__icon svg { width: 18px; height: 18px; }
 .hrdep__title { font-weight: 700; font-size: 13px; color: var(--color-text); line-height: 1.2; }
 .hrdep__level { font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; }
 .hrdep__joint { margin-left: auto; flex-shrink: 0; font-size: 15px; font-weight: 700; color: var(--color-text); text-align: right; }
@@ -185,14 +178,12 @@
 
 .hrrev { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 900px) { .hrrev { grid-template-columns: 1fr; } }
-.hrrev__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+.hrrev__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+.hrrev__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgba(121, 57, 177, 0.1); }
 .hrrev__card--borrow { border-left: 4px solid var(--hr-teal); }
 .hrrev__head { display: flex; align-items: center; gap: 9px; }
-.hrrev__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
-.hrrev__icon svg { width: 16px; height: 16px; }
 .hrrev__scope { font-weight: 700; font-size: 13px; color: var(--color-text); flex: 1; }
 .hrrev__borrow-flag { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: rgba(47, 143, 134, 0.12); color: var(--hr-teal-ink); }
-.hrrev__borrow-flag svg { width: 11px; height: 11px; }
 .hrrev__sources { display: flex; flex-wrap: wrap; gap: 5px; }
 .hrrev__source { font-size: 11px; padding: 2px 9px; border-radius: 7px; background: var(--color-surface-low); border: 1px solid var(--color-border); color: var(--color-text-muted); }
 .hrrev__findings { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
@@ -201,7 +192,7 @@
 .hrrev__foot .hrprov { margin-left: auto; }
 
 .hrladder { display: flex; flex-direction: column; gap: 0; }
-.hrladder__step { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; position: relative; }
+.hrladder__step { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; position: relative; cursor: pointer; }
 .hrladder__step:not(:last-child) { border-bottom: 1px dashed var(--color-border); }
 .hrladder__rung { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; font-weight: 700; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
 .hrladder__step--cc-ii .hrladder__rung { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }

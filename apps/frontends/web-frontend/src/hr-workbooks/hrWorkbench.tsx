@@ -384,11 +384,11 @@ function HrWorkbench({
       case "preid": return <PreIdentifyScreen openDrawer={setDrawer} />;
       case "predef": return <PreDefineScreen openDrawer={setDrawer} />;
       case "prequant": return <PreQuantScreen openDrawer={setDrawer} />;
-      case "respid": return <RespIdentifyScreen />;
+      case "respid": return <RespIdentifyScreen openDrawer={setDrawer} />;
       case "respdef": return <RespDefineScreen openDrawer={setDrawer} />;
       case "respquant": return <RespQuantScreen openDrawer={setDrawer} />;
       case "recovery": return <RecoveryScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen />;
+      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

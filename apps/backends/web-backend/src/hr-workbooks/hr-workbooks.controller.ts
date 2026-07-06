@@ -29,8 +29,8 @@ export class HrWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<HrWorkbookResponse> {
-    return this.hrWorkbooksService.loadExample(id, { username: req.user!.username });
+  loadExample(@Param("id") id: string, @Body() body: { example?: string }, @Req() req: AuthenticatedRequest): Promise<HrWorkbookResponse> {
+    return this.hrWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 
   @Post(":id/unload-example")

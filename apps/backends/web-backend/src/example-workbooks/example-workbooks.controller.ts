@@ -83,10 +83,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getSyBundle(example);
   }
 
+  @Get("hr-examples")
+  @HttpCode(HttpStatus.OK)
+  getHrExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getHrExamples();
+  }
+
   @Get("hr-bundle")
   @HttpCode(HttpStatus.OK)
-  getHrBundle(): Promise<HrExampleBundle> {
-    return this.exampleWorkbooksService.getHrBundle();
+  getHrBundle(@Query("example") example?: string): Promise<HrExampleBundle> {
+    return this.exampleWorkbooksService.getHrBundle(example);
   }
 
   @Get("da-bundle")

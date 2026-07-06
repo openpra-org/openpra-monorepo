@@ -202,6 +202,16 @@ export interface RecoveryAction extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export interface ErrorForcingContext extends Unique {
+  hfeId: string;
+  unsafeAction: string;
+  plantConditions: string[];
+  performanceShapingFactors: string[];
+  vulnerability: string;
+  searchMethod?: string;
+  implementsSrs: SRReference[];
+}
+
 export interface HrDocumentation {
   processDescription: string;
   preInitiatorIdentificationProcess: string;
@@ -238,6 +248,7 @@ export interface HumanReliabilityAnalysis
   jointHepFloor: JointHepFloor;
   dependencyAssessments: HfeDependencyAssessment[];
   hepConsistencyReviews?: HepConsistencyReview[];
+  errorForcingContexts?: ErrorForcingContext[];
 
   recoveryActions?: RecoveryAction[];
 
@@ -249,7 +260,19 @@ export interface HumanReliabilityAnalysis
   documentation: HrDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
 }
 
 export const HR_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

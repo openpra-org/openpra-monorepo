@@ -198,22 +198,6 @@ function buildConformanceItems(): ConformanceItem[] {
 
 const CONFORMANCE_ITEMS: ConformanceItem[] = buildConformanceItems();
 
-interface MethodSpec {
-  id: string;
-  abbr: string;
-  name: string;
-  ref: string;
-}
-
-const HRA_METHODS: Record<string, MethodSpec> = {
-  therp: { id: "therp", abbr: "THERP", name: "Technique for Human Error Rate Prediction", ref: "NUREG/CR-1278" },
-  asep: { id: "asep", abbr: "ASEP", name: "Accident Sequence Evaluation Program", ref: "NUREG/CR-4772" },
-  cbdt: { id: "cbdt", abbr: "CBDT", name: "Cause-Based Decision Tree", ref: "EPRI TR-100259" },
-  "hcr-ore": { id: "hcr-ore", abbr: "HCR/ORE", name: "Human Cognitive Reliability and Operator Reliability Experiments", ref: "EPRI TR-100259" },
-  "spar-h": { id: "spar-h", abbr: "SPAR-H", name: "Standardized Plant Analysis Risk-Human", ref: "NUREG/CR-6883" },
-  atheana: { id: "atheana", abbr: "ATHEANA", name: "A Technique for Human Error Analysis", ref: "NUREG-1624" },
-};
-
 interface MomentSpec {
   id: string;
   label: string;
@@ -272,7 +256,7 @@ const TIME_BASIS: Record<string, string> = {
   MEASURED_TALK_THROUGH: "Measured, talk-through",
   MEASURED_SIMULATOR: "Measured, simulator",
 };
-const FEASIBILITY_KEYS: { key: string; label: string }[] = [
+const FEASIBILITY_KEYS: { key: "procedureOrGuidanceAvailable" | "trainingIncluded" | "cuesAvailable" | "manpowerAvailable" | "timeAvailable" | "accessibilityConfirmed" | "equipmentAvailable"; label: string }[] = [
   { key: "procedureOrGuidanceAvailable", label: "Procedure" },
   { key: "trainingIncluded", label: "Training" },
   { key: "cuesAvailable", label: "Cues" },
@@ -281,46 +265,6 @@ const FEASIBILITY_KEYS: { key: string; label: string }[] = [
   { key: "accessibilityConfirmed", label: "Access" },
   { key: "equipmentAvailable", label: "Equipment" },
 ];
-
-interface ErrorForcingContext {
-  id: string;
-  hfeId: string;
-  unsafeAction: string;
-  plantConditions: string[];
-  psfs: string[];
-  vulnerability: string;
-}
-
-const ERROR_FORCING_CONTEXTS: ErrorForcingContext[] = [
-  { id: "EFC-1", hfeId: "HR-POST-005", unsafeAction: "Holds the decay-heat action believing the plant is already stable.", plantConditions: ["Misleading low core-outlet reading", "Slow temperature rise"], psfs: ["Ambiguous indication", "High early workload"], vulnerability: "A slow heat-up can be read as a stable state, so the crew holds the action." },
-  { id: "EFC-2", hfeId: "HR-AG-001", unsafeAction: "Trips a running DRACS loop believing it is the faulted one.", plantConditions: ["Two loops alarming at once", "Look-alike loop indications"], psfs: ["Adjacent identical controls", "Time pressure"], vulnerability: "Identical adjacent controls invite a wrong-loop action under pressure." },
-  { id: "EFC-3", hfeId: "HR-AT-003", unsafeAction: "De-energizes the wrong DC bus during maintenance.", plantConditions: ["Bus work in progress", "Partial labeling"], psfs: ["Procedure not place-kept", "Shift-handover gap"], vulnerability: "A labeling and handover gap can route the action to the live bus." },
-];
-
-interface HepMethodAttribution {
-  method?: string;
-  cognitionMethod?: string;
-  executionMethod?: string;
-}
-
-const HEP_METHODS: Record<string, HepMethodAttribution> = {
-  "HR-PRE-014": { method: "therp" },
-  "HR-PRE-022": { method: "asep" },
-  "HR-PRE-009": { method: "asep" },
-  "HR-PRE-031": { method: "therp" },
-  "HR-POST-005": { cognitionMethod: "cbdt", executionMethod: "therp" },
-  "HR-POST-011": { cognitionMethod: "hcr-ore", executionMethod: "therp" },
-  "HR-POST-022": { cognitionMethod: "spar-h", executionMethod: "spar-h" },
-};
-
-const REC_METHODS: Record<string, HepMethodAttribution> = {
-  "REC-1": { cognitionMethod: "cbdt", executionMethod: "therp" },
-  "REC-2": { executionMethod: "therp" },
-  "REC-3": { executionMethod: "therp" },
-};
-
-const DEP_METHOD = "therp";
-const REVIEW_METHODS: Record<string, string> = { "RR-4": "atheana" };
 
 interface LinkSpec {
   id: string;
@@ -349,14 +293,6 @@ const HR_SIDEWAYS_LINKS: LinkSpec[] = [
 
 const HR_DOWNSTREAM_LINKS: LinkSpec[] = [
   { id: "esq", element: "Event Sequence Quantification", icon: "Network", uses: "Multiplies the human error probabilities through the sequences", note: "The quantified events drive the sequence results.", role: "HEPs out", dir: "out" },
-];
-
-const DEPENDENCE_THEME: { sr: string; t: string }[] = [
-  { sr: "HR-A5", t: "Multi-train work practices flagged" },
-  { sr: "HR-B3", t: "Multi-train activities not screened" },
-  { sr: "HR-D7", t: "Pre-initiator joint probability" },
-  { sr: "HR-G11", t: "Joint probability floor" },
-  { sr: "HR-H5", t: "Recovery coupled to the cause" },
 ];
 
 const HR_TOC: [string, string][] = [
@@ -399,9 +335,7 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   Stage,
-  MethodSpec,
   MomentSpec,
-  ErrorForcingContext,
   LinkSpec,
 };
 
@@ -411,7 +345,6 @@ export {
   HR_PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
-  HRA_METHODS,
   THREE_MOMENTS,
   HFE_TIMING,
   IMPACT_LEVELS,
@@ -426,14 +359,8 @@ export {
   INDICATION_TREATMENT,
   TIME_BASIS,
   FEASIBILITY_KEYS,
-  ERROR_FORCING_CONTEXTS,
-  HEP_METHODS,
-  REC_METHODS,
-  DEP_METHOD,
-  REVIEW_METHODS,
   HR_UPSTREAM_LINKS,
   HR_SIDEWAYS_LINKS,
   HR_DOWNSTREAM_LINKS,
-  DEPENDENCE_THEME,
   HR_TOC,
 };

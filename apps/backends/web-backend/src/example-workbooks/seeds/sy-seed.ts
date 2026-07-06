@@ -105,7 +105,7 @@ const dracsEvents: SystemBasicEvent[] = [
   be("DRC-AIR3-BLK", "Loop 3 air path blocked", "FAILURE_TO_RUN", 0.001),
   be("DRC-CCF-FR", "Common cause failure of all three loops", "COMMON_CAUSE_FAILURE", 0.00012),
   be("DRC-DMP-CCF", "Common cause failure of the air dampers", "COMMON_CAUSE_FAILURE", 0.0003),
-  hfe("DRC-HFE-ALIGN", "Dampers left misaligned after surveillance", 0.004, "HR-PRE-014"),
+  hfe("DRC-HFE-ALIGN", "Dampers left misaligned after surveillance", 0.01, "HR-PRE-022"),
   tm("DRC-LP1-TM", "Loop 1 in staggered surveillance", 0.004, "Staggered loop testing per the design surveillance plan, two loops stay available.", true),
   tm("DRC-LP2-TM", "Loop 2 in staggered surveillance", 0.004, "Staggered loop testing per the design surveillance plan, two loops stay available.", true),
   tm("DRC-LP3-TM", "Loop 3 in staggered surveillance", 0.004, "Staggered loop testing per the design surveillance plan, two loops stay available.", true),
@@ -299,7 +299,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       { id: "be-DRC-CCF-FR", type: "BE", name: "Common cause failure of all three loops", be: "DRC-CCF-FR", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DRACS-LOOP", prob: "1.2E-4", ccf: true },
       { id: "DRC-ACT", type: "OR", name: "Air-side actuation fails on all loops", children: [
         { id: "be-DRC-DMP-CCF", type: "BE", name: "Common cause failure of the air dampers", be: "DRC-DMP-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DRACS-DMP", prob: "3.0E-4", ccf: true },
-        { id: "be-DRC-HFE-ALIGN", type: "BE", name: "Dampers left misaligned after surveillance", be: "DRC-HFE-ALIGN", mode: "HUMAN_ERROR", source: "HR-PRE-014", prob: "4.0E-3" },
+        { id: "be-DRC-HFE-ALIGN", type: "BE", name: "Dampers left misaligned after surveillance", be: "DRC-HFE-ALIGN", mode: "HUMAN_ERROR", source: "HR-PRE-022", prob: "1.0E-2" },
         { id: "tr-DRC-DC", type: "TR", name: "Loss of Class-1E DC to the dampers", transfer: "SYS-1E-DC" },
       ] },
     ],
@@ -575,7 +575,7 @@ const commonCauseFailureGroups = CCF_GROUP_SEEDS.map((g) => ({
 }));
 
 const humanFailureEventIntegrations = [
-  { id: "HFE-1", system: "SYS-DRACS", ref: "HR-PRE-014", type: "PRE_INITIATOR" as const, tm: true, task: "DRACS damper left misaligned after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-1", system: "SYS-DRACS", ref: "HR-PRE-022", type: "PRE_INITIATOR" as const, tm: true, task: "DRACS damper left misaligned after surveillance.", srs: ["SY-A21"] },
   { id: "HFE-2", system: "SYS-CONF", ref: "HR-POST-022", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the standby clean-up train.", srs: ["SY-A23"] },
   { id: "HFE-3", system: "SYS-1E-DC", ref: "HR-PRE-009", type: "PRE_INITIATOR" as const, tm: true, task: "Battery charger left in the wrong mode after maintenance.", srs: ["SY-A21"] },
   { id: "HFE-4", system: "SYS-ISOL", ref: "HR-POST-025", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the leak path.", srs: ["SY-A23"] },

@@ -3,10 +3,21 @@ import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 
+interface HrLinkedInputs {
+  posStates: { id: string; name: string; mode: string; durationHours: number }[];
+  esActions: { id: string; action: string; cue: string; window: string }[];
+  scWindows: { id: string; description: string; timeAvailable: string; criteria: string }[];
+  syPlaced: { id: string; task: string; system: string }[];
+  syDefs: { id: string; name: string }[];
+  daParams: { id: string; name: string }[];
+  ieInitiators: { id: string; name: string }[];
+}
+
 interface HrWorkbookData {
   hr: HumanReliabilityAnalysis;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
+  links: HrLinkedInputs | null;
 }
 
 type HrMutator = (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis;
@@ -37,4 +48,4 @@ function useHrWorkbook(): HrWorkbookContextValue {
   return ctx;
 }
 
-export { HrWorkbookProvider, useHrWorkbook, type HrWorkbookData, type HrMutator };
+export { HrWorkbookProvider, useHrWorkbook, type HrWorkbookData, type HrLinkedInputs, type HrMutator };

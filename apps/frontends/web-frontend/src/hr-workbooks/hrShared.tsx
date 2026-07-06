@@ -1,5 +1,4 @@
 import { JSX, ReactNode } from "react";
-import { HRIcon } from "./hrIcons";
 
 type BadgeKind = "ok" | "warn" | "block" | "progress" | "draft";
 
@@ -15,7 +14,7 @@ function Badge({ kind, children }: { kind?: BadgeKind; children: ReactNode }): J
 function HRProvenanceChip({ children }: { children: ReactNode }): JSX.Element {
   return (
     <span className="hrprov">
-      <HRIcon.Link /> {children}
+      {children}
     </span>
   );
 }

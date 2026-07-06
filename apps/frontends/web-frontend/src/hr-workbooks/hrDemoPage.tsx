@@ -3,6 +3,7 @@ import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-rel
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
+import { fetchHrLinkedInputs } from "./hrWorkbookApi";
 import { HrWorkbench } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
 import { type HrPersona } from "./hrViewData";
@@ -34,7 +35,12 @@ function HrDemoPage(): JSX.Element {
           hr: res.hr.mef as HumanReliabilityAnalysis,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
+        const variant = (res.hr.mef as HumanReliabilityAnalysis).uuid === "hr-generic-2" ? "htgr" : "sfr";
+        fetchHrLinkedInputs(variant)
+          .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+          .catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;

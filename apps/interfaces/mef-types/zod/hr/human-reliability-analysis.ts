@@ -223,6 +223,17 @@ export const RecoveryActionSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const ErrorForcingContextSchema = z.object({
+  uuid: z.string(),
+  hfeId: z.string(),
+  unsafeAction: z.string(),
+  plantConditions: z.array(z.string()),
+  performanceShapingFactors: z.array(z.string()),
+  vulnerability: z.string(),
+  searchMethod: z.string().optional(),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
 export const HrDocumentationSchema = z.object({
   processDescription: z.string(),
   preInitiatorIdentificationProcess: z.string(),
@@ -256,6 +267,7 @@ export const HumanReliabilityAnalysisSchema = z.object({
   jointHepFloor: JointHepFloorSchema,
   dependencyAssessments: z.array(HfeDependencyAssessmentSchema),
   hepConsistencyReviews: z.array(HepConsistencyReviewSchema).optional(),
+  errorForcingContexts: z.array(ErrorForcingContextSchema).optional(),
   recoveryActions: z.array(RecoveryActionSchema).optional(),
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
   modelUncertainty: BaseModelUncertaintyDocumentationSchema,
@@ -263,6 +275,20 @@ export const HumanReliabilityAnalysisSchema = z.object({
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   documentation: HrDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
+  exampleDocuments: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        kind: z.enum(["doc", "sheet", "image"]),
+        sizeLabel: z.string(),
+        uploadedLabel: z.string(),
+        extracted: z.string(),
+        linked: z.number(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 

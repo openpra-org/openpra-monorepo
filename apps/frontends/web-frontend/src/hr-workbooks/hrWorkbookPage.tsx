@@ -13,9 +13,12 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getHrWorkbook,
+  fetchHrLinkedInputs,
+  getHrExampleOptions,
   loadHrExample,
   unloadHrExample,
   type HrWorkbookRoleName,
+  type HrExampleOption,
 } from "./hrWorkbookApi";
 import { HrWorkbench, type HrWorkbenchActions } from "./hrWorkbench";
 import { HrWorkbookProvider, type HrWorkbookData } from "./hrWorkbookContext";
@@ -63,6 +66,7 @@ function HrWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<HrExampleOption[]>([]);
   const workbookName = data?.hr.name ?? "";
   const workbookVersion = data?.hr.version ?? "1";
 
@@ -79,6 +83,7 @@ function HrWorkbookPage(): JSX.Element {
           hr: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
@@ -95,6 +100,25 @@ function HrWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getHrExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { if (!cancelled) setExampleOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const hrUuid = data?.hr.uuid ?? "";
+  useEffect(() => {
+    const variant = hrUuid === "hr-generic-1" ? "sfr" : hrUuid === "hr-generic-2" ? "htgr" : null;
+    if (variant === null) return;
+    let cancelled = false;
+    fetchHrLinkedInputs(variant)
+      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    return () => { cancelled = true; };
+  }, [hrUuid]);
 
   const updateHr = useCallback((hr: HumanReliabilityAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, hr }));
@@ -206,9 +230,10 @@ function HrWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="HRA"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadHrExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadHrExample(id, exampleId);
             updateHr(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

@@ -22,6 +22,9 @@ export class IeWorkbook {
 
   @Prop({ type: String, required: false, default: null })
   linkedPosWorkbookId!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  exampleVariant!: string | null;
 }
 
 export const IeWorkbookSchema = SchemaFactory.createForClass(IeWorkbook);

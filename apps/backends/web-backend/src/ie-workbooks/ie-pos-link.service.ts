@@ -126,9 +126,10 @@ export class IePosLinkService {
       return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
     }
     if (ie.linkedPosWorkbookId === EXAMPLE_SENTINEL) {
-      const bundle = await this.exampleWorkbooksService.getPosBundle();
+      const variant = ie.exampleVariant === "sfr" ? "sfr" : "htgr";
+      const bundle = await this.exampleWorkbooksService.getPosBundle(variant);
       const { states, sources } = this.collectImported(bundle.pos.mef as PosMefShape);
-      return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: "POS Workbook Example", states, sources };
+      return { linkedPosWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR POS Workbook" : "Generic SFR POS Workbook", states, sources };
     }
     const pos = await this.posWorkbookModel.findOne({ workbookId: ie.linkedPosWorkbookId }).exec();
     if (!pos) return { linkedPosWorkbookId: ie.linkedPosWorkbookId, linkedName: null, states: [], sources: [] };

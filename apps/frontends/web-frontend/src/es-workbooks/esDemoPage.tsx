@@ -72,14 +72,15 @@ function EsDemoPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetchJson<EsBundleResponse>("/api/example-workbooks/es-bundle"),
-      fetchJson<PosBundleResponse>("/api/example-workbooks/pos-bundle?example=sfr").catch((): PosBundleResponse | null => null),
-      fetchJson<IeBundleResponse>("/api/example-workbooks/ie-bundle?example=sfr").catch((): IeBundleResponse | null => null),
-    ])
-      .then(([res, posRes, ieRes]) => {
-        if (cancelled) return;
+    fetchJson<EsBundleResponse>("/api/example-workbooks/es-bundle")
+      .then(async (res) => {
         const es = res.es.mef as EventSequenceAnalysis;
+        const variant = es.uuid === "es-generic-2" ? "htgr" : "sfr";
+        const [posRes, ieRes] = await Promise.all([
+          fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${variant}`).catch((): PosBundleResponse | null => null),
+          fetchJson<IeBundleResponse>(`/api/example-workbooks/ie-bundle?example=${variant}`).catch((): IeBundleResponse | null => null),
+        ]);
+        if (cancelled) return;
         setData({
           es,
           cc: res.configurationControl.mef as PRAConfigurationControl,

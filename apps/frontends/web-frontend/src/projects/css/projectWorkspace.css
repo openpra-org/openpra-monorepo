@@ -142,6 +142,24 @@
   gap: 2px;
   flex-wrap: wrap;
 }
+.wfilters__gen {
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.wfilters__gen:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
+}
+
 .fchip {
   background: none;
   border: none;

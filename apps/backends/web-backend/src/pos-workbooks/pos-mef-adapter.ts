@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { PlantOperatingStatesAnalysisSchema } from "interfaces-mef-types/zod/pos/plant-operating-state-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { POS_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { PosWorkbooksService } from "./pos-workbooks.service";
 import { PosWorkbook, type PosWorkbookDocument } from "./pos-workbook.schema";
 import { createBlankPos } from "./blank-pos";
 import { stripNulls } from "./mef-normalize";
@@ -14,6 +16,7 @@ export class PosMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(PosWorkbook.name) private readonly posWorkbookModel: Model<PosWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly posWorkbooksService: PosWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class PosMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return POS_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.posWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

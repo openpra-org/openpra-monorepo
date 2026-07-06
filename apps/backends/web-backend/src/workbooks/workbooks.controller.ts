@@ -21,8 +21,12 @@ import {
   UpdateWorkbookRequestSchema,
 } from "interfaces-shared-types";
 import { ZodValidationPipe } from "../pipe/zod-validation.pipe";
+
+interface GenerateExamplesBody {
+  example?: string;
+}
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
-import { WorkbooksService } from "./workbooks.service";
+import { WorkbooksService, type GenerateExamplesResult, type ProjectExampleInfo } from "./workbooks.service";
 
 @Controller("projects/:projectId/workbooks")
 @UseGuards(JwtAuthGuard)
@@ -47,6 +51,25 @@ export class WorkbooksController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Workbook> {
     return this.workbooksService.createWorkbook(projectId, body, { username: req.user!.username });
+  }
+
+  @Get("example-info")
+  @HttpCode(HttpStatus.OK)
+  exampleInfo(
+    @Param("projectId") projectId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<ProjectExampleInfo> {
+    return this.workbooksService.getProjectExampleInfo(projectId, { username: req.user!.username });
+  }
+
+  @Post("generate-examples")
+  @HttpCode(HttpStatus.OK)
+  generateExamples(
+    @Param("projectId") projectId: string,
+    @Body() body: GenerateExamplesBody,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<GenerateExamplesResult> {
+    return this.workbooksService.generateExamples(projectId, body.example, { username: req.user!.username });
   }
 
   @Patch(":id")

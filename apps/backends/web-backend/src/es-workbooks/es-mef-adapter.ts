@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { ES_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { EsWorkbooksService } from "./es-workbooks.service";
 import { EsWorkbook, type EsWorkbookDocument } from "./es-workbook.schema";
 import { createBlankEs } from "./blank-es";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
@@ -14,6 +16,7 @@ export class EsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(EsWorkbook.name) private readonly esWorkbookModel: Model<EsWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly esWorkbooksService: EsWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class EsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return ES_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.esWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

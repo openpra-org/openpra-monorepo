@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { SY_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { SyWorkbooksService } from "./sy-workbooks.service";
 import { SyWorkbook, type SyWorkbookDocument } from "./sy-workbook.schema";
 import { createBlankSy } from "./blank-sy";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
@@ -14,6 +16,7 @@ export class SyMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly syWorkbooksService: SyWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class SyMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return SY_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.syWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

@@ -57,4 +57,48 @@ async function deleteWorkbook(projectId: string, id: string): Promise<void> {
   await request("DELETE", `/${projectId}/workbooks/${id}`);
 }
 
-export { listWorkbooks, createWorkbook, updateWorkbook, deleteWorkbook };
+interface ProjectExampleOption {
+  id: string;
+  label: string;
+}
+
+interface ProjectExampleInfo {
+  elements: string[];
+  options: ProjectExampleOption[];
+}
+
+interface GeneratedExampleWorkbook {
+  elementCode: string;
+  exampleId: string;
+  workbookId: string | null;
+  workbookName: string;
+  action: "created" | "repopulated" | "skipped";
+  reason?: string;
+}
+
+interface GenerateExamplesResult {
+  generated: GeneratedExampleWorkbook[];
+}
+
+async function getProjectExampleInfo(projectId: string): Promise<ProjectExampleInfo> {
+  const response = await request("GET", `/${projectId}/workbooks/example-info`);
+  return (await response.json()) as ProjectExampleInfo;
+}
+
+async function generateProjectExamples(projectId: string, exampleId?: string): Promise<GenerateExamplesResult> {
+  const response = await request("POST", `/${projectId}/workbooks/generate-examples`, exampleId !== undefined ? { example: exampleId } : {});
+  return (await response.json()) as GenerateExamplesResult;
+}
+
+export {
+  listWorkbooks,
+  createWorkbook,
+  updateWorkbook,
+  deleteWorkbook,
+  getProjectExampleInfo,
+  generateProjectExamples,
+  type ProjectExampleOption,
+  type ProjectExampleInfo,
+  type GeneratedExampleWorkbook,
+  type GenerateExamplesResult,
+};

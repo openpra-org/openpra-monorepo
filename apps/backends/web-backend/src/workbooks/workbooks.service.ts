@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -10,7 +10,7 @@ import {
 import { User, type UserDocument } from "../users/user.schema";
 import { ProjectsService } from "../projects/projects.service";
 import { Workbook, type WorkbookDocument } from "./workbook.schema";
-import { WorkbookElementRegistry } from "./workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookExampleVariant } from "./workbook-element-registry";
 import { WorkbookRolesService } from "./workbook-roles.service";
 
 function computeInitials(fullName: string): string {
@@ -38,6 +38,35 @@ function toDto(doc: WorkbookDocument): WorkbookDto {
 
 interface ActingUser {
   username: string;
+}
+
+export interface ProjectExampleOption {
+  id: string;
+  label: string;
+}
+
+export interface ProjectExampleInfo {
+  elements: string[];
+  options: ProjectExampleOption[];
+}
+
+export interface GeneratedExampleWorkbook {
+  elementCode: string;
+  exampleId: string;
+  workbookId: string | null;
+  workbookName: string;
+  action: "created" | "repopulated" | "skipped";
+  reason?: string;
+}
+
+export interface GenerateExamplesResult {
+  generated: GeneratedExampleWorkbook[];
+}
+
+interface ExampleCapableElement {
+  elementCode: string;
+  variants: WorkbookExampleVariant[];
+  loadExample: (workbookId: string, acting: ActingUser, exampleId: string) => Promise<void>;
 }
 
 @Injectable()
@@ -79,6 +108,78 @@ export class WorkbooksService {
       await this.rolesService.createInitialPreparer(String(created._id), owner.username);
     }
     return toDto(created);
+  }
+
+  private exampleCapableElements(): ExampleCapableElement[] {
+    const out: ExampleCapableElement[] = [];
+    for (const adapter of this.elementRegistry.list()) {
+      const variantsOf = adapter.exampleVariants;
+      const load = adapter.loadExample;
+      if (variantsOf === undefined || load === undefined) continue;
+      const variants = variantsOf.call(adapter);
+      if (variants.length === 0) continue;
+      out.push({
+        elementCode: adapter.elementCode,
+        variants,
+        loadExample: async (workbookId, acting, exampleId): Promise<void> => {
+          await load.call(adapter, workbookId, acting, exampleId);
+        },
+      });
+    }
+    return out;
+  }
+
+  async getProjectExampleInfo(projectId: string, acting: ActingUser): Promise<ProjectExampleInfo> {
+    await this.projectsService.resolveAccess(projectId, acting);
+    const capable = this.exampleCapableElements();
+    const options: ProjectExampleOption[] = [];
+    for (const entry of capable) {
+      for (const variant of entry.variants) {
+        if (!options.some((o) => o.id === variant.exampleId)) options.push({ id: variant.exampleId, label: variant.label });
+      }
+    }
+    if (options.length > 1) options.push({ id: "both", label: "Both reactors" });
+    return { elements: capable.map((e) => e.elementCode), options };
+  }
+
+  async generateExamples(projectId: string, exampleId: string | undefined, acting: ActingUser): Promise<GenerateExamplesResult> {
+    const { role } = await this.projectsService.resolveAccess(projectId, acting);
+    if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
+    const capable = this.exampleCapableElements();
+    const available: string[] = [];
+    for (const entry of capable) {
+      for (const variant of entry.variants) {
+        if (!available.includes(variant.exampleId)) available.push(variant.exampleId);
+      }
+    }
+    if (available.length === 0) throw new BadRequestException("No example workbooks are available");
+    const chosen = exampleId === undefined || exampleId.length === 0 ? available[0] : exampleId;
+    if (chosen !== "both" && !available.includes(chosen)) throw new BadRequestException(`Unknown example "${chosen}"`);
+    const requested = chosen === "both" ? available : [chosen];
+    const generated: GeneratedExampleWorkbook[] = [];
+    for (const entry of capable) {
+      for (const variant of entry.variants) {
+        if (!requested.includes(variant.exampleId)) continue;
+        try {
+          const existing = await this.workbookModel.findOne({ projectId, elementCode: entry.elementCode, name: variant.workbookName }).exec();
+          let workbookId: string;
+          let action: "created" | "repopulated";
+          if (existing === null) {
+            const created = await this.createWorkbook(projectId, { elementCode: entry.elementCode, name: variant.workbookName }, acting);
+            workbookId = created.id;
+            action = "created";
+          } else {
+            workbookId = String(existing._id);
+            action = "repopulated";
+          }
+          await entry.loadExample(workbookId, acting, variant.exampleId);
+          generated.push({ elementCode: entry.elementCode, exampleId: variant.exampleId, workbookId, workbookName: variant.workbookName, action });
+        } catch (err) {
+          generated.push({ elementCode: entry.elementCode, exampleId: variant.exampleId, workbookId: null, workbookName: variant.workbookName, action: "skipped", reason: (err as { message?: string }).message ?? "Could not load the example" });
+        }
+      }
+    }
+    return { generated };
   }
 
   async updateWorkbook(

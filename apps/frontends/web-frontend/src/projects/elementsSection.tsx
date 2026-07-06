@@ -14,9 +14,11 @@ const FILTERS: readonly { key: ElementFilter; label: string }[] = [
 function ElementsSection({
   project,
   onOpenElement,
+  onGenerateExamples,
 }: {
   project: Project;
   onOpenElement: (element: { code: string; name: string }) => void;
+  onGenerateExamples?: () => void;
 }): JSX.Element {
   const [filter, setFilter] = useState<ElementFilter>("all");
   const elements = useMemo(() => elementsForMode(project.mode), [project.mode]);
@@ -53,6 +55,9 @@ function ElementsSection({
             </button>
           ))}
         </div>
+        {onGenerateExamples !== undefined && (
+          <button type="button" className="wfilters__gen" onClick={onGenerateExamples}>Generate example</button>
+        )}
       </div>
 
       <div className="erows erows--grid">

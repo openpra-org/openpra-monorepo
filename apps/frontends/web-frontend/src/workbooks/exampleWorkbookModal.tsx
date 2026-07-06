@@ -17,11 +17,14 @@ interface ExampleOption {
 interface LoadExampleModalProps {
   exampleName: string;
   exampleOptions?: ExampleOption[];
+  title?: string;
+  intro?: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: (exampleId?: string) => Promise<void>;
 }
 
-function LoadExampleModal({ exampleName, exampleOptions, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
+function LoadExampleModal({ exampleName, exampleOptions, title, intro, confirmLabel, onCancel, onConfirm }: LoadExampleModalProps): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const options = exampleOptions ?? [];
@@ -40,9 +43,9 @@ function LoadExampleModal({ exampleName, exampleOptions, onCancel, onConfirm }: 
 
   return (
     <div className="exmodal-overlay" onClick={busy ? undefined : onCancel}>
-      <div className="exmodal" role="dialog" aria-modal="true" aria-label="Load example workbook" onClick={(e) => e.stopPropagation()}>
+      <div className="exmodal" role="dialog" aria-modal="true" aria-label={title ?? "Load example workbook"} onClick={(e) => e.stopPropagation()}>
         <header className="exmodal__head">
-          <h2 className="exmodal__title">Load example workbook</h2>
+          <h2 className="exmodal__title">{title ?? "Load example workbook"}</h2>
           <button type="button" className="exmodal__close" onClick={onCancel} disabled={busy} aria-label="Close"><CloseIcon /></button>
         </header>
 
@@ -57,10 +60,14 @@ function LoadExampleModal({ exampleName, exampleOptions, onCancel, onConfirm }: 
               </select>
             </label>
           )}
-          <p>
-            This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong> {exampleName} example. Any data
-            you have entered will be lost. Uploaded documents, comments, and review signoffs will also be cleared.
-          </p>
+          {intro !== undefined ? (
+            <p>{intro}</p>
+          ) : (
+            <p>
+              This will replace the current workbook contents with the <strong>{hasChoice ? (selectedLabel ?? "selected") : "Generic-1"}</strong> {exampleName} example. Any data
+              you have entered will be lost. Uploaded documents, comments, and review signoffs will also be cleared.
+            </p>
+          )}
           <p className="exmodal__hint">
             Useful for exploring the workflow without entering plant data first. You can edit everything after loading.
           </p>
@@ -75,7 +82,7 @@ function LoadExampleModal({ exampleName, exampleOptions, onCancel, onConfirm }: 
         <footer className="exmodal__foot">
           <button type="button" className="posnav__btn" onClick={onCancel} disabled={busy}>Cancel</button>
           <button type="button" className="posnav__btn posnav__btn--primary" onClick={handleConfirm} disabled={busy}>
-            {busy ? "Loading…" : "Replace with example"}
+            {busy ? "Loading…" : (confirmLabel ?? "Replace with example")}
           </button>
         </footer>
       </div>

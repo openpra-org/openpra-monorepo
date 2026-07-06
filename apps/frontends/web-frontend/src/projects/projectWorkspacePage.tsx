@@ -12,6 +12,8 @@ import { RenameModal } from "./renameModal";
 import { ConfirmDeleteModal } from "./confirmDeleteModal";
 import { ShareProjectModal } from "./shareProjectModal";
 import { WorkbooksPanel } from "../workbooks/workbooksPanel";
+import { LoadExampleModal } from "../workbooks/exampleWorkbookModal";
+import { getProjectExampleInfo, generateProjectExamples, type ProjectExampleInfo } from "../workbooks/workbookApi";
 import "./css/projectWorkspace.css";
 
 function ProjectWorkspacePage(): JSX.Element {
@@ -29,6 +31,8 @@ function ProjectWorkspacePage(): JSX.Element {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [mutating, setMutating] = useState(false);
+  const [exampleInfo, setExampleInfo] = useState<ProjectExampleInfo | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   useEffect(() => {
     if (id === undefined) return;
@@ -41,6 +45,15 @@ function ProjectWorkspacePage(): JSX.Element {
         setLoadError((err as { message?: string }).message ?? "Could not load project");
       })
       .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useEffect(() => {
+    if (id === undefined) return;
+    let cancelled = false;
+    getProjectExampleInfo(id)
+      .then((info) => { if (!cancelled) setExampleInfo(info); })
+      .catch(() => { if (!cancelled) setExampleInfo(null); });
     return () => { cancelled = true; };
   }, [id]);
 
@@ -188,10 +201,35 @@ function ProjectWorkspacePage(): JSX.Element {
               <ElementsSection
                 project={project}
                 onOpenElement={(element) => { setWbElement(element); }}
+                onGenerateExamples={project.myRole !== "viewer" && exampleInfo !== null && exampleInfo.elements.length > 0 ? () => { setGenerateOpen(true); } : undefined}
               />
             </div>
           </main>
         )
+      )}
+
+      {generateOpen && project !== null && exampleInfo !== null && (
+        <LoadExampleModal
+          exampleName="project"
+          title="Generate example workbooks"
+          intro={`This will create one example workbook per selected reactor in each covered technical element (${exampleInfo.elements.join(", ")}). If a reserved example workbook such as "IE Workbook 1" already exists in this project, it is repopulated instead, so no duplicates are created.`}
+          confirmLabel="Generate examples"
+          exampleOptions={exampleInfo.options}
+          onCancel={() => { setGenerateOpen(false); }}
+          onConfirm={async (exampleId) => {
+            const result = await generateProjectExamples(project.id, exampleId);
+            const created = result.generated.filter((g) => g.action === "created").length;
+            const repopulated = result.generated.filter((g) => g.action === "repopulated").length;
+            const skipped = result.generated.filter((g) => g.action === "skipped");
+            flashSuccess(`Example workbooks ready: ${String(created)} created, ${String(repopulated)} repopulated`);
+            if (skipped.length > 0) {
+              flashError(`Skipped ${String(skipped.length)}: ${skipped.map((g) => g.workbookName).join(", ")}`);
+            }
+            const refreshed = await getProject(project.id);
+            setProject(refreshed);
+            setGenerateOpen(false);
+          }}
+        />
       )}
 
       {wbElement !== null && project !== null && (

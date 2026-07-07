@@ -399,6 +399,35 @@ export const SC_ANALYSIS_HTGR: SuccessCriteriaDevelopment = {
       implementsSrs: srs("SC-A5"),
     },
     {
+      uuid: "SYS-HPBI",
+      systemId: "SYS-HPBI",
+      description: "Helium boundary isolation",
+      requiredCapacities: [
+        { parameter: "Isolation paths", value: "1 of 2 valves per segment", basis: "ST-CALC-H01" },
+        { parameter: "Isolation deadline", value: "60 min from the leak-detection alarm", basis: "ST-CALC-H01" },
+      ],
+      systemDependencies: [
+        { dependentSystemId: "SYS-DETECT", dependencyNature: "Leak-detection signal for the isolation." },
+        { dependentSystemId: "SYS-1E-DC", dependencyNature: "DC power for the isolation valves." },
+      ],
+      analysisReferences: ["ST-CALC-H01"],
+      overallSuccessCriteriaId: "OSC-DLOFC",
+      implementsSrs: srs("SC-A5"),
+    },
+    {
+      uuid: "SYS-HIC",
+      systemId: "SYS-HIC",
+      description: "Helium inventory and pressure control",
+      requiredCapacities: [
+        { parameter: "Make-up capacity", value: "1 of 1 compressor train", basis: "ST-CALC-H01" },
+        { parameter: "Make-up deadline", value: "180 min against the bounded leak rate", basis: "ST-CALC-H01" },
+      ],
+      systemDependencies: [{ dependentSystemId: "SYS-1E-AC", dependencyNature: "Class 1E AC for the make-up compressor." }],
+      analysisReferences: ["ST-CALC-H01"],
+      overallSuccessCriteriaId: "OSC-DLOFC",
+      implementsSrs: srs("SC-A5"),
+    },
+    {
       uuid: "SYS-RB",
       systemId: "SYS-RB",
       description: "Reactor building isolation and filtration",

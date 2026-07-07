@@ -100,6 +100,7 @@ const rpsEvents: SystemBasicEvent[] = [
   be("RPS-RODB-FR", "Division B control rods fail to insert", "FAILURE_TO_START", 0.0008),
   be("RPS-CCF-FS", "Common cause failure of both divisions", "COMMON_CAUSE_FAILURE", 0.00009),
   be("RPS-ROD-CCF", "Common cause failure of the rod insertion", "COMMON_CAUSE_FAILURE", 0.00004),
+  hfe("RPS-HFE-CAL", "Protection setpoints miscalibrated after surveillance", 0.0011, "HR-PRE-031"),
 ];
 const scsEvents: SystemBasicEvent[] = [
   be("SCS-TRA-FR", "Shutdown-cooling train A circulator fails to run", "FAILURE_TO_RUN", 0.008),
@@ -107,7 +108,7 @@ const scsEvents: SystemBasicEvent[] = [
   be("SCS-HXA-PLG", "Train A shutdown cooler fouled", "FAILURE_TO_RUN", 0.002),
   be("SCS-HXB-PLG", "Train B shutdown cooler fouled", "FAILURE_TO_RUN", 0.002),
   be("SCS-CCF-FR", "Common cause failure of both trains", "COMMON_CAUSE_FAILURE", 0.0004),
-  hfe("SCS-HFE", "Operator fails to start the second shutdown-cooling train", 0.01, "HR-POST-018"),
+  hfe("SCS-HFE", "Operator fails to start the second shutdown-cooling train", 0.0015, "HR-POST-018"),
   tm("SCS-TR-TM", "One shutdown-cooling train in maintenance", 0.004, "Staggered train testing per the design surveillance plan, one train stays available.", true),
 ];
 const rccsEvents: SystemBasicEvent[] = [
@@ -117,20 +118,21 @@ const rccsEvents: SystemBasicEvent[] = [
   be("RCC-DUCT4-BLK", "Duct group 4 air path blocked", "FAILURE_TO_RUN", 0.002),
   be("RCC-CCF-BLK", "Common cause blockage of the duct groups", "COMMON_CAUSE_FAILURE", 0.0002),
   be("RCC-STK-BLK", "Common exhaust stack blocked", "FAILURE_TO_RUN", 0.001),
+  hfe("RCC-HFE-DMP", "Cavity-cooling duct dampers left misaligned after surveillance", 0.0015, "HR-PRE-018"),
 ];
 const sgisoEvents: SystemBasicEvent[] = [
   be("SGI-IVA-FC", "Loop A steam and feedwater isolation fails to close", "FAILURE_TO_START", 0.002),
   be("SGI-IVB-FC", "Loop B steam and feedwater isolation fails to close", "FAILURE_TO_START", 0.002),
   be("SGI-DMP-FO", "Steam-generator dump valve fails to open", "FAILURE_TO_START", 0.0015),
   be("SGI-IV-CCF", "Common cause failure of the isolation valves", "COMMON_CAUSE_FAILURE", 0.00016),
-  hfe("SGI-HFE", "Operator fails to isolate the affected steam generator", 0.012, "HR-POST-022"),
+  hfe("SGI-HFE", "Operator fails to isolate the affected steam generator", 0.0045, "HR-POST-022"),
 ];
 const hpbiEvents: SystemBasicEvent[] = [
   be("HPI-VA-FC", "Segment isolation valve A fails to close", "FAILURE_TO_START", 0.002),
   be("HPI-VB-FC", "Segment isolation valve B fails to close", "FAILURE_TO_START", 0.002),
   be("HPI-VLV-CCF", "Common cause failure of the isolation valves", "COMMON_CAUSE_FAILURE", 0.0002),
   be("HPI-DET-FA", "Leak detection fails to actuate isolation", "FAILURE_TO_START", 0.002),
-  hfe("HPI-HFE", "Operator fails to isolate the leaking helium segment", 0.01, "HR-POST-025"),
+  hfe("HPI-HFE", "Operator fails to isolate the leaking helium segment", 0.005, "HR-POST-025"),
 ];
 const detectEvents: SystemBasicEvent[] = [
   be("DET-PCH-A-FS", "Primary pressure channel A fails", "FAILURE_TO_START", 0.003),
@@ -142,7 +144,7 @@ const hicEvents: SystemBasicEvent[] = [
   be("HIC-CMP-FS", "Helium make-up compressor fails to start", "FAILURE_TO_START", 0.004),
   be("HIC-VLV-FO", "Pressure-control valve fails to open", "FAILURE_TO_START", 0.0015),
   be("HIC-STG-UN", "Helium storage unavailable", "FAILURE_TO_RUN", 0.001),
-  hfe("HIC-HFE", "Operator fails to initiate helium make-up", 0.012, "HR-POST-026"),
+  hfe("HIC-HFE", "Operator fails to initiate helium make-up", 0.006, "HR-POST-026"),
 ];
 const rbEvents: SystemBasicEvent[] = [
   be("RB-DMP-A-FC", "Building isolation damper A fails to close", "FAILURE_TO_START", 0.0025),
@@ -150,7 +152,7 @@ const rbEvents: SystemBasicEvent[] = [
   be("RB-DMP-CCF", "Common cause failure of the isolation dampers", "COMMON_CAUSE_FAILURE", 0.0002),
   be("RB-FLT-FR", "Running filtration train fails to run", "FAILURE_TO_RUN", 0.006),
   be("RB-FLT-B-FS", "Standby filtration train fails to start", "FAILURE_TO_START", 0.003),
-  hfe("RB-HFE", "Operator fails to start the standby filtration train", 0.012, "HR-POST-028"),
+  hfe("RB-HFE", "Operator fails to start the standby filtration train", 0.015, "HR-POST-028"),
 ];
 const acEvents: SystemBasicEvent[] = [
   be("AC-DGA-FS", "Class 1E diesel A fails to start", "FAILURE_TO_START", 0.02),
@@ -166,7 +168,8 @@ const dcEvents: SystemBasicEvent[] = [
   be("DC-CHG-A-FLT", "Charger A fault discharges the bank", "FAILURE_TO_RUN", 0.002),
   be("DC-CHG-B-FLT", "Charger B fault discharges the bank", "FAILURE_TO_RUN", 0.002),
   be("DC-BAT-CCF", "Common cause failure of the station batteries", "COMMON_CAUSE_FAILURE", 0.0003),
-  hfe("DC-HFE-CHG", "Charger left in the wrong mode after maintenance", 0.003, "HR-PRE-009"),
+  hfe("DC-HFE-CHG", "Charger left in the wrong mode after maintenance", 0.005, "HR-PRE-009"),
+  hfe("DC-HFE-BNK", "Both battery banks held off float after equalization", 0.002, "HR-PRE-041"),
   tm("DC-BAT-A-TM", "Battery train A on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
   tm("DC-BAT-B-TM", "Battery train B on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
 ];
@@ -182,6 +185,7 @@ const mmsEvents: SystemBasicEvent[] = [
   be("MMS-MON-A-FS", "Loop A moisture monitor fails", "FAILURE_TO_START", 0.003),
   be("MMS-MON-B-FS", "Loop B moisture monitor fails", "FAILURE_TO_START", 0.003),
   be("MMS-CCF-FS", "Common cause failure of the moisture monitors", "COMMON_CAUSE_FAILURE", 0.0003),
+  hfe("MMS-HFE-CAL", "Moisture monitors miscalibrated after surveillance", 0.0024, "HR-PRE-014"),
 ];
 
 interface SystemSeed {
@@ -274,6 +278,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       ] },
       { id: "be-RPS-CCF-FS", type: "BE", name: "Common cause failure of both divisions", be: "RPS-CCF-FS", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-DIV", prob: "9.0E-5", ccf: true },
       { id: "be-RPS-ROD-CCF", type: "BE", name: "Common cause failure of the rod insertion", be: "RPS-ROD-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-ROD", prob: "4.0E-5", ccf: true },
+      { id: "be-RPS-HFE-CAL", type: "BE", name: "Protection setpoints miscalibrated after surveillance", be: "RPS-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-031", prob: "1.1E-3" },
       { id: "tr-RPS-DC", type: "TR", name: "Loss of Class-1E DC to the trip logic", transfer: "SYS-1E-DC" },
     ],
   },
@@ -290,7 +295,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "be-SCS-HXB-PLG", type: "BE", name: "Train B shutdown cooler fouled", be: "SCS-HXB-PLG", mode: "FAILURE_TO_RUN", source: "DA-BE-207", prob: "2.0E-3" },
       ] },
       { id: "be-SCS-CCF-FR", type: "BE", name: "Common cause failure of both trains", be: "SCS-CCF-FR", mode: "COMMON_CAUSE_FAILURE", source: "CCF-SCS-TRAIN", prob: "4.0E-4", ccf: true },
-      { id: "be-SCS-HFE", type: "BE", name: "Operator fails to start the second train", be: "SCS-HFE", mode: "HUMAN_ERROR", source: "HR-POST-018", prob: "1.0E-2" },
+      { id: "be-SCS-HFE", type: "BE", name: "Operator fails to start the second train", be: "SCS-HFE", mode: "HUMAN_ERROR", source: "HR-POST-018", prob: "1.5E-3" },
       { id: "tr-SCS-AC", type: "TR", name: "Loss of Class-1E AC to the circulators", transfer: "SYS-1E-AC" },
       { id: "tr-SCS-CCW", type: "TR", name: "Loss of cooling water to the shutdown coolers", transfer: "SYS-CCW" },
     ],
@@ -306,6 +311,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       ] },
       { id: "be-RCC-CCF-BLK", type: "BE", name: "Common cause blockage of the duct groups", be: "RCC-CCF-BLK", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RCCS-DUCT", prob: "2.0E-4", ccf: true },
       { id: "be-RCC-STK-BLK", type: "BE", name: "Common exhaust stack blocked", be: "RCC-STK-BLK", mode: "FAILURE_TO_RUN", source: "DA-BE-211", prob: "1.0E-3" },
+      { id: "be-RCC-HFE-DMP", type: "BE", name: "Cavity-cooling duct dampers left misaligned after surveillance", be: "RCC-HFE-DMP", mode: "HUMAN_ERROR", source: "HR-PRE-018", prob: "1.5E-3" },
     ],
   },
   "SYS-SGISO": {
@@ -315,7 +321,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       { id: "be-SGI-IVB-FC", type: "BE", name: "Loop B isolation fails to close", be: "SGI-IVB-FC", mode: "FAILURE_TO_START", source: "DA-BE-213", prob: "2.0E-3" },
       { id: "be-SGI-DMP-FO", type: "BE", name: "Steam-generator dump valve fails to open", be: "SGI-DMP-FO", mode: "FAILURE_TO_START", source: "DA-BE-215", prob: "1.5E-3" },
       { id: "be-SGI-IV-CCF", type: "BE", name: "Common cause failure of the isolation valves", be: "SGI-IV-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-SGISO-IV", prob: "1.6E-4", ccf: true },
-      { id: "be-SGI-HFE", type: "BE", name: "Operator fails to isolate the affected steam generator", be: "SGI-HFE", mode: "HUMAN_ERROR", source: "HR-POST-022", prob: "1.2E-2" },
+      { id: "be-SGI-HFE", type: "BE", name: "Operator fails to isolate the affected steam generator", be: "SGI-HFE", mode: "HUMAN_ERROR", source: "HR-POST-022", prob: "4.5E-3" },
       { id: "tr-SGI-MMS", type: "TR", name: "Loss of the moisture-monitoring isolation signal", transfer: "SYS-MMS" },
       { id: "tr-SGI-DC", type: "TR", name: "Loss of Class-1E DC to the isolation valves", transfer: "SYS-1E-DC" },
     ],
@@ -329,7 +335,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "be-HPI-VB-FC", type: "BE", name: "Isolation valve B fails to close", be: "HPI-VB-FC", mode: "FAILURE_TO_START", source: "DA-BE-219", prob: "2.0E-3" },
       ] },
       { id: "be-HPI-VLV-CCF", type: "BE", name: "Common cause failure of the isolation valves", be: "HPI-VLV-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-HPBI-VLV", prob: "2.0E-4", ccf: true },
-      { id: "be-HPI-HFE", type: "BE", name: "Operator fails to isolate the leaking segment", be: "HPI-HFE", mode: "HUMAN_ERROR", source: "HR-POST-025", prob: "1.0E-2" },
+      { id: "be-HPI-HFE", type: "BE", name: "Operator fails to isolate the leaking segment", be: "HPI-HFE", mode: "HUMAN_ERROR", source: "HR-POST-025", prob: "5.0E-3" },
       { id: "tr-HPI-DC", type: "TR", name: "Loss of Class-1E DC to the isolation valves", transfer: "SYS-1E-DC" },
     ],
   },
@@ -351,7 +357,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       { id: "be-HIC-CMP-FS", type: "BE", name: "Make-up compressor fails to start", be: "HIC-CMP-FS", mode: "FAILURE_TO_START", source: "DA-BE-225", prob: "4.0E-3" },
       { id: "be-HIC-VLV-FO", type: "BE", name: "Pressure-control valve fails to open", be: "HIC-VLV-FO", mode: "FAILURE_TO_START", source: "DA-BE-227", prob: "1.5E-3" },
       { id: "be-HIC-STG-UN", type: "BE", name: "Helium storage unavailable", be: "HIC-STG-UN", mode: "FAILURE_TO_RUN", source: "DA-BE-229", prob: "1.0E-3" },
-      { id: "be-HIC-HFE", type: "BE", name: "Operator fails to initiate helium make-up", be: "HIC-HFE", mode: "HUMAN_ERROR", source: "HR-POST-026", prob: "1.2E-2" },
+      { id: "be-HIC-HFE", type: "BE", name: "Operator fails to initiate helium make-up", be: "HIC-HFE", mode: "HUMAN_ERROR", source: "HR-POST-026", prob: "6.0E-3" },
       { id: "tr-HIC-AC", type: "TR", name: "Loss of Class-1E AC to the compressor", transfer: "SYS-1E-AC" },
     ],
   },
@@ -367,7 +373,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "be-RB-FLT-FR", type: "BE", name: "Running filtration train fails to run", be: "RB-FLT-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-233", prob: "6.0E-3" },
         { id: "RB-FLT-B", type: "OR", name: "Standby filtration train fails", children: [
           { id: "be-RB-FLT-B-FS", type: "BE", name: "Standby filtration train fails to start", be: "RB-FLT-B-FS", mode: "FAILURE_TO_START", source: "DA-BE-235", prob: "3.0E-3" },
-          { id: "be-RB-HFE", type: "BE", name: "Operator fails to start the standby train", be: "RB-HFE", mode: "HUMAN_ERROR", source: "HR-POST-028", prob: "1.2E-2" },
+          { id: "be-RB-HFE", type: "BE", name: "Operator fails to start the standby train", be: "RB-HFE", mode: "HUMAN_ERROR", source: "HR-POST-028", prob: "1.5E-2" },
         ] },
       ] },
       { id: "tr-RB-DC", type: "TR", name: "Loss of Class-1E DC to the isolation signal", transfer: "SYS-1E-DC" },
@@ -398,7 +404,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "DC-TRA", type: "OR", name: "Train A fails to supply", children: [
           { id: "be-DC-BAT-A-FR", type: "BE", name: "Battery train A fails to run", be: "DC-BAT-A-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-241", prob: "6.0E-3" },
           { id: "be-DC-CHG-A-FLT", type: "BE", name: "Charger A fault discharges the bank", be: "DC-CHG-A-FLT", mode: "FAILURE_TO_RUN", source: "DA-BE-243", prob: "2.0E-3" },
-          { id: "be-DC-HFE-CHG", type: "BE", name: "Charger left in the wrong mode after maintenance", be: "DC-HFE-CHG", mode: "HUMAN_ERROR", source: "HR-PRE-009", prob: "3.0E-3" },
+          { id: "be-DC-HFE-CHG", type: "BE", name: "Charger left in the wrong mode after maintenance", be: "DC-HFE-CHG", mode: "HUMAN_ERROR", source: "HR-PRE-009", prob: "5.0E-3" },
           { id: "be-DC-BAT-A-TM", type: "BE", name: "Battery train A on equalize charge", be: "DC-BAT-A-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-13", prob: "2.5E-3" },
         ] },
         { id: "DC-TRB", type: "OR", name: "Train B fails to supply", children: [
@@ -408,6 +414,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         ] },
       ] },
       { id: "be-DC-BAT-CCF", type: "BE", name: "Common cause failure of the station batteries", be: "DC-BAT-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DC-BATT", prob: "3.0E-4", ccf: true },
+      { id: "be-DC-HFE-BNK", type: "BE", name: "Both battery banks held off float after equalization", be: "DC-HFE-BNK", mode: "HUMAN_ERROR", source: "HR-PRE-041", prob: "2.0E-3" },
     ],
   },
   "SYS-CCW": {
@@ -436,6 +443,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "be-MMS-MON-B-FS", type: "BE", name: "Loop B moisture monitor fails", be: "MMS-MON-B-FS", mode: "FAILURE_TO_START", source: "DA-BE-249", prob: "3.0E-3" },
       ] },
       { id: "be-MMS-CCF-FS", type: "BE", name: "Common cause failure of the moisture monitors", be: "MMS-CCF-FS", mode: "COMMON_CAUSE_FAILURE", source: "CCF-MMS-MON", prob: "3.0E-4", ccf: true },
+      { id: "be-MMS-HFE-CAL", type: "BE", name: "Moisture monitors miscalibrated after surveillance", be: "MMS-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-014", prob: "2.4E-3" },
       { id: "tr-MMS-DC", type: "TR", name: "Loss of Class-1E DC to the monitors", transfer: "SYS-1E-DC" },
     ],
   },
@@ -544,6 +552,10 @@ const humanFailureEventIntegrations = [
   { id: "HFE-4", system: "SYS-HIC", ref: "HR-POST-026", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to initiate helium make-up.", srs: ["SY-A23"] },
   { id: "HFE-5", system: "SYS-RB", ref: "HR-POST-028", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start the standby filtration train.", srs: ["SY-A23"] },
   { id: "HFE-6", system: "SYS-1E-DC", ref: "HR-PRE-009", type: "PRE_INITIATOR" as const, tm: true, task: "Battery charger left in the wrong mode after maintenance.", srs: ["SY-A21"] },
+  { id: "HFE-7", system: "SYS-MMS", ref: "HR-PRE-014", type: "PRE_INITIATOR" as const, tm: true, task: "Moisture monitors miscalibrated after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-8", system: "SYS-RPS", ref: "HR-PRE-031", type: "PRE_INITIATOR" as const, tm: true, task: "Protection setpoints miscalibrated after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-9", system: "SYS-RCCS", ref: "HR-PRE-018", type: "PRE_INITIATOR" as const, tm: true, task: "Cavity-cooling duct dampers left misaligned after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-10", system: "SYS-1E-DC", ref: "HR-PRE-041", type: "PRE_INITIATOR" as const, tm: true, task: "Both battery banks held off float after equalization.", srs: ["SY-A21"] },
 ].map((h) => ({
   uuid: h.id,
   hfeReference: h.ref,

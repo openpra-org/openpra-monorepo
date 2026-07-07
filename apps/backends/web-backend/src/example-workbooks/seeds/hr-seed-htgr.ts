@@ -17,10 +17,10 @@ function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
 }
 
-const WARN_SRS = new Set<string>(["HR-A6", "HR-G8", "HR-G12", "HR-H2"]);
+const WARN_SRS = new Set<string>(["HR-A6", "HR-G8", "HR-H2"]);
 
 const SR_EVIDENCE: Record<string, string> = {
-  "HR-A7": "Operator contributions included in four support-system initiator fault trees.",
+  "HR-A7": "Operator contributions included in five support-system initiator fault trees.",
   "HR-A6": "Diverse-system reach of the RPS setpoint calibration under review.",
   "HR-B1": "Pre-initiator events screened with screening-grade criteria per state, one screened out.",
   "HR-B3": "Multi-train work practices protected from screening and carried as defined events.",
@@ -28,7 +28,7 @@ const SR_EVIDENCE: Record<string, string> = {
   "HR-E4": "Every response action identified across procedure, planned-procedure, training and operational-event reviews, including two aggravating actions.",
   "HR-G8": "Simulator runs for the required time of the shutdown-cooling start action pending.",
   "HR-G11": "Joint probability floor defined and justified.",
-  "HR-G12": "Within-sequence dependence for one sequence still open.",
+  "HR-G12": "Within-sequence dependence assessed for the leak and the loss-of-forced-cooling sequences, with the recovery couplings carried explicitly.",
   "HR-H2": "Feasibility of two recovery actions open against the as-built plant.",
 };
 
@@ -98,6 +98,7 @@ const supportSystemInitiatorOperatorContributions = [
   { id: "SIC-2", system: "SYS-1E-AC", ft: "IE-27" },
   { id: "SIC-3", system: "SYS-CCW", ft: "IE-31" },
   { id: "SIC-4", system: "SYS-HIC", ft: "IE-40" },
+  { id: "SIC-5", system: "SYS-1E-DC", ft: "IE-30" },
 ].map((s) => ({
   uuid: s.id,
   systemReference: s.system,
@@ -133,14 +134,22 @@ const preHfes: HumanFailureEvent[] = [
 }));
 
 const postHfes: HumanFailureEvent[] = [
-  { id: "HR-POST-018", systems: ["SYS-SCS"], name: "Fails to start the second shutdown-cooling train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "FUNCTION", sc: ["HAC-H1", "SYS-SCS"], proc: ["LOFC procedure step 8"], cue: "Loss-of-forced-cooling alarm with rising core-outlet temperature.", timing2: [{ state: "POS-07", cue: 10, window: 1980, basis: "Very wide window from graphite thermal inertia, 33 h at the median (HAC-H1)." }, { state: "POS-01", cue: 10, window: 1980, basis: "Wide window at power from graphite thermal inertia." }], es: "ESF-LATE", note: "The headline response action for a loss of forced cooling, demonstrated by talk-through and simulator.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-020", systems: ["SYS-MMS"], name: "Fails to diagnose primary-coolant moisture ingress", timing: "POST_INITIATOR", respType: "CONTROL", impact: "SYSTEM", sc: [], proc: ["Moisture-ingress procedure step 2"], cue: "Primary-coolant moisture-monitor alarm.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Short diagnosis window before committing to isolation." }], es: "ESF-LEAK", note: "The moisture-ingress diagnosis the isolation action depends on, coupled within the sequence.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-022", systems: ["SYS-SGISO"], name: "Fails to isolate and dump the affected steam generator", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["HAC-H2", "SYS-SGISO"], proc: ["Moisture-ingress procedure step 5"], cue: "Primary-coolant moisture-monitor alarm with confirmed ingress.", timing2: [{ state: "POS-01", cue: 5, window: 120, basis: "Isolation before the graphite-oxidation bound, 2 h from the alarm (HAC-H2)." }], es: "ESF-LEAK", note: "Isolate and dump the affected steam generator on a moisture alarm, grouped with the helium-boundary isolation.", srs: ["HR-F1", "HR-F3", "HR-F4"] },
-  { id: "HR-AG-001", systems: ["SYS-SCS"], name: "Trips a running shutdown-cooling train in error", timing: "POST_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "TRAIN", sc: [], proc: ["LOFC procedure caution note"], cue: "Misread train indication during the response.", timing2: [{ state: "POS-07", cue: null, window: null, basis: "Action that worsens the sequence, not a recovery." }], es: "ESF-LATE", note: "An action that trips the running cooling train and worsens the sequence is in scope, not only failure to help.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-AT-003", systems: ["SYS-SCS"], name: "Operator inadvertent trip of the operating forced-cooling train", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Forced-cooling maneuver work order"], cue: "Error during a forced-cooling train maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE loss-of-forced-cooling initiator.", srs: ["HR-F1"] },
-  { id: "HR-POST-025", systems: ["SYS-HPBI"], name: "Fails to isolate the leaking helium segment", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-HPBI"], proc: ["Depressurization isolation procedure step 4"], cue: "Depressurization and leak-detection alarm with falling pressure.", timing2: [{ state: "POS-01", cue: 12, window: 60, basis: "Realistic pressure transient from the depressurization analysis." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the helium-boundary isolation model (SYS-HPBI).", srs: ["HR-F1", "HR-F3", "HR-F4"] },
-  { id: "HR-POST-026", systems: ["SYS-HIC"], name: "Fails to initiate helium make-up", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-HIC"], proc: ["Helium make-up procedure step 3"], cue: "Falling helium pressure after a confirmed leak.", timing2: [{ state: "POS-01", cue: 20, window: 180, basis: "Long make-up window against the bounded leak rate." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the helium inventory and pressure control model (SYS-HIC).", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-028", systems: ["SYS-RB"], name: "Fails to start the standby reactor-building filtration train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-RB"], proc: ["Confinement filtration procedure step 2"], cue: "Reactor-building activity alarm after a release.", timing2: [{ state: "POS-01", cue: 15, window: 120, basis: "Slow reactor-building activity build-up." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the reactor-building filtration model (SYS-RB).", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-018", systems: ["SYS-SCS"], name: "Fails to start the second shutdown-cooling train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "FUNCTION", sc: ["HAC-H1", "SYS-SCS"], proc: ["LOFC procedure step 8"], cue: "Loss-of-forced-cooling alarm with rising core-outlet temperature.", timing2: [{ state: "POS-07", cue: 10, window: 1980, basis: "Very wide window from graphite thermal inertia, 33 h at the median (HAC-H1)." }, { state: "POS-01", cue: 10, window: 1980, basis: "Wide window at power from graphite thermal inertia." }, { state: "POS-02", cue: 10, window: 1800, basis: "Wide window in reduced and experimental power (ET-PLOFC-P02, ET-HLOOP-P02)." }, { state: "POS-03", cue: 10, window: 1900, basis: "Hot standby window from graphite thermal inertia (ET-PLOFC-P03, ET-HTOP-P03)." }, { state: "POS-04", cue: 10, window: 2100, basis: "Second-train start window in forced cooldown (ET-SCSL-P04)." }, { state: "POS-05", cue: 12, window: 2600, basis: "Cold-shutdown window at low decay heat (ET-SCSL-P05, ET-SFC-P05)." }, { state: "POS-06", cue: 12, window: 2800, basis: "Refuelling window at low decay heat (ET-LODC-P06, ET-SFC-P06)." }, { state: "POS-09", cue: 15, window: 3000, basis: "Widest window at the lowest decay heat with the primary depressurised (ET-SCSL-P09)." }], es: "ESF-LATE", note: "The headline response action for a loss of forced cooling, demonstrated by talk-through and simulator, carried as HFE-H1 in the Event Sequence action windows and the Success Criteria.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-020", systems: ["SYS-MMS"], name: "Fails to diagnose primary-coolant moisture ingress", timing: "POST_INITIATOR", respType: "CONTROL", impact: "SYSTEM", sc: ["HAC-H2"], proc: ["Moisture-ingress procedure step 2"], cue: "Primary-coolant moisture-monitor alarm.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Short diagnosis window before committing to isolation." }, { state: "POS-02", cue: 5, window: 30, basis: "Diagnosis window in reduced and experimental power (ET-SMI-P02)." }, { state: "POS-03", cue: 5, window: 32, basis: "Diagnosis window in hot standby (ET-SMI-P03)." }, { state: "POS-04", cue: 6, window: 35, basis: "Diagnosis window in forced cooldown (ET-SMI-P04, ET-HSGTR-P04)." }, { state: "POS-05", cue: 6, window: 40, basis: "Diagnosis window in cold shutdown (ET-HSGTR-P05)." }], es: "ESF-LEAK", note: "The moisture-ingress diagnosis the isolation action depends on, coupled within the sequence and sharing the HAC-H2 window.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-022", systems: ["SYS-SGISO"], name: "Fails to isolate and dump the affected steam generator", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["HAC-H2", "SYS-SGISO"], proc: ["Moisture-ingress procedure step 5"], cue: "Primary-coolant moisture-monitor alarm with confirmed ingress.", timing2: [{ state: "POS-01", cue: 5, window: 120, basis: "Isolation before the graphite-oxidation bound, 2 h from the alarm (HAC-H2)." }, { state: "POS-02", cue: 5, window: 120, basis: "Isolation window in reduced and experimental power (ET-SMI-P02, ET-HSGTR-P02)." }, { state: "POS-03", cue: 5, window: 125, basis: "Isolation window in hot standby (ET-SMI-P03, ET-LSGTR-P03)." }, { state: "POS-04", cue: 6, window: 135, basis: "Isolation window in forced cooldown (ET-HSGTR-P04, ET-LSGTR-P04)." }, { state: "POS-05", cue: 6, window: 150, basis: "Isolation window in cold shutdown (ET-HSGTR-P05)." }], es: "ESF-LEAK", note: "Isolate and dump the affected steam generator on a moisture alarm, grouped with the helium-boundary isolation and carried as HFE-H2 in the Event Sequence action windows and the Success Criteria.", srs: ["HR-F1", "HR-F3", "HR-F4"] },
+  { id: "HR-AG-001", systems: ["SYS-SCS"], name: "Trips a running shutdown-cooling train in error", timing: "POST_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "TRAIN", sc: [], proc: ["LOFC procedure caution note"], cue: "Misread train indication during the response.", timing2: [{ state: "POS-07", cue: null, window: null, basis: "Action that worsens the sequence, not a recovery." }, { state: "POS-01", cue: null, window: null, basis: "The same wrong-train action during the at-power response (ET-PLOFC)." }], es: "ESF-LATE", note: "An action that trips the running cooling train and worsens the sequence is in scope, not only failure to help.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-AT-003", systems: ["SYS-SCS"], name: "Operator inadvertent trip of the operating forced-cooling train", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Forced-cooling maneuver work order"], cue: "Error during a forced-cooling train maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }, { state: "POS-04", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }, { state: "POS-07", cue: null, window: null, basis: "Human-caused loss-of-forced-cooling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE loss-of-forced-cooling initiator.", srs: ["HR-F1"] },
+  { id: "HR-AT-004", systems: ["SYS-HIC"], name: "Operator inadvertent depressurization during shutdown maintenance", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Maintenance vent line-up work order"], cue: "Error during a vent or relief line-up in shutdown.", timing2: [{ state: "POS-04", cue: null, window: null, basis: "Human-caused depressurization initiator quantified here and supplied to IE." }, { state: "POS-05", cue: null, window: null, basis: "Human-caused depressurization initiator quantified here and supplied to IE." }, { state: "POS-08", cue: null, window: null, basis: "Human-caused depressurization initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE maintenance depressurization initiator and the shutdown depressurization trees.", srs: ["HR-F1"] },
+  { id: "HR-AT-005", systems: ["SYS-SGISO"], name: "Operator secondary mis-line-up causing moisture ingress", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Secondary line-up work order"], cue: "Error during a steam-generator or secondary line-up.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused moisture-ingress initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused moisture-ingress initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused moisture-ingress initiator quantified here and supplied to IE." }, { state: "POS-04", cue: null, window: null, basis: "Human-caused moisture-ingress initiator quantified here and supplied to IE." }, { state: "POS-05", cue: null, window: null, basis: "Human-caused moisture-ingress initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE operator-caused moisture-ingress initiator.", srs: ["HR-F1"] },
+  { id: "HR-AT-006", systems: ["SYS-RB"], name: "Operator fuel-handling mis-positioning during refuelling", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Refuelling line-up work order"], cue: "Error during a fuel-handling or refuelling line-up step.", timing2: [{ state: "POS-06", cue: null, window: null, basis: "Human-caused refuelling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator refuelling moment, connected to the IE fuel-handling initiator.", srs: ["HR-F1"] },
+  { id: "HR-AT-007", systems: ["SYS-RPS"], name: "Erroneous control rod withdrawal at power", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Rod maneuver procedure"], cue: "Error during a rod or rod-group maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator rod-withdrawal moment, connected to the IE erroneous-withdrawal initiator, terminated by the protection system and the negative temperature feedback.", srs: ["HR-F1"] },
+  { id: "HR-AT-008", systems: ["SYS-RPS"], name: "Erroneous shutdown-margin line-up during startup", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Startup line-up procedure"], cue: "Error during a startup rod or reserve-shutdown line-up.", timing2: [{ state: "POS-03", cue: null, window: null, basis: "Human-caused startup reactivity initiator quantified here and supplied to IE." }, { state: "POS-05", cue: null, window: null, basis: "Human-caused startup reactivity initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator startup mis-positioning moment, connected to the IE startup reactivity initiator.", srs: ["HR-F1"] },
+  { id: "HR-AT-009", systems: ["SYS-SGISO"], name: "Operator-induced overcooling transient", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Secondary flow-control procedure"], cue: "Error during a secondary flow or feedwater maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused overcooling initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused overcooling initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused overcooling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator overcooling moment, connected to the IE operator-induced overcooling initiator.", srs: ["HR-F1"] },
+  { id: "HR-POST-025", systems: ["SYS-HPBI"], name: "Fails to isolate the leaking helium segment", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-HPBI"], proc: ["Depressurization isolation procedure step 4"], cue: "Depressurization and leak-detection alarm with falling pressure.", timing2: [{ state: "POS-01", cue: 12, window: 60, basis: "Realistic pressure transient from the depressurization analysis." }, { state: "POS-02", cue: 12, window: 60, basis: "Small-leak isolation window in reduced and experimental power (ET-SHEL-P02)." }, { state: "POS-03", cue: 12, window: 65, basis: "Small-leak isolation window in hot standby (ET-SHEL-P03)." }, { state: "POS-04", cue: 12, window: 70, basis: "Isolation window in forced cooldown (ET-SHEL-P04)." }, { state: "POS-05", cue: 14, window: 80, basis: "Isolation window in cold shutdown (ET-SHEL-P05)." }, { state: "POS-06", cue: 14, window: 90, basis: "Interfacing-release isolation during refuelling (ET-IFR-P06)." }, { state: "POS-08", cue: 12, window: 60, basis: "Isolation window with the shutdown-cooling train out of service (ET-SHEL-P08)." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the helium-boundary isolation model (SYS-HPBI).", srs: ["HR-F1", "HR-F3", "HR-F4"] },
+  { id: "HR-POST-026", systems: ["SYS-HIC"], name: "Fails to initiate helium make-up", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-HIC"], proc: ["Helium make-up procedure step 3"], cue: "Falling helium pressure after a confirmed leak.", timing2: [{ state: "POS-01", cue: 20, window: 180, basis: "Long make-up window against the bounded leak rate." }, { state: "POS-02", cue: 20, window: 180, basis: "Make-up window in reduced and experimental power (ET-HINV-P02)." }, { state: "POS-03", cue: 20, window: 190, basis: "Make-up window in hot standby (ET-HINV-P03)." }, { state: "POS-04", cue: 22, window: 200, basis: "Make-up window after a shutdown depressurization (ET-HINV-P04, ET-ODEP-P04)." }, { state: "POS-05", cue: 24, window: 220, basis: "Make-up window in cold shutdown (ET-HINV-P05, ET-ODEP-P05)." }, { state: "POS-08", cue: 22, window: 200, basis: "Make-up window with the shutdown-cooling train out of service (ET-HINV-P08, ET-ODEP-P08)." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the helium inventory and pressure control model (SYS-HIC).", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-028", systems: ["SYS-RB"], name: "Fails to start the standby reactor-building filtration train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-RB"], proc: ["Confinement filtration procedure step 2"], cue: "Reactor-building activity alarm after a release.", timing2: [{ state: "POS-01", cue: 15, window: 120, basis: "Slow reactor-building activity build-up." }], es: "ESF-LEAK", note: "Placed by Systems Analysis as the standby-train start inside the reactor-building filtration model (SYS-RB), backing the automatic alignment credited in the Event Sequence confinement function.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-030", systems: ["SYS-DETECT"], name: "Fails to detect and stop the inadvertent depressurization", timing: "POST_INITIATOR", respType: "TERMINATE", impact: "SYSTEM", sc: [], proc: ["Depressurization response procedure step 1"], cue: "Depressurization and leak-detection alarm during shutdown maintenance.", timing2: [{ state: "POS-04", cue: 3, window: 20, basis: "Detect and stop the maintenance depressurization before the inventory loss propagates (ET-ODEP-P04)." }, { state: "POS-05", cue: 3, window: 20, basis: "Detect-and-stop window in cold shutdown (ET-ODEP-P05)." }, { state: "POS-08", cue: 3, window: 15, basis: "Shortest window with the shutdown-cooling train out of service (ET-ODEP-P08)." }, { state: "POS-06", cue: 2, window: 10, basis: "Detect and stop the fuel-handling release (ET-FHE-P06)." }], es: "ESF-LEAK", note: "Detect the depressurization on the monitors and stop the source, the detect-and-stop branch of the shutdown depressurization trees.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-032", systems: ["SYS-SCS"], name: "Fails to isolate the shutdown-cooling heat-exchanger water ingress", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-SCS"], proc: ["SCS water-ingress procedure step 3"], cue: "Moisture alarm with the shutdown-cooling system in service.", timing2: [{ state: "POS-04", cue: 6, window: 90, basis: "Water-ingress isolation in forced cooldown (ET-SCSI-P04)." }, { state: "POS-05", cue: 6, window: 100, basis: "Water-ingress isolation in cold shutdown (ET-SCSI-P05)." }, { state: "POS-06", cue: 8, window: 110, basis: "Water-ingress isolation during refuelling (ET-SCSI-P06)." }, { state: "POS-08", cue: 6, window: 90, basis: "Water-ingress isolation in the maintenance state (ET-SCSI-P08)." }], es: "ESF-LEAK", note: "Isolate the shutdown-cooling heat exchanger on a moisture alarm in the shutdown states, the isolation branch of the SCS water-ingress trees.", srs: ["HR-F1", "HR-F4"] },
 ].map((h) => ({
   uuid: h.id,
   name: h.name,
@@ -150,7 +159,7 @@ const postHfes: HumanFailureEvent[] = [
   affectedSystems: h.systems,
   applicablePlantOperatingStates: h.timing2.map((t) => t.state),
   applicableEventSequences: h.es !== null ? [h.es] : [],
-  applicableInitiatingEvents: h.id === "HR-AT-003" ? ["IE-46"] : undefined,
+  applicableInitiatingEvents: h.id === "HR-AT-003" ? ["IE-46"] : h.id === "HR-AT-004" ? ["IE-43"] : h.id === "HR-AT-005" ? ["IE-47"] : h.id === "HR-AT-006" ? ["IE-44"] : h.id === "HR-AT-007" ? ["IE-41"] : h.id === "HR-AT-008" ? ["IE-42"] : h.id === "HR-AT-009" ? ["IE-45"] : undefined,
   groupedResponses: h.id === "HR-POST-022" ? ["HR-POST-025"] : undefined,
   crossPosGroupingBasis: h.id === "HR-POST-022" ? "EQUIVALENT_BOUNDARY_CONDITIONS" : undefined,
   groupingJustification: h.id === "HR-POST-022" ? "The steam-generator isolation and the helium-boundary isolation share equivalent boundary conditions in the leak sequence, so they are grouped where the conditions match." : undefined,
@@ -174,10 +183,10 @@ const postHfes: HumanFailureEvent[] = [
 const humanFailureEvents = [...preHfes, ...postHfes];
 
 const responseIdentificationReviews = [
-  { id: "RR-1", scope: "EMERGENCY_AND_ABNORMAL_PROCEDURES", date: "2026-04-24", sources: ["Emergency operating procedures", "Abnormal operating procedures", "Annunciator response procedures"], findings: "Found the actions to start the second shutdown-cooling train, diagnose and isolate a primary-coolant moisture ingress, isolate a leaking helium segment, initiate helium make-up, and start the standby filtration train.", hfes: ["HR-POST-018", "HR-POST-020", "HR-POST-022", "HR-POST-025", "HR-POST-026", "HR-POST-028"], srs: ["HR-E1", "HR-E4"] },
+  { id: "RR-1", scope: "EMERGENCY_AND_ABNORMAL_PROCEDURES", date: "2026-04-24", sources: ["Emergency operating procedures", "Abnormal operating procedures", "Annunciator response procedures"], findings: "Found the actions to start the second shutdown-cooling train, diagnose and isolate a primary-coolant moisture ingress, isolate a leaking helium segment, isolate the shutdown-cooling heat-exchanger ingress, detect and stop an inadvertent depressurization, initiate helium make-up, and start the standby filtration train.", hfes: ["HR-POST-018", "HR-POST-020", "HR-POST-022", "HR-POST-025", "HR-POST-032", "HR-POST-030", "HR-POST-026", "HR-POST-028"], srs: ["HR-E1", "HR-E4"] },
   { id: "RR-2", scope: "TRAINING_MATERIALS", date: "2026-04-25", sources: ["Operator training program", "Simulator scenario set"], findings: "Found the diagnosis cues and the isolation action for a moisture ingress.", hfes: ["HR-POST-020", "HR-POST-022"], srs: ["HR-E1", "HR-E4"] },
   { id: "RR-3", scope: "NONNUCLEAR_FACILITY_EXPERIENCE", date: "2026-04-25", sources: ["Gas-facility operating records", "Chemical plant control-room studies"], findings: "Borrowed diagnosis and execution evidence where the operating crew does not yet exist.", hfes: ["HR-POST-018"], srs: ["HR-E3"] },
-  { id: "RR-4", scope: "OPERATIONAL_EVENTS", date: "2026-04-26", sources: ["Research reactor operating events", "Gas-facility upset reports", "Maintenance work-order history"], findings: "Identified two aggravating actions: an operator trips a running cooling train in error, and a maintenance error trips the operating forced-cooling train.", hfes: ["HR-AG-001", "HR-AT-003"], srs: ["HR-E4"] },
+  { id: "RR-4", scope: "OPERATIONAL_EVENTS", date: "2026-04-26", sources: ["Research reactor operating events", "Gas-facility upset reports", "Maintenance work-order history"], findings: "Identified the aggravating and operator-caused at-initiator actions: the wrong-train trip during a response, the operator trip of the operating forced-cooling train during a maneuver, the shutdown depressurization, the secondary mis-line-up moisture ingress, the fuel-handling mis-positioning, the erroneous rod withdrawal, the startup mis-positioning, and the operator-induced overcooling.", hfes: ["HR-AG-001", "HR-AT-003", "HR-AT-004", "HR-AT-005", "HR-AT-006", "HR-AT-007", "HR-AT-008", "HR-AT-009"], srs: ["HR-E4"] },
   { id: "RR-5", scope: "PLANNED_PROCEDURES_AND_OPERATIONAL_APPROACH", date: "2026-04-24", sources: ["Draft emergency operating procedures", "Draft abnormal operating procedures", "Operational-approach description"], findings: "Confirmed from the planned procedures that the shutdown-cooling start and leak-isolation actions are the primary operator responses for the modeled sequences.", hfes: ["HR-POST-018", "HR-POST-025"], srs: ["HR-E1", "HR-E9"] },
 ].map((r) => ({
   uuid: r.id,
@@ -193,7 +202,8 @@ const responseConfirmations = [
   { id: "CF-1", hfes: ["HR-POST-018", "HR-POST-020", "HR-POST-022"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Training instructor"], date: "2026-04-28", findings: "The action interpretation is consistent with operations and training intent.", srs: ["HR-E5"] },
   { id: "CF-2", hfes: ["HR-POST-018", "HR-POST-020", "HR-POST-022"], method: "TALK_THROUGH", roles: ["Reactor operator", "Human factors analyst"], date: "2026-05-01", findings: "Walked the shutdown-cooling start and the moisture isolation actions step by step against the event sequence.", srs: ["HR-E7"] },
   { id: "CF-3", hfes: ["HR-POST-018"], method: "SIMULATION_OBSERVATION", roles: ["Crew of two", "Observer"], date: "2026-05-04", findings: "Observed the diagnosis and the execution on the engineering simulator.", srs: ["HR-E7", "HR-G8"] },
-  { id: "CF-4", hfes: ["HR-AT-003"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Maintenance lead"], date: "2026-04-29", findings: "Reviewed the maintenance-caused forced-cooling trip against the work-control practice and the support-system initiator model.", srs: ["HR-E5"] },
+  { id: "CF-4", hfes: ["HR-AT-003"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Maintenance lead"], date: "2026-04-29", findings: "Reviewed the operator-caused forced-cooling trip against the work-control practice and the support-system initiator model.", srs: ["HR-E5"] },
+  { id: "CF-5", hfes: ["HR-AT-003"], method: "TALK_THROUGH", roles: ["Reactor operator", "Human factors analyst"], date: "2026-05-02", findings: "Walked the forced-cooling maneuver step by step to confirm the at-initiator moment and its recovery path.", srs: ["HR-E7"] },
 ].map((c) => ({
   uuid: c.id,
   hfeIds: c.hfes,
@@ -231,6 +241,8 @@ const postQuant: HepQuantification[] = [
   { id: "HR-POST-022", methodology: "Detailed analysis of a short-window isolation action.", type: "DETAILED_ASSESSMENT", rs: true, cog: 3.0e-3, exe: 1.5e-3, mean: 4.5e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 120, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 5, req: 20, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Moderate window before the oxidation bound.", impact: "NEUTRAL" }, { factor: "Accessibility", evaluation: "Local action in a normal-access area.", impact: "NEUTRAL" }], unc: "Lognormal with an error factor of 5, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G8", "HR-G14"] },
   { id: "HR-POST-025", methodology: "Detailed analysis of a short-window isolation action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 3.5e-3, exe: 1.5e-3, mean: 5.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 60, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 12, req: 22, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Adequate window against the required time.", impact: "DECREASE" }, { factor: "Accessibility", evaluation: "Local isolation valves in a normal-access area.", impact: "NEUTRAL" }], unc: "Lognormal with an error factor of 5.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
   { id: "HR-POST-026", methodology: "Detailed analysis of a long-window make-up action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 4.0e-3, exe: 2.0e-3, mean: 6.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 180, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 20, req: 30, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 5.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
+  { id: "HR-POST-030", methodology: "Detailed analysis of a short-window detect-and-stop action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 8.0e-3, exe: 4.0e-3, mean: 1.2e-2, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 20, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 3, req: 10, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Short detection window against the required time.", impact: "INCREASE" }, { factor: "Human-system interface", evaluation: "Clear leak-detection alarm.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 5.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
+  { id: "HR-POST-032", methodology: "Detailed analysis of a shutdown water-ingress isolation action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 4.0e-3, exe: 2.0e-3, mean: 6.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 90, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 6, req: 25, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Adequate window against the required time.", impact: "DECREASE" }, { factor: "Workload", evaluation: "Shutdown maintenance activity in the area.", impact: "INCREASE" }], unc: "Lognormal with an error factor of 5.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
   { id: "HR-POST-028", methodology: "Conservative screening value for a slow filtration action.", type: "CONSERVATIVE_ESTIMATE", rs: false, cog: 1.0e-2, exe: 5.0e-3, mean: null, point: 1.5e-2, ind: "ASSUMED_AVAILABLE", avail: 120, availBasis: "GENERIC_STUDY", cueArr: 15, req: 30, reqBasis: "ESTIMATED", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G3", "HR-G5", "HR-G7"] },
 ].map((q) => ({
   uuid: `HEPQ-${q.id}`,
@@ -256,6 +268,12 @@ const postQuant: HepQuantification[] = [
 
 const specialQuant: HepQuantification[] = [
   { id: "HR-AT-003", methodology: "Human-error-probability times demand for the operator-caused loss of forced cooling, supplied to Initiating Events (IE-A5).", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 3.0e-3, factors: ["Forced-cooling maneuver work order without independent verification", "Diverse cooling alignment provides partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE loss-of-forced-cooling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-004", methodology: "Human-error-probability times demand for the operator-caused shutdown depressurization, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Vent line-up under a maintenance work order", "Leak detection provides a short recovery path"], unc: "Lognormal with an error factor of 5, supplied to the IE maintenance depressurization initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-005", methodology: "Human-error-probability times demand for the operator secondary mis-line-up, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 1.5e-3, factors: ["Secondary line-up under procedure", "Moisture monitors provide the detection backstop"], unc: "Lognormal with an error factor of 5, supplied to the IE operator-caused moisture-ingress initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-006", methodology: "Human-error-probability times demand for the refuelling mis-positioning, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 1.0e-3, factors: ["Refuelling line-up under independent verification", "Fuel-handling interlocks provide partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE fuel-handling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-007", methodology: "Human-error-probability times demand for the erroneous rod withdrawal, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Rod maneuver under procedure", "Protection system and temperature feedback terminate the withdrawal"], unc: "Lognormal with an error factor of 5, supplied to the IE erroneous-withdrawal initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-008", methodology: "Human-error-probability times demand for the startup mis-positioning, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 1.5e-3, factors: ["Startup line-up under independent verification", "Startup interlocks provide partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE startup reactivity initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-009", methodology: "Human-error-probability times demand for the operator-induced overcooling, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Secondary flow maneuver under procedure", "Reactor trip provides partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE operator-induced overcooling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
   { id: "HR-AG-001", methodology: "Conservative screening value for an aggravating action that trips a running cooling train in error.", type: "CONSERVATIVE_ESTIMATE", rs: false, point: 1.0e-2, mean: null, factors: ["Clear train indication", "Caution note in the procedure"], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G5"] },
 ].map((q) => ({
   uuid: `HEPQ-${q.id}`,
@@ -271,8 +289,8 @@ const specialQuant: HepQuantification[] = [
 }));
 
 const recoveryQuant: HepQuantification[] = [
-  { id: "REC-Q-1", hfe: "HR-POST-018", methodology: "Detailed recovery credit for restarting shutdown cooling from the remote panel.", mean: 8.0e-2, unc: "Lognormal with an error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
-  { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for restarting the forced-cooling train, held to the joint floor for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, dependence held at the HR-G13 floor.", srs: ["HR-H4", "HR-H5"] },
+  { id: "REC-Q-1", hfe: "HR-POST-018", methodology: "Detailed recovery credit for restarting shutdown cooling from the remote panel, with the restoration-time basis from Data Analysis RP-1 (48 h identification-to-restoration).", mean: 8.0e-2, unc: "Lognormal with an error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
+  { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for restarting the forced-cooling train, with high dependence carried explicitly for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, high dependence on the self-caused loss carried in DEP-2.", srs: ["HR-H4", "HR-H5"] },
   { id: "REC-Q-3", hfe: "HR-PRE-022", methodology: "Recovery credit for re-aligning a misaligned shutdown-cooling train during the event.", mean: 1.5e-1, unc: "Point recovery value, local access under review.", srs: ["HR-H4"] },
 ].map((q) => ({
   uuid: q.id,
@@ -333,20 +351,70 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     eventSequenceId: "ESF-LATE",
     commonElements: ["Same operator", "Same forced-cooling maneuver", "Recovery of a self-caused loss"],
     dependenceLevel: "HIGH",
-    jointHep: 1.0e-5,
-    belowFloor: true,
-    floorAppliedOrJustification: "Held at the floor under HR-G13.",
+    jointHep: 6.0e-4,
+    belowFloor: false,
     includesRecoveryHfe: true,
     includesInitiatorCausingHfe: true,
     implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
   },
-
+  {
+    uuid: "DEP-3",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-022", "HR-POST-025"],
+    eventSequenceId: "ESF-LEAK",
+    commonElements: ["Same crew", "Same leak sequence", "Grouped isolation actions"],
+    dependenceLevel: "MODERATE",
+    jointHep: 9.0e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
+  },
+  {
+    uuid: "DEP-4",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-018", "HR-AG-001"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Same crew", "Same loss-of-forced-cooling response", "Wrong-train action against the start action"],
+    dependenceLevel: "LOW",
+    jointHep: 1.0e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
+  },
+  {
+    uuid: "DEP-5",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-018"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Same crew for the failed start and the remote-panel restart"],
+    dependenceLevel: "MODERATE",
+    jointHep: 1.2e-4,
+    belowFloor: false,
+    includesRecoveryHfe: true,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
+  },
+  {
+    uuid: "DEP-6",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-PRE-022"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Restoration error and its in-event re-alignment by the same maintenance crew"],
+    dependenceLevel: "MODERATE",
+    jointHep: 1.5e-3,
+    belowFloor: false,
+    includesRecoveryHfe: true,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
+  },
 ];
 
 const recoveryActions: RecoveryAction[] = [
-  { id: "REC-1", name: "Restart shutdown cooling from the remote panel", hfeId: "HR-POST-018", level: "SEQUENCE", fn: "Forced core cooling", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: true, equipment: true }, preop: null, hep: "REC-Q-1", dep: null, srs: ["HR-H1", "HR-H2", "HR-H4"] },
+  { id: "REC-1", name: "Restart shutdown cooling from the remote panel", hfeId: "HR-POST-018", level: "SEQUENCE", fn: "Forced core cooling", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: true, equipment: true }, preop: null, hep: "REC-Q-1", dep: "DEP-5", srs: ["HR-H1", "HR-H2", "HR-H4"] },
   { id: "REC-2", name: "Restart the forced-cooling train by manual line-up", hfeId: "HR-AT-003", level: "SEQUENCE", fn: "Forced core cooling", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: false, time: true, accessibility: true, equipment: true }, preop: "Manpower assumption for the off-shift case logged until staffing is set.", hep: "REC-Q-2", dep: "DEP-2", srs: ["HR-H2", "HR-H3", "HR-H5"] },
-  { id: "REC-3", name: "Re-align a misaligned shutdown-cooling train", hfeId: "HR-PRE-022", level: "CUTSET", fn: "Shutdown-cooling train", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: false, equipment: true }, preop: "Local access during the event under review against the as-built layout.", hep: "REC-Q-3", dep: null, srs: ["HR-H2", "HR-H3"] },
+  { id: "REC-3", name: "Re-align a misaligned shutdown-cooling train", hfeId: "HR-PRE-022", level: "CUTSET", fn: "Shutdown-cooling train", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: false, equipment: true }, preop: "Local access during the event under review against the as-built layout.", hep: "REC-Q-3", dep: "DEP-6", srs: ["HR-H2", "HR-H3"] },
 ].map((r) => ({
   uuid: r.id,
   name: r.name,
@@ -372,7 +440,7 @@ const recoveryActions: RecoveryAction[] = [
 const preOperationalAssumptions = [
   { id: "PA-1", area: "Pre-initiator identification", desc: "Activities taken from planned procedures, to confirm against operation.", sr: "HR-A10", path: "routineActivities" },
   { id: "PA-2", area: "Response identification", desc: "Actions taken from planned procedures and borrowed experience.", sr: "HR-E9", path: "responseIdentificationReviews" },
-  { id: "PA-3", area: "Quantification", desc: "Timing from design analysis, to re-measure on the as-built simulator.", sr: "HR-G16", path: "hepQuantifications" },
+  { id: "PA-3", area: "Quantification", desc: "Timing from design analysis and the Data Analysis surveillance and exposure schedule (DM-1 to DM-3, EX-1, EX-2), to re-measure on the as-built simulator.", sr: "HR-G16", path: "hepQuantifications" },
   { id: "PA-4", area: "Recovery", desc: "Recovery feasibility rests on the as-built layout and staffing.", sr: "HR-H6", path: "recoveryActions" },
 ].map((a) => ({
   uuid: a.id,
@@ -417,11 +485,11 @@ export const HR_ANALYSIS_HTGR: HumanReliabilityAnalysis = {
   },
   conformanceMatrix,
   internalReviewComments: {
-    openCount: 4,
-    resolvedCount: 1,
+    openCount: 3,
+    resolvedCount: 2,
     comments: [
       { uuid: "hrc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T09:14:00.000Z", associatedSr: "HR-G8", text: "The shutdown-cooling start action is risk-significant, so HR-G8 needs the required time measured on the simulator rather than estimated, with enough runs to characterize the spread.", severity: "MAJOR", resolved: false },
-      { uuid: "hrc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T10:30:00.000Z", associatedSr: "HR-G12", text: "The diagnosis error and the isolation error share a crew and a timeframe, so HR-G12 needs the within-sequence joint probability calculated and checked against the floor under HR-G13.", severity: "MAJOR", resolved: false },
+      { uuid: "hrc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T10:30:00.000Z", associatedSr: "HR-G12", text: "The diagnosis error and the isolation error share a crew and a timeframe, so HR-G12 needs the within-sequence joint probability calculated and checked against the floor under HR-G13.", severity: "MAJOR", resolved: true, resolution: "The within-sequence joint probability is carried in DEP-1 at 6.0e-4 and checked against the floor.", resolvedAt: "2026-05-08T09:00:00.000Z", resolvedBy: "rev-3" },
       { uuid: "hrc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-07T14:05:00.000Z", associatedSr: "HR-H2", text: "The forced-cooling restart recovery rests on an off-shift manpower assumption, so HR-H2 needs the feasibility shown or HR-H3 applied to leave it out until staffing is set.", severity: "MAJOR", resolved: false },
       { uuid: "hrc-4", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-07T15:20:00.000Z", associatedSr: "HR-A6", text: "The RPS setpoint calibration may reach the diverse actuation, so HR-A6 needs the diverse-system reach confirmed so the activity stays protected from screening under HR-B3.", severity: "MINOR", resolved: false },
       { uuid: "hrc-5", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-05-07T16:00:00.000Z", associatedSr: "HR-B3", text: "The multi-train prohibition is applied consistently to the moisture-monitor, RCCS and RPS calibrations.", severity: "OBSERVATION", resolved: true, resolution: "No change required, the prohibition is applied consistently.", resolvedAt: "2026-05-07T17:30:00.000Z", resolvedBy: "rev-1" },
@@ -448,7 +516,7 @@ export const HR_ANALYSIS_HTGR: HumanReliabilityAnalysis = {
   hepConsistencyReviews: [
     {
       uuid: "HCR-1",
-      hfeIdsReviewed: ["HR-POST-018", "HR-POST-022", "HR-POST-028", "HR-PRE-014"],
+      hfeIdsReviewed: ["HR-POST-018", "HR-POST-022", "HR-POST-028", "HR-POST-030", "HR-PRE-014"],
       relativeReasonablenessConfirmed: true,
       basis: "SIMILAR_PLANT_AND_SCENARIO_CONTEXT",
       findings: "The detailed short-window actions carry higher values than the wide-window shutdown-cooling action, and the conservative screening values sit above the detailed values, both of which are reasonable.",

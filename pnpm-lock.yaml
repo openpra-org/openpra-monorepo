@@ -28,6 +28,9 @@ importers:
       '@nestjs/swagger':
         specifier: 11.2.1
         version: 11.2.1(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)
+      express:
+        specifier: 5.1.0
+        version: 5.1.0
       minio:
         specifier: 8.0.6
         version: 8.0.6
@@ -483,12 +486,6 @@ importers:
         version: 4.3.6
 
   apps/interfaces/shared-types:
-    dependencies:
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-
-  apps/interfaces/solvers:
     dependencies:
       zod:
         specifier: 4.3.6

@@ -1,10 +1,10 @@
-# OpenPRA monorepo
+# OpenPRA Monorepo
 
 <a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a> [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 Welcome to the OpenPRA monorepo. This is the unified codebase for the OpenPRA App. It includes the web client, the backend REST API, distributed microservices, probabilistic risk assessment (PRA) solver engines, shared type definitions, and utility packages.
 
-This README is a complete deployment guide. It assumes you are setting up the repository for the first time. Follow it top to bottom and you will end with a running app. Three deployment modes are covered.
+This README is a complete deployment guide:
 
 1. [Local development](#5-run-the-app-locally-development-mode). Infrastructure in Docker, apps running natively with hot reload.
 2. [Docker](#6-docker-deployment). The production container images, built and run on one machine.
@@ -14,18 +14,19 @@ This README is a complete deployment guide. It assumes you are setting up the re
 
 The repo is mid-migration. Active development happens under `apps/`. The old `packages/` tree is legacy and stays read-only until fully migrated. See `GUIDELINES.md` for the rules.
 
-| Path                                        | Nx project name           | What it is                                                                            |
-| ------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| `apps/frontends/web-frontend`               | `frontends-web-frontend`  | React 18 web client (webpack)                                                         |
-| `apps/backends/web-backend`                 | `backends-web-backend`    | NestJS REST API (Mongoose, MinIO, JWT, OAuth, 2FA)                                    |
-| `apps/microservices/praetor`                | `praetor`                 | Distributed quantification broker and engine (RabbitMQ, MinIO)                        |
-| `apps/interfaces/shared-types`              | `interfaces-shared-types` | Shared Zod schemas and inferred types                                                 |
-| `apps/interfaces/mef-types`                 | `interfaces-mef-types`    | OpenPRA MEF technical element types                                                   |
-| `apps/solvers/scram`                        | none (CMake)              | SCRAM C++ PRA engine                                                                  |
-| `apps/solvers/praxis`                       | none (Cargo)              | PRAXIS Rust solver                                                                    |
-| `apps/solvers/{ftrex,zebra,xfta,saphsolve}` | none                      | Third-party solver binaries and wrappers                                              |
-| `apps/utilities/pracciolini`                | none                      | Python model conversion tooling                                                       |
-| `packages/*`                                | various                   | Legacy v1 packages (`frontend-web-editor`, `web-backend`, `engine-scram`, and others) |
+| Path                                   | Nx project name           | What it is                                                                            |
+| -------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
+| `apps/frontends/web-frontend`          | `frontends-web-frontend`  | React 18 web client (webpack)                                                         |
+| `apps/backends/web-backend`            | `backends-web-backend`    | NestJS REST API (Mongoose, MinIO, JWT, OAuth, 2FA)                                    |
+| `apps/microservices/praetor`           | `praetor`                 | Distributed quantification broker and engine (RabbitMQ, MinIO)                        |
+| `apps/interfaces/shared-types`         | `interfaces-shared-types` | Shared Zod schemas and inferred types                                                 |
+| `apps/interfaces/mef-types`            | `interfaces-mef-types`    | OpenPRA MEF technical element types                                                   |
+| `apps/solvers/scram`                   | none (CMake)              | SCRAM C++ PRA engine                                                                  |
+| `apps/solvers/praxis`                  | none (Cargo)              | PRAXIS Rust solver                                                                    |
+| `apps/solvers/xfta`                    | none                      | XFTA solver binary and documentation                                                  |
+| `apps/solvers/{ftrex,zebra,saphsolve}` | none                      | Licensed solver directories, gitignored, absent from a fresh clone                    |
+| `apps/utilities/pracciolini`           | none                      | Python model conversion tooling                                                       |
+| `packages/*`                           | various                   | Legacy v1 packages (`frontend-web-editor`, `web-backend`, `engine-scram`, and others) |
 
 ### Services and ports
 
@@ -41,36 +42,7 @@ The repo is mid-migration. Active development happens under `apps/`. The old `pa
 
 ---
 
-# Deployment guide
-
-## 0. Walkthrough checklist
-
-The condensed path. Each step links to the detailed section.
-
-1. Install the [prerequisites](#1-prerequisites): git, Git LFS, nvm, Node 20.17.0, pnpm, Docker.
-2. [Clone](#2-clone-the-repository) with submodules: `git clone --recurse-submodules https://github.com/openpra-org/openpra-monorepo.git`
-3. `git checkout revamp`
-4. `pnpm install`
-5. Create [`apps/backends/web-backend/.env`](#42-create-the-backend-env-file) from the template below. This file is gitignored. Nobody gets it with the clone. Every fresh setup must create it.
-6. Generate `JWT_SECRET` and `TFA_ENC_KEY` with the [one-liner](#43-generate-secrets).
-7. Optionally create [Google](#45-google-oauth-app) and [GitHub](#46-github-oauth-app) OAuth apps and fill in the four client variables.
-8. Start infrastructure: `docker compose -f docker-compose.infra.yml up -d`
-9. Start the backend: `pnpm nx serve backends-web-backend`
-10. Start the frontend in a second terminal: `pnpm nx serve frontends-web-frontend`
-11. Open http://localhost:4201 and register a local account.
-12. For quantification, start praetor: `pnpm nx start-manager praetor` and `pnpm nx start-engine praetor`.
-
 ## 1. Prerequisites
-
-Install these before touching the repo.
-
-| Tool                    | Version         | Why                                                                               |
-| ----------------------- | --------------- | --------------------------------------------------------------------------------- |
-| git                     | recent          | Clone and hooks                                                                   |
-| Git LFS                 | recent          | Solver manual PDFs are LFS objects, and the pre-push hook runs `git lfs pre-push` |
-| Node.js                 | 20.17.0 exactly | Pinned in `.node-version`                                                         |
-| pnpm                    | 10.19.0         | The version CI uses                                                               |
-| Docker + Docker Compose | recent          | Infrastructure and container deployments                                          |
 
 ### Git and Git LFS
 
@@ -125,14 +97,12 @@ From the repo root:
 pnpm install
 ```
 
-This installs every workspace package and sets up the Husky git hooks. Two notes.
+This installs every workspace package and sets up the Husky git hooks. A fresh clone resolves about 2700 packages, so the first install takes a few minutes. Reruns finish in seconds. Two notes.
 
 - pnpm 10 blocks dependency build scripts by default. If pnpm prints a warning about ignored build scripts, run `pnpm approve-builds`, approve the listed packages, and run `pnpm install` again.
 - A plain install does not compile any native modules. You do not need a C++ toolchain to run the web app.
 
 ## 4. Environment variables and secrets
-
-This is the step most new setups fail on. Read it fully once.
 
 ### 4.1 How configuration is loaded
 
@@ -177,6 +147,8 @@ MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=openpra-web
 MINIO_PUBLIC_URL=http://localhost:9000
 ```
+
+Save the file as plain UTF-8. On Windows, create it in your editor rather than with `Out-File`, whose UTF-16 default produces a file the config loader cannot read.
 
 What is required and what is optional:
 
@@ -233,6 +205,51 @@ A GitHub OAuth app holds a single callback URL. Create one app per environment (
 
 ### 5.1 Start the infrastructure
 
+Make sure the Docker engine is actually running first. On macOS and Windows that means Docker Desktop is open. `docker compose version` succeeds even when the engine is down, so verify with `docker info` instead. If the engine is down you will see a `cannot connect to the Docker API` or npipe error on the next command.
+
+`docker-compose.infra.yml` is gitignored, just like the backend `.env`, so a fresh clone does not contain it. Create it at the repo root with this content:
+
+```yaml
+services:
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/configs/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+
+  minio:
+    image: quay.io/minio/minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
+  minio_data:
+```
+
+Then start the stack:
+
 ```bash
 docker compose -f docker-compose.infra.yml up -d
 ```
@@ -251,7 +268,7 @@ All three should be `running`. The MinIO console is at http://localhost:9001 and
 pnpm nx serve backends-web-backend
 ```
 
-Wait for `web-backend listening on http://localhost:8000`. If the process exits instead, the error names the missing env variable. Fix `apps/backends/web-backend/.env` and rerun.
+Wait for `web-backend listening on http://localhost:8000`. If the `.env` is missing or incomplete, the app compiles, maps all routes, and then dies at module init with an error naming one missing variable, for example `Error: MINIO_BUCKET is required but not set`, followed by `Process exited with code 1, waiting for changes to restart...`. Missing variables surface one at a time, so complete the whole template from section 4.2 instead of fixing them one by one.
 
 ### 5.3 Start the frontend
 
@@ -272,7 +289,7 @@ pnpm nx start-manager praetor
 pnpm nx start-engine praetor
 ```
 
-The manager listens on port 3000 with Swagger at http://localhost:3000/q/docs. Both processes read RabbitMQ and MinIO settings from the committed root `.env`, which Nx injects. The engine needs the `scram-node` native addon to execute jobs. Building that addon requires CMake, g++, Boost, and libxml2 (`pnpm nx build engine-scram`). If you cannot build it on your machine, run praetor in Docker instead (section 6.3).
+The manager listens on port 3000 with Swagger at http://localhost:3000/q/docs. Both processes read RabbitMQ and MinIO settings from the committed root `.env`, which Nx injects, and they create their MinIO buckets on first start. Both boot without any native addon. Executing a quantification job is what requires the `scram-node` addon. Building it requires CMake, g++, Boost, and libxml2 (`pnpm nx build engine-scram`). If you cannot build it on your machine, run praetor in Docker instead (section 6.3).
 
 ## 6. Docker deployment
 
@@ -281,8 +298,6 @@ This mode builds and runs the same production images that CI ships. Stop the dev
 ```bash
 docker compose -f docker-compose.infra.yml down
 ```
-
-> Do not use the root `docker-compose.yml` for this. It predates the revamp. It targets the legacy `packages/` project names and praetor targets that no longer exist.
 
 ### 6.1 Build the images
 
@@ -420,11 +435,11 @@ docker service ls --filter "label=com.docker.stack.namespace=$APP_NAME"
 
 ### 7.5 Praetor on the cluster
 
-Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. It expects the image in `IMAGE_BACKEND`, replica counts in `NUM_BROKERS` and `NUM_WORKERS`, placement pools in `DEPLOYMENT_BROKER_POOL` and `DEPLOYMENT_WORKER_POOL`, and two file-based secrets, `secrets/DSF_JWT_SECRET` and `secrets/CLOUDFLARE_TUNNEL_TOKEN`, relative to the stack file. It publishes the manager through a Cloudflare tunnel instead of Traefik.
+Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. It expects the image in `IMAGE_BACKEND`, replica counts in `NUM_BROKERS` and `NUM_WORKERS`, placement pools in `DEPLOYMENT_BROKER_POOL` and `DEPLOYMENT_WORKER_POOL`, and two file-based secrets, `secrets/DSF_JWT_SECRET` and `secrets/CLOUDFLARE_TUNNEL_TOKEN`, relative to the stack file. Those two files are not in the repository. Create them on the swarm manager next to the stack file before deploying, the first holding a generated JWT secret and the second the Cloudflare tunnel token. It publishes the manager through a Cloudflare tunnel instead of Traefik.
 
 ## 8. Troubleshooting
 
-**The backend exits immediately on boot.** The error names the missing variable, for example `RESEND_API_KEY is required` or `MINIO_ENDPOINT is required`. Create or complete `apps/backends/web-backend/.env` (section 4.2). This is the single most common failure for new setups.
+**The backend compiles, then exits with `... is required but not set`.** The first one you see is usually `Error: MINIO_BUCKET is required but not set`. Missing variables are reported one at a time, so do not fix them one by one. Create or complete the full `apps/backends/web-backend/.env` (section 4.2). This is the single most common failure for new setups.
 
 **Mongo connects to the wrong database or not at all.** The revamp backend reads `MONGO_URI`. The legacy backend and the committed root `.env` use `MONGO_URL`. Set `MONGO_URI` in the backend `.env` and do not expect the root `.env` value to apply.
 
@@ -446,7 +461,7 @@ Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. 
 
 **Swarm service stuck in `pending`.** A placement constraint references a node that does not exist. Edit the `placement.constraints` in the stack file (section 7.3).
 
-**`nx run praetor:serve` fails.** That target does not exist. Use `start-manager` and `start-engine` (section 5.4). The root `docker-compose.yml` still references the old targets and is not part of the supported paths.
+**`nx run praetor:serve` fails.** That target does not exist. Use `start-manager` and `start-engine` (section 5.4).
 
 ---
 

@@ -1,0 +1,65 @@
+name: openpra-apps-local
+
+services:
+  mongodb:
+    image: mongo:latest
+    volumes:
+      - mongo_data:/data/db
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+  backend:
+    image: openpra-apps-web-backend:local
+    volumes:
+      - ../dist/apps/backends/web-backend/example-documents:/app/example-documents:ro
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      MONGO_URI: mongodb://mongodb:27017/openpra
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret}
+      JWT_EXPIRES_IN: 7d
+      APP_BASE_URL: http://localhost:8080
+      OAUTH_CALLBACK_BASE: http://localhost:8080/api
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-local-only-resend-placeholder}
+      MAIL_FROM: ${MAIL_FROM:-noreply@localhost}
+      MAIL_FROM_NAME: OpenPRA
+      TFA_ENC_KEY: ${TFA_ENC_KEY:-local-only-tfa-encryption-key}
+      TFA_ISSUER: OpenPRA
+      TFA_TIME_URL: https://www.google.com/generate_204
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: openpra-web
+      MINIO_PUBLIC_URL: http://localhost:9000
+    depends_on:
+      - mongodb
+      - minio
+
+  frontend:
+    image: openpra-apps-web-frontend:local
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-frontend.preview.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  minio_data:

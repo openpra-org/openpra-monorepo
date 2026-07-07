@@ -17,10 +17,10 @@ function srs(...codes: string[]): SRReference[] {
   return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
 }
 
-const WARN_SRS = new Set<string>(["HR-A6", "HR-G8", "HR-G12", "HR-H2"]);
+const WARN_SRS = new Set<string>(["HR-A6", "HR-G8", "HR-H2"]);
 
 const SR_EVIDENCE: Record<string, string> = {
-  "HR-A7": "Operator contributions included in four support-system initiator fault trees.",
+  "HR-A7": "Operator contributions included in two support-system initiator fault trees.",
   "HR-A6": "Diverse-system reach of the RPS setpoint calibration under review.",
   "HR-B1": "Pre-initiator events screened with screening-grade criteria per state, one screened out.",
   "HR-B3": "Multi-train work practices protected from screening and carried as defined events.",
@@ -28,7 +28,7 @@ const SR_EVIDENCE: Record<string, string> = {
   "HR-E4": "Every response action identified across procedure, planned-procedure, training and operational-event reviews, including two aggravating actions.",
   "HR-G8": "Simulator runs for the required time of the decay-heat action pending.",
   "HR-G11": "Joint probability floor defined and justified.",
-  "HR-G12": "Within-sequence dependence for one sequence still open.",
+  "HR-G12": "Within-sequence dependence assessed for the diagnosis-alignment pair and the leak-family chains, with the recovery couplings carried explicitly.",
   "HR-H2": "Feasibility of two recovery actions open against the as-built plant.",
 };
 
@@ -78,9 +78,9 @@ const preInitiatorScreeningRecords = [
   { id: "PS-2", activityId: "RA-2", screenedOut: false, justification: "Restoration error can leave one loop unavailable, so it is carried as a defined event.", srs: ["HR-B1"] },
   { id: "PS-3", activityId: "RA-3", screenedOut: false, justification: "Charger left in the wrong mode can deplete a DC train, so it is carried forward.", srs: ["HR-B1"] },
   { id: "PS-4", activityId: "RA-4", screenedOut: false, justification: "Common calibration across both divisions is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
-  { id: "PS-5", activityId: "RA-5", screenedOut: true, justification: "Stroke-test misalignment is caught by the post-test indication before any state transition.", multiState: "Administrative control detects the error before the state changes.", srs: ["HR-B1", "HR-B2"] },
+  { id: "PS-5", activityId: "RA-5", screenedOut: true, justification: "Stroke-test misalignment is caught by the post-test indication before any state transition (Data Analysis TC-2, both change-of-state modes exercised).", multiState: "Administrative control detects the error before the state changes.", srs: ["HR-B1", "HR-B2"] },
   { id: "PS-6", activityId: "RA-6", screenedOut: false, justification: "Common calibration across both primary pump trip channels is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
-  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
+  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out (coincident two-train work carried in Data Analysis CM-1).", srs: ["HR-B1", "HR-B3"] },
 ].map((s) => ({
   uuid: s.id,
   activityId: s.activityId,
@@ -95,9 +95,7 @@ const preInitiatorScreeningRecords = [
 
 const supportSystemInitiatorOperatorContributions = [
   { id: "SIC-1", system: "SYS-1E-DC", ft: "IE-20" },
-  { id: "SIC-2", system: "SYS-HVAC", ft: "IE-22" },
-  { id: "SIC-3", system: "SYS-RPS", ft: "IE-28" },
-  { id: "SIC-4", system: "SYS-PRIMARY", ft: "IE-30" },
+  { id: "SIC-2", system: "SYS-SDHR", ft: "IE-21" },
 ].map((s) => ({
   uuid: s.id,
   systemReference: s.system,
@@ -133,17 +131,22 @@ const preHfes: HumanFailureEvent[] = [
 }));
 
 const postHfes: HumanFailureEvent[] = [
-  { id: "HR-POST-005", systems: ["SYS-SDHR", "SYS-DRACS"], name: "Fails to start backup decay heat removal", timing: "POST_INITIATOR", respType: "INITIATE", impact: "FUNCTION", sc: ["HAC-2", "HAC-1"], proc: ["EOP-3 step 12"], cue: "Low DRACS flow alarm with rising core-outlet temperature.", timing2: [{ state: "POS-07", cue: 30, window: 240, basis: "Post-trip natural circulation, the risk-significant state, with a wide window at low decay heat (ET-LDHR)." }, { state: "POS-01", cue: 25, window: 160, basis: "Cue arrival and window consistent with the Event Sequence action window and the Success Criteria time available (HAC-2)." }, { state: "POS-02", cue: 25, window: 150, basis: "Reduced and experimental power, shorter window at higher decay heat (ET-OCOOL)." }, { state: "POS-03", cue: 25, window: 180, basis: "Hot standby decay-heat window (ET-TRANS)." }, { state: "POS-05", cue: 35, window: 300, basis: "Cold shutdown, wide window at low decay heat (ET-LDHR)." }, { state: "POS-06", cue: 30, window: 200, basis: "Longer window in long-term shutdown with low decay heat." }], es: "ESF-LATE", note: "The headline response action, demonstrated by talk-through and simulator, with the loss-of-heat-sink diagnosis (HFE-08/HAC-1) subsumed in its cognition contribution.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-022", systems: ["SYS-CONF"], name: "Fails to start standby clean-up train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-CONF"], proc: ["AOP-7 step 4"], cue: "Confinement activity alarm after isolation.", timing2: [{ state: "POS-01", cue: 15, window: 120, basis: "Slow confinement build-up." }], es: "ESF-LEAK", note: "Placed by SY unless the sequence model already carries it.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-011", systems: ["SYS-ISOL", "SYS-GUARD"], name: "Fails to isolate the leaking penetration", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-GUARD"], proc: ["EOP-5 step 8"], cue: "Cell leak-detection alarm with falling level.", timing2: [{ state: "POS-01", cue: 10, window: 30, basis: "Realistic level transient." }], es: "ESF-LEAK", note: "Grouped with similar isolation actions where conditions are comparable.", srs: ["HR-F1", "HR-F3", "HR-F4"] },
+  { id: "HR-POST-004", systems: ["SYS-SDHR"], name: "Fails to diagnose the loss of heat sink", timing: "POST_INITIATOR", respType: "CONTROL", impact: "FUNCTION", sc: ["HAC-1"], proc: ["EOP-3 step 4"], cue: "Loss-of-heat-sink alarm with falling intermediate-loop flow.", timing2: [{ state: "POS-01", cue: 10, window: 200, basis: "Diagnosis window from the loss-of-heat-sink alarm, 12 minutes required (HAC-1)." }, { state: "POS-02", cue: 10, window: 190, basis: "Diagnosis window in reduced and experimental power (ET-OCOOL-P02)." }, { state: "POS-03", cue: 10, window: 200, basis: "Diagnosis window in hot standby (ET-TRANS-P03)." }], es: "ESF-LATE", note: "The loss-of-heat-sink diagnosis the backup alignment depends on, carried as HFE-08 in the Event Sequence action windows and the Success Criteria.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-005", systems: ["SYS-SDHR", "SYS-DRACS"], name: "Fails to start backup decay heat removal", timing: "POST_INITIATOR", respType: "INITIATE", impact: "FUNCTION", sc: ["HAC-2"], proc: ["EOP-3 step 12"], cue: "Low DRACS flow alarm with rising core-outlet temperature.", timing2: [{ state: "POS-07", cue: 30, window: 240, basis: "Post-trip natural circulation, the risk-significant state, with a wide window at low decay heat (ET-LDHR)." }, { state: "POS-01", cue: 25, window: 160, basis: "Cue arrival and window consistent with the Event Sequence action window and the Success Criteria time available (HAC-2)." }, { state: "POS-02", cue: 25, window: 150, basis: "Reduced and experimental power, shorter window at higher decay heat (ET-OCOOL)." }, { state: "POS-03", cue: 25, window: 180, basis: "Hot standby decay-heat window (ET-TRANS)." }, { state: "POS-04", cue: 28, window: 210, basis: "Auxiliary-pump decay heat removal window (ET-LDHR-P04)." }, { state: "POS-05", cue: 35, window: 300, basis: "Cold shutdown, wide window at low decay heat (ET-LDHR)." }, { state: "POS-06", cue: 30, window: 200, basis: "Longer window in long-term shutdown with low decay heat." }], es: "ESF-LATE", note: "The headline response action, demonstrated by talk-through and simulator, following the loss-of-heat-sink diagnosis (HR-POST-004) and carried as HFE-12 in the Event Sequence action windows and the Success Criteria.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-022", systems: ["SYS-CONF"], name: "Fails to start standby clean-up train", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["SYS-CONF"], proc: ["AOP-7 step 4"], cue: "Confinement activity alarm after isolation.", timing2: [{ state: "POS-01", cue: 15, window: 120, basis: "Slow confinement build-up." }, { state: "POS-02", cue: 15, window: 120, basis: "Confinement clean-up window in reduced power (ET-RCB-P02)." }, { state: "POS-03", cue: 15, window: 125, basis: "Confinement clean-up window in hot standby (ET-RCB-P03)." }, { state: "POS-04", cue: 16, window: 130, basis: "Confinement clean-up window on auxiliary-pump cooling (ET-RCB-P04)." }, { state: "POS-05", cue: 18, window: 140, basis: "Confinement clean-up window during refuelling (ET-CGAS-P05)." }, { state: "POS-06", cue: 18, window: 140, basis: "Confinement clean-up window in long-term shutdown (ET-CGAS-P06)." }, { state: "POS-07", cue: 16, window: 130, basis: "Confinement clean-up window in post-trip natural circulation (ET-RCB-P07)." }, { state: "POS-08", cue: 16, window: 130, basis: "Confinement clean-up window in the maintenance state (ET-RCB-P08)." }, { state: "POS-09", cue: 18, window: 150, basis: "Confinement clean-up window with the intermediate loop isolated (ET-CGAS-P09)." }], es: "ESF-LEAK", note: "Placed by SY unless the sequence model already carries it.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-011", systems: ["SYS-ISOL", "SYS-GUARD"], name: "Fails to isolate the leaking penetration", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-GUARD"], proc: ["EOP-5 step 8"], cue: "Cell leak-detection alarm with falling level.", timing2: [{ state: "POS-01", cue: 10, window: 30, basis: "Realistic level transient." }, { state: "POS-02", cue: 10, window: 30, basis: "Penetration isolation window in reduced power (ET-RCB-P02)." }, { state: "POS-03", cue: 10, window: 32, basis: "Penetration isolation window in hot standby (ET-RCB-P03)." }, { state: "POS-04", cue: 11, window: 34, basis: "Penetration isolation window on auxiliary-pump cooling (ET-RCB-P04)." }, { state: "POS-05", cue: 12, window: 38, basis: "Penetration isolation window during refuelling (ET-RCB-P05)." }, { state: "POS-06", cue: 12, window: 38, basis: "Penetration isolation window in long-term shutdown (ET-RCB-P06)." }, { state: "POS-07", cue: 11, window: 34, basis: "Penetration isolation window in post-trip natural circulation (ET-RCB-P07)." }, { state: "POS-08", cue: 11, window: 34, basis: "Penetration isolation window in the maintenance state (ET-RCB-P08)." }], es: "ESF-LEAK", note: "Grouped with similar isolation actions where conditions are comparable.", srs: ["HR-F1", "HR-F3", "HR-F4"] },
   { id: "HR-AG-001", systems: ["SYS-DRACS"], name: "Trips a running DRACS loop in error", timing: "POST_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "TRAIN", sc: [], proc: ["EOP-3 caution note"], cue: "Misread loop indication during the response.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Action that worsens the sequence, not a recovery." }], es: "ESF-LATE", note: "An action that makes the sequence worse is in scope, not only failure to help.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-AT-003", systems: ["SYS-1E-DC"], name: "Operator error initiates loss of DC", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Maintenance work order"], cue: "Error during DC bus maintenance.", timing2: [{ state: "POS-02", cue: null, window: null, basis: "Human-caused initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE support-system initiator.", srs: ["HR-F1"] },
+  { id: "HR-AT-003", systems: ["SYS-1E-DC"], name: "Operator error initiates loss of constant power", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Maintenance work order"], cue: "Error during constant-power supply maintenance.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused loss-of-constant-power initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused loss-of-constant-power initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused loss-of-constant-power initiator quantified here and supplied to IE." }, { state: "POS-04", cue: null, window: null, basis: "Human-caused loss-of-constant-power initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE loss-of-constant-power initiator.", srs: ["HR-F1"] },
   { id: "HR-AT-004", systems: ["SYS-PRIMARY"], name: "Operator-induced overcooling maneuver", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Primary flow-control work order"], cue: "Error during a primary or secondary flow-control maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused overcooling initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused overcooling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator overcooling moment, connected to the IE operator-induced overcooling initiator.", srs: ["HR-F1"] },
   { id: "HR-AT-005", systems: ["SYS-CONF"], name: "Operator refuelling subassembly mis-loading", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Refuelling line-up work order"], cue: "Error during a refuelling subassembly loading or orificing step.", timing2: [{ state: "POS-05", cue: null, window: null, basis: "Human-caused refuelling initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator refuelling commission moment, connected to the IE fuel-handling initiator.", srs: ["HR-F1"] },
-  { id: "HR-POST-025", systems: ["SYS-ISOL"], name: "Fails to isolate the primary leak segment", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-GUARD"], proc: ["EOP-5 step 10"], cue: "Guard-vessel level and cell leak-detection alarm.", timing2: [{ state: "POS-01", cue: 12, window: 45, basis: "Realistic level transient from the guard-vessel analysis." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the leak-isolation model (SYS-ISOL).", srs: ["HR-F1", "HR-F3", "HR-F4"] },
+  { id: "HR-AT-006", systems: ["SYS-SDHR"], name: "Operator inadvertent secondary-sodium dump", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Secondary sodium line-up work order"], cue: "Error during a secondary-sodium line-up or dump-valve maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused loss-of-intermediate-heat-removal initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused loss-of-intermediate-heat-removal initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused loss-of-intermediate-heat-removal initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator moment, connected to the IE inadvertent secondary-sodium dump initiator and the operator-induced heat-removal trees (ET-OPIHR).", srs: ["HR-F1"] },
+  { id: "HR-AT-007", systems: ["SYS-RPS"], name: "Erroneous control rod withdrawal at power", timing: "AT_INITIATOR", respType: "AGGRAVATING_ACTION", impact: "SYSTEM", sc: [], proc: ["Rod maneuver procedure"], cue: "Error during a rod or rod-group maneuver.", timing2: [{ state: "POS-01", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }, { state: "POS-02", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }, { state: "POS-03", cue: null, window: null, basis: "Human-caused reactivity initiator quantified here and supplied to IE." }], es: null, note: "The at-initiator rod-withdrawal moment, connected to the IE erroneous-withdrawal initiator, terminated by the protection system.", srs: ["HR-F1"] },
+  { id: "HR-POST-025", systems: ["SYS-ISOL"], name: "Fails to isolate the primary leak segment", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: ["SYS-GUARD"], proc: ["EOP-5 step 10"], cue: "Guard-vessel level and cell leak-detection alarm.", timing2: [{ state: "POS-01", cue: 12, window: 45, basis: "Realistic level transient from the guard-vessel analysis." }, { state: "POS-02", cue: 12, window: 45, basis: "Segment isolation window in reduced power (ET-RCB-P02, ET-LOCF-P02)." }, { state: "POS-03", cue: 12, window: 48, basis: "Segment isolation window in hot standby (ET-RCB-P03)." }, { state: "POS-04", cue: 13, window: 50, basis: "Segment isolation window on auxiliary-pump cooling (ET-RCB-P04)." }, { state: "POS-05", cue: 14, window: 55, basis: "Segment isolation window during refuelling (ET-RCB-P05)." }, { state: "POS-06", cue: 14, window: 55, basis: "Segment isolation window in long-term shutdown (ET-RCB-P06)." }, { state: "POS-07", cue: 13, window: 50, basis: "Segment isolation window in post-trip natural circulation (ET-RCB-P07)." }, { state: "POS-08", cue: 13, window: 50, basis: "Segment isolation window in the maintenance state (ET-RCB-P08)." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the leak-isolation model (SYS-ISOL).", srs: ["HR-F1", "HR-F3", "HR-F4"] },
   { id: "HR-POST-026", systems: ["SYS-MAKEUP"], name: "Fails to initiate sodium make-up", timing: "POST_INITIATOR", respType: "INITIATE", impact: "SYSTEM", sc: ["OSC-RCB"], proc: ["EOP-6 step 3"], cue: "Falling pool level after a confirmed drain-down.", timing2: [{ state: "POS-05", cue: 20, window: 90, basis: "Refuelling drain-down make-up window against the bounded rate (ET-DRAIN-P05, IEG-12)." }, { state: "POS-06", cue: 25, window: 120, basis: "Refuelling drain-down make-up window in long-term shutdown (ET-DRAIN-P06, IEG-12)." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the sodium make-up model (SYS-MAKEUP); credited in the refuelling drain-down sequences.", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-027", systems: ["SYS-SUPP"], name: "Fails to respond to the sodium fire", timing: "POST_INITIATOR", respType: "CONTROL", impact: "FUNCTION", sc: ["OSC-HZ"], proc: ["AOP-9 step 2"], cue: "Sodium fire and smoke detection alarm in the cell.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Detection-to-suppression window from the fire analysis." }, { state: "POS-08", cue: 5, window: 25, basis: "Sodium fire during the shutdown-cooler-out-of-service maintenance state (ET-FIRE-P08)." }], es: "ESF-LATE", note: "Placed by Systems Analysis in the fire-suppression model (SYS-SUPP).", srs: ["HR-F1", "HR-F4"] },
-  { id: "HR-POST-028", systems: ["SYS-ISOL"], name: "Fails to detect and terminate the drain-down on the level alarm", timing: "POST_INITIATOR", respType: "TERMINATE", impact: "TRAIN", sc: ["OSC-RCB"], proc: ["EOP-4 step 2"], cue: "Cell level alarm indicating a drain-down.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Detect and terminate the source before the drain propagates (ET-LOCF)." }, { state: "POS-05", cue: 8, window: 45, basis: "Refuelling drain-down detection window (ET-DRAIN)." }, { state: "POS-06", cue: 8, window: 45, basis: "Refuelling drain-down detection window (ET-DRAIN)." }], es: "ESF-LEAK", note: "Detect the level fault on the alarm and terminate the source, preceding the isolation and make-up branches.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-027", systems: ["SYS-SUPP"], name: "Fails to respond to the sodium fire", timing: "POST_INITIATOR", respType: "CONTROL", impact: "FUNCTION", sc: ["OSC-HZ"], proc: ["AOP-9 step 2"], cue: "Sodium fire and smoke detection alarm in the cell.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Detection-to-suppression window from the fire analysis." }, { state: "POS-08", cue: 5, window: 25, basis: "Sodium fire during the shutdown-cooler-out-of-service maintenance state (ET-FIRE-P08)." }], es: "ESF-LEAK", note: "Placed by Systems Analysis in the fire-suppression model (SYS-SUPP).", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-028", systems: ["SYS-ISOL"], name: "Fails to detect and terminate the drain-down on the level alarm", timing: "POST_INITIATOR", respType: "TERMINATE", impact: "TRAIN", sc: ["OSC-RCB"], proc: ["EOP-4 step 2"], cue: "Cell level alarm indicating a drain-down.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Detect and terminate the source before the drain propagates (ET-LOCF)." }, { state: "POS-02", cue: 5, window: 30, basis: "Detection window in reduced power (ET-LOCF-P02)." }, { state: "POS-05", cue: 8, window: 45, basis: "Refuelling drain-down detection window (ET-DRAIN)." }, { state: "POS-06", cue: 8, window: 45, basis: "Refuelling drain-down detection window (ET-DRAIN)." }], es: "ESF-LEAK", note: "Detect the level fault on the alarm and terminate the source, preceding the isolation and make-up branches.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-031", systems: ["SYS-ISOL"], name: "Fails to isolate the sodium-water reaction", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "TRAIN", sc: [], proc: ["SWR procedure step 2"], cue: "Sodium-water reaction detection alarm.", timing2: [{ state: "POS-01", cue: 5, window: 30, basis: "Isolate the affected steam-generator module before the reaction propagates (ET-SWR-P01)." }, { state: "POS-02", cue: 5, window: 30, basis: "Sodium-water reaction isolation window in reduced power (ET-SWR-P02)." }, { state: "POS-03", cue: 5, window: 35, basis: "Sodium-water reaction isolation window in hot standby (ET-SWR-P03)." }, { state: "POS-04", cue: 6, window: 40, basis: "Sodium-water reaction isolation window on auxiliary-pump cooling (ET-SWR-P04)." }], es: "ESF-LEAK", note: "Isolate and blow down the affected module on the reaction alarm, the isolation branch of the sodium-water reaction trees.", srs: ["HR-F1", "HR-F4"] },
+  { id: "HR-POST-032", systems: ["SYS-CONF"], name: "Fails to isolate the cover-gas breach", timing: "POST_INITIATOR", respType: "ISOLATE", impact: "SYSTEM", sc: [], proc: ["Cover-gas procedure step 3"], cue: "Cover-gas activity and pressure alarm.", timing2: [{ state: "POS-01", cue: 8, window: 40, basis: "Cover-gas isolation window at power (ET-CGAS-P01)." }, { state: "POS-02", cue: 8, window: 40, basis: "Cover-gas isolation window in reduced power (ET-CGAS-P02)." }, { state: "POS-03", cue: 8, window: 42, basis: "Cover-gas isolation window in hot standby (ET-CGAS-P03)." }, { state: "POS-04", cue: 9, window: 45, basis: "Cover-gas isolation window on auxiliary-pump cooling (ET-CGAS-P04)." }, { state: "POS-05", cue: 10, window: 50, basis: "Cover-gas isolation window with the boundary open for refuelling (ET-CGAS-P05)." }, { state: "POS-06", cue: 10, window: 50, basis: "Cover-gas isolation window in long-term shutdown (ET-CGAS-P06)." }, { state: "POS-07", cue: 9, window: 45, basis: "Cover-gas isolation window in post-trip natural circulation (ET-CGAS-P07)." }, { state: "POS-08", cue: 9, window: 45, basis: "Cover-gas isolation window in the maintenance state (ET-CGAS-P08)." }, { state: "POS-09", cue: 10, window: 50, basis: "Cover-gas isolation window with the intermediate loop isolated (ET-CGAS-P09)." }], es: "ESF-LEAK", note: "Isolate the cover-gas path on the activity alarm, the isolation branch of the cover-gas breach trees.", srs: ["HR-F1", "HR-F4"] },
 ].map((h) => ({
   uuid: h.id,
   name: h.name,
@@ -153,7 +156,7 @@ const postHfes: HumanFailureEvent[] = [
   affectedSystems: h.systems,
   applicablePlantOperatingStates: h.timing2.map((t) => t.state),
   applicableEventSequences: h.es !== null ? [h.es] : [],
-  applicableInitiatingEvents: h.id === "HR-AT-003" ? ["IE-20"] : h.id === "HR-AT-004" ? ["IE-31"] : h.id === "HR-AT-005" ? ["IE-29"] : undefined,
+  applicableInitiatingEvents: h.id === "HR-AT-003" ? ["IE-20"] : h.id === "HR-AT-004" ? ["IE-31"] : h.id === "HR-AT-005" ? ["IE-29"] : h.id === "HR-AT-006" ? ["IE-30"] : h.id === "HR-AT-007" ? ["IE-28"] : undefined,
   groupedResponses: h.id === "HR-POST-011" ? ["HR-POST-025"] : undefined,
   crossPosGroupingBasis: h.id === "HR-POST-011" ? "EQUIVALENT_BOUNDARY_CONDITIONS" : undefined,
   groupingJustification: h.id === "HR-POST-011" ? "The two leak-isolation actions share equivalent boundary conditions in the guard-vessel leak sequence, so they are grouped where the conditions match." : undefined,
@@ -177,10 +180,10 @@ const postHfes: HumanFailureEvent[] = [
 const humanFailureEvents = [...preHfes, ...postHfes];
 
 const responseIdentificationReviews = [
-  { id: "RR-1", scope: "EMERGENCY_AND_ABNORMAL_PROCEDURES", date: "2026-04-24", sources: ["Emergency operating procedures", "Abnormal operating procedures", "Annunciator response procedures"], findings: "Found the actions to detect and terminate a drain-down, start backup decay heat removal, start confinement clean-up, isolate the leaking penetration and the primary leak segment, initiate sodium make-up, and respond to a sodium fire.", hfes: ["HR-POST-028", "HR-POST-005", "HR-POST-022", "HR-POST-011", "HR-POST-025", "HR-POST-026", "HR-POST-027"], srs: ["HR-E1", "HR-E4"] },
-  { id: "RR-2", scope: "TRAINING_MATERIALS", date: "2026-04-25", sources: ["Operator training program", "Simulator scenario set"], findings: "Found the diagnosis cues and the isolation action for a primary leak.", hfes: ["HR-POST-011"], srs: ["HR-E1", "HR-E4"] },
+  { id: "RR-1", scope: "EMERGENCY_AND_ABNORMAL_PROCEDURES", date: "2026-04-24", sources: ["Emergency operating procedures", "Abnormal operating procedures", "Annunciator response procedures"], findings: "Found the actions to diagnose the loss of heat sink, detect and terminate a drain-down, start backup decay heat removal, start confinement clean-up, isolate the leaking penetration, the primary leak segment, the sodium-water reaction and the cover-gas breach, initiate sodium make-up, and respond to a sodium fire.", hfes: ["HR-POST-004", "HR-POST-028", "HR-POST-005", "HR-POST-022", "HR-POST-011", "HR-POST-025", "HR-POST-031", "HR-POST-032", "HR-POST-026", "HR-POST-027"], srs: ["HR-E1", "HR-E4"] },
+  { id: "RR-2", scope: "TRAINING_MATERIALS", date: "2026-04-25", sources: ["Operator training program", "Simulator scenario set"], findings: "Found the diagnosis cues and the isolation actions for a primary leak.", hfes: ["HR-POST-011", "HR-POST-025"], srs: ["HR-E1", "HR-E4"] },
   { id: "RR-3", scope: "NONNUCLEAR_FACILITY_EXPERIENCE", date: "2026-04-25", sources: ["Sodium test facility records", "Chemical plant control-room studies"], findings: "Borrowed diagnosis and execution evidence where the operating crew does not yet exist.", hfes: ["HR-POST-005"], srs: ["HR-E3"] },
-  { id: "RR-4", scope: "OPERATIONAL_EVENTS", date: "2026-04-26", sources: ["Research reactor operating events", "Sodium-facility upset reports", "Maintenance work-order history"], findings: "Identified the aggravating and operator-caused at-initiator actions: an operator trips a running decay-heat loop in error, a maintenance error initiates a loss of DC, an operator-induced overcooling maneuver, and a refuelling mis-loading.", hfes: ["HR-AG-001", "HR-AT-003", "HR-AT-004", "HR-AT-005"], srs: ["HR-E4"] },
+  { id: "RR-4", scope: "OPERATIONAL_EVENTS", date: "2026-04-26", sources: ["Research reactor operating events", "Sodium-facility upset reports", "Maintenance work-order history"], findings: "Identified the aggravating and operator-caused at-initiator actions: an operator trips a running decay-heat loop in error, a maintenance error initiates a loss of constant power, an operator-induced overcooling maneuver, a refuelling mis-loading, an inadvertent secondary-sodium dump, and an erroneous rod withdrawal.", hfes: ["HR-AG-001", "HR-AT-003", "HR-AT-004", "HR-AT-005", "HR-AT-006", "HR-AT-007"], srs: ["HR-E4"] },
   { id: "RR-5", scope: "PLANNED_PROCEDURES_AND_OPERATIONAL_APPROACH", date: "2026-04-24", sources: ["Draft emergency operating procedures", "Draft abnormal operating procedures", "Operational-approach description"], findings: "Confirmed from the planned procedures that the decay-heat and leak-isolation actions are the primary operator responses for the modeled sequences.", hfes: ["HR-POST-005", "HR-POST-025"], srs: ["HR-E1", "HR-E9"] },
 ].map((r) => ({
   uuid: r.id,
@@ -193,10 +196,11 @@ const responseIdentificationReviews = [
 }));
 
 const responseConfirmations = [
-  { id: "CF-1", hfes: ["HR-POST-005", "HR-POST-011", "HR-POST-025"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Training instructor"], date: "2026-04-28", findings: "The action interpretation is consistent with operations and training intent.", srs: ["HR-E5"] },
-  { id: "CF-2", hfes: ["HR-POST-005", "HR-POST-011", "HR-POST-025"], method: "TALK_THROUGH", roles: ["Reactor operator", "Human factors analyst"], date: "2026-05-01", findings: "Walked the decay-heat and leak-isolation actions step by step against the event sequence.", srs: ["HR-E7"] },
+  { id: "CF-1", hfes: ["HR-POST-004", "HR-POST-005", "HR-POST-011", "HR-POST-025"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Training instructor"], date: "2026-04-28", findings: "The action interpretation is consistent with operations and training intent.", srs: ["HR-E5"] },
+  { id: "CF-2", hfes: ["HR-POST-004", "HR-POST-005", "HR-POST-011", "HR-POST-025"], method: "TALK_THROUGH", roles: ["Reactor operator", "Human factors analyst"], date: "2026-05-01", findings: "Walked the diagnosis, decay-heat and leak-isolation actions step by step against the event sequence.", srs: ["HR-E7"] },
   { id: "CF-3", hfes: ["HR-POST-005"], method: "SIMULATION_OBSERVATION", roles: ["Crew of two", "Observer"], date: "2026-05-04", findings: "Observed the diagnosis and the execution on the engineering simulator.", srs: ["HR-E7", "HR-G8"] },
-  { id: "CF-4", hfes: ["HR-AT-003"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Maintenance lead"], date: "2026-04-29", findings: "Reviewed the maintenance-caused loss-of-DC error against the work-control practice and the support-system initiator model.", srs: ["HR-E5"] },
+  { id: "CF-4", hfes: ["HR-AT-003"], method: "PERSONNEL_REVIEW", roles: ["Operations supervisor", "Maintenance lead"], date: "2026-04-29", findings: "Reviewed the operator-caused loss-of-constant-power error against the work-control practice and the support-system initiator model.", srs: ["HR-E5"] },
+  { id: "CF-5", hfes: ["HR-POST-026", "HR-POST-028"], method: "TALK_THROUGH", roles: ["Reactor operator", "Human factors analyst"], date: "2026-05-02", findings: "Walked the drain-down detection and the sodium make-up actions step by step against the refuelling sequences.", srs: ["HR-E7"] },
 ].map((c) => ({
   uuid: c.id,
   hfeIds: c.hfes,
@@ -210,7 +214,7 @@ const responseConfirmations = [
 
 const preQuant: HepQuantification[] = [
   { id: "HR-PRE-014", methodology: "Time-reliability screening, then a detailed task analysis where risk-significant.", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 2.4e-3, factors: ["Common procedure step", "No independent channel readback", "Shared calibration standard"], unc: "Lognormal distribution with an error factor of 5, risk-significant.", srs: ["HR-D1", "HR-D2", "HR-D4", "HR-D8"] },
-  { id: "HR-PRE-022", methodology: "Conservative screening value for a single-train restoration error.", type: "CONSERVATIVE_ESTIMATE", rs: false, point: 1.0e-2, mean: null, factors: ["Post-maintenance test credited"], unc: "Point value with a stated bound at CC-I.", srs: ["HR-D1", "HR-D2", "HR-D5"] },
+  { id: "HR-PRE-022", methodology: "Conservative screening value for a single-train restoration error.", type: "CONSERVATIVE_ESTIMATE", rs: false, point: 1.0e-2, mean: null, factors: ["Post-maintenance test credited (Data Analysis TC-2)"], unc: "Point value with a stated bound at CC-I.", srs: ["HR-D1", "HR-D2", "HR-D5"] },
   { id: "HR-PRE-009", methodology: "Conservative screening value for a charger restoration error.", type: "CONSERVATIVE_ESTIMATE", rs: false, point: 5.0e-3, mean: null, factors: ["Monthly surveillance credited"], unc: "Point value with a stated bound at CC-I.", srs: ["HR-D1", "HR-D6"] },
   { id: "HR-PRE-031", methodology: "Detailed assessment of a common setpoint miscalibration.", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 1.1e-3, factors: ["Common procedure", "Diverse actuation provides partial backup"], unc: "Lognormal distribution with an error factor of 6, risk-significant.", srs: ["HR-D1", "HR-D2", "HR-D4", "HR-D8"] },
   { id: "HR-PRE-018", methodology: "Detailed assessment of a common trip-circuit miscalibration.", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 1.5e-3, factors: ["Common procedure", "Shared trip-test equipment", "Diverse reactor trip provides partial backup"], unc: "Lognormal distribution with an error factor of 6, risk-significant.", srs: ["HR-D1", "HR-D2", "HR-D4", "HR-D8"] },
@@ -229,13 +233,16 @@ const preQuant: HepQuantification[] = [
 }));
 
 const postQuant: HepQuantification[] = [
-  { id: "HR-POST-005", methodology: "Detailed time-reliability analysis with performance factors.", type: "DETAILED_ASSESSMENT", rs: true, cog: 6.0e-4, exe: 2.0e-4, mean: 8.0e-4, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 160, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 25, req: 35, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Workload", evaluation: "Single dedicated action, low competing demand.", impact: "DECREASE" }, { factor: "Stress", evaluation: "Elevated during the early transient.", impact: "INCREASE" }, { factor: "Training", evaluation: "Action is a trained scenario.", impact: "DECREASE" }, { factor: "Human-system interface", evaluation: "Clear alarm and dedicated control.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 4, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G4", "HR-G6", "HR-G8", "HR-G14"] },
-  { id: "HR-POST-022", methodology: "Conservative screening value for a slow confinement action.", type: "CONSERVATIVE_ESTIMATE", rs: false, cog: 1.0e-2, exe: 5.0e-3, mean: null, point: 1.5e-2, ind: "ASSUMED_AVAILABLE", avail: 120, availBasis: "GENERIC_STUDY", cueArr: 15, req: 30, reqBasis: "ESTIMATED", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G3", "HR-G5", "HR-G7"] },
+  { id: "HR-POST-004", methodology: "Detailed diagnosis analysis for the loss-of-heat-sink recognition.", type: "DETAILED_ASSESSMENT", rs: true, cog: 2.0e-3, exe: 4.0e-4, mean: 2.4e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 200, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 10, req: 12, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Wide window against a 12 minute diagnosis.", impact: "DECREASE" }, { factor: "Human-system interface", evaluation: "Dedicated loss-of-heat-sink alarm.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 5, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G8", "HR-G14"] },
+  { id: "HR-POST-005", methodology: "Detailed time-reliability analysis with performance factors.", type: "DETAILED_ASSESSMENT", rs: true, cog: 6.0e-4, exe: 2.0e-4, mean: 8.0e-4, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 150, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 25, req: 35, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Workload", evaluation: "Single dedicated action, low competing demand.", impact: "DECREASE" }, { factor: "Stress", evaluation: "Elevated during the early transient.", impact: "INCREASE" }, { factor: "Training", evaluation: "Action is a trained scenario.", impact: "DECREASE" }, { factor: "Human-system interface", evaluation: "Clear alarm and dedicated control.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 4, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G4", "HR-G6", "HR-G8", "HR-G14"] },
+  { id: "HR-POST-022", methodology: "Conservative screening value for a slow confinement action, set below the total confinement-function failure probability in the sequence model.", type: "CONSERVATIVE_ESTIMATE", rs: false, cog: 5.0e-3, exe: 3.0e-3, mean: null, point: 8.0e-3, ind: "ASSUMED_AVAILABLE", avail: 120, availBasis: "GENERIC_STUDY", cueArr: 15, req: 30, reqBasis: "ESTIMATED", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G3", "HR-G5", "HR-G7"] },
   { id: "HR-POST-011", methodology: "Detailed analysis of a short-window isolation action.", type: "DETAILED_ASSESSMENT", rs: true, cog: 3.0e-3, exe: 1.5e-3, mean: 4.5e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 30, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 10, req: 18, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Short window against the required time.", impact: "INCREASE" }, { factor: "Accessibility", evaluation: "Local action in a normal-access cell.", impact: "NEUTRAL" }], unc: "Lognormal with an error factor of 5, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G8", "HR-G14"] },
   { id: "HR-POST-025", methodology: "Detailed analysis of a short-window isolation action.", type: "DETAILED_ASSESSMENT", rs: true, cog: 3.5e-3, exe: 1.5e-3, mean: 5.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 45, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 12, req: 22, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Adequate window against the required time.", impact: "DECREASE" }, { factor: "Accessibility", evaluation: "Local isolation valves in a normal-access cell.", impact: "NEUTRAL" }], unc: "Lognormal with an error factor of 5, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G8", "HR-G14"] },
-  { id: "HR-POST-026", methodology: "Detailed analysis of a long-window make-up action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 4.0e-3, exe: 2.0e-3, mean: 6.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 90, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 20, req: 30, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 5.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
+  { id: "HR-POST-026", methodology: "Detailed analysis of a long-window make-up action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 4.0e-3, exe: 2.0e-3, mean: 6.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 90, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 20, req: 30, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Long window relative to the action.", impact: "DECREASE" }], unc: "Stated error factor of 5, distribution to be propagated at the operating stage.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
   { id: "HR-POST-028", methodology: "Detailed analysis of a short-window detection and termination action.", type: "DETAILED_ASSESSMENT", rs: true, cog: 2.0e-3, exe: 1.0e-3, mean: 3.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 30, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 5, req: 15, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Short detection window against the required time.", impact: "INCREASE" }, { factor: "Human-system interface", evaluation: "Clear level alarm.", impact: "DECREASE" }], unc: "Lognormal with an error factor of 5, risk-significant.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G8", "HR-G14"] },
-  { id: "HR-POST-027", methodology: "Conservative screening value for a fire-response action.", type: "CONSERVATIVE_ESTIMATE", rs: false, cog: 1.5e-2, exe: 5.0e-3, mean: null, point: 2.0e-2, ind: "ASSUMED_AVAILABLE", avail: 30, availBasis: "GENERIC_STUDY", cueArr: 5, req: 20, reqBasis: "ESTIMATED", psfs: [{ factor: "Stress", evaluation: "High stress during a sodium fire.", impact: "INCREASE" }], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G3", "HR-G5", "HR-G7"] },
+  { id: "HR-POST-027", methodology: "Conservative screening value for a fire-response action, bounded by the shortest applicable state window.", type: "CONSERVATIVE_ESTIMATE", rs: false, cog: 1.5e-2, exe: 5.0e-3, mean: null, point: 2.0e-2, ind: "ASSUMED_AVAILABLE", avail: 25, availBasis: "GENERIC_STUDY", cueArr: 5, req: 18, reqBasis: "ESTIMATED", psfs: [{ factor: "Stress", evaluation: "High stress during a sodium fire.", impact: "INCREASE" }], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G3", "HR-G5", "HR-G7"] },
+  { id: "HR-POST-031", methodology: "Detailed analysis of a short-window reaction-isolation action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 4.0e-3, exe: 2.0e-3, mean: 6.0e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 30, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 5, req: 15, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Short window against the required time.", impact: "INCREASE" }, { factor: "Human-system interface", evaluation: "Dedicated reaction detection alarm.", impact: "DECREASE" }], unc: "Stated error factor of 5, distribution to be propagated at the operating stage.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
+  { id: "HR-POST-032", methodology: "Detailed analysis of a cover-gas isolation action.", type: "DETAILED_ASSESSMENT", rs: false, cog: 3.0e-3, exe: 1.5e-3, mean: 4.5e-3, point: null, ind: "EVALUATED_PER_SEQUENCE", avail: 40, availBasis: "REALISTIC_PLANT_SPECIFIC_ANALYSIS", cueArr: 8, req: 18, reqBasis: "MEASURED_TALK_THROUGH", psfs: [{ factor: "Time available", evaluation: "Adequate window against the required time.", impact: "DECREASE" }, { factor: "Accessibility", evaluation: "Isolation from the control room.", impact: "NEUTRAL" }], unc: "Stated error factor of 5, distribution to be propagated at the operating stage.", srs: ["HR-G1", "HR-G3", "HR-G6", "HR-G7"] },
 ].map((q) => ({
   uuid: `HEPQ-${q.id}`,
   hfeId: q.id,
@@ -259,9 +266,11 @@ const postQuant: HepQuantification[] = [
 
 
 const specialQuant: HepQuantification[] = [
-  { id: "HR-AT-003", methodology: "Human-error-probability times demand for the operator-caused loss of DC, supplied to Initiating Events (IE-A5).", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 3.0e-3, factors: ["Maintenance work order without independent DC-bus verification", "Diverse bus alignment provides partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE support-system initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
-  { id: "HR-AT-004", methodology: "Human-error-probability times demand for the operator-caused overcooling maneuver, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Flow-control maneuver under procedure", "Reactor trip provides partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE overcooling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
-  { id: "HR-AT-005", methodology: "Human-error-probability times demand for the operator refuelling mis-loading, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 1.0e-3, factors: ["Refuelling line-up under independent verification", "Interlocks provide partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE fuel-handling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-003", methodology: "Human-error-probability times demand for the operator-caused loss of constant power, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: true, point: null, mean: 3.0e-3, factors: ["Maintenance work order without independent verification of the constant-power line-up", "Battery-backed supply provides partial backup"], unc: "Lognormal with an error factor of 5, supplied to the IE loss-of-constant-power initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-004", methodology: "Human-error-probability times demand for the operator-caused overcooling maneuver, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Flow-control maneuver under procedure", "Reactor trip provides partial backup"], unc: "Stated error factor of 5, supplied to the IE overcooling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-005", methodology: "Human-error-probability times demand for the operator refuelling mis-loading, supplied to Initiating Events, with the demand rate from the Data Analysis refuelling outage schedule (OG-1).", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 1.0e-3, factors: ["Refuelling line-up under independent verification", "Interlocks provide partial backup"], unc: "Stated error factor of 5, supplied to the IE fuel-handling initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-006", methodology: "Human-error-probability times demand for the inadvertent secondary-sodium dump, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Secondary line-up under procedure", "Dump-valve interlocks provide partial backup"], unc: "Stated error factor of 5, supplied to the IE secondary-sodium dump initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
+  { id: "HR-AT-007", methodology: "Human-error-probability times demand for the erroneous rod withdrawal, supplied to Initiating Events.", type: "DETAILED_ASSESSMENT", rs: false, point: null, mean: 2.0e-3, factors: ["Rod maneuver under procedure", "Protection system terminates the withdrawal"], unc: "Stated error factor of 5, supplied to the IE rod-withdrawal initiator.", srs: ["HR-G1", "HR-G3", "HR-G14"] },
   { id: "HR-AG-001", methodology: "Conservative screening value for an aggravating action that trips a running loop in error.", type: "CONSERVATIVE_ESTIMATE", rs: false, point: 1.0e-2, mean: null, factors: ["Clear loop indication", "Caution note in the procedure"], unc: "Point value with a stated bound at CC-I.", srs: ["HR-G1", "HR-G5"] },
 ].map((q) => ({
   uuid: `HEPQ-${q.id}`,
@@ -277,8 +286,8 @@ const specialQuant: HepQuantification[] = [
 }));
 
 const recoveryQuant: HepQuantification[] = [
-  { id: "REC-Q-1", hfe: "HR-POST-005", methodology: "Detailed recovery credit for restoring decay-heat removal from the remote panel, with the restoration-time basis from Data Analysis RP-1 (48 h decay-heat pump restoration).", mean: 8.0e-2, unc: "Lognormal with an error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
-  { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for the manual DC cross-tie, held to the joint floor for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, dependence held at the HR-G13 floor.", srs: ["HR-H4", "HR-H5"] },
+  { id: "REC-Q-1", hfe: "HR-POST-005", methodology: "Detailed recovery credit for restoring decay-heat removal from the remote panel, with the restoration-time basis from Data Analysis RP-1 (48 h decay-heat pump restoration).", mean: 8.0e-2, unc: "Stated error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
+  { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for the manual constant-power cross-tie, with high dependence carried explicitly for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, high dependence on the self-caused loss carried in DEP-2.", srs: ["HR-H4", "HR-H5"] },
   { id: "REC-Q-3", hfe: "HR-PRE-022", methodology: "Recovery credit for re-opening a mis-restored DRACS damper during the event.", mean: 1.5e-1, unc: "Point recovery value, local access under review.", srs: ["HR-H4"] },
 ].map((q) => ({
   uuid: q.id,
@@ -320,38 +329,115 @@ const dependencyAssessments: HfeDependencyAssessment[] = [
     implementsSrs: srs("HR-D7"),
   },
   {
-    uuid: "DEP-1",
+    uuid: "DEP-2",
     scope: "WITHIN_SEQUENCE",
-    hfeIds: ["HR-POST-011", "HR-POST-025"],
-    eventSequenceId: "ESF-LEAK",
-    commonElements: ["Same crew", "Same leak sequence", "Shared leak diagnosis"],
-    dependenceLevel: "MODERATE",
+    hfeIds: ["HR-AT-003"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Same operator", "Same constant-power work", "Recovery of a self-caused loss"],
+    dependenceLevel: "HIGH",
     jointHep: 6.0e-4,
+    belowFloor: false,
+    includesRecoveryHfe: true,
+    includesInitiatorCausingHfe: true,
+    implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
+  },
+  {
+    uuid: "DEP-3",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-004", "HR-POST-005"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Same crew", "Same loss-of-heat-sink sequence", "Alignment conditioned on the diagnosis"],
+    dependenceLevel: "MODERATE",
+    jointHep: 3.5e-4,
     belowFloor: false,
     includesRecoveryHfe: false,
     includesInitiatorCausingHfe: false,
     implementsSrs: srs("HR-G12", "HR-G13"),
   },
   {
-    uuid: "DEP-2",
+    uuid: "DEP-4",
     scope: "WITHIN_SEQUENCE",
-    hfeIds: ["HR-AT-003"],
+    hfeIds: ["HR-POST-028", "HR-POST-025"],
+    eventSequenceId: "ESF-LEAK",
+    commonElements: ["Same crew", "Detection preceding the isolation", "Same leak sequence"],
+    dependenceLevel: "MODERATE",
+    jointHep: 7.5e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
+  },
+  {
+    uuid: "DEP-5",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-028", "HR-POST-026"],
+    eventSequenceId: "ESF-LEAK",
+    commonElements: ["Same crew", "Detection preceding the make-up", "Same drain-down sequence"],
+    dependenceLevel: "MODERATE",
+    jointHep: 4.5e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
+  },
+  {
+    uuid: "DEP-6",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-005", "HR-AG-001"],
     eventSequenceId: "ESF-LATE",
-    commonElements: ["Same operator", "Same DC work", "Recovery of a self-caused loss"],
-    dependenceLevel: "HIGH",
-    jointHep: 1.0e-5,
-    belowFloor: true,
-    floorAppliedOrJustification: "Held at the floor under HR-G13.",
+    commonElements: ["Same crew", "Same loss-of-heat-sink response", "Wrong-loop action against the start action"],
+    dependenceLevel: "LOW",
+    jointHep: 1.0e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
+  },
+  {
+    uuid: "DEP-7",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-005"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Same crew for the failed start and the remote-panel restoration"],
+    dependenceLevel: "MODERATE",
+    jointHep: 6.4e-5,
+    belowFloor: false,
     includesRecoveryHfe: true,
-    includesInitiatorCausingHfe: true,
+    includesInitiatorCausingHfe: false,
     implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
+  },
+  {
+    uuid: "DEP-8",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-PRE-022"],
+    eventSequenceId: "ESF-LATE",
+    commonElements: ["Restoration error and its in-event re-opening by the same maintenance crew"],
+    dependenceLevel: "MODERATE",
+    jointHep: 1.5e-3,
+    belowFloor: false,
+    includesRecoveryHfe: true,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13", "HR-H5"),
+  },
+  {
+    uuid: "DEP-9",
+    scope: "WITHIN_SEQUENCE",
+    hfeIds: ["HR-POST-022", "HR-POST-028"],
+    eventSequenceId: "ESF-LEAK",
+    commonElements: ["Same crew", "Same leak sequence", "Different functions and timeframes"],
+    dependenceLevel: "LOW",
+    jointHep: 2.5e-4,
+    belowFloor: false,
+    includesRecoveryHfe: false,
+    includesInitiatorCausingHfe: false,
+    implementsSrs: srs("HR-G12", "HR-G13"),
   },
 ];
 
 const recoveryActions: RecoveryAction[] = [
-  { id: "REC-1", name: "Restore decay heat removal from the remote panel", hfeId: "HR-POST-005", level: "SEQUENCE", fn: "Decay-heat removal", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: true, equipment: true }, preop: null, hep: "REC-Q-1", dep: null, srs: ["HR-H1", "HR-H2", "HR-H4"] },
-  { id: "REC-2", name: "Recover DC by manual cross-tie", hfeId: "HR-AT-003", level: "SEQUENCE", fn: "Class-1E DC power", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: false, time: true, accessibility: true, equipment: true }, preop: "Manpower assumption for the off-shift case logged until staffing is set.", hep: "REC-Q-2", dep: "DEP-2", srs: ["HR-H2", "HR-H3", "HR-H5"] },
-  { id: "REC-3", name: "Re-open a mis-restored DRACS damper", hfeId: "HR-PRE-022", level: "CUTSET", fn: "DRACS air path", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: false, equipment: true }, preop: "Local access during the event under review against the as-built layout.", hep: "REC-Q-3", dep: null, srs: ["HR-H2", "HR-H3"] },
+  { id: "REC-1", name: "Restore decay heat removal from the remote panel", hfeId: "HR-POST-005", level: "SEQUENCE", fn: "Decay-heat removal", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: true, equipment: true }, preop: null, hep: "REC-Q-1", dep: "DEP-7", srs: ["HR-H1", "HR-H2", "HR-H4"] },
+  { id: "REC-2", name: "Recover constant power by manual cross-tie", hfeId: "HR-AT-003", level: "SEQUENCE", fn: "Constant power supply", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: false, time: true, accessibility: true, equipment: true }, preop: "Manpower assumption for the off-shift case logged until staffing is set.", hep: "REC-Q-2", dep: "DEP-2", srs: ["HR-H2", "HR-H3", "HR-H5"] },
+  { id: "REC-3", name: "Re-open a mis-restored DRACS damper", hfeId: "HR-PRE-022", level: "CUTSET", fn: "DRACS air path", seqs: ["ESF-LATE"], feas: { procedure: true, training: true, cues: true, manpower: true, time: true, accessibility: false, equipment: true }, preop: "Local access during the event under review against the as-built layout.", hep: "REC-Q-3", dep: "DEP-8", srs: ["HR-H2", "HR-H3"] },
 ].map((r) => ({
   uuid: r.id,
   name: r.name,
@@ -377,7 +463,7 @@ const recoveryActions: RecoveryAction[] = [
 const preOperationalAssumptions = [
   { id: "PA-1", area: "Pre-initiator identification", desc: "Activities taken from planned procedures, to confirm against operation.", sr: "HR-A10", path: "routineActivities" },
   { id: "PA-2", area: "Response identification", desc: "Actions taken from planned procedures and borrowed experience.", sr: "HR-E9", path: "responseIdentificationReviews" },
-  { id: "PA-3", area: "Quantification", desc: "Timing from design analysis and the Data Analysis surveillance and exposure schedule (DM-1 to DM-3, EX-1, EX-2), to re-measure on the as-built simulator.", sr: "HR-G16", path: "hepQuantifications" },
+  { id: "PA-3", area: "Quantification", desc: "Timing from design analysis and the Data Analysis surveillance and exposure schedule (DM-1 to DM-3, EX-1, EX-2, TC-1), to re-measure on the as-built simulator.", sr: "HR-G16", path: "hepQuantifications" },
   { id: "PA-4", area: "Recovery", desc: "Feasibility assumptions logged where they cannot yet be shown.", sr: "HR-H6", path: "recoveryActions" },
 ].map((a) => ({
   uuid: a.id,
@@ -422,12 +508,12 @@ export const HR_ANALYSIS: HumanReliabilityAnalysis = {
   },
   conformanceMatrix,
   internalReviewComments: {
-    openCount: 4,
-    resolvedCount: 1,
+    openCount: 3,
+    resolvedCount: 2,
     comments: [
       { uuid: "hrc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T09:14:00.000Z", associatedSr: "HR-G8", text: "The decay-heat action is risk-significant, so HR-G8 needs the required time measured on the simulator rather than estimated, with enough runs to characterize the spread.", severity: "MAJOR", resolved: false },
-      { uuid: "hrc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T10:30:00.000Z", associatedSr: "HR-G12", text: "The diagnosis error and the isolation error share a crew and a timeframe, so HR-G12 needs the within-sequence joint probability calculated and checked against the floor under HR-G13.", severity: "MAJOR", resolved: false },
-      { uuid: "hrc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-07T14:05:00.000Z", associatedSr: "HR-H2", text: "The DC cross-tie recovery rests on an off-shift manpower assumption, so HR-H2 needs the feasibility shown or HR-H3 applied to leave it out until staffing is set.", severity: "MAJOR", resolved: false },
+      { uuid: "hrc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-05-06T10:30:00.000Z", associatedSr: "HR-G12", text: "The diagnosis error and the isolation error share a crew and a timeframe, so HR-G12 needs the within-sequence joint probability calculated and checked against the floor under HR-G13.", severity: "MAJOR", resolved: true, resolution: "The diagnosis-alignment joint probability is carried in DEP-3 at 3.5e-4 and the leak-family chains in DEP-4, DEP-5 and DEP-9, all checked against the floor.", resolvedAt: "2026-05-08T09:00:00.000Z", resolvedBy: "rev-3" },
+      { uuid: "hrc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-07T14:05:00.000Z", associatedSr: "HR-H2", text: "The constant-power cross-tie recovery rests on an off-shift manpower assumption, so HR-H2 needs the feasibility shown or HR-H3 applied to leave it out until staffing is set.", severity: "MAJOR", resolved: false },
       { uuid: "hrc-4", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-05-07T15:20:00.000Z", associatedSr: "HR-A6", text: "The RPS setpoint calibration may reach the diverse actuation, so HR-A6 needs the diverse-system reach confirmed so the activity stays protected from screening under HR-B3.", severity: "MINOR", resolved: false },
       { uuid: "hrc-5", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-05-07T16:00:00.000Z", associatedSr: "HR-B3", text: "The multi-train prohibition is applied consistently to the DRACS and RPS calibrations.", severity: "OBSERVATION", resolved: true, resolution: "No change required, the prohibition is applied consistently.", resolvedAt: "2026-05-07T17:30:00.000Z", resolvedBy: "rev-1" },
     ],
@@ -453,7 +539,7 @@ export const HR_ANALYSIS: HumanReliabilityAnalysis = {
   hepConsistencyReviews: [
     {
       uuid: "HCR-1",
-      hfeIdsReviewed: ["HR-POST-005", "HR-POST-011", "HR-POST-022", "HR-PRE-014"],
+      hfeIdsReviewed: ["HR-POST-004", "HR-POST-005", "HR-POST-011", "HR-POST-022", "HR-PRE-014"],
       relativeReasonablenessConfirmed: true,
       basis: "SIMILAR_PLANT_AND_SCENARIO_CONTEXT",
       findings: "The detailed short-window actions carry higher values than the long-window actions, and the conservative screening values sit above the detailed values, both of which are reasonable.",
@@ -463,7 +549,7 @@ export const HR_ANALYSIS: HumanReliabilityAnalysis = {
   errorForcingContexts: [
     { uuid: "EFC-1", hfeId: "HR-POST-005", unsafeAction: "Holds the decay-heat action believing the plant is already stable.", plantConditions: ["Misleading low core-outlet reading", "Slow temperature rise"], performanceShapingFactors: ["Ambiguous indication", "High early workload"], vulnerability: "A slow heat-up can be read as a stable state, so the crew holds the action.", searchMethod: "ATHEANA qualitative search", implementsSrs: srs("HR-G3", "HR-G4") },
     { uuid: "EFC-2", hfeId: "HR-AG-001", unsafeAction: "Trips a running DRACS loop believing it is the faulted one.", plantConditions: ["Two loops alarming at once", "Look-alike loop indications"], performanceShapingFactors: ["Adjacent identical controls", "Time pressure"], vulnerability: "Identical adjacent controls invite a wrong-loop action under pressure.", searchMethod: "ATHEANA qualitative search", implementsSrs: srs("HR-G3", "HR-G4") },
-    { uuid: "EFC-3", hfeId: "HR-AT-003", unsafeAction: "De-energizes the wrong DC bus during maintenance.", plantConditions: ["Bus work in progress", "Partial labeling"], performanceShapingFactors: ["Procedure not place-kept", "Shift-handover gap"], vulnerability: "A labeling and handover gap can route the action to the live bus.", searchMethod: "ATHEANA qualitative search", implementsSrs: srs("HR-G3", "HR-G4") },
+    { uuid: "EFC-3", hfeId: "HR-AT-003", unsafeAction: "De-energizes the live constant-power feed during maintenance.", plantConditions: ["Supply work in progress", "Partial labeling"], performanceShapingFactors: ["Procedure not place-kept", "Shift-handover gap"], vulnerability: "A labeling and handover gap can route the action to the live feed.", searchMethod: "ATHEANA qualitative search", implementsSrs: srs("HR-G3", "HR-G4") },
   ],
   recoveryActions,
   plantRepresentationAccuracy: {
@@ -499,7 +585,7 @@ export const HR_ANALYSIS: HumanReliabilityAnalysis = {
   preOperationalAssumptions,
   sensitivityStudies: [
     { uuid: "SS-1", name: "Dependence sweep", description: "Dependence sweep across the human action set.", variedParameters: ["Dependence level"], parameterRanges: { "Dependence level": [0, 1] }, results: "The sequence result holds within a factor of two across the dependence range.", modelUncertaintyId: "hr-mu-1" },
-    { uuid: "SS-2", name: "Time-available sweep", description: "Time available against the required time for the decay-heat action.", variedParameters: ["Time available (min)"], parameterRanges: { "Time available (min)": [35, 200] }, results: "The decay-heat action stays below the screening value across the 35 to 200 minute band, above the 35 minute required time.", modelUncertaintyId: "hr-mu-1" },
+    { uuid: "SS-2", name: "Time-available sweep", description: "Time available against the required time for the decay-heat action.", variedParameters: ["Time available (min)"], parameterRanges: { "Time available (min)": [35, 300] }, results: "The decay-heat action stays below the screening value across the 35 to 300 minute band, above the 35 minute required time.", modelUncertaintyId: "hr-mu-1" },
   ],
   documentation: {
     processDescription: "Human failure events modeled at three moments relative to the initiating event, identified, defined and quantified by a systematic process, per ASME/ANS RA-S-1.4 HLR-HR-A through I.",

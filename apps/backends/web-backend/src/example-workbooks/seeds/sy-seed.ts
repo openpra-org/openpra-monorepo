@@ -105,6 +105,7 @@ const dracsEvents: SystemBasicEvent[] = [
   be("DRC-AIR3-BLK", "Loop 3 air path blocked", "FAILURE_TO_RUN", 0.001),
   be("DRC-CCF-FR", "Common cause failure of all three loops", "COMMON_CAUSE_FAILURE", 0.00012),
   be("DRC-DMP-CCF", "Common cause failure of the air dampers", "COMMON_CAUSE_FAILURE", 0.0003),
+  hfe("DRC-HFE-CAL", "DRACS channels miscalibrated after surveillance", 0.0024, "HR-PRE-014"),
   hfe("DRC-HFE-ALIGN", "Dampers left misaligned after surveillance", 0.01, "HR-PRE-022"),
   tm("DRC-LP1-TM", "Loop 1 in staggered surveillance", 0.004, "Staggered loop testing per the design surveillance plan, two loops stay available.", true),
   tm("DRC-LP2-TM", "Loop 2 in staggered surveillance", 0.004, "Staggered loop testing per the design surveillance plan, two loops stay available.", true),
@@ -119,6 +120,7 @@ const rpsEvents: SystemBasicEvent[] = [
   be("RPS-RODB-FR", "Division B rods fail to release", "FAILURE_TO_START", 0.0008),
   be("RPS-CCF-FS", "Common cause failure of both divisions", "COMMON_CAUSE_FAILURE", 0.00009),
   be("RPS-ROD-CCF", "Common cause failure of the rod release", "COMMON_CAUSE_FAILURE", 0.00004),
+  hfe("RPS-HFE-CAL", "Trip setpoints miscalibrated after surveillance", 0.0011, "HR-PRE-031"),
 ];
 const actEvents: SystemBasicEvent[] = [
   be("ACT-CH1-FS", "Voting channel 1 fails", "FAILURE_TO_START", 0.002),
@@ -135,7 +137,8 @@ const dcEvents: SystemBasicEvent[] = [
   be("DC-CHG-A-FLT", "Charger A fault discharges the bank", "FAILURE_TO_RUN", 0.002),
   be("DC-CHG-B-FLT", "Charger B fault discharges the bank", "FAILURE_TO_RUN", 0.002),
   be("DC-BAT-CCF", "Common cause failure of the station batteries", "COMMON_CAUSE_FAILURE", 0.0003),
-  hfe("DC-HFE-CHG", "Charger left in the wrong mode after maintenance", 0.003, "HR-PRE-009"),
+  hfe("DC-HFE-CHG", "Charger left in the wrong mode after maintenance", 0.005, "HR-PRE-009"),
+  hfe("DC-HFE-BNK", "Both battery banks held off float after equalization", 0.002, "HR-PRE-041"),
   tm("DC-BAT-A-TM", "Battery train A on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
   tm("DC-BAT-B-TM", "Battery train B on equalize charge", 0.0025, "Pre-operational assumption from the design test plan, no operating history yet.", true),
 ];
@@ -146,7 +149,7 @@ const cisEvents: SystemBasicEvent[] = [
   be("CIS-FAN-FR", "Running clean-up fan fails to run", "FAILURE_TO_RUN", 0.007),
   be("CIS-IV-FO", "Inlet valve fails to open", "FAILURE_TO_START", 0.0012),
   be("CIS-FAN-B-FS", "Standby clean-up fan fails to start", "FAILURE_TO_START", 0.003),
-  hfe("CIS-HFE-STBY", "Operator fails to start the standby clean-up train", 0.012, "HR-POST-022"),
+  hfe("CIS-HFE-STBY", "Operator fails to start the standby clean-up train", 0.008, "HR-POST-022"),
 ];
 const hvacEvents: SystemBasicEvent[] = [
   be("HVC-CHA-FR", "Cooling train A fails to run", "FAILURE_TO_RUN", 0.009),
@@ -163,6 +166,7 @@ const pcsEvents: SystemBasicEvent[] = [
   be("PCS-CKV2-FO", "Loop 2 check valve fails to open", "FAILURE_TO_START", 0.001),
   be("PCS-FLOW-CCF", "Common cause blockage of both flow paths", "COMMON_CAUSE_FAILURE", 0.00008),
   be("PCS-TC-FR", "Thermal-center flow degraded below the limit", "FAILURE_TO_RUN", 0.0005),
+  hfe("PCS-HFE-CAL", "Pump trip circuits miscalibrated after surveillance", 0.0015, "HR-PRE-018"),
 ];
 
 const sdhrEvents: SystemBasicEvent[] = [
@@ -170,19 +174,20 @@ const sdhrEvents: SystemBasicEvent[] = [
   be("SDR-SINK-FR", "Steam-side heat sink lost", "FAILURE_TO_RUN", 0.008),
   be("SDR-IV-FC", "Loop isolation valve spuriously closes", "FAILURE_TO_START", 0.0015),
   tm("SDR-PMP-TM", "Intermediate pump in maintenance", 0.003, "Planned intermediate-pump maintenance in the shutdown window.", true),
+  hfe("SDH-HFE", "Operator fails to start backup decay heat removal", 0.0008, "HR-POST-005"),
 ];
 const isolEvents: SystemBasicEvent[] = [
   be("ISO-DET-FA", "Leak detection fails to actuate isolation", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-A-FC", "Isolation valve A fails to close", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-B-FC", "Isolation valve B fails to close", "FAILURE_TO_START", 0.002),
   be("ISO-VLV-CCF", "Common cause failure of the isolation valves", "COMMON_CAUSE_FAILURE", 0.0002),
-  hfe("ISO-HFE", "Operator fails to isolate the leak path", 0.01, "HR-POST-025"),
+  hfe("ISO-HFE", "Operator fails to isolate the leak path", 0.005, "HR-POST-025"),
 ];
 const makeupEvents: SystemBasicEvent[] = [
   be("MKU-PMP-FS", "Make-up pump fails to start", "FAILURE_TO_START", 0.004),
   be("MKU-VLV-FO", "Make-up fill valve fails to open", "FAILURE_TO_START", 0.0015),
   be("MKU-TNK-UN", "Make-up sodium tank unavailable", "FAILURE_TO_RUN", 0.001),
-  hfe("MKU-HFE", "Operator fails to initiate make-up", 0.012, "HR-POST-026"),
+  hfe("MKU-HFE", "Operator fails to initiate make-up", 0.006, "HR-POST-026"),
 ];
 const detectEvents: SystemBasicEvent[] = [
   be("DET-LVL-A-FS", "Level channel A fails", "FAILURE_TO_START", 0.003),
@@ -297,6 +302,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         ] },
       ] },
       { id: "be-DRC-CCF-FR", type: "BE", name: "Common cause failure of all three loops", be: "DRC-CCF-FR", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DRACS-LOOP", prob: "1.2E-4", ccf: true },
+      { id: "be-DRC-HFE-CAL", type: "BE", name: "DRACS channels miscalibrated after surveillance", be: "DRC-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-014", prob: "2.4E-3" },
       { id: "DRC-ACT", type: "OR", name: "Air-side actuation fails on all loops", children: [
         { id: "be-DRC-DMP-CCF", type: "BE", name: "Common cause failure of the air dampers", be: "DRC-DMP-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DRACS-DMP", prob: "3.0E-4", ccf: true },
         { id: "be-DRC-HFE-ALIGN", type: "BE", name: "Dampers left misaligned after surveillance", be: "DRC-HFE-ALIGN", mode: "HUMAN_ERROR", source: "HR-PRE-022", prob: "1.0E-2" },
@@ -321,6 +327,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       ] },
       { id: "be-RPS-CCF-FS", type: "BE", name: "Common cause failure of both divisions", be: "RPS-CCF-FS", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-DIV", prob: "9.0E-5", ccf: true },
       { id: "be-RPS-ROD-CCF", type: "BE", name: "Common cause failure of the rod release", be: "RPS-ROD-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-RPS-ROD", prob: "4.0E-5", ccf: true },
+      { id: "be-RPS-HFE-CAL", type: "BE", name: "Trip setpoints miscalibrated after surveillance", be: "RPS-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-031", prob: "1.1E-3" },
       { id: "tr-RPS-ACT", type: "TR", name: "Actuation logic fails to generate the trip", transfer: "SYS-ACT" },
     ],
   },
@@ -348,7 +355,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "DC-TRA", type: "OR", name: "Train A fails to supply", children: [
           { id: "be-DC-BAT-A-FR", type: "BE", name: "Battery train A fails to run", be: "DC-BAT-A-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-071", prob: "6.0E-3" },
           { id: "be-DC-CHG-A-FLT", type: "BE", name: "Charger A fault discharges the bank", be: "DC-CHG-A-FLT", mode: "FAILURE_TO_RUN", source: "DA-BE-073", prob: "2.0E-3" },
-          { id: "be-DC-HFE-CHG", type: "BE", name: "Charger left in the wrong mode after maintenance", be: "DC-HFE-CHG", mode: "HUMAN_ERROR", source: "HR-PRE-009", prob: "3.0E-3" },
+          { id: "be-DC-HFE-CHG", type: "BE", name: "Charger left in the wrong mode after maintenance", be: "DC-HFE-CHG", mode: "HUMAN_ERROR", source: "HR-PRE-009", prob: "5.0E-3" },
           { id: "be-DC-BAT-A-TM", type: "BE", name: "Battery train A on equalize charge", be: "DC-BAT-A-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-02", prob: "2.5E-3" },
         ] },
         { id: "DC-TRB", type: "OR", name: "Train B fails to supply", children: [
@@ -358,6 +365,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         ] },
       ] },
       { id: "be-DC-BAT-CCF", type: "BE", name: "Common cause failure of the station batteries", be: "DC-BAT-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DC-BATT", prob: "3.0E-4", ccf: true },
+      { id: "be-DC-HFE-BNK", type: "BE", name: "Both battery banks held off float after equalization", be: "DC-HFE-BNK", mode: "HUMAN_ERROR", source: "HR-PRE-041", prob: "2.0E-3" },
       { id: "tr-DC-HVAC", type: "TR", name: "Loss of room cooling to the battery room", transfer: "SYS-HVAC" },
     ],
   },
@@ -380,7 +388,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
           ] },
           { id: "CIS-STBY", type: "OR", name: "Standby train unavailable", children: [
             { id: "be-CIS-FAN-B-FS", type: "BE", name: "Standby clean-up fan fails to start", be: "CIS-FAN-B-FS", mode: "FAILURE_TO_START", source: "DA-BE-064", prob: "3.0E-3" },
-            { id: "be-CIS-HFE-STBY", type: "BE", name: "Operator fails to start the standby train", be: "CIS-HFE-STBY", mode: "HUMAN_ERROR", source: "HR-POST-022", prob: "1.2E-2" },
+            { id: "be-CIS-HFE-STBY", type: "BE", name: "Operator fails to start the standby train", be: "CIS-HFE-STBY", mode: "HUMAN_ERROR", source: "HR-POST-022", prob: "8.0E-3" },
           ] },
         ] },
       ] },
@@ -418,6 +426,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       ] },
       { id: "be-PCS-FLOW-CCF", type: "BE", name: "Common cause blockage of both flow paths", be: "PCS-FLOW-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-PCS-FLOW", prob: "8.0E-5", ccf: true },
       { id: "be-PCS-TC-FR", type: "BE", name: "Thermal-center flow degraded below the limit", be: "PCS-TC-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-046", prob: "5.0E-4" },
+      { id: "be-PCS-HFE-CAL", type: "BE", name: "Pump trip circuits miscalibrated after surveillance", be: "PCS-HFE-CAL", mode: "HUMAN_ERROR", source: "HR-PRE-018", prob: "1.5E-3" },
     ],
   },
   "SYS-SDHR": {
@@ -427,6 +436,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       { id: "be-SDR-SINK-FR", type: "BE", name: "Steam-side heat sink lost", be: "SDR-SINK-FR", mode: "FAILURE_TO_RUN", source: "DA-BE-103", prob: "8.0E-3" },
       { id: "be-SDR-IV-FC", type: "BE", name: "Loop isolation valve spuriously closes", be: "SDR-IV-FC", mode: "FAILURE_TO_START", source: "DA-BE-105", prob: "1.5E-3" },
       { id: "be-SDR-PMP-TM", type: "BE", name: "Intermediate pump in maintenance", be: "SDR-PMP-TM", mode: "TEST_MAINTENANCE", source: "DA-UA-03", prob: "3.0E-3" },
+      { id: "be-SDH-HFE", type: "BE", name: "Operator fails to start backup decay heat removal", be: "SDH-HFE", mode: "HUMAN_ERROR", source: "HR-POST-005", prob: "8.0E-4" },
       { id: "tr-SDR-DC", type: "TR", name: "Loss of Class-1E DC to the pump", transfer: "SYS-1E-DC" },
     ],
   },
@@ -439,7 +449,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
         { id: "be-ISO-VLV-B-FC", type: "BE", name: "Isolation valve B fails to close", be: "ISO-VLV-B-FC", mode: "FAILURE_TO_START", source: "DA-BE-109", prob: "2.0E-3" },
       ] },
       { id: "be-ISO-VLV-CCF", type: "BE", name: "Common cause failure of the isolation valves", be: "ISO-VLV-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-ISOL-VLV", prob: "2.0E-4", ccf: true },
-      { id: "be-ISO-HFE", type: "BE", name: "Operator fails to isolate the leak path", be: "ISO-HFE", mode: "HUMAN_ERROR", source: "HR-POST-025", prob: "1.0E-2" },
+      { id: "be-ISO-HFE", type: "BE", name: "Operator fails to isolate the leak path", be: "ISO-HFE", mode: "HUMAN_ERROR", source: "HR-POST-025", prob: "5.0E-3" },
       { id: "tr-ISO-DC", type: "TR", name: "Loss of Class-1E DC to the isolation valves", transfer: "SYS-1E-DC" },
     ],
   },
@@ -449,7 +459,7 @@ const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
       { id: "be-MKU-PMP-FS", type: "BE", name: "Make-up pump fails to start", be: "MKU-PMP-FS", mode: "FAILURE_TO_START", source: "DA-BE-111", prob: "4.0E-3" },
       { id: "be-MKU-VLV-FO", type: "BE", name: "Make-up fill valve fails to open", be: "MKU-VLV-FO", mode: "FAILURE_TO_START", source: "DA-BE-113", prob: "1.5E-3" },
       { id: "be-MKU-TNK-UN", type: "BE", name: "Make-up sodium tank unavailable", be: "MKU-TNK-UN", mode: "FAILURE_TO_RUN", source: "DA-BE-115", prob: "1.0E-3" },
-      { id: "be-MKU-HFE", type: "BE", name: "Operator fails to initiate make-up", be: "MKU-HFE", mode: "HUMAN_ERROR", source: "HR-POST-026", prob: "1.2E-2" },
+      { id: "be-MKU-HFE", type: "BE", name: "Operator fails to initiate make-up", be: "MKU-HFE", mode: "HUMAN_ERROR", source: "HR-POST-026", prob: "6.0E-3" },
       { id: "tr-MKU-DC", type: "TR", name: "Loss of Class-1E DC to the make-up pump", transfer: "SYS-1E-DC" },
     ],
   },
@@ -581,6 +591,11 @@ const humanFailureEventIntegrations = [
   { id: "HFE-4", system: "SYS-ISOL", ref: "HR-POST-025", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to isolate the leak path.", srs: ["SY-A23"] },
   { id: "HFE-5", system: "SYS-MAKEUP", ref: "HR-POST-026", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to initiate sodium make-up.", srs: ["SY-A23"] },
   { id: "HFE-6", system: "SYS-SUPP", ref: "HR-POST-027", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to respond to the sodium fire alarm.", srs: ["SY-A23"] },
+  { id: "HFE-7", system: "SYS-DRACS", ref: "HR-PRE-014", type: "PRE_INITIATOR" as const, tm: true, task: "DRACS channels miscalibrated after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-8", system: "SYS-RPS", ref: "HR-PRE-031", type: "PRE_INITIATOR" as const, tm: true, task: "Trip setpoints miscalibrated after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-9", system: "SYS-PRIMARY", ref: "HR-PRE-018", type: "PRE_INITIATOR" as const, tm: true, task: "Pump trip circuits miscalibrated after surveillance.", srs: ["SY-A21"] },
+  { id: "HFE-10", system: "SYS-1E-DC", ref: "HR-PRE-041", type: "PRE_INITIATOR" as const, tm: true, task: "Both battery banks held off float after equalization.", srs: ["SY-A21"] },
+  { id: "HFE-11", system: "SYS-SDHR", ref: "HR-POST-005", type: "POST_INITIATOR" as const, tm: false, task: "Operator fails to start backup decay heat removal.", srs: ["SY-A23"] },
 ].map((h) => ({
   uuid: h.id,
   hfeReference: h.ref,

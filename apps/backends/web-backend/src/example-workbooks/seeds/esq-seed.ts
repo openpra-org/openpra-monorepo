@@ -373,14 +373,14 @@ const multiHfeCutsetIdentifications: MultiHfeCutsetIdentification[] = [
   {
     uuid: "MH-1",
     cutsetDescription: "CS-DHR-0142, three human failure events appear together in a loss-of-decay-heat cutset.",
-    hfeRefs: ["HFE-START-DHR", "HFE-ALIGN-BACKUP", "HFE-RECOVER-COOLING"],
+    hfeRefs: ["HR-POST-004", "HR-POST-005", "REC-1"],
     potentialRiskImpact: "The cutset is risk-significant, so the joint dependency is assessed per HR and the joint floor binds the product.",
     implementsSrs: srs("ESQ-C1", "ESQ-C2"),
   },
   {
     uuid: "MH-2",
-    cutsetDescription: "CS-LOOP-0098, two human failure events appear together in a station-blackout cutset.",
-    hfeRefs: ["HFE-LOAD-SHED", "HFE-RECOVER-OFFSITE"],
+    cutsetDescription: "CS-DRAIN-0033, two human failure events appear together in a refuelling drain-down cutset.",
+    hfeRefs: ["HR-POST-028", "HR-POST-026"],
     potentialRiskImpact: "The cutset is risk-significant, and the two actions share the same crew and timeline, so the dependence is not negligible.",
     implementsSrs: srs("ESQ-C1", "ESQ-C2"),
   },
@@ -389,16 +389,16 @@ const multiHfeCutsetIdentifications: MultiHfeCutsetIdentification[] = [
 const hfeDependencyApplications: HfeDependencyApplication[] = [
   {
     uuid: "HD-1",
-    hrDependencyAssessmentRef: "HR-G12",
+    hrDependencyAssessmentRef: "DEP-3",
     cutsetContext: "CS-DHR-0142",
-    appliedJointHep: 1.0e-3,
+    appliedJointHep: 3.5e-4,
     implementsSrs: srs("ESQ-C2"),
   },
   {
     uuid: "HD-2",
-    hrDependencyAssessmentRef: "HR-G7",
-    cutsetContext: "CS-LOOP-0098",
-    appliedJointHep: 4.0e-3,
+    hrDependencyAssessmentRef: "DEP-5",
+    cutsetContext: "CS-DRAIN-0033",
+    appliedJointHep: 4.5e-4,
     implementsSrs: srs("ESQ-C2"),
   },
 ];
@@ -521,14 +521,14 @@ const barrierQuantifications: RadionuclideBarrierQuantification[] = [
 const postReleaseHfeTreatments: PostReleaseHfeTreatment[] = [
   {
     uuid: "PR-1",
-    hfeRefs: ["Operator isolates the affected cell after a leak"],
+    hfeRefs: ["HR-POST-011", "HR-POST-025"],
     treatment: "DETAILED_RISK_SIGNIFICANT",
     basis: "A detailed analysis is performed, since the action affects a risk-significant family.",
     implementsSrs: srs("ESQ-C7"),
   },
   {
     uuid: "PR-2",
-    hfeRefs: ["Operator aligns the backup filtration"],
+    hfeRefs: ["HR-POST-022"],
     treatment: "CONSERVATIVE",
     basis: "A conservative screening value is used, since the action is not risk-significant.",
     implementsSrs: srs("ESQ-C7"),
@@ -896,7 +896,7 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
     {
       uuid: "RA-1",
       recoveryActionRef: "REC-1",
-      appliedAtLevel: "CUTSET",
+      appliedAtLevel: "SEQUENCE",
       applicableFamilyRefs: ["ESF-1"],
       hrFeasibilityRequirementsSatisfied: true,
       hrDependencyRequirementsSatisfied: true,

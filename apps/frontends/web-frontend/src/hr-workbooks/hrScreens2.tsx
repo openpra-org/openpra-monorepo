@@ -11,8 +11,6 @@ import {
   CONFIRM_METHODS,
   DEPENDENCE_LEVELS,
   PSF_IMPACT,
-  INDICATION_TREATMENT,
-  TIME_BASIS,
   FEASIBILITY_KEYS,
   HR_TOC,
   type CapabilityCategory,
@@ -132,7 +130,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
           </div>
         </div>
         <p className="poscard__sub">Define each event at the appropriate level, with its cue timing, time window, success criteria and context.</p>
-        <div className="hrhfe">
+        <div className="hrhfe hrhfe--calm">
           {respHfes.map((h) => {
             const t = HFE_TIMING[h.hfeTiming];
             const rd = h.responseDetail;
@@ -199,9 +197,9 @@ function TimeTriplet({ q }: { q: HepQuantification }): JSX.Element {
         <div className="hrtime__seg hrtime__seg--margin" style={{ width: `${pct(margin)}%` }} title="Margin" />
       </div>
       <div className="hrtime__legend">
-        <span className="hrtime__leg"><span className="hrtime__dot hrtime__dot--cue" /> Cue {cue} min</span>
-        <span className="hrtime__leg"><span className="hrtime__dot hrtime__dot--req" /> Required {req} min</span>
-        <span className="hrtime__leg"><span className="hrtime__dot hrtime__dot--margin" /> Margin {margin} min</span>
+        <span className="hrtime__leg">Cue {cue} min</span>
+        <span className="hrtime__leg">Required {req} min</span>
+        <span className="hrtime__leg">Margin {margin} min</span>
         <span className="hrtime__avail posmono">Available {avail} min</span>
       </div>
     </div>
@@ -297,9 +295,6 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
             const cog = q.cognitionContribution ?? 0;
             const exe = q.executionContribution ?? 0;
             const sum = cog + exe > 0 ? cog + exe : 1;
-            const ind = q.indicationsTreatment !== undefined ? INDICATION_TREATMENT[q.indicationsTreatment] : undefined;
-            const tb = q.timeRequiredBasis !== undefined ? TIME_BASIS[q.timeRequiredBasis] : "";
-            const measured = (q.timeRequiredBasis ?? "").startsWith("MEASURED");
             return (
               <div key={q.uuid} className={`hrgq__card${q.isRiskSignificant ? " hrgq__card--rs" : ""}`} onClick={() => openDrawer({ kind: "respquant", id: q.uuid })}>
                 <div className="hrgq__head">
@@ -323,13 +318,6 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                   </div>
                 </div>
                 <TimeTriplet q={q} />
-                <div className="hrgq__foot">
-                  {ind !== undefined && <span className={`hrgq__ind hrgq__ind--${(q.indicationsTreatment ?? "").toLowerCase()}`}>{ind.label} · {ind.cc}</span>}
-                  <span className={`hrgq__tb hrgq__tb--${measured ? "measured" : "estimated"}`}>{tb}</span>
-                </div>
-                <div className="hrgq__psfs">
-                  {(q.performanceShapingFactors ?? []).map((p, i) => <span key={i} className={`hrgq__psf hrgq__psf--${p.impactOnHep.toLowerCase()}`}>{p.factor}</span>)}
-                </div>
               </div>
             );
           })}
@@ -365,7 +353,6 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
                   <div className="hrdep__elements">{e.performanceShapingFactors.map((c, i) => <span key={i} className="hrdep__el">{c}</span>)}</div>
                 </div>
               </div>
-              <div className="hrdep__note">{e.vulnerability}</div>
             </div>
           ))}
         </div>

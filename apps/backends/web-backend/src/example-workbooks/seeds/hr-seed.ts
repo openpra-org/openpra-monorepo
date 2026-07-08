@@ -78,9 +78,9 @@ const preInitiatorScreeningRecords = [
   { id: "PS-2", activityId: "RA-2", screenedOut: false, justification: "Restoration error can leave one loop unavailable, so it is carried as a defined event.", srs: ["HR-B1"] },
   { id: "PS-3", activityId: "RA-3", screenedOut: false, justification: "Charger left in the wrong mode can deplete a DC train, so it is carried forward.", srs: ["HR-B1"] },
   { id: "PS-4", activityId: "RA-4", screenedOut: false, justification: "Common calibration across both divisions is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
-  { id: "PS-5", activityId: "RA-5", screenedOut: true, justification: "Stroke-test misalignment is caught by the post-test indication before any state transition (Data Analysis TC-2, both change-of-state modes exercised).", multiState: "Administrative control detects the error before the state changes.", srs: ["HR-B1", "HR-B2"] },
+  { id: "PS-5", activityId: "RA-5", screenedOut: true, justification: "Stroke-test misalignment is caught by the post-test indication before any state transition (Data Analysis TC-4, both change-of-state modes exercised).", multiState: "Administrative control detects the error before the state changes.", srs: ["HR-B1", "HR-B2"] },
   { id: "PS-6", activityId: "RA-6", screenedOut: false, justification: "Common calibration across both primary pump trip channels is multi-train, so it may not be screened out.", srs: ["HR-B1", "HR-B3"] },
-  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out (coincident two-train work carried in Data Analysis CM-1).", srs: ["HR-B1", "HR-B3"] },
+  { id: "PS-7", activityId: "RA-7", screenedOut: false, justification: "Aligning both redundant battery banks in one evolution is multi-train, so it may not be screened out (coincident two-train work carried in Data Analysis CM-2).", srs: ["HR-B1", "HR-B3"] },
 ].map((s) => ({
   uuid: s.id,
   activityId: s.activityId,
@@ -286,7 +286,7 @@ const specialQuant: HepQuantification[] = [
 }));
 
 const recoveryQuant: HepQuantification[] = [
-  { id: "REC-Q-1", hfe: "HR-POST-005", methodology: "Detailed recovery credit for restoring decay-heat removal from the remote panel, with the restoration-time basis from Data Analysis RP-1 (48 h decay-heat pump restoration).", mean: 8.0e-2, unc: "Stated error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
+  { id: "REC-Q-1", hfe: "HR-POST-005", methodology: "Detailed recovery credit for restoring decay-heat removal from the remote panel, with the recovery-time basis from Data Analysis RC-3 (remote-panel decay-heat restoration).", mean: 8.0e-2, unc: "Stated error factor of 4 on the recovery action.", srs: ["HR-H4", "HR-G1"] },
   { id: "REC-Q-2", hfe: "HR-AT-003", methodology: "Recovery credit for the manual constant-power cross-tie, with high dependence carried explicitly for a self-caused loss.", mean: 2.0e-1, unc: "Point recovery value, high dependence on the self-caused loss carried in DEP-2.", srs: ["HR-H4", "HR-H5"] },
   { id: "REC-Q-3", hfe: "HR-PRE-022", methodology: "Recovery credit for re-opening a mis-restored DRACS damper during the event.", mean: 1.5e-1, unc: "Point recovery value, local access under review.", srs: ["HR-H4"] },
 ].map((q) => ({

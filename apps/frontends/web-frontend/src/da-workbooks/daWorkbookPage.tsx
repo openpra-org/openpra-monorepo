@@ -13,9 +13,12 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getDaWorkbook,
+  fetchDaLinkedInputs,
+  getDaExampleOptions,
   loadDaExample,
   unloadDaExample,
   type DaWorkbookRoleName,
+  type DaExampleOption,
 } from "./daWorkbookApi";
 import { DaWorkbench, type DaWorkbenchActions } from "./daWorkbench";
 import { DaWorkbookProvider, type DaWorkbookData } from "./daWorkbookContext";
@@ -63,6 +66,7 @@ function DaWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<DaExampleOption[]>([]);
   const workbookName = data?.da.name ?? "";
   const workbookVersion = data?.da.version ?? "1";
 
@@ -79,6 +83,7 @@ function DaWorkbookPage(): JSX.Element {
           da: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
@@ -95,6 +100,25 @@ function DaWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDaExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { if (!cancelled) setExampleOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const daUuid = data?.da.uuid ?? "";
+  useEffect(() => {
+    const variant = daUuid === "da-generic-1" ? "sfr" : daUuid === "da-generic-2" ? "htgr" : null;
+    if (variant === null) return;
+    let cancelled = false;
+    fetchDaLinkedInputs(variant)
+      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    return () => { cancelled = true; };
+  }, [daUuid]);
 
   const updateDa = useCallback((da: DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da }));
@@ -206,9 +230,10 @@ function DaWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="DA"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadDaExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadDaExample(id, exampleId);
             updateDa(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

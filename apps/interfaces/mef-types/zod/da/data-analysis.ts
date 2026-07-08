@@ -521,6 +521,20 @@ export const DataAnalysisSchema = z.object({
   sensitivityStudies: z.array(SensitivityStudySchema).optional(),
   documentation: DaDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
+  exampleDocuments: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        kind: z.enum(["doc", "sheet", "image"]),
+        sizeLabel: z.string(),
+        uploadedLabel: z.string(),
+        extracted: z.string(),
+        linked: z.number(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 

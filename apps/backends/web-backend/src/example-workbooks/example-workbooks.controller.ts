@@ -95,10 +95,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getHrBundle(example);
   }
 
+  @Get("da-examples")
+  @HttpCode(HttpStatus.OK)
+  getDaExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getDaExamples();
+  }
+
   @Get("da-bundle")
   @HttpCode(HttpStatus.OK)
-  getDaBundle(): Promise<DaExampleBundle> {
-    return this.exampleWorkbooksService.getDaBundle();
+  getDaBundle(@Query("example") example?: string): Promise<DaExampleBundle> {
+    return this.exampleWorkbooksService.getDaBundle(example);
   }
 
   @Get("esq-bundle")

@@ -59,7 +59,6 @@ function be(uuid: string, name: string, failureMode: string, probability: number
     failureMode,
     probability,
     repairModeled: false,
-    dataAnalysisBasicEventRef: probability > 0 ? "DA-BE" : undefined,
     implementsSrs: srs("SY-A19", "SY-A30"),
   };
 }
@@ -720,7 +719,7 @@ const simultaneousUnavailabilityEvents = [
     description: "Clean-up train and isolation damper planned out of service together.",
     componentIds: ["CIS clean-up train", "CIS isolation damper"],
     plannedActivityBasis: "Redundant equipment planned out of service at once, parameter from DA.",
-    dataAnalysisRef: "DA-UA-03",
+    dataAnalysisRef: "CM-1",
     implementsSrs: srs("SY-A27"),
   },
 ];
@@ -882,7 +881,7 @@ export const SY_ANALYSIS: SystemsAnalysis = {
     alignmentsAndConfigurations: "Normal and significant alternate alignments modeled per system.",
     testAndMaintenanceTreatment: "Out-of-service unavailability modeled per the maintenance plan, with simultaneous planned unavailability of redundant equipment carried explicitly.",
     dependencySearchAndTables: "Support-system dependencies set by engineering analysis in a dependency matrix, with a support-on-support loop resolved explicitly.",
-    ccfGroupsAndModels: "Five common cause groups, three within a system and two across systems, consistent with the Data Analysis common cause model.",
+    ccfGroupsAndModels: "Thirteen common cause groups, nine within a system and four across systems, consistent with the Data Analysis common cause model.",
     humanFailureEventsIncluded: "Pre-initiator and post-initiator human failure events placed in the system models and handed to Human Reliability.",
     modularizationAndLogicLoops: "One support-on-support logic loop resolved by crediting the battery for the cooling restart window.",
     nomenclatureConventions: "One designator per component failure mode across every system and train, which lets the quantifier link the trees.",

@@ -509,7 +509,7 @@ export const SC_ANALYSIS: SuccessCriteriaDevelopment = {
     },
   ],
   missionTimes: [
-    { uuid: "MT-LOHS", eventSequenceReference: "ESL-2", missionTimeHours: 24, basis: "DRACS reaches a safe stable state within 24 h (TF-CALC-09).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-09"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
+    { uuid: "MT-LOHS", eventSequenceReference: "ESL-2", missionTimeHours: 96, basis: "DRACS reaches a safe stable state within 96 h (TF-CALC-09, v3).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-09"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
     { uuid: "MT-LOFA", eventSequenceReference: "ESF-1", missionTimeHours: 24, basis: "Natural circulation stabilizes within 18 h (TF-CALC-12).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["TF-CALC-12"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
     { uuid: "MT-RCB", eventSequenceReference: "ESR-4", missionTimeHours: 72, basis: "Guard-vessel path misses a stable state within 24 h.", safeStableStateAchievedWithinMissionTime: false, treatmentWhenNotAchieved: "EXTENDED_MISSION_TIME", treatmentJustification: "Extended to 72 h and re-run, not written off (CC-II).", analysisReferences: ["TF-CALC-14"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },
     { uuid: "MT-SEIS", eventSequenceReference: "ESS-1", missionTimeHours: 72, basis: "Passive cooldown reaches a safe stable state within 48 h (ST-CALC-21).", safeStableStateAchievedWithinMissionTime: true, analysisReferences: ["ST-CALC-21"], isRiskSignificant: true, implementsSrs: srs("SC-A7") },

@@ -948,7 +948,7 @@ const documentation: PosDocumentation = {
   posCharacteristics: "Each state characterised by mode, RCS parameters, sources, barriers, instrumentation, and SSC configuration.",
   durationsTimesSinceShutdownFrequencies: "Mean durations and entry frequencies captured per state from operating-cycle estimates.",
   decayHeatPerPos: "Decay-heat level characterised for shutdown and refuelling states; maintenance states pending.",
-  praTaskInterfaces: "Interfaces with initiating-event and event-sequence analyses identified.",
+  praTaskInterfaces: "Interfaces with initiating-event and event-sequence analyses identified, with the outage durations and counts behind the state time fractions carried in the Data Analysis outage records (OG-1, OG-2).",
   modelUncertaintySources: "Four sources of model uncertainty logged with treatments.",
   asBuiltLimitations: "Analysis precedes as-built validation; pre-operational assumptions track closure.",
   implementsSrs: [{ sr: "POS-D1", hlr: "D" }, { sr: "POS-D2", hlr: "D" }, { sr: "POS-D3", hlr: "D" }],

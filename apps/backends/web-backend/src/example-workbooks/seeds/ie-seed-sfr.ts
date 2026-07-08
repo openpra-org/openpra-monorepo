@@ -1601,7 +1601,7 @@ export const IE_ANALYSIS_SFR: InitiatingEventsAnalysis = {
       "The data are EBR-II plant operating data for the data-rich transients and support-system losses (the ANL-NSE-2 initiating-event tables and the Unusual Occurrence Report review), the EBR-II design analyses for the SFR-specific primary-boundary and sodium-water-reaction events, and standard human-reliability sources for the operator-induced initiators. The loss-of-flow, loss-of-heat-sink, reactivity, overcooling, scram and local-fault rates follow ANL-NSE-2 Sec. 5.2. The sodium-fast-reactor fleet experience (Fermi-1, Phenix, BN-600, SRE) provides the reasonableness check and the operating precedent for the sodium-water reaction.",
     modelUncertaintySources: PENDING,
     asBuiltLimitations: "Operational EBR-II reference plant; the design-based breach frequencies carry the larger uncertainty.",
-    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification.",
+    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification, with the pump-trip, shutdown-cooler, constant-power, drained-shutdown and hazard frequency parameters carried in Data Analysis (DA-P-040, DA-P-066, DA-P-071 to DA-P-074).",
     implementsSrs: [sr("IE-D1", "D")],
   },
 };

@@ -3,10 +3,16 @@ import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 
+interface DaLinkedInputs {
+  posStates: { id: string; name: string; mode: string; durationHours: number }[];
+  esFamilies: { id: string; name: string }[];
+}
+
 interface DaWorkbookData {
   da: DataAnalysis;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
+  links: DaLinkedInputs | null;
 }
 
 type DaMutator = (da: DataAnalysis) => DataAnalysis;
@@ -37,4 +43,4 @@ function useDaWorkbook(): DaWorkbookContextValue {
   return ctx;
 }
 
-export { DaWorkbookProvider, useDaWorkbook, type DaWorkbookData, type DaMutator };
+export { DaWorkbookProvider, useDaWorkbook, type DaWorkbookData, type DaLinkedInputs, type DaMutator };

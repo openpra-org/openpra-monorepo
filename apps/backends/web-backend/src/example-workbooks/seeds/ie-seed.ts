@@ -3904,7 +3904,7 @@ export const IE_ANALYSIS: InitiatingEventsAnalysis = {
       "The data are generic United States power-reactor initiating-event data for the data-rich transients and support-system losses, the gas-cooled fleet experience from AVR, THTR-300, and Fort St. Vrain together with the MHTGR design records for the HTGR-specific events, and standard human-reliability sources for the operator-induced initiators. The reactor-trip, turbine-trip, loss-of-feedwater, loss-of-heat-sink, and loss-of-offsite-power rates follow the NUREG/CR-5750 categories. The component-failure and standby-demand rates follow NUREG/CR-6928. The primary-boundary break and steam-generator-tube failure frequencies are design-based and anchored to the MHTGR safety analysis. Each rate is adjusted to the Generic HTGR design, and the generic-to-design differences are recorded with each group.",
     modelUncertaintySources: PENDING,
     asBuiltLimitations: "Pre-operational; assumptions close at commissioning.",
-    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification.",
+    praTaskInterfaces: "Feeds Event Sequence Analysis and Event Sequence Quantification, with the loss-of-forced-cooling, moisture-ingress, vital-DC, offsite-power, helium-inventory and shutdown-cooling group frequencies carried in Data Analysis (DA-P-040, DA-P-066, DA-P-071 to DA-P-074).",
     implementsSrs: [sr("IE-D1", "D")],
   },
 };

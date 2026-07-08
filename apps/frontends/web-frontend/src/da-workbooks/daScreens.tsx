@@ -1,8 +1,7 @@
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import { DAIcon } from "./daIcons";
 import { Badge, DaProvenanceChip, valText, unitText } from "./daShared";
 import { useDaWorkbook } from "./daWorkbookContext";
-import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   EVIDENCE_LADDER,
@@ -17,7 +16,7 @@ import {
 import { modelLabel, paramIsWarn } from "./daSelectors";
 
 interface DaDrawerContext {
-  kind: "param" | "boundary" | "grouping" | "estimate";
+  kind: "param" | "boundary" | "grouping" | "estimate" | "outlier" | "source" | "failuredef" | "demand" | "exposure" | "testcred" | "unavail" | "coincident" | "repair" | "recovery" | "outage" | "ccf" | "uncsource" | "preop" | "sens" | "datamod";
   id: string;
 }
 
@@ -56,8 +55,26 @@ function LadderPosition({ rung }: { rung: string }): JSX.Element {
 
 // ─── 01 — Scope & Sources ──────────────────────────────────────────────────
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
-  const { da, editable, mutateDa } = useDaWorkbook();
+  const { da, links, editable, mutateDa } = useDaWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const ifaceLanes: { key: string; code: string; element: string; role: string; direction: "in" | "bi" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
+    { key: "bi-POS", code: "POS", element: "Plant Operating States", role: "Operating states and outage exposure", direction: "bi", columns: ["Item", "Context", "Hours"], rows: [
+      ...(links?.posStates ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.name}`, values: [x.mode, String(x.durationHours)] })),
+      ...(da.lpsdOutageDataRecords ?? []).map((o) => ({ id: o.uuid, name: `${o.uuid} · ${o.outageType}`, values: [o.plantOperatingStateRef ?? "—", String(o.durationHours)] })),
+    ], empty: "Load the example to pull the operating states the parameters and the outage records are defined per." },
+    { key: "out-IE", code: "IE", element: "Initiating Events", role: "Initiating-event frequencies", direction: "out", columns: ["Parameter", "Basic event", "Frequency (/yr)"], rows: da.parameters.filter((x) => x.parameterType === "FREQUENCY").map((x) => ({ id: x.uuid, name: x.name, values: [x.basicEventRef ?? "—", valText(x.value)] })), empty: "No frequency parameters defined yet." },
+    { key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Sequence families and mission context", direction: "in", columns: ["Family", "Name"], rows: (links?.esFamilies ?? []).map((f) => ({ id: f.id, name: f.id, values: [f.name] })), empty: "Load the example to pull the sequence families whose mission times frame the exposure hours." },
+    { key: "bi-SY", code: "SY", element: "Systems Analysis", role: "Basic events and their estimates", direction: "bi", columns: ["Basic event", "System", "Estimate"], rows: da.parameters.filter((x) => x.parameterType !== "FREQUENCY").map((x) => ({ id: x.uuid, name: x.basicEventRef ?? x.name, values: [x.systemReference ?? "—", valText(x.value)] })), empty: "No basic-event parameters defined yet." },
+    { key: "out-HR", code: "HR", element: "Human Reliability", role: "Repair, recovery and schedule records", direction: "out", columns: ["Record", "What it backs", "Value"], rows: [
+      ...(da.repairTimeRecords ?? []).map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.sscReference} restoration`, values: ["Recovery-credit timing", `${String(r.repairEvents[0]?.identificationToRestorationHours ?? 0)} h`] })),
+      ...(da.recoveryTimeRecords ?? []).map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.functionLost} recovery`, values: ["Function-recovery timing", `${String(r.recoveryEvents[0]?.identificationToRestorationHours ?? 0)} h`] })),
+      ...(da.demandCountRecords ?? []).map((d) => ({ id: d.uuid, name: `${d.uuid} · ${d.componentGroupRef} demand schedule`, values: ["Surveillance and exposure basis", `${String(d.totalDemands)} demands per year`] })),
+      ...(da.coincidentMaintenanceRecords ?? []).map((c) => ({ id: c.uuid, name: `${c.uuid} · Coincident two-train maintenance`, values: ["Multi-train work practice", valText(c.unavailabilityValue)] })),
+    ], empty: "No repair, recovery or schedule records yet." },
+    { key: "out-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Parameter distributions", direction: "out", columns: ["Parameter", "Mean", "Model"], rows: da.parameters.map((x) => ({ id: x.uuid, name: x.name, values: [valText(x.value), modelLabel(x)] })), empty: "No parameters defined yet." },
+  ];
+  const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
 
   function onScopeChange(value: string): void {
     if (!editable) return;
@@ -78,8 +95,44 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
     <>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
-        <p className="poscard__sub">What flows into Data Analysis and what it feeds. Select an element to see the data exchanged.</p>
-        <WorkbookInterfaceTiles element="DA" />
+        <p className="poscard__sub">Data Analysis reads the operating states, the sequence context and the basic events to estimate, then hands the frequencies, the distributions and the repair and schedule records to the consuming elements. Select an element to see the data exchanged.</p>
+        <div className="poshandoff__grid">
+          {ifaceLanes.map((lane) => (
+            <button key={lane.key} type="button"
+              className={`poshandoff__tile${selectedTe === lane.key ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.key ? null : lane.key)}>
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.direction === "out" ? "Consumes · " : lane.direction === "bi" ? "Exchanges · " : "Provides · "}{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+              {selectedLane.direction === "out"
+                ? `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Data Analysis`
+                : selectedLane.direction === "bi"
+                  ? `Data Analysis exchanges ${selectedLane.role.toLowerCase()} with ${selectedLane.element}`
+                  : `Data Analysis receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`}
+            </div>
+            {selectedLane.rows.length > 0 ? (
+              <table className="postable postable--mid">
+                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                <tbody>
+                  {selectedLane.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="postable__name">{r.name}</div></td>
+                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="poscard">
@@ -116,10 +169,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <DAIcon.Sparkle />
-          <span>At CC-II the evidence is the records, since realistic estimates for risk-significant events cannot be met from a handbook.</span>
-        </div>
       </div>
 
       <div className="poscard">
@@ -141,10 +190,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             </label>
           ))}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <DAIcon.Warn />
-          <span>Seventeen operating-only collection requirements show as not applicable while the plant is pre-operational.</span>
-        </div>
       </div>
     </>
   );
@@ -152,13 +197,28 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
 // ─── 02 — Define Parameters (HLR-A) ────────────────────────────────────────
 function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
-  const { da } = useDaWorkbook();
+  const { da, editable, mutateDa } = useDaWorkbook();
+  function addParam(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateDa((draft) => ({ ...draft, parameters: [...draft.parameters, { uuid, name: "New parameter", parameterType: "PROBABILITY", value: 1.0e-3, valueType: "MEAN", implementsSrs: [{ sr: "DA-A1", hlr: "A" }] }] }));
+    openDrawer({ kind: "param", id: uuid });
+  }
+  function addBoundary(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateDa((draft) => ({ ...draft, componentBoundaries: [...draft.componentBoundaries, { uuid, name: "New boundary", systemId: "", description: "", boundaries: [""], includedItems: [], boundaryBasis: "", implementsSrs: [{ sr: "DA-A2", hlr: "A" }] }] }));
+    openDrawer({ kind: "boundary", id: uuid });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Parameters to estimate</h3>
-          <span className="possubtle">{da.parameters.length} slots · DA-A1, A3, A4</span>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <span className="possubtle">DA-A1, A3, A4</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addParam}><DAIcon.Plus /> Add parameter</button>}
+          </div>
         </div>
         <p className="poscard__sub">Each basic event from SY becomes a parameter with a type, a matching boundary and a fitting probability model.</p>
         <div className="daparam">
@@ -170,11 +230,7 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
                 <RungPill approach={p.estimationApproach} />
               </div>
               <div className="daparam__name">{p.name}</div>
-              <div className="daparam__meta">
-                <span className="daparam__sys posmono">{p.systemReference}</span>
-                <span className="daparam__pos">{p.plantOperatingStateRef}{p.multiPosApplicabilityJustification !== undefined ? " +" : ""}</span>
-                {p.isRiskSignificant === true && <span className="daparam__rs">Risk-significant</span>}
-              </div>
+              {p.isRiskSignificant === true && <div className="daparam__meta"><span className="daparam__rs">Risk-significant</span></div>}
               <div className="daparam__foot">
                 <span className="daparam__model">{modelLabel(p)}</span>
                 <span className="daparam__val posmono">{valText(p.value)}<span className="daparam__unit">{unitText(p.parameterType)}</span></span>
@@ -187,7 +243,10 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Component boundaries</h3>
-          <DaProvenanceChip>DA-A2</DaProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <DaProvenanceChip>DA-A2</DaProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBoundary}><DAIcon.Plus /> Add boundary</button>}
+          </div>
         </div>
         <p className="poscard__sub">The boundary, the failure modes and the success criteria must match the SY basic event, or the analysis double-counts.</p>
         <div className="daboundary">
@@ -223,19 +282,16 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
           <DaProvenanceChip>DA-A3</DaProvenanceChip>
         </div>
         <p className="poscard__sub">A standby pump on demand and a running pump per hour are different objects, so each event gets the model that fits.</p>
-        <table className="postable" style={{ marginTop: 4 }}>
-          <thead><tr><th>Model</th><th>Basis</th><th>Estimated in</th><th>Distribution</th></tr></thead>
+        <table className="postable postable--mid" style={{ marginTop: 4 }}>
+          <thead><tr><th>Event</th><th>Model</th><th>Basis</th></tr></thead>
           <tbody>
-            {PROBABILITY_MODELS.map((m) => {
-              const t = PARAM_TYPES[m.paramType];
+            {da.parameters.map((x) => {
+              const m = PROBABILITY_MODELS.find((pm) => pm.paramType === x.parameterType);
               return (
-                <tr key={m.id}>
-                  <td style={{ fontWeight: 600 }}>{m.label}
-                    <div className="possubtle" style={{ fontSize: 11.5, marginTop: 2, fontWeight: 400 }}>{m.note}</div>
-                  </td>
-                  <td><span className={`damodel-basis damodel-basis--${m.basis.toLowerCase()}`}>{m.basis === "DEMAND" ? "Per demand" : "Over time"}</span></td>
-                  <td className="posmono" style={{ fontSize: 11.5 }}>{t?.unit}</td>
-                  <td className="posmono" style={{ fontSize: 11.5 }}>{m.dist}</td>
+                <tr key={x.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "param", id: x.uuid })} style={{ cursor: "pointer" }}>
+                  <td><div className="postable__name">{x.basicEventRef ?? x.name}</div><span className="postable__name-sub">{x.name}</span></td>
+                  <td>{modelLabel(x)}</td>
+                  <td>{m !== undefined && <span className={`damodel-basis damodel-basis--${m.basis.toLowerCase()}`}>{m.basis === "DEMAND" ? "Per demand" : "Over time"}</span>}</td>
                 </tr>
               );
             })}
@@ -248,25 +304,38 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
 // ─── 03 — Group Populations (HLR-B) ────────────────────────────────────────
 function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
-  const { da } = useDaWorkbook();
+  const { da, editable, mutateDa } = useDaWorkbook();
   const groupings = da.componentGroupings ?? [];
   const outliers = da.outlierComponents ?? [];
+  function addGroup(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateDa((draft) => ({ ...draft, componentGroupings: [...(draft.componentGroupings ?? []), { uuid, name: "New group", systemId: "", groupId: uuid, componentIds: [], groupingBasis: "TYPE_AND_SERVICE_CONDITIONS", designCharacteristics: [], environmentalConditions: [], serviceConditions: [], groupingJustification: "", implementsSrs: [{ sr: "DA-B1", hlr: "B" }] }] }));
+    openDrawer({ kind: "grouping", id: uuid });
+  }
+  function addOutlier(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateDa((draft) => ({ ...draft, outlierComponents: [...(draft.outlierComponents ?? []), { uuid, systemId: "", componentId: "New outlier", potentialGroupId: "", exclusionReason: "", exclusionJustification: "", differentiatingCharacteristics: [], alternativeHandling: "", status: "TENTATIVE", implementsSrs: [{ sr: "DA-B2", hlr: "B" }] }] }));
+    openDrawer({ kind: "outlier", id: uuid });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Homogeneous populations</h3>
-          <span className="possubtle">{groupings.length} groups · DA-B1</span>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <span className="possubtle">DA-B1</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}><DAIcon.Plus /> Add group</button>}
+          </div>
         </div>
         <p className="poscard__sub">Pool components by type at CC-I, or by type and service and environment at CC-II, since pooling unlike things poisons the estimate.</p>
         <div className="dagroup">
           {groupings.map((g) => {
             const basis = GROUPING_BASIS[g.groupingBasis];
-            const heldOut = g.excludedOutliers ?? [];
             return (
               <div key={g.uuid} className="dagroup__card" onClick={() => openDrawer({ kind: "grouping", id: g.uuid })}>
                 <div className="dagroup__head">
-                  <span className="dagroup__icon"><DAIcon.Merge /></span>
                   <div className="dagroup__head-main">
                     <div className="dagroup__name">{g.name}</div>
                     <div className="dagroup__sys posmono">{g.systemId}</div>
@@ -276,13 +345,7 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
                 <div className="dagroup__members">
                   {g.componentIds.map((m, i) => <span key={i} className="dagroup__member">{m}</span>)}
                 </div>
-                <div className="dagroup__service">
-                  {g.serviceConditions.map((s, i) => <span key={i} className="dagroup__cond"><DAIcon.Thermo /> {s}</span>)}
-                </div>
                 <p className="dagroup__just">{g.groupingJustification}</p>
-                {heldOut.length > 0 && (
-                  <div className="dagroup__outliers"><DAIcon.Filter /> {heldOut.length} outlier{heldOut.length === 1 ? "" : "s"} held out</div>
-                )}
               </div>
             );
           })}
@@ -292,12 +355,15 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Outliers held out</h3>
-          <DaProvenanceChip>DA-B2</DaProvenanceChip>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <DaProvenanceChip>DA-B2</DaProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addOutlier}><DAIcon.Plus /> Add outlier</button>}
+          </div>
         </div>
         <p className="poscard__sub">A never-tested valve or a mothballed spare does not get pooled with frequently exercised equipment.</p>
         <div className="daoutlier">
           {outliers.map((o) => (
-            <div key={o.uuid} className="daoutlier__row">
+            <div key={o.uuid} className="daoutlier__row" onClick={() => openDrawer({ kind: "outlier", id: o.uuid })}>
               <div className="daoutlier__main">
                 <span className="daoutlier__name">{o.componentId}</span>
                 <span className="daoutlier__reason">{o.exclusionReason}</span>
@@ -305,13 +371,9 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
               <div className="daoutlier__diff">
                 {o.differentiatingCharacteristics.map((d, i) => <span key={i} className="daoutlier__tag">{d}</span>)}
               </div>
-              <Badge kind="ok">Excluded</Badge>
+              <span className="daoutlier__status">{o.status === "CONFIRMED" ? "Confirmed" : o.status === "TENTATIVE" ? "Tentative" : "Under review"}</span>
             </div>
           ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <DAIcon.Filter />
-          <span>This is the anti-masking rule applied to populations rather than sequences.</span>
         </div>
       </div>
     </>
@@ -319,9 +381,15 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
 }
 
 // ─── 04 — Collect: Generic (HLR-C, first movement) ─────────────────────────
-function GenericScreen(): JSX.Element {
-  const { da } = useDaWorkbook();
+function GenericScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void }): JSX.Element {
+  const { da, editable, mutateDa } = useDaWorkbook();
   const sources = da.externalDataSources ?? [];
+  function addSource(): void {
+    if (!editable) return;
+    const uuid = crypto.randomUUID();
+    mutateDa((draft) => ({ ...draft, externalDataSources: [...(draft.externalDataSources ?? []), { uuid, name: "New source", sourceType: "INDUSTRY_DATABASE", sourceLocation: "", timePeriod: { start: "", end: "" }, accessMethod: "", dataFormat: "", referenceDocumentation: [], implementsSrs: [{ sr: "DA-C1", hlr: "C" }] }] }));
+    openDrawer({ kind: "source", id: uuid });
+  }
   function appliesTo(name: string): string[] {
     return da.parameters.filter((p) => (p.dataSources ?? []).some((ds) => ds.source === name)).map((p) => p.uuid);
   }
@@ -339,7 +407,10 @@ function GenericScreen(): JSX.Element {
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Generic and technology sources</h3>
-          <span className="possubtle">{sources.length} sources · DA-C1, C2</span>
+          <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
+            <span className="possubtle">DA-C1, C2</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSource}><DAIcon.Plus /> Add source</button>}
+          </div>
         </div>
         <p className="poscard__sub">Collect generic estimates per operating state, and add technology experience from other facilities while the plant is pre-operational.</p>
         <div className="dasource">
@@ -348,17 +419,16 @@ function GenericScreen(): JSX.Element {
             const nonnuclear = isNonnuclear(s.limitations);
             const perState = isPerState(s.limitations);
             return (
-              <div key={s.uuid} className={`dasource__card${otherFacility ? " dasource__card--other" : ""}`}>
+              <div key={s.uuid} className={`dasource__card${otherFacility ? " dasource__card--other" : ""}`} onClick={() => openDrawer({ kind: "source", id: s.uuid })}>
                 <div className="dasource__head">
-                  <span className="dasource__icon"><DAIcon.Database /></span>
                   <div className="dasource__head-main">
                     <div className="dasource__name">{s.name}</div>
                     <div className="dasource__type">{SOURCE_TYPES[s.sourceType] ?? s.sourceType} · {s.timePeriod.start} to {s.timePeriod.end}</div>
                   </div>
                   {nonnuclear
-                    ? <span className="dasource__flag dasource__flag--nonnuclear"><DAIcon.Beaker /> Nonnuclear</span>
+                    ? <span className="dasource__flag dasource__flag--nonnuclear">Nonnuclear</span>
                     : otherFacility
-                      ? <span className="dasource__flag dasource__flag--other"><DAIcon.Sparkle /> Other facility</span>
+                      ? <span className="dasource__flag dasource__flag--other">Other facility</span>
                       : null}
                 </div>
                 <div className="dasource__applies">
@@ -367,7 +437,7 @@ function GenericScreen(): JSX.Element {
                 <p className="dasource__note">{s.qualityAssurance}</p>
                 <div className="dasource__foot">
                   <span className={`dasource__state${perState ? " dasource__state--on" : ""}`}>
-                    <DAIcon.Layers /> {perState ? "Collected per state" : "Single state"}
+                    {perState ? "Collected per state" : "Single state"}
                   </span>
                   <DaProvenanceChip>{s.implementsSrs.map((r) => r.sr).join(" · ")}</DaProvenanceChip>
                 </div>
@@ -385,15 +455,17 @@ function GenericScreen(): JSX.Element {
         <p className="poscard__sub">A generic estimate is reused for another operating state only after its applicability to that state is established.</p>
         <div className="dareuse">
           {sources.filter((s) => isPerState(s.limitations)).map((s) => (
-            <div key={s.uuid} className="dareuse__row">
-              <span className="dareuse__name">{s.name}</span>
+            <div key={s.uuid} className="dareuse__row" onClick={() => openDrawer({ kind: "source", id: s.uuid })}>
+              <div className="dareuse__main">
+                <span className="dareuse__name">{s.name}</span>
+                <span className="dareuse__meta posmono">{s.timePeriod.start} to {s.timePeriod.end}</span>
+              </div>
               <span className="dareuse__just">{applicabilityNote(s.limitations)}</span>
+              <div className="dareuse__applies">
+                {appliesTo(s.name).map((pid) => <span key={pid} className="dasource__param posmono">{pid}</span>)}
+              </div>
             </div>
           ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <DAIcon.Warn />
-          <span>A full-power failure rate is not automatically the mid-outage rate, so each state is checked.</span>
         </div>
       </div>
     </>

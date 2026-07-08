@@ -96,7 +96,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
   {
     uuid: "ESF-1",
     name: "Loss of decay-heat removal",
-    eventSequenceFamilyRef: "FAM-DHR-LOSS",
+    eventSequenceFamilyRef: "ESF-LATE",
     crossPosGroupingJustification: "Grouped across the standby and reduced-power states, since the end state and the dependencies match.",
     dependenciesConsideredInGrouping: true,
     representativeSequenceSelectionBasis: "The headline family, the loss-of-decay-heat sequences from the vertical slice.",
@@ -117,7 +117,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
   {
     uuid: "ESF-2",
     name: "Protected loss of primary flow",
-    eventSequenceFamilyRef: "FAM-PLOF",
+    eventSequenceFamilyRef: "ESF-LATE",
     crossPosGroupingJustification: "Grouped within the at-power state only, so no cross-state grouping is taken.",
     dependenciesConsideredInGrouping: true,
     representativeSequenceSelectionBasis: "A protected flow-loss family that relies on the shutdown and flow-coastdown functions.",
@@ -127,10 +127,10 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
     percentile05: 3.1e-8,
     percentile50: 8.8e-8,
     percentile95: 3.3e-7,
-    significantUncertaintySources: ["Pony-motor transfer reliability"],
+    significantUncertaintySources: ["Auxiliary-pump battery supply reliability"],
     contributionBreakdown: [
       { contributorRef: "Reactor protection channel failure", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.38 },
-      { contributorRef: "Pony-motor failure to transfer", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.34 },
+      { contributorRef: "Auxiliary pump battery supply fails", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.34 },
       { contributorRef: "Primary pump trip frequency", contributorType: "INITIATING_EVENT", fractionalContribution: 0.2 },
     ],
     implementsSrs: srs("ESQ-A1", "ESQ-A4", "ESQ-A5"),
@@ -138,7 +138,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
   {
     uuid: "ESF-3",
     name: "Primary sodium boundary leak",
-    eventSequenceFamilyRef: "FAM-NA-LEAK",
+    eventSequenceFamilyRef: "ESF-LEAK",
     crossPosGroupingJustification: "Grouped within the at-power state only.",
     crossSourceGroupingJustification: "Grouped across the primary and the cover-gas sources, with the grouping justified by the shared barrier response. The cross-source grouping justification is under review.",
     dependenciesConsideredInGrouping: true,
@@ -160,7 +160,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
   {
     uuid: "ESF-4",
     name: "Loss of offsite power with DHR challenge",
-    eventSequenceFamilyRef: "FAM-LOOP-DHR",
+    eventSequenceFamilyRef: "ESF-LATE",
     crossPosGroupingJustification: "Grouped across the at-power and the hot-standby states, since the response is the same.",
     dependenciesConsideredInGrouping: true,
     representativeSequenceSelectionBasis: "A station-blackout family driven by the recovery timing.",
@@ -172,7 +172,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
     percentile95: 7.2e-7,
     significantUncertaintySources: ["Offsite-power recovery time", "Diesel common-cause parameter"],
     contributionBreakdown: [
-      { contributorRef: "Diesel generator common-cause failure", contributorType: "CCF", fractionalContribution: 0.36 },
+      { contributorRef: "Station battery common-cause failure", contributorType: "CCF", fractionalContribution: 0.36 },
       { contributorRef: "Battery depletion before recovery", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.29 },
       { contributorRef: "Offsite-power non-recovery", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0.22 },
     ],
@@ -181,7 +181,7 @@ const familyQuantifications: EventSequenceFamilyQuantification[] = [
   {
     uuid: "ESF-5",
     name: "Reactivity insertion transient",
-    eventSequenceFamilyRef: "FAM-RIT",
+    eventSequenceFamilyRef: "ESF-ATWS",
     crossPosGroupingJustification: "Grouped within the at-power state only.",
     dependenciesConsideredInGrouping: true,
     representativeSequenceSelectionBasis: "A non-risk-significant transient carried at a point estimate at CC-I.",
@@ -206,10 +206,10 @@ const modelIntegration: ModelIntegration = {
   ],
   integrationVerification: "The integrated model is checked against the sequence delineation and the system models before quantification.",
   scopeCoverage: {
-    radionuclideSources: ["SRC-CORE", "SRC-COVER-GAS"],
+    radionuclideSources: ["SRC-1", "SRC-2"],
     initiatingEventGroups: ["IEG-01", "IEG-02", "IEG-03", "IEG-04", "IEG-05", "IEG-06", "IEG-07", "IEG-08", "IEG-09", "IEG-10", "IEG-11", "IEG-12", "IEG-13", "HZ-FIRE", "HZ-SEIS"],
-    hazardGroups: ["Internal events", "Seismic", "External flood"],
-    plantOperatingStates: ["POS-1", "POS-2", "POS-3", "POS-4", "POS-5", "POS-6", "POS-7", "POS-8", "POS-9"],
+    hazardGroups: ["Internal events", "Internal sodium fire", "Seismic"],
+    plantOperatingStates: ["POS-01", "POS-02", "POS-03", "POS-04", "POS-05", "POS-06", "POS-07", "POS-08", "POS-09"],
     plantEvolutions: ["EVOL-STARTUP", "EVOL-FULL-POWER", "EVOL-SHUTDOWN", "EVOL-REFUELING"],
   },
   systemDependenciesAccounted: true,
@@ -278,7 +278,7 @@ const dependencyTreatment: DependencyTreatment = {
   ccfTreatment: {
     modelingApproach: "Common-cause basic events carried inside the system fault trees.",
     parameterBasis: "The alpha-factor and beta-factor parameters supplied by the data analysis.",
-    ccfGroupRefs: ["CCFG-DHR-FTS", "CCFG-DC-CHG"],
+    ccfGroupRefs: ["CCF-DRACS-LOOP", "CCF-DC-BATT"],
   },
   recoveryDependencyTreatment: "Recovery actions are applied with their dependence on the cause carried explicitly.",
   implementsSrs: srs("ESQ-C1", "ESQ-C2"),
@@ -300,9 +300,9 @@ const circularLogicResolutions: CircularLogicResolution[] = [
 const mutuallyExclusiveEventRules: MutuallyExclusiveEventRule[] = [
   {
     uuid: "MX-1",
-    description: "Two redundant trains in maintenance at once",
+    description: "Two DRACS loops in staggered surveillance at once",
     eventIds: ["HE-MAINT-A", "HE-MAINT-B"],
-    basis: "The technical specifications forbid both trains out together.",
+    basis: "The surveillance plan staggers the loops so two are never out together.",
     identifiedInResults: true,
     treatment: "LOGIC_ELIMINATION",
     implementsSrs: srs("ESQ-B7", "ESQ-B8"),
@@ -310,7 +310,7 @@ const mutuallyExclusiveEventRules: MutuallyExclusiveEventRule[] = [
   {
     uuid: "MX-2",
     description: "Refueling alignment with at-power initiator",
-    eventIds: ["HE-REFUEL", "IE-PHTS-TRIP"],
+    eventIds: ["HE-REFUEL", "IE-01"],
     basis: "The refueling alignment cannot coexist with the at-power initiator.",
     identifiedInResults: true,
     treatment: "CUTSET_DELETION",
@@ -661,7 +661,7 @@ const riskSignificantContributors: RiskSignificantContributor[] = [
   {
     uuid: "RC-4",
     contributorType: RiskSignificantContributorType.CCF,
-    entityRef: "Diesel generator common-cause failure",
+    entityRef: "Station battery common-cause failure",
     applicableFamilyRefs: ["ESF-4"],
     fractionalContribution: 0.1,
     riskSignificanceCriteriaBasis: "Drives the station-blackout family.",
@@ -692,7 +692,7 @@ const importanceAnalyses: ImportanceAnalysisRecord[] = [
       { entityType: "CCF_GROUP", entityRef: "DHR pump common-cause group", fussellVesely: 0.22, riskAchievementWorth: 8.4 },
       { entityType: "SYSTEM", entityRef: "Room cooling support", fussellVesely: 0.15, riskAchievementWorth: 5.1 },
       { entityType: "HUMAN_FAILURE_EVENT", entityRef: "Operator starts backup DHR", fussellVesely: 0.12, riskAchievementWorth: 4.2 },
-      { entityType: "CCF_GROUP", entityRef: "Diesel generator common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
+      { entityType: "CCF_GROUP", entityRef: "Station battery common-cause group", fussellVesely: 0.1, riskAchievementWorth: 3.6 },
       { entityType: "BASIC_EVENT", entityRef: "Reactor protection channel", fussellVesely: 0.04, riskAchievementWorth: 1.9 },
     ],
     implementsSrs: srs("ESQ-D7"),
@@ -746,17 +746,17 @@ const uncertaintyPropagation: UncertaintyPropagation = {
   ],
   characterizationLevel: "PROPAGATED_RISK_SIGNIFICANT_SOKC",
   parameterUncertainties: [
-    { parameterRef: "DHR-PMP-A-FTS", distribution: { type: DistributionType.LOGNORMAL, median: 2.3e-3, errorFactor: 5 }, basis: "The risk-significant pump demand parameter from the data analysis." },
-    { parameterRef: "DG-A-FTS", distribution: { type: DistributionType.LOGNORMAL, median: 1.2e-2, errorFactor: 4 }, basis: "The diesel start parameter from the data analysis." },
-    { parameterRef: "RPS-CH-FTD", distribution: { type: DistributionType.LOGNORMAL, median: 8.0e-4, errorFactor: 4 }, basis: "The protection channel parameter from the data analysis." },
+    { parameterRef: "DRC-LP1-FR", distribution: { type: DistributionType.LOGNORMAL, median: 5.0e-3, errorFactor: 5 }, basis: "The risk-significant natural-circulation loop parameter from the data analysis (DA-BE-031)." },
+    { parameterRef: "DC-BAT-A-FR", distribution: { type: DistributionType.LOGNORMAL, median: 4.2e-3, errorFactor: 4 }, basis: "The battery-train run parameter from the data analysis (DA-BE-071)." },
+    { parameterRef: "RPS-DVA-FS", distribution: { type: DistributionType.LOGNORMAL, median: 1.1e-3, errorFactor: 4 }, basis: "The protection division parameter from the data analysis (DA-BE-007)." },
   ],
   stateOfKnowledgeCorrelation: {
     isConsidered: true,
     handlingMethod: "SAME_RANDOM_SEED",
     handlingDescription: "Shared estimates are sampled with a common random seed, so their uncertainty stays correlated.",
     correlatedParameterGroups: [
-      ["DHR-PMP-A-FTS", "DHR-PMP-B-FTS", "DHR-PMP-C-FTS"],
-      ["DG-A-FTS", "DG-B-FTS"],
+      ["DRC-LP1-FR", "DRC-LP2-FR", "DRC-LP3-FR"],
+      ["DC-BAT-A-FR", "DC-BAT-B-FR"],
     ],
     impactAssessment: "Ignoring the correlation would understate the loss-of-cooling mean by about a third.",
   },
@@ -816,7 +816,7 @@ const documentation: EsqDocumentation = {
   uncertaintySourcesDocumentation: "The model-uncertainty sources from every technical element are assessed at the quantification, qualitatively or quantitatively.",
   limitationsForApplications: "The limitations that would affect applications are recorded, including the conservative functional-containment capacity.",
   asBuiltLimitations: "Pre-operational: the quantification rests on inherited pre-operational parameters and design analyses pending as-built confirmation.",
-  praTaskInterfaces: "ESQ takes the work of IE, ES, SC, SY, HR and DA, weights it across the POS states, and delivers the family frequencies to Risk Integration and the release inputs to the Mechanistic Source Term, with a risk-significance feedback loop to every input.",
+  praTaskInterfaces: "ESQ takes the work of IE, ES, SC, SY, HR and DA, weights it across the POS states, and delivers the family frequencies to Risk Integration and the release inputs to the Mechanistic Source Term, with a risk-significance feedback loop to every input., with the family means here carrying the quantified human-error and recovery credit the Event Sequence screening sums do not",
   implementsSrs: srs("ESQ-F1", "ESQ-F2", "ESQ-F3", "ESQ-F4", "ESQ-F5"),
 };
 

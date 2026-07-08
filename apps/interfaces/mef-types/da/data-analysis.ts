@@ -460,7 +460,19 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
   documentation: DaDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
 }
 
 export const DA_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

@@ -383,12 +383,12 @@ function DaWorkbench({
         );
       case "define": return <DefineScreen openDrawer={setDrawer} />;
       case "group": return <GroupScreen openDrawer={setDrawer} />;
-      case "generic": return <GenericScreen />;
-      case "counts": return <CountsScreen stage={stage} />;
-      case "unavail": return <UnavailScreen />;
+      case "generic": return <GenericScreen openDrawer={setDrawer} />;
+      case "counts": return <CountsScreen openDrawer={setDrawer} />;
+      case "unavail": return <UnavailScreen openDrawer={setDrawer} />;
       case "estimate": return <EstimateScreen openDrawer={setDrawer} />;
-      case "ccf": return <CcfScreen />;
-      case "uncert": return <UncertScreen stage={stage} />;
+      case "ccf": return <CcfScreen openDrawer={setDrawer} />;
+      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

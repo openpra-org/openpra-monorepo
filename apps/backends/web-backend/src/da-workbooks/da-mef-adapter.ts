@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { DA_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { DaWorkbooksService } from "./da-workbooks.service";
 import { DaWorkbook, type DaWorkbookDocument } from "./da-workbook.schema";
 import { createBlankDa } from "./blank-da";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
@@ -14,6 +16,7 @@ export class DaMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(DaWorkbook.name) private readonly daWorkbookModel: Model<DaWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly daWorkbooksService: DaWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class DaMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return DA_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.daWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

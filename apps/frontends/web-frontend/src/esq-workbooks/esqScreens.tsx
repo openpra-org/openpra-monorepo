@@ -1,22 +1,24 @@
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import { ESQIcon } from "./esqIcons";
 import { Badge, EsqProvenanceChip, valText, pctText } from "./esqShared";
 import { useEsqWorkbook } from "./esqWorkbookContext";
-import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   ESQ_METHODS,
   QUANT_BASIS_LABELS,
   CONTRIBUTOR_TYPE_LABELS,
   MUTEX_TREATMENT_LABELS,
-  APPROXIMATIONS,
-  A5_SPLIT,
+  CIRCULAR_METHOD_LABELS,
+  MODULE_TYPE_LABELS,
+  APPROACH_LABELS,
+  SOLUTION_METHOD_LABELS,
   type Stage,
 } from "./esqViewData";
+import { type CircularLogicResolution } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { familyMeanFrequency, familyIsRiskSignificant, familyIsWarn } from "./esqSelectors";
 
 interface EsqDrawerContext {
-  kind: "family" | "barrier";
+  kind: "family" | "barrier" | "code" | "truncation" | "solution" | "flag" | "mutex" | "circular" | "module" | "success" | "dependency" | "multihfe" | "transfer" | "phenomena" | "phenomodel" | "survivability" | "contributor" | "importance" | "cutsetreview" | "screening" | "consistency" | "funnel" | "sokc";
   id: string;
 }
 
@@ -35,17 +37,30 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
 
 function FamilyContribBar({ frac }: { frac: number }): JSX.Element {
   return (
-    <div className="esqfam__contrib-bar">
-      <span className="esqfam__contrib-bar-fill" style={{ width: pctText(frac) }} />
-      <span className="esqfam__contrib-bar-txt">{pctText(frac)}</span>
+    <div className="esqfam__contrib-meter">
+      <div className="esqfam__contrib-bar"><span className="esqfam__contrib-bar-fill" style={{ width: pctText(frac) }} /></div>
+      <span className="esqfam__contrib-pct">{pctText(frac)}</span>
     </div>
   );
 }
 
 // ─── 01 — Scope & Inputs ───────────────────────────────────────────────────
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, links, editable, mutateEsq } = useEsqWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
+  const [selectedTe, setSelectedTe] = useState<string | null>(null);
+  const ifaceLanes: { key: string; code: string; element: string; role: string; direction: "in" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
+    { key: "in-POS", code: "POS", element: "Plant Operating States", role: "Operating states and time weights", direction: "in", columns: ["State", "Mode", "Hours"], rows: (links?.posStates ?? []).map((x) => ({ id: x.id, name: `${x.id} · ${x.name}`, values: [x.mode, String(x.durationHours)] })), empty: "Load the example to pull the operating states the family frequencies are weighted across." },
+    { key: "in-IE", code: "IE", element: "Initiating Events", role: "Group frequencies", direction: "in", columns: ["Group", "Name", "Frequency (/yr)"], rows: (links?.ieGroups ?? []).map((g) => ({ id: g.id, name: g.id, values: [g.name, valText(g.frequency)] })), empty: "Load the example to pull the initiating-event group frequencies the quantification starts from." },
+    { key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Sequence families and end states", direction: "in", columns: ["Family", "Name"], rows: (links?.esFamilies ?? []).map((f) => ({ id: f.id, name: f.id, values: [f.name] })), empty: "Load the example to pull the sequence families the quantification carries." },
+    { key: "in-SC", code: "SC", element: "Success Criteria", role: "Mission times and success criteria", direction: "in", columns: ["Criterion", "Sequence", "Mission (h)"], rows: (links?.scMissionTimes ?? []).map((m) => ({ id: m.id, name: m.id, values: [m.sequence, String(m.hours)] })), empty: "Load the example to pull the mission times the sequence logic is solved against." },
+    { key: "in-SY", code: "SY", element: "Systems Analysis", role: "System logic models", direction: "in", columns: ["System", "Name"], rows: (links?.sySystems ?? []).map((y) => ({ id: y.id, name: y.id, values: [y.name] })), empty: "Load the example to pull the system models the linking substitutes." },
+    { key: "in-HR", code: "HR", element: "Human Reliability", role: "Quantified human actions", direction: "in", columns: ["HFE", "Mean"], rows: (links?.hrActions ?? []).map((h) => ({ id: h.id, name: h.hfe, values: [valText(h.mean)] })), empty: "Load the example to pull the quantified human actions the cutsets carry." },
+    { key: "in-DA", code: "DA", element: "Data Analysis", role: "Parameter estimates and distributions", direction: "in", columns: ["Parameter", "Mean"], rows: (links?.daParams ?? []).map((d) => ({ id: d.id, name: d.name, values: [valText(d.value)] })), empty: "Load the example to pull the parameter estimates the model binds." },
+    { key: "out-MS", code: "MS", element: "Mechanistic Source Term", role: "Release inputs", direction: "out", columns: ["Family", "End state", "Frequency (/yr)"], rows: esq.familyQuantifications.map((f) => ({ id: f.uuid, name: f.name, values: [f.eventSequenceFamilyRef, valText(familyMeanFrequency(f))] })), empty: "No family frequencies yet." },
+    { key: "out-RI", code: "RI", element: "Risk Integration", role: "Family frequencies and significance", direction: "out", columns: ["Family", "Frequency (/yr)", "Risk-significant"], rows: esq.familyQuantifications.map((f) => ({ id: f.uuid, name: f.name, values: [valText(familyMeanFrequency(f)), familyIsRiskSignificant(f) ? "Yes" : "—"] })), empty: "No family frequencies yet." },
+  ];
+  const selectedLane = ifaceLanes.find((l) => l.key === selectedTe);
 
   function onScopeChange(value: string): void {
     if (!editable) return;
@@ -66,8 +81,42 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
     <>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
-        <p className="poscard__sub">What flows into Event Sequence Quantification and what it feeds. Select an element to see the data exchanged.</p>
-        <WorkbookInterfaceTiles element="ESQ" />
+        <p className="poscard__sub">Select an element to see the data exchanged.</p>
+        <div className="poshandoff__grid">
+          {ifaceLanes.map((lane) => (
+            <button key={lane.key} type="button"
+              className={`poshandoff__tile${selectedTe === lane.key ? " poshandoff__tile--active" : ""}`}
+              onClick={() => setSelectedTe(selectedTe === lane.key ? null : lane.key)}>
+              <span className="poshandoff__tile-code">{lane.code}</span>
+              <span className="poshandoff__tile-name">{lane.element}</span>
+              <span className="poshandoff__tile-role">{lane.direction === "out" ? "Consumes · " : "Provides · "}{lane.role}</span>
+            </button>
+          ))}
+        </div>
+        {selectedLane !== undefined && (
+          <div style={{ marginTop: 16 }}>
+            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+              {selectedLane.direction === "out"
+                ? `${selectedLane.element} receives ${selectedLane.role.toLowerCase()} from Event Sequence Quantification`
+                : `Event Sequence Quantification receives ${selectedLane.role.toLowerCase()} from ${selectedLane.element}`}
+            </div>
+            {selectedLane.rows.length > 0 ? (
+              <table className="postable postable--mid">
+                <thead><tr>{selectedLane.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                <tbody>
+                  {selectedLane.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><div className="postable__name">{r.name}</div></td>
+                      {r.values.map((v, idx) => <td key={selectedLane.columns[idx + 1] ?? `c${idx}`} className="mono">{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="posmuted" style={{ margin: 0 }}>{selectedLane.empty}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="poscard">
@@ -104,10 +153,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <ESQIcon.Sparkle />
-          <span>CC-II cannot be met without real uncertainty propagation, since the mean of a product of correlated estimates is not the product of the means.</span>
-        </div>
       </div>
 
       <div className="poscard">
@@ -129,10 +174,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             </label>
           ))}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <ESQIcon.Tag />
-          <span>ESQ owns almost no pre-operational fork, since it inherits its pre-operational character through the upstream parameters and models.</span>
-        </div>
       </div>
     </>
   );
@@ -140,47 +181,22 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
 // ─── 02 — Integrate & Quantify (HLR-A) ─────────────────────────────────────
 function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
-  const { esq } = useEsqWorkbook();
-  const scope = esq.modelIntegration.scopeCoverage;
-  const scopeCells: { k: string; v: number; cap: string; icon: string }[] = [
-    { k: "Sources", v: scope.radionuclideSources.length, cap: "Radionuclide sources", icon: "Atom" },
-    { k: "IE groups", v: scope.initiatingEventGroups.length, cap: "Initiating-event groups", icon: "Bolt" },
-    { k: "Hazard groups", v: scope.hazardGroups.length, cap: "Internal and external", icon: "Flame" },
-    { k: "POS", v: scope.plantOperatingStates.length, cap: "Plant operating states", icon: "Layers" },
-    { k: "Evolutions", v: scope.plantEvolutions.length, cap: "Plant evolutions", icon: "Activity" },
-  ];
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  function addFamily(): void {
+    const next = esq.familyQuantifications.reduce((m, x) => { const nm = Number(x.uuid.split("-")[1]); return Number.isNaN(nm) ? m : Math.max(m, nm); }, 0) + 1;
+    const uuid = `EFQ-${String(next)}`;
+    mutateEsq((draft) => ({ ...draft, familyQuantifications: [...draft.familyQuantifications, { uuid, name: "New family", eventSequenceFamilyRef: "", dependenciesConsideredInGrouping: true, quantificationBasis: "POINT_ESTIMATE", meanFrequency: 0, implementsSrs: [{ sr: "ESQ-A1", hlr: "A" }, { sr: "ESQ-A4", hlr: "A" }] }] }));
+    openDrawer({ kind: "family", id: uuid });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Model integration</h3>
-          <EsqProvenanceChip>ESQ-A2</EsqProvenanceChip>
-        </div>
-        <p className="poscard__sub">The grand integration combines the sequences, the system logic, the data and the human reliability across the full scope.</p>
-        <div className="esqscope">
-          {scopeCells.map((s) => {
-            const Icon = ESQIcon[s.icon] ?? ESQIcon.Layers;
-            return (
-              <div key={s.k} className="esqscope__cell">
-                <span className="esqscope__k"><Icon /> {s.k}</span>
-                <span className="esqscope__v">{s.v}</span>
-                <span className="esqscope__cap">{s.cap}</span>
-              </div>
-            );
-          })}
-        </div>
-        {esq.modelIntegration.multiReactorInclusionBasis !== undefined && (
-          <div className="hrnote" style={{ marginTop: 12 }}>
-            <ESQIcon.Network />
-            <span>{esq.modelIntegration.multiReactorInclusionBasis}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
           <h3 className="poscard__title">Event sequence families</h3>
-          <span className="possubtle">{esq.familyQuantifications.length} families · ESQ-A1, A4</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <span className="possubtle">ESQ-A1, A4</span>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFamily}><ESQIcon.Plus /> Add family</button>}
+          </div>
         </div>
         <p className="poscard__sub">Sequences are grouped into families with like end states and like dependencies, and each family carries a frequency.</p>
         <div className="esqfam">
@@ -199,14 +215,13 @@ function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) =
                   </div>
                 </div>
                 <span className={`esqfam__basis esqfam__basis--${qb?.kind ?? "point"}`}>
-                  <ESQIcon.Function /> {qb?.label ?? f.quantificationBasis}
+                  {qb?.label ?? f.quantificationBasis}
                 </span>
                 {f.percentile95 !== undefined && (
                   <div className="esqfam__pct">
-                    {([["05", f.percentile05, 28], ["50", f.percentile50, 60], ["95", f.percentile95, 100]] as [string, number | undefined, number][]).map(([k, v, w]) => (
-                      <div key={k} className="esqfam__pct-row">
-                        <span className="esqfam__pct-k">P{k}</span>
-                        <span className="esqfam__pct-bar"><span className="esqfam__pct-fill" style={{ width: `${w}%` }} /></span>
+                    {([["P05", f.percentile05], ["P50", f.percentile50], ["P95", f.percentile95]] as [string, number | undefined][]).map(([k, v]) => (
+                      <div key={k} className="esqfam__pct-cell">
+                        <span className="esqfam__pct-k">{k}</span>
                         <span className="esqfam__pct-v">{valText(v)}</span>
                       </div>
                     ))}
@@ -221,244 +236,286 @@ function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) =
                     </div>
                   ))}
                 </div>
-                <div className="esqfam__foot">
-                  <MethodChips ids={["ftlink", "mcub"]} label="Solved by" />
-                  {familyIsRiskSignificant(f) && <span className="esqfam__rs">Risk-significant</span>}
-                </div>
+                {familyIsRiskSignificant(f) && (
+                  <div className="esqfam__foot">
+                    <span className="esqfam__rs">Risk-significant</span>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">The capability split</h3>
-          <EsqProvenanceChip>ESQ-A5</EsqProvenanceChip>
-        </div>
-        <p className="poscard__sub">ESQ's signature split, the most computational in the standard, from a point estimate to a mean with the state-of-knowledge correlation.</p>
-        <div className="esqsplit">
-          <div className="esqsplit__col">
-            <span className="esqsplit__cc esqsplit__cc--i">CC-I</span>
-            <div className="esqsplit__title">{A5_SPLIT.cci.title}</div>
-            <p className="esqsplit__desc">{A5_SPLIT.cci.desc}</p>
-            <span className="esqsplit__tag" style={{ color: "var(--color-text-subtle)" }}><ESQIcon.Hash /> {A5_SPLIT.cci.tag}</span>
-          </div>
-          <div className="esqsplit__col esqsplit__col--ii">
-            <span className="esqsplit__cc esqsplit__cc--ii">CC-II</span>
-            <div className="esqsplit__title">{A5_SPLIT.ccii.title}</div>
-            <p className="esqsplit__desc">{A5_SPLIT.ccii.desc}</p>
-            <span className="esqsplit__tag"><ESQIcon.Link /> {A5_SPLIT.ccii.tag}</span>
-          </div>
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <ESQIcon.Sparkle />
-          <span>{A5_SPLIT.note}</span>
-        </div>
-      </div>
     </>
   );
 }
 
 // ─── 03 — Solve & Converge (HLR-B, computational core) ─────────────────────
-function SolveScreen(): JSX.Element {
-  const { esq } = useEsqWorkbook();
+function SolveScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
   const qm = esq.quantificationMethods;
   const trunc = qm.truncation;
-  const maxFreq = Math.max(...trunc.truncationProgression.map((c) => trunc.frequencyAtTruncation[c] ?? 0), 1e-12);
-  const approxOn: Record<string, boolean> = {
-    "rare-event": qm.cutsetSolutionMethod === "RARE_EVENT",
-    mcub: qm.cutsetSolutionMethod === "MCUB",
-    exact: true,
-    "monte-carlo": esq.uncertaintyPropagation.propagationMethod === "MONTE_CARLO",
-  };
+  const demoFamily = esq.familyQuantifications.find((x) => x.uuid === trunc.demonstratedFamilyRef);
+  const freqHeader = demoFamily !== undefined ? `${demoFamily.name} frequency (/yr)` : "Family frequency (/yr)";
+  function addCode(): void {
+    const nextIndex = qm.computerCodes.length;
+    mutateEsq((draft) => ({ ...draft, quantificationMethods: { ...draft.quantificationMethods, computerCodes: [...draft.quantificationMethods.computerCodes, { name: "New code", version: "1.0", verificationDocumentation: "", validationDocumentation: "", methodSpecificLimitations: [], implementsSrs: [{ sr: "ESQ-B1", hlr: "B" }] }] } }));
+    openDrawer({ kind: "code", id: String(nextIndex) });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Quantification codes</h3>
-          <EsqProvenanceChip>ESQ-B1</EsqProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B1</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><ESQIcon.Plus /> Add code</button>}
+          </div>
         </div>
         <p className="poscard__sub">The codes are demonstrated against accepted algorithms, with the method-specific limitations identified and the roles named rather than any product.</p>
-        <div className="esqcode">
-          {qm.computerCodes.map((c) => (
-            <div key={c.name} className="esqcode__card">
-              <div className="esqcode__head">
-                <span className="esqcode__icon"><ESQIcon.Cpu /></span>
-                <div className="esqcode__head-main">
-                  <div className="esqcode__name">{c.name}</div>
-                  <div className="esqcode__ver">{c.methodSpecificFeatures?.[0] ?? `v${c.version}`}</div>
+        {qm.computerCodes.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No codes recorded yet. Add the quantification codes this analysis relies on.</p>
+        ) : (
+          <div className="esqcode">
+            {qm.computerCodes.map((c, i) => (
+              <div key={`${c.name}-${String(i)}`} className="esqcode__card" onClick={() => openDrawer({ kind: "code", id: String(i) })} style={{ cursor: "pointer" }}>
+                <div className="esqcode__head">
+                  <div className="esqcode__head-main">
+                    <div className="esqcode__name">{c.name}</div>
+                  </div>
                 </div>
+                {c.verificationDocumentation !== "" && <div className="esqcode__meta"><span className="esqcode__meta-k">Verified</span><span className="esqcode__meta-v">{c.verificationDocumentation}</span></div>}
+                {c.validationDocumentation !== "" && <div className="esqcode__meta"><span className="esqcode__meta-k">Validated</span><span className="esqcode__meta-v">{c.validationDocumentation}</span></div>}
+                {c.benchmarkComparison !== undefined && <div className="esqcode__meta"><span className="esqcode__meta-k">Benchmark</span><span className="esqcode__meta-v">{c.benchmarkComparison}</span></div>}
               </div>
-              <div className="esqcode__vv">
-                {c.verificationDocumentation.length > 0 && <span className="esqcode__vv-pill"><ESQIcon.Verified /> Verified</span>}
-                {c.validationDocumentation.length > 0 && <span className="esqcode__vv-pill"><ESQIcon.Check /> Validated</span>}
-              </div>
-              <div className="esqcode__limits">
-                {c.methodSpecificLimitations.map((l, i) => (
-                  <div key={i} className="esqcode__limit"><ESQIcon.Warn /> {l}</div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Truncation convergence</h3>
-          <EsqProvenanceChip>ESQ-B2 · ESQ-B3</EsqProvenanceChip>
-        </div>
-        <p className="poscard__sub">The truncation limit is set by lowering the cutoff until the family frequency stops moving, with the dependencies confirmed to survive the cut.</p>
-        <div className="esqtrunc">
-          <div className="esqtrunc__chart">
-            {trunc.truncationProgression.map((cutoff, i) => {
-              const freq = trunc.frequencyAtTruncation[cutoff];
-              const delta = trunc.percentageChangeAtTruncation[cutoff];
-              const h = Math.round(((freq ?? 0) / maxFreq) * 100);
-              const converged = delta !== undefined && delta < 0.5;
-              return (
-                <div key={i} className="esqtrunc__col">
-                  <div className="esqtrunc__bar-wrap">
-                    <div className={`esqtrunc__bar${converged ? " esqtrunc__bar--converged" : ""}`} style={{ height: `${h}%` }}>
-                      <span className="esqtrunc__bar-val">{valText(freq)}</span>
-                    </div>
-                  </div>
-                  <span className="esqtrunc__cut">{valText(cutoff)}</span>
-                  {delta !== undefined
-                    ? <span className={`esqtrunc__delta esqtrunc__delta--${delta >= 1 ? "high" : "low"}`}>{delta}%</span>
-                    : <span className="esqtrunc__delta esqtrunc__delta--low">base</span>}
-                </div>
-              );
-            })}
-          </div>
-          <div className="esqtrunc__note">
-            <ESQIcon.Activity />
-            <span>{trunc.basisForSelection} The cutoff settles at {valText(trunc.finalTruncationValue)} per year, and the merged cutsets are re-confirmed after merging.</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B2 · ESQ-B3</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "truncation", id: "truncation" })}>Edit study</button>}
           </div>
         </div>
+        <p className="poscard__sub">{trunc.basisForSelection !== "" ? trunc.basisForSelection : "The truncation limit is set by lowering the cutoff until the family frequency stops moving."}</p>
+        {trunc.truncationProgression.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No convergence study yet. Edit the study to record the truncation progression.</p>
+        ) : (
+          <>
+            <table className="postable postable--mid">
+              <thead><tr><th>Cutoff (/yr)</th><th>{freqHeader}</th><th>Change</th></tr></thead>
+              <tbody>
+                {trunc.truncationProgression.map((cutoff, i) => {
+                  const freq = trunc.frequencyAtTruncation[cutoff];
+                  const delta = trunc.percentageChangeAtTruncation[cutoff];
+                  return (
+                    <tr key={i}>
+                      <td className="posmono">{valText(cutoff)}</td>
+                      <td className="posmono">{valText(freq)}</td>
+                      <td className="posmono">{delta !== undefined ? `${String(delta)}%` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Solution and approximation</h3>
-          <EsqProvenanceChip>ESQ-B4</EsqProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B4</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "solution", id: "solution" })}>Edit method</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Cutsets are solved by the minimal cutset upper bound or an exact solution, and the rare-event approximation is not relied on for risk-significant families.</p>
-        <div className="esqapprox">
-          {APPROXIMATIONS.map((a) => (
-            <div key={a.id} className={`esqapprox__chip${approxOn[a.id] ? " esqapprox__chip--on" : ""}`}>
-              <span className="esqapprox__chip-k">{a.label}</span>
-              <span className="esqapprox__chip-v">{a.note}</span>
-            </div>
-          ))}
+        <p className="poscard__sub">The solution method behind the family frequencies, declared with the result.</p>
+        <div className="esqsol">
+          <div className="esqsol__cell">
+            <span className="esqsol__k">Approach</span>
+            <span className="esqsol__v">{APPROACH_LABELS[qm.approach] ?? qm.approach}</span>
+          </div>
+          <div className="esqsol__cell">
+            <span className="esqsol__k">Cutset solution</span>
+            <span className="esqsol__v">{SOLUTION_METHOD_LABELS[qm.cutsetSolutionMethod ?? ""] ?? "Not selected yet"}</span>
+          </div>
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <ESQIcon.Tag />
-          <span>The solution method is declared with the result, so the reader knows which approximation produced the number.</span>
-        </div>
+        {qm.cutsetSolutionMethod === "RARE_EVENT" && qm.rareEventJustification !== undefined && (
+          <p className="posmuted" style={{ marginTop: 12, marginBottom: 0 }}>{qm.rareEventJustification}</p>
+        )}
       </div>
     </>
   );
 }
 
 // ─── 04 — Logic Integrity (HLR-B) ──────────────────────────────────────────
-function LogicScreen(): JSX.Element {
-  const { esq } = useEsqWorkbook();
+function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
+  const { esq, editable, mutateEsq } = useEsqWorkbook();
   const flags = esq.flagEventSettings ?? [];
   const mutex = esq.mutuallyExclusiveEventRules ?? [];
   const circular = esq.circularLogicResolutions ?? [];
   const modules = esq.moduleUsageRecords ?? [];
   const success = esq.systemSuccessTreatment;
+  const familyName = (ref: string): string => esq.familyQuantifications.find((x) => x.uuid === ref)?.name ?? ref;
+  function nextId(prefix: string, list: { uuid: string }[]): string {
+    const n = list.reduce((m, x) => { const v = Number(x.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
+    return `${prefix}-${String(n)}`;
+  }
+  function addFlag(): void {
+    const uuid = nextId("FL", flags);
+    mutateEsq((draft) => ({ ...draft, flagEventSettings: [...(draft.flagEventSettings ?? []), { uuid, name: "New flag", purpose: "", state: false, effect: "", basis: "", isTemporary: false, applicableFamilyRefs: [], setPriorToCutsetGeneration: true, implementsSrs: [{ sr: "ESQ-B9", hlr: "B" }] }] }));
+    openDrawer({ kind: "flag", id: uuid });
+  }
+  function addMutex(): void {
+    const uuid = nextId("MX", mutex);
+    mutateEsq((draft) => ({ ...draft, mutuallyExclusiveEventRules: [...(draft.mutuallyExclusiveEventRules ?? []), { uuid, description: "New rule", eventIds: [], basis: "", identifiedInResults: true, treatment: "LOGIC_ELIMINATION", implementsSrs: [{ sr: "ESQ-B7", hlr: "B" }, { sr: "ESQ-B8", hlr: "B" }] }] }));
+    openDrawer({ kind: "mutex", id: uuid });
+  }
+  function addCircular(): void {
+    const uuid = nextId("CL", circular);
+    mutateEsq((draft) => ({ ...draft, circularLogicResolutions: [...(draft.circularLogicResolutions ?? []), { uuid, description: "New resolution", involvedElementIds: [], detectionMethod: "", resolutionMethod: "LOGIC_TRANSFORMATION" as CircularLogicResolution["resolutionMethod"], resolutionDescription: "", neutralityJustification: "", implementsSrs: [{ sr: "ESQ-B5", hlr: "B" }] }] }));
+    openDrawer({ kind: "circular", id: uuid });
+  }
+  function addModule(): void {
+    const uuid = nextId("MOD", modules);
+    mutateEsq((draft) => ({ ...draft, moduleUsageRecords: [...(draft.moduleUsageRecords ?? []), { uuid, moduleType: "MODULE", processDescription: "", sharedEventsIdentified: false, trueIndependenceVerified: false, perEventInterpretabilityMaintained: false, implementsSrs: [{ sr: "ESQ-B10", hlr: "B" }] }] }));
+    openDrawer({ kind: "module", id: uuid });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">House-event flags</h3>
-          <EsqProvenanceChip>ESQ-B9</EsqProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B9</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFlag}><ESQIcon.Plus /> Add flag</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Logic flag events are set to true or false, not to a probability of one or zero, so the flag restructures the logic before the cutsets are generated.</p>
-        <div className="esqflag">
-          {flags.map((f) => (
-            <div key={f.uuid} className="esqflag__row">
-              <div className="esqflag__main">
-                <span className="esqflag__name">{f.name}</span>
-                <span className="esqflag__purpose">{f.purpose}. {f.effect}</span>
-              </div>
-              <span className={`esqflag__state esqflag__state--${f.state ? "true" : "false"}`}>{f.state ? "TRUE" : "FALSE"}</span>
-              <span className="esqflag__node posmono">{(f.applicableFamilyRefs ?? [])[0] ?? "—"}</span>
-            </div>
-          ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <ESQIcon.Sparkle />
-          <span>A probability-one event survives into the cutsets and corrupts them, so a true or false house event is used instead.</span>
-        </div>
+        <p className="poscard__sub">Logic flags are set true or false, not to a probability of one or zero, so they restructure the logic before the cutsets are generated.</p>
+        {flags.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No flags recorded yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead><tr><th>Flag</th><th>State</th><th>Effect</th><th>Applies to</th></tr></thead>
+            <tbody>
+              {flags.map((f) => (
+                <tr key={f.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "flag", id: f.uuid })} style={{ cursor: "pointer" }}>
+                  <td><div className="postable__name">{f.name}</div><div className="possubtle" style={{ fontSize: 12 }}>{f.purpose}</div></td>
+                  <td><span className={`esqstate esqstate--${f.state ? "on" : "off"}`}><span className="esqstate__dot" />{f.state ? "True" : "False"}</span></td>
+                  <td className="possubtle" style={{ fontSize: 12.5 }}>{f.effect}</td>
+                  <td className="possubtle" style={{ fontSize: 12 }}>{(f.applicableFamilyRefs ?? []).map(familyName).join(", ") || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Mutually exclusive events</h3>
-          <EsqProvenanceChip>ESQ-B7 · ESQ-B8</EsqProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B7 · ESQ-B8</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMutex}><ESQIcon.Plus /> Add rule</button>}
+          </div>
         </div>
         <p className="poscard__sub">Cutsets that contain events that cannot coexist are identified, then corrected by logic or by deletion, so they are not multiplied together.</p>
-        <div className="esqmutex">
-          {mutex.map((m) => (
-            <div key={m.uuid} className="esqmutex__row">
-              <div className="esqmutex__main">
-                <span className="esqmutex__desc">{m.description}</span>
-                <span className="esqmutex__basis">{m.basis}</span>
-              </div>
-              <div className="esqmutex__events">
-                {m.eventIds.map((e, i) => <span key={i} className="esqmutex__event">{e}</span>)}
-              </div>
-              <span className="esqmutex__treat">{MUTEX_TREATMENT_LABELS[m.treatment] ?? m.treatment}</span>
-            </div>
-          ))}
-        </div>
+        {mutex.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No rules recorded yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead><tr><th>Rule</th><th>Events</th><th>Treatment</th></tr></thead>
+            <tbody>
+              {mutex.map((m) => (
+                <tr key={m.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "mutex", id: m.uuid })} style={{ cursor: "pointer" }}>
+                  <td><div className="postable__name">{m.description}</div><div className="possubtle" style={{ fontSize: 12 }}>{m.basis}</div></td>
+                  <td>{m.eventIds.map((e, i) => <span key={i} className="poschip posmono" style={{ marginRight: 4 }}>{e}</span>)}</td>
+                  <td className="possubtle" style={{ fontSize: 12.5 }}>{MUTEX_TREATMENT_LABELS[m.treatment] ?? m.treatment}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Circular logic, successes and modules</h3>
-          <EsqProvenanceChip>ESQ-B5 · B6 · B10</EsqProvenanceChip>
-        </div>
-        <p className="poscard__sub">The support-system loops are broken without bias, the success branches are kept, and the shared modules stay independent and interpretable.</p>
-        <div className="esqlogic">
-          {circular.map((c) => (
-            <div key={c.uuid} className="esqlogic__card">
-              <div className="esqlogic__head">
-                <span className="esqlogic__icon"><ESQIcon.Branch /></span>
-                <span className="esqlogic__name">Circular logic</span>
-                <span className="esqlogic__sr">B5</span>
-              </div>
-              <p className="esqlogic__desc">{c.description}. {c.resolutionDescription}</p>
-              <div className="esqlogic__detail"><ESQIcon.Check /> {c.neutralityJustification}</div>
-            </div>
-          ))}
-          <div className="esqlogic__card">
-            <div className="esqlogic__head">
-              <span className="esqlogic__icon"><ESQIcon.Check /></span>
-              <span className="esqlogic__name">Successes kept</span>
-              <span className="esqlogic__sr">B6</span>
-            </div>
-            <p className="esqlogic__desc">{success.treatmentMethod} {success.impactOnResults}</p>
-            {success.modelingExamples?.[0] !== undefined && (
-              <div className="esqlogic__detail"><ESQIcon.Tree /> {success.modelingExamples[0]}</div>
-            )}
+          <h3 className="poscard__title">Circular logic</h3>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B5</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCircular}><ESQIcon.Plus /> Add resolution</button>}
           </div>
-          {modules.map((m) => (
-            <div key={m.uuid} className="esqlogic__card">
-              <div className="esqlogic__head">
-                <span className="esqlogic__icon"><ESQIcon.Boxes /></span>
-                <span className="esqlogic__name">Modules</span>
-                <span className="esqlogic__sr">B10</span>
-              </div>
-              <p className="esqlogic__desc">{m.processDescription}</p>
-              <div className="esqlogic__detail"><ESQIcon.Check /> Shared events identified, modules independent, per-event results interpretable.</div>
-            </div>
-          ))}
         </div>
+        <p className="poscard__sub">The support-system loops are detected and broken without adding bias to the result.</p>
+        {circular.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No resolutions recorded yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead><tr><th>Loop</th><th>Systems</th><th>Method</th></tr></thead>
+            <tbody>
+              {circular.map((c) => (
+                <tr key={c.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "circular", id: c.uuid })} style={{ cursor: "pointer" }}>
+                  <td><div className="postable__name">{c.description}</div><div className="possubtle" style={{ fontSize: 12 }}>{c.resolutionDescription}</div></td>
+                  <td>{c.involvedElementIds.map((e, i) => <span key={i} className="poschip posmono" style={{ marginRight: 4 }}>{e}</span>)}</td>
+                  <td className="possubtle" style={{ fontSize: 12.5 }}>{CIRCULAR_METHOD_LABELS[c.resolutionMethod] ?? c.resolutionMethod}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Success paths kept</h3>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B6</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "success", id: "success" })}>Edit</button>}
+          </div>
+        </div>
+        <p className="poscard__sub">{success.treatmentMethod}</p>
+        {success.systemsWithSuccessModeled.length > 0 && (
+          <div className="posrow posrow--wrap" style={{ gap: 8, alignItems: "center" }}>
+            <span className="possubtle" style={{ fontSize: 12.5 }}>Success modeled in</span>
+            {success.systemsWithSuccessModeled.map((sys) => <span key={sys} className="poschip posmono">{sys}</span>)}
+          </div>
+        )}
+      </div>
+
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Modules</h3>
+          <div className="posrow" style={{ gap: 10 }}>
+            <EsqProvenanceChip>ESQ-B10</EsqProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModule}><ESQIcon.Plus /> Add module</button>}
+          </div>
+        </div>
+        <p className="poscard__sub">Shared modules stay independent and interpretable at the level of the individual events.</p>
+        {modules.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No modules recorded yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead><tr><th>Module</th><th>Type</th><th>Status</th></tr></thead>
+            <tbody>
+              {modules.map((m) => {
+                const status: [string, boolean][] = [["Shared events", m.sharedEventsIdentified], ["Independent", m.trueIndependenceVerified], ["Interpretable", m.perEventInterpretabilityMaintained]];
+                return (
+                  <tr key={m.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "module", id: m.uuid })} style={{ cursor: "pointer" }}>
+                    <td><div className="postable__name">{m.processDescription}</div></td>
+                    <td className="possubtle" style={{ fontSize: 12.5 }}>{MODULE_TYPE_LABELS[m.moduleType] ?? m.moduleType}</td>
+                    <td><div className="esqstates">{status.map(([label, on]) => <span key={label} className={`esqstate esqstate--${on ? "on" : "off"}`}><span className="esqstate__dot" />{label}</span>)}</div></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );

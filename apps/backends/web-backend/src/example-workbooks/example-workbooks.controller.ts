@@ -107,10 +107,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getDaBundle(example);
   }
 
+  @Get("esq-examples")
+  @HttpCode(HttpStatus.OK)
+  getEsqExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getEsqExamples();
+  }
+
   @Get("esq-bundle")
   @HttpCode(HttpStatus.OK)
-  getEsqBundle(): Promise<EsqExampleBundle> {
-    return this.exampleWorkbooksService.getEsqBundle();
+  getEsqBundle(@Query("example") example?: string): Promise<EsqExampleBundle> {
+    return this.exampleWorkbooksService.getEsqBundle(example);
   }
 
   @Get("ms-bundle")

@@ -3,6 +3,7 @@ import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
+import { fetchEsqLinkedInputs } from "./esqWorkbookApi";
 import { EsqWorkbench } from "./esqWorkbench";
 import { EsqWorkbookProvider, type EsqWorkbookData } from "./esqWorkbookContext";
 import { type EsqPersona } from "./esqViewData";
@@ -34,7 +35,12 @@ function EsqDemoPage(): JSX.Element {
           esq: res.esq.mef as EventSequenceQuantification,
           cc: res.configurationControl.mef as PRAConfigurationControl,
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
+        const variant = (res.esq.mef as EventSequenceQuantification).uuid === "esq-generic-2" ? "htgr" : "sfr";
+        fetchEsqLinkedInputs(variant)
+          .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+          .catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;

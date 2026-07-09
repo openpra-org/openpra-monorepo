@@ -132,6 +132,7 @@ export interface ConvergenceAnalysis {
   mergedCutsetTruncationConfirmed?: boolean;
   mergedCutsetConfirmationBasis?: string;
   truncationSensitivity?: string;
+  demonstratedFamilyRef?: string;
   implementsSrs: SRReference[];
 }
 
@@ -603,7 +604,19 @@ export interface EventSequenceQuantification
   documentation: EsqDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
 }
 
 export const ESQ_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

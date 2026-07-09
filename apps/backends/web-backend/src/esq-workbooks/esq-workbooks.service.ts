@@ -76,7 +76,7 @@ export class EsqWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<EsqWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<EsqWorkbookResponse> {
     const doc = await this.esqWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ESQ workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -86,7 +86,7 @@ export class EsqWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getEsqBundle();
+    const example = await this.exampleWorkbooksService.getEsqBundle(exampleId);
     const parsed = EventSequenceQuantificationSchema.safeParse(stripNulls(example.esq.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

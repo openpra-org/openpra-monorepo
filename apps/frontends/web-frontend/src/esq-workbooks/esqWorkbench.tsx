@@ -381,12 +381,12 @@ function EsqWorkbench({
           </>
         );
       case "integrate": return <IntegrateScreen openDrawer={setDrawer} />;
-      case "solve": return <SolveScreen />;
-      case "logic": return <LogicScreen />;
-      case "depend": return <DependScreen />;
+      case "solve": return <SolveScreen openDrawer={setDrawer} />;
+      case "logic": return <LogicScreen openDrawer={setDrawer} />;
+      case "depend": return <DependScreen openDrawer={setDrawer} />;
       case "barriers": return <BarriersScreen openDrawer={setDrawer} />;
-      case "results": return <ResultsScreen />;
-      case "uncert": return <UncertScreen stage={stage} />;
+      case "results": return <ResultsScreen openDrawer={setDrawer} />;
+      case "uncert": return <UncertScreen stage={stage} openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

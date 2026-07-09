@@ -13,6 +13,7 @@ import { HR_ANALYSIS_HTGR } from "./hr-seed-htgr";
 import { DA_ANALYSIS } from "./da-seed";
 import { DA_ANALYSIS_HTGR } from "./da-seed-htgr";
 import { ESQ_ANALYSIS } from "./esq-seed";
+import { ESQ_ANALYSIS_HTGR } from "./esq-seed-htgr";
 import { MS_ANALYSIS } from "./ms-seed";
 import { RC_ANALYSIS } from "./rc-seed";
 import { RI_ANALYSIS } from "./ri-seed";
@@ -40,6 +41,7 @@ const HR_GENERIC_2_SLUG = "hr-generic-2";
 const DA_GENERIC_1_SLUG = "da-generic-1";
 const DA_GENERIC_2_SLUG = "da-generic-2";
 const ESQ_GENERIC_1_SLUG = "esq-generic-1";
+const ESQ_GENERIC_2_SLUG = "esq-generic-2";
 const MS_GENERIC_1_SLUG = "ms-generic-1";
 const RC_GENERIC_1_SLUG = "rc-generic-1";
 const RI_GENERIC_1_SLUG = "ri-generic-1";
@@ -90,6 +92,11 @@ const DA_EXAMPLES: PosExampleEntry[] = [
   { id: "sfr", label: "Generic SFR", slug: DA_GENERIC_1_SLUG },
 ];
 
+const ESQ_EXAMPLES: PosExampleEntry[] = [
+  { id: "htgr", label: "Generic HTGR", slug: ESQ_GENERIC_2_SLUG },
+  { id: "sfr", label: "Generic SFR", slug: ESQ_GENERIC_1_SLUG },
+];
+
 const SEEDS: SeedEntry[] = [
   { slug: POS_GENERIC_1_SLUG, kind: "POS", mef: POS_ANALYSIS },
   { slug: POS_GENERIC_2_SLUG, kind: "POS", mef: POS_ANALYSIS_SFR },
@@ -106,6 +113,7 @@ const SEEDS: SeedEntry[] = [
   { slug: DA_GENERIC_1_SLUG, kind: "DA", mef: DA_ANALYSIS },
   { slug: DA_GENERIC_2_SLUG, kind: "DA", mef: DA_ANALYSIS_HTGR },
   { slug: ESQ_GENERIC_1_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS },
+  { slug: ESQ_GENERIC_2_SLUG, kind: "ESQ", mef: ESQ_ANALYSIS_HTGR },
   { slug: MS_GENERIC_1_SLUG, kind: "MS", mef: MS_ANALYSIS },
   { slug: RC_GENERIC_1_SLUG, kind: "RC", mef: RC_ANALYSIS },
   { slug: RI_GENERIC_1_SLUG, kind: "RI", mef: RI_ANALYSIS },
@@ -120,4 +128,4 @@ function exampleWorkbookName(slug: string): string {
   return name;
 }
 
-export { SEEDS, exampleWorkbookName, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, SY_GENERIC_2_SLUG, HR_GENERIC_1_SLUG, HR_GENERIC_2_SLUG, DA_GENERIC_1_SLUG, DA_GENERIC_2_SLUG, ESQ_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };
+export { SEEDS, exampleWorkbookName, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, POS_GENERIC_1_SLUG, POS_GENERIC_2_SLUG, IE_GENERIC_1_SLUG, IE_GENERIC_2_SLUG, ES_GENERIC_1_SLUG, ES_GENERIC_2_SLUG, SC_GENERIC_1_SLUG, SC_GENERIC_2_SLUG, SY_GENERIC_1_SLUG, SY_GENERIC_2_SLUG, HR_GENERIC_1_SLUG, HR_GENERIC_2_SLUG, DA_GENERIC_1_SLUG, DA_GENERIC_2_SLUG, ESQ_GENERIC_1_SLUG, ESQ_GENERIC_2_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG, type SeedEntry, type PosExampleEntry };

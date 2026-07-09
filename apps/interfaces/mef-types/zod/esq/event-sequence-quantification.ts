@@ -109,6 +109,7 @@ export const ConvergenceAnalysisSchema = z.object({
   mergedCutsetTruncationConfirmed: z.boolean().optional(),
   mergedCutsetConfirmationBasis: z.string().optional(),
   truncationSensitivity: z.string().optional(),
+  demonstratedFamilyRef: z.string().optional(),
   implementsSrs: z.array(SRReferenceSchema),
 });
 
@@ -609,6 +610,20 @@ export const EventSequenceQuantificationSchema = z.object({
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   documentation: EsqDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
+  exampleDocuments: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        kind: z.enum(["doc", "sheet", "image"]),
+        sizeLabel: z.string(),
+        uploadedLabel: z.string(),
+        extracted: z.string(),
+        linked: z.number(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 

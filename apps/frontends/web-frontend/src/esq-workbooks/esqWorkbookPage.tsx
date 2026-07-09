@@ -12,9 +12,12 @@ import { WorkbookRoster } from "../workbooks/workbookRoster";
 import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, requestWorkbookRevision } from "../workbooks/workbookReviewApi";
 import { useAuth } from "../auth/AuthContext";
 import {
+  fetchEsqLinkedInputs,
+  getEsqExampleOptions,
   getEsqWorkbook,
   loadEsqExample,
   unloadEsqExample,
+  type EsqExampleOption,
   type EsqWorkbookRoleName,
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
@@ -62,6 +65,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<EsqExampleOption[]>([]);
   const workbookName = data?.esq.name ?? "";
   const workbookVersion = data?.esq.version ?? "1";
 
@@ -78,6 +82,7 @@ function EsqWorkbookPage(): JSX.Element {
           esq: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
+          links: null,
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
@@ -94,6 +99,25 @@ function EsqWorkbookPage(): JSX.Element {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEsqExampleOptions()
+      .then((opts) => { if (!cancelled) setExampleOptions(opts); })
+      .catch(() => { if (!cancelled) setExampleOptions([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const esqUuid = data?.esq.uuid ?? "";
+  useEffect(() => {
+    const variant = esqUuid === "esq-generic-1" ? "sfr" : esqUuid === "esq-generic-2" ? "htgr" : null;
+    if (variant === null) return;
+    let cancelled = false;
+    fetchEsqLinkedInputs(variant)
+      .then((links) => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links })); })
+      .catch(() => { if (!cancelled) setData((prev) => (prev === null ? prev : { ...prev, links: null })); });
+    return () => { cancelled = true; };
+  }, [esqUuid]);
 
   const updateEsq = useCallback((esq: EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
@@ -205,9 +229,10 @@ function EsqWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="ESQ"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadEsqExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadEsqExample(id, exampleId);
             updateEsq(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

@@ -3,10 +3,21 @@ import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 
+interface EsqLinkedInputs {
+  posStates: { id: string; name: string; mode: string; durationHours: number }[];
+  ieGroups: { id: string; name: string; frequency: number }[];
+  esFamilies: { id: string; name: string }[];
+  scMissionTimes: { id: string; sequence: string; hours: number }[];
+  sySystems: { id: string; name: string }[];
+  hrActions: { id: string; hfe: string; mean: number }[];
+  daParams: { id: string; name: string; value: number }[];
+}
+
 interface EsqWorkbookData {
   esq: EventSequenceQuantification;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
+  links: EsqLinkedInputs | null;
 }
 
 type EsqMutator = (esq: EventSequenceQuantification) => EventSequenceQuantification;
@@ -37,4 +48,4 @@ function useEsqWorkbook(): EsqWorkbookContextValue {
   return ctx;
 }
 
-export { EsqWorkbookProvider, useEsqWorkbook, type EsqWorkbookData, type EsqMutator };
+export { EsqWorkbookProvider, useEsqWorkbook, type EsqWorkbookData, type EsqLinkedInputs, type EsqMutator };

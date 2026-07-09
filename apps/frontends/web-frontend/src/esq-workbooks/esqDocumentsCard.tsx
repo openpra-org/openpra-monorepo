@@ -1,6 +1,7 @@
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { ESQIcon } from "./esqIcons";
 import { listEsqDocuments, uploadEsqDocument, deleteEsqDocument, getEsqDocumentDownload, type EsqDocumentEntry } from "./esqWorkbookApi";
+import { useEsqWorkbook } from "./esqWorkbookContext";
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -9,6 +10,8 @@ function fmtSize(bytes: number): string {
 }
 
 function EsqDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit: boolean }): JSX.Element {
+  const { esq } = useEsqWorkbook();
+  const exampleDocs = esq.exampleDocuments ?? [];
   const [docs, setDocs] = useState<EsqDocumentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,10 +63,28 @@ function EsqDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit
           </label>
         )}
       </div>
-      <p className="poscard__sub">The sequence delineation, the linked fault-tree and event-tree model, the parameter set, the truncation study, the barrier analyses and the uncertainty basis that support this quantification.</p>
+      <p className="poscard__sub">The reference plant quantification, the transient benchmark set, the code validation basis and the hazard summary that anchor this quantification.</p>
       {error !== null && <p className="possubtle" style={{ color: "#b73b3b" }}>{error}</p>}
       {docs === null ? (
         <p className="possubtle">Loading documents…</p>
+      ) : docs.length === 0 && exampleDocs.length > 0 ? (
+        <table className="postable">
+          <thead><tr><th>Document</th><th>Source</th><th>What it provides</th></tr></thead>
+          <tbody>
+            {exampleDocs.map((d) => (
+              <tr key={d.id}>
+                <td>
+                  {d.url !== undefined
+                    ? <button type="button" onClick={() => { if (d.url !== undefined) window.open(d.url, "_blank", "noopener"); }} style={{ background: "none", border: "none", color: "var(--color-primary)", cursor: "pointer", padding: 0, textAlign: "left", font: "inherit" }}>{d.name}</button>
+                    : <span>{d.name}</span>}
+                  <span className="postable__name-sub">{d.uploadedLabel}</span>
+                </td>
+                <td className="possubtle">{d.sizeLabel}</td>
+                <td className="possubtle" style={{ fontSize: 12.5 }}>{d.extracted}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : docs.length === 0 ? (
         <p className="possubtle">No documents uploaded yet.</p>
       ) : (

@@ -243,6 +243,7 @@ const CONTRIBUTOR_TYPE_LABELS: Record<string, string> = {
   EVENT_PHENOMENON: "Phenomenon",
   PLANT_OPERATING_STATE: "Operating state",
   PLANT_DAMAGE_STATE: "Damage state",
+  OTHER: "Other",
   EVENT_SEQUENCE_FAMILY: "Family",
   EVENT_SEQUENCE: "Sequence",
   HAZARD_GROUP: "Hazard group",
@@ -251,6 +252,40 @@ const CONTRIBUTOR_TYPE_LABELS: Record<string, string> = {
 const MUTEX_TREATMENT_LABELS: Record<string, string> = {
   LOGIC_ELIMINATION: "Logic prevents it",
   CUTSET_DELETION: "Cutset deleted",
+};
+
+const CIRCULAR_METHOD_LABELS: Record<string, string> = {
+  CONDITIONAL_SPLIT_FRACTIONS: "Conditional split fractions",
+  TRANSFER_GATES: "Transfer gates",
+  ITERATIVE_CONVERGENCE: "Iterative convergence",
+  LOGIC_TRANSFORMATION: "Logic transformation",
+};
+
+const MODULE_TYPE_LABELS: Record<string, string> = {
+  MODULE: "Module",
+  SUBTREE: "Subtree",
+  SPLIT_FRACTION: "Split fraction",
+};
+
+const CONTRIBUTOR_TYPE_ENTRIES: [string, string][] = [
+  ["CCF", "Common-cause"],
+  ["EQUIPMENT_FAILURE", "Equipment"],
+  ["HUMAN_FAILURE_EVENT", "Human action"],
+  ["INITIATING_EVENT", "Initiator"],
+  ["PLANT_OPERATING_STATE", "Operating state"],
+  ["EVENT_SEQUENCE_FAMILY", "Sequence family"],
+  ["EVENT_SEQUENCE", "Sequence"],
+  ["HAZARD_GROUP", "Hazard group"],
+  ["PLANT_DAMAGE_STATE", "Damage state"],
+];
+
+const DEPENDENCY_TYPE_LABELS: Record<string, string> = {
+  FUNCTIONAL: "Functional",
+  PHYSICAL: "Physical",
+  HUMAN: "Human",
+  OPERATIONAL: "Operational",
+  PHENOMENOLOGICAL: "Phenomenological",
+  COMMON_CAUSE: "Common-cause",
 };
 
 const CHALLENGE_BASIS_LABELS: Record<string, string> = {
@@ -263,58 +298,38 @@ const EXT_HAZARD_BASIS_LABELS: Record<string, string> = {
   FRAGILITY_CURVES: "Fragility curves",
 };
 
-interface ApproximationSpec {
-  id: string;
-  label: string;
-  note: string;
-}
 
-const APPROXIMATIONS: ApproximationSpec[] = [
-  { id: "rare-event", label: "Rare-event", note: "Available, not used for risk-significant families" },
-  { id: "mcub", label: "MCUB", note: "Used for the family frequencies" },
-  { id: "exact", label: "Exact", note: "Used for the risk-significant spot checks" },
-  { id: "monte-carlo", label: "Monte-Carlo", note: "Used for the uncertainty propagation" },
-];
 
-const A5_SPLIT = {
-  cci: {
-    title: "Point estimate from point-estimate inputs",
-    desc: "Calculate a point estimate of each family frequency from the point-estimate values of the inputs.",
-    tag: "One number per family",
-  },
-  ccii: {
-    title: "Mean with the state-of-knowledge correlation",
-    desc: "Quantify the mean by propagating the risk-significant parameter distributions, with the correlation between shared estimates accounted for.",
-    tag: "Shared estimates move together",
-  },
-  note: "When two pumps share one failure-rate estimate, their uncertainties are correlated, and ignoring that underestimates the mean of the product.",
+const SOLUTION_METHOD_LABELS: Record<string, string> = {
+  MCUB: "Minimal cutset upper bound",
+  EXACT: "Exact Boolean solution",
+  RARE_EVENT: "Rare-event approximation",
 };
 
-const ADVERSE_ENV_CREDIT = {
-  cci: {
-    rule: "No credit beyond the qualification limits",
-    body: "At CC-I no credit is taken for equipment survivability or human action beyond the equipment qualification limits.",
-  },
-  ccii: {
-    rule: "Credit only where the analysis supports it",
-    body: "At CC-II credit is taken only where engineering analysis supports it and the related requirements are satisfied.",
-    requirements: ["SY-A29", "HR-H2", "ESQ-C2", "ESQ-C4"],
-  },
+const PROPAGATION_LABELS: Record<string, string> = {
+  MONTE_CARLO: "Monte Carlo sampling",
+  LATIN_HYPERCUBE: "Latin hypercube sampling",
+  ANALYTICAL: "Analytical propagation",
+  OTHER: "Other",
 };
 
-const SOKC_CITED_SRS = ["IE-C19", "SC-B5", "HR-D8", "HR-G14", "DA-D3"];
-
-const PA_SR: Record<string, string> = {
-  "PA-1": "ESQ-C17",
-  "PA-2": "ESQ-C17",
-  "PA-3": "ESQ-F5",
+const APPROACH_LABELS: Record<string, string> = {
+  FAULT_TREE_LINKING: "Fault-tree linking",
+  EVENT_TREE_BOUNDARY_CONDITIONS: "Event trees with boundary conditions",
+  BINARY_DECISION_DIAGRAM: "Binary decision diagram",
+  MARKOV_MODEL: "Markov model",
+  DISCRETE_EVENT_SIMULATION: "Discrete-event simulation",
+  MONTE_CARLO_SIMULATION: "Monte Carlo simulation",
 };
 
-const SS_SR: Record<string, string> = {
-  "SS-1": "ESQ-B3",
-  "SS-2": "ESQ-E2",
-  "SS-3": "ESQ-C14",
+const TRUNCATION_METHOD_LABELS: Record<string, string> = {
+  ABSOLUTE_FREQUENCY: "Absolute frequency",
+  PERCENTAGE_OF_TOTAL: "Percentage of total",
+  SIGNIFICANT_DIGITS: "Significant digits",
+  RELATIVE_CONTRIBUTION: "Relative contribution",
 };
+
+
 
 const ESQ_TOC: [string, string][] = [
   ["Executive summary", "5"],
@@ -366,13 +381,15 @@ export {
   QUANT_BASIS_LABELS,
   CONTRIBUTOR_TYPE_LABELS,
   MUTEX_TREATMENT_LABELS,
+  CIRCULAR_METHOD_LABELS,
+  MODULE_TYPE_LABELS,
+  DEPENDENCY_TYPE_LABELS,
+  CONTRIBUTOR_TYPE_ENTRIES,
   CHALLENGE_BASIS_LABELS,
   EXT_HAZARD_BASIS_LABELS,
-  APPROXIMATIONS,
-  A5_SPLIT,
-  ADVERSE_ENV_CREDIT,
-  SOKC_CITED_SRS,
-  PA_SR,
-  SS_SR,
+  APPROACH_LABELS,
+  SOLUTION_METHOD_LABELS,
+  PROPAGATION_LABELS,
+  TRUNCATION_METHOD_LABELS,
   ESQ_TOC,
 };

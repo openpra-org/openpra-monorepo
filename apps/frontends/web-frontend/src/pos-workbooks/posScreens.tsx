@@ -1604,56 +1604,49 @@ function ScreeningScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
   );
 }
 
-function GroupingScreen({ openDrawer, canEdit, onAddGroup }: ScreenProps): JSX.Element {
+function GroupingScreen({ openDrawer, onAddGroup }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const groups = groupsView(pos);
-  const totalCycleHours = coverageView(pos).totalCycleHours;
   return (
-    <div className="posgrp">
-      <div className="posgrp__header">
-        <h3 className="posgrp__header-title">Operating-state groups</h3>
-        {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}>Add group</button>}
-      </div>
-
-      {groups.length === 0 && <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.</p></div>}
-
-      {groups.length > 0 && (
-      <div className="posgrp__grid">
-        {groups.map((g) => {
-          const pct = totalCycleHours > 0 ? Math.min(100, Math.round((g.durationHours / totalCycleHours) * 100)) : 0;
-          return (
-          <div key={g.id} className="poscard posgrp__card">
-            <div className="poscard__head">
-              <h3 className="poscard__title">{g.name}</h3>
-              <div className="posgrp__head-right">
-                {g.status !== "ok" && <Badge kind="warn">Incomplete</Badge>}
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "group", id: g.id })}>{canEdit ? "Edit" : "View"}</button>
-              </div>
-            </div>
-            {g.members.length > 0 && (
-              <div className="posgrp__members">
-                {g.members.map((m) => <span key={m.id} className="poschip">{m.label}</span>)}
-              </div>
-            )}
-            <div className="posgrp__meta">
-              <div className="posgrp__meta-row">
-                <span className="posgrp__meta-label">Bounded by</span>
-                <span className="posgrp__meta-val">{g.boundingCharacteristic}</span>
-              </div>
-              <div className="posgrp__meta-row">
-                <span className="posgrp__meta-label">Total time</span>
-                <div className="posgrp__bar">
-                  <div className="posgrp__bar-track"><div className="posgrp__bar-fill" style={{ width: `${pct}%` }} /></div>
-                  <span className="posgrp__bar-text">{g.durationSum} / {formatDuration(totalCycleHours)}</span>
-                </div>
-              </div>
-            </div>
+    <>
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Operating-state groups</h3>
+          <div className="posrow" style={{ gap: 8 }}>
+            {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}><POSIcon.Plus /> Add group</button>}
           </div>
-          );
-        })}
+        </div>
+        {groups.length === 0 ? (
+          <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No groups defined yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Bounded by</th>
+                <th>Total time</th>
+                <th>Status</th>
+                <th aria-label="Open" />
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((g) => (
+                <tr key={g.id} className="postable__row--clickable" onClick={() => openDrawer({ kind: "group", id: g.id })}>
+                  <td>
+                    <div className="postable__name">{g.name}</div>
+                    <span className="postable__name-sub">{g.members.map((m) => m.label).join(", ")}</span>
+                  </td>
+                  <td>{g.boundingCharacteristic.length > 0 ? g.boundingCharacteristic : <span className="possubtle" style={{ fontSize: 11.5 }}>—</span>}</td>
+                  <td className="mono">{g.durationSum}</td>
+                  <td>{g.status !== "ok" ? <Badge kind="warn">Incomplete</Badge> : <span className="possubtle" style={{ fontSize: 11.5 }}>—</span>}</td>
+                  <td><POSIcon.Chevron /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
-      )}
-    </div>
+    </>
   );
 }
 

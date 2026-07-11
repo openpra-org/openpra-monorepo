@@ -677,7 +677,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
         <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
 
-        <main className={`posmain posmain--${stepId}`} aria-label="Step content">
+        <main className="posmain" aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
@@ -688,11 +688,6 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
               {!dockOpen && (
                 <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}>
                   <POSIcon.Eye /> Show conformance
-                </button>
-              )}
-              {isPreparer && stepId !== "draft" && stepId !== "review" && (
-                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setStepId("draft")}>
-                  Preview draft <POSIcon.Eye />
                 </button>
               )}
             </div>

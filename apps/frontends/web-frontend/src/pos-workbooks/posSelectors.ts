@@ -67,7 +67,6 @@ interface GroupView {
   rationale: string;
   boundingCharacteristic: string;
   durationSum: string;
-  durationHours: number;
   status: "ok" | "warn";
   statusMessage?: string;
   hasPreopAssumption: boolean;
@@ -226,7 +225,6 @@ function groupsView(pos: PlantOperatingStatesAnalysis): GroupView[] {
       rationale: g.similarityBasis,
       boundingCharacteristic: g.boundingCharacteristics[0] ?? "",
       durationSum: formatDuration(g.summedDurationHours),
-      durationHours: g.summedDurationHours,
       status: incomplete ? "warn" : "ok",
       statusMessage: incomplete ? `${groupLabel(g.name)} still needs its bounding rationale or attestation.` : undefined,
       hasPreopAssumption: (g.preOperationalAssumptions ?? []).length > 0,

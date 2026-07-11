@@ -74,7 +74,7 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
       </div>
-      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Evolution details</h3></div>
           <div className="posfield-grid">
@@ -284,7 +284,7 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
       </div>
-      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">State details</h3></div>
           <div className="posfield-grid">
@@ -456,7 +456,7 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
   }
   return (
     <>
-      <div className="posdrawer__head posgrp-drawer-head">
+      <div className="posdrawer__head">
         <div>
           <div className="posdrawer__cap">Operating-state group</div>
           <h2 className="posdrawer__title">{groupLabel(draft.name)}</h2>
@@ -464,7 +464,7 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><POSIcon.Close /></button>
       </div>
-      <fieldset disabled={!canEdit} className="posdrawer__body posgrp-drawer" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Group details</h3></div>
           <div className="posfield-grid">
@@ -498,8 +498,8 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
             {states.map((s) => (
               <label key={s.uuid} className="posrow" style={{ gap: 8, cursor: canEdit ? "pointer" : "default" }}>
                 <input type="checkbox" checked={draft.memberPosIds.includes(s.uuid)} disabled={!canEdit} onChange={() => toggleMember(s.uuid)} />
-                <span>{stateLabel(s.name)}</span>
-                <span className="possubtle" style={{ marginLeft: "auto", fontSize: 12 }}>{formatDuration(s.durationHours)}</span>
+                <span style={{ fontSize: 13 }}>{stateLabel(s.name)}</span>
+                <span className="possubtle" style={{ marginLeft: "auto", fontSize: 13 }}>{formatDuration(s.durationHours)}</span>
               </label>
             ))}
           </div>
@@ -519,15 +519,13 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
         <div className="poscard">
           <label className="posrow" style={{ gap: 10, cursor: canEdit ? "pointer" : "default" }}>
             <input type="checkbox" checked={draft.doesNotMaskRiskSignificantContributors} disabled={!canEdit} onChange={(e) => update({ ...draft, doesNotMaskRiskSignificantContributors: e.target.checked })} />
-            <span>Grouping does not mask any risk-significant contributors</span>
+            <span style={{ fontSize: 13 }}>Grouping does not mask any risk-significant contributors</span>
           </label>
         </div>
 
         {canEdit && (
           <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Remove group</h3></div>
-            <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the operating-state group from the analysis.</p>
-            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}>Delete group</button>
+            <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete group</button>
           </div>
         )}
 

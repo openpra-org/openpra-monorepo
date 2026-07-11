@@ -13,9 +13,11 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getRcWorkbook,
+  getRcExamples,
   loadRcExample,
   unloadRcExample,
   type RcWorkbookRoleName,
+  type RcExampleOption,
 } from "./rcWorkbookApi";
 import { RcWorkbench, type RcWorkbenchActions } from "./rcWorkbench";
 import { RcWorkbookProvider, type RcWorkbookData } from "./rcWorkbookContext";
@@ -62,6 +64,7 @@ function RcWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<RcExampleOption[]>([]);
   const workbookName = data?.rc.name ?? "";
   const workbookVersion = data?.rc.version ?? "1";
 
@@ -81,6 +84,12 @@ function RcWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
+        try {
+          const options = await getRcExamples();
+          if (!cancelled) setExampleOptions(options);
+        } catch {
+          if (!cancelled) setExampleOptions([]);
+        }
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -205,9 +214,10 @@ function RcWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="RC"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadRcExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadRcExample(id, exampleId);
             updateRc(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

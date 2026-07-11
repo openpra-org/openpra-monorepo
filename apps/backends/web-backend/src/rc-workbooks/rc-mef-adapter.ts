@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { RadiologicalConsequenceAnalysisSchema } from "interfaces-mef-types/zod/rc/radiological-consequence-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { RC_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { RcWorkbooksService } from "./rc-workbooks.service";
 import { RcWorkbook, type RcWorkbookDocument } from "./rc-workbook.schema";
 import { createBlankRc } from "./blank-rc";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
@@ -14,6 +16,7 @@ export class RcMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(RcWorkbook.name) private readonly rcWorkbookModel: Model<RcWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly rcWorkbooksService: RcWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class RcMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return RC_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.rcWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

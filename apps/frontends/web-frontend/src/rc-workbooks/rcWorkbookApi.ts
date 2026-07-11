@@ -21,8 +21,17 @@ async function patchRcWorkbook(workbookId: string, mef: RadiologicalConsequenceA
   return patchJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}`, { mef });
 }
 
-async function loadRcExample(workbookId: string): Promise<RcWorkbookResponse> {
-  return postJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}/load-example`, {});
+interface RcExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getRcExamples(): Promise<RcExampleOption[]> {
+  return fetchJson<RcExampleOption[]>("/api/example-workbooks/rc-examples");
+}
+
+async function loadRcExample(workbookId: string, exampleId?: string): Promise<RcWorkbookResponse> {
+  return postJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadRcExample(workbookId: string): Promise<RcWorkbookResponse> {
@@ -59,6 +68,7 @@ async function getRcDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getRcWorkbook,
   patchRcWorkbook,
+  getRcExamples,
   loadRcExample,
   unloadRcExample,
   listRcDocuments,
@@ -67,5 +77,6 @@ export {
   getRcDocumentDownload,
   type RcWorkbookResponse,
   type RcWorkbookRoleName,
+  type RcExampleOption,
   type RcDocumentEntry,
 };

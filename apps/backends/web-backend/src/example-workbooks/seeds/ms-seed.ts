@@ -462,6 +462,8 @@ const sourceTermDefinitions: SourceTermDefinition[] = [
           { radionuclide: "La-140", quantity: 5.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
           { radionuclide: "Pu-239", quantity: 3.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
           { radionuclide: "Pu-241", quantity: 3.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Na-24", quantity: 2.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Na-22", quantity: 2.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
         ],
       },
       {
@@ -482,6 +484,8 @@ const sourceTermDefinitions: SourceTermDefinition[] = [
           { radionuclide: "La-140", quantity: 3.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
           { radionuclide: "Pu-239", quantity: 2.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
           { radionuclide: "Pu-241", quantity: 2.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Na-24", quantity: 1.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Na-22", quantity: 1.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
         ],
       },
     ],
@@ -501,6 +505,8 @@ const sourceTermDefinitions: SourceTermDefinition[] = [
       { radionuclide: "La-140", form: ReleaseForm.AEROSOL, chemicalForm: "Lanthanum oxide, refractory" },
       { radionuclide: "Pu-239", form: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
       { radionuclide: "Pu-241", form: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
+      { radionuclide: "Na-24", form: ReleaseForm.AEROSOL, chemicalForm: "Sodium activation, sodium-fire aerosol" },
+      { radionuclide: "Na-22", form: ReleaseForm.AEROSOL, chemicalForm: "Sodium activation, sodium-fire aerosol" },
     ],
     particleSizeDistribution: {
       description: "The aerosol spans a sub-micron to few-micron AMAD spectrum, peaking near 1 micron, with a coarse tail from the sodium-fire aerosol.",

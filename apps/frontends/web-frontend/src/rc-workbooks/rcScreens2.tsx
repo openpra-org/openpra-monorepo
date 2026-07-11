@@ -2,23 +2,17 @@ import { JSX } from "react";
 import { RCIcon } from "./rcIcons";
 import { RcProvenanceChip } from "./rcShared";
 import { useRcWorkbook } from "./rcWorkbookContext";
-import { MethodChips } from "./rcScreens";
+import { type RcDrawerContext } from "./rcScreens";
 import {
-  DISPERSION_LADDER,
   DISPERSION_CLASS_LABELS,
-  DISPERSION_MODEL_METHOD,
-  SAMPLING_LADDER,
   CREDIT_FENCE,
   DEPOSITION_ROWS,
-  DEPOSITION_NOTE,
   EXPOSURE_PATHWAY_LABELS,
   EXPOSURE_PATHWAY_NOTES,
   DOSE_SPLITS,
   HE_PARAM_SPLITS,
-  HE_AGE_GENDER,
-  HE_BASIS,
   COST_CATEGORY_ICONS,
-  ECONOMIC_ROW_META,
+  COST_PARAM_ICONS,
 } from "./rcViewData";
 
 // ─── A small two-column CC line, reused by the dosimetry and health splits ──
@@ -38,10 +32,9 @@ function SplitLines({ cci, ccii }: { cci: string; ccii: string }): JSX.Element {
 }
 
 // ─── 04 — Atmospheric Dispersion (RCAD) ────────────────────────────────────
-function DispersionScreen(): JSX.Element {
-  const { rc } = useRcWorkbook();
+function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+  const { rc, editable } = useRcWorkbook();
   const ad = rc.atmosphericTransportAndDispersion;
-  const meanShift = ad.meteorologicalSampling.meanShiftValidation?.meanShiftPercent;
 
   function depositionCcii(id: string): { on: boolean; detail: string } {
     switch (id) {
@@ -52,79 +45,44 @@ function DispersionScreen(): JSX.Element {
     }
   }
 
-  const fenceDetails: Record<string, string> = {
-    plumerise: ad.plumeRise.algorithmsDescription ?? "Credited through buoyancy algorithms at CC-II.",
-    elevated: ad.elevatedReleaseAlgorithms ?? "Elevated-release algorithms applied with the justified height at CC-II.",
-    wake: ad.buildingWakeEffects ?? "Wake effects applied with the actual building dimensions at CC-II.",
+  const fenceState: Record<string, { on: boolean; detail: string }> = {
+    plumerise: { on: ad.plumeRise.credited, detail: ad.plumeRise.algorithmsDescription ?? "Credited through buoyancy algorithms." },
+    elevated: { on: (ad.elevatedReleaseAlgorithms ?? "").length > 0, detail: ad.elevatedReleaseAlgorithms ?? "Elevated-release algorithms applied with the justified height." },
+    wake: { on: (ad.buildingWakeEffects ?? "").length > 0, detail: ad.buildingWakeEffects ?? "Wake effects applied with the actual building dimensions." },
   };
 
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The dispersion-model ladder</h3>
-          <RcProvenanceChip>RCAD-A1 · A2 · A3</RcProvenanceChip>
-        </div>
-        <p className="poscard__sub">A straight-line Gaussian plume at CC-I, or a segmented plume with hourly updates on a justified grid at CC-II.</p>
-        <div className="rcsplit rcsplit--atmos">
-          <div className="rcsplit__col">
-            <span className="rcsplit__cc rcsplit__cc--i">CC-I</span>
-            <div className="rcsplit__title">{DISPERSION_LADDER.cci.title}</div>
-            <p className="rcsplit__desc">{DISPERSION_LADDER.cci.desc}</p>
-            <span className="rcsplit__tag"><RCIcon.Wind /> {DISPERSION_LADDER.cci.tag}</span>
-          </div>
-          <div className="rcsplit__col rcsplit__col--ii">
-            <span className="rcsplit__cc rcsplit__cc--ii">CC-II</span>
-            <div className="rcsplit__title">{DISPERSION_LADDER.ccii.title}</div>
-            <p className="rcsplit__desc">{DISPERSION_LADDER.ccii.desc}</p>
-            <span className="rcsplit__tag"><RCIcon.Cloud /> {DISPERSION_LADDER.ccii.tag}</span>
+          <h3 className="poscard__title">The dispersion model</h3>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCAD-A1 · A2 · A3</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
           </div>
         </div>
-        <div className="rcdisp" style={{ marginTop: 12 }}>
+        <p className="poscard__sub">The model class, the temporal resolution, the spatial treatment and the weather sampling. Select edit to change them.</p>
+        <div className="rcdisp">
           <div className="rcdisp__main">
             <div className="rcdisp__model">{ad.dispersionModel.name ?? DISPERSION_CLASS_LABELS[ad.dispersionModel.modelClass]}</div>
             <p className="rcdisp__desc">{ad.dispersionModel.justification} {ad.temporalResolution.description ?? ""} {ad.spatialTreatment.gridDescription !== undefined ? `${ad.spatialTreatment.gridDescription} ${ad.spatialTreatment.gridJustification ?? ""}` : ""}</p>
-            <div style={{ marginTop: 8 }}><MethodChips ids={[DISPERSION_MODEL_METHOD[ad.dispersionModel.modelClass] ?? "segmented"]} label="Solved by" /></div>
           </div>
-          <span className="rcdisp__class">{DISPERSION_CLASS_LABELS[ad.dispersionModel.modelClass] ?? ad.dispersionModel.modelClass}</span>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Weather sampling</h3>
-          <RcProvenanceChip>RCAD-B2</RcProvenanceChip>
-        </div>
-        <p className="poscard__sub">Bounding meteorology at CC-I, or sampling the weather year at CC-II, validated to shift the mean by less than ten percent.</p>
-        <div className="rcsplit rcsplit--atmos">
-          <div className="rcsplit__col">
-            <span className="rcsplit__cc rcsplit__cc--i">CC-I</span>
-            <div className="rcsplit__title">{SAMPLING_LADDER.cci.title}</div>
-            <p className="rcsplit__desc">{SAMPLING_LADDER.cci.desc}</p>
-            <span className="rcsplit__tag"><RCIcon.Filter /> {SAMPLING_LADDER.cci.tag}</span>
-          </div>
-          <div className="rcsplit__col rcsplit__col--ii">
-            <span className="rcsplit__cc rcsplit__cc--ii">CC-II</span>
-            <div className="rcsplit__title">{SAMPLING_LADDER.ccii.title}</div>
-            <p className="rcsplit__desc">{SAMPLING_LADDER.ccii.desc}</p>
-            <span className="rcsplit__tag"><RCIcon.Curve /> {SAMPLING_LADDER.ccii.tag}</span>
-          </div>
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Verified />
-          <span>{meanShift !== undefined ? `The weather sample reproduces the full-year mean within ${meanShift} percent, inside the ten percent criterion. ` : ""}{SAMPLING_LADDER.note}</span>
         </div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">The credit fence</h3>
-          <RcProvenanceChip>RCAD-C1 · C2 · C3</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCAD-C1 · C2 · C3</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
+          </div>
         </div>
         <p className="poscard__sub">Favorable physics that lowers the dose must be earned, forbidden at CC-I and credited through a justified algorithm at CC-II.</p>
         <div className="rccredit">
           {CREDIT_FENCE.map((f) => {
             const Icon = RCIcon[f.icon] ?? RCIcon.NoEntry;
+            const st = fenceState[f.id];
             return (
               <div key={f.id} className="rccredit__row">
                 <div className="rccredit__main">
@@ -133,30 +91,27 @@ function DispersionScreen(): JSX.Element {
                 </div>
                 <div className="rccredit__side">
                   <span className="rcsplit__cc rcsplit__cc--i">CC-I</span>
-                  <span className="rccredit__state rccredit__state--forbidden">{f.cci.text}</span>
                   <span className="rccredit__detail">{f.cci.detail}</span>
                 </div>
                 <div className="rccredit__side">
                   <span className="rcsplit__cc rcsplit__cc--credit">CC-II</span>
-                  <span className="rccredit__state rccredit__state--earned">{f.cciiText}</span>
-                  <span className="rccredit__detail">{fenceDetails[f.id]}</span>
+                  <span className="rccredit__detail">{st.detail}</span>
                 </div>
               </div>
             );
           })}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.NoEntry />
-          <span>The standard says it in capital letters, DO NOT TAKE CREDIT for plume rise at CC-I, so the buoyancy algorithm earns the credit at CC-II.</span>
         </div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">The deposition matrix</h3>
-          <RcProvenanceChip>RCAD-E1 to E7</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCAD-E1 to E7</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "deposition", id: "deposition" })}><RCIcon.Settings /> Edit</button>}
+          </div>
         </div>
-        <p className="poscard__sub">The deposition modules are switched off at CC-I and switched on at CC-II, module by module.</p>
+        <p className="poscard__sub">The deposition modules are switched off at CC-I and switched on at CC-II, module by module. Select edit to change the CC-II state and the velocities.</p>
         <div className="rcdepo">
           <div className="rcdepo__row rcdepo__row--head">
             <div className="rcdepo__cell"><span className="rcdepo__process">Deposition process</span></div>
@@ -187,55 +142,57 @@ function DispersionScreen(): JSX.Element {
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.NoEntry />
-          <span>{DEPOSITION_NOTE}</span>
-        </div>
       </div>
     </>
   );
 }
 
 // ─── 05 — Dosimetry (RCDO) ─────────────────────────────────────────────────
-function DosimetryScreen(): JSX.Element {
-  const { rc } = useRcWorkbook();
+function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+  const { rc, editable, mutateRc } = useRcWorkbook();
   const dose = rc.dosimetry;
+  function addPathway(): void {
+    mutateRc((draft) => ({ ...draft, dosimetry: { ...draft.dosimetry, exposurePathways: [...draft.dosimetry.exposurePathways, { pathway: "INGESTION", included: true }] } }));
+    openDrawer({ kind: "pathway", id: String(dose.exposurePathways.length) });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Exposure pathways</h3>
-          <RcProvenanceChip>RCDO-A1</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCDO-A1</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPathway}><RCIcon.Plus /> Add pathway</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Five pathways turn concentration into dose, and any exclusion is justified.</p>
+        <p className="poscard__sub">Five pathways turn concentration into dose, and any exclusion is justified. Select a pathway to edit it.</p>
         <div className="rcpath">
-          {dose.exposurePathways.map((p) => {
+          {dose.exposurePathways.map((p, i) => {
             const meta = EXPOSURE_PATHWAY_LABELS[p.pathway];
             const Icon = RCIcon[meta?.icon ?? "Activity"] ?? RCIcon.Activity;
             return (
-              <div key={p.pathway} className={`rcpath__card${p.included ? "" : " rcpath__card--out"}`}>
+              <button key={i} type="button" className={`rcpath__card${p.included ? "" : " rcpath__card--out"}`} style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "pathway", id: String(i) })}>
                 <span className="rcpath__icon"><Icon /></span>
                 <div className="rcpath__main">
                   <div className="rcpath__name">{meta?.name ?? p.pathway}</div>
                   <div className="rcpath__note">{p.included ? EXPOSURE_PATHWAY_NOTES[p.pathway] ?? "" : p.exclusionJustification ?? "Excluded."}</div>
                 </div>
-                <span className={`rcpath__state rcpath__state--${p.included ? "in" : "out"}`}>{meta?.ccii === true ? "CC-II" : p.included ? "Included" : "Excluded"}</span>
-              </div>
+                <span className={`rcpath__state rcpath__state--${p.included ? "in" : "out"}`}>{p.included ? "Included" : "Excluded"}</span>
+              </button>
             );
           })}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Lungs />
-          <span>The skin and the ingestion pathways are off at CC-I and on at CC-II, so the dose set grows with the capability category.</span>
         </div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Dose treatment</h3>
-          <RcProvenanceChip>RCDO-A4 · A7 · A8 · B1</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCDO-A4 · A7 · A8 · B1</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dosetreatment", id: "dose" })}><RCIcon.Settings /> Edit</button>}
+          </div>
         </div>
-        <p className="poscard__sub">The immersion model, the breathing rates, the ingestion and the dose conversion factors each refine from CC-I to CC-II.</p>
+        <p className="poscard__sub">The immersion model, the breathing rates, the ingestion and the dose conversion factors each refine from CC-I to CC-II. Select edit to change them.</p>
         <div className="rcgrid--2">
           {DOSE_SPLITS.map((s) => {
             const Icon = RCIcon[s.icon] ?? RCIcon.Sigma;
@@ -250,19 +207,25 @@ function DosimetryScreen(): JSX.Element {
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Sigma />
-          <span>{dose.dcf.source} The dose conversion factors come from a recognized source either way, with the {dose.dcf.type === "ORGAN_SPECIFIC" ? "organ-specific" : "effective"} set used here.</span>
-        </div>
       </div>
     </>
   );
 }
 
 // ─── 06 — Health Effects (RCHE) ────────────────────────────────────────────
-function HealthEffectsScreen(): JSX.Element {
-  const { rc } = useRcWorkbook();
+function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+  const { rc, editable, mutateRc } = useRcWorkbook();
   const he = rc.healthEffects;
+  function setEarly(next: string[]): void {
+    mutateRc((draft) => ({ ...draft, healthEffects: { ...draft.healthEffects, earlyHealthEffects: next } }));
+  }
+  function setLatent(next: string[]): void {
+    mutateRc((draft) => ({ ...draft, healthEffects: { ...draft.healthEffects, latentHealthEffects: next } }));
+  }
+  function addRiskFactor(): void {
+    mutateRc((draft) => ({ ...draft, healthEffects: { ...draft.healthEffects, riskFactorSources: [...draft.healthEffects.riskFactorSources, { source: "New risk-factor source", recognizedBody: "" }] } }));
+    openDrawer({ kind: "riskfactor", id: String(he.riskFactorSources.length) });
+  }
   return (
     <>
       <div className="poscard">
@@ -274,77 +237,83 @@ function HealthEffectsScreen(): JSX.Element {
         <div className="rche">
           <div className="rche__col">
             <div className="rche__col-head">
-              <span className="rche__col-icon"><RCIcon.Pulse /></span>
               <div>
                 <div className="rche__col-title">Early effects</div>
                 <div className="rche__col-when">Hours to weeks, from a high acute dose</div>
               </div>
             </div>
-            <div className="rche__list">
-              {he.earlyHealthEffects.map((e) => <div key={e} className="rche__item"><RCIcon.Check /> {e}</div>)}
+            <div className="posfield">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {he.earlyHealthEffects.map((e, i) => (
+                  <div key={i} className="posrow" style={{ gap: 6 }}>
+                    <input className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setEarly(he.earlyHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
+                    {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setEarly([...he.earlyHealthEffects.slice(0, i), ...he.earlyHealthEffects.slice(i + 1)])}>Remove</button>}
+                  </div>
+                ))}
+                {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setEarly([...he.earlyHealthEffects, "New early effect"])}><RCIcon.Plus /> Add effect</button>}
+              </div>
             </div>
           </div>
           <div className="rche__col rche__col--latent">
             <div className="rche__col-head">
-              <span className="rche__col-icon"><RCIcon.Heart /></span>
               <div>
                 <div className="rche__col-title">Latent effects</div>
                 <div className="rche__col-when">Years to decades, from any dose</div>
               </div>
             </div>
-            <div className="rche__list">
-              {he.latentHealthEffects.map((e) => <div key={e} className="rche__item"><RCIcon.Check /> {e}</div>)}
+            <div className="posfield">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {he.latentHealthEffects.map((e, i) => (
+                  <div key={i} className="posrow" style={{ gap: 6 }}>
+                    <input className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setLatent(he.latentHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
+                    {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setLatent([...he.latentHealthEffects.slice(0, i), ...he.latentHealthEffects.slice(i + 1)])}>Remove</button>}
+                  </div>
+                ))}
+                {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setLatent([...he.latentHealthEffects, "New latent effect"])}><RCIcon.Plus /> Add effect</button>}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Users />
-          <span>{HE_AGE_GENDER}</span>
         </div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Effect parameters</h3>
-          <RcProvenanceChip>RCHE-A2 · A3</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCHE-A2 · A3</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "healthparams", id: "he" })}><RCIcon.Settings /> Edit</button>}
+          </div>
         </div>
         <p className="poscard__sub">Simplified parameters at CC-I, or organ-specific dose-response with the dose-rate effectiveness at CC-II.</p>
         <div className="rcgrid--2">
-          {HE_PARAM_SPLITS.map((s) => {
-            const Icon = RCIcon[s.icon] ?? RCIcon.Heart;
-            return (
-              <div key={s.id} className="rccard rccard--health">
-                <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-                  <span style={{ color: "var(--rc-health-ink)" }}><Icon /></span>
-                  <span style={{ fontWeight: 700, fontSize: 12.5 }}>{s.title}</span>
-                </div>
-                <SplitLines cci={s.cci} ccii={s.ccii} />
-              </div>
-            );
-          })}
+          {HE_PARAM_SPLITS.map((s) => (
+            <div key={s.id} className="rccard rccard--health">
+              <span style={{ fontWeight: 700, fontSize: 12.5 }}>{s.title}</span>
+              <SplitLines cci={s.cci} ccii={s.ccii} />
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Risk-factor sources</h3>
-          <RcProvenanceChip>RCHE-B1</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCHE-B1</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRiskFactor}><RCIcon.Plus /> Add source</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Every risk factor is anchored to an internationally recognized body, not a local derivation.</p>
+        <p className="poscard__sub">Every risk factor is anchored to an internationally recognized body, not a local derivation. Select a source to edit it.</p>
         <div className="rcgrid--2">
-          {he.riskFactorSources.map((r) => (
-            <div key={r.source} className="rccard rccard--health">
+          {he.riskFactorSources.map((r, i) => (
+            <button key={i} type="button" className="rccard rccard--health" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "riskfactor", id: String(i) })}>
               <div className="posrow" style={{ gap: 8, alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontWeight: 700, fontSize: 12.5 }}>{r.source}</span>
                 <span className="rcse rcse--health">{r.recognizedBody}</span>
               </div>
               <p className="possubtle" style={{ fontSize: 11.5, lineHeight: 1.45, margin: 0 }}>{r.version !== undefined ? `Version ${r.version}, ` : ""}a recognized risk-factor source.</p>
-            </div>
+            </button>
           ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <RCIcon.Verified />
-          <span>{HE_BASIS}</span>
         </div>
       </div>
     </>
@@ -352,28 +321,39 @@ function HealthEffectsScreen(): JSX.Element {
 }
 
 // ─── 07 — Economic Factors (RCEC) ──────────────────────────────────────────
-function EconomicsScreen(): JSX.Element {
-  const { rc } = useRcWorkbook();
+function EconomicsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => void }): JSX.Element {
+  const { rc, editable, mutateRc } = useRcWorkbook();
   const ec = rc.economicFactors;
+  function addCategory(): void {
+    mutateRc((draft) => ({ ...draft, economicFactors: { ...draft.economicFactors, costCategories: [...draft.economicFactors.costCategories, { category: "New cost category", parameterDefinitions: [""] }] } }));
+    openDrawer({ kind: "costcategory", id: String(ec.costCategories.length) });
+  }
+  function addParam(): void {
+    mutateRc((draft) => ({ ...draft, economicFactors: { ...draft.economicFactors, costParameterEstimates: [...draft.economicFactors.costParameterEstimates, { parameter: "New parameter", dataBasis: "GENERIC_JUSTIFIED", source: "" }] } }));
+    openDrawer({ kind: "costparam", id: String(ec.costParameterEstimates.length) });
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Cost categories</h3>
-          <RcProvenanceChip>RCEC-A1</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCEC-A1</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><RCIcon.Plus /> Add category</button>}
+          </div>
         </div>
-        <p className="poscard__sub">The off-site cost is split into categories, since the standard refuses to let the societal-cost number be folklore.</p>
+        <p className="poscard__sub">The off-site cost is split into categories, since the standard refuses to let the societal-cost number be folklore. Select a category to edit it.</p>
         <div className="rccost">
-          {ec.costCategories.map((c) => {
+          {ec.costCategories.map((c, i) => {
             const Icon = RCIcon[COST_CATEGORY_ICONS[c.category] ?? "Dollar"] ?? RCIcon.Dollar;
             return (
-              <div key={c.category} className="rccost__cell">
+              <button key={i} type="button" className="rccost__cell" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "costcategory", id: String(i) })}>
                 <span className="rccost__icon"><Icon /></span>
                 <div className="rccost__main">
                   <div className="rccost__name">{c.category}</div>
                   <div className="rccost__note">{c.parameterDefinitions[0] ?? ""}</div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -382,31 +362,28 @@ function EconomicsScreen(): JSX.Element {
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Economic data</h3>
-          <RcProvenanceChip>RCEC-B1 to B7</RcProvenanceChip>
+          <div className="posrow" style={{ gap: 10 }}>
+            <RcProvenanceChip>RCEC-B1 to B7</RcProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addParam}><RCIcon.Plus /> Add parameter</button>}
+          </div>
         </div>
-        <p className="poscard__sub">The cost parameters use regional data, from recognized sources, adjusted to a common year.</p>
+        <p className="poscard__sub">The cost parameters use regional data, from recognized sources, adjusted to a common year. Select a row to edit it.</p>
         <div className="rcbasis">
-          {ec.costParameterEstimates.map((e) => {
-            const meta = ECONOMIC_ROW_META[e.parameter] ?? { icon: "Dollar", tag: "Regional", kind: "rich" as const };
-            const Icon = RCIcon[meta.icon] ?? RCIcon.Dollar;
+          {ec.costParameterEstimates.map((e, i) => {
+            const Icon = RCIcon[COST_PARAM_ICONS[e.parameter] ?? "Dollar"] ?? RCIcon.Dollar;
+            const regional = e.dataBasis === "REGIONAL_SITE_APPLICABLE";
             return (
-              <div key={e.parameter} className="rcbasis__row">
+              <button key={i} type="button" className="rcbasis__row" style={{ cursor: "pointer", textAlign: "left", border: "none", width: "100%" }} onClick={() => openDrawer({ kind: "costparam", id: String(i) })}>
                 <span className="rcbasis__icon"><Icon /></span>
                 <div className="rcbasis__main">
                   <div className="rcbasis__name">{e.parameter}</div>
                   <div className="rcbasis__note">{e.timeFrameAdjustment ?? e.source}</div>
                 </div>
-                <span className={`rcbasis__tag rcbasis__tag--${meta.kind}`}>{meta.tag}</span>
-              </div>
+                <span className={`rcbasis__tag rcbasis__tag--${regional ? "rich" : "simple"}`}>{regional ? "Regional" : "Generic"}</span>
+              </button>
             );
           })}
         </div>
-        {ec.costParameterEstimates[0]?.justification !== undefined && (
-          <div className="hrnote" style={{ marginTop: 12 }}>
-            <RCIcon.Globe />
-            <span>{ec.costParameterEstimates[0].justification}</span>
-          </div>
-        )}
       </div>
     </>
   );

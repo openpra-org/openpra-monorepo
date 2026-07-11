@@ -76,7 +76,7 @@ export class RcWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<RcWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<RcWorkbookResponse> {
     const doc = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -86,7 +86,7 @@ export class RcWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getRcBundle();
+    const example = await this.exampleWorkbooksService.getRcBundle(exampleId);
     const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(example.rc.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

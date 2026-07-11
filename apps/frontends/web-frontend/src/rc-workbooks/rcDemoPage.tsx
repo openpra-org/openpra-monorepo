@@ -5,6 +5,7 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { fetchJson } from "../api/client";
 import { RcWorkbench } from "./rcWorkbench";
 import { RcWorkbookProvider, type RcWorkbookData } from "./rcWorkbookContext";
+import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
 
 interface RcExampleResponse {
@@ -62,10 +63,11 @@ function RcDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: data.rc.uuid === "rc-generic-2" ? "Generic-2 Reactor — Pre-operational PRA" : "Generic-1 Reactor — Pre-operational PRA",
           workbookName: data.rc.name,
           workbookVersion: data.rc.version,
         }}
+        renderDocuments={() => <RcDocumentsCard canEdit={false} />}
       />
     </RcWorkbookProvider>
   );

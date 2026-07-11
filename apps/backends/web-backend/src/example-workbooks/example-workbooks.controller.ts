@@ -131,10 +131,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getMsBundle(example);
   }
 
+  @Get("rc-examples")
+  @HttpCode(HttpStatus.OK)
+  getRcExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getRcExamples();
+  }
+
   @Get("rc-bundle")
   @HttpCode(HttpStatus.OK)
-  getRcBundle(): Promise<RcExampleBundle> {
-    return this.exampleWorkbooksService.getRcBundle();
+  getRcBundle(@Query("example") example?: string): Promise<RcExampleBundle> {
+    return this.exampleWorkbooksService.getRcBundle(example);
   }
 
   @Get("ri-bundle")

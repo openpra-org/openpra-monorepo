@@ -474,6 +474,17 @@ export interface RiskIntegrationFeedback {
   };
 }
 
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
+}
+
 export interface RcDocumentation {
   processDescription: string;
   inputsDescription: string;
@@ -530,6 +541,7 @@ export interface RadiologicalConsequenceAnalysis
   documentation: RcDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
 }
 

@@ -376,16 +376,16 @@ function RcWorkbench({
       case "handoff":
         return (
           <>
-            <HandoffScreen ccId={ccId} setCcId={setCcId} site={site} setSite={setSite} />
+            <HandoffScreen ccId={ccId} setCcId={setCcId} site={site} setSite={setSite} openDrawer={setDrawer} />
             {renderDocuments?.()}
           </>
         );
-      case "protective": return <ProtectiveScreen />;
-      case "weather": return <WeatherScreen />;
-      case "dispersion": return <DispersionScreen />;
-      case "dose": return <DosimetryScreen />;
-      case "health": return <HealthEffectsScreen />;
-      case "economics": return <EconomicsScreen />;
+      case "protective": return <ProtectiveScreen openDrawer={setDrawer} />;
+      case "weather": return <WeatherScreen openDrawer={setDrawer} />;
+      case "dispersion": return <DispersionScreen openDrawer={setDrawer} />;
+      case "dose": return <DosimetryScreen openDrawer={setDrawer} />;
+      case "health": return <HealthEffectsScreen openDrawer={setDrawer} />;
+      case "economics": return <EconomicsScreen openDrawer={setDrawer} />;
       case "quantify": return <QuantifyScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} site={site} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":

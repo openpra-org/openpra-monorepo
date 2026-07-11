@@ -234,28 +234,26 @@
 .rcpa__state--out { color: var(--color-text-subtle); }
 
 /* ─── Incident phase band (RCPA-A2) ──────────────────────────────────────── */
-.rcphase { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.rcphase { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 @media (max-width: 760px) { .rcphase { grid-template-columns: 1fr; } }
-.rcphase__col { border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; }
+.rcphase__col { border: 1px solid var(--color-border); border-top: 3px solid var(--rc-site); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; }
+.rcphase__col:nth-child(2) { border-top-color: var(--rc-atmos); }
+.rcphase__col:nth-child(3) { border-top-color: var(--rc-health); }
 .rcphase__col-head { display: flex; align-items: center; gap: 8px; }
-.rcphase__dot { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; background: var(--rc-site); }
-.rcphase__col:nth-child(2) .rcphase__dot { background: var(--rc-atmos); }
-.rcphase__col:nth-child(3) .rcphase__dot { background: var(--rc-health); }
 .rcphase__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
 .rcphase__window { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; color: var(--color-text-subtle); }
 .rcphase__desc { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
 
 /* ─── Cohort cards (RCPA-A4, the compliance split) ───────────────────────── */
-.rccohort { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.rccohort { display: grid; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; }
 @media (min-width: 860px) { .rccohort { grid-template-columns: 1fr 1fr; } }
 .rccohort__card { border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--rc-site); }
 .rccohort__card--refuse { border-left-color: var(--rc-credit); }
-.rccohort__head { display: flex; align-items: center; gap: 10px; }
-.rccohort__pct { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 20px; font-weight: 700; color: var(--rc-site-ink); }
-.rccohort__card--refuse .rccohort__pct { color: var(--rc-credit-ink); }
-.rccohort__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
-.rccohort__desc { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
-.rccohort__assume { font-size: 11px; color: var(--color-text); line-height: 1.45; margin: 0; padding: 8px 11px; border-radius: 8px; background: var(--color-surface-low); }
+.rccohort__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.rccohort__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.rcnum { flex-shrink: 0; min-width: 20px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; font-weight: 700; color: var(--color-text-subtle); }
+.rcbtn-danger { color: var(--rc-credit-ink); border-color: rgba(196,77,77,0.45); }
+.rcbtn-danger:hover { background: rgba(196,77,77,0.09); border-color: var(--rc-credit); }
 
 /* ─── Evacuation delay chain (RCPA-A9, the six-link chain) ───────────────── */
 .rcdelay { display: flex; flex-direction: column; gap: 0; }
@@ -279,11 +277,7 @@
 .rcbasis__tag--simple { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
 
 /* ─── Meteorology dashboard (RCME) ───────────────────────────────────────── */
-.rcmet { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
-@media (max-width: 760px) { .rcmet { grid-template-columns: 1fr; gap: 12px; } }
-.rcmet__gauge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 16px 22px; border-radius: 12px; background: rgba(45,127,184,0.08); border: 1px solid rgba(45,127,184,0.22); }
-.rcmet__gauge-num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 30px; font-weight: 700; color: var(--rc-atmos-ink); line-height: 1; }
-.rcmet__gauge-cap { font-size: 10.5px; color: var(--color-text-muted); text-align: center; max-width: 120px; }
+.rcmet { display: block; }
 .rcmet__rows { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .rcmet__row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: baseline; }
 @media (max-width: 620px) { .rcmet__row { grid-template-columns: 1fr; gap: 2px; } }
@@ -306,14 +300,14 @@
 
 /* The credit fence, RC's signature policing. Favorable physics must be earned. */
 .rccredit { border: 1px solid rgba(196,77,77,0.3); border-radius: 12px; background: rgba(196,77,77,0.04); padding: 6px 4px; }
-.rccredit__row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 11px 14px; }
+.rccredit__row { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 16px; align-items: start; padding: 11px 14px; }
 @media (max-width: 720px) { .rccredit__row { grid-template-columns: 1fr; gap: 6px; } }
 .rccredit__row:not(:last-child) { border-bottom: 1px dashed rgba(196,77,77,0.22); }
 .rccredit__main { min-width: 0; }
 .rccredit__name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12.5px; color: var(--color-text); }
 .rccredit__name svg { width: 14px; height: 14px; color: var(--rc-credit); flex-shrink: 0; }
 .rccredit__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin: 3px 0 0; }
-.rccredit__side { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 160px; max-width: 200px; }
+.rccredit__side { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
 .rccredit__detail { font-size: 10.5px; color: var(--color-text-muted); line-height: 1.35; }
 .rccredit__state { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; text-align: center; }
 .rccredit__state--forbidden { background: rgba(196,77,77,0.14); color: var(--rc-credit-ink); }

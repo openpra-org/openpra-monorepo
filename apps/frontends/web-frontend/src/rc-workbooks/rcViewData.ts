@@ -337,12 +337,11 @@ interface SiteOptionSpec {
   tag: string;
   icon: string;
   desc: string;
-  meta: string;
 }
 
 const SITE_OPTIONS: SiteOptionSpec[] = [
-  { id: "actual_site", name: "Identify the actual site", tag: "Site selected", icon: "Pin", desc: "Use the identified site and its real population, land use and geography.", meta: "No site-gap assumptions are carried." },
-  { id: "bounding_site", name: "Describe a bounding site", tag: "Prior to site selection", icon: "Globe", desc: "Use a bounding site and justify that it bounds every site in the PRA scope.", meta: "Site-gap assumptions are logged for closure at site selection." },
+  { id: "actual_site", name: "Identify the actual site", tag: "Site selected", icon: "Pin", desc: "Use the identified site and its real population, land use and geography." },
+  { id: "bounding_site", name: "Describe a bounding site", tag: "Prior to site selection", icon: "Globe", desc: "Use a bounding site and justify that it bounds every site in the PRA scope." },
 ];
 
 interface HandoffInputSpec {
@@ -365,9 +364,10 @@ const HANDOFF_INPUTS: HandoffInputSpec[] = [
 ];
 
 const CONSEQUENCE_METRIC_NOTES: Record<string, string> = {
-  "Early fatality risk": "The risk of an early fatality at the site boundary.",
-  "Latent cancer risk": "The latent cancer risk within the consequence area.",
-  "Individual dose": "The dose at fixed downwind distances.",
+  "Individual early fatality risk": "The risk of an early fatality for the individual at the exclusion-area boundary.",
+  "Individual latent cancer fatality risk": "The individual latent-cancer fatality risk within the consequence area.",
+  "Individual dose at boundary": "The committed effective dose for the individual at the exclusion-area boundary.",
+  "Population dose to 80 km": "The collective effective dose to the population within the analysis radius.",
 };
 
 interface ScopingAspectSpec {
@@ -559,10 +559,13 @@ const COST_CATEGORY_ICONS: Record<string, string> = {
   "Medical costs": "Heart",
 };
 
-const ECONOMIC_ROW_META: Record<string, { icon: string; tag: string; kind: "rich" | "simple" }> = {
-  "Regional cost data": { icon: "Map", tag: "Bounding site", kind: "simple" },
-  "Recognized sources": { icon: "Database", tag: "Recognized", kind: "rich" },
-  "Inflation adjustment": { icon: "Dollar", tag: "CPI", kind: "rich" },
+const COST_PARAM_ICONS: Record<string, string> = {
+  "Evacuation and relocation daily cost": "Car",
+  "One-time relocation cost": "Users",
+  "Farm decontamination cost": "Leaf",
+  "Non-farm decontamination cost": "Home",
+  "Land and farm wealth value": "Map",
+  "Depreciation and discount rate": "Dollar",
 };
 
 const RC_CODE_ICONS: Record<string, string> = {
@@ -702,7 +705,7 @@ export {
   HE_AGE_GENDER,
   HE_BASIS,
   COST_CATEGORY_ICONS,
-  ECONOMIC_ROW_META,
+  COST_PARAM_ICONS,
   RC_CODE_ICONS,
   UNCERTAINTY_SOURCES,
   RISK_SIGNIFICANCE_LABELS,

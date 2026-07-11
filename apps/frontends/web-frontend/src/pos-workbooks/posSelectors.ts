@@ -67,6 +67,7 @@ interface GroupView {
   rationale: string;
   boundingCharacteristic: string;
   durationSum: string;
+  durationHours: number;
   status: "ok" | "warn";
   statusMessage?: string;
   hasPreopAssumption: boolean;
@@ -225,6 +226,7 @@ function groupsView(pos: PlantOperatingStatesAnalysis): GroupView[] {
       rationale: g.similarityBasis,
       boundingCharacteristic: g.boundingCharacteristics[0] ?? "",
       durationSum: formatDuration(g.summedDurationHours),
+      durationHours: g.summedDurationHours,
       status: incomplete ? "warn" : "ok",
       statusMessage: incomplete ? `${groupLabel(g.name)} still needs its bounding rationale or attestation.` : undefined,
       hasPreopAssumption: (g.preOperationalAssumptions ?? []).length > 0,
@@ -438,13 +440,11 @@ function stepsForPersona(persona: PosPersona): PosStep[] {
   return POS_STEPS.filter((s) => ids.includes(s.id));
 }
 
-function stepsFromMef(pos: PlantOperatingStatesAnalysis, persona: PosPersona, documentCount: number): PosStep[] {
+function stepsFromMef(pos: PlantOperatingStatesAnalysis, persona: PosPersona): PosStep[] {
   const base = stepsForPersona(persona);
   const pi = pos.metadata.plantIdentity;
   const setupComplete = pi !== undefined && pi.name.length > 0 && pi.vendor.length > 0 && pi.reactorType.length > 0 && pi.thermalPower.length > 0 && pi.primaryCoolant.length > 0;
   const setupInProgress = !setupComplete && (pi !== undefined || pos.praScope.length > 0 || pos.capabilityCategory !== undefined);
-
-  const documentsComplete = documentCount > 0;
 
   const evolutionsComplete = pos.plantEvolutions.length > 0;
   const statesComplete = pos.plantOperatingStates.length > 0;
@@ -475,7 +475,6 @@ function stepsFromMef(pos: PlantOperatingStatesAnalysis, persona: PosPersona, do
   return base.map((s) => {
     switch (s.id) {
       case "setup": return { ...s, status: status(setupComplete, setupInProgress) };
-      case "documents": return { ...s, status: status(documentsComplete, false) };
       case "evolutions": return { ...s, status: status(evolutionsComplete, false) };
       case "states": return { ...s, status: status(statesComplete, false) };
       case "interviews": return { ...s, status: status(interviewsComplete, false) };

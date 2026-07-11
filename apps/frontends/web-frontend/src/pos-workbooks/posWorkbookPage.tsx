@@ -51,7 +51,6 @@ interface PosBundleResponse {
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   setup: undefined,
-  documents: undefined,
   evolutions: "POS-A1",
   states: "POS-A2",
   interviews: "POS-A3",

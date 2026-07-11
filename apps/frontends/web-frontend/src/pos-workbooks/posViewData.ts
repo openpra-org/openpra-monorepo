@@ -27,18 +27,17 @@ const POS_PROJECT = {
 };
 
 const POS_STEPS: PosStep[] = [
-  { id: "setup", num: "01", label: "Scope", sub: "Plant & profile", status: "complete" },
-  { id: "documents", num: "02", label: "Documents", sub: "Design basis & refs", status: "complete" },
-  { id: "evolutions", num: "03", label: "Plant Evolutions", sub: "5 defined", status: "complete" },
-  { id: "states", num: "04", label: "Operating States", sub: "9 defined · 1 attention", status: "in-progress" },
-  { id: "interviews", num: "05", label: "Interviews & Walkdowns", sub: "7 logged", status: "complete" },
-  { id: "screening", num: "06", label: "Screening", sub: "2 retained · 1 screened", status: "in-progress" },
-  { id: "grouping", num: "07", label: "Grouping", sub: "3 groups", status: "in-progress" },
-  { id: "frequency", num: "08", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
-  { id: "decayheat", num: "09", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
-  { id: "draft", num: "10", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
-  { id: "review", num: "11", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
-  { id: "approval", num: "12", label: "Approval", sub: "Sign-off", status: "idle", terminal: true },
+  { id: "setup", num: "01", label: "Scope", sub: "Plant, profile & refs", status: "complete" },
+  { id: "evolutions", num: "02", label: "Plant Evolutions", sub: "5 defined", status: "complete" },
+  { id: "states", num: "03", label: "Operating States", sub: "9 defined · 1 attention", status: "in-progress" },
+  { id: "interviews", num: "04", label: "Interviews & Walkdowns", sub: "7 logged", status: "complete" },
+  { id: "screening", num: "05", label: "Screening", sub: "2 retained · 1 screened", status: "in-progress" },
+  { id: "grouping", num: "06", label: "Grouping", sub: "3 groups", status: "in-progress" },
+  { id: "frequency", num: "07", label: "Frequencies & Duration", sub: "8 of 9 complete", status: "in-progress" },
+  { id: "decayheat", num: "08", label: "Decay Heat", sub: "6 LPSD states", status: "idle" },
+  { id: "draft", num: "09", label: "Draft", sub: "Produce report", status: "idle", terminal: true },
+  { id: "review", num: "10", label: "Review", sub: "Reviewer comments", status: "idle", terminal: true },
+  { id: "approval", num: "11", label: "Approval", sub: "Sign-off", status: "idle", terminal: true },
 ];
 
 type PosPersona = "preparer" | "reviewer" | "approver";
@@ -57,9 +56,9 @@ const PERSONAS: Record<PosPersona, PersonaSpec> = {
 };
 
 const PERSONA_STEPS: Record<PosPersona, string[]> = {
-  preparer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
-  reviewer: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
-  approver: ["setup", "documents", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  preparer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  reviewer: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
+  approver: ["setup", "evolutions", "states", "interviews", "screening", "grouping", "frequency", "decayheat", "draft", "review", "approval"],
 };
 
 interface CapabilityCategory {

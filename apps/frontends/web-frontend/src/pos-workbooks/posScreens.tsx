@@ -1607,46 +1607,53 @@ function ScreeningScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
 function GroupingScreen({ openDrawer, canEdit, onAddGroup }: ScreenProps): JSX.Element {
   const { pos } = usePosWorkbook();
   const groups = groupsView(pos);
+  const totalCycleHours = coverageView(pos).totalCycleHours;
   return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Operating-state groups</h3>
-          {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}><POSIcon.Plus /> Add group</button>}
-        </div>
-        <p className="poscard__sub">Bound similar operating states into a group represented by a worst-case bounding state.</p>
-        {groups.length === 0 && <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No groups defined yet.</p>}
+    <div className="posgrp">
+      <div className="posgrp__header">
+        <h3 className="posgrp__header-title">Operating-state groups</h3>
+        {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}>Add group</button>}
       </div>
 
+      {groups.length === 0 && <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.</p></div>}
+
       {groups.length > 0 && (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
-        {groups.map((g) => (
-          <div key={g.id} className="poscard">
+      <div className="posgrp__grid">
+        {groups.map((g) => {
+          const pct = totalCycleHours > 0 ? Math.min(100, Math.round((g.durationHours / totalCycleHours) * 100)) : 0;
+          return (
+          <div key={g.id} className="poscard posgrp__card">
             <div className="poscard__head">
-              <div>
-                <h3 className="poscard__title" style={{ fontSize: 16 }}>{g.name}</h3>
-                <div className="possubtle" style={{ marginTop: 6 }}>
-                  Members: {g.members.map((m) => m.label).join(", ")} · Total time {g.durationSum}
-                </div>
+              <h3 className="poscard__title">{g.name}</h3>
+              <div className="posgrp__head-right">
+                {g.status !== "ok" && <Badge kind="warn">Incomplete</Badge>}
+                <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "group", id: g.id })}>{canEdit ? "Edit" : "View"}</button>
               </div>
-              <button type="button" className="posnav__btn" onClick={() => openDrawer({ kind: "group", id: g.id })}>{canEdit ? "Edit" : "View"}</button>
             </div>
-            <div style={{ fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.55, marginBottom: 10 }}>{g.rationale}</div>
-            <div className="posrow" style={{ gap: 22, fontSize: 12.5 }}>
-              <div><span className="possubtle">Bounding by</span> <strong style={{ color: "var(--color-text)" }}>{g.boundingCharacteristic}</strong></div>
-              <span style={{ marginLeft: "auto" }}>{g.status === "ok" ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Incomplete</Badge>}</span>
-            </div>
-            {g.statusMessage !== undefined && (
-              <div style={{ marginTop: 10, padding: 10, background: "rgba(196,122,24,0.08)", borderLeft: "3px solid var(--color-warning)", borderRadius: 4, fontSize: 12.5, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ display: "inline-flex", width: 14, height: 14, color: "var(--color-warning)", flexShrink: 0 }}><POSIcon.Warn /></span>
-                <span>{g.statusMessage}</span>
+            {g.members.length > 0 && (
+              <div className="posgrp__members">
+                {g.members.map((m) => <span key={m.id} className="poschip">{m.label}</span>)}
               </div>
             )}
+            <div className="posgrp__meta">
+              <div className="posgrp__meta-row">
+                <span className="posgrp__meta-label">Bounded by</span>
+                <span className="posgrp__meta-val">{g.boundingCharacteristic}</span>
+              </div>
+              <div className="posgrp__meta-row">
+                <span className="posgrp__meta-label">Total time</span>
+                <div className="posgrp__bar">
+                  <div className="posgrp__bar-track"><div className="posgrp__bar-fill" style={{ width: `${pct}%` }} /></div>
+                  <span className="posgrp__bar-text">{g.durationSum} / {formatDuration(totalCycleHours)}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -1745,7 +1752,7 @@ function CycleBasisField({ hours, canEdit, mefPatchDebounced }: { hours: number;
     if (v.trim().length === 0 || Number.isNaN(n) || n <= 0) return;
     mefPatchDebounced((d) => patchCycleHours(d, n));
   }
-  if (!canEdit) return <div className="posstat__value">{formatNumber(hours)}<span className="posstat__unit">h/yr</span></div>;
+  if (!canEdit) return <div className="posstat__value"><input className="posfield__input" value={formatNumber(hours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>;
   return (
     <div className="posstat__value">
       <input className="posfield__input" value={text} onChange={(e) => onChange(e.target.value)} style={{ width: 96 }} />
@@ -1783,7 +1790,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
         <div className="posstats">
           <div className="posstat">
             <div className="posstat__label">Sum of state durations</div>
-            <div className="posstat__value">{formatNumber(recon.summedHours)}<span className="posstat__unit">h/yr</span></div>
+            <div className="posstat__value"><input className="posfield__input" value={formatNumber(recon.summedHours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
           </div>
           <div className="posstat">
             <div className="posstat__label">Cycle basis</div>
@@ -1791,7 +1798,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
           </div>
           <div className={`posstat${recon.withinTolerance ? "" : " posstat--warn"}`}>
             <div className="posstat__label">Delta</div>
-            <div className="posstat__value">{deltaLabel}<span className="posstat__unit">h/yr</span></div>
+            <div className="posstat__value"><input className="posfield__input" value={deltaLabel} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
           </div>
         </div>
       </div>

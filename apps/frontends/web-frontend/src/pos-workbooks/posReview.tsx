@@ -348,7 +348,6 @@ function CommentCard({
 
 const STEP_SECTION: Record<string, string[]> = {
   setup: ["Documentation"],
-  documents: ["Documentation"],
   evolutions: ["Plant evolutions"],
   states: ["Operating states"],
   interviews: ["Interviews & walkdowns"],

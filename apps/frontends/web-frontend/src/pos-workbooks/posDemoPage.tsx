@@ -56,23 +56,22 @@ interface StepHeader {
 
 function headersFor(stepId: string, isApprover: boolean): StepHeader {
   switch (stepId) {
-    case "setup": return { eyebrow: "Step 01", title: "Scope", sub: "Identify the plant, the analysis stage, and the capability category the analysis must meet." };
-    case "documents": return { eyebrow: "Step 02", title: "Bring your design documents", sub: "Upload anything that describes how the plant is configured and operated." };
-    case "evolutions": return { eyebrow: "Step 03", title: "Plant evolutions" };
-    case "states": return { eyebrow: "Step 04", title: "Operating states", sub: "Define the slices of each evolution where the plant's response to a given event is essentially uniform." };
-    case "interviews": return { eyebrow: "Step 05", title: "Interviews & walkdowns", sub: "Log interviews or walkdowns that informed the operating-state definitions." };
-    case "screening": return { eyebrow: "Step 06", title: "Screening", sub: "By default every state is carried forward. Screen one out only with a written justification." };
-    case "grouping": return { eyebrow: "Step 07", title: "Grouping", sub: "Combine similar states only when one member's response bounds the rest, without masking any risk-significant contributor." };
-    case "frequency": return { eyebrow: "Step 08", title: "Frequencies & duration", sub: "Mean time spent in each state, mean entry frequency, and basis. Pre-operational durations come from the assumed cycle plan." };
-    case "decayheat": return { eyebrow: "Step 09", title: "Decay heat", sub: "For every low-power and shutdown state, characterise the decay heat." };
-    case "draft": return { eyebrow: "Step 10 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
+    case "setup": return { eyebrow: "Step 01", title: "Scope", sub: "Identify the plant, the analysis stage, and the capability category the analysis must meet, then bring in the design documents that describe how the plant is configured and operated." };
+    case "evolutions": return { eyebrow: "Step 02", title: "Plant evolutions" };
+    case "states": return { eyebrow: "Step 03", title: "Operating states", sub: "Define the slices of each evolution where the plant's response to a given event is essentially uniform." };
+    case "interviews": return { eyebrow: "Step 04", title: "Interviews & walkdowns", sub: "Log interviews or walkdowns that informed the operating-state definitions." };
+    case "screening": return { eyebrow: "Step 05", title: "Screening", sub: "By default every state is carried forward. Screen one out only with a written justification." };
+    case "grouping": return { eyebrow: "Step 06", title: "Grouping", sub: "Combine similar states only when one member's response bounds the rest, without masking any risk-significant contributor." };
+    case "frequency": return { eyebrow: "Step 07", title: "Frequencies & duration", sub: "Mean time spent in each state, mean entry frequency, and basis. Pre-operational durations come from the assumed cycle plan." };
+    case "decayheat": return { eyebrow: "Step 08", title: "Decay heat", sub: "For every low-power and shutdown state, characterise the decay heat." };
+    case "draft": return { eyebrow: "Step 09 · Draft", title: "Produce the draft", sub: "Generate the Word report from everything entered so far. Submitting the draft advances the workbook to internal technical review." };
     case "review": return {
-      eyebrow: "Step 11 · Review",
+      eyebrow: "Step 10 · Review",
       title: "Internal technical review",
       sub: "Reviewers and the approver post comments. The workbook advances to internal approval once every assigned reviewer has signed.",
     };
     case "approval": return {
-      eyebrow: "Step 12 · Approval",
+      eyebrow: "Step 11 · Approval",
       title: "Internal approval",
       sub: isApprover
         ? "All earlier steps are locked. Review the comment record, leave any closing remarks, then sign and approve."
@@ -437,8 +436,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
   const isApprover = persona === "approver";
   const isPreparer = persona === "preparer";
 
-  const documentCount = documents?.list.length ?? 0;
-  const visibleSteps = useMemo(() => stepsFromMef(data.pos, persona, documentCount), [data.pos, persona, documentCount]);
+  const visibleSteps = useMemo(() => stepsFromMef(data.pos, persona), [data.pos, persona]);
 
   const mefCcId = data.pos.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
   const mefStage: Stage = data.pos.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
@@ -603,17 +601,19 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
 
   function renderScreen(): JSX.Element | null {
     switch (stepId) {
-      case "setup": return <SetupScreen {...screenProps} />;
-      case "documents": return (
-        <DocumentsScreen
-          {...screenProps}
-          realDocuments={documents?.list}
-          canUpload={(documents?.canUpload ?? false) && canEdit}
-          onUploadFile={documents?.onUpload}
-          onDeleteDocument={documents?.onDelete}
-          onDownloadDocument={documents?.onDownload}
-          onUpdateDocument={documents?.onUpdate}
-        />
+      case "setup": return (
+        <>
+          <SetupScreen {...screenProps} />
+          <DocumentsScreen
+            {...screenProps}
+            realDocuments={documents?.list}
+            canUpload={(documents?.canUpload ?? false) && canEdit}
+            onUploadFile={documents?.onUpload}
+            onDeleteDocument={documents?.onDelete}
+            onDownloadDocument={documents?.onDownload}
+            onUpdateDocument={documents?.onUpdate}
+          />
+        </>
       );
       case "evolutions": return <EvolutionsScreen {...screenProps} />;
       case "states": return <StatesScreen {...screenProps} />;
@@ -677,7 +677,7 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
       <div className={`posw__shell${dockOpen ? "" : " posw__shell--dock-closed"}`}>
         <StepRail stepId={stepId} setStepId={(id) => { setStepId(id); setRailMobileOpen(false); }} persona={persona} visibleSteps={visibleSteps} mobileOpen={railMobileOpen} />
 
-        <main className="posmain" aria-label="Step content">
+        <main className={`posmain posmain--${stepId}`} aria-label="Step content">
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>

@@ -84,7 +84,7 @@ function WorkbooksPanel({
           <div className="wbm__title-block">
             <h2 className="wbm__title">{element.name}</h2>
             <p className="wbm__sub">
-              {count} workbook{count === 1 ? "" : "s"} · Pick one to open, or start a new analysis.
+              {count} workbook{count === 1 ? "" : "s"}
             </p>
           </div>
           {!readOnly && !creating && (
@@ -148,7 +148,7 @@ function WorkbooksPanel({
                   <button type="button" className="btn btn--link" onClick={() => { setQuery(""); }}>Clear search</button>
                 </>
               ) : (
-                <p>No workbooks yet{readOnly ? "." : " — create the first one."}</p>
+                <p>No workbooks yet.</p>
               )}
             </div>
           ) : (

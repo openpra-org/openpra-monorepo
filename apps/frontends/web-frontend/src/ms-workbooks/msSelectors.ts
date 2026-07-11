@@ -1,4 +1,4 @@
-import { type MechanisticSourceTermAnalysis, type ReleaseCategory, type SourceTermDefinition } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+import { type MechanisticSourceTermAnalysis, type ReleaseCategory, type SourceTermDefinition, type TransportBarrierAssessment } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
 import {
   CONFORMANCE_ITEMS,
@@ -64,21 +64,67 @@ function relativeFrom(iso: string, now: Date): string {
   return `${d} days ago`;
 }
 
+const SR_MET: Record<string, (ms: MechanisticSourceTermAnalysis) => boolean> = {
+  "MS-A1": (ms) => ms.releaseCategories.length > 0 && ms.releaseCategories.every((r) => (r.timingClassification ?? "").length > 0 && (r.magnitudeClassification ?? "").length > 0 && r.boundingSequenceReference.length > 0),
+  "MS-A2": (ms) => ms.releaseCategoryCompletenessAssessment.setReasonablyComplete && ms.releaseCategoryCompletenessAssessment.basis.length > 0,
+  "MS-A3": (ms) => ms.releaseCategories.length > 0 && !ms.releaseCategories.some((r) => (r.groupingJustification ?? "").toLowerCase().includes("under review")),
+  "MS-A4": (ms) => ms.releaseCategories.length > 0 && ms.releaseCategories.every((r) => r.releaseTerminationTime.justification.length > 0),
+  "MS-A5": (ms) => ms.releaseCategories.length > 0 && ms.releaseCategories.every((r) => r.boundingSequenceReference.length > 0),
+  "MS-B1": (ms) => ms.sourceInventories.length > 0 && ms.sourceInventories.every((s) => s.inventory.length > 0),
+  "MS-B2": (ms) => ms.transportBarrierAssessments.length > 0,
+  "MS-B3": (ms) => ms.transportBarrierAssessments.length > 0 && ms.transportBarrierAssessments.every((b) => (b.failureModes ?? []).length > 0),
+  "MS-B4": (ms) => ms.transportBarrierAssessments.length > 0 && ms.transportBarrierAssessments.every((b) => b.transportCharacteristics.length > 0),
+  "MS-B5": (ms) => ms.transportPhenomenaAssessments.length > 0 && ms.transportPhenomenaAssessments.every((a) => a.phenomenaChecklist.length > 0),
+  "MS-B6": (ms) => (ms.modelUncertaintyAssessments ?? []).some((u) => u.sourceBlock === "BARRIER_TRANSPORT_ASSESSMENT"),
+  "MS-B7": (ms) => (ms.preOperationalAssumptions ?? []).length > 0,
+  "MS-C1": (ms) => ms.sourceTermDefinitions.length > 0,
+  "MS-C2": (ms) => ms.sourceTermDefinitions.length > 0 && ms.sourceTermDefinitions.filter((s) => s.sourceTermBasis === "GENERIC_APPLICABLE").every((s) => (s.genericApplicabilityJustification ?? "").length > 0),
+  "MS-C3": (ms) => ms.sourceTermDefinitions.some((s) => s.sourceTermBasis === "PLANT_SPECIFIC_MECHANISTIC"),
+  "MS-C4": (ms) => ms.transportPhenomenaAssessments.some((a) => a.consequenceQuantificationSupport.adequacyJustification.length > 0),
+  "MS-C5": (ms) => (ms.sourceTermModels ?? []).length > 0,
+  "MS-C6": (ms) => (ms.modelUncertaintyAssessments ?? []).some((u) => u.sourceBlock === "SOURCE_TERM_CALCULATION"),
+  "MS-C7": (ms) => (ms.preOperationalAssumptions ?? []).length > 0,
+  "MS-D1": (ms) => ms.uncertaintyAnalyses.some((u) => u.uncertainInputParameters.length > 0),
+  "MS-D2": (ms) => ms.uncertaintyAnalyses.length > 0 && ms.uncertaintyAnalyses.every((u) => u.componentEstimates.length > 0),
+  "MS-D3": (ms) => (ms.modelUncertaintyAssessments ?? []).length > 0,
+  "MS-D4": (ms) => ms.uncertaintyAnalyses.some((u) => u.characterizationLevel === "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES"),
+  "MS-E1": (ms) => ms.documentation.processDescription.length > 0 && ms.documentation.resultsSummary.length > 0,
+  "MS-E2": (ms) => ms.sourceTermDefinitions.some((s) => s.radionuclideReleases.length > 0),
+  "MS-E3": (ms) => (ms.modelUncertaintyAssessments ?? []).length > 0 && (ms.sensitivityStudies ?? []).length > 0,
+  "MS-E4": (ms) => (ms.preOperationalAssumptions ?? []).length > 0,
+};
+
+function deriveSrStatus(ms: MechanisticSourceTermAnalysis, sr: string): "ok" | "warn" {
+  const pred = SR_MET[sr];
+  return pred !== undefined && pred(ms) ? "ok" : "warn";
+}
+
+function countLabel(n: number, singular: string, plural: string): string {
+  return `${String(n)} ${n === 1 ? singular : plural}`;
+}
+
+const SR_META: Record<string, (ms: MechanisticSourceTermAnalysis) => string> = {
+  "MS-A1": () => "7 attributes",
+  "MS-A4": (ms) => countLabel(ms.releaseCategories.length, "category", "categories"),
+  "MS-B1": (ms) => countLabel(ms.sourceInventories.length, "source", "sources"),
+  "MS-B2": (ms) => countLabel(ms.transportBarrierAssessments.length, "barrier", "barriers"),
+  "MS-B5": (ms) => countLabel(ms.transportPhenomenaAssessments.length, "assessment", "assessments"),
+  "MS-C3": (ms) => countLabel(ms.sourceTermDefinitions.filter((s) => s.sourceTermBasis === "PLANT_SPECIFIC_MECHANISTIC").length, "category", "categories"),
+  "MS-C5": (ms) => countLabel((ms.sourceTermModels ?? []).length, "model", "models"),
+  "MS-D3": (ms) => countLabel((ms.modelUncertaintyAssessments ?? []).length, "source", "sources"),
+  "MS-E2": (ms) => countLabel(ms.sourceTermDefinitions.length, "table", "tables"),
+};
+
+function deriveSrMeta(ms: MechanisticSourceTermAnalysis, sr: string, fallback?: string): string | undefined {
+  const fn = SR_META[sr];
+  return fn !== undefined ? fn(ms) : fallback;
+}
+
 function filterConformance(ms: MechanisticSourceTermAnalysis, ccId: string, stage: Stage): ConformanceItem[] {
   const stageKey = stage === "operational" ? "operational" : "pre_operational";
-  const statusBySr = new Map<string, string>();
-  for (const entry of ms.conformanceMatrix) {
-    const ccUpper = ccId.replace("cc-", "").toUpperCase();
-    if (entry.capabilityCategory === `CC-${ccUpper}`) statusBySr.set(entry.sr, entry.status);
-  }
   return CONFORMANCE_ITEMS.filter((it) => it.requiredAt.includes(ccId)).map((it) => {
     if (!it.stages.includes(stageKey)) return { ...it, status: "na" as const, meta: "Not applicable to current plant stage" };
-    const matrixStatus = statusBySr.get(it.id);
-    if (matrixStatus === "MET") return { ...it, status: "ok" as const };
-    if (matrixStatus === "NOT_MET") return { ...it, status: "blocked" as const };
-    if (matrixStatus === "NOT_APPLICABLE") return { ...it, status: "na" as const };
-    if (matrixStatus === "PARTIAL") return { ...it, status: "warn" as const };
-    return { ...it, status: "warn" as const };
+    return { ...it, status: deriveSrStatus(ms, it.id), meta: deriveSrMeta(ms, it.id, it.meta) };
   });
 }
 
@@ -164,6 +210,20 @@ function stepsFromMef(ms: MechanisticSourceTermAnalysis, persona: MsPersona): Ms
   });
 }
 
+function barrierPassFraction(barrier: TransportBarrierAssessment): number {
+  const df = barrier.decontaminationFactor;
+  if (df === undefined || df <= 0) return 1;
+  return 1 / df;
+}
+
+function barriersForCategory(ms: MechanisticSourceTermAnalysis, categoryRef: string): TransportBarrierAssessment[] {
+  return ms.transportBarrierAssessments.filter((b) => b.releaseCategoryReference === categoryRef);
+}
+
+function retentionChainNet(ms: MechanisticSourceTermAnalysis, categoryRef: string): number {
+  return barriersForCategory(ms, categoryRef).reduce((frac, b) => frac * barrierPassFraction(b), 1);
+}
+
 function categoryIsRiskSignificant(category: ReleaseCategory): boolean {
   return category.differentiationBasis === "CONSEQUENCE_METRIC_AND_RISK_SIGNIFICANT_DIFFERENTIATION";
 }
@@ -196,13 +256,19 @@ function phaseQuantity(st: SourceTermDefinition, phaseId: string, radionuclide: 
 }
 
 function headlineRelease(ms: MechanisticSourceTermAnalysis, categoryUuid: string): number | undefined {
+  return headlineReleaseDetail(ms, categoryUuid)?.value;
+}
+
+function headlineReleaseDetail(ms: MechanisticSourceTermAnalysis, categoryUuid: string): { species: string; value: number } | undefined {
   const st = sourceTermForCategory(ms, categoryUuid);
   if (st === undefined) return undefined;
   const totals = speciesTotals(st);
   const cs = totals.get("Cs-137");
-  if (cs !== undefined) return cs;
+  if (cs !== undefined) return { species: "Cs-137", value: cs };
   const first = st.releaseForms[0]?.radionuclide;
-  return first !== undefined ? totals.get(first) : undefined;
+  if (first === undefined) return undefined;
+  const value = totals.get(first);
+  return value === undefined ? undefined : { species: first, value };
 }
 
 function lognormalBounds(distribution: ParameterDistribution | undefined): { mean: number; p05: number; p95: number } | undefined {
@@ -225,10 +291,14 @@ export {
   categoryIsRiskSignificant,
   categoryIsWarn,
   assignedFamilies,
+  barrierPassFraction,
+  barriersForCategory,
+  retentionChainNet,
   sourceTermForCategory,
   speciesTotals,
   phaseQuantity,
   headlineRelease,
+  headlineReleaseDetail,
   lognormalBounds,
   type CommentView,
   type CcScore,

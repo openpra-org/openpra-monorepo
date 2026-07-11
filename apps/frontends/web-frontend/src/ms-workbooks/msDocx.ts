@@ -11,6 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type MechanisticSourceTermAnalysis, type SourceTermDefinition } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+import { filterConformance } from "./msSelectors";
 
 function heading(text: string, level: (typeof HeadingLevel)[keyof typeof HeadingLevel]): Paragraph {
   return new Paragraph({ text, heading: level, spacing: { before: 240, after: 120 }, pageBreakBefore: level === HeadingLevel.HEADING_1 });
@@ -149,9 +150,12 @@ function buildChildren(a: MechanisticSourceTermAnalysis, final: boolean): (Parag
   for (const s of a.sensitivityStudies ?? []) out.push(bullet(`${s.name ?? "Sensitivity study"}: ${s.results ?? ""}`));
 
   out.push(heading("Conformance summary", HeadingLevel.HEADING_1));
+  const ccId = a.capabilityCategory === "CC-I" ? "cc-i" : "cc-ii";
+  const stage = a.plantStage === "OPERATIONAL" ? "operational" : "pre_operational";
+  const statusLabel: Record<string, string> = { ok: "MET", warn: "ATTENTION", blocked: "NOT MET", na: "N/A" };
   out.push(dataTable(
-    ["SR", "HLR", "Category", "Status", "Evidence"],
-    a.conformanceMatrix.map((c) => [c.sr, c.hlr, c.capabilityCategory, c.status, c.evidence]),
+    ["SR", "HLR", "Category", "Status", "Requirement"],
+    filterConformance(a, ccId, stage).map((it) => [it.id, it.hlr, a.capabilityCategory ?? "CC-II", statusLabel[it.status] ?? it.status, it.text]),
   ));
 
   out.push(heading("References", HeadingLevel.HEADING_1));

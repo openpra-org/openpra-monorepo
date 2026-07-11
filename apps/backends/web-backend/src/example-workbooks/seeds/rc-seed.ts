@@ -81,7 +81,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(RC_SR_CATALOG).flatMap((c
 
 const releaseCategoryInputs: ReleaseCategoryInputs[] = [
   {
-    releaseCategory: "RC-3",
+    releaseCategory: "RC-1",
     sourceTermDefinitionRef: "ST-3",
     releaseCharacteristics: {
       numberOfPlumes: 1,
@@ -89,7 +89,7 @@ const releaseCategoryInputs: ReleaseCategoryInputs[] = [
         { group: "Cs-137", fraction: 3.0e-2 },
         { group: "I-131", fraction: 4.0e-2 },
       ],
-      importantRadionuclides: ["Xe-133", "I-131", "Cs-137", "Te-132", "Sr-90"],
+      importantRadionuclides: ["Xe-133", "Kr-85", "I-131", "Cs-137", "Cs-134", "Te-132", "Sb-127", "Sr-90", "Ba-140", "Ru-103", "Ce-144"],
       importantRadionuclidesJustification: "The species that drive the dose, with the basis for the set.",
       releasePhaseTimings: [
         { startTime: 0, duration: 6, timeUnit: "h" },
@@ -100,10 +100,10 @@ const releaseCategoryInputs: ReleaseCategoryInputs[] = [
       hazardsImpactingProtectiveActions: "The seismic hazard that caused the release also degrades the roads and the shelters.",
       releaseEnergy: 2.0,
       releaseEnergyDescription: "2.0 MW thermal",
-      releaseHeight: 10,
-      releaseHeightDescription: "10 m, ground level",
+      releaseHeight: 30,
+      releaseHeightDescription: "30 m, elevated by the sodium-fire buoyancy",
       releasedParticleSize: 1,
-      releasedParticleSizeDescription: "Near 1 micron AMAD, spread to 5 micron",
+      releasedParticleSizeDescription: "Sub-micron to few-micron AMAD spectrum peaking near 1 micron, with a coarse tail to 10 microns",
       releaseUncertainties: "Propagated per MS-D4",
     },
   },
@@ -132,7 +132,7 @@ const releaseCategoryInputs: ReleaseCategoryInputs[] = [
     },
   },
   {
-    releaseCategory: "RC-1",
+    releaseCategory: "RC-3",
     sourceTermDefinitionRef: "ST-1",
     releaseCharacteristics: {
       numberOfPlumes: 1,
@@ -504,8 +504,9 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
   ],
   eventSequenceConsequences: [
     {
-      eventSequenceFamily: "ESF-1",
-      releaseCategoryReference: "RC-3",
+      uuid: "RCQ-ESF-EARLY",
+      eventSequenceFamily: "ESF-EARLY",
+      releaseCategoryReference: "RC-1",
       sourceTermReference: "ST-3",
       consequenceResults: [
         {
@@ -526,7 +527,8 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
       riskSignificance: ImportanceLevel.HIGH,
     },
     {
-      eventSequenceFamily: "ESF-3",
+      uuid: "RCQ-ESF-LATE",
+      eventSequenceFamily: "ESF-LATE",
       releaseCategoryReference: "RC-2",
       sourceTermReference: "ST-2",
       consequenceResults: [
@@ -548,8 +550,9 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
       riskSignificance: ImportanceLevel.MEDIUM,
     },
     {
-      eventSequenceFamily: "ESF-2",
-      releaseCategoryReference: "RC-1",
+      uuid: "RCQ-ESF-LEAK",
+      eventSequenceFamily: "ESF-LEAK",
+      releaseCategoryReference: "RC-3",
       sourceTermReference: "ST-1",
       consequenceResults: [
         { metric: "Latent cancer risk", meanValue: 2.0e-8, unit: "per event", uncertaintyDescription: "Characterized, below the action threshold." },
@@ -571,7 +574,7 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
     description: "The results were confirmed by examining the dose-distance trends against expectation.",
   },
   riskSignificantContributors: [
-    { contributor: "Early-release category RC-3", basisPerRiB: "Drives the latent cancer risk per HLR-RI-B.", significance: ImportanceLevel.HIGH },
+    { contributor: "Early-release category RC-1", basisPerRiB: "Drives the latent cancer risk per HLR-RI-B.", significance: ImportanceLevel.HIGH },
     { contributor: "Pool scrubbing decontamination factor", basisPerRiB: "The retention uncertainty moves the consequence per HLR-RI-B.", significance: ImportanceLevel.HIGH },
     { contributor: "Evacuation timing for the seismic group", basisPerRiB: "The non-compliance and the road damage move the early dose.", significance: ImportanceLevel.MEDIUM },
   ],
@@ -694,7 +697,7 @@ const documentation: RcDocumentation = {
   processDescription: "The source term is received per category, the site and the people are characterized, the plume is transported, and the dose, the health effects and the costs are quantified per event sequence family, per ASME/ANS RA-S-1.4 HLR-RCRE through HLR-RCQ.",
   inputsDescription: "RC takes the source-term table from MS, the release-category definitions from ES, and the consequence metric from RI.",
   appliedMethods: "A segmented-plume dispersion calculation, probabilistic weather sampling, pathway dose integration, recognized dose-response models and regional cost data, each one accepted way to do its sub-task.",
-  resultsSummary: "Three event sequence families are quantified, and the early-release family ESF-1 drives the latent cancer risk at a mean of 2.0E-4 per event.",
+  resultsSummary: "Three event sequence families are quantified, and the early-release family ESF-EARLY drives the latent cancer risk at a mean of 2.0E-4 per event.",
   rcreProcess: "The nine consequence inputs are extracted per release category, the bounding site is described and justified, and the scoping declaration covers the six downstream sub-elements.",
   rcpaProcess: "Five protective actions are modeled across three incident phases, with two cohorts, a six-link evacuation delay chain and the seismic cross-hazard adjustment.",
   rcpaModelUncertaintySources: "The non-compliance fraction is the leading protective-action model uncertainty.",
@@ -751,7 +754,7 @@ export const RC_ANALYSIS: RadiologicalConsequenceAnalysis = {
     openCount: 4,
     resolvedCount: 1,
     comments: [
-      { uuid: "rcc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-06-02T09:14:00.000Z", associatedSr: "RCRE-A3", text: "The handoff lists the nine inputs for RC-3, so RCRE-A3 needs the traceability to the MS source-term table shown to confirm no input is missing.", severity: "MAJOR", resolved: false },
+      { uuid: "rcc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-06-02T09:14:00.000Z", associatedSr: "RCRE-A3", text: "The handoff lists the nine inputs for RC-1, so RCRE-A3 needs the traceability to the MS source-term table shown to confirm no input is missing.", severity: "MAJOR", resolved: false },
       { uuid: "rcc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-06-02T10:30:00.000Z", associatedSr: "RCAD-B2", text: "The weather sample is in place, but RCAD-B2 needs the mean-shift check shown to confirm the sample does not bias the consequence mean.", severity: "MAJOR", resolved: false },
       { uuid: "rcc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-06-03T14:05:00.000Z", associatedSr: "RCPA-A5", text: "The cohorts split compliers from refusers, so RCPA-A5 needs the non-compliance fraction sourced to an evacuation study, not assumed.", severity: "MINOR", resolved: false },
       { uuid: "rcc-4", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-06-03T15:20:00.000Z", associatedSr: "RCAD-C2", text: "The credit fence forbids plume rise at CC-I and earns it at CC-II.", severity: "OBSERVATION", resolved: true, resolution: "No change required, the buoyancy algorithm and its justification are recorded for the CC-II credit.", resolvedAt: "2026-06-03T16:30:00.000Z", resolvedBy: "rev-2" },

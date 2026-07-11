@@ -155,10 +155,13 @@ const ELEMENT_INTERFACE: Record<ElementCode, ElementInterface> = {
     funnelsToEsq: false,
   },
   MS: {
-    inputs: [],
+    inputs: [
+      { element: "POS", role: "Sources & barriers", detail: "The radioactive sources and transport barriers the transport chain is built on." },
+      { element: "ESQ", role: "Risk significance", detail: "The risk-significance of each release category, which earns the full mechanistic treatment." },
+    ],
     bidirectional: [
       { element: "ES", role: "Release categories", detail: "The end states define the release categories the source term characterizes." },
-      { element: "RI", role: "Risk significance", detail: "The source term hands up its uncertainty, integration hands back the risk significance." },
+      { element: "RI", role: "Source-term uncertainty", detail: "The source term hands up its uncertainty for the propagation, integration hands back the risk insights." },
     ],
     outputs: [
       { element: "RC", role: "Source terms", detail: "The release-category source terms the consequence analysis disperses." },
@@ -181,7 +184,7 @@ const ELEMENT_INTERFACE: Record<ElementCode, ElementInterface> = {
     bidirectional: [
       { element: "ESQ", role: "Family frequencies", detail: "Quantification hands up the frequencies, integration hands back the significance criteria." },
       { element: "RC", role: "Family consequences", detail: "The consequence hands up the table, integration hands back the consequence measures." },
-      { element: "MS", role: "Source-term uncertainty", detail: "The source term hands up its uncertainty for the propagation, integration hands back the significance." },
+      { element: "MS", role: "Source-term uncertainty", detail: "The source term hands up its uncertainty for the propagation, integration hands back the risk insights." },
     ],
     outputs: [
       { element: "ES", role: "Reporting floor", detail: "The minimum reporting consequence the end-state definition uses." },

@@ -27,7 +27,7 @@ interface StepHeader {
 
 function headersFor(stepId: string): StepHeader {
   switch (stepId) {
-    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The three elements that converge and the capability target." };
+    case "scope": return { eyebrow: "Step 01", title: "Scope", sub: "The interfaces and the capability target." };
     case "categories": return { eyebrow: "Step 02", title: "Release Categories", sub: "The bins, the bounding sequences and the termination times (MS-A)." };
     case "sources": return { eyebrow: "Step 03", title: "Sources & Barriers", sub: "The inventories and the calculated retention chain (MS-B)." };
     case "transport": return { eyebrow: "Step 04", title: "Transport Phenomena", sub: "The phenomena checklist and the design-unique physics (MS-B)." };
@@ -380,9 +380,9 @@ function MsWorkbench({
         );
       case "categories": return <CategoriesScreen openDrawer={setDrawer} />;
       case "sources": return <SourcesScreen openDrawer={setDrawer} />;
-      case "transport": return <TransportScreen />;
+      case "transport": return <TransportScreen openDrawer={setDrawer} />;
       case "sourceterm": return <SourceTermScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen stage={stage} />;
+      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

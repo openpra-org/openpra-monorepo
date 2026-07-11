@@ -12,7 +12,7 @@ interface MsStep {
 }
 
 const MS_STEPS: MsStep[] = [
-  { id: "scope", num: "01", label: "Scope", sub: "Three elements converge", status: "idle" },
+  { id: "scope", num: "01", label: "Scope", sub: "Interfaces and scope", status: "idle" },
   { id: "categories", num: "02", label: "Release Categories", sub: "Define the bins (A)", status: "idle" },
   { id: "sources", num: "03", label: "Sources & Barriers", sub: "Inventory · retention (B)", status: "idle" },
   { id: "transport", num: "04", label: "Transport Phenomena", sub: "The physics checklist (B)", status: "idle" },
@@ -110,19 +110,6 @@ const MS_SR_DESCRIPTIONS: Record<string, string> = {
   "MS-E4": "Document the pre-operational assumptions",
 };
 
-const MS_SR_META: Record<string, string> = {
-  "MS-A1": "7 attributes",
-  "MS-A3": "1 split open",
-  "MS-A4": "3 categories",
-  "MS-B1": "3 sources",
-  "MS-B2": "3 barriers",
-  "MS-B5": "12 phenomena",
-  "MS-C3": "2 categories",
-  "MS-C5": "3 models",
-  "MS-D3": "3 sources",
-  "MS-E2": "3 tables",
-};
-
 const MS_SR_LINKED_NM: Record<string, string> = {
   "MS-B4": "NM-082",
   "MS-D4": "NM-085",
@@ -142,7 +129,7 @@ function buildConformanceItems(): ConformanceItem[] {
       status: "warn" as const,
       requiredAt: ["cc-i", "cc-ii"],
       stages,
-      meta: MS_SR_META[code] ?? (preOnly ? "Pre-op" : undefined),
+      meta: preOnly ? "Pre-op" : undefined,
       linkedNM: MS_SR_LINKED_NM[code],
     };
   });
@@ -164,49 +151,6 @@ const MS_METHODS: Record<string, MethodSpec> = {
   decay: { id: "decay", abbr: "Decay", name: "Decay and daughter-buildup calculation", ref: "ICRP-107 decay data" },
   thermal: { id: "thermal", abbr: "Thermal", name: "Release-timing and thermal-energy calculation", ref: "Severe-accident analysis methods" },
 };
-
-interface LinkSpec {
-  id: string;
-  code: string;
-  element: string;
-  icon: string;
-  workbook?: string;
-  version?: number;
-  status?: string;
-  synced?: string;
-  delivers?: string;
-  uses?: string;
-  note: string;
-  role: string;
-}
-
-const MS_UPSTREAM_LINKS: LinkSpec[] = [
-  { id: "pos", code: "POS", element: "Plant Operating States", icon: "Layers", workbook: "POS Workbook Example", version: 2, status: "approved", synced: "Apr 18, 2026", delivers: "The radioactive sources, the inventories and the barrier set", note: "POS supplies the source and barrier inventory MS builds the transport chain on.", role: "Inventory in" },
-  { id: "es", code: "ES", element: "Event Sequence Analysis", icon: "Tree", workbook: "ES Workbook Example", version: 3, status: "approved", synced: "May 20, 2026", delivers: "The release-category definitions and the family end states", note: "ES defines the categories under ES-C1, and MS verifies their attributes are sufficient.", role: "Categories in" },
-  { id: "esq", code: "ESQ", element: "Event Sequence Quantification", icon: "Function", workbook: "ESQ Workbook Example", version: 2, status: "in_review", synced: "May 22, 2026", delivers: "The family frequencies and the risk-significance of each category", note: "ESQ flags which release categories are risk-significant and earn full mechanistic treatment.", role: "Significance in" },
-];
-
-const MS_DOWNSTREAM_LINKS: LinkSpec[] = [
-  { id: "rc", code: "RC", element: "Radiological Consequence", icon: "Wind", uses: "Receives the source-term table for each release category", note: "RC is the primary customer, consuming the species, timing, form and elevation MS calculates.", role: "Source term out" },
-  { id: "ri", code: "RI", element: "Risk Integration", icon: "Gauge", uses: "Multiplies the ESQ frequency by what RC computes from the source term", note: "RI closes the risk equation by pairing the frequency with the consequence.", role: "Consequence out" },
-];
-
-interface AttributeSpec {
-  id: string;
-  label: string;
-  note: string;
-  icon: string;
-}
-
-const SOURCE_TERM_ATTRIBUTES: AttributeSpec[] = [
-  { id: "att-a", label: "Sources and inventories", note: "The reactors and sources involved and their radionuclide inventories.", icon: "Atom" },
-  { id: "att-b", label: "Initiator characteristics", note: "The initiating-event characteristics that affect the protective actions.", icon: "Bolt" },
-  { id: "att-c", label: "Quantity per phase", note: "The quantity released by species for each release phase.", icon: "Sigma" },
-  { id: "att-d", label: "Physical and chemical form", note: "The form by species, including the aerosol and the particle size.", icon: "Dust" },
-  { id: "att-e", label: "Timing and warning", note: "The release timing, the multi-phase profile and the warning time.", icon: "Clock" },
-  { id: "att-f", label: "Thermal energy", note: "The thermal energy carried by the release.", icon: "Thermo" },
-  { id: "att-g", label: "Location and elevation", note: "The release location and the elevation.", icon: "Ruler" },
-];
 
 const TIMING_LABELS: Record<string, string> = { Early: "early", Delayed: "delayed", Late: "late" };
 const MAGNITUDE_LABELS: Record<string, string> = { Negligible: "neg", Low: "low", Moderate: "mod", High: "high" };
@@ -250,77 +194,10 @@ const ST_BASIS_LABELS: Record<string, StBasisSpec> = {
   PLANT_SPECIFIC_MECHANISTIC: { label: "Plant-specific, mechanistic", kind: "mechanistic" },
 };
 
-const PASS_FRACTIONS: Record<string, number> = {
-  "BAR-1": 0.3,
-  "BAR-2": 0.05,
-  "BAR-3": 0.6,
-};
-
-const DESIGN_UNIQUE_NOTES: Record<string, string> = {
-  "Sodium-air reaction aerosol generation": "The sodium fire generates an aerosol that adds to the airborne load and the thermal energy.",
-  "Sodium-concrete interaction gas release": "The sodium-concrete reaction releases gas that can carry material if the pool contacts the structure.",
-};
-
-const PHENOMENA_MODELS_USED = ["transport", "aerosol", "thermal"];
-
 const MODEL_METHOD: Record<string, string> = {
   "MOD-1": "transport",
   "MOD-2": "aerosol",
   "MOD-3": "depletion",
-};
-
-const A3_SPLIT = {
-  cci: {
-    title: "Group to support the consequence metric",
-    desc: "Group by the similarity of the A1 attributes, differentiated enough to support the consequence metric.",
-    tag: "Coarse bins where nothing matters",
-  },
-  ccii: {
-    title: "Split to differentiate risk-significant contributors",
-    desc: "Group finely enough to differentiate the risk-significant contributors that ESQ flagged.",
-    tag: "Fine bins where risk lives",
-  },
-  note: "Coarse bins are used where nothing matters, and fine bins are used where the risk concentrates.",
-};
-
-const C_LADDER = {
-  cci: {
-    title: "Use applicable generic source terms",
-    desc: "Use applicable generic source-term characteristics, with the applicability justified including any post-processing modifications.",
-    tag: "Borrowed and justified",
-  },
-  ccii: {
-    title: "Perform plant-specific calculations",
-    desc: "Perform plant-specific analyses for every release category with the potential to be risk-significant.",
-    tag: "Mechanistic where risk lives",
-  },
-  note: "For a novel design an applicable generic source term often does not exist, which quietly forces the plant-specific calculation.",
-};
-
-const D2_SPLIT = {
-  cci: {
-    title: "Point estimate plus characterization",
-    desc: "Give a point estimate and a characterized uncertainty for each source-term component.",
-    tag: "One value, uncertainty described",
-  },
-  ccii: {
-    title: "Mean plus probabilistic for risk-significant",
-    desc: "Give a mean and a full probabilistic representation per component for the risk-significant categories.",
-    tag: "Distribution where risk lives",
-  },
-  note: "Expert judgment is used per the standard's process where the data do not support a direct estimate.",
-};
-
-const PA_SR: Record<string, string> = {
-  "PA-1": "MS-B7",
-  "PA-2": "MS-C7",
-  "PA-3": "MS-E4",
-};
-
-const SS_SR: Record<string, string> = {
-  "SS-1": "MS-D3",
-  "SS-2": "MS-B5",
-  "SS-3": "MS-A4",
 };
 
 const MS_TOC: [string, string][] = [
@@ -354,8 +231,6 @@ export type {
   ConformanceStatus,
   Stage,
   MethodSpec,
-  LinkSpec,
-  AttributeSpec,
 };
 
 export {
@@ -365,9 +240,6 @@ export {
   CAPABILITY_CATEGORIES,
   CONFORMANCE_ITEMS,
   MS_METHODS,
-  MS_UPSTREAM_LINKS,
-  MS_DOWNSTREAM_LINKS,
-  SOURCE_TERM_ATTRIBUTES,
   TIMING_LABELS,
   MAGNITUDE_LABELS,
   DIFFERENTIATION_LABELS,
@@ -376,14 +248,6 @@ export {
   MECHANISM_SIGNIFICANCE_LABELS,
   TRANSPORT_PHENOMENON_LABELS,
   ST_BASIS_LABELS,
-  PASS_FRACTIONS,
-  DESIGN_UNIQUE_NOTES,
-  PHENOMENA_MODELS_USED,
   MODEL_METHOD,
-  A3_SPLIT,
-  C_LADDER,
-  D2_SPLIT,
-  PA_SR,
-  SS_SR,
   MS_TOC,
 };

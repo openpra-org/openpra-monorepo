@@ -76,7 +76,7 @@ export class MsWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async loadExample(workbookId: string, acting: ActingUser): Promise<MsWorkbookResponse> {
+  async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<MsWorkbookResponse> {
     const doc = await this.msWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("MS workbook not found");
     await this.projectsService.resolveAccess(doc.projectId, acting);
@@ -86,7 +86,7 @@ export class MsWorkbooksService {
     if (state !== "DRAFT" && state !== "REVISION_REQUIRED") {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
-    const example = await this.exampleWorkbooksService.getMsBundle();
+    const example = await this.exampleWorkbooksService.getMsBundle(exampleId);
     const parsed = MechanisticSourceTermAnalysisSchema.safeParse(stripNulls(example.ms.mef));
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {

@@ -13,9 +13,11 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getMsWorkbook,
+  getMsExamples,
   loadMsExample,
   unloadMsExample,
   type MsWorkbookRoleName,
+  type MsExampleOption,
 } from "./msWorkbookApi";
 import { MsWorkbench, type MsWorkbenchActions } from "./msWorkbench";
 import { MsWorkbookProvider, type MsWorkbookData } from "./msWorkbookContext";
@@ -60,6 +62,7 @@ function MsWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [exampleOptions, setExampleOptions] = useState<MsExampleOption[]>([]);
   const workbookName = data?.ms.name ?? "";
   const workbookVersion = data?.ms.version ?? "1";
 
@@ -79,6 +82,12 @@ function MsWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
+        try {
+          const options = await getMsExamples();
+          if (!cancelled) setExampleOptions(options);
+        } catch {
+          if (!cancelled) setExampleOptions([]);
+        }
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -203,9 +212,10 @@ function MsWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="MS"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadMsExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadMsExample(id, exampleId);
             updateMs(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

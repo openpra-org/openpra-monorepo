@@ -119,10 +119,16 @@ export class ExampleWorkbooksController {
     return this.exampleWorkbooksService.getEsqBundle(example);
   }
 
+  @Get("ms-examples")
+  @HttpCode(HttpStatus.OK)
+  getMsExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getMsExamples();
+  }
+
   @Get("ms-bundle")
   @HttpCode(HttpStatus.OK)
-  getMsBundle(): Promise<MsExampleBundle> {
-    return this.exampleWorkbooksService.getMsBundle();
+  getMsBundle(@Query("example") example?: string): Promise<MsExampleBundle> {
+    return this.exampleWorkbooksService.getMsBundle(example);
   }
 
   @Get("rc-bundle")

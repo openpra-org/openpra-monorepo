@@ -101,6 +101,7 @@ export interface TransportBarrierAssessment extends Unique, Named {
   sourceInventoryRefs: string[];
   description: string;
   barrierType: string;
+  decontaminationFactor?: number;
   failureModes?: string[];
   transportCharacteristics: {
     description: string;
@@ -137,7 +138,7 @@ export interface TransportPhenomenaAssessment extends Unique {
     included: boolean;
     justification?: string;
   }[];
-  designUniquePhenomena?: string[];
+  designUniquePhenomena?: { name: string; note?: string }[];
   modelsUsed: string[];
   relatedBarrierAssessmentRefs?: string[];
   relatedMechanismRefs?: string[];
@@ -165,6 +166,7 @@ export interface SourceTermDefinition extends Unique {
   releaseForms: {
     radionuclide: Radionuclide;
     form: ReleaseForm | string;
+    chemicalForm?: string;
   }[];
   particleSizeDistribution?: {
     description: string;
@@ -284,6 +286,17 @@ export interface RiskIntegrationFeedback {
   };
 }
 
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
+}
+
 export interface MsDocumentation {
   processDescription: string;
   inputsDescription: string;
@@ -330,6 +343,7 @@ export interface MechanisticSourceTermAnalysis
   documentation: MsDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
 }
 

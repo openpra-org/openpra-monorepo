@@ -6,6 +6,10 @@ interface ReplaceMefBody {
   mef: unknown;
 }
 
+interface LoadExampleBody {
+  example?: string;
+}
+
 @Controller("ms-workbooks")
 @UseGuards(JwtAuthGuard)
 export class MsWorkbooksController {
@@ -29,8 +33,8 @@ export class MsWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<MsWorkbookResponse> {
-    return this.msWorkbooksService.loadExample(id, { username: req.user!.username });
+  loadExample(@Param("id") id: string, @Body() body: LoadExampleBody, @Req() req: AuthenticatedRequest): Promise<MsWorkbookResponse> {
+    return this.msWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 
   @Post(":id/unload-example")

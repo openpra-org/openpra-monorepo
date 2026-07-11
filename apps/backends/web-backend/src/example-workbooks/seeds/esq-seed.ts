@@ -522,6 +522,28 @@ const barrierQuantifications: RadionuclideBarrierQuantification[] = [
   },
   {
     uuid: "BAR-3",
+    name: "Guard vessel",
+    applicableSourceRefs: ["SRC-1", "SRC-2"],
+    failureModes: [
+      { failureMode: "Gross guard-vessel failure", failureType: "GROSS", mechanisms: ["Thermal challenge from the sodium pool"], probability: 5.0e-5 },
+      { failureMode: "Localized annulus leak", failureType: "LOCALIZED_DEGRADED", mechanisms: ["Weld degradation in the annulus"], probability: 8.0e-4 },
+    ],
+    challengingPhenomena: ["Thermal challenge from the sodium pool", "Sodium-air reaction loads"],
+    designSpecificDegradationMechanisms: ["Weld degradation in the annulus"],
+    challengeAssessment: {
+      basis: "REALISTIC_PLANT_SPECIFIC_CALCULATION",
+      challenges: ["Sodium reaction loads in the annulus"],
+    },
+    capacityEvaluation: {
+      basis: "REALISTIC",
+      description: "The guard vessel catches primary-boundary leakage and holds a share of the aerosol before the confinement.",
+      inServiceAgingIncluded: true,
+    },
+    externalHazardCapacity: [{ hazard: "Seismic", basis: "FRAGILITY_CURVES" }],
+    implementsSrs: srs("ESQ-C10", "ESQ-C12", "ESQ-C14"),
+  },
+  {
+    uuid: "BAR-4",
     name: "Reactor building, functional containment",
     applicableSourceRefs: ["SRC-1", "SRC-2", "SRC-3"],
     failureModes: [

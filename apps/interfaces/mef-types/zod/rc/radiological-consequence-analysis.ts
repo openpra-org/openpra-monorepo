@@ -459,6 +459,7 @@ export const ConsequenceQuantificationAnalysisSchema = z.object({
   ),
   eventSequenceConsequences: z.array(
     z.object({
+      uuid: z.string().optional(),
       eventSequenceFamily: z.string(),
       releaseCategoryReference: z.string().optional(),
       sourceTermReference: z.string().optional(),

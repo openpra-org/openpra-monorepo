@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { MechanisticSourceTermAnalysisSchema } from "interfaces-mef-types/zod/ms/mechanistic-source-term-analysis";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
+import { MS_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import { MsWorkbooksService } from "./ms-workbooks.service";
 import { MsWorkbook, type MsWorkbookDocument } from "./ms-workbook.schema";
 import { createBlankMs } from "./blank-ms";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
@@ -14,6 +16,7 @@ export class MsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(MsWorkbook.name) private readonly msWorkbookModel: Model<MsWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly msWorkbooksService: MsWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +42,13 @@ export class MsMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return MS_EXAMPLES.map((e) => ({ exampleId: e.id, label: e.label, workbookName: exampleWorkbookName(e.slug) }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.msWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

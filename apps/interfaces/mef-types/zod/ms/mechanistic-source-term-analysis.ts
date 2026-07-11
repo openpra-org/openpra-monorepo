@@ -90,6 +90,7 @@ export const TransportBarrierAssessmentSchema = z.object({
   sourceInventoryRefs: z.array(z.string()),
   description: z.string(),
   barrierType: z.string(),
+  decontaminationFactor: z.number().optional(),
   failureModes: z.array(z.string()).optional(),
   transportCharacteristics: z.array(
     z.object({
@@ -139,7 +140,7 @@ export const TransportPhenomenaAssessmentSchema = z.object({
       justification: z.string().optional(),
     }),
   ),
-  designUniquePhenomena: z.array(z.string()).optional(),
+  designUniquePhenomena: z.array(z.object({ name: z.string(), note: z.string().optional() })).optional(),
   modelsUsed: z.array(z.string()),
   relatedBarrierAssessmentRefs: z.array(z.string()).optional(),
   relatedMechanismRefs: z.array(z.string()).optional(),
@@ -171,6 +172,7 @@ export const SourceTermDefinitionSchema = z.object({
     z.object({
       radionuclide: z.string(),
       form: z.string(),
+      chemicalForm: z.string().optional(),
     }),
   ),
   particleSizeDistribution: z
@@ -373,6 +375,16 @@ export const MechanisticSourceTermAnalysisSchema = z.object({
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   documentation: MsDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
+  exampleDocuments: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    kind: z.enum(["doc", "sheet", "image"]),
+    sizeLabel: z.string(),
+    uploadedLabel: z.string(),
+    extracted: z.string(),
+    linked: z.number(),
+    url: z.string().optional(),
+  })).optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 

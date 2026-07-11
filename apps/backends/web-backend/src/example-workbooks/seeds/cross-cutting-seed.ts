@@ -125,6 +125,8 @@ function nmInstance(
   name: string,
   artifactKind: NewlyDevelopedMethod["artifactKind"],
   workflowState: "DRAFT" | "INTERNAL_TECHNICAL_REVIEW" | "INTERNAL_APPROVAL" | "FINAL",
+  elementCode = "POS",
+  appliedInId = "POS-GENERIC-1",
 ): NewlyDevelopedMethod {
   return {
     uuid,
@@ -153,10 +155,10 @@ function nmInstance(
     activeAuditIds: [],
     artifactKind,
     introducedAfterFirstPeerReview: false,
-    appliedInTechnicalElementIds: ["POS-GENERIC-1"],
+    appliedInTechnicalElementIds: [appliedInId],
     scopeAndLimitations: {
       purpose: name,
-      scope: "POS workbook usage",
+      scope: elementCode + " workbook usage",
       applicabilityConditions: [],
       limitations: [],
       implementsSrs: [{ sr: "NM-A1", hlr: "A" }],
@@ -171,7 +173,7 @@ function nmInstance(
       dataKind: "NUMERIC",
       sources: ["Vendor data"],
       analysisApproach: "Curve fit / sampling / framework.",
-      applicationApproach: "Apply to POS records.",
+      applicationApproach: "Apply to " + elementCode + " records.",
       technicalSoundnessBasis: "Pending review.",
       implementsSrs: [{ sr: "NM-C1", hlr: "C" }],
     },
@@ -192,7 +194,7 @@ function nmInstance(
     documentation: {
       description: name,
       traceabilityBasis: "Inputs and outputs versioned with this NM record.",
-      incorporationGuidance: "Cite this NM record in POS conformance entries.",
+      incorporationGuidance: "Cite this NM record in " + elementCode + " conformance entries.",
       implementsSrs: [{ sr: "NM-F1", hlr: "F" }],
     },
     technicalElementOverlaps: [],
@@ -203,6 +205,9 @@ const NM_INSTANCES: NewlyDevelopedMethod[] = [
   nmInstance("NM-014", "Decay-heat curve fit for SFR mixed-oxide fuel", "ANALYTICAL_METHOD", "FINAL"),
   nmInstance("NM-021", "Cycle-plan-based duration sampling (pre-op)", "MODELING_TECHNIQUE", "FINAL"),
   nmInstance("NM-028", "Bounding rationale framework for state grouping", "MODELING_TECHNIQUE", "INTERNAL_TECHNICAL_REVIEW"),
+  nmInstance("NM-082", "Control-volume transport characterization for mechanistic source terms", "ANALYTICAL_METHOD", "FINAL", "MS", "MS-GENERIC-1"),
+  nmInstance("NM-085", "Phenomena-dependency sampling for source-term uncertainty", "MODELING_TECHNIQUE", "FINAL", "MS", "MS-GENERIC-1"),
+  nmInstance("NM-088", "Source-to-environment barrier identification framework", "MODELING_TECHNIQUE", "INTERNAL_TECHNICAL_REVIEW", "MS", "MS-GENERIC-1"),
 ];
 
 function nmById(id: string): NewlyDevelopedMethod | undefined {

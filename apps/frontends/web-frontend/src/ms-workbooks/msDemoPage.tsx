@@ -5,6 +5,7 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { fetchJson } from "../api/client";
 import { MsWorkbench } from "./msWorkbench";
 import { MsWorkbookProvider, type MsWorkbookData } from "./msWorkbookContext";
+import { MsDocumentsCard } from "./msDocumentsCard";
 import { type MsPersona } from "./msViewData";
 
 interface MsExampleResponse {
@@ -62,10 +63,11 @@ function MsDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: data.ms.uuid === "ms-generic-2" ? "Generic-2 Reactor — Pre-operational PRA" : "Generic-1 Reactor — Pre-operational PRA",
           workbookName: data.ms.name,
           workbookVersion: data.ms.version,
         }}
+        renderDocuments={() => <MsDocumentsCard canEdit={false} />}
       />
     </MsWorkbookProvider>
   );

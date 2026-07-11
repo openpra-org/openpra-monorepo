@@ -67,6 +67,7 @@ export const PreOperationalAssumptionSchema = z.object({
   closureBasis: z.string(),
   plannedClosureActions: z.array(z.string()),
   affectedElementIds: z.array(z.string()),
+  implementsSrs: z.array(SRReferenceSchema).optional(),
   affectedTechnicalElementCodes: z.array(z.string()).optional(),
   potentialAlternatives: z.array(z.string()).optional(),
   sensitivityAnalysis: SensitivityStudySchema.optional(),

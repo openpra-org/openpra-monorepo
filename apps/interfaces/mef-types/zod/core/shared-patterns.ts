@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ImportanceLevel, RiskMetricType, RiskSignificanceCriteriaType, ScreeningStatus } from "../../core/shared-patterns";
 import { UniqueSchema } from "./meta";
+import { SRReferenceSchema } from "./pra-common";
 
 export const SuccessCriteriaIdSchema = z.string();
 
@@ -16,6 +17,7 @@ export const SensitivityStudySchema = z.object({
   insights: z.string().optional(),
   impact: z.string().optional(),
   modelUncertaintyId: z.string().optional(),
+  implementsSrs: z.array(SRReferenceSchema).optional(),
   elementSpecificProperties: z.record(z.string(), z.unknown()).optional(),
 });
 

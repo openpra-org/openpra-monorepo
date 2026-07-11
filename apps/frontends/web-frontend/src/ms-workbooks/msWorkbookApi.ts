@@ -21,8 +21,17 @@ async function patchMsWorkbook(workbookId: string, mef: MechanisticSourceTermAna
   return patchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`, { mef });
 }
 
-async function loadMsExample(workbookId: string): Promise<MsWorkbookResponse> {
-  return postJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}/load-example`, {});
+interface MsExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getMsExamples(): Promise<MsExampleOption[]> {
+  return fetchJson<MsExampleOption[]>("/api/example-workbooks/ms-examples");
+}
+
+async function loadMsExample(workbookId: string, exampleId?: string): Promise<MsWorkbookResponse> {
+  return postJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadMsExample(workbookId: string): Promise<MsWorkbookResponse> {
@@ -59,6 +68,7 @@ async function getMsDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getMsWorkbook,
   patchMsWorkbook,
+  getMsExamples,
   loadMsExample,
   unloadMsExample,
   listMsDocuments,
@@ -67,5 +77,6 @@ export {
   getMsDocumentDownload,
   type MsWorkbookResponse,
   type MsWorkbookRoleName,
+  type MsExampleOption,
   type MsDocumentEntry,
 };

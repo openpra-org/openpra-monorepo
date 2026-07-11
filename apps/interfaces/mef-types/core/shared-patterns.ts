@@ -1,4 +1,5 @@
 import { Unique } from "./meta";
+import { SRReference } from "./pra-common";
 
 export type SuccessCriteriaId = string;
 
@@ -17,6 +18,7 @@ export interface SensitivityStudy extends Unique {
   insights?: string;
   impact?: string;
   modelUncertaintyId?: string;
+  implementsSrs?: SRReference[];
   elementSpecificProperties?: Record<string, unknown>;
 }
 

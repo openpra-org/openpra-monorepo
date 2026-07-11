@@ -79,6 +79,7 @@ export interface PreOperationalAssumption extends BaseAssumption {
   closureBasis: string;
   plannedClosureActions: string[];
   affectedElementIds: string[];
+  implementsSrs?: SRReference[];
   affectedTechnicalElementCodes?: string[];
   potentialAlternatives?: string[];
   sensitivityAnalysis?: SensitivityStudy;

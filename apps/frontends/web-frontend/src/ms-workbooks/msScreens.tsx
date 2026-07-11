@@ -1,28 +1,22 @@
-import { JSX } from "react";
+import { JSX, useState } from "react";
 import { MSIcon } from "./msIcons";
 import { Badge, MsProvenanceChip, valText, fracText, pctText } from "./msShared";
 import { useMsWorkbook } from "./msWorkbookContext";
-import { WorkbookInterfaceTiles } from "../workbooks/workbookInterfaces";
 import {
   CAPABILITY_CATEGORIES,
   MS_METHODS,
-  SOURCE_TERM_ATTRIBUTES,
   TIMING_LABELS,
   MAGNITUDE_LABELS,
   DIFFERENTIATION_LABELS,
   CALC_BASIS_LABELS,
   RELEASE_FORM_LABELS,
   TRANSPORT_PHENOMENON_LABELS,
-  PASS_FRACTIONS,
-  DESIGN_UNIQUE_NOTES,
-  PHENOMENA_MODELS_USED,
-  A3_SPLIT,
   type Stage,
 } from "./msViewData";
-import { categoryIsRiskSignificant, categoryIsWarn, assignedFamilies, headlineRelease } from "./msSelectors";
+import { categoryIsRiskSignificant, categoryIsWarn, assignedFamilies, headlineReleaseDetail, barrierPassFraction, barriersForCategory, retentionChainNet } from "./msSelectors";
 
 interface MsDrawerContext {
-  kind: "category" | "inventory" | "barrier" | "sourceterm";
+  kind: "category" | "inventory" | "barrier" | "sourceterm" | "phenomena" | "uncertainty" | "modeluncertainty" | "sensitivity" | "preop" | "completeness" | "model";
   id: string;
 }
 
@@ -40,6 +34,58 @@ function MethodChips({ ids, label }: { ids: string[]; label?: string }): JSX.Ele
 }
 
 // ─── 01 — Scope & Inputs ───────────────────────────────────────────────────
+function MsInterfaces(): JSX.Element {
+  const { ms } = useMsWorkbook();
+  const [selected, setSelected] = useState<string | null>(null);
+  const lanes: { key: string; code: string; element: string; role: string; direction: "in" | "out"; columns: string[]; rows: { id: string; name: string; values: string[] }[]; empty: string }[] = [
+    { key: "in-POS", code: "POS", element: "Plant Operating States", role: "Sources and barriers", direction: "in", columns: ["Source", "Basis", "Species"], rows: ms.sourceInventories.map((s) => ({ id: s.uuid, name: `${s.uuid} · ${s.name}`, values: [CALC_BASIS_LABELS[s.calculationBasis] ?? s.calculationBasis, String(s.inventory.length)] })), empty: "No source inventories yet. Add them in Sources and barriers." },
+    { key: "in-ES", code: "ES", element: "Event Sequence Analysis", role: "Release categories", direction: "in", columns: ["Category", "Timing", "Magnitude"], rows: ms.releaseCategories.map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.name}`, values: [r.timingClassification ?? "—", r.magnitudeClassification ?? "—"] })), empty: "No release categories yet. Add them in Release Categories." },
+    { key: "in-ESQ", code: "ESQ", element: "Event Sequence Quantification", role: "Risk significance", direction: "in", columns: ["Category", "Risk-significant"], rows: ms.releaseCategories.map((r) => ({ id: r.uuid, name: `${r.uuid} · ${r.name}`, values: [categoryIsRiskSignificant(r) ? "Yes" : "—"] })), empty: "No release categories yet." },
+    { key: "out-RC", code: "RC", element: "Radiological Consequence", role: "Source terms", direction: "out", columns: ["Source term", "Category", "Cs-137"], rows: ms.sourceTermDefinitions.map((s) => ({ id: s.uuid, name: s.uuid, values: [s.releaseCategoryReference, fracText(headlineReleaseDetail(ms, s.releaseCategoryReference)?.value)] })), empty: "No source terms yet. Add them in Source Terms." },
+    { key: "out-RI", code: "RI", element: "Risk Integration", role: "Source-term uncertainty", direction: "out", columns: ["Analysis", "Category", "Level"], rows: ms.uncertaintyAnalyses.map((u) => ({ id: u.uuid, name: u.uuid, values: [u.releaseCategoryReference, u.characterizationLevel === "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES" ? "Propagated" : "Characterized"] })), empty: "No uncertainty analyses yet. Add them in Uncertainty." },
+  ];
+  const active = lanes.find((l) => l.key === selected);
+  return (
+    <>
+      <div className="poshandoff__grid">
+        {lanes.map((lane) => (
+          <button key={lane.key} type="button"
+            className={`poshandoff__tile${selected === lane.key ? " poshandoff__tile--active" : ""}`}
+            onClick={() => setSelected(selected === lane.key ? null : lane.key)}>
+            <span className="poshandoff__tile-code">{lane.code}</span>
+            <span className="poshandoff__tile-name">{lane.element}</span>
+            <span className="poshandoff__tile-role">{lane.direction === "out" ? "Consumes · " : "Provides · "}{lane.role}</span>
+          </button>
+        ))}
+      </div>
+      {active !== undefined && (
+        <div style={{ marginTop: 16 }}>
+          <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+            {active.direction === "out"
+              ? `${active.element} receives ${active.role.toLowerCase()} from Mechanistic Source Term`
+              : `Mechanistic Source Term receives ${active.role.toLowerCase()} from ${active.element}`}
+          </div>
+          {active.rows.length > 0 ? (
+            <table className="postable postable--mid">
+              <thead><tr>{active.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+              <tbody>
+                {active.rows.map((r) => (
+                  <tr key={r.id}>
+                    <td><div className="postable__name">{r.name}</div></td>
+                    {r.values.map((v, idx) => <td key={active.columns[idx + 1] ?? `c${String(idx)}`} className="posmono">{v}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="posmuted" style={{ margin: 0 }}>{active.empty}</p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId: (id: string) => void; onAction: (msg: string) => void; stage: Stage; setStage: (s: Stage) => void }): JSX.Element {
   const { ms, editable, mutateMs } = useMsWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
@@ -63,8 +109,8 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
     <>
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
-        <p className="poscard__sub">What flows into Mechanistic Source Term and what it feeds. Select an element to see the data exchanged.</p>
-        <WorkbookInterfaceTiles element="MS" />
+        <p className="poscard__sub">Select an element to see the data exchanged.</p>
+        <MsInterfaces />
       </div>
 
       <div className="poscard">
@@ -90,8 +136,8 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           {CAPABILITY_CATEGORIES.map((c) => {
             const active = c.id === ccId;
             return (
-              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
-                style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
+              <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)} disabled={!editable}
+                style={{ textAlign: "left", cursor: editable ? "pointer" : "default", opacity: !editable && !active ? 0.6 : 1, borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div className="posrow" style={{ justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</span>
                   <Badge kind={active ? "progress" : undefined}>{c.tag}</Badge>
@@ -101,10 +147,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Sparkle />
-          <span>For a reactor type that has never operated, an applicable generic source term often does not exist, which makes CC-II the practical floor.</span>
-        </div>
       </div>
 
       <div className="poscard">
@@ -112,12 +154,12 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
         <p className="poscard__sub">MS has a light pre-operational fork, since the source-term physics is design-driven and the as-built gap enters only through the inputs.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
-            ["pre_operational", "Pre-operational", "Three pre-operational assumptions are logged, in the barriers, the source term and the documentation, and nothing else forks."],
-            ["operational", "Operational", "The three pre-operational assumptions close, and the as-built inventories and barrier details replace the design values."],
+            ["pre_operational", "Pre-operational", "Pre-operational assumptions are logged where the source term rests on design values, and nothing else forks."],
+            ["operational", "Operational", "The pre-operational assumptions close, and the as-built inventories and barrier details replace the design values."],
           ] as [Stage, string, string][]).map(([val, title, body]) => (
-            <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
+            <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: editable ? "pointer" : "default", opacity: !editable && stage !== val ? 0.6 : 1, borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="ms-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <input type="radio" name="ms-stage" value={val} checked={stage === val} disabled={!editable} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>
@@ -126,10 +168,6 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
             </label>
           ))}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Tag />
-          <span>Only three of the twenty-seven requirements are pre-operational only, B7, C7 and E4, the same narrowing fork seen on the consequence side.</span>
-        </div>
       </div>
     </>
   );
@@ -137,48 +175,33 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
 // ─── 02 — Release Categories (HLR-A) ───────────────────────────────────────
 function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => void }): JSX.Element {
-  const { ms } = useMsWorkbook();
-  const completeness = ms.releaseCategoryCompletenessAssessment;
-  const allFamilies = new Set<string>();
-  for (const r of ms.releaseCategories) {
-    for (const f of assignedFamilies(r)) allFamilies.add(f);
+  const { ms, editable, mutateMs } = useMsWorkbook();
+  function addCategory(): void {
+    const n = ms.releaseCategories.reduce((m, r) => { const v = Number(r.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
+    const uuid = `RC-${String(n)}`;
+    mutateMs((d) => ({ ...d, releaseCategories: [...d.releaseCategories, { uuid, name: "New release category", description: "", technicalBasis: "", supportingReferences: [], groupingJustification: "", differentiationBasis: "CONSEQUENCE_METRIC", timingClassification: "Late", magnitudeClassification: "Low", boundingSequenceReference: "", boundingSequenceJustification: "", releaseTerminationTime: { value: 24, unit: "h", justification: "" }, implementsSrs: [{ sr: "MS-A1", hlr: "A" }, { sr: "MS-A4", hlr: "A" }, { sr: "MS-A5", hlr: "A" }] }] }));
+    openDrawer({ kind: "category", id: uuid });
   }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Source-term attributes</h3>
-          <MsProvenanceChip>MS-A1</MsProvenanceChip>
-        </div>
-        <p className="poscard__sub">A source term is the complete description of a release, so each category is verified to carry every attribute the consequence analysis needs.</p>
-        <div className="msattr">
-          {SOURCE_TERM_ATTRIBUTES.map((a) => {
-            const Icon = MSIcon[a.icon] ?? MSIcon.Tag;
-            return (
-              <div key={a.id} className="msattr__cell">
-                <span className="msattr__icon"><Icon /></span>
-                <div className="msattr__main">
-                  <div className="msattr__label">{a.label}</div>
-                  <div className="msattr__note">{a.note}</div>
-                </div>
-                <span className="msattr__check"><MSIcon.Check /></span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
           <h3 className="poscard__title">Release categories</h3>
-          <span className="possubtle">{ms.releaseCategories.length} categories · MS-A1, A4, A5</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <MsProvenanceChip>MS-A1 · A4 · A5</MsProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><MSIcon.Plus /> Add category</button>}
+          </div>
         </div>
-        <p className="poscard__sub">The categories are defined under ES-C1, and MS verifies their attributes, the bounding sequence and the termination time.</p>
+        <p className="poscard__sub">Each category carries the source-term attributes the consequence analysis needs, with a bounding sequence and a justified termination time. Select a card to edit it.</p>
+        {ms.releaseCategories.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No release categories yet. Add one to define a bin, its bounding sequence and its termination time.</p>
+        ) : (
         <div className="mscat">
           {ms.releaseCategories.map((r) => {
             const rs = categoryIsRiskSignificant(r);
             const timing = r.timingClassification ?? "Late";
             const magnitude = r.magnitudeClassification ?? "Low";
+            const detail = headlineReleaseDetail(ms, r.uuid);
             return (
               <div key={r.uuid} className={`mscat__card${categoryIsWarn(r) ? " mscat__card--warn" : ""}`} onClick={() => openDrawer({ kind: "category", id: r.uuid })}>
                 <div className="mscat__head">
@@ -187,13 +210,13 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
                     <div className="mscat__ref posmono">{r.uuid}</div>
                   </div>
                   <div className="mscat__val">
-                    <span className="mscat__val-num">{fracText(headlineRelease(ms, r.uuid))}</span>
-                    <span className="mscat__val-kind">release fraction</span>
+                    <span className="mscat__val-num">{detail !== undefined ? fracText(detail.value) : "n/a"}</span>
+                    <span className="mscat__val-kind">{detail !== undefined ? `${detail.species} fraction` : "no source term"}</span>
                   </div>
                 </div>
                 <div className="mscat__tags">
-                  <span className={`mscat__tag mscat__tag--t-${TIMING_LABELS[timing] ?? "late"}`}><MSIcon.Clock /> {timing}</span>
-                  <span className={`mscat__tag mscat__tag--m-${MAGNITUDE_LABELS[magnitude] ?? "low"}`}><MSIcon.Wind /> {magnitude}</span>
+                  <span className={`mscat__tag mscat__tag--t-${TIMING_LABELS[timing] ?? "late"}`}>{timing}</span>
+                  <span className={`mscat__tag mscat__tag--m-${MAGNITUDE_LABELS[magnitude] ?? "low"}`}>{magnitude}</span>
                   {rs
                     ? <span className="mscat__tag mscat__tag--rs">Risk-significant</span>
                     : <span className="mscat__tag mscat__tag--ns">Not significant</span>}
@@ -201,100 +224,69 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
                 <p className="mscat__desc">{r.description}</p>
                 <div className="mscat__meta">
                   <div className="mscat__meta-row">
-                    <span className="mscat__meta-k"><MSIcon.Tree /> Bounding sequence</span>
+                    <span className="mscat__meta-k">Bounding sequence</span>
                     <span className="mscat__meta-v posmono">{r.boundingSequenceReference}</span>
                   </div>
                   <div className="mscat__meta-row">
-                    <span className="mscat__meta-k"><MSIcon.Clock /> Termination time</span>
+                    <span className="mscat__meta-k">Termination time</span>
                     <span className="mscat__meta-v posmono">{r.releaseTerminationTime.value} {r.releaseTerminationTime.unit}</span>
                   </div>
                   <div className="mscat__meta-row">
-                    <span className="mscat__meta-k"><MSIcon.Boxes /> Families assigned</span>
+                    <span className="mscat__meta-k">Families assigned</span>
                     <span className="mscat__meta-v posmono">{assignedFamilies(r).join(" · ")}</span>
                   </div>
                 </div>
                 <div className="mscat__foot">
                   <span className="poschip">{DIFFERENTIATION_LABELS[r.differentiationBasis]}</span>
-                  <span className="mscat__more">Open <MSIcon.ArrowR /></span>
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Clock />
-          <span>The termination time is when the count stops, and a release is not over just because the first puff ended, so revaporization is checked.</span>
-        </div>
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Category completeness</h3>
-          <MsProvenanceChip>MS-A2</MsProvenanceChip>
-        </div>
-        <p className="poscard__sub">The category set is reasonably complete when every family maps to one category and no family is left unassigned.</p>
-        <div className="mscomplete">
-          <div className="mscomplete__stat">
-            <span className="mscomplete__stat-num">{allFamilies.size}</span>
-            <span className="mscomplete__stat-cap">of {allFamilies.size} families assigned</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <MsProvenanceChip>MS-A2</MsProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "completeness", id: "completeness" })}>Edit</button>}
           </div>
-          <div className="mscomplete__body">
-            <p className="mscomplete__line">{completeness.basis}</p>
-            <p className="mscomplete__line mscomplete__line--sub">{completeness.consistencyWithConsequenceAnalysis}</p>
-            <div className="mscomplete__map">
+        </div>
+        <p className="poscard__sub">Every event sequence family maps to one release category, shown below. Open the editor to record the completeness basis.</p>
+        {ms.releaseCategories.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No release categories yet.</p>
+        ) : (
+          <table className="postable postable--mid">
+            <thead><tr><th>Release category</th><th>Families assigned</th></tr></thead>
+            <tbody>
               {ms.releaseCategories.map((r) => (
-                <div key={r.uuid} className="mscomplete__map-row">
-                  <span className="mscomplete__map-cat">{r.uuid}</span>
-                  <MSIcon.ArrowL />
-                  <span className="mscomplete__map-fams">
-                    {assignedFamilies(r).map((f) => <span key={f} className="mscomplete__map-fam posmono">{f}</span>)}
-                  </span>
-                </div>
+                <tr key={r.uuid}>
+                  <td><div className="postable__name">{r.name}</div><div className="possubtle posmono" style={{ fontSize: 11 }}>{r.uuid}</div></td>
+                  <td>{assignedFamilies(r).length === 0
+                    ? <span className="possubtle" style={{ fontSize: 12 }}>no families assigned</span>
+                    : <div className="posrow posrow--wrap" style={{ gap: 5 }}>{assignedFamilies(r).map((f) => <span key={f} className="poschip posmono">{f}</span>)}</div>}</td>
+                </tr>
               ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">The grouping split</h3>
-          <MsProvenanceChip>MS-A3</MsProvenanceChip>
-        </div>
-        <p className="poscard__sub">Coarse bins are used where nothing matters, and fine bins are used where the risk concentrates.</p>
-        <div className="mssplit">
-          <div className="mssplit__col">
-            <span className="mssplit__cc mssplit__cc--i">CC-I</span>
-            <div className="mssplit__title">{A3_SPLIT.cci.title}</div>
-            <p className="mssplit__desc">{A3_SPLIT.cci.desc}</p>
-            <span className="mssplit__tag" style={{ color: "var(--color-text-subtle)" }}><MSIcon.Hash /> {A3_SPLIT.cci.tag}</span>
-          </div>
-          <div className="mssplit__col mssplit__col--ii">
-            <span className="mssplit__cc mssplit__cc--ii">CC-II</span>
-            <div className="mssplit__title">{A3_SPLIT.ccii.title}</div>
-            <p className="mssplit__desc">{A3_SPLIT.ccii.desc}</p>
-            <span className="mssplit__tag"><MSIcon.Function /> {A3_SPLIT.ccii.tag}</span>
-          </div>
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Sparkle />
-          <span>{A3_SPLIT.note}</span>
-        </div>
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );
 }
 
 // ─── 03 — Sources & Barriers (HLR-B, the inventories and the retention) ────
-function RetentionChain(): JSX.Element {
+function RetentionChain({ categoryRef }: { categoryRef: string }): JSX.Element {
   const { ms } = useMsWorkbook();
   let frac = 1.0;
-  const steps = ms.transportBarrierAssessments.map((b) => {
-    const passes = PASS_FRACTIONS[b.uuid] ?? 1.0;
+  const steps = barriersForCategory(ms, categoryRef).map((b) => {
+    const passes = barrierPassFraction(b);
     frac = frac * passes;
-    return { barrier: b, passes, after: frac };
+    return { barrier: b, passes, after: frac, df: b.decontaminationFactor ?? 1 };
   });
-  const net = frac;
+  const net = retentionChainNet(ms, categoryRef);
   return (
     <div className="mschain">
       <div className="mschain__node mschain__node--source">
@@ -306,19 +298,19 @@ function RetentionChain(): JSX.Element {
         const heightPct = Math.max(8, Math.round(Math.sqrt(s.after) * 100));
         return (
           <span key={s.barrier.uuid} style={{ display: "contents" }}>
-            <span className="mschain__arrow"><MSIcon.ArrowR /></span>
+            <span className="mschain__arrow">→</span>
             <div className="mschain__barrier">
               <div className="mschain__barrier-bar-wrap">
                 <div className="mschain__barrier-bar" style={{ height: `${heightPct}%` }} />
               </div>
               <span className="mschain__barrier-name">{s.barrier.name}</span>
               <span className="mschain__barrier-pass">passes {pctText(s.passes)}</span>
-              <span className="mschain__barrier-df posmono">DF {Math.round(1 / s.passes)}</span>
+              <span className="mschain__barrier-df posmono">DF {s.df}</span>
             </div>
           </span>
         );
       })}
-      <span className="mschain__arrow"><MSIcon.ArrowR /></span>
+      <span className="mschain__arrow">→</span>
       <div className="mschain__node mschain__node--release">
         <span className="mschain__node-cap">Release</span>
         <span className="mschain__node-val posmono">{fracText(net)}</span>
@@ -329,20 +321,44 @@ function RetentionChain(): JSX.Element {
 }
 
 function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => void }): JSX.Element {
-  const { ms } = useMsWorkbook();
+  const { ms, editable, mutateMs } = useMsWorkbook();
+  function addInventory(): void {
+    const n = ms.sourceInventories.reduce((m, s) => { const v = Number(s.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
+    const uuid = `SRC-${String(n)}`;
+    mutateMs((d) => ({ ...d, sourceInventories: [...d.sourceInventories, { uuid, name: "New source inventory", radioactiveSourceRef: "", description: "", calculationBasis: "PLANT_SPECIFIC_CALCULATION", inventory: [], inventoryDataSource: "", radionuclideSelectionBasis: "", implementsSrs: [{ sr: "MS-B1", hlr: "B" }] }] }));
+    openDrawer({ kind: "inventory", id: uuid });
+  }
+  function addBarrier(): void {
+    const n = ms.transportBarrierAssessments.reduce((m, b) => { const v = Number(b.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
+    const uuid = `BAR-${String(n)}`;
+    mutateMs((d) => ({ ...d, transportBarrierAssessments: [...d.transportBarrierAssessments, { uuid, name: "New barrier", releaseCategoryReference: d.releaseCategories[0]?.uuid ?? "", sourceInventoryRefs: [], description: "", barrierType: "New barrier type", decontaminationFactor: 1, failureModes: [], transportCharacteristics: [{ description: "", affectedRadionuclides: [], retentionEffectiveness: "" }], transportMechanisms: [], implementsSrs: [{ sr: "MS-B2", hlr: "B" }, { sr: "MS-B3", hlr: "B" }, { sr: "MS-B4", hlr: "B" }] }] }));
+    openDrawer({ kind: "barrier", id: uuid });
+  }
+  function categoryName(ref: string): string {
+    return ms.releaseCategories.find((r) => r.uuid === ref)?.name ?? ref;
+  }
+  const barrieredCategories: string[] = [];
+  for (const b of ms.transportBarrierAssessments) {
+    if (!barrieredCategories.includes(b.releaseCategoryReference)) barrieredCategories.push(b.releaseCategoryReference);
+  }
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Source inventories</h3>
-          <span className="possubtle">{ms.sourceInventories.length} sources · MS-B1</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <MsProvenanceChip>MS-B1</MsProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInventory}><MSIcon.Plus /> Add inventory</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Inventories are estimated generically at CC-I or calculated plant-specifically at CC-II, with the physical and chemical form per species.</p>
+        <p className="poscard__sub">Inventories are estimated generically at CC-I or calculated plant-specifically at CC-II, with the physical and chemical form per species. Select a card to edit it.</p>
+        {ms.sourceInventories.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No source inventories yet. Add one to carry the radionuclide groups a release can draw from.</p>
+        ) : (
         <div className="msinv">
           {ms.sourceInventories.map((s) => (
             <div key={s.uuid} className="msinv__card" onClick={() => openDrawer({ kind: "inventory", id: s.uuid })}>
               <div className="msinv__head">
-                <span className="msinv__icon"><MSIcon.Atom /></span>
                 <div className="msinv__head-main">
                   <div className="msinv__name">{s.name}</div>
                   <div className="msinv__src posmono">{s.radioactiveSourceRef}</div>
@@ -351,26 +367,29 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
                   {CALC_BASIS_LABELS[s.calculationBasis]}
                 </span>
               </div>
-              <div className="msinv__rns">
-                {s.inventory.slice(0, 4).map((r, i) => (
-                  <div key={i} className="msinv__rn">
-                    <span className="msinv__rn-name posmono">{r.radionuclide}</span>
-                    <span className="msinv__rn-q posmono">{valText(r.quantity)} {r.unit}</span>
-                    <span className={`msinv__rn-form msinv__rn-form--${(r.physicalForm ?? "OTHER").toLowerCase()}`}>{RELEASE_FORM_LABELS[r.physicalForm ?? "OTHER"] ?? r.physicalForm}</span>
-                  </div>
-                ))}
-                {s.inventory.length > 4 && <div className="msinv__more">plus {s.inventory.length - 4} more species</div>}
-              </div>
-              <div className="msinv__foot">
-                <MethodChips ids={["depletion"]} label="Built by" />
-              </div>
+              {s.inventory.length === 0 ? (
+                <p className="possubtle" style={{ fontSize: 11.5, margin: 0 }}>No species yet</p>
+              ) : (
+                <div className="msinv__rns">
+                  {s.inventory.slice(0, 4).map((r, i) => (
+                    <div key={i} className="msinv__rn">
+                      <span className="msinv__rn-name posmono">{r.radionuclide}</span>
+                      <span className="msinv__rn-q posmono">{valText(r.quantity)} {r.unit}</span>
+                      <span className={`msinv__rn-form msinv__rn-form--${(r.physicalForm ?? "OTHER").toLowerCase()}`}>{RELEASE_FORM_LABELS[r.physicalForm ?? "OTHER"] ?? r.physicalForm}</span>
+                    </div>
+                  ))}
+                  {s.inventory.length > 4 && <div className="msinv__more">plus {s.inventory.length - 4} more species</div>}
+                </div>
+              )}
+              {(s.inventoryDataSource ?? "").length > 0 && (
+                <div className="msinv__foot">
+                  <span className="possubtle" style={{ fontSize: 11 }}>{s.inventoryDataSource}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Database />
-          <span>The depletion calculation is one accepted way to build the inventory, since any qualified method that produces the species set can fill the slot.</span>
-        </div>
+        )}
       </div>
 
       <div className="poscard">
@@ -378,37 +397,47 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
           <h3 className="poscard__title">The retention chain</h3>
           <MsProvenanceChip>MS-B2 · MS-B4</MsProvenanceChip>
         </div>
-        <p className="poscard__sub">The barriers from each source to the environment are identified, and the fraction each one passes is calculated rather than assumed.</p>
-        <RetentionChain />
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Shield />
-          <span>The whole element exists to replace assumed retention with calculated retention, so each barrier carries what passes and what is held back.</span>
-        </div>
+        <p className="poscard__sub">The barriers from each source to the environment are identified per release category, and the fraction each one passes is set by its decontamination factor rather than assumed.</p>
+        {barrieredCategories.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No barriers yet. Add barriers to build the retention chain for a release category.</p>
+        ) : (
+          barrieredCategories.map((catRef) => (
+            <div key={catRef} style={{ marginBottom: 14 }}>
+              <div className="possubtle" style={{ fontWeight: 600, color: "var(--color-text)", marginBottom: 6 }}>{categoryName(catRef)}</div>
+              <RetentionChain categoryRef={catRef} />
+            </div>
+          ))
+        )}
       </div>
 
       <div className="poscard">
         <div className="poscard__head">
           <h3 className="poscard__title">Barrier failure modes and transport</h3>
-          <span className="possubtle">{ms.transportBarrierAssessments.length} barriers · MS-B3, B4</span>
+          <div className="posrow" style={{ gap: 10 }}>
+            <MsProvenanceChip>MS-B3 · B4</MsProvenanceChip>
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><MSIcon.Plus /> Add barrier</button>}
+          </div>
         </div>
-        <p className="poscard__sub">Each barrier carries its failure modes and the transport characteristics through it, with the conditions that drive the retention.</p>
+        <p className="poscard__sub">Each barrier carries its decontamination factor, its failure modes and the transport characteristics through it. Select a card to edit it.</p>
+        {ms.transportBarrierAssessments.length === 0 ? (
+          <p className="posmuted" style={{ margin: 0 }}>No barriers yet. Add the barriers from each source to the environment for a release category.</p>
+        ) : (
         <div className="msbar">
           {ms.transportBarrierAssessments.map((b) => (
             <div key={b.uuid} className="msbar__card" onClick={() => openDrawer({ kind: "barrier", id: b.uuid })}>
               <div className="msbar__head">
-                <span className="msbar__icon"><MSIcon.Shield /></span>
                 <div className="msbar__head-main">
                   <div className="msbar__name">{b.name}</div>
-                  <div className="msbar__type posmono">{b.barrierType}</div>
+                  <div className="msbar__type posmono">{b.barrierType} · {categoryName(b.releaseCategoryReference)}</div>
                 </div>
-                <span className="msbar__pass posmono">passes {pctText(PASS_FRACTIONS[b.uuid] ?? 1.0)}</span>
+                <span className="msbar__pass posmono">DF {b.decontaminationFactor ?? 1} · passes {pctText(barrierPassFraction(b))}</span>
               </div>
               <div className="msbar__modes">
                 {(b.failureModes ?? []).map((m, i) => (
-                  <div key={i} className="msbar__mode"><MSIcon.Warn /> {m}</div>
+                  <div key={i} className="msbar__mode">{m}</div>
                 ))}
               </div>
-              {b.transportCharacteristics[0]?.retentionEffectiveness !== undefined && (
+              {(b.transportCharacteristics[0]?.retentionEffectiveness ?? "").length > 0 && (
                 <p className="msbar__retention">{b.transportCharacteristics[0].retentionEffectiveness}</p>
               )}
               <div className="msbar__mechs">
@@ -421,88 +450,84 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
             </div>
           ))}
         </div>
+        )}
       </div>
     </>
   );
 }
 
 // ─── 04 — Transport Phenomena (HLR-B, the physics heart) ───────────────────
-function TransportScreen(): JSX.Element {
-  const { ms } = useMsWorkbook();
-  const assessment = ms.transportPhenomenaAssessments[0];
-  const checklist = assessment?.phenomenaChecklist ?? [];
-  const included = checklist.filter((p) => p.included).length;
-  const designUnique = assessment?.designUniquePhenomena ?? [];
-  const support = assessment?.consequenceQuantificationSupport;
+function TransportScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => void }): JSX.Element {
+  const { ms, editable, mutateMs } = useMsWorkbook();
+  function categoryName(ref: string): string {
+    if (ref.length === 0) return "Unassigned category";
+    return ms.releaseCategories.find((r) => r.uuid === ref)?.name ?? ref;
+  }
+  function addAssessment(): void {
+    const n = ms.transportPhenomenaAssessments.reduce((m, a) => { const v = Number(a.uuid.split("-").pop()); return Number.isNaN(v) ? m : Math.max(m, v); }, 0) + 1;
+    const uuid = `TPA-${String(n)}`;
+    mutateMs((d) => ({ ...d, transportPhenomenaAssessments: [...d.transportPhenomenaAssessments, { uuid, releaseCategoryReference: d.releaseCategories[0]?.uuid ?? "", phenomenaChecklist: [], designUniquePhenomena: [], modelsUsed: [], relatedBarrierAssessmentRefs: [], consequenceQuantificationSupport: { description: "", adequacyJustification: "", sufficientForRiskSignificantDifferentiation: true }, implementsSrs: [{ sr: "MS-B5", hlr: "B" }] }] }));
+    openDrawer({ kind: "phenomena", id: uuid });
+  }
   return (
-    <>
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Transport-phenomena checklist</h3>
-          <span className="possubtle">{included} of {checklist.length} included · MS-B5</span>
-        </div>
-        <p className="poscard__sub">The phenomena checklist is the physics heart of the element, and each phenomenon is included or screened with a one-line basis.</p>
-        <div className="msphen">
-          {checklist.map((p) => (
-            <div key={p.phenomenonType} className={`msphen__cell${p.included ? "" : " msphen__cell--out"}${p.phenomenonType === "DESIGN_UNIQUE" ? " msphen__cell--unique" : ""}`}>
-              <div className="msphen__cell-head">
-                <span className={`msphen__dot msphen__dot--${p.included ? "in" : "out"}`}>{p.included ? <MSIcon.Check /> : <MSIcon.Close />}</span>
-                <span className="msphen__label">{TRANSPORT_PHENOMENON_LABELS[p.phenomenonType] ?? p.phenomenonType}</span>
-                {p.phenomenonType === "DESIGN_UNIQUE" && <span className="msphen__k">item k</span>}
-              </div>
-              <p className="msphen__basis">{p.justification}</p>
-            </div>
-          ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Activity />
-          <span>The source term changes while it travels, so the decay and the daughter buildup during transport are part of the checklist.</span>
+    <div className="poscard">
+      <div className="poscard__head">
+        <h3 className="poscard__title">Transport phenomena</h3>
+        <div className="posrow" style={{ gap: 10 }}>
+          <MsProvenanceChip>MS-B5 · C4</MsProvenanceChip>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssessment}><MSIcon.Plus /> Add assessment</button>}
         </div>
       </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Design-unique phenomena</h3>
-          <MsProvenanceChip>MS-B5 item k</MsProvenanceChip>
-        </div>
-        <p className="poscard__sub">Item k is the explicit non-LWR catch-all, where the reactor-specific physics enters by name.</p>
-        <div className="msunique">
-          {designUnique.map((d) => (
-            <div key={d} className="msunique__row">
-              <span className="msunique__icon"><MSIcon.Flame /></span>
-              <div className="msunique__main">
-                <div className="msunique__name">{d}</div>
-                {DESIGN_UNIQUE_NOTES[d] !== undefined && <p className="msunique__note">{DESIGN_UNIQUE_NOTES[d]}</p>}
+      <p className="poscard__sub">The phenomena checklist is addressed per release category, with the design-unique physics named under item k. Select an assessment to edit it.</p>
+      {ms.transportPhenomenaAssessments.length === 0 ? (
+        <p className="posmuted" style={{ margin: 0 }}>No transport-phenomena assessments yet. Add one to address the phenomena checklist for a release category.</p>
+      ) : (
+        ms.transportPhenomenaAssessments.map((assessment, ai) => {
+          const checklist = assessment.phenomenaChecklist;
+          const included = checklist.filter((p) => p.included).length;
+          const designUnique = assessment.designUniquePhenomena ?? [];
+          return (
+            <div key={assessment.uuid} style={{ borderTop: ai === 0 ? undefined : "1px solid var(--color-border)", paddingTop: ai === 0 ? 4 : 16, marginTop: ai === 0 ? 8 : 16 }}>
+              <div className="posrow" style={{ justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
+                  <span style={{ fontFamily: "'Literata', Georgia, serif", fontWeight: 700, fontSize: 15, color: "var(--color-text)" }}>{categoryName(assessment.releaseCategoryReference)}</span>
+                  <span className="possubtle" style={{ fontSize: 12 }}>{checklist.length === 0 ? "Checklist not started" : `${String(included)} of ${String(checklist.length)} phenomena included`}</span>
+                </div>
+                {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "phenomena", id: assessment.uuid })}>Edit</button>}
               </div>
+              {checklist.length === 0 ? (
+                <p className="posmuted" style={{ margin: 0 }}>No phenomena screened yet. Open the editor to add them.</p>
+              ) : (
+                <div className="msphen">
+                  {checklist.map((p) => (
+                    <div key={p.phenomenonType} className={`msphen__cell${p.included ? "" : " msphen__cell--out"}${p.phenomenonType === "DESIGN_UNIQUE" ? " msphen__cell--unique" : ""}`}>
+                      <div className="msphen__cell-head">
+                        <span className={`msphen__dot msphen__dot--${p.included ? "in" : "out"}`} />
+                        <span className="msphen__label">{TRANSPORT_PHENOMENON_LABELS[p.phenomenonType] ?? p.phenomenonType}</span>
+                        {p.phenomenonType === "DESIGN_UNIQUE" && <span className="msphen__k">item k</span>}
+                      </div>
+                      <p className="msphen__basis">{p.justification}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {designUnique.length > 0 && (
+                <div className="msunique" style={{ marginTop: 12 }}>
+                  {designUnique.map((d) => (
+                    <div key={d.name} className="msunique__row">
+                      <div className="msunique__main">
+                        <div className="msunique__name">{d.name}</div>
+                        {d.note !== undefined && d.note.length > 0 && <p className="msunique__note">{d.note}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-        <div className="hrnote" style={{ marginTop: 12 }}>
-          <MSIcon.Flame />
-          <span>For this design the sodium fire and the sodium-concrete interaction enter here, which a bounding LWR source term would never capture.</span>
-        </div>
-      </div>
-
-      {support !== undefined && (
-        <div className="poscard">
-          <div className="poscard__head">
-            <h3 className="poscard__title">Phenomena treatment adequacy</h3>
-            <MsProvenanceChip>MS-B5 · MS-C4</MsProvenanceChip>
-          </div>
-          <p className="poscard__sub">The phenomena treatment is justified to suffice for the chosen consequence metric and to discriminate the risk-significant family differences.</p>
-          <div className="msadeq">
-            <div className="msadeq__main">
-              <p className="msadeq__line">{support.description}</p>
-              <p className="msadeq__line msadeq__line--sub">{support.adequacyJustification}</p>
-            </div>
-            <div className="msadeq__models">
-              <span className="msadeq__models-cap">Models used</span>
-              <MethodChips ids={PHENOMENA_MODELS_USED} />
-            </div>
-          </div>
-        </div>
+          );
+        })
       )}
-    </>
+    </div>
   );
 }
 

@@ -391,6 +391,7 @@ export interface ConsequenceQuantificationAnalysis {
     justification?: string;
   }[];
   eventSequenceConsequences: {
+    uuid?: string;
     eventSequenceFamily: EventSequenceFamilyReference;
     releaseCategoryReference?: ReleaseCategoryReference;
     sourceTermReference?: SourceTermDefinitionReference;

@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, MS_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, RC_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -251,8 +251,13 @@ export class ExampleWorkbooksService implements OnModuleInit {
     };
   }
 
-  async getMsBundle(): Promise<MsExampleBundle> {
-    const ms = await this.findBySlug(MS_GENERIC_1_SLUG);
+  getMsExamples(): IeExampleOption[] {
+    return MS_EXAMPLES.map((e) => ({ id: e.id, label: e.label }));
+  }
+
+  async getMsBundle(exampleId?: string): Promise<MsExampleBundle> {
+    const entry = MS_EXAMPLES.find((e) => e.id === exampleId) ?? MS_EXAMPLES[0];
+    const ms = await this.findBySlug(entry.slug);
     const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return {

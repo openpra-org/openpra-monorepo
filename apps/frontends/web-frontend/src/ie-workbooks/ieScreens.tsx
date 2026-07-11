@@ -900,40 +900,34 @@ function GroupingScreen(): JSX.Element {
 
   return (
     <>
-      {editable && <div className="iegroup__toolbar"><button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button></div>}
-
-      {groups.length === 0 ? <div className="poscard"><p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p></div> : (
-        <div className="iegroup__list">
-          {groups.map((g) => {
-            const boundingInit = initiators.find((i) => i.uuid === g.boundingInitiatorId);
-            return (
-              <div key={g.uuid} className="poscard">
-                <div className="iegroup__head">
-                  <span className="posmono possubtle">{g.uuid}</span>
-                  <span className="iegroup__name-text">{g.name}</span>
-                  {g.groupingDoesNotMaskRiskSignificantSequences ? <Badge kind="ok">Bounded</Badge> : <Badge kind="warn">Anti-masking open</Badge>}
-                  <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginLeft: "auto" }} onClick={() => openDrawer({ kind: "group", id: g.uuid })}>{editable ? "Edit" : "View"}</button>
-                </div>
-                <div className="iegroup__members" style={{ marginTop: 8 }}>
-                  {g.memberInitiatorIds.length === 0 && <span className="possubtle" style={{ fontSize: 12 }}>No members yet</span>}
-                  {g.memberInitiatorIds.map((m) => {
-                    const init = initiators.find((i) => i.uuid === m);
-                    const isBounding = m === g.boundingInitiatorId;
-                    return (
-                      <span key={m} className={`iegroup__member${isBounding ? " iegroup__member--bounding" : ""}`} title={init?.name ?? m}>
-                        <span className="iegroup__member-id">{m}</span>
-                      </span>
-                    );
-                  })}
-                </div>
-                <div className="possubtle" style={{ fontSize: 12.5, marginTop: 8 }}>
-                  {g.boundingInitiatorId.length > 0 ? `Bounding case: ${g.boundingInitiatorId}${boundingInit !== undefined ? ` · ${boundingInit.name}` : ""}` : "No bounding case selected"}
-                </div>
-              </div>
-            );
-          })}
+      <div className="poscard">
+        <div className="poscard__head">
+          <h3 className="poscard__title">Initiating-event groups</h3>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button>}
         </div>
-      )}
+        {groups.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p> : (
+          <table className="postable">
+            <thead><tr><th>Group</th><th>Bounding case</th><th>Status</th></tr></thead>
+            <tbody>
+              {groups.map((g) => {
+                const boundingInit = initiators.find((i) => i.uuid === g.boundingInitiatorId);
+                return (
+                  <tr key={g.uuid} className="postable__row--clickable" onClick={() => openDrawer({ kind: "group", id: g.uuid })}>
+                    <td>
+                      <div className="postable__name">
+                        <span className="ieident__id">{g.uuid}</span>
+                        <span> · {g.name}</span>
+                      </div>
+                    </td>
+                    <td>{g.boundingInitiatorId.length > 0 ? `${g.boundingInitiatorId}${boundingInit !== undefined ? ` · ${boundingInit.name}` : ""}` : <span className="possubtle" style={{ fontSize: 11.5 }}>—</span>}</td>
+                    <td>{g.groupingDoesNotMaskRiskSignificantSequences ? <span className="possubtle" style={{ fontSize: 11.5 }}>—</span> : <Badge kind="warn">Anti-masking open</Badge>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
     </>
   );
 }

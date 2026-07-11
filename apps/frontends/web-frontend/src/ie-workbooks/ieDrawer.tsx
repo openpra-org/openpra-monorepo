@@ -78,7 +78,7 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><IEIcon.Close /></button>
       </div>
-      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Initiator details</h3></div>
           <div className="posfield-grid">
@@ -175,7 +175,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><IEIcon.Close /></button>
       </div>
-      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Group details</h3></div>
           <div className="posfield-grid">
@@ -193,9 +193,9 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {initiators.map((i) => (
-                <label key={i.uuid} className="posrow" style={{ gap: 8, cursor: editable ? "pointer" : "default" }}>
-                  <input type="checkbox" checked={group.memberInitiatorIds.includes(i.uuid)} disabled={!editable} onChange={() => toggleMember(i.uuid)} />
-                  <span className="posmono possubtle">{i.uuid}</span>
+                <label key={i.uuid} className="posrow" style={{ gap: 8, alignItems: "flex-start", cursor: editable ? "pointer" : "default" }}>
+                  <input type="checkbox" checked={group.memberInitiatorIds.includes(i.uuid)} disabled={!editable} onChange={() => toggleMember(i.uuid)} style={{ marginTop: 2 }} />
+                  <span className="posmono possubtle" style={{ marginTop: 1 }}>{i.uuid}</span>
                   <span style={{ fontSize: 13 }}>{i.name}</span>
                 </label>
               ))}
@@ -248,8 +248,6 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
 
         {editable && (
           <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Remove group</h3></div>
-            <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the group from the analysis.</p>
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={del}><IEIcon.Close /> Delete group</button>
           </div>
         )}
@@ -294,7 +292,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
         </div>
         <button type="button" className="posdrawer__close" onClick={onClose}><IEIcon.Close /></button>
       </div>
-      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+      <fieldset disabled={!editable} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Hazard details</h3></div>
           <div className="posfield-grid">

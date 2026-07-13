@@ -208,6 +208,11 @@ const NM_INSTANCES: NewlyDevelopedMethod[] = [
   nmInstance("NM-082", "Control-volume transport characterization for mechanistic source terms", "ANALYTICAL_METHOD", "FINAL", "MS", "MS-GENERIC-1"),
   nmInstance("NM-085", "Phenomena-dependency sampling for source-term uncertainty", "MODELING_TECHNIQUE", "FINAL", "MS", "MS-GENERIC-1"),
   nmInstance("NM-088", "Source-to-environment barrier identification framework", "MODELING_TECHNIQUE", "INTERNAL_TECHNICAL_REVIEW", "MS", "MS-GENERIC-1"),
+  nmInstance("NM-091", "Segmented-plume consequence integration for low-release source terms", "ANALYTICAL_METHOD", "FINAL", "RC", "rc-generic-1"),
+  nmInstance("NM-094", "Bounding-site cohort and evacuation-network model", "MODELING_TECHNIQUE", "FINAL", "RC", "rc-generic-1"),
+  nmInstance("NM-097", "Pre-operational weather-year selection framework", "MODELING_TECHNIQUE", "INTERNAL_TECHNICAL_REVIEW", "RC", "rc-generic-1"),
+  nmInstance("NM-101", "Frequency-consequence integration and presentation framework", "MODELING_TECHNIQUE", "FINAL", "RI", "ri-generic-1"),
+  nmInstance("NM-104", "Correlated risk propagation with phenomena dependencies", "ANALYTICAL_METHOD", "FINAL", "RI", "ri-generic-1"),
 ];
 
 function nmById(id: string): NewlyDevelopedMethod | undefined {

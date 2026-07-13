@@ -21,8 +21,17 @@ async function patchRiWorkbook(workbookId: string, mef: RiskIntegration): Promis
   return patchJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}`, { mef });
 }
 
-async function loadRiExample(workbookId: string): Promise<RiWorkbookResponse> {
-  return postJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}/load-example`, {});
+interface RiExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getRiExamples(): Promise<RiExampleOption[]> {
+  return fetchJson<RiExampleOption[]>("/api/example-workbooks/ri-examples");
+}
+
+async function loadRiExample(workbookId: string, exampleId?: string): Promise<RiWorkbookResponse> {
+  return postJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
 }
 
 async function unloadRiExample(workbookId: string): Promise<RiWorkbookResponse> {
@@ -59,8 +68,10 @@ async function getRiDocumentDownload(workbookId: string, documentId: string): Pr
 export {
   getRiWorkbook,
   patchRiWorkbook,
+  getRiExamples,
   loadRiExample,
   unloadRiExample,
+  type RiExampleOption,
   listRiDocuments,
   uploadRiDocument,
   deleteRiDocument,

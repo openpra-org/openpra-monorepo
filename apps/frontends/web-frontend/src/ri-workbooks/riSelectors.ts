@@ -1,10 +1,9 @@
-import { type RiskIntegration, type CompiledRiskInput, type RiskContributor } from "interfaces-mef-types/ri/risk-integration";
+import { type RiskIntegration, type CompiledRiskInput, type RiskContributor, type RiskMetric } from "interfaces-mef-types/ri/risk-integration";
 import { type ParameterDistribution, DistributionType } from "interfaces-mef-types/core/events";
 import {
   CONFORMANCE_ITEMS,
   RI_STEPS,
   RI_PERSONA_STEPS,
-  CONTRIBUTOR_ROLLUP,
   type AppTypeId,
   type ConformanceItem,
   type RiPersona,
@@ -185,20 +184,58 @@ function consequenceOf(input: CompiledRiskInput, metric: string): number | undef
   return input.consequences.find((c) => c.metric === metric)?.meanValue;
 }
 
-function contributorRollup(ri: RiskIntegration): { contributor: RiskContributor; kind: string }[] {
+type ContributorBucketKey =
+  | "significantEventSequenceFamilies"
+  | "significantEventSequences"
+  | "significantInitiatingEvents"
+  | "significantReleaseCategories"
+  | "significantSystems"
+  | "significantComponents"
+  | "significantBasicEvents"
+  | "significantHumanFailureEvents"
+  | "significantPlantOperatingStates"
+  | "significantHazardGroups"
+  | "significantRadioactiveSources";
+
+const CONTRIBUTOR_BUCKETS: { key: ContributorBucketKey; kind: string }[] = [
+  { key: "significantEventSequenceFamilies", kind: "Event sequence family" },
+  { key: "significantEventSequences", kind: "Event sequence" },
+  { key: "significantInitiatingEvents", kind: "Initiating event" },
+  { key: "significantReleaseCategories", kind: "Release category" },
+  { key: "significantSystems", kind: "System" },
+  { key: "significantComponents", kind: "Component" },
+  { key: "significantBasicEvents", kind: "Basic event" },
+  { key: "significantHumanFailureEvents", kind: "Human failure event" },
+  { key: "significantPlantOperatingStates", kind: "Plant operating state" },
+  { key: "significantHazardGroups", kind: "Hazard group" },
+  { key: "significantRadioactiveSources", kind: "Radioactive source" },
+];
+
+interface ContributorRow {
+  contributor: RiskContributor;
+  bucket: ContributorBucketKey;
+  kind: string;
+}
+
+const IMPORTANCE_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+function contributorRollup(ri: RiskIntegration): ContributorRow[] {
   const sc = ri.significantContributors;
-  const buckets: Record<string, RiskContributor[] | undefined> = {
-    families: sc.significantEventSequenceFamilies,
-    basicEvents: sc.significantBasicEvents,
-    humanFailureEvents: sc.significantHumanFailureEvents,
-    systems: sc.significantSystems,
-  };
-  const out: { contributor: RiskContributor; kind: string }[] = [];
-  for (const spec of CONTRIBUTOR_ROLLUP) {
-    const found = buckets[spec.bucket]?.find((c) => c.sourceId === spec.sourceId);
-    if (found !== undefined) out.push({ contributor: found, kind: spec.kind });
+  const out: ContributorRow[] = [];
+  for (const spec of CONTRIBUTOR_BUCKETS) {
+    for (const c of sc[spec.key] ?? []) {
+      out.push({ contributor: c, bucket: spec.key, kind: c.contributorType.length > 0 ? c.contributorType : spec.kind });
+    }
   }
-  return out;
+  return out.sort((a, b) => {
+    const ra = IMPORTANCE_RANK[a.contributor.importanceLevel ?? "LOW"] ?? 2;
+    const rb = IMPORTANCE_RANK[b.contributor.importanceLevel ?? "LOW"] ?? 2;
+    return ra - rb;
+  });
+}
+
+function findContributor(ri: RiskIntegration, uuid: string): ContributorRow | undefined {
+  return contributorRollup(ri).find((r) => r.contributor.uuid === uuid);
 }
 
 function lognormalBounds(distribution: ParameterDistribution | undefined): { mean: number; p05: number; p95: number } | undefined {
@@ -208,6 +245,143 @@ function lognormalBounds(distribution: ParameterDistribution | undefined): { mea
     p05: distribution.median / distribution.errorFactor,
     p95: distribution.median * distribution.errorFactor,
   };
+}
+
+interface FcPointView {
+  id: string;
+  name: string;
+  freq: number;
+  consequence: number;
+  sig: "HIGH" | "MEDIUM" | "LOW";
+}
+
+function fcPointsView(ri: RiskIntegration, measure: string): FcPointView[] {
+  const out: FcPointView[] = [];
+  for (const c of ri.compiledRiskInputs) {
+    const v = consequenceOf(c, measure);
+    if (v === undefined || v <= 0) continue;
+    out.push({
+      id: c.uuid,
+      name: c.eventSequenceFamilyRef,
+      freq: c.frequency,
+      consequence: v,
+      sig: familySignificance(ri, c.eventSequenceFamilyRef),
+    });
+  }
+  return out;
+}
+
+function ccdfPointsView(ri: RiskIntegration, measure: string): { dose: number; exceed: number }[] {
+  const pts = fcPointsView(ri, measure);
+  const levels = Array.from(new Set(pts.map((p) => p.consequence))).sort((a, b) => a - b);
+  return levels.map((d) => ({
+    dose: d,
+    exceed: pts.reduce((sum, p) => (p.consequence >= d ? sum + p.freq : sum), 0),
+  }));
+}
+
+interface MetricRollup {
+  computed?: number;
+  matches: boolean;
+  limit?: number;
+  compliant: boolean;
+  fraction: number;
+}
+
+function metricRollup(ri: RiskIntegration, metric: RiskMetric): MetricRollup {
+  const ref = metric.consequenceMeasureRef;
+  let computed: number | undefined;
+  if (ref !== undefined && ref.length > 0) {
+    computed = ri.compiledRiskInputs.reduce((sum, c) => {
+      const v = consequenceOf(c, ref);
+      return v === undefined ? sum : sum + c.frequency * v;
+    }, 0);
+  }
+  const limit = metric.acceptanceCriteria?.limit;
+  const matches = computed === undefined || metric.value === 0
+    ? true
+    : Math.abs(computed - metric.value) <= Math.abs(metric.value) * 0.05;
+  const compliant = limit === undefined ? true : metric.value <= limit;
+  const fraction = limit !== undefined && limit > 0 ? Math.min(1, metric.value / limit) : 0;
+  return { computed, matches, limit, compliant, fraction };
+}
+
+interface RiHandoffLane {
+  code: string;
+  element: string;
+  role: string;
+  direction: "in" | "out";
+  columns: string[];
+  rows: { id: string; name: string; values: string[] }[];
+}
+
+function expo(v: number | undefined): string {
+  if (v === undefined) return "—";
+  return v.toExponential(1).replace("e", "E");
+}
+
+function spreadLabel(distribution: ParameterDistribution | undefined): string {
+  const b = lognormalBounds(distribution);
+  if (b === undefined) return "—";
+  return `${expo(b.p05)} to ${expo(b.p95)}`;
+}
+
+function riHandoffView(ri: RiskIntegration): RiHandoffLane[] {
+  const inputs = ri.compiledRiskInputs;
+  const measures = ri.scopeDefinition.consequenceMeasures;
+  const th = ri.reportingThresholds;
+  const basis = (b: string): string => (b === "JUSTIFIED_ALTERNATIVE" ? "Justified alternative" : "Standard default");
+  const floorRows = [
+    { id: "floor-frequency", name: "Minimum reporting frequency", values: [`${expo(th.minimumReportingFrequencyPerPlantYear)} per plant-year`, basis(th.frequencyBasis)] },
+    { id: "floor-consequence", name: "Minimum reporting consequence", values: [th.minimumReportingConsequenceDescription, basis(th.consequenceBasis)] },
+  ];
+  const floorColumns = ["Item", "Value", "Basis"];
+  return [
+    {
+      code: "ESQ",
+      element: "Event Sequence Quantification",
+      role: "Family frequencies",
+      direction: "in",
+      columns: ["Family", "Quantification", "Frequency", "5th to 95th"],
+      rows: inputs.map((c) => ({
+        id: c.uuid,
+        name: c.eventSequenceFamilyRef,
+        values: [c.esqFamilyQuantificationRef ?? "—", `${expo(c.frequency)} ${c.frequencyUnit ?? "per plant-year"}`, spreadLabel(c.frequencyDistribution)],
+      })),
+    },
+    {
+      code: "RC",
+      element: "Radiological Consequence",
+      role: "Family consequences",
+      direction: "in",
+      columns: ["Family", "Release category", ...measures.map((m) => m.name)],
+      rows: inputs.map((c) => ({
+        id: c.uuid,
+        name: c.eventSequenceFamilyRef,
+        values: [
+          c.releaseCategoryRef ?? "—",
+          ...measures.map((m) => {
+            const r = c.consequences.find((x) => x.metric === m.name);
+            return r === undefined ? "—" : `${expo(r.meanValue)}${r.unit !== undefined ? ` ${r.unit}` : ""}`;
+          }),
+        ],
+      })),
+    },
+    {
+      code: "MS",
+      element: "Mechanistic Source Term",
+      role: "Source-term definitions",
+      direction: "in",
+      columns: ["Family", "Source term", "Release category"],
+      rows: inputs.map((c) => ({
+        id: c.uuid,
+        name: c.eventSequenceFamilyRef,
+        values: [c.sourceTermDefinitionRef ?? "—", c.releaseCategoryRef ?? "—"],
+      })),
+    },
+    { code: "ES", element: "Event Sequence Analysis", role: "Reporting floor", direction: "out", columns: floorColumns, rows: floorRows },
+    { code: "SC", element: "Success Criteria", role: "Reporting floor", direction: "out", columns: floorColumns, rows: floorRows },
+  ];
 }
 
 export {
@@ -223,7 +397,17 @@ export {
   compiledById,
   consequenceOf,
   contributorRollup,
+  findContributor,
   lognormalBounds,
+  riHandoffView,
+  fcPointsView,
+  ccdfPointsView,
+  metricRollup,
+  type FcPointView,
+  type MetricRollup,
+  type ContributorRow,
+  type ContributorBucketKey,
   type CommentView,
   type CcScore,
+  type RiHandoffLane,
 };

@@ -6,6 +6,10 @@ interface ReplaceMefBody {
   mef: unknown;
 }
 
+interface LoadExampleBody {
+  example?: string;
+}
+
 @Controller("ri-workbooks")
 @UseGuards(JwtAuthGuard)
 export class RiWorkbooksController {
@@ -29,8 +33,8 @@ export class RiWorkbooksController {
 
   @Post(":id/load-example")
   @HttpCode(HttpStatus.OK)
-  loadExample(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<RiWorkbookResponse> {
-    return this.riWorkbooksService.loadExample(id, { username: req.user!.username });
+  loadExample(@Param("id") id: string, @Body() body: LoadExampleBody, @Req() req: AuthenticatedRequest): Promise<RiWorkbookResponse> {
+    return this.riWorkbooksService.loadExample(id, { username: req.user!.username }, body.example);
   }
 
   @Post(":id/unload-example")

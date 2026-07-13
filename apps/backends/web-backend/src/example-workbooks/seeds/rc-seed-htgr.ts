@@ -717,6 +717,11 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
       riskMetric: "OTHER",
       mappingDescription: "The 30-day dose at the boundary maps to the dose axis of the licensing frequency-consequence target.",
     },
+    {
+      consequenceMetric: "Population dose to 80 km",
+      riskMetric: "POPULATION_DOSE",
+      mappingDescription: "The collective dose within 80 km feeds the reported population-dose total, no cumulative target being set by the guidance.",
+    },
   ],
   quantificationLimitations: [
     "The flat-earth dispersion is bounded to the inland bounding site.",
@@ -911,6 +916,25 @@ export const RC_ANALYSIS_HTGR: RadiologicalConsequenceAnalysis = {
   economicFactors,
   consequenceQuantification,
   sensitivityStudies,
+  riskIntegrationFeedback: {
+    analysisRef: "ri-generic-2",
+    feedbackDate: NOW,
+    metricFeedback: [
+      { metric: "Individual latent cancer fatality risk", riskSignificance: ImportanceLevel.HIGH, insights: ["The early-release families drive the individual latent-cancer risk."], recommendations: ["Hold the dust-deposition and dose-response models in the register."] },
+      { metric: "Individual dose at boundary", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The boundary dose stays two decades below the early-fatality threshold without evacuation credit."], recommendations: ["Confirm the coarse-dust deposition velocity at the selected site."] },
+      { metric: "Population dose to 80 km", riskSignificance: ImportanceLevel.LOW, insights: ["The population-dose risk totals 5.5E-5 person-Sv per plant-year, reported without a cumulative target."], recommendations: ["Carry the population-dose table forward at each source-term revision."] },
+    ],
+    releaseCategoryFeedback: [
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The unfiltered release drives the individual and the population dose."], recommendations: ["Tighten the particle-failure and dust-transport uncertainty."], status: "IN_PROGRESS" },
+      { releaseCategoryReference: "RC-2", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The filtered release is a minor contributor to the risk."], recommendations: ["No further action is needed at this stage."], status: "ADDRESSED" },
+    ],
+    generalFeedback: "Risk Integration confirms the unfiltered category drives the individual risk, so the dust deposition and the dose-response models are the priorities for the consequence side.",
+    response: {
+      description: "The coarse-dust deposition velocity and the non-compliance fraction are carried as the leading model uncertainties and swept in the sensitivity studies.",
+      changes: ["Coarse-dust deposition velocity and non-compliance fraction held as the leading uncertainties", "Weather-year and dust-deposition sensitivities retained"],
+      status: "IN_PROGRESS",
+    },
+  },
   modelUncertainty: {
     uuid: "rc-mu-2",
     name: "RC model uncertainty documentation",

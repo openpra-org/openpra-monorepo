@@ -13,9 +13,11 @@ import { postWorkbookComment, patchWorkbookComment, submitWorkbookForReview, req
 import { useAuth } from "../auth/AuthContext";
 import {
   getRiWorkbook,
+  getRiExamples,
   loadRiExample,
   unloadRiExample,
   type RiWorkbookRoleName,
+  type RiExampleOption,
 } from "./riWorkbookApi";
 import { RiWorkbench, type RiWorkbenchActions } from "./riWorkbench";
 import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
@@ -52,6 +54,7 @@ function RiWorkbookPage(): JSX.Element {
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<RiWorkbookData | null>(null);
   const [myRoles, setMyRoles] = useState<RiWorkbookRoleName[]>([]);
+  const [exampleOptions, setExampleOptions] = useState<RiExampleOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
@@ -79,6 +82,12 @@ function RiWorkbookPage(): JSX.Element {
         });
         setMyRoles(workbook.myRoles);
         setHasPreviousMef(workbook.hasPreviousMef);
+        try {
+          const options = await getRiExamples();
+          if (!cancelled) setExampleOptions(options);
+        } catch {
+          if (!cancelled) setExampleOptions([]);
+        }
         try {
           const project = await getProject(workbook.projectId);
           if (!cancelled) setProjectName(project.name);
@@ -203,9 +212,10 @@ function RiWorkbookPage(): JSX.Element {
       {loadExOpen && (
         <LoadExampleModal
           exampleName="RI"
+          exampleOptions={exampleOptions}
           onCancel={() => setLoadExOpen(false)}
-          onConfirm={async () => {
-            const res = await loadRiExample(id);
+          onConfirm={async (exampleId) => {
+            const res = await loadRiExample(id, exampleId);
             updateRi(res.mef);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);

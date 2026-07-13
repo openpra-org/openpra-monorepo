@@ -12,6 +12,7 @@ export const RiskMetricSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   metricType: z.string(),
+  consequenceMeasureRef: z.string().optional(),
   value: z.number(),
   units: z.string(),
   uncertainty: ParameterDistributionSchema.optional(),
@@ -260,6 +261,7 @@ export const SignificantRiskContributorsSchema = z.object({
   description: z.string().optional(),
   significantEventSequences: z.array(RiskContributorSchema).optional(),
   significantEventSequenceFamilies: z.array(RiskContributorSchema).optional(),
+  significantInitiatingEvents: z.array(RiskContributorSchema).optional(),
   significantReleaseCategories: z.array(RiskContributorSchema).optional(),
   significantSystems: z.array(RiskContributorSchema).optional(),
   significantComponents: z.array(RiskContributorSchema).optional(),
@@ -451,6 +453,17 @@ export const RiskIntegrationFeedbackDispatchSchema = z.object({
       generalFeedback: z.string().optional(),
     })
     .optional(),
+  additionalElementFeedback: z
+    .array(
+      z.object({
+        elementCode: z.enum(["POS", "IE", "ES", "SC", "SY", "HR", "DA"]),
+        riskSignificance: ImportanceLevelSchema.optional(),
+        insights: z.array(z.string()).optional(),
+        recommendations: z.array(z.string()).optional(),
+        generalFeedback: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const RiDocumentationSchema = z.object({
@@ -475,7 +488,10 @@ export const RiskIntegrationSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.RISK_INTEGRATION).shape,
   praScope: z.string(),
   scopeDefinition: z.object({
-    consequenceMeasures: z.array(z.string()),
+    consequenceMeasures: z.array(z.object({
+      name: z.string(),
+      description: z.string().optional(),
+    })),
     plantOperatingStateRefs: z.array(z.string()),
     hazardGroups: z.array(z.string()),
     radioactiveMaterialSources: z.array(z.string()),
@@ -500,6 +516,16 @@ export const RiskIntegrationSchema = z.object({
   preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
   documentation: RiDocumentationSchema,
   configurationControlRecordId: z.string().optional(),
+  exampleDocuments: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    kind: z.enum(["doc", "sheet", "image"]),
+    sizeLabel: z.string(),
+    uploadedLabel: z.string(),
+    extracted: z.string(),
+    linked: z.number(),
+    url: z.string().optional(),
+  })).optional(),
   newlyDevelopedMethodIds: z.array(z.string()).optional(),
 });
 

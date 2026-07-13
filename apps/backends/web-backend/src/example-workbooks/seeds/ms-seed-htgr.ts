@@ -869,6 +869,22 @@ export const MS_ANALYSIS_HTGR: MechanisticSourceTermAnalysis = {
   uncertaintyAnalyses,
   modelUncertaintyAssessments,
   sensitivityStudies,
+  riskIntegrationFeedback: {
+    analysisRef: "ri-generic-2",
+    feedbackDate: NOW,
+    releaseCategoryFeedback: [
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The unfiltered release category drives the dose."], recommendations: ["Prioritize the particle-failure and dust-transport phenomena."], status: "IN_PROGRESS" },
+    ],
+    sourceTermFeedback: [
+      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.HIGH, keyUncertainties: ["Particle failure fraction", "Dust inventory and liftoff"], status: "IN_PROGRESS" },
+    ],
+    generalFeedback: "The unfiltered release category drives the dose, so prioritize the particle-failure and dust-transport phenomena.",
+    response: {
+      description: "The particle-failure-fraction model is carried as the leading model uncertainty and swept in the sensitivity study.",
+      changes: ["MU-1 held as the leading model uncertainty", "SS-1 sweeps the particle failure fraction"],
+      status: "IN_PROGRESS",
+    },
+  },
   modelUncertainty: {
     uuid: "ms-mu-2",
     name: "MS model uncertainty documentation",

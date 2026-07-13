@@ -974,6 +974,22 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
   modelUncertaintySourceAssessments,
   uncertaintyPropagation,
   sensitivityStudies,
+  riskIntegrationFeedback: {
+    analysisRef: "ri-generic-2",
+    feedbackDate: NOW,
+    sequenceFeedback: [
+      { sequenceRef: "ESF-EARLY", riskSignificance: ImportanceLevel.HIGH, insights: ["Drives the integrated latent risk through the building-isolation failure."], recommendations: ["Refine the building isolation and recovery terms."] },
+      { sequenceRef: "ESF-ATWS", riskSignificance: ImportanceLevel.HIGH, insights: ["The second driver of the integrated risk, carried as a point estimate."], recommendations: ["Carry the dedicated failure-to-trip tree to final quantification."] },
+      { sequenceRef: "ESF-LATE", riskSignificance: ImportanceLevel.MEDIUM, insights: ["Aggregated from three family quantifications."], recommendations: ["Keep the three-quantification aggregation visible so the family total stays auditable."] },
+      { sequenceRef: "ESF-LEAK", riskSignificance: ImportanceLevel.MEDIUM, insights: ["The highest-frequency family, above the one percent family threshold on the latent metric."], recommendations: ["Keep the helium-leak grouping under review as the building leak-rate data matures."] },
+    ],
+    generalFeedback: "Risk Integration returns the family significance at the family level, the early-release pair high, with the reactor-trip and building-damper common-cause groups and the standby-filtration action flagged behind them.",
+    response: {
+      description: "The reactor-trip and building-damper groups are held against their data-analysis parameters and the failure-to-trip tree is scheduled for final quantification.",
+      changes: ["CCF-RPS-DIV and CCF-RB-DMP held against DA-CCF-04 and DA-CCF-30", "HR-POST-028 queued for detailed treatment with the human-reliability analysis", "Dedicated failure-to-trip tree scheduled"],
+      status: "IN_PROGRESS",
+    },
+  },
   modelUncertainty: {
     uuid: "esq-mu-1",
     name: "ESQ model uncertainty documentation",

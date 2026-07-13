@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -283,8 +283,13 @@ export class ExampleWorkbooksService implements OnModuleInit {
     };
   }
 
-  async getRiBundle(): Promise<RiExampleBundle> {
-    const ri = await this.findBySlug(RI_GENERIC_1_SLUG);
+  getRiExamples(): IeExampleOption[] {
+    return RI_EXAMPLES.map((e) => ({ id: e.id, label: e.label }));
+  }
+
+  async getRiBundle(exampleId?: string): Promise<RiExampleBundle> {
+    const entry = RI_EXAMPLES.find((e) => e.id === exampleId) ?? RI_EXAMPLES[0];
+    const ri = await this.findBySlug(entry.slug);
     const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return {

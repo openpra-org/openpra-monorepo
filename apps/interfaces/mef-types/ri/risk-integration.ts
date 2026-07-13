@@ -19,6 +19,7 @@ export type RiskSignificanceCriteriaReference = string;
 export interface RiskMetric extends Unique, Named {
   metricType: RiskMetricType | string;
   description?: string;
+  consequenceMeasureRef?: string;
   value: number;
   units: string;
   uncertainty?: ParameterDistribution;
@@ -217,6 +218,7 @@ export interface SignificantRiskContributors extends Unique {
   description?: string;
   significantEventSequences?: RiskContributor[];
   significantEventSequenceFamilies?: RiskContributor[];
+  significantInitiatingEvents?: RiskContributor[];
   significantReleaseCategories?: RiskContributor[];
   significantSystems?: RiskContributor[];
   significantComponents?: RiskContributor[];
@@ -363,6 +365,13 @@ export interface RiskIntegrationFeedbackDispatch {
     }[];
     generalFeedback?: string;
   };
+  additionalElementFeedback?: {
+    elementCode: "POS" | "IE" | "ES" | "SC" | "SY" | "HR" | "DA";
+    riskSignificance?: ImportanceLevel;
+    insights?: string[];
+    recommendations?: string[];
+    generalFeedback?: string;
+  }[];
 }
 
 export interface RiDocumentation {
@@ -387,7 +396,7 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
   praScope: string;
 
   scopeDefinition: {
-    consequenceMeasures: string[];
+    consequenceMeasures: ConsequenceMeasure[];
     plantOperatingStateRefs: string[];
     hazardGroups: string[];
     radioactiveMaterialSources: string[];
@@ -419,7 +428,24 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
   documentation: RiDocumentation;
 
   configurationControlRecordId?: string;
+  exampleDocuments?: ExampleDocumentRef[];
   newlyDevelopedMethodIds?: string[];
+}
+
+export interface ConsequenceMeasure {
+  name: string;
+  description?: string;
+}
+
+export interface ExampleDocumentRef {
+  id: string;
+  name: string;
+  kind: "doc" | "sheet" | "image";
+  sizeLabel: string;
+  uploadedLabel: string;
+  extracted: string;
+  linked: number;
+  url?: string;
 }
 
 export const RI_SR_CATALOG: Record<string, { hlr: HlrId; stages: PlantStage[] }> = {

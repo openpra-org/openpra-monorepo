@@ -4,6 +4,7 @@ import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import { fetchJson } from "../api/client";
 import { RiWorkbench } from "./riWorkbench";
+import { RiDocumentsCard } from "./riDocumentsCard";
 import { RiWorkbookProvider, type RiWorkbookData } from "./riWorkbookContext";
 import { type RiPersona } from "./riViewData";
 
@@ -62,10 +63,11 @@ function RiDemoPage(): JSX.Element {
         setPersona={setPersona}
         showPersonaPicker={true}
         headerMeta={{
-          projectName: "Generic-1 Reactor — Pre-operational PRA",
+          projectName: data.ri.uuid === "ri-generic-2" ? "Generic-2 Reactor — Pre-operational PRA" : "Generic-1 Reactor — Pre-operational PRA",
           workbookName: data.ri.name,
           workbookVersion: data.ri.version,
         }}
+        renderDocuments={() => <RiDocumentsCard canEdit={persona === "preparer"} />}
       />
     </RiWorkbookProvider>
   );

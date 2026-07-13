@@ -60,16 +60,27 @@ const CAPABILITY_CATEGORIES: CapabilityCategory[] = [
   { id: "cc-ii", name: "CC-II", tag: "Mean and propagated", description: "Quantify with means, draw the exceedance-frequency curve, and propagate the distributions." },
 ];
 
+type PlantStageId = "pre_operational" | "operational";
+
+interface PlantStageOption {
+  id: PlantStageId;
+  name: string;
+  description: string;
+}
+
+const PLANT_STAGES: PlantStageOption[] = [
+  { id: "pre_operational", name: "Pre-operational", description: "Plant-response data comes from general or design calculations, with gaps from the not-yet-built plant written down as assumptions." },
+  { id: "operational", name: "Operational", description: "Real data and procedures from the running plant are available to confirm the integrated risk results." },
+];
+
 type AppTypeId = "fixed_risk_target" | "baseline_risk";
 
 interface ApplicationTypeSpec {
   id: AppTypeId;
   name: string;
   tag: string;
-  icon: string;
   sr: string;
   desc: string;
-  meta: string;
 }
 
 const APPLICATION_TYPES: ApplicationTypeSpec[] = [
@@ -77,19 +88,15 @@ const APPLICATION_TYPES: ApplicationTypeSpec[] = [
     id: "fixed_risk_target",
     name: "Fixed-risk-target application",
     tag: "Absolute criteria",
-    icon: "Target",
     sr: "RI-A3",
     desc: "Judge the risk against absolute targets, with a frequency-consequence target for the application.",
-    meta: "Uses RI-A3 with Table 1.9-2 or a justified alternate, as in the LMP demonstrations.",
   },
   {
     id: "baseline_risk",
     name: "Baseline-risk application",
     tag: "Relative criteria",
-    icon: "Scale",
     sr: "RI-A2",
     desc: "Rank the risk by relative significance, accounting for both frequency and consequence.",
-    meta: "Uses RI-A2 with Table 1.9-1 or a justified alternate.",
   },
 ];
 
@@ -229,69 +236,10 @@ const RI_UPSTREAM_LINKS: LinkSpec[] = [
 const SCOPE_POS_TEXT = "All modeled plant operating states, at-power and shutdown.";
 const SCOPE_NOTE = "The single-unit single-source scope keeps the multi-reactor and multi-source terms recorded but not driving.";
 
-const FAMILY_NAMES: Record<string, string> = {
-  "ESF-1": "Loss of decay-heat removal",
-  "ESF-2": "Protected loss of primary flow",
-  "ESF-3": "Primary sodium boundary leak",
-  "ESF-4": "Loss of offsite power with DHR challenge",
-  "ESF-5": "Reactivity insertion transient",
-};
-
-const FAMILY_HAZARD: Record<string, string> = {
-  "ESF-1": "Seismic",
-  "ESF-2": "Internal events",
-  "ESF-3": "Internal events",
-  "ESF-4": "Internal events",
-  "ESF-5": "Internal events",
-};
-
-const FAMILY_NOTES: Record<string, string> = {
-  "ESF-1": "The headline early-release family, bounded by the early release category.",
-  "ESF-2": "Bounded by the intact functional containment category.",
-  "ESF-3": "Bounded by the delayed filtered release category, with a grouping question open at B5.",
-  "ESF-4": "A station-blackout family bounded by the same early release category.",
-  "ESF-5": "A point-estimate family below the risk-significance threshold.",
-};
-
-const CONSEQUENCE_MEASURE_META: Record<string, { icon: string; note: string }> = {
-  "Site-boundary individual dose": { icon: "Shield", note: "The individual dose at the site boundary, the measure the frequency-consequence target uses." },
-  "Latent cancer risk": { icon: "Activity", note: "The latent health risk per event, the integrated consequence the total sums." },
-  "Quantity released": { icon: "Atom", note: "The released activity, the simplest surrogate measure where dose is not yet resolved." },
-};
-
-interface CriteriaLevelSpec {
-  id: string;
-  level: string;
-  note: string;
-  absolute: string;
-  relative: string;
-}
-
-const CRITERIA_LEVELS: CriteriaLevelSpec[] = [
-  { id: "family", level: "Event sequence family", note: "The grouped sequences RI plots and totals.", absolute: "On or above the frequency-consequence target", relative: "Above one percent of the total risk metric" },
-  { id: "ssc", level: "Structures, systems and components", note: "The hardware ESQ ranks from the frequency side.", absolute: "Above the absolute SSC significance bar", relative: "Fussell-Vesely at or above 0.005" },
-  { id: "basic", level: "Basic events", note: "The parameters DA quantifies.", absolute: "Above the absolute basic-event bar", relative: "Risk achievement worth at or above 2" },
-  { id: "hfe", level: "Human failure events", note: "The operator actions HR quantifies.", absolute: "Above the absolute human-action bar", relative: "Fussell-Vesely at or above 0.005 or RAW at or above 2" },
-];
-
 const REPORTING_FLOOR_NOTES = {
   frequency: "Below this frequency the PRA limitations make the number unreliable.",
   consequence: "Below this dose the result sits within the noise of natural background.",
 };
-
-interface CalcApproachSpec {
-  id: "sumproducts" | "fcplot" | "ccdf";
-  label: string;
-  cc: string;
-  icon: string;
-  note: string;
-}
-
-const CALC_APPROACHES: CalcApproachSpec[] = [
-  { id: "sumproducts", label: "Sum of products", cc: "CC-I and CC-II", icon: "Sigma", note: "Total the frequency and consequence products across the families." },
-  { id: "fcplot", label: "Frequency-consequence plot", cc: "CC-I and CC-II", icon: "Target", note: "Plot each family against the target selected for the application." },
-  { id: "ccdf", label: "Exceedance-frequency curve", cc: "CC-II", icon: "Curve", note: "Draw the frequency of exceeding each consequence level, at CC-II." },
-];
 
 const FC_META = {
   xMin: 1e-7,
@@ -300,7 +248,6 @@ const FC_META = {
   yMax: 1e-4,
   targetFrom: { dose: 1e-5, freq: 1e-4 },
   targetTo: { dose: 1e0, freq: 1e-8 },
-  note: "The target slopes down, since a higher consequence is allowed only at a lower frequency.",
 };
 
 const CCDF_NOTE = "The curve shows the frequency of exceeding each dose level, drawn at CC-II.";
@@ -331,71 +278,17 @@ const ELEMENT_CODE_BY_TYPE: Record<string, string> = {
   "consequence-analysis": "RC",
 };
 
-const REGISTER_NOTE = "The register compiles the key model uncertainties from every element, with the frequency-side impacts via ESQ and the consequence-side impacts via MS and RC, and it includes every screened-out item.";
-
-interface AntiMaskingRowSpec {
-  id: string;
-  name: string;
-  field: "variationNotSignificantJustification" | "releaseCategorySelectionSufficiency" | "familyAssignmentSufficiency";
-  flag: boolean;
-  stateLabel: string;
-}
-
-const ANTI_MASKING_ROWS: AntiMaskingRowSpec[] = [
-  { id: "early", name: "Early release families", field: "variationNotSignificantJustification", flag: false, stateLabel: "No masking" },
-  { id: "leak", name: "Primary sodium boundary leak grouping", field: "releaseCategorySelectionSufficiency", flag: true, stateLabel: "Reopened to ES" },
-  { id: "assign", name: "Release-category assignment", field: "familyAssignmentSufficiency", flag: false, stateLabel: "Confirmed" },
-];
-
-interface ContributorRollupSpec {
-  bucket: "families" | "basicEvents" | "humanFailureEvents" | "systems";
-  sourceId: string;
-  kind: string;
-}
-
-const CONTRIBUTOR_ROLLUP: ContributorRollupSpec[] = [
-  { bucket: "families", sourceId: "ESF-1", kind: "Family" },
-  { bucket: "families", sourceId: "ESF-4", kind: "Family" },
-  { bucket: "basicEvents", sourceId: "BE-DHR-CCF", kind: "Basic event" },
-  { bucket: "humanFailureEvents", sourceId: "HFE-BACKUP-COOLING", kind: "Human failure event" },
-  { bucket: "systems", sourceId: "SYS-DHR", kind: "System" },
-  { bucket: "basicEvents", sourceId: "PAR-POOL-DF", kind: "Parameter" },
-];
-
-interface PropagationSourceSpec {
-  id: string;
-  name: string;
-  from: string;
-  icon: string;
-  note: string;
-}
-
-const PROPAGATION_SOURCES: PropagationSourceSpec[] = [
-  { id: "sokc", name: "State-of-knowledge correlation", from: "ESQ-E2", icon: "Link", note: "The shared parameter estimates move together on the frequency side." },
-  { id: "phenom", name: "Phenomena dependencies", from: "MS-D4 and RCQ-C2", icon: "Beaker", note: "The dependent release and dispersion phenomena move together on the consequence side." },
-];
-
-interface DispatchCardSpec {
-  code: string;
-  element: string;
-  significance: "HIGH" | "MEDIUM" | "LOW";
-  msg: string;
-}
-
-const EXTRA_DISPATCH: DispatchCardSpec[] = [
-  { code: "IE", element: "Initiating Event Analysis", significance: "HIGH", msg: "The seismic initiator drives the dominant family, so confirm the hazard binning." },
-  { code: "ES", element: "Event Sequence Analysis", significance: "MEDIUM", msg: "Reopen the primary sodium boundary leak grouping for justification." },
-  { code: "SY", element: "Systems Analysis", significance: "MEDIUM", msg: "The decay-heat removal system is risk-significant, so confirm its logic completeness." },
-  { code: "HR", element: "Human Reliability Analysis", significance: "MEDIUM", msg: "The backup-cooling operator action is risk-significant, so confirm its detailed treatment." },
-  { code: "DA", element: "Data Analysis", significance: "MEDIUM", msg: "The decay-heat removal common-cause parameter is risk-significant, so confirm its distribution." },
-];
-
-const SIG_LABELS: Record<string, string> = { HIGH: "High", MEDIUM: "Medium", LOW: "Low" };
-
-const SS_SR: Record<string, string> = {
-  "RIS-1": "RI-B3",
-  "RIS-2": "RI-B5, RI-C2",
-  "RIS-3": "RI-C4",
+const ELEMENT_NAME_BY_CODE: Record<string, string> = {
+  POS: "Plant Operating States",
+  IE: "Initiating Events",
+  ES: "Event Sequence Analysis",
+  SC: "Success Criteria",
+  SY: "Systems Analysis",
+  HR: "Human Reliability",
+  DA: "Data Analysis",
+  ESQ: "Event Sequence Quantification",
+  MS: "Mechanistic Source Term",
+  RC: "Radiological Consequence",
 };
 
 const RI_TOC: [string, string][] = [
@@ -434,12 +327,6 @@ export type {
   ConformanceItem,
   ConformanceStatus,
   LinkSpec,
-  CriteriaLevelSpec,
-  CalcApproachSpec,
-  AntiMaskingRowSpec,
-  ContributorRollupSpec,
-  PropagationSourceSpec,
-  DispatchCardSpec,
 };
 
 export {
@@ -447,6 +334,8 @@ export {
   RI_PERSONAS,
   RI_PERSONA_STEPS,
   CAPABILITY_CATEGORIES,
+  PLANT_STAGES,
+  type PlantStageId,
   APPLICATION_TYPES,
   CONFORMANCE_ITEMS,
   HLR_SECTIONS,
@@ -455,23 +344,11 @@ export {
   RI_UPSTREAM_LINKS,
   SCOPE_POS_TEXT,
   SCOPE_NOTE,
-  FAMILY_NAMES,
-  FAMILY_HAZARD,
-  FAMILY_NOTES,
-  CONSEQUENCE_MEASURE_META,
-  CRITERIA_LEVELS,
   REPORTING_FLOOR_NOTES,
-  CALC_APPROACHES,
   FC_META,
   CCDF_NOTE,
   REGISTER_SIDE,
   ELEMENT_CODE_BY_TYPE,
-  REGISTER_NOTE,
-  ANTI_MASKING_ROWS,
-  CONTRIBUTOR_ROLLUP,
-  PROPAGATION_SOURCES,
-  EXTRA_DISPATCH,
-  SIG_LABELS,
-  SS_SR,
+  ELEMENT_NAME_BY_CODE,
   RI_TOC,
 };

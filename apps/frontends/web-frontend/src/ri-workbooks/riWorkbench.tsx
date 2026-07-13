@@ -4,14 +4,13 @@ import { RIIcon } from "./riIcons";
 import {
   RI_PERSONAS,
   CAPABILITY_CATEGORIES,
-  APPLICATION_TYPES,
   type AppTypeId,
   type RiPersona,
   type RiStep,
 } from "./riViewData";
 import { ccScore, commentsView, filterConformance, groupBySection, appTypeFromMef, stepsFromMef, type CommentView } from "./riSelectors";
-import { ConvergeScreen, CriteriaScreen, IntegrateScreen } from "./riScreens";
-import { AggregateScreen, UncertaintyScreen, FeedbackScreen, DraftScreen, PlaceholderScreen } from "./riScreens2";
+import { ConvergeScreen, CriteriaScreen, IntegrateScreen, type RiDrawerContext } from "./riScreens";
+import { AggregateScreen, UncertaintyScreen, FeedbackScreen, DraftScreen, DrawerContent, PlaceholderScreen } from "./riScreens2";
 import { InternalReviewScreen, ReviewerCommentDock } from "./riReview";
 import { useRiWorkbook, type RiWorkbookData } from "./riWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
@@ -110,7 +109,7 @@ function WorkspaceHeader({
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenRoles} title="Manage roles"><RIIcon.Settings /> Roles</button>
         )}
         {onLoadExample !== undefined && (
-          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with the Generic-1 example workbook"><RIIcon.Sparkle /> Load example</button>
+          <button type="button" className="posnav__btn posnav__btn--sm" onClick={onLoadExample} title="Replace contents with a packaged example workbook"><RIIcon.Sparkle /> Load example</button>
         )}
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><RIIcon.Close /> Unload example</button>
@@ -174,6 +173,28 @@ function StepRail({ stepId, setStepId, persona, visibleSteps, mobileOpen }: {
   );
 }
 
+function RiDrawer({ context, onClose }: { context: RiDrawerContext; onClose: () => void }): JSX.Element {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+  return (
+    <div className="posdrawer-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="posdrawer" role="dialog" aria-modal="true">
+        <DrawerContent context={context} onClose={onClose} />
+      </div>
+    </div>
+  );
+}
+
 function ConformanceDock({ ccId, appType, onGoToCriteria, onClose, mobileOpen }: {
   ccId: string;
   appType: AppTypeId;
@@ -183,7 +204,6 @@ function ConformanceDock({ ccId, appType, onGoToCriteria, onClose, mobileOpen }:
 }): JSX.Element {
   const { ri } = useRiWorkbook();
   const cc = CAPABILITY_CATEGORIES.find((c) => c.id === ccId) ?? CAPABILITY_CATEGORIES[0];
-  const app = APPLICATION_TYPES.find((a) => a.id === appType) ?? APPLICATION_TYPES[0];
   const items = useMemo(() => filterConformance(ri, ccId, appType), [ri, ccId, appType]);
   const sections = useMemo(() => groupBySection(items), [items]);
   const scores = ccScore(ri, ccId, appType);
@@ -199,7 +219,7 @@ function ConformanceDock({ ccId, appType, onGoToCriteria, onClose, mobileOpen }:
         <div className="posdock__profile">
           <div className="posdock__profile-display">
             <span className="posdock__profile-name">{cc.name}</span>
-            <span className="posdock__profile-tag">{cc.tag} · {app.tag}</span>
+            <span className="posdock__profile-tag">{cc.tag}</span>
             <button type="button" className="posdock__profile-change" onClick={onGoToCriteria}>Change</button>
           </div>
         </div>
@@ -283,6 +303,7 @@ function RiWorkbench({
   useEffect(() => { setCcId(mefCcId); }, [mefCcId]);
   useEffect(() => { setAppType(mefAppType); }, [mefAppType]);
 
+  const [drawer, setDrawer] = useState<RiDrawerContext | null>(null);
   const [stepId, setStepIdState] = useState<string>(visibleSteps[0]?.id ?? "converge");
   const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 1100px)").matches;
   const [dockOpen, setDockOpen] = useState(!isNarrow);
@@ -361,11 +382,11 @@ function RiWorkbench({
             {renderDocuments?.()}
           </>
         );
-      case "criteria": return <CriteriaScreen appType={appType} setAppType={setAppType} />;
-      case "integrate": return <IntegrateScreen ccId={ccId} />;
-      case "aggregate": return <AggregateScreen />;
-      case "uncertainty": return <UncertaintyScreen />;
-      case "feedback": return <FeedbackScreen />;
+      case "criteria": return <CriteriaScreen appType={appType} setAppType={setAppType} openDrawer={setDrawer} />;
+      case "integrate": return <IntegrateScreen ccId={ccId} openDrawer={setDrawer} />;
+      case "aggregate": return <AggregateScreen openDrawer={setDrawer} />;
+      case "uncertainty": return <UncertaintyScreen openDrawer={setDrawer} />;
+      case "feedback": return <FeedbackScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (
@@ -442,6 +463,8 @@ function RiWorkbench({
           <div className="posw__mobile-scrim" onClick={() => { setRailMobileOpen(false); setDockMobileOpen(false); }} aria-hidden="true" />
         )}
       </div>
+
+      {drawer !== null && <RiDrawer context={drawer} onClose={() => setDrawer(null)} />}
 
       {toast !== null && <div className="postoast" role="status">{toast}</div>}
 

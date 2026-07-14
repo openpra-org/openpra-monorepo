@@ -74,7 +74,7 @@ npm install -g pnpm@10.19.0
 
 ### Docker
 
-Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on macOS and Windows, or Docker Engine plus the compose plugin on Linux. Verify with `docker compose version`.
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on macOS and Windows, or Docker Engine plus the compose plugin on Linux. Verify with `docker info`, which fails when the daemon is not running or not reachable. On Linux, also add your user to the docker group so you can use Docker without sudo: `sudo usermod -aG docker $USER`, then log out and back in.
 
 ## 2. Clone the repository
 
@@ -437,7 +437,40 @@ docker service ls --filter "label=com.docker.stack.namespace=$APP_NAME"
 
 Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. It expects the image in `IMAGE_BACKEND`, replica counts in `NUM_BROKERS` and `NUM_WORKERS`, placement pools in `DEPLOYMENT_BROKER_POOL` and `DEPLOYMENT_WORKER_POOL`, and two file-based secrets, `secrets/DSF_JWT_SECRET` and `secrets/CLOUDFLARE_TUNNEL_TOKEN`, relative to the stack file. Those two files are not in the repository. Create them on the swarm manager next to the stack file before deploying, the first holding a generated JWT secret and the second the Cloudflare tunnel token. It publishes the manager through a Cloudflare tunnel instead of Traefik.
 
-## 8. Troubleshooting
+## 8. Offline deployment (air-gapped machines)
+
+For a machine with no internet access, nothing can be pulled or installed there. Instead, one connected machine builds a single self-contained tarball, and the offline machine only loads and runs it. Docker images carry everything, so the offline machine needs only Docker Engine with the compose plugin and a user in the docker group.
+
+Build the bundle on a connected machine (Linux, or Docker Desktop on Windows and macOS, images are built for linux/amd64):
+
+```bash
+bash deploy/offline/make-bundle.sh /path/to/output
+```
+
+The bundle covers the web app only: frontend, backend, MongoDB, and MinIO. Praetor and the solver engines are excluded, since they are not needed by the web app. The script builds the backend and frontend images, pulls mongo and minio, saves all four images into one tar, and packs them with a self-contained compose file, the nginx proxy config, the example documents, an INSTALL.md, and a git bundle of the source. The result is `openpra-offline-bundle.tar.gz`.
+
+If the offline machine might not have Docker at all, also build the Docker installer archive:
+
+```bash
+bash deploy/offline/make-docker-bundle.sh /path/to/output
+```
+
+This downloads the official static Docker binaries and the compose plugin, which work on any x86_64 Linux regardless of distribution, and packs them with an installer script as `docker-engine-offline.tar.gz` next to the app bundle. On the target machine, untar it and run `sudo bash install-docker.sh` first, then proceed with the app bundle.
+
+On the offline machine:
+
+```bash
+tar -xzf openpra-offline-bundle.tar.gz
+cd openpra-offline
+docker load -i openpra-images.tar
+docker compose up -d
+```
+
+The app is then at http://localhost:8080. The bundled `INSTALL.md` covers serving other machines on the network (`OPENPRA_HOST=<server-ip>`), overriding `JWT_SECRET` and `TFA_ENC_KEY`, and restoring the source from the git bundle.
+
+Offline behavior to communicate to users: password reset emails cannot send, Google and GitHub login are unavailable so accounts use username and password, and 2FA verifies against the server clock. `TFA_TIME_URL` is deliberately unset in the offline compose so the backend never tries to reach the internet.
+
+## 9. Troubleshooting
 
 **The backend compiles, then exits with `... is required but not set`.** The first one you see is usually `Error: MINIO_BUCKET is required but not set`. Missing variables are reported one at a time, so do not fix them one by one. Create or complete the full `apps/backends/web-backend/.env` (section 4.2). This is the single most common failure for new setups.
 
@@ -452,6 +485,8 @@ Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. 
 **CORS errors in the browser console.** `APP_BASE_URL` must equal the exact frontend origin, `http://localhost:4201` in dev mode.
 
 **pnpm warns about ignored build scripts.** Run `pnpm approve-builds`, approve, and `pnpm install` again.
+
+**`permission denied while trying to connect to the Docker daemon socket` on Linux.** Any image pull or compose command fails this way when your user cannot access `/var/run/docker.sock`. Make sure the daemon runs (`sudo systemctl enable --now docker`), add yourself to the docker group (`sudo usermod -aG docker $USER`), then log out and back in or run `newgrp docker`. Verify with `docker info` without sudo. Avoid running compose under sudo, since root then owns the containers and volumes.
 
 **PDF files are one-line pointer files, or `git push` fails in the LFS hook.** Install Git LFS, run `git lfs install`, then `git lfs pull`.
 

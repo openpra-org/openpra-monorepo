@@ -36,6 +36,9 @@ pub struct Args {
     #[arg(long = "cut-off")]
     pub cut_off: Option<f64>,
 
+    #[arg(long = "cut-off-basis", value_enum, default_value_t = CutOffBasis::Probability, help = "Interpret --cut-off as a product probability (default), or as a product frequency for event trees: probability times the initiating-event frequency, which is the SAPHIRE truncation convention")]
+    pub cut_off_basis: CutOffBasis,
+
     #[arg(long = "mission-time")]
     pub mission_time: Option<f64>,
 
@@ -86,6 +89,12 @@ pub struct Args {
 
     #[arg(long = "simplify-house-events", help = "Before building, fold constant/house-event leaves and splice NULL/NOT gates (optional; the BDD handles these natively, so results are unchanged)")]
     pub simplify_house_events: bool,
+
+    #[arg(long = "complement-unity", help = "Experimental: replace every complemented formula with Unity (TRUE) when building event-tree sequence logic, matching the SCRAM/SAPHIRE minimal-cut-set convention")]
+    pub complement_unity: bool,
+
+    #[arg(long = "delete-term", help = "Event trees: apply the delete-term rule to a succeeded system, dropping its formula and deleting every product that contains one of its cut sets (a product that fails a succeeded system is not a product of the sequence). This is the SAPHIRE/FTREX convention")]
+    pub delete_term: bool,
 
     #[arg(long = "early-stop")]
     pub early_stop: bool,
@@ -153,6 +162,12 @@ pub enum Analysis {
 pub enum Approximation {
     RareEvent,
     Mcub,
+}
+
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CutOffBasis {
+    Probability,
+    Frequency,
 }
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

@@ -427,6 +427,15 @@ pub struct ZbddEngine {
     removevar_cache: HashMap<(ZbddRef, usize), ZbddRef>,
     convert_cache: HashMap<BddRef, ZbddRef>,
     var_probs: Vec<f64>,
+    // Constant factor carried into every product value, so that a product's
+    // accumulated value is scale * prod(var_probs). For an event-tree sequence
+    // this is the initiating-event frequency, which makes the accumulated value
+    // the product's frequency and lets a cut-off be compared against it
+    // directly. It is 1.0 for a plain fault tree, where the value is the
+    // product's probability. Probability queries (rare_event_probability,
+    // min_cut_upper_bound_graph, ...) are unscaled and always return
+    // probabilities; only truncation reads this.
+    scale: f64,
     maxprobs: Vec<f64>,
     maxprob_stamp: Vec<u64>,
     maxprob_epoch: u64,
@@ -488,6 +497,7 @@ impl ZbddEngine {
             removevar_cache: HashMap::new(),
             convert_cache: HashMap::new(),
             var_probs: Vec::new(),
+            scale: 1.0,
             maxprobs: vec![0.0, 0.0],
             maxprob_stamp: vec![0, 0],
             maxprob_epoch: 1,
@@ -1317,40 +1327,141 @@ impl ZbddEngine {
         (z, result)
     }
 
+    /// Build a truncated ZBDD from a BDD. `scale` multiplies every product's
+    /// value, so a product survives when `scale * prod(var_probs) >= cut_off`.
+    /// Pass an initiating-event frequency to truncate an event-tree sequence on
+    /// product frequency, or 1.0 to truncate on product probability.
     pub fn build_from_bdd_with_limits(
         bdd: &Bdd,
         root: BddRef,
         coherent: bool,
         limit_order: Option<usize>,
         cut_off: Option<f64>,
+        scale: f64,
     ) -> (ZbddEngine, ZbddRef) {
         let mut z = ZbddEngine::new();
         z.var_probs = bdd.var_probs().to_vec();
-        let min_prob = cut_off.unwrap_or(0.0);
-        let mut cache: HashMap<(BddRef, Option<usize>, u64), ZbddRef> = HashMap::new();
-        let raw = z.convert_bdd_limited(bdd, root, limit_order, 1.0, min_prob, &mut cache);
+        z.scale = scale;
+        let min_value = cut_off.unwrap_or(0.0);
+        let mut maxp: HashMap<BddRef, f64> = HashMap::new();
+        let mut cache: HashMap<(BddRef, Option<usize>), (f64, ZbddRef)> = HashMap::new();
+        let raw =
+            z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut maxp, &mut cache);
         let result = if coherent { raw } else { z.minimize(raw) };
+        let result = if min_value > 0.0 {
+            z.prune_below_probability(result, min_value)
+        } else {
+            result
+        };
         (z, result)
     }
 
+    /// Build a truncated ZBDD from a BDD and apply the delete-term rule against
+    /// the systems the sequence succeeded: a product that contains a cut set of a
+    /// succeeded system would also fail it, so it is not a product of the sequence
+    /// and is removed. `delete_roots` are the BDD roots of those systems, built in
+    /// the same manager so that they share this engine's variables.
+    ///
+    /// Truncating the deleting families at the same cut-off is exact, not a
+    /// shortcut: a cut set covered by a product is a subset of it, so it is at
+    /// least as probable, and therefore survives whenever the product it would
+    /// delete survives.
+    pub fn build_from_bdd_with_delete_terms(
+        bdd: &Bdd,
+        root: BddRef,
+        delete_roots: &[BddRef],
+        coherent: bool,
+        limit_order: Option<usize>,
+        cut_off: Option<f64>,
+        scale: f64,
+    ) -> (ZbddEngine, ZbddRef) {
+        let mut z = ZbddEngine::new();
+        z.var_probs = bdd.var_probs().to_vec();
+        z.scale = scale;
+        let min_value = cut_off.unwrap_or(0.0);
+        let mut maxp: HashMap<BddRef, f64> = HashMap::new();
+        let mut cache: HashMap<(BddRef, Option<usize>), (f64, ZbddRef)> = HashMap::new();
+
+        let raw = z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut maxp, &mut cache);
+        let mut result = if coherent { raw } else { z.minimize(raw) };
+
+        for &delete_root in delete_roots {
+            let raw_delete = z.convert_bdd_limited(
+                bdd,
+                delete_root,
+                limit_order,
+                scale,
+                min_value,
+                &mut maxp,
+                &mut cache,
+            );
+            let delete = z.minimize(raw_delete);
+            result = z.nonsuperset(result, delete);
+        }
+
+        let result = if min_value > 0.0 {
+            z.prune_below_probability(result, min_value)
+        } else {
+            result
+        };
+        (z, result)
+    }
+
+    fn bdd_max_path_prob(&self, bdd: &Bdd, f: BddRef, memo: &mut HashMap<BddRef, f64>) -> f64 {
+        if f.is_false() {
+            return 0.0;
+        }
+        if f.is_true() {
+            return 1.0;
+        }
+        if let Some(&m) = memo.get(&f) {
+            return m;
+        }
+        let var = bdd.var_of(f);
+        let node = bdd.node(f);
+        let (cofactor_hi, cofactor_lo) = if f.is_complement() {
+            (node.high.complement(), node.low.complement())
+        } else {
+            (node.high, node.low)
+        };
+        let ph = self.var_probs[var] * self.bdd_max_path_prob(bdd, cofactor_hi, memo);
+        let pl = self.bdd_max_path_prob(bdd, cofactor_lo, memo);
+        let r = ph.max(pl);
+        memo.insert(f, r);
+        r
+    }
+
+    /// `p_acc` is the value accumulated along the current path: the scale (an
+    /// initiating-event frequency, or 1.0) times the probabilities of the
+    /// variables taken so far. It is compared against `min_value` directly, so
+    /// a frequency cut-off needs no rescaling.
     fn convert_bdd_limited(
         &mut self,
         bdd: &Bdd,
         f: BddRef,
         budget: Option<usize>,
         p_acc: f64,
-        min_prob: f64,
-        cache: &mut HashMap<(BddRef, Option<usize>, u64), ZbddRef>,
+        min_value: f64,
+        maxp: &mut HashMap<BddRef, f64>,
+        cache: &mut HashMap<(BddRef, Option<usize>), (f64, ZbddRef)>,
     ) -> ZbddRef {
         if f.is_false() {
             return ZBDD_EMPTY;
         }
         if f.is_true() {
-            return if p_acc >= min_prob { ZBDD_BASE } else { ZBDD_EMPTY };
+            return if p_acc >= min_value { ZBDD_BASE } else { ZBDD_EMPTY };
         }
-        let key = (f, budget, p_acc.to_bits());
-        if let Some(&r) = cache.get(&key) {
-            return r;
+        if min_value > 0.0 {
+            let bound = self.bdd_max_path_prob(bdd, f, maxp);
+            if p_acc * bound < min_value {
+                return ZBDD_EMPTY;
+            }
+        }
+        let key = (f, budget);
+        if let Some(&(stored_p, r)) = cache.get(&key) {
+            if min_value == 0.0 || p_acc <= stored_p {
+                return r;
+            }
         }
         let var = bdd.var_of(f);
         let node = bdd.node(f);
@@ -1364,12 +1475,20 @@ impl ZbddEngine {
             ZBDD_EMPTY
         } else {
             let new_budget = budget.map(|b| b - 1);
-            self.convert_bdd_limited(bdd, cofactor_hi, new_budget, p_acc * p_var, min_prob, cache)
+            self.convert_bdd_limited(
+                bdd,
+                cofactor_hi,
+                new_budget,
+                p_acc * p_var,
+                min_value,
+                maxp,
+                cache,
+            )
         };
-        let lo_z = self.convert_bdd_limited(bdd, cofactor_lo, budget, p_acc, min_prob, cache);
+        let lo_z = self.convert_bdd_limited(bdd, cofactor_lo, budget, p_acc, min_value, maxp, cache);
         let with_var = self.multiply(var, hi_z);
         let result = self.union(with_var, lo_z);
-        cache.insert(key, result);
+        cache.insert(key, (p_acc, result));
         result
     }
 
@@ -1421,6 +1540,14 @@ impl ZbddEngine {
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.var_probs = probs;
         self.maxprob_epoch += 1;
+    }
+
+    /// Set the constant factor folded into every product's value: an
+    /// initiating-event frequency for an event-tree sequence, or 1.0 for a
+    /// plain fault tree. Only truncation reads it; the per-node maximum path
+    /// probabilities are unscaled, so no cache invalidation is needed.
+    pub fn set_scale(&mut self, scale: f64) {
+        self.scale = scale;
     }
 
     pub fn rare_event_probability(&self, root: ZbddRef) -> f64 {
@@ -1492,10 +1619,14 @@ impl ZbddEngine {
         result
     }
 
-    pub fn prune_below_probability(&mut self, f: ZbddRef, min_prob: f64) -> ZbddRef {
+    /// Drop every product whose value falls below `min_value`. The value is
+    /// `scale * prod(var_probs)`, so with a scale of 1.0 this is a probability
+    /// cut-off and with an initiating-event frequency it is a frequency cut-off.
+    pub fn prune_below_probability(&mut self, f: ZbddRef, min_value: f64) -> ZbddRef {
         self.ensure_maxprob(f);
         let mut cache: HashMap<(ZbddRef, u64), ZbddRef> = HashMap::new();
-        let result = self.prune_below_rec(f, 1.0, min_prob, &mut cache);
+        let start = self.scale;
+        let result = self.prune_below_rec(f, start, min_value, &mut cache);
         if self.gc_on {
             for &v in cache.values() {
                 self.deref(v);

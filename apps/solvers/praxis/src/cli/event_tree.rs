@@ -1,4 +1,4 @@
-use crate::cli::args::{Algorithm, Approximation, Args, Backend};
+use crate::cli::args::{Algorithm, Approximation, Args, Backend, CutOffBasis};
 use crate::cli::metadata::{
     display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata,
 };
@@ -8,6 +8,7 @@ use crate::cli::optimize::{
     estimate_model_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
 use crate::cli::output::{writer_stdout, writer_vec};
+use praxis::algorithms::bdd_engine::{Bdd, BddRef};
 use praxis::algorithms::pdag::{NodeIndex, Pdag};
 use praxis::algorithms::zbdd_engine::ZbddRef;
 use praxis::analysis::sequence_formula::SequenceFormulaBuilder;
@@ -79,6 +80,32 @@ fn enumerate_cut_sets_et(
         .collect()
 }
 
+/// The factor folded into every product's value before it meets the cut-off.
+/// On the frequency basis a sequence product is worth its probability times the
+/// initiating-event frequency, so the cut-off is compared against a frequency;
+/// on the probability basis the products keep their bare probability.
+fn truncation_scale(basis: CutOffBasis, ie_frequency: f64) -> f64 {
+    match basis {
+        CutOffBasis::Frequency => ie_frequency,
+        CutOffBasis::Probability => 1.0,
+    }
+}
+
+/// Whether no product of this sequence can reach the cut-off. A product's true
+/// weight is P(product AND sequence), which is bounded by both P(product) and
+/// the sequence's own probability, so once the sequence itself falls below the
+/// cut-off every product provably does too and the list is empty. This is what
+/// keeps a sequence that a succeeded system has made impossible (probability
+/// exactly zero) from still reporting the products of its failed systems: the
+/// cut-set projection drops the complemented systems, so their weight reaches
+/// the truncation only through this bound.
+fn sequence_below_cut_off(scale: f64, probability: f64, cut_off: Option<f64>) -> bool {
+    match cut_off {
+        Some(min_value) => scale * probability < min_value,
+        None => false,
+    }
+}
+
 fn apply_zbdd_filters_et(
     zbdd: &mut ZbddEngine,
     root: ZbddRef,
@@ -103,6 +130,47 @@ fn compute_approx_et(zbdd: &ZbddEngine, root: ZbddRef, approximation: Option<App
     }
 }
 
+struct SequenceBdd {
+    variable_order: Vec<NodeIndex>,
+    bdd: Bdd,
+    root: BddRef,
+    delete_roots: Vec<BddRef>,
+    probability: f64,
+}
+
+/// Build one sequence's BDD, together with the BDDs of the systems it succeeded so
+/// that delete-term can subtract their cut sets afterwards. `success_roots` is empty
+/// unless delete-term is on, in which case the sequence formula holds only the failed
+/// systems and each succeeded system deletes the products that contain its cut sets.
+fn build_sequence_bdd_for(
+    pdag: &mut Pdag,
+    event_probs: &HashMap<String, f64>,
+    seq_id: &str,
+    sequence_root: NodeIndex,
+    success_roots: &[NodeIndex],
+) -> Result<SequenceBdd, Box<dyn std::error::Error>> {
+    let (variable_order, mut bdd, root, delete_roots) =
+        praxis::algorithms::build::build_sequence_bdd_with_successes(
+            pdag,
+            event_probs,
+            sequence_root,
+            success_roots,
+            seq_id,
+        )
+        .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+
+    let probability = bdd.probability(root);
+    bdd.freeze();
+
+    Ok(SequenceBdd {
+        variable_order,
+        bdd,
+        root,
+        delete_roots,
+        probability,
+    })
+}
+
 struct SequenceIntermediate {
     seq_id: String,
     event_names: Vec<Option<String>>,
@@ -114,7 +182,7 @@ struct SequenceIntermediate {
 }
 
 fn analytic_zbdd_wf1_no_approx_no_limits(
-    _cli: &Args,
+    cli: &Args,
     model: &praxis::core::model::Model,
     event_tree: &praxis::core::event_tree::EventTree,
     event_tree_library: &HashMap<String, praxis::core::event_tree::EventTree>,
@@ -125,10 +193,13 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
     let praxis::analysis::sequence_formula::SequenceFormulas {
         mut pdag,
         sequence_roots,
+        sequence_success_roots,
         unconditional,
         event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
+        .with_complement_unity(cli.complement_unity)
+        .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
@@ -169,17 +240,28 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
             continue;
         };
 
-        pdag.set_root(root_idx)
-            .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        let (variable_order, mut bdd, bdd_root) =
-            praxis::algorithms::build::build_sequence_bdd(&pdag, &event_probs)
-                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
-
-        let exact_prob = bdd.probability(bdd_root);
-        bdd.freeze();
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let SequenceBdd {
+            variable_order,
+            bdd,
+            root: bdd_root,
+            delete_roots,
+            probability: exact_prob,
+        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
+        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+            &bdd,
+            bdd_root,
+            &delete_roots,
+            false,
+            None,
+            None,
+            truncation_scale(cli.cut_off_basis, ie_frequency),
+        );
 
         let event_names = event_names_from_pdag(&pdag, &variable_order);
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, false);
 
         intermediates.push(SequenceIntermediate {
             seq_id: seq_id.clone(),
@@ -217,9 +299,13 @@ fn analytic_zbdd_wf1_no_approx_no_limits(
 
     let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
     for mut im in intermediates {
+        let scale = truncation_scale(cli.cut_off_basis, im.ie_frequency);
         let (filtered_root, cut_sets) = if im.is_unconditional {
-            (im.zbdd_root, Vec::new())
+            (im.zbdd_root, vec![CutSet::new(Vec::new())])
+        } else if sequence_below_cut_off(scale, im.probability, cut_off) {
+            (praxis::algorithms::zbdd_engine::ZBDD_EMPTY, Vec::new())
         } else {
+            im.zbdd.set_scale(scale);
             let fr = apply_zbdd_filters_et(&mut im.zbdd, im.zbdd_root, limit_order, cut_off);
             let cs = enumerate_cut_sets_et(&im.zbdd, fr, &im.event_names);
             (fr, cs)
@@ -258,10 +344,13 @@ fn analytic_zbdd_wf2_approx_no_limits(
     let praxis::analysis::sequence_formula::SequenceFormulas {
         mut pdag,
         sequence_roots,
+        sequence_success_roots,
         unconditional,
         event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
+        .with_complement_unity(cli.complement_unity)
+        .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
@@ -302,15 +391,28 @@ fn analytic_zbdd_wf2_approx_no_limits(
             continue;
         };
 
-        pdag.set_root(root_idx)
-            .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        let (variable_order, mut bdd, bdd_root) =
-            praxis::algorithms::build::build_sequence_bdd(&pdag, &event_probs)
-                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
-        bdd.freeze();
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let SequenceBdd {
+            variable_order,
+            bdd,
+            root: bdd_root,
+            delete_roots,
+            probability: _,
+        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
+        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+            &bdd,
+            bdd_root,
+            &delete_roots,
+            false,
+            None,
+            None,
+            truncation_scale(cli.cut_off_basis, ie_frequency),
+        );
 
         let event_names = event_names_from_pdag(&pdag, &variable_order);
-        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd(&bdd, bdd_root, false);
         let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
 
         intermediates.push(SequenceIntermediate {
@@ -349,9 +451,13 @@ fn analytic_zbdd_wf2_approx_no_limits(
 
     let mut sequences: Vec<EventTreeAnalyticSequence> = Vec::new();
     for mut im in intermediates {
+        let scale = truncation_scale(cli.cut_off_basis, im.ie_frequency);
         let (final_prob, filtered_root, cut_sets) = if im.is_unconditional {
-            (1.0, im.zbdd_root, Vec::new())
+            (1.0, im.zbdd_root, vec![CutSet::new(Vec::new())])
+        } else if sequence_below_cut_off(scale, im.probability, cut_off) {
+            (0.0, praxis::algorithms::zbdd_engine::ZBDD_EMPTY, Vec::new())
         } else {
+            im.zbdd.set_scale(scale);
             let fr = apply_zbdd_filters_et(&mut im.zbdd, im.zbdd_root, limit_order, cut_off);
             let final_p = if limit_order.is_some() || cut_off.is_some() {
                 compute_approx_et(&im.zbdd, fr, cli.approximation)
@@ -390,18 +496,22 @@ fn analytic_zbdd_wf3_no_approx_limits(
     event_tree_library: &HashMap<String, praxis::core::event_tree::EventTree>,
     _ie: &InitiatingEvent,
     ie_frequency: f64,
-    _verbose: bool,
+    verbose: bool,
 ) -> Result<Vec<EventTreeAnalyticSequence>, Box<dyn std::error::Error>> {
     let limit_order = cli.limit_order.map(|n| n as usize);
     let cut_off = cli.cut_off;
+    let scale = truncation_scale(cli.cut_off_basis, ie_frequency);
 
     let praxis::analysis::sequence_formula::SequenceFormulas {
         mut pdag,
         sequence_roots,
+        sequence_success_roots,
         unconditional,
         event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
+        .with_complement_unity(cli.complement_unity)
+        .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
@@ -425,7 +535,7 @@ fn analytic_zbdd_wf3_no_approx_limits(
                 path: vec![],
                 probability: 1.0,
                 frequency: ie_frequency,
-                cut_sets: Vec::new(),
+                cut_sets: vec![CutSet::new(Vec::new())],
                 order_dist: m,
             });
             continue;
@@ -442,21 +552,72 @@ fn analytic_zbdd_wf3_no_approx_limits(
             continue;
         };
 
-        pdag.set_root(root_idx)
-            .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        let (variable_order, mut bdd, bdd_root) =
-            praxis::algorithms::build::build_sequence_bdd(&pdag, &event_probs)
-                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let t0 = std::time::Instant::now();
+        let SequenceBdd {
+            variable_order,
+            bdd,
+            root: bdd_root,
+            delete_roots,
+            probability: exact_prob,
+        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
+        if verbose {
+            eprintln!(
+                "[{}] bdd build, probability {:.6e}: {:?}",
+                seq_id,
+                exact_prob,
+                t0.elapsed()
+            );
+        }
 
-        let exact_prob = bdd.probability(bdd_root);
-        bdd.freeze();
+        if sequence_below_cut_off(scale, exact_prob, cut_off) {
+            if verbose {
+                eprintln!(
+                    "[{}] sequence value {:.6e} is below the cut-off; no product can reach it",
+                    seq_id,
+                    scale * exact_prob
+                );
+            }
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
+                probability: exact_prob,
+                frequency: exact_prob * ie_frequency,
+                cut_sets: Vec::new(),
+                order_dist: HashMap::new(),
+            });
+            continue;
+        }
 
         let event_names = event_names_from_pdag(&pdag, &variable_order);
-        let (zbdd, zbdd_root) =
-            ZbddEngine::build_from_bdd_with_limits(&bdd, bdd_root, false, limit_order, cut_off);
+        let t2 = std::time::Instant::now();
+        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+            &bdd,
+            bdd_root,
+            &delete_roots,
+            false,
+            limit_order,
+            cut_off,
+            scale,
+        );
+        if verbose {
+            eprintln!(
+                "[{}] zbdd convert ({} delete-term system(s)): {:?}",
+                seq_id,
+                delete_roots.len(),
+                t2.elapsed()
+            );
+        }
 
+        let t3 = std::time::Instant::now();
         let order_dist = zbdd.count_by_order(zbdd_root);
         let cut_sets = enumerate_cut_sets_et(&zbdd, zbdd_root, &event_names);
+        if verbose {
+            eprintln!("[{}] count+enumerate: {:?}", seq_id, t3.elapsed());
+        }
 
         sequences.push(EventTreeAnalyticSequence {
             sequence_id: seq_id.clone(),
@@ -482,14 +643,18 @@ fn analytic_zbdd_wf4_approx_limits(
 ) -> Result<Vec<EventTreeAnalyticSequence>, Box<dyn std::error::Error>> {
     let limit_order = cli.limit_order.map(|n| n as usize);
     let cut_off = cli.cut_off;
+    let scale = truncation_scale(cli.cut_off_basis, ie_frequency);
 
     let praxis::analysis::sequence_formula::SequenceFormulas {
         mut pdag,
         sequence_roots,
+        sequence_success_roots,
         unconditional,
         event_probs,
         ie_frequency: _,
     } = SequenceFormulaBuilder::new(model)
+        .with_complement_unity(cli.complement_unity)
+        .with_delete_term(cli.delete_term)
         .with_event_tree_library(event_tree_library)
         .build(event_tree, ie_frequency)
         .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;
@@ -513,7 +678,7 @@ fn analytic_zbdd_wf4_approx_limits(
                 path: vec![],
                 probability: 1.0,
                 frequency: ie_frequency,
-                cut_sets: Vec::new(),
+                cut_sets: vec![CutSet::new(Vec::new())],
                 order_dist: m,
             });
             continue;
@@ -530,15 +695,39 @@ fn analytic_zbdd_wf4_approx_limits(
             continue;
         };
 
-        pdag.set_root(root_idx)
-            .map_err(|e| format!("BDD root error for '{}': {}", seq_id, e))?;
-        let (variable_order, mut bdd, bdd_root) =
-            praxis::algorithms::build::build_sequence_bdd(&pdag, &event_probs)
-                .map_err(|e| format!("BDD build failed for '{}': {}", seq_id, e))?;
-        bdd.freeze();
+        let successes = sequence_success_roots
+            .get(seq_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let SequenceBdd {
+            variable_order,
+            bdd,
+            root: bdd_root,
+            delete_roots,
+            probability: exact_prob,
+        } = build_sequence_bdd_for(&mut pdag, &event_probs, seq_id, root_idx, &successes)?;
 
-        let (zbdd, zbdd_root) =
-            ZbddEngine::build_from_bdd_with_limits(&bdd, bdd_root, false, limit_order, cut_off);
+        if sequence_below_cut_off(scale, exact_prob, cut_off) {
+            sequences.push(EventTreeAnalyticSequence {
+                sequence_id: seq_id.clone(),
+                path: vec![],
+                probability: 0.0,
+                frequency: 0.0,
+                cut_sets: Vec::new(),
+                order_dist: HashMap::new(),
+            });
+            continue;
+        }
+
+        let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_delete_terms(
+            &bdd,
+            bdd_root,
+            &delete_roots,
+            false,
+            limit_order,
+            cut_off,
+            scale,
+        );
 
         let event_names = event_names_from_pdag(&pdag, &variable_order);
         let approx_prob = compute_approx_et(&zbdd, zbdd_root, cli.approximation);
@@ -1043,10 +1232,13 @@ fn run_analytic_impl(
             let praxis::analysis::sequence_formula::SequenceFormulas {
                 mut pdag,
                 sequence_roots,
+                sequence_success_roots: _,
                 unconditional,
                 event_probs,
                 ie_frequency: _,
             } = SequenceFormulaBuilder::new(&model)
+                .with_complement_unity(cli.complement_unity)
+                .with_delete_term(cli.delete_term)
                 .with_event_tree_library(&event_tree_library)
                 .build(&event_tree, ie_frequency)
                 .map_err(|e| format!("Sequence formula construction failed for '{}': {}", event_tree.id, e))?;

@@ -106,6 +106,10 @@ pub struct FunctionalEvent {
 
     pub fault_tree_id: Option<String>,
 
+    /// A system with no fault tree, quantified from a single event. The fork
+    /// then refers to that event instead of to a gate.
+    pub basic_event_id: Option<String>,
+
     pub success_probability: Option<f64>,
 }
 
@@ -117,6 +121,7 @@ impl FunctionalEvent {
             name: None,
             order: 0,
             fault_tree_id: None,
+            basic_event_id: None,
             success_probability: None,
         }
     }
@@ -133,6 +138,11 @@ impl FunctionalEvent {
 
     pub fn with_fault_tree(mut self, fault_tree_id: String) -> Self {
         self.fault_tree_id = Some(fault_tree_id);
+        self
+    }
+
+    pub fn with_basic_event(mut self, basic_event_id: String) -> Self {
+        self.basic_event_id = Some(basic_event_id);
         self
     }
 

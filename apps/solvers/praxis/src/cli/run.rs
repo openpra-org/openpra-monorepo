@@ -1,4 +1,4 @@
-use crate::cli::args::{Algorithm, Args, Backend, Vrt};
+use crate::cli::args::{Algorithm, Args, Backend, CutOffBasis, Vrt};
 use crate::cli::event_tree;
 use crate::cli::fault_tree;
 use crate::cli::output::{writer_stdout, writer_vec};
@@ -19,6 +19,22 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     {
         eprintln!(
             "error: the argument '--approximation <APPROXIMATION>' can only be used with '--algorithm mocus', '--algorithm mocus-pi', '--algorithm zbdd' or '--algorithm zbdd-delterm'"
+        );
+        eprintln!();
+        eprintln!("For more information, try '--help'.");
+        std::process::exit(2);
+    }
+
+    if cli.cut_off_basis == CutOffBasis::Frequency && cli.cut_off.is_none() {
+        eprintln!("error: '--cut-off-basis frequency' requires '--cut-off <CUT_OFF>'");
+        eprintln!();
+        eprintln!("For more information, try '--help'.");
+        std::process::exit(2);
+    }
+
+    if cli.delete_term && cli.complement_unity {
+        eprintln!(
+            "error: '--delete-term' and '--complement-unity' are two different treatments of a succeeded system; choose one"
         );
         eprintln!();
         eprintln!("For more information, try '--help'.");
@@ -213,7 +229,25 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             }
             return Ok(());
         }
-        ParsedInput::FaultTree(fault_tree_model) => fault_tree_model,
+        ParsedInput::FaultTree(fault_tree_model) => {
+            if cli.cut_off_basis == CutOffBasis::Frequency {
+                eprintln!(
+                    "error: '--cut-off-basis frequency' is supported for event-tree inputs only (a fault tree has no initiating-event frequency)"
+                );
+                eprintln!();
+                eprintln!("For more information, try '--help'.");
+                std::process::exit(2);
+            }
+            if cli.delete_term {
+                eprintln!(
+                    "error: '--delete-term' is supported for event-tree inputs only (a fault tree has no succeeded systems)"
+                );
+                eprintln!();
+                eprintln!("For more information, try '--help'.");
+                std::process::exit(2);
+            }
+            fault_tree_model
+        }
     };
 
     let pre_outcome = fault_tree::run_pre_event_tree_parsed(

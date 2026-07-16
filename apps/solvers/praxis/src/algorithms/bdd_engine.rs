@@ -1,5 +1,8 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use tracing::trace;
 
 use crate::algorithms::pdag::{Connective as PdagConnective, NodeIndex as PdagIndex, Pdag, PdagNode};
@@ -90,6 +93,11 @@ pub struct Bdd {
     prob_cache: HashMap<BddRef, f64>,
     var_probs: Vec<f64>,
     frozen: bool,
+    node_budget: usize,
+    compute_cap: usize,
+    free: Vec<i32>,
+    live_count: Option<Arc<AtomicU64>>,
+    abort: Option<Arc<AtomicBool>>,
 }
 
 const SENTINEL: BddNode = BddNode {
@@ -107,6 +115,11 @@ impl Bdd {
             prob_cache: HashMap::new(),
             var_probs: Vec::new(),
             frozen: false,
+            node_budget: 0,
+            compute_cap: 0,
+            free: Vec::new(),
+            live_count: None,
+            abort: None,
         }
     }
 
@@ -177,7 +190,14 @@ impl Bdd {
     }
 
     pub(crate) fn compute_insert(&mut self, key: (BddRef, BddRef, BddRef), val: BddRef) {
+        if self.compute_cap != 0 && self.compute.len() >= self.compute_cap {
+            self.compute.clear();
+        }
         self.compute.insert(key, val);
+    }
+
+    pub fn set_compute_cap(&mut self, cap: usize) {
+        self.compute_cap = cap;
     }
 
     pub(crate) fn unique_get(&self, node: &BddNode) -> Option<BddRef> {
@@ -189,9 +209,285 @@ impl Bdd {
     }
 
     pub(crate) fn alloc_node(&mut self, node: BddNode) -> BddRef {
-        let idx = self.nodes.len() as i32;
-        self.nodes.push(node);
+        let idx = if let Some(slot) = self.free.pop() {
+            self.nodes[slot as usize] = node;
+            slot
+        } else {
+            let i = self.nodes.len() as i32;
+            self.nodes.push(node);
+            i
+        };
+        if self.live_count.is_some() || self.node_budget != 0 || self.abort.is_some() {
+            let live = self.nodes.len() - 2 - self.free.len();
+            if let Some(c) = &self.live_count {
+                c.store(live as u64, Ordering::Relaxed);
+            }
+            if self.node_budget != 0 && live >= self.node_budget {
+                panic!("praxis-bdd-abort:{}", live);
+            }
+            if live & 0xFFF == 0 {
+                if let Some(a) = &self.abort {
+                    if a.load(Ordering::Relaxed) {
+                        panic!("praxis-bdd-abort:{}", live);
+                    }
+                }
+            }
+        }
         BddRef(idx)
+    }
+
+    pub fn live_nodes(&self) -> usize {
+        self.nodes.len().saturating_sub(2).saturating_sub(self.free.len())
+    }
+
+    fn gc(&mut self, roots: &[BddRef]) -> usize {
+        let n = self.nodes.len();
+        let mut marked = vec![false; n];
+        let mut stack: Vec<usize> = Vec::new();
+        for &r in roots {
+            let idx = r.index();
+            if idx >= 2 && idx < n && !marked[idx] {
+                marked[idx] = true;
+                stack.push(idx);
+            }
+        }
+        while let Some(i) = stack.pop() {
+            let node = self.nodes[i];
+            for child in [node.high, node.low] {
+                let ci = child.index();
+                if ci >= 2 && ci < n && !marked[ci] {
+                    marked[ci] = true;
+                    stack.push(ci);
+                }
+            }
+        }
+        let mut freed = 0;
+        for i in 2..n {
+            if !marked[i] && !self.nodes[i].is_sentinel() {
+                let key = self.nodes[i];
+                self.unique.remove(&key);
+                self.nodes[i] = SENTINEL;
+                self.free.push(i as i32);
+                freed += 1;
+            }
+        }
+        self.compute.clear();
+        freed
+    }
+
+    fn maybe_infold_gc(
+        &mut self,
+        memo: &HashMap<PdagIndex, BddRef>,
+        acc: BddRef,
+        remaining: &[BddRef],
+        gc_interval: usize,
+        threshold: &mut usize,
+    ) {
+        if gc_interval == 0 || self.live_nodes() < *threshold {
+            return;
+        }
+        let mut roots: Vec<BddRef> = memo.values().copied().collect();
+        roots.push(acc);
+        roots.extend_from_slice(remaining);
+        let live_before = self.live_nodes();
+        let freed = self.gc(&roots);
+        let live_after = self.live_nodes();
+        *threshold = live_after.saturating_mul(2).max(gc_interval);
+        if self.live_count.is_some() {
+            eprintln!(
+                "    [gc-infold] live {} -> {} (freed {}), next at {}",
+                live_before, live_after, freed, threshold
+            );
+        }
+    }
+
+    pub fn build_root_gc(
+        &mut self,
+        pdag: &Pdag,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+        gc_interval: usize,
+    ) -> Result<BddRef> {
+        let order = pdag.topological_sort()?;
+        let root = match pdag.root() {
+            Some(r) => r,
+            None => return Ok(BDD_TRUE),
+        };
+        let root_abs = root.abs();
+
+        let mut pending: HashMap<PdagIndex, usize> = HashMap::new();
+        for node in pdag.nodes().values() {
+            if let PdagNode::Gate { operands, .. } = node {
+                for &op in operands {
+                    *pending.entry(op.abs()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        let mut memo: HashMap<PdagIndex, BddRef> = HashMap::new();
+        let mut threshold = gc_interval;
+
+        for &idx in &order {
+            let a = idx.abs();
+            let r = match pdag.get_node(a) {
+                Some(PdagNode::BasicEvent { .. }) => {
+                    let v = *var_of.get(&a).ok_or_else(|| {
+                        PraxisError::Logic(format!("BDD gc build: variable {} unmapped", a))
+                    })?;
+                    self.make_node(v, BDD_TRUE, BDD_FALSE)
+                }
+                Some(PdagNode::Constant { value, .. }) => {
+                    if *value {
+                        BDD_TRUE
+                    } else {
+                        BDD_FALSE
+                    }
+                }
+                Some(PdagNode::Gate {
+                    connective,
+                    operands,
+                    min_number,
+                    ..
+                }) => {
+                    let conn = *connective;
+                    let min = *min_number;
+                    let ops = operands.clone();
+                    let mut children = Vec::with_capacity(ops.len());
+                    for &op in &ops {
+                        let c = *memo.get(&op.abs()).ok_or_else(|| {
+                            PraxisError::Logic(format!("BDD gc build: operand {} not built", op.abs()))
+                        })?;
+                        children.push(if op < 0 { c.complement() } else { c });
+                        if let Some(p) = pending.get_mut(&op.abs()) {
+                            *p = p.saturating_sub(1);
+                        }
+                    }
+                    let res = match conn {
+                        PdagConnective::And | PdagConnective::Nand => {
+                            let mut acc = BDD_TRUE;
+                            for i in 0..children.len() {
+                                acc = self.and(acc, children[i]);
+                                self.maybe_infold_gc(
+                                    &memo,
+                                    acc,
+                                    &children[i + 1..],
+                                    gc_interval,
+                                    &mut threshold,
+                                );
+                            }
+                            if conn == PdagConnective::Nand {
+                                acc.complement()
+                            } else {
+                                acc
+                            }
+                        }
+                        PdagConnective::Or | PdagConnective::Nor => {
+                            let mut acc = BDD_FALSE;
+                            for i in 0..children.len() {
+                                acc = self.or(acc, children[i]);
+                                self.maybe_infold_gc(
+                                    &memo,
+                                    acc,
+                                    &children[i + 1..],
+                                    gc_interval,
+                                    &mut threshold,
+                                );
+                            }
+                            if conn == PdagConnective::Nor {
+                                acc.complement()
+                            } else {
+                                acc
+                            }
+                        }
+                        _ => self.combine_pdag(conn, &children, min),
+                    };
+                    for &op in &ops {
+                        let oa = op.abs();
+                        if oa != root_abs && pending.get(&oa).copied() == Some(0) {
+                            memo.remove(&oa);
+                        }
+                    }
+                    res
+                }
+                None => {
+                    return Err(PraxisError::Logic(format!(
+                        "BDD gc build: node {} not found",
+                        a
+                    )))
+                }
+            };
+            memo.insert(a, r);
+
+            if gc_interval != 0 && self.live_nodes() >= threshold {
+                let roots: Vec<BddRef> = memo.values().copied().collect();
+                let live_before = self.live_nodes();
+                let freed = self.gc(&roots);
+                let live_after = self.live_nodes();
+                threshold = live_after.saturating_mul(2).max(gc_interval);
+                if self.live_count.is_some() {
+                    eprintln!(
+                        "    [gc] live {} -> {} (freed {}), next at {}",
+                        live_before, live_after, freed, threshold
+                    );
+                }
+            }
+        }
+
+        let mut r = *memo.get(&root_abs).ok_or_else(|| {
+            PraxisError::Logic("BDD gc build: root not built".to_string())
+        })?;
+        if root < 0 {
+            r = r.complement();
+        }
+        if pdag.complement() {
+            r = r.complement();
+        }
+        Ok(r)
+    }
+
+    pub fn set_node_budget(&mut self, budget: usize) {
+        self.node_budget = budget;
+    }
+
+    pub fn attach_live_count(&mut self, counter: Arc<AtomicU64>) {
+        self.live_count = Some(counter);
+    }
+
+    pub fn attach_abort(&mut self, flag: Arc<AtomicBool>) {
+        self.abort = Some(flag);
+    }
+
+    pub fn unique_len(&self) -> usize {
+        self.unique.len()
+    }
+
+    pub fn compute_len(&self) -> usize {
+        self.compute.len()
+    }
+
+    pub fn reachable_count(&self, root: BddRef) -> usize {
+        let mut seen: std::collections::HashSet<i32> = std::collections::HashSet::new();
+        let mut stack = vec![root.regular()];
+        while let Some(f) = stack.pop() {
+            if f.is_terminal() || f.is_null() {
+                continue;
+            }
+            let r = f.regular();
+            if !seen.insert(r.raw()) {
+                continue;
+            }
+            let node = self.node(r);
+            stack.push(node.high.regular());
+            stack.push(node.low.regular());
+        }
+        seen.len()
+    }
+
+    pub fn build_root(
+        &mut self,
+        pdag: &Pdag,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+    ) -> Result<BddRef> {
+        self.build_pdag_root(pdag, var_of)
     }
 
     #[cfg(test)]
@@ -386,6 +682,20 @@ impl Bdd {
         Ok((bdd, root))
     }
 
+    /// Build the function of one PDAG node into this manager. Several nodes can
+    /// be built into the same manager under one variable order, which is what
+    /// lets their ZBDDs be combined afterwards.
+    pub fn build_pdag_index(
+        &mut self,
+        pdag: &Pdag,
+        idx: PdagIndex,
+        var_of: &std::collections::HashMap<PdagIndex, usize>,
+    ) -> Result<BddRef> {
+        let mut memo: HashMap<PdagIndex, BddRef> = HashMap::new();
+        let r = self.build_pdag_node(pdag, idx.abs(), var_of, &mut memo)?;
+        Ok(if idx < 0 { r.complement() } else { r })
+    }
+
     pub fn equivalent(a: &Pdag, b: &Pdag) -> Result<bool> {
         let var_of = Self::pdag_var_order(&[a, b]);
         let mut bdd = Bdd::new();
@@ -516,6 +826,52 @@ impl Bdd {
         self.ite(x, t, e)
     }
 
+    pub fn persist(&self, root: BddRef) -> PersistedBdd {
+        let mut dense: HashMap<i32, i32> = HashMap::new();
+        let mut vars: Vec<u32> = Vec::new();
+        let mut highs: Vec<i32> = Vec::new();
+        let mut lows: Vec<i32> = Vec::new();
+        let root_ref = self.persist_assign(root, &mut dense, &mut vars, &mut highs, &mut lows);
+        PersistedBdd {
+            var_probs: self.var_probs.clone(),
+            vars,
+            highs,
+            lows,
+            root: root_ref,
+        }
+    }
+
+    fn persist_assign(
+        &self,
+        f: BddRef,
+        dense: &mut HashMap<i32, i32>,
+        vars: &mut Vec<u32>,
+        highs: &mut Vec<i32>,
+        lows: &mut Vec<i32>,
+    ) -> i32 {
+        if f.is_true() {
+            return 1;
+        }
+        if f.is_false() {
+            return -1;
+        }
+        let reg = f.regular();
+        let idx = reg.raw();
+        let sign = if f.is_complement() { -1 } else { 1 };
+        if let Some(&d) = dense.get(&idx) {
+            return sign * d;
+        }
+        let node = *self.node(reg);
+        let h = self.persist_assign(node.high, dense, vars, highs, lows);
+        let l = self.persist_assign(node.low, dense, vars, highs, lows);
+        let d = vars.len() as i32 + 2;
+        vars.push(node.var as u32);
+        highs.push(h);
+        lows.push(l);
+        dense.insert(idx, d);
+        sign * d
+    }
+
     pub fn probability(&self, root: BddRef) -> f64 {
         let mut cache = HashMap::new();
         self.prob_inner(root, &mut cache)
@@ -588,6 +944,66 @@ impl Bdd {
 impl Default for Bdd {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedBdd {
+    pub var_probs: Vec<f64>,
+    pub vars: Vec<u32>,
+    pub highs: Vec<i32>,
+    pub lows: Vec<i32>,
+    pub root: i32,
+}
+
+impl PersistedBdd {
+    pub fn node_count(&self) -> usize {
+        self.vars.len()
+    }
+
+    pub fn save(&self, path: &str) -> Result<()> {
+        let bytes = bincode::serialize(self)
+            .map_err(|e| PraxisError::Logic(format!("persist serialize: {}", e)))?;
+        std::fs::write(path, bytes)
+            .map_err(|e| PraxisError::Logic(format!("persist write: {}", e)))?;
+        Ok(())
+    }
+
+    pub fn load(path: &str) -> Result<PersistedBdd> {
+        let bytes = std::fs::read(path)
+            .map_err(|e| PraxisError::Logic(format!("persist read: {}", e)))?;
+        bincode::deserialize(&bytes)
+            .map_err(|e| PraxisError::Logic(format!("persist deserialize: {}", e)))
+    }
+
+    pub fn probability(&self) -> f64 {
+        let mut memo: HashMap<i32, f64> = HashMap::new();
+        self.prob(self.root, &mut memo)
+    }
+
+    fn prob(&self, r: i32, memo: &mut HashMap<i32, f64>) -> f64 {
+        if r == 1 {
+            return 1.0;
+        }
+        if r == -1 {
+            return 0.0;
+        }
+        if let Some(&p) = memo.get(&r) {
+            return p;
+        }
+        let idx = (r.unsigned_abs() as usize) - 2;
+        let var = self.vars[idx] as usize;
+        let p_var = self.var_probs[var];
+        let (h, l) = if r < 0 {
+            (-self.highs[idx], -self.lows[idx])
+        } else {
+            (self.highs[idx], self.lows[idx])
+        };
+        let p_hi = self.prob(h, memo);
+        let p_lo = self.prob(l, memo);
+        let p = p_var * p_hi + (1.0 - p_var) * p_lo;
+        memo.insert(r, p);
+        p
     }
 }
 

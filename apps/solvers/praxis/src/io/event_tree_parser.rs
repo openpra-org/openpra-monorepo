@@ -53,9 +53,11 @@ fn attr_value(start: &BytesStart, key: &[u8]) -> Result<Option<String>> {
     for attr in start.attributes() {
         let attr = attr.map_err(|e| MefError::Validity(format!("Invalid attribute: {e}")))?;
         if attr.key.as_ref() == key {
-            let value = std::str::from_utf8(&attr.value)
-                .map_err(|_| MefError::Validity("Invalid UTF-8 in attribute".to_string()))?;
-            return Ok(Some(value.to_string()));
+
+            let value = attr
+                .unescape_value()
+                .map_err(|e| MefError::Validity(format!("Invalid attribute value: {e}")))?;
+            return Ok(Some(value.into_owned()));
         }
     }
     Ok(None)
@@ -554,10 +556,18 @@ fn parse_initiating_event_empty(start: &BytesStart) -> Result<InitiatingEvent> {
     Ok(ie)
 }
 
+/// What a fork's collect-formula points at: the fault tree of a system, or the
+/// single event of a system that has no fault tree.
+#[derive(Debug, Clone)]
+pub enum FeLink {
+    FaultTree(String),
+    BasicEvent(String),
+}
+
 fn parse_collect_formula_for_ft_link<R: BufRead>(
     reader: &mut Reader<R>,
-) -> Result<Option<(String, bool)>> {
-    let mut found_ft: Option<String> = None;
+) -> Result<Option<(FeLink, bool)>> {
+    let mut found: Option<FeLink> = None;
     let mut found_negated: bool = false;
     let mut not_depth: usize = 0;
 
@@ -570,22 +580,21 @@ fn parse_collect_formula_for_ft_link<R: BufRead>(
             Ok(Event::End(e)) if e.name().as_ref() == b"not" => {
                 not_depth = not_depth.saturating_sub(1);
             }
-            Ok(Event::Empty(e)) if e.name().as_ref() == b"gate" => {
+            Ok(Event::Empty(e)) | Ok(Event::Start(e))
+                if e.name().as_ref() == b"gate" || e.name().as_ref() == b"basic-event" =>
+            {
+                let is_gate = e.name().as_ref() == b"gate";
                 if let Some(name) = attr_value(&e, b"name")? {
-                    if let Some((ft, _rest)) = name.split_once('.') {
-                        found_ft = Some(ft.to_string());
+                    if is_gate {
+                        if let Some((ft, _rest)) = name.split_once('.') {
+                            found = Some(FeLink::FaultTree(ft.to_string()));
+                            found_negated = not_depth > 0;
+                        }
+                    } else {
+                        found = Some(FeLink::BasicEvent(name));
                         found_negated = not_depth > 0;
                     }
                 }
-            }
-            Ok(Event::Start(e)) if e.name().as_ref() == b"gate" => {
-                if let Some(name) = attr_value(&e, b"name")? {
-                    if let Some((ft, _rest)) = name.split_once('.') {
-                        found_ft = Some(ft.to_string());
-                        found_negated = not_depth > 0;
-                    }
-                }
-                skip_to_end(reader, b"gate")?;
             }
             Ok(Event::End(e)) if e.name().as_ref() == b"collect-formula" => break,
             Ok(Event::Eof) => {
@@ -600,14 +609,14 @@ fn parse_collect_formula_for_ft_link<R: BufRead>(
         buf.clear();
     }
 
-    Ok(found_ft.map(|ft| (ft, found_negated)))
+    Ok(found.map(|link| (link, found_negated)))
 }
 
 fn parse_path_from_reader<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
     fork_fe_id: &str,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, FeLink>,
     parameters: &Parameters,
 ) -> Result<Path> {
     let state = required_attr(start, b"state", "path")?;
@@ -626,8 +635,8 @@ fn parse_path_from_reader<R: BufRead>(
                     house_event_assignments.push((id, state));
                 }
                 b"collect-formula" => {
-                    if let Some((ft_id, negated)) = parse_collect_formula_for_ft_link(reader)? {
-                        fe_links.entry(fork_fe_id.to_string()).or_insert(ft_id);
+                    if let Some((link, negated)) = parse_collect_formula_for_ft_link(reader)? {
+                        fe_links.entry(fork_fe_id.to_string()).or_insert(link);
                         collect_formula_negated = Some(negated);
                     }
                 }
@@ -701,7 +710,7 @@ fn parse_path_from_reader<R: BufRead>(
 fn parse_fork<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, FeLink>,
     parameters: &Parameters,
 ) -> Result<Fork> {
     let fe_id = required_attr(start, b"functional-event", "fork")?;
@@ -731,7 +740,7 @@ fn parse_fork<R: BufRead>(
 
 fn parse_initial_state<R: BufRead>(
     reader: &mut Reader<R>,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, FeLink>,
     parameters: &Parameters,
 ) -> Result<Branch> {
     let mut initial_house_events: Vec<(String, bool)> = Vec::new();
@@ -799,7 +808,7 @@ fn parse_initial_state<R: BufRead>(
 fn parse_named_branch_from_reader<R: BufRead>(
     reader: &mut Reader<R>,
     start: &BytesStart,
-    fe_links: &mut HashMap<String, String>,
+    fe_links: &mut HashMap<String, FeLink>,
     parameters: &Parameters,
 ) -> Result<NamedBranch> {
     let id = required_attr(start, b"name", "define-branch")?;
@@ -876,7 +885,7 @@ fn parse_event_tree_from_reader<R: BufRead>(
     let mut functional_events: Vec<FunctionalEvent> = Vec::new();
     let mut named_branches: Vec<NamedBranch> = Vec::new();
     let mut initial_state: Option<Branch> = None;
-    let mut fe_links: HashMap<String, String> = HashMap::new();
+    let mut fe_links: HashMap<String, FeLink> = HashMap::new();
 
     let mut buf = Vec::new();
     loop {
@@ -963,10 +972,10 @@ fn parse_event_tree_from_reader<R: BufRead>(
         et.add_sequence(seq)?;
     }
     for fe in functional_events {
-        let fe = if let Some(ft_id) = fe_links.get(&fe.id) {
-            fe.with_fault_tree(ft_id.clone())
-        } else {
-            fe
+        let fe = match fe_links.get(&fe.id) {
+            Some(FeLink::FaultTree(ft_id)) => fe.with_fault_tree(ft_id.clone()),
+            Some(FeLink::BasicEvent(be_id)) => fe.with_basic_event(be_id.clone()),
+            None => fe,
         };
         et.add_functional_event(fe)?;
     }

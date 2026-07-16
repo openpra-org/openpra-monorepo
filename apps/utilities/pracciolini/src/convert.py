@@ -31,13 +31,15 @@ def _detect_format(path: str) -> str:
     return fmt
 
 
-def _read(path: str, fmt: str):
+def _read(path: str, fmt: str, black_box: list[str] | None = None):
     if fmt == "openpsa-xml":
         return openpsa_xml.read(path)
     if fmt == "ftap":
         return ftap.read(path)
     if fmt == "s2ml":
         return s2ml.read(path)
+    if fmt == "jsinp":
+        return jsinp.read(path, black_box)
     raise ValueError(f"Format '{fmt}' is write-only.")
 
 
@@ -66,7 +68,7 @@ def main() -> None:
     parser.add_argument("output", nargs="?", help="Output file (omit when using --top-event)")
     parser.add_argument(
         "--from", dest="src_fmt",
-        help="Source format: openpsa-xml | ftap | s2ml (auto-detected from extension)",
+        help="Source format: openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
     )
     parser.add_argument(
         "--to", dest="dst_fmt",
@@ -75,6 +77,12 @@ def main() -> None:
     parser.add_argument(
         "--cutoff", type=float, default=1e-12,
         help="MCS probability cutoff for JSINP output (default: 1e-12)",
+    )
+    parser.add_argument(
+        "--black-box", dest="black_box", default="",
+        help="JSINP input: comma-separated system names whose fault tree is not expanded, "
+             "so the system is quantified from its placeholder event. SAPHSOLVE does this for "
+             "some systems and the file does not say which, so they must be named",
     )
     parser.add_argument(
         "--top-event", action="store_true",
@@ -101,10 +109,13 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    black_box = [n.strip() for n in args.black_box.split(",") if n.strip()]
+
     try:
-        model = _read(args.input, src_fmt)
+        model = _read(args.input, src_fmt, black_box)
         _write(model, args.output, dst_fmt, cutoff=args.cutoff)
-        print(f"OK: {args.input} ({src_fmt}) -> {args.output} ({dst_fmt})")
+        note = f" [black-box: {', '.join(black_box)}]" if black_box else ""
+        print(f"OK: {args.input} ({src_fmt}) -> {args.output} ({dst_fmt}){note}")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

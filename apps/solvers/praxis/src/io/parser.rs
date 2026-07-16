@@ -99,9 +99,11 @@ fn owned_attrs(element: &BytesStart) -> Result<Vec<(String, String)>> {
         let key = std::str::from_utf8(attr.key.as_ref())
             .map_err(|_| MefError::Validity("invalid UTF-8 in attribute name".to_string()))?
             .to_string();
-        let value = std::str::from_utf8(&attr.value)
-            .map_err(|_| MefError::Validity("invalid UTF-8 in attribute value".to_string()))?
-            .to_string();
+
+        let value = attr
+            .unescape_value()
+            .map_err(|err| MefError::Validity(format!("invalid attribute value: {}", err)))?
+            .into_owned();
         out.push((key, value));
     }
     Ok(out)
@@ -572,10 +574,11 @@ fn operand_name(e: &BytesStart) -> Result<Option<String>> {
                 let attr =
                     attr.map_err(|err| MefError::Validity(format!("Invalid attribute: {}", err)))?;
                 if attr.key.as_ref() == b"name" {
-                    let name = std::str::from_utf8(&attr.value).map_err(|_| {
-                        MefError::Validity("Invalid UTF-8 in name attribute".to_string())
+
+                    let name = attr.unescape_value().map_err(|err| {
+                        MefError::Validity(format!("Invalid name attribute: {}", err))
                     })?;
-                    return Ok(Some(name.to_string()));
+                    return Ok(Some(name.into_owned()));
                 }
             }
             Ok(None)
@@ -770,13 +773,11 @@ pub fn parse_ccf_group<R: BufRead>(
                             })?;
 
                             if attr.key.as_ref() == b"name" {
-                                let member_name =
-                                    std::str::from_utf8(&attr.value).map_err(|_| {
-                                        MefError::Validity(
-                                            "Invalid UTF-8 in member name".to_string(),
-                                        )
-                                    })?;
-                                members.push(member_name.to_string());
+
+                                let member_name = attr.unescape_value().map_err(|_| {
+                                    MefError::Validity("Invalid member name".to_string())
+                                })?;
+                                members.push(member_name.into_owned());
                             }
                         }
                     }
@@ -929,13 +930,13 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 
                             if attr.key.as_ref() == b"name" {
                                 ft_name = Some(
-                                    std::str::from_utf8(&attr.value)
+                                    attr.unescape_value()
                                         .map_err(|_| {
                                             MefError::Validity(
-                                                "Invalid UTF-8 in fault tree name".to_string(),
+                                                "Invalid fault tree name".to_string(),
                                             )
                                         })?
-                                        .to_string(),
+                                        .into_owned(),
                                 );
                             }
                         }
@@ -949,13 +950,11 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 
                             if attr.key.as_ref() == b"name" {
                                 gate_name = Some(
-                                    std::str::from_utf8(&attr.value)
+                                    attr.unescape_value()
                                         .map_err(|_| {
-                                            MefError::Validity(
-                                                "Invalid UTF-8 in gate name".to_string(),
-                                            )
+                                            MefError::Validity("Invalid gate name".to_string())
                                         })?
-                                        .to_string(),
+                                        .into_owned(),
                                 );
                             }
                         }
@@ -977,13 +976,13 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 
                             if attr.key.as_ref() == b"name" {
                                 event_name = Some(
-                                    std::str::from_utf8(&attr.value)
+                                    attr.unescape_value()
                                         .map_err(|_| {
                                             MefError::Validity(
-                                                "Invalid UTF-8 in basic event name".to_string(),
+                                                "Invalid basic event name".to_string(),
                                             )
                                         })?
-                                        .to_string(),
+                                        .into_owned(),
                                 );
                             }
                         }
@@ -1002,13 +1001,13 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
 
                             if attr.key.as_ref() == b"name" {
                                 parameter_name = Some(
-                                    std::str::from_utf8(&attr.value)
+                                    attr.unescape_value()
                                         .map_err(|_| {
                                             MefError::Validity(
-                                                "Invalid UTF-8 in parameter name".to_string(),
+                                                "Invalid parameter name".to_string(),
                                             )
                                         })?
-                                        .to_string(),
+                                        .into_owned(),
                                 );
                             }
                         }
@@ -1033,13 +1032,13 @@ pub fn parse_fault_tree(xml_content: &str) -> Result<FaultTree> {
                             match attr.key.as_ref() {
                                 b"name" => {
                                     ccf_name = Some(
-                                        std::str::from_utf8(&attr.value)
+                                        attr.unescape_value()
                                             .map_err(|_| {
                                                 MefError::Validity(
-                                                    "Invalid UTF-8 in CCF group name".to_string(),
+                                                    "Invalid CCF group name".to_string(),
                                                 )
                                             })?
-                                            .to_string(),
+                                            .into_owned(),
                                     );
                                 }
                                 b"model" => {

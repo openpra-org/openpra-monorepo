@@ -216,6 +216,7 @@ pub fn quantify(fault_tree: &FaultTree, settings: &Settings) -> Result<QuantResu
                     false,
                     settings.limit_order,
                     settings.cut_off,
+                    1.0,
                 )
             } else {
                 ZbddEngine::build_from_bdd(&bdd, root, false)

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use tracing::info;
 
 use crate::algorithms::bdd_engine::{Bdd, BddRef};
-use crate::algorithms::pdag::{NodeIndex, Pdag};
+use crate::algorithms::pdag::{Connective, NodeIndex, Pdag};
 use crate::algorithms::reorder::{best_order, ReorderMethod};
 use crate::algorithms::simplify;
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
@@ -99,6 +99,46 @@ pub fn build_sequence_bdd(
     let var_probs = pdag.level_var_probs_from_map(event_probs, &meta.var_of);
     let (bdd, root) = Bdd::from_pdag_with_order_and_probs(pdag, &meta.var_of, var_probs)?;
     Ok((meta.variable_order, bdd, root))
+}
+
+/// Build a sequence and the systems it succeeded into one BDD manager. Delete-term
+/// needs the succeeded systems' cut sets to subtract from the sequence's, and set
+/// operations only compose when both sides share a variable order, so the order is
+/// taken over the union of their cones and every root is built into the same manager.
+pub fn build_sequence_bdd_with_successes(
+    pdag: &mut Pdag,
+    event_probs: &HashMap<String, f64>,
+    sequence_root: NodeIndex,
+    success_roots: &[NodeIndex],
+    scope_id: &str,
+) -> Result<(Vec<NodeIndex>, Bdd, BddRef, Vec<BddRef>)> {
+    if success_roots.is_empty() {
+        pdag.set_root(sequence_root)?;
+        let (order, bdd, root) = build_sequence_bdd(pdag, event_probs)?;
+        return Ok((order, bdd, root, Vec::new()));
+    }
+
+    let mut scope_operands = Vec::with_capacity(success_roots.len() + 1);
+    scope_operands.push(sequence_root);
+    scope_operands.extend_from_slice(success_roots);
+    let scope = pdag.add_gate(
+        format!("__DELTERM_SCOPE__{}", scope_id),
+        Connective::Or,
+        scope_operands,
+        None,
+    )?;
+    pdag.set_root(scope)?;
+
+    let meta = compute_dfs_metadata_pdag(pdag)?;
+    let var_probs = pdag.level_var_probs_from_map(event_probs, &meta.var_of);
+    let mut bdd = Bdd::new();
+    bdd.set_var_probs(var_probs);
+    let root = bdd.build_pdag_index(pdag, sequence_root, &meta.var_of)?;
+    let mut success = Vec::with_capacity(success_roots.len());
+    for &idx in success_roots {
+        success.push(bdd.build_pdag_index(pdag, idx, &meta.var_of)?);
+    }
+    Ok((meta.variable_order, bdd, root, success))
 }
 
 pub fn enumerate_event_names(

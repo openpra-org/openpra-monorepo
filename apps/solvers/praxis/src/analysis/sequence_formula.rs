@@ -13,6 +13,11 @@ pub struct SequenceFormulas {
 
     pub sequence_roots: HashMap<String, NodeIndex>,
 
+    /// Under delete-term, the roots of the systems each sequence succeeded. Their
+    /// cut sets are subtracted from the sequence's rather than complemented into
+    /// its formula. Empty in the other treatments.
+    pub sequence_success_roots: HashMap<String, Vec<NodeIndex>>,
+
     pub unconditional: HashSet<String>,
 
     pub event_probs: HashMap<String, f64>,
@@ -29,6 +34,8 @@ pub struct SequenceFormulaBuilder<'a> {
 
     sequence_paths: HashMap<String, Vec<NodeIndex>>,
 
+    sequence_success_roots: HashMap<String, Vec<NodeIndex>>,
+
     unconditional: HashSet<String>,
 
     next_synthetic: usize,
@@ -36,6 +43,10 @@ pub struct SequenceFormulaBuilder<'a> {
     true_const: Option<NodeIndex>,
 
     false_const: Option<NodeIndex>,
+
+    complement_unity: bool,
+
+    delete_term: bool,
 }
 
 impl<'a> SequenceFormulaBuilder<'a> {
@@ -46,11 +57,26 @@ impl<'a> SequenceFormulaBuilder<'a> {
             pdag: Pdag::new(),
             event_probs: HashMap::new(),
             sequence_paths: HashMap::new(),
+            sequence_success_roots: HashMap::new(),
             unconditional: HashSet::new(),
             next_synthetic: 0,
             true_const: None,
             false_const: None,
+            complement_unity: false,
+            delete_term: false,
         }
+    }
+
+    pub fn with_complement_unity(mut self, on: bool) -> Self {
+        self.complement_unity = on;
+        self
+    }
+
+    /// Delete-term: a succeeded system contributes no formula, and its cut sets
+    /// are recorded so that the products containing them can be deleted later.
+    pub fn with_delete_term(mut self, on: bool) -> Self {
+        self.delete_term = on;
+        self
     }
 
     fn const_true(&mut self) -> NodeIndex {
@@ -80,7 +106,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         et.validate()?;
 
         let initial = et.initial_state.clone();
-        self.collect_sequences(et, &initial, Vec::new(), HashMap::new())?;
+        self.collect_sequences(et, &initial, Vec::new(), Vec::new(), HashMap::new())?;
 
         let mut sequence_roots = HashMap::new();
         let all_paths = std::mem::take(&mut self.sequence_paths);
@@ -95,6 +121,13 @@ impl<'a> SequenceFormulaBuilder<'a> {
             let root = if paths.len() == 1 {
                 paths[0]
             } else {
+                if self.delete_term {
+                    return Err(PraxisError::Logic(format!(
+                        "Delete-term needs one path per sequence, but '{}' is reached by {} (linked event trees are not supported)",
+                        seq_id,
+                        paths.len()
+                    )));
+                }
                 let id = format!("__OR__{}", self.next_synthetic);
                 self.next_synthetic += 1;
                 self.pdag.add_gate(id, Connective::Or, paths, None)?
@@ -105,6 +138,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         Ok(SequenceFormulas {
             pdag: self.pdag,
             sequence_roots,
+            sequence_success_roots: self.sequence_success_roots,
             unconditional: self.unconditional,
             event_probs: self.event_probs,
             ie_frequency,
@@ -116,6 +150,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         et: &EventTree,
         branch: &Branch,
         path_collector: Vec<NodeIndex>,
+        success_collector: Vec<NodeIndex>,
         house_overrides: HashMap<String, bool>,
     ) -> Result<()> {
 
@@ -126,7 +161,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
 
         match branch.target.clone() {
             BranchTarget::Sequence(seq_id) => {
-                self.handle_sequence(et, &seq_id, path_collector, overrides)
+                self.handle_sequence(et, &seq_id, path_collector, success_collector, overrides)
             }
 
             BranchTarget::Fork(fork) => {
@@ -138,12 +173,24 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     ))
                 })?;
                 let fe_ft_id = fe.fault_tree_id.clone();
+                let fe_be_id = fe.basic_event_id.clone();
 
                 for path in &fork.paths {
                     let mut new_collector = path_collector.clone();
+                    let mut new_successes = success_collector.clone();
 
                     if let Some(negated) = path.collect_formula_negated {
-                        if let Some(ref ft_id) = fe_ft_id {
+                        if negated && self.complement_unity && !self.delete_term {
+                            self.collect_sequences(
+                                et,
+                                &path.branch,
+                                new_collector,
+                                new_successes,
+                                overrides.clone(),
+                            )?;
+                            continue;
+                        }
+                        let root_idx = if let Some(ref ft_id) = fe_ft_id {
 
                             let ft: FaultTree =
                                 self.model.get_fault_tree(ft_id).ok_or_else(|| {
@@ -154,9 +201,22 @@ impl<'a> SequenceFormulaBuilder<'a> {
                                 })?.clone();
 
                             let scope = make_scope_key(&overrides);
-                            let root_idx = self.add_ft_scoped(&ft, &overrides, &scope)?;
-                            let formula_idx = if negated { -root_idx } else { root_idx };
-                            new_collector.push(formula_idx);
+                            Some(self.add_ft_scoped(&ft, &overrides, &scope)?)
+                        } else if let Some(ref be_id) = fe_be_id {
+
+                            Some(self.add_functional_event_basic(be_id, &fe_id)?)
+                        } else {
+                            None
+                        };
+
+                        if let Some(root_idx) = root_idx {
+                            if negated && self.delete_term {
+
+                                new_successes.push(root_idx);
+                            } else {
+                                let formula_idx = if negated { -root_idx } else { root_idx };
+                                new_collector.push(formula_idx);
+                            }
                         }
 
                     }
@@ -165,6 +225,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
                         et,
                         &path.branch,
                         new_collector,
+                        new_successes,
                         overrides.clone(),
                     )?;
                 }
@@ -183,7 +244,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
                     })?
                     .branch
                     .clone();
-                self.collect_sequences(et, &branch, path_collector, overrides)
+                self.collect_sequences(et, &branch, path_collector, success_collector, overrides)
             }
         }
     }
@@ -193,6 +254,7 @@ impl<'a> SequenceFormulaBuilder<'a> {
         et: &EventTree,
         seq_id: &str,
         path_collector: Vec<NodeIndex>,
+        success_collector: Vec<NodeIndex>,
         overrides: HashMap<String, bool>,
     ) -> Result<()> {
         let sequence = et.sequences.get(seq_id).ok_or_else(|| {
@@ -206,7 +268,13 @@ impl<'a> SequenceFormulaBuilder<'a> {
             if linked_et_id == et.id {
 
                 let initial = et.initial_state.clone();
-                return self.collect_sequences(et, &initial, path_collector, overrides);
+                return self.collect_sequences(
+                    et,
+                    &initial,
+                    path_collector,
+                    success_collector,
+                    overrides,
+                );
             }
             if let Some(lib) = self.et_library {
 
@@ -218,9 +286,20 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 })?.clone();
                 linked_et.validate()?;
                 let initial = linked_et.initial_state.clone();
-                return self.collect_sequences(&linked_et, &initial, path_collector, overrides);
+                return self.collect_sequences(
+                    &linked_et,
+                    &initial,
+                    path_collector,
+                    success_collector,
+                    overrides,
+                );
             }
 
+        }
+
+        if self.delete_term && !success_collector.is_empty() {
+            self.sequence_success_roots
+                .insert(seq_id.to_string(), success_collector);
         }
 
         match self.build_path_gate(path_collector)? {
@@ -251,6 +330,24 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 Some(idx)
             }
         })
+    }
+
+    /// A system with no fault tree is quantified from a single event, so the fork
+    /// contributes that event's node rather than a tree's top gate.
+    fn add_functional_event_basic(&mut self, be_id: &str, fe_id: &str) -> Result<NodeIndex> {
+        let probability = self
+            .model
+            .get_basic_event(be_id)
+            .ok_or_else(|| {
+                PraxisError::Logic(format!(
+                    "Basic event '{}' not found for functional event '{}'",
+                    be_id, fe_id
+                ))
+            })?
+            .probability();
+        let idx = self.pdag.add_basic_event(be_id.to_string());
+        self.event_probs.insert(be_id.to_string(), probability);
+        Ok(idx)
     }
 
     fn add_ft_scoped(
@@ -331,6 +428,12 @@ impl<'a> SequenceFormulaBuilder<'a> {
                 ft.element().id()
             ))
         })?;
+
+        if self.complement_unity && matches!(gate.formula(), Formula::Not) {
+            let idx = self.const_true();
+            cache.insert(scoped_id, idx);
+            return Ok(idx);
+        }
 
         let connective = Connective::from_formula(gate.formula());
         let min_number = match gate.formula() {

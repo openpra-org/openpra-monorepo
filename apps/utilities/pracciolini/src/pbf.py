@@ -10,6 +10,14 @@ the reverse holds.
 
 PBF is the single intermediate representation for pracciolini's converters. It
 replaces the former model.py dataclass hub.
+
+Version 2 extends PBM1 with event tree models: the single top position becomes
+a list of named fault-tree tops, and an event tree section follows the CCF
+groups carrying the initiating event (id, name, frequency), the functional
+events (one per fault tree, referenced by ftid), and the sequences (seqid, end
+state name, and an ordered list of functional-event-index plus state, where
+state 0 is failure, 1 is success, and a bypassed functional event is simply
+absent). Pure fault tree models keep encoding as version 1 byte-identically.
 """
 from __future__ import annotations
 
@@ -17,6 +25,7 @@ import struct
 from dataclasses import dataclass, field
 
 VERSION = 1
+ET_VERSION = 2
 MODEL_MAGIC = b"PBM1"
 
 # Expr is represented as a tuple whose first element names the variant, e.g.
@@ -94,6 +103,44 @@ class FaultTree:
     basic_events: dict[str, BasicEvent] = field(default_factory=dict)
     house_events: dict[str, bool] = field(default_factory=dict)
     ccf_groups: list[CcfGroup] = field(default_factory=list)
+
+
+@dataclass
+class FaultTreeTop:
+    ftid: int
+    name: str
+    top: str
+
+
+@dataclass
+class EtSequence:
+    seqid: int
+    end_state: str
+    entries: list[tuple[int, bool]] = field(default_factory=list)
+
+
+@dataclass
+class EventTreeDef:
+    name: str
+    number: int
+    initiating_event_id: int
+    initiating_event_name: str
+    frequency: float
+    functional_events: list[int] = field(default_factory=list)
+    sequences: list[EtSequence] = field(default_factory=list)
+
+
+@dataclass
+class EventTreeModel:
+    id: str
+    mission_time: float = 1.0
+    params: list[tuple[str, tuple]] = field(default_factory=list)
+    gates: dict[str, Gate] = field(default_factory=dict)
+    basic_events: dict[str, BasicEvent] = field(default_factory=dict)
+    house_events: dict[str, bool] = field(default_factory=dict)
+    tops: list[FaultTreeTop] = field(default_factory=list)
+    ccf_groups: list[CcfGroup] = field(default_factory=list)
+    event_trees: list[EventTreeDef] = field(default_factory=list)
 
 
 # ----------------------------------------------------------------- primitives
@@ -260,74 +307,95 @@ def _read_f64_vec(r: _Reader) -> list[float]:
 
 # ------------------------------------------------------------- canonical order
 
-def _collect_order(ft: FaultTree) -> list[str]:
-    """Post-order DFS from the top, operands before parents, with dedup. This is
-    the iterative equivalent of collect_order in pbf.rs."""
+def _collect_order_from(
+    gates: dict[str, Gate],
+    basic_events: dict[str, BasicEvent],
+    house_events: dict[str, bool],
+    roots: list[str],
+) -> list[str]:
+    """Post-order DFS from each root in turn, operands before parents, with
+    dedup shared across roots. This is the iterative equivalent of
+    collect_order in pbf.rs, generalized to multiple roots."""
     visited: set[str] = set()
     order: list[str] = []
 
     def kind_of(name: str):
-        if name in ft.gates:
-            return ft.gates[name].operands
-        if name in ft.basic_events or name in ft.house_events:
+        if name in gates:
+            return gates[name].operands
+        if name in basic_events or name in house_events:
             return None
-        raise ValueError(f"PBF: fault tree references unknown node '{name}'")
+        raise ValueError(f"PBF: model references unknown node '{name}'")
 
-    ops = kind_of(ft.top)
-    visited.add(ft.top)
-    stack = [[ft.top, ops, 0]]
-    while stack:
-        frame = stack[-1]
-        name, operands, idx = frame
-        if operands is None:
-            order.append(name)
-            stack.pop()
+    for root in roots:
+        if root in visited:
             continue
-        if idx < len(operands):
-            frame[2] += 1
-            child = operands[idx]
-            if child not in visited:
-                child_ops = kind_of(child)
-                visited.add(child)
-                stack.append([child, child_ops, 0])
-        else:
-            order.append(name)
-            stack.pop()
+        ops = kind_of(root)
+        visited.add(root)
+        stack = [[root, ops, 0]]
+        while stack:
+            frame = stack[-1]
+            name, operands, idx = frame
+            if operands is None:
+                order.append(name)
+                stack.pop()
+                continue
+            if idx < len(operands):
+                frame[2] += 1
+                child = operands[idx]
+                if child not in visited:
+                    child_ops = kind_of(child)
+                    visited.add(child)
+                    stack.append([child, child_ops, 0])
+            else:
+                order.append(name)
+                stack.pop()
     return order
+
+
+def _collect_order(ft: FaultTree) -> list[str]:
+    return _collect_order_from(ft.gates, ft.basic_events, ft.house_events, [ft.top])
 
 
 # ----------------------------------------------------------------- model codec
 
-def encode_fault_tree(ft: FaultTree) -> bytes:
-    """Serialize a FaultTree to its canonical PBM1 byte string."""
-    order = _collect_order(ft)
-    pos = {name: i for i, name in enumerate(order)}
-
-    out = bytearray()
-    out += MODEL_MAGIC
-    out.append(VERSION)
-    _put_string(out, ft.id)
-    _put_f64(out, ft.mission_time)
-
-    params = sorted(ft.params, key=lambda kv: kv[0])
-    _put_uvarint(out, len(params))
-    for name, expr in params:
+def _encode_params(out: bytearray, params: list[tuple[str, tuple]]) -> None:
+    ordered = sorted(params, key=lambda kv: kv[0])
+    _put_uvarint(out, len(ordered))
+    for name, expr in ordered:
         _put_string(out, name)
         _encode_expr(out, expr)
 
+
+def _decode_params(r: _Reader) -> list[tuple[str, tuple]]:
+    count = r.uvarint()
+    params = []
+    for _ in range(count):
+        pname = r.string()
+        params.append((pname, _decode_expr(r)))
+    return params
+
+
+def _encode_nodes(
+    out: bytearray,
+    order: list[str],
+    gates: dict[str, Gate],
+    basic_events: dict[str, BasicEvent],
+    house_events: dict[str, bool],
+) -> dict[str, int]:
+    pos = {name: i for i, name in enumerate(order)}
     _put_uvarint(out, len(order))
     for i, name in enumerate(order):
         _put_string(out, name)
-        if name in ft.gates:
-            gate = ft.gates[name]
+        if name in gates:
+            gate = gates[name]
             out.append(0x10 | _FORMULA_TO_NIBBLE[gate.formula])
             if gate.formula == "AtLeast":
                 _put_uvarint(out, gate.k if gate.k is not None else 1)
             _put_uvarint(out, len(gate.operands))
             for op in gate.operands:
                 _put_uvarint(out, i - pos[op])
-        elif name in ft.basic_events:
-            be = ft.basic_events[name]
+        elif name in basic_events:
+            be = basic_events[name]
             out.append(0x00 | (1 if be.initiator else 0))
             _put_f64(out, be.prob)
             if be.value is not None:
@@ -336,44 +404,11 @@ def encode_fault_tree(ft: FaultTree) -> bytes:
             else:
                 out.append(0)
         else:  # house event
-            out.append(0x30 | (1 if ft.house_events[name] else 0))
-
-    _put_uvarint(out, pos[ft.top])
-
-    groups = sorted(ft.ccf_groups, key=lambda g: g.id)
-    _put_uvarint(out, len(groups))
-    for g in groups:
-        _put_string(out, g.id)
-        _put_uvarint(out, len(g.members))
-        for m in g.members:
-            _put_string(out, m)
-        if g.distribution is not None:
-            out.append(1)
-            _put_string(out, g.distribution)
-        else:
-            out.append(0)
-        _encode_ccf_model(out, g.model)
-
-    return bytes(out)
+            out.append(0x30 | (1 if house_events[name] else 0))
+    return pos
 
 
-def decode_fault_tree(data: bytes) -> FaultTree:
-    """Parse a FaultTree from a PBM1 byte string."""
-    r = _Reader(data)
-    if r.take(4) != MODEL_MAGIC:
-        raise ValueError("PBF: bad model magic")
-    version = r.u8()
-    if version != VERSION:
-        raise ValueError(f"PBF: unsupported model version {version}")
-    ft_id = r.string()
-    mission_time = r.f64()
-
-    param_count = r.uvarint()
-    params = []
-    for _ in range(param_count):
-        pname = r.string()
-        params.append((pname, _decode_expr(r)))
-
+def _decode_nodes(r: _Reader) -> tuple[list[str], list[tuple]]:
     node_count = r.uvarint()
     names: list[str] = []
     decoded: list[tuple] = []
@@ -403,11 +438,38 @@ def decode_fault_tree(data: bytes) -> FaultTree:
             decoded.append(("house", tag & 1 == 1))
         else:
             raise ValueError(f"PBF: unknown node kind {kind}")
+    return names, decoded
 
-    top_pos = r.uvarint()
-    if top_pos >= node_count:
-        raise ValueError("PBF: top out of range")
 
+def _apply_nodes(names: list[str], decoded: list[tuple], target) -> None:
+    for i, node in enumerate(decoded):
+        name = names[i]
+        if node[0] == "be":
+            target.basic_events[name] = BasicEvent(prob=node[1], value=node[2], initiator=node[3])
+        elif node[0] == "house":
+            target.house_events[name] = node[1]
+        else:
+            _, formula, ops, k = node
+            target.gates[name] = Gate(formula=formula, operands=[names[o] for o in ops], k=k)
+
+
+def _encode_ccf_groups(out: bytearray, ccf_groups: list[CcfGroup]) -> None:
+    groups = sorted(ccf_groups, key=lambda g: g.id)
+    _put_uvarint(out, len(groups))
+    for g in groups:
+        _put_string(out, g.id)
+        _put_uvarint(out, len(g.members))
+        for m in g.members:
+            _put_string(out, m)
+        if g.distribution is not None:
+            out.append(1)
+            _put_string(out, g.distribution)
+        else:
+            out.append(0)
+        _encode_ccf_model(out, g.model)
+
+
+def _decode_ccf_groups(r: _Reader) -> list[CcfGroup]:
     ccf_count = r.uvarint()
     ccf = []
     for _ in range(ccf_count):
@@ -416,16 +478,161 @@ def decode_fault_tree(data: bytes) -> FaultTree:
         members = [r.string() for _ in range(mc)]
         dist = r.string() if r.u8() == 1 else None
         ccf.append(CcfGroup(id=cid, members=members, model=_decode_ccf_model(r), distribution=dist))
+    return ccf
+
+
+def encode_fault_tree(ft: FaultTree) -> bytes:
+    """Serialize a FaultTree to its canonical PBM1 byte string."""
+    order = _collect_order(ft)
+
+    out = bytearray()
+    out += MODEL_MAGIC
+    out.append(VERSION)
+    _put_string(out, ft.id)
+    _put_f64(out, ft.mission_time)
+    _encode_params(out, ft.params)
+    pos = _encode_nodes(out, order, ft.gates, ft.basic_events, ft.house_events)
+    _put_uvarint(out, pos[ft.top])
+    _encode_ccf_groups(out, ft.ccf_groups)
+    return bytes(out)
+
+
+def decode_fault_tree(data: bytes) -> FaultTree:
+    """Parse a FaultTree from a PBM1 byte string."""
+    r = _Reader(data)
+    if r.take(4) != MODEL_MAGIC:
+        raise ValueError("PBF: bad model magic")
+    version = r.u8()
+    if version != VERSION:
+        raise ValueError(f"PBF: unsupported model version {version}")
+    ft_id = r.string()
+    mission_time = r.f64()
+    params = _decode_params(r)
+    names, decoded = _decode_nodes(r)
+
+    top_pos = r.uvarint()
+    if top_pos >= len(names):
+        raise ValueError("PBF: top out of range")
+
+    ccf = _decode_ccf_groups(r)
 
     ft = FaultTree(id=ft_id, top=names[top_pos], mission_time=mission_time, params=params)
-    for i, node in enumerate(decoded):
-        name = names[i]
-        if node[0] == "be":
-            ft.basic_events[name] = BasicEvent(prob=node[1], value=node[2], initiator=node[3])
-        elif node[0] == "house":
-            ft.house_events[name] = node[1]
-        else:
-            _, formula, ops, k = node
-            ft.gates[name] = Gate(formula=formula, operands=[names[o] for o in ops], k=k)
+    _apply_nodes(names, decoded, ft)
     ft.ccf_groups = ccf
     return ft
+
+
+def is_event_tree_model(data: bytes) -> bool:
+    return len(data) >= 5 and data[:4] == MODEL_MAGIC and data[4] == ET_VERSION
+
+
+def encode_event_tree_model(m: EventTreeModel) -> bytes:
+    """Serialize an EventTreeModel to its canonical PBM1 version-2 byte string."""
+    order = _collect_order_from(
+        m.gates, m.basic_events, m.house_events, [t.top for t in m.tops]
+    )
+
+    out = bytearray()
+    out += MODEL_MAGIC
+    out.append(ET_VERSION)
+    _put_string(out, m.id)
+    _put_f64(out, m.mission_time)
+    _encode_params(out, m.params)
+    pos = _encode_nodes(out, order, m.gates, m.basic_events, m.house_events)
+
+    _put_uvarint(out, len(m.tops))
+    for top in m.tops:
+        _put_uvarint(out, top.ftid)
+        _put_string(out, top.name)
+        _put_uvarint(out, pos[top.top])
+
+    _encode_ccf_groups(out, m.ccf_groups)
+
+    _put_uvarint(out, len(m.event_trees))
+    for et in m.event_trees:
+        _put_string(out, et.name)
+        _put_uvarint(out, et.number)
+        _put_uvarint(out, et.initiating_event_id)
+        _put_string(out, et.initiating_event_name)
+        _put_f64(out, et.frequency)
+        _put_uvarint(out, len(et.functional_events))
+        for ftid in et.functional_events:
+            _put_uvarint(out, ftid)
+        _put_uvarint(out, len(et.sequences))
+        for seq in et.sequences:
+            _put_uvarint(out, seq.seqid)
+            _put_string(out, seq.end_state)
+            _put_uvarint(out, len(seq.entries))
+            for fe_index, success in seq.entries:
+                if fe_index >= len(et.functional_events):
+                    raise ValueError("PBF: sequence references unknown functional event")
+                _put_uvarint(out, fe_index)
+                out.append(1 if success else 0)
+
+    return bytes(out)
+
+
+def decode_event_tree_model(data: bytes) -> EventTreeModel:
+    """Parse an EventTreeModel from a PBM1 version-2 byte string."""
+    r = _Reader(data)
+    if r.take(4) != MODEL_MAGIC:
+        raise ValueError("PBF: bad model magic")
+    version = r.u8()
+    if version != ET_VERSION:
+        raise ValueError(f"PBF: unsupported model version {version}")
+    model_id = r.string()
+    mission_time = r.f64()
+    params = _decode_params(r)
+    names, decoded = _decode_nodes(r)
+
+    top_count = r.uvarint()
+    tops = []
+    for _ in range(top_count):
+        ftid = r.uvarint()
+        name = r.string()
+        top_pos = r.uvarint()
+        if top_pos >= len(names):
+            raise ValueError("PBF: top out of range")
+        tops.append(FaultTreeTop(ftid=ftid, name=name, top=names[top_pos]))
+
+    ccf = _decode_ccf_groups(r)
+
+    et_count = r.uvarint()
+    event_trees = []
+    for _ in range(et_count):
+        et_name = r.string()
+        number = r.uvarint()
+        ie_id = r.uvarint()
+        ie_name = r.string()
+        frequency = r.f64()
+        fe_count = r.uvarint()
+        functional_events = [r.uvarint() for _ in range(fe_count)]
+        seq_count = r.uvarint()
+        sequences = []
+        for _ in range(seq_count):
+            seqid = r.uvarint()
+            end_state = r.string()
+            entry_count = r.uvarint()
+            entries = []
+            for _ in range(entry_count):
+                fe_index = r.uvarint()
+                if fe_index >= fe_count:
+                    raise ValueError("PBF: sequence references unknown functional event")
+                entries.append((fe_index, r.u8() == 1))
+            sequences.append(EtSequence(seqid=seqid, end_state=end_state, entries=entries))
+        event_trees.append(EventTreeDef(
+            name=et_name,
+            number=number,
+            initiating_event_id=ie_id,
+            initiating_event_name=ie_name,
+            frequency=frequency,
+            functional_events=functional_events,
+            sequences=sequences,
+        ))
+
+    m = EventTreeModel(id=model_id, mission_time=mission_time, params=params)
+    _apply_nodes(names, decoded, m)
+    m.tops = tops
+    m.ccf_groups = ccf
+    m.event_trees = event_trees
+    return m

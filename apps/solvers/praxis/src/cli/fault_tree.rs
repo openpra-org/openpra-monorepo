@@ -207,7 +207,7 @@ fn zbdd_wf3_no_approx_limits(
     let cut_off = cli.cut_off;
 
     let (zbdd, zbdd_root) =
-        ZbddEngine::build_from_bdd_with_limits(bdd, bdd_root, false, limit_order, cut_off);
+        ZbddEngine::build_from_bdd_with_limits(bdd, bdd_root, false, limit_order, cut_off, 1.0);
 
     let cut_sets = enumerate_cut_sets(&zbdd, zbdd_root, pdag, order);
 
@@ -238,7 +238,7 @@ fn zbdd_wf4_approx_limits(
     let cut_off = cli.cut_off;
 
     let (zbdd, zbdd_root) =
-        ZbddEngine::build_from_bdd_with_limits(bdd, bdd_root, false, limit_order, cut_off);
+        ZbddEngine::build_from_bdd_with_limits(bdd, bdd_root, false, limit_order, cut_off, 1.0);
 
     let approx_prob = compute_approx(&zbdd, zbdd_root, cli.approximation);
 

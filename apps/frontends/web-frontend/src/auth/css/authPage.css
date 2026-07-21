@@ -1,6 +1,6 @@
 .auth-page {
   min-height: 100vh;
-  background-color: #fdf7ff;
+  background-color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,7 +13,7 @@
 .auth-page__bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at top left, #f0e8ff 0%, #fdf7ff 60%);
+  background: #ffffff;
   pointer-events: none;
 }
 

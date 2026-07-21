@@ -7,8 +7,8 @@
   --color-primary-focus: rgba(121, 57, 177, 0.12);
   --color-surface: #ffffff;
   --color-surface-low: #f8f1ff;
-  --color-bg-from: #f0e8ff;
-  --color-bg-to: #fdf7ff;
+  --color-bg-from: #ffffff;
+  --color-bg-to: #ffffff;
   --color-text: #1d192b;
   --color-text-muted: #4c4452;
   --color-text-subtle: #7a7388;
@@ -23,7 +23,7 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
-  --topbar-bg: rgba(253, 247, 255, 0.7);
+  --topbar-bg: rgba(255, 255, 255, 0.7);
   --modal-backdrop: rgba(29, 25, 43, 0.45);
   --logo-filter: none;
 }

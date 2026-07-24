@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, ES_GENERIC_1_SLUG, SC_GENERIC_1_SLUG, SY_GENERIC_1_SLUG, HR_GENERIC_1_SLUG, RI_GENERIC_1_SLUG, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -83,6 +83,12 @@ export interface RcExampleBundle {
 
 export interface RiExampleBundle {
   ri: ExampleWorkbookResponse;
+  configurationControl: ExampleWorkbookResponse;
+  newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+export interface SeismicPraExampleBundle {
+  seismicPra: ExampleWorkbookResponse;
   configurationControl: ExampleWorkbookResponse;
   newlyDevelopedMethods: ExampleWorkbookResponse[];
 }
@@ -297,5 +303,17 @@ export class ExampleWorkbooksService implements OnModuleInit {
       configurationControl,
       newlyDevelopedMethods: nmDocs.map(toResponse),
     };
+  }
+
+  getSeismicPraExamples(): IeExampleOption[] {
+    return SEISMIC_PRA_EXAMPLES.map((e) => ({ id: e.id, label: e.label }));
+  }
+
+  async getSeismicPraBundle(exampleId?: string): Promise<SeismicPraExampleBundle> {
+    const entry = SEISMIC_PRA_EXAMPLES.find((e) => e.id === exampleId) ?? SEISMIC_PRA_EXAMPLES[0];
+    const seismicPra = await this.findBySlug(entry.slug);
+    const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
+    const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
+    return { seismicPra, configurationControl, newlyDevelopedMethods: nmDocs.map(toResponse) };
   }
 }

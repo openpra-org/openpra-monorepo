@@ -23,6 +23,7 @@ import { EsqWorkbooksModule } from "./esq-workbooks/esq-workbooks.module";
 import { MsWorkbooksModule } from "./ms-workbooks/ms-workbooks.module";
 import { RcWorkbooksModule } from "./rc-workbooks/rc-workbooks.module";
 import { RiWorkbooksModule } from "./ri-workbooks/ri-workbooks.module";
+import { SeismicPraWorkbooksModule } from "./seismic-pra-workbooks/seismic-pra-workbooks.module";
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { RiWorkbooksModule } from "./ri-workbooks/ri-workbooks.module";
     MsWorkbooksModule,
     RcWorkbooksModule,
     RiWorkbooksModule,
+    SeismicPraWorkbooksModule,
   ],
 })
 export class AppModule {}

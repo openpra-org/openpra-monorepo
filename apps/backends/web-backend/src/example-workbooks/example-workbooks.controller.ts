@@ -16,6 +16,7 @@ import {
   type MsExampleBundle,
   type RcExampleBundle,
   type RiExampleBundle,
+  type SeismicPraExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -153,6 +154,18 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getRiBundle(@Query("example") example?: string): Promise<RiExampleBundle> {
     return this.exampleWorkbooksService.getRiBundle(example);
+  }
+
+  @Get("seismic-pra-examples")
+  @HttpCode(HttpStatus.OK)
+  getSeismicPraExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getSeismicPraExamples();
+  }
+
+  @Get("seismic-pra-bundle")
+  @HttpCode(HttpStatus.OK)
+  getSeismicPraBundle(@Query("example") example?: string): Promise<SeismicPraExampleBundle> {
+    return this.exampleWorkbooksService.getSeismicPraBundle(example);
   }
 
   @Get(":slug")

@@ -33,6 +33,8 @@ import { RcDemoPage } from "../rc-workbooks/rcDemoPage";
 import { RcWorkbookPage } from "../rc-workbooks/rcWorkbookPage";
 import { RiDemoPage } from "../ri-workbooks/riDemoPage";
 import { RiWorkbookPage } from "../ri-workbooks/riWorkbookPage";
+import { SeismicPraDemoPage } from "../seismic-pra-workbooks/seismicPraDemoPage";
+import { SeismicPraWorkbookPage } from "../seismic-pra-workbooks/seismicPraWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -255,6 +257,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <RiWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/seismic-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <SeismicPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/seismic-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <SeismicPraWorkbookPage />
       </ProtectedRoute>
     ),
   },

@@ -11,6 +11,7 @@ import s2ml
 import jsinp
 
 _EXT_TO_FORMAT = {
+    ".pbf":   "pbf",
     ".xml":   "openpsa-xml",
     ".ftp":   "ftap",
     ".sbe":   "s2ml",
@@ -18,7 +19,7 @@ _EXT_TO_FORMAT = {
     ".json":  "jsinp",
 }
 
-_FORMATS = {"openpsa-xml", "ftap", "s2ml", "jsinp"}
+_FORMATS = {"pbf", "openpsa-xml", "ftap", "s2ml", "jsinp"}
 
 
 def _detect_format(path: str) -> str:
@@ -32,6 +33,9 @@ def _detect_format(path: str) -> str:
 
 
 def _read(path: str, fmt: str, black_box: list[str] | None = None):
+    if fmt == "pbf":
+        with open(path, "rb") as f:
+            return f.read()
     if fmt == "openpsa-xml":
         return openpsa_xml.read(path)
     if fmt == "ftap":
@@ -44,7 +48,10 @@ def _read(path: str, fmt: str, black_box: list[str] | None = None):
 
 
 def _write(model, path: str, fmt: str, cutoff: float = 1e-12) -> None:
-    if fmt == "openpsa-xml":
+    if fmt == "pbf":
+        with open(path, "wb") as f:
+            f.write(model)
+    elif fmt == "openpsa-xml":
         openpsa_xml.write(model, path)
     elif fmt == "ftap":
         ftap.write(model, path)
@@ -68,11 +75,11 @@ def main() -> None:
     parser.add_argument("output", nargs="?", help="Output file (omit when using --top-event)")
     parser.add_argument(
         "--from", dest="src_fmt",
-        help="Source format: openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
+        help="Source format: pbf | openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
     )
     parser.add_argument(
         "--to", dest="dst_fmt",
-        help="Target format: openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
+        help="Target format: pbf | openpsa-xml | ftap | s2ml | jsinp (auto-detected from extension)",
     )
     parser.add_argument(
         "--cutoff", type=float, default=1e-12,

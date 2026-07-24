@@ -1,10 +1,11 @@
-import { BadRequestException, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { SeismicPraDocumentsService, type SeismicPraDocumentEntry } from "./seismic-pra-documents.service";
 
 interface UploadedFilePayload { buffer: Buffer; mimetype: string; size: number; originalname: string }
+interface UpdateDocumentBody { name?: string }
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 @Controller("seismic-pra-workbooks/:id/documents")
@@ -24,6 +25,12 @@ export class SeismicPraDocumentsController {
   upload(@Param("id") id: string, @UploadedFile() file: UploadedFilePayload | undefined, @Req() req: AuthenticatedRequest): Promise<SeismicPraDocumentEntry> {
     if (file === undefined) throw new BadRequestException("file field is required");
     return this.documentsService.upload(id, { buffer: file.buffer, mimeType: file.mimetype, size: file.size, originalName: file.originalname }, { username: req.user!.username });
+  }
+
+  @Patch(":documentId")
+  @HttpCode(HttpStatus.OK)
+  update(@Param("id") id: string, @Param("documentId") documentId: string, @Body() body: UpdateDocumentBody, @Req() req: AuthenticatedRequest): Promise<SeismicPraDocumentEntry> {
+    return this.documentsService.update(id, documentId, body.name, { username: req.user!.username });
   }
 
   @Delete(":documentId")

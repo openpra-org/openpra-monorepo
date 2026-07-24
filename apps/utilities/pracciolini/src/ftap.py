@@ -10,24 +10,56 @@ import os
 
 import pbf
 
-_REJECT = {"Not", "Xor", "Nand", "Nor"}
+_REJECT = {"Nand", "Nor"}
 
 
 def write(data: bytes, path: str) -> None:
     ft = pbf.decode_fault_tree(data)
+
+    not_inner = {}
+    for name, gate in ft.gates.items():
+        if gate.formula == "Not":
+            if len(gate.operands) != 1:
+                raise ValueError(f"FTAP Not gate '{name}' must have one operand")
+            not_inner[name] = gate.operands[0]
+
     for name, gate in ft.gates.items():
         if gate.formula in _REJECT:
             raise ValueError(f"FTAP does not support {gate.formula} gate '{name}'")
 
+    def render(operand):
+        if operand in not_inner:
+            inner = not_inner[operand]
+            if inner in not_inner:
+                raise ValueError(f"FTAP does not support a doubly negated operand '{operand}'")
+            return f"-{inner}"
+        return operand
+
+    def negate(rendered):
+        return rendered[1:] if rendered.startswith("-") else f"-{rendered}"
+
     lines = []
     for name, gate in ft.gates.items():
+        if gate.formula == "Not":
+            continue
+        if gate.formula == "Xor":
+            if len(gate.operands) != 2:
+                raise ValueError(
+                    f"FTAP supports only 2-input Xor, gate '{name}' has {len(gate.operands)}"
+                )
+            x = render(gate.operands[0])
+            y = render(gate.operands[1])
+            lines.append(f"{name} + __{name}_xa __{name}_xb")
+            lines.append(f"__{name}_xa * {x} {negate(y)}")
+            lines.append(f"__{name}_xb * {negate(x)} {y}")
+            continue
         if gate.formula == "And":
             op = "*"
         elif gate.formula == "AtLeast":
             op = str(gate.k if gate.k is not None else 1)
         else:
             op = "+"
-        lines.append(f"{name} {op} {' '.join(gate.operands)}")
+        lines.append(f"{name} {op} {' '.join(render(o) for o in gate.operands)}")
     lines.append("ENDTREE")
     lines.append(f"PROCESS {ft.top}")
     lines.append("IMPORT")

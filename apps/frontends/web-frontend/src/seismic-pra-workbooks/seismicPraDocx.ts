@@ -11,6 +11,7 @@ import {
   WidthType,
 } from "docx";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
+import { validateSeismicPra } from "interfaces-mef-types/seismic/seismic-pra-validation";
 
 type ReportBlock = Paragraph | Table;
 
@@ -78,6 +79,17 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
   out.push(heading("1. Scope, Basis, and Configuration", HeadingLevel.HEADING_1));
   out.push(para(mef.praScope), para(mef.documentation.overallProcessDescription), para(mef.documentation.configurationControlDescription));
   for (const limitation of mef.metadata.limitations) out.push(bullet(limitation));
+  out.push(heading("1.1 Intended Applications", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Application", "Status", "Purpose", "Decision context", "Risk metrics", "Limitations"],
+    mef.applications.map((application) => [application.name, application.status, application.purpose, application.decisionContext, application.supportedRiskMetrics.join("; "), application.limitations.join("; ")]),
+  ));
+  out.push(heading("1.2 Configuration Baseline and Evidence", HeadingLevel.HEADING_2));
+  out.push(para(`Baseline: ${mef.configurationBaseline.name}. As of: ${mef.configurationBaseline.asOfDate}.`), para(mef.configurationBaseline.changeControlProcess));
+  out.push(dataTable(
+    ["Evidence", "Type", "Source", "Revision", "Owner", "Status", "Applicability"],
+    mef.evidenceRegister.map((evidence) => [evidence.name, evidence.evidenceType, evidence.sourceReference, evidence.revision ?? "—", evidence.owner, evidence.status, evidence.applicability]),
+  ));
 
   out.push(heading("2. Seismic Hazard Analysis (SHA)", HeadingLevel.HEADING_1));
   out.push(para(mef.documentation.shaSummary));
@@ -180,11 +192,21 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
       (mef.exampleDocuments ?? []).map((document) => [document.name, document.kind, document.sizeLabel, document.extracted, String(document.linked)]),
     ));
   }
+  out.push(heading("7.1 Integrated Traceability", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Requirement", "Subelement", "Data", "Models", "Results", "Documentation"],
+    mef.documentation.traceabilityMatrix.map((link) => [link.requirement, link.subelement, link.dataRefs.join("; "), link.modelRefs.join("; "), link.resultRefs.join("; "), link.documentationRefs.join("; ")]),
+  ));
 
   out.push(heading("8. Supporting-Requirement Conformance", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["SR", "Subelement", "HLR", "Category", "Status", "Evidence"],
     mef.conformanceMatrix.map((row) => [row.sr, row.sr.split("-")[0] ?? "", row.hlr, row.capabilityCategory, row.status.replace(/_/g, " "), row.evidence]),
+  ));
+  out.push(heading("9. Automated Validation Record", HeadingLevel.HEADING_1));
+  out.push(dataTable(
+    ["Code", "Severity", "Area", "Finding", "Affected records"],
+    validateSeismicPra(mef).map((diagnostic) => [diagnostic.code, diagnostic.severity, diagnostic.area, diagnostic.message, diagnostic.recordRefs.join("; ")]),
   ));
   return out;
 }

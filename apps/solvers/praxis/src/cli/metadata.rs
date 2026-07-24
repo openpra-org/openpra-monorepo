@@ -37,7 +37,7 @@ impl ZbddSequenceMetadata {
 pub fn display_zbdd_metadata(entries: &[ZbddSequenceMetadata]) {
     println!("\n=== ZBDD Metadata ===\n");
 
-    println!("{:<35} {:>15}", "Sequence / Top Event", "Frequency");
+    println!("{:<35} {:>15}", "Sequence / Top Event", "Top Value");
     println!("{}", "-".repeat(52));
     for e in entries {
         println!("{:<35} {:>15.6e}", e.sequence_id, e.frequency);
@@ -47,36 +47,70 @@ pub fn display_zbdd_metadata(entries: &[ZbddSequenceMetadata]) {
 
     println!(
         "{:<35} {:>6} {:>10} {:>16} {:>16}",
-        "Sequence / Top Event", "Order", "Count", "Min Frequency", "Max Frequency"
+        "Sequence / Top Event", "Order", "Count", "Max Product", "Min Product"
     );
     println!("{}", "-".repeat(87));
     for e in entries {
+        let mut total = 0u64;
         for s in &e.order_stats {
+            total = total.saturating_add(s.count);
             println!(
                 "{:<35} {:>6} {:>10} {:>16.6e} {:>16.6e}",
-                e.sequence_id, s.order, s.count, s.min_freq, s.max_freq
+                e.sequence_id, s.order, s.count, s.max_freq, s.min_freq
             );
         }
+        println!("{:<35} {:>6} {:>10}", e.sequence_id, "Total", total);
     }
     println!("{}\n", "=".repeat(87));
+    println!(
+        "Product values are cut-set probabilities for fault trees and sequence frequencies for event trees.\n"
+    );
 }
 
 pub fn prompt_for_limits() -> (Option<usize>, Option<f64>) {
+    prompt_for_limits_with_defaults(None, None)
+}
+
+pub fn prompt_for_limits_with_defaults(
+    default_order: Option<usize>,
+    default_cut_off: Option<f64>,
+) -> (Option<usize>, Option<f64>) {
     use std::io::{self, Write};
 
-    println!("Set truncation limits, or press Enter to skip each:");
+    println!("Choose truncation limits before cut-set enumeration.");
+    println!("Press Enter to accept a displayed default; type 'none' to clear it.");
 
-    print!("  limit-order (integer, e.g. 3): ");
+    let order_default = default_order
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    print!("  Maximum order [{order_default}]: ");
     io::stdout().flush().ok();
     let mut buf = String::new();
     io::stdin().read_line(&mut buf).ok();
-    let limit_order = buf.trim().parse::<usize>().ok();
+    let order_input = buf.trim();
+    let limit_order = if order_input.is_empty() {
+        default_order
+    } else if order_input.eq_ignore_ascii_case("none") {
+        None
+    } else {
+        order_input.parse::<usize>().ok()
+    };
 
     buf.clear();
-    print!("  cut-off probability (e.g. 1e-10): ");
+    let cut_off_default = default_cut_off
+        .map(|value| format!("{value:.6e}"))
+        .unwrap_or_else(|| "none".to_string());
+    print!("  Minimum cut-set probability [{cut_off_default}]: ");
     io::stdout().flush().ok();
     io::stdin().read_line(&mut buf).ok();
-    let cut_off = buf.trim().parse::<f64>().ok().filter(|&v| v > 0.0);
+    let cut_off_input = buf.trim();
+    let cut_off = if cut_off_input.is_empty() {
+        default_cut_off
+    } else if cut_off_input.eq_ignore_ascii_case("none") {
+        None
+    } else {
+        cut_off_input.parse::<f64>().ok().filter(|&value| value > 0.0)
+    };
 
     (limit_order, cut_off)
 }

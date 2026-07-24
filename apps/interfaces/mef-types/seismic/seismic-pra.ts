@@ -8,6 +8,46 @@ import { SPR_SR_CATALOG, SeismicPlantResponseAnalysis } from "../spr/seismic-pla
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { SeismicPraInterfaceRecord, SeismicPraSubelement } from "./seismic-pra-common";
 
+export interface SeismicPraApplication extends Unique, Named {
+  purpose: string;
+  decisionContext: string;
+  supportedRiskMetrics: string[];
+  consumingElementRefs: string[];
+  configurationBasis: string;
+  limitations: string[];
+  evidenceRefs: string[];
+  status: "PLANNED" | "ACTIVE" | "COMPLETED" | "SUPERSEDED";
+}
+
+export interface SeismicPraEvidenceRecord extends Unique, Named {
+  evidenceType: "DATA" | "MODEL" | "CALCULATION" | "DOCUMENT" | "REVIEW" | "DECISION" | "OTHER";
+  sourceReference: string;
+  revision?: string;
+  effectiveDate?: string;
+  owner: string;
+  applicableSubelements: SeismicPraSubelement[];
+  applicability: string;
+  qualityAndLimitations: string;
+  fileReference?: string;
+  supersedesEvidenceRef?: string;
+  status: "DRAFT" | "CONTROLLED" | "SUPERSEDED";
+  implementsSrs: SRReference[];
+}
+
+export interface SeismicPraConfigurationBaseline extends Unique, Named {
+  asOfDate: string;
+  plantConfigurationRefs: string[];
+  modelVersionRefs: string[];
+  dataCutoffDates: {
+    area: string;
+    cutoffDate: string;
+    basis: string;
+  }[];
+  assumptions: string[];
+  changeControlProcess: string;
+  openItems: string[];
+}
+
 export interface SeismicPraConsistencyCheck extends Unique, Named {
   checkType:
     | "GROUND_MOTION_PARAMETER"
@@ -125,6 +165,9 @@ export interface SeismicPraExampleDocument {
 
 export interface SeismicPRA extends TechnicalElement<TechnicalElementTypes.SEISMIC_PRA> {
   praScope: string;
+  applications: SeismicPraApplication[];
+  evidenceRegister: SeismicPraEvidenceRecord[];
+  configurationBaseline: SeismicPraConfigurationBaseline;
   seismicHazardAnalysis: SeismicHazardAnalysis;
   seismicFragilityAnalysis: SeismicFragilityAnalysis;
   seismicPlantResponseAnalysis: SeismicPlantResponseAnalysis;

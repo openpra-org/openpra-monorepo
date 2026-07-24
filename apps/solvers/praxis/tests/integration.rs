@@ -34,6 +34,8 @@ mod cli_event_tree_mc_xml_output;
 mod cli_mc_xml_output;
 #[path = "integration/cli/cli_mocus.rs"]
 mod cli_mocus;
+#[path = "integration/cli/cli_pbf_input.rs"]
+mod cli_pbf_input;
 #[path = "integration/cli/cli_test.rs"]
 mod cli_test;
 #[path = "integration/cli/cli_xml_output_shape.rs"]

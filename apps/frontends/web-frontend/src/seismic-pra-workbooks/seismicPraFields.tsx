@@ -1,4 +1,5 @@
-import { type JSX, type ReactNode, useEffect, useState } from "react";
+import { type JSX, type ReactNode } from "react";
+import { POSIcon } from "../pos-workbooks/posIcons";
 
 function Field({ label, hint, children, wide = false }: { label: string; hint?: string; children: ReactNode; wide?: boolean }): JSX.Element {
   return <label className={`sfield${wide ? " sfield--wide" : ""}`}><span className="sfield__label">{label}</span>{children}{hint !== undefined && <span className="sfield__hint">{hint}</span>}</label>;
@@ -35,24 +36,17 @@ function Tag({ children, tone = "neutral" }: { children: ReactNode; tone?: "neut
   return <span className={`stag stag--${tone}`}>{children}</span>;
 }
 
-function AdvancedJsonEditor<T>({ title, value, editable, onApply }: { title: string; value: T; editable: boolean; onApply: (value: T) => void }): JSX.Element {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState(() => JSON.stringify(value, null, 2));
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { if (!open) setText(JSON.stringify(value, null, 2)); }, [open, value]);
-  function apply(): void {
-    try {
-      onApply(JSON.parse(text) as T);
-      setError(null);
-      setOpen(false);
-    } catch (err) {
-      setError((err as { message?: string }).message ?? "Invalid JSON");
-    }
-  }
-  return <div className="sadvanced">
-    <button type="button" className="sadvanced__toggle" onClick={() => setOpen((current) => !current)}><span>{open ? "▾" : "▸"}</span> Advanced MEF data · {title}</button>
-    {open && <div className="sadvanced__body"><p>Every field in this schema section is available here. Changes are validated by the Seismic PRA API when autosaved.</p><textarea className="sadvanced__editor" value={text} rows={18} readOnly={!editable} onChange={(event) => setText(event.target.value)} />{error !== null && <div className="sadvanced__error">{error}</div>}{editable && <div className="sadvanced__actions"><button type="button" className="sbtn sbtn--primary" onClick={apply}>Apply section data</button></div>}</div>}
+function Drawer({ eyebrow, title, subtitle, onClose, children, footer }: { eyebrow: string; title: string; subtitle?: string; onClose: () => void; children: ReactNode; footer?: ReactNode }): JSX.Element {
+  return <div className="posdrawer-backdrop sdrawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <aside className="posdrawer sdrawer" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="posdrawer__head">
+        <div><div className="posdrawer__cap">{eyebrow}</div><h2 className="posdrawer__title">{title}</h2>{subtitle !== undefined && <div className="posdrawer__sub">{subtitle}</div>}</div>
+        <button type="button" className="posdrawer__close" onClick={onClose} aria-label="Close editor"><POSIcon.Close /></button>
+      </div>
+      <div className="posdrawer__body sdrawer__body">{children}</div>
+      {footer !== undefined && <div className="sdrawer__footer">{footer}</div>}
+    </aside>
   </div>;
 }
 
-export { Field, TextInput, NumberInput, TextArea, SelectInput, Section, EmptyState, Tag, AdvancedJsonEditor };
+export { Field, TextInput, NumberInput, TextArea, SelectInput, Section, EmptyState, Tag, Drawer };

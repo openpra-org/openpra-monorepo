@@ -36,6 +36,18 @@ pub struct Args {
     #[arg(long = "cut-off")]
     pub cut_off: Option<f64>,
 
+    #[arg(
+        long = "interactive-truncation",
+        help = "After building the ZBDD, show diagram-native cut-set statistics and prompt for limits before enumeration"
+    )]
+    pub interactive_truncation: bool,
+
+    #[arg(
+        long = "cut-set-stats-only",
+        help = "Build the truncated ZBDD and report diagram-native cut-set statistics without materializing cut sets"
+    )]
+    pub cut_set_stats_only: bool,
+
     #[arg(long = "cut-off-basis", value_enum, default_value_t = CutOffBasis::Probability, help = "Interpret --cut-off as a product probability (default), or as a product frequency for event trees: probability times the initiating-event frequency, which is the SAPHIRE truncation convention")]
     pub cut_off_basis: CutOffBasis,
 
@@ -63,37 +75,70 @@ pub struct Args {
     #[arg(long = "watch")]
     pub watch: bool,
 
-    #[arg(long = "visualize", help = "Generate and save Graphviz (.dot) and SVG graphs of the PDAGs")]
+    #[arg(
+        long = "visualize",
+        help = "Generate and save Graphviz (.dot) and SVG graphs of the PDAGs"
+    )]
     pub visualize: bool,
 
-    #[arg(long = "visualize-out-dir", value_name = "DIR", default_value = "./viz_output", help = "Directory to save generated .dot and .svg files")]
+    #[arg(
+        long = "visualize-out-dir",
+        value_name = "DIR",
+        default_value = "./viz_output",
+        help = "Directory to save generated .dot and .svg files"
+    )]
     pub visualize_out_dir: std::path::PathBuf,
 
-    #[arg(long = "visualize-sequence", value_name = "SEQ_ID", help = "Specific sequence ID to output to stdout for event trees")]
+    #[arg(
+        long = "visualize-sequence",
+        value_name = "SEQ_ID",
+        help = "Specific sequence ID to output to stdout for event trees"
+    )]
     pub visualize_sequence: Option<String>,
 
-    #[arg(long = "visualize-stdout", help = "Print raw DOT source to stdout (in addition to saving files)")]
+    #[arg(
+        long = "visualize-stdout",
+        help = "Print raw DOT source to stdout (in addition to saving files)"
+    )]
     pub visualize_stdout: bool,
 
     #[arg(long = "optimize")]
     pub optimize: bool,
 
-    #[arg(long = "treewidth", help = "Compute greedy min-fill treewidth upper bound on the incidence graph (per maximal module)")]
+    #[arg(
+        long = "treewidth",
+        help = "Compute greedy min-fill treewidth upper bound on the incidence graph (per maximal module)"
+    )]
     pub treewidth: bool,
 
-    #[arg(long = "pathwidth", help = "Compute greedy vertex-separation pathwidth upper bound on the incidence graph (per maximal module)")]
+    #[arg(
+        long = "pathwidth",
+        help = "Compute greedy vertex-separation pathwidth upper bound on the incidence graph (per maximal module)"
+    )]
     pub pathwidth: bool,
 
-    #[arg(long = "widths-only", help = "Skip quantification; compute structural width metrics only and exit")]
+    #[arg(
+        long = "widths-only",
+        help = "Skip quantification; compute structural width metrics only and exit"
+    )]
     pub widths_only: bool,
 
-    #[arg(long = "simplify-house-events", help = "Before building, fold constant/house-event leaves and splice NULL/NOT gates (optional; the BDD handles these natively, so results are unchanged)")]
+    #[arg(
+        long = "simplify-house-events",
+        help = "Before building, fold constant/house-event leaves and splice NULL/NOT gates (optional; the BDD handles these natively, so results are unchanged)"
+    )]
     pub simplify_house_events: bool,
 
-    #[arg(long = "complement-unity", help = "Experimental: replace every complemented formula with Unity (TRUE) when building event-tree sequence logic, matching the SCRAM/SAPHIRE minimal-cut-set convention")]
+    #[arg(
+        long = "complement-unity",
+        help = "Experimental: replace every complemented formula with Unity (TRUE) when building event-tree sequence logic, matching the SCRAM/SAPHIRE minimal-cut-set convention"
+    )]
     pub complement_unity: bool,
 
-    #[arg(long = "delete-term", help = "Event trees: apply the delete-term rule to a succeeded system, dropping its formula and deleting every product that contains one of its cut sets (a product that fails a succeeded system is not a product of the sequence). This is the SAPHIRE/FTREX convention")]
+    #[arg(
+        long = "delete-term",
+        help = "Event trees: apply the delete-term rule to a succeeded system, dropping its formula and deleting every product that contains one of its cut sets (a product that fails a succeeded system is not a product of the sequence). This is the SAPHIRE/FTREX convention"
+    )]
     pub delete_term: bool,
 
     #[arg(long = "early-stop")]
@@ -125,6 +170,19 @@ pub struct Args {
 
     #[arg(long = "output", value_name = "output-file")]
     pub output_file: Option<PathBuf>,
+
+    #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Xml)]
+    pub output_format: OutputFormat,
+
+    #[arg(long = "saphire-project", value_name = "PROJECT")]
+    pub saphire_project: Option<String>,
+
+    #[arg(
+        long = "saphire-analysis",
+        value_name = "ANALYSIS",
+        default_value = "RANDOM/CD"
+    )]
+    pub saphire_analysis: String,
 
     #[arg(value_name = "input-file")]
     pub input_file: Option<PathBuf>,
@@ -175,4 +233,10 @@ pub enum Backend {
     Cpu,
     Cuda,
     Wgpu,
+}
+
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    Xml,
+    Ftc,
 }

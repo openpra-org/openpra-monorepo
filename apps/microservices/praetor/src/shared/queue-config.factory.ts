@@ -32,4 +32,31 @@ export class QueueConfigFactory {
             },
         };
     }
+    public createExecuteTaskQueueConfig(): QueueConfig {
+        return {
+            name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE),
+            exchange: {
+                name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_EXCHANGE_ID),
+                type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_EXCHANGE_TYPE),
+                durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_EXCHANGE_DURABLE),
+                bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_BINDING_KEY),
+                routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_ROUTING_KEY),
+            },
+            durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_QUEUE_DURABLE)),
+            messageTtl: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_TTL)),
+            maxLength: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_QUEUE_MAXLENGTH)),
+            prefetch: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_PREFETCH)),
+            deadLetter: {
+                name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE),
+                exchange: {
+                    name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_ID),
+                    type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_TYPE),
+                    durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_DURABLE),
+                    bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_BINDING_KEY),
+                    routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_ROUTING_KEY),
+                },
+                durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE_DURABLE)),
+            },
+        };
+    }
 }

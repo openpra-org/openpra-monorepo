@@ -28,6 +28,7 @@ async function uploadSeismicPraDocument(workbookId: string, file: File): Promise
   return postMultipart(`/api/seismic-pra-workbooks/${workbookId}/documents`, form);
 }
 const deleteSeismicPraDocument = async (workbookId: string, documentId: string): Promise<void> => { await deleteJson(`/api/seismic-pra-workbooks/${workbookId}/documents/${documentId}`); };
+const updateSeismicPraDocument = (workbookId: string, documentId: string, name: string): Promise<SeismicPraDocumentEntry> => patchJson(`/api/seismic-pra-workbooks/${workbookId}/documents/${documentId}`, { name });
 const getSeismicPraDocumentDownload = (workbookId: string, documentId: string): Promise<{ url: string; filename: string }> => fetchJson(`/api/seismic-pra-workbooks/${workbookId}/documents/${documentId}/download`);
 
 export {
@@ -39,6 +40,7 @@ export {
   listSeismicPraDocuments,
   uploadSeismicPraDocument,
   deleteSeismicPraDocument,
+  updateSeismicPraDocument,
   getSeismicPraDocumentDownload,
   type SeismicPraWorkbookResponse,
   type SeismicPraWorkbookRoleName,

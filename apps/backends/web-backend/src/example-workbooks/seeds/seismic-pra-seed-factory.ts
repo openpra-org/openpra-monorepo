@@ -16,7 +16,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const building = isSfr ? "Reactor and steam-generator building" : "Reactor building and helium service area";
   const primarySsc = isSfr ? "Primary sodium pump P-1" : "Helium circulator HC-1";
   const secondarySsc = isSfr ? "Decay heat removal air cooler AC-1" : "Reactor cavity cooling panel RCCS-1";
-  const mef = createBlankSeismicPra(`${reactor} Seismic PRA`, "example.preparer");
+  const mef = createBlankSeismicPra(isSfr ? "S Workbook 2" : "S Workbook 1", "example.preparer");
 
   mef.uuid = `SEISMIC-PRA-${kind.toUpperCase()}`;
   mef.created = "2026-06-18T09:00:00.000Z";
@@ -42,6 +42,80 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     addressingPlans: "Confirm against excavation and foundation acceptance records.",
     limitations: ["Final foundation elevations remain subject to configuration control."],
   }];
+  mef.applications = [{
+    uuid: `APPLICATION-${kind.toUpperCase()}-BASELINE`,
+    name: "Integrated seismic risk baseline",
+    purpose: "Support design, operations, maintenance, emergency planning, and risk-informed decision making with one configuration-controlled seismic risk model.",
+    decisionContext: `Pre-operational CC-II decisions for the ${reactor}, including risk-significant SSC prioritization and confirmation of design margins.`,
+    supportedRiskMetrics: ["Event-sequence-family frequency per plant-year", "SSC and basic-event importance", "Hazard-bin contribution"],
+    consumingElementRefs: ["RI-SEISMIC-CONTRIBUTION", "SEISMIC-PEER-REVIEW-2026"],
+    configurationBasis: `The ${site} hazard, reference-design configuration, SEL revision 2026, and linked SHA/SFR/SPR calculation packages.`,
+    limitations: ["Final as-built and as-operated configuration confirmation remains a pre-operational closure item."],
+    evidenceRefs: ["EVIDENCE-SHA-REPORT", "EVIDENCE-SFR-CALCS", "EVIDENCE-SEL"],
+    status: "ACTIVE",
+  }];
+  mef.configurationBaseline = {
+    uuid: `BASELINE-${kind.toUpperCase()}-2026`,
+    name: `${reactor} Seismic PRA baseline`,
+    asOfDate: "2026-06-22",
+    plantConfigurationRefs: [`${kind.toUpperCase()}-DESIGN-BASELINE-2026`, "SEL-2026"],
+    modelVersionRefs: ["SHA-MODEL-2026.1", "SFR-MODEL-2026.1", "SPR-MODEL-2026.1"],
+    dataCutoffDates: [
+      { area: "Earth-science data", cutoffDate: "2026-02-28", basis: "Published and project-acquired data available before the technical integration workshop." },
+      { area: "Plant design", cutoffDate: "2026-06-01", basis: "Issued reference-design and vendor information incorporated in the seismic equipment list." },
+      { area: "Operating experience", cutoffDate: "2026-03-31", basis: "Plant-specific analogue and industry seismic experience review cutoff." },
+    ],
+    assumptions: [`The ${site} profile suite bounds final foundation conditions.`, "Reference-design SSC locations and anchorage are representative pending as-built confirmation."],
+    changeControlProcess: "Changes to plant configuration, inputs, models, calculations, interfaces, or conclusions require impact screening, affected-record revision, rerun of diagnostics, and multidisciplinary approval.",
+    openItems: ["Confirm final as-built configuration and close the physical walkdown action before operational use."],
+  };
+  mef.evidenceRegister = [
+    {
+      uuid: "EVIDENCE-SHA-REPORT",
+      name: `${reactor} seismic hazard report`,
+      evidenceType: "DOCUMENT",
+      sourceReference: "SHA-REPORT-2026",
+      revision: "1",
+      effectiveDate: "2026-06-18",
+      owner: "Hazard team",
+      applicableSubelements: ["SHA", "SFR", "SPR"],
+      applicability: "Controls the hazard basis, motion definitions, spectra, intervals, and secondary-hazard results transferred downstream.",
+      qualityAndLimitations: "Independently checked; final site confirmation is tracked in the configuration baseline.",
+      fileReference: "DOC-SHA",
+      status: "CONTROLLED",
+      implementsSrs: srs("SHA-I1", "SHA-I2", "SHA-I3"),
+    },
+    {
+      uuid: "EVIDENCE-SFR-CALCS",
+      name: `${reactor} seismic response and fragility calculations`,
+      evidenceType: "CALCULATION",
+      sourceReference: "SFR-RESPONSE-RESULTS.H5",
+      revision: "1",
+      effectiveDate: "2026-06-20",
+      owner: "Fragility team",
+      applicableSubelements: ["SFR", "SPR"],
+      applicability: "Provides response, mechanisms, capacity, fragility curves, uncertainty, and correlation used by the plant-response model.",
+      qualityAndLimitations: "Calculation verification is complete; final vendor capacity confirmation remains tracked.",
+      fileReference: "DOC-SFR",
+      status: "CONTROLLED",
+      implementsSrs: srs("SFR-F1", "SFR-F2", "SFR-F3"),
+    },
+    {
+      uuid: "EVIDENCE-SEL",
+      name: `${reactor} seismic equipment list`,
+      evidenceType: "MODEL",
+      sourceReference: "SEL-2026",
+      revision: "1",
+      effectiveDate: "2026-06-21",
+      owner: "Systems and fragility team",
+      applicableSubelements: ["SFR", "SPR"],
+      applicability: "Canonical scope and failure-mode register shared by plant response, investigations, fragility, and quantification.",
+      qualityAndLimitations: "Multidisciplinary completeness check passed for the reference-design configuration.",
+      fileReference: "DOC-SEL",
+      status: "CONTROLLED",
+      implementsSrs: srs("SFR-A1", "SPR-C1", "SPR-C6"),
+    },
+  ];
 
   const sha = mef.seismicHazardAnalysis;
   sha.uuid = `SHA-${kind.toUpperCase()}`;
@@ -544,6 +618,26 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sha.documentation.modelUncertaintyDocumentation = "Reasonable source, prediction-model, and site-response alternatives are carried in the logic tree or sensitivity studies.";
   sha.documentation.dataAndModelReferences = ["SHA-DATA-COMPILATION-2026", "SOURCE-MODEL-2026", "GM-LT-1", "SITE-RESPONSE-METHOD-1"];
   sha.documentation.calculationFileRefs = ["SHA-RESULTS-2026.H5"];
+  sha.documentation.traceabilityLinks = [
+    {
+      uuid: "TRACE-SHA-DATA-RESULT",
+      sourceType: "DATA_SET",
+      sourceRef: "EARTH-SCIENCE-DATA-1",
+      targetType: "HAZARD_CURVE",
+      targetRef: "HAZARD-CURVE-MEAN-1HZ",
+      relationship: "The controlled earth-science compilation supports the source, ground-motion, and site-response branches integrated into the mean hazard curve.",
+      requirementRefs: srs("SHA-B1", "SHA-C1", "SHA-D1", "SHA-F1"),
+    },
+    {
+      uuid: "TRACE-SHA-RESULT-INTERFACE",
+      sourceType: "RESULT",
+      sourceRef: "UHS-1E-4-H",
+      targetType: "SEISMIC_PRA_INTERFACE",
+      targetRef: "IF-SHA-SFR",
+      relationship: "The controlled uniform-hazard spectrum, motion definition, and control point are transferred to fragility and plant-response analyses.",
+      requirementRefs: srs("SHA-G1", "SHA-G2", "SHA-I2"),
+    },
+  ];
   sha.documentation.implementsSrs = srs("SHA-A1", "SHA-B1", "SHA-C1", "SHA-D1", "SHA-E1", "SHA-F1", "SHA-G1", "SHA-H1", "SHA-I1");
 
   const sfr = mef.seismicFragilityAnalysis;
@@ -858,6 +952,24 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sfr.documentation.fragilityParameterResults = "Median, betaR, betaU, composite beta, HCLPF, and full mean curves are provided for modeled failure modes.";
   sfr.documentation.modelUncertaintiesAndAlternatives = "Demand, capacity, correlation, and secondary-hazard alternatives are evaluated in sensitivities.";
   sfr.documentation.dataAndCalculationRefs = ["SFR-RESPONSE-RESULTS.H5", "QUALIFICATION-PRIMARY", "CAPACITY-SECONDARY"];
+  sfr.documentation.traceability = [
+    {
+      sscRef: "SEL-PRIMARY",
+      failureModeRef: "FAILURE-MODE-PRIMARY",
+      mechanismRefs: ["MECHANISM-PRIMARY"],
+      demandRefs: ["RESPONSE-PRIMARY-LOCATION"],
+      fragilityRef: "FRAGILITY-PRIMARY",
+      plantResponseModelRefs: ["INDUCED-FAILURE-1", "BE-SEL-PRIMARY"],
+    },
+    {
+      sscRef: "SEL-SECONDARY",
+      failureModeRef: "FAILURE-MODE-SECONDARY",
+      mechanismRefs: ["MECHANISM-SECONDARY"],
+      demandRefs: ["RESPONSE-PRIMARY-LOCATION", "SECONDARY-LIQUEFACTION"],
+      fragilityRef: "FRAGILITY-SECONDARY",
+      plantResponseModelRefs: ["INDUCED-FAILURE-2", "BE-SEL-SECONDARY"],
+    },
+  ];
   sfr.documentation.implementsSrs = srs("SFR-F1", "SFR-F2", "SFR-F3");
 
   const spr = mef.seismicPlantResponseAnalysis;
@@ -1154,6 +1266,24 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   spr.documentation.modelUncertaintiesAndAlternatives = "Hazard, fragility, system dependency, HRA, and discretization alternatives are propagated or sensitivity tested.";
   spr.documentation.quantificationLimitations = ["Confirm final as-built configuration and complete the physical walkdown before operational use."];
   spr.documentation.dataModelAndCalculationRefs = ["SHA-RESULTS-2026.H5", "SFR-RESPONSE-RESULTS.H5", "SY-SEISMIC-MODEL", "SPR-QUANT-2026"];
+  spr.documentation.traceability = [
+    {
+      initiatingEventRef: "INITIATOR-DIRECT-GROUND-MOTION",
+      eventSequenceRefs: ["ES-SEISMIC-SUCCESS", "ES-SEISMIC-DAMAGE"],
+      equipmentRefs: ["SEL-PRIMARY", "SEL-SECONDARY"],
+      fragilityRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"],
+      hazardRefs: ["HAZARD-CURVE-MEAN-1HZ", "UHS-1E-4-H", "DISCRETIZATION-1"],
+      quantificationRef: "ESF-QUANT-1",
+    },
+    {
+      initiatingEventRef: "INITIATOR-LIQUEFACTION",
+      eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
+      equipmentRefs: ["SEL-SECONDARY"],
+      fragilityRefs: ["FRAGILITY-SECONDARY"],
+      hazardRefs: ["SECONDARY-LIQUEFACTION"],
+      quantificationRef: "ESF-QUANT-1",
+    },
+  ];
   spr.documentation.implementsSrs = srs("SPR-F1", "SPR-F2", "SPR-F3", "SPR-F4", "SPR-F5");
 
   mef.integration.interfaces = [
@@ -1228,6 +1358,32 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     openFindingRefs: ["PREOP-ASBUILT-WALKDOWN"],
   };
   mef.documentation.supportingDocumentRefs = ["SHA-REPORT-2026", "SFR-REPORT-2026", "SPR-REPORT-2026", "SEISMIC-INTEGRATION-REPORT-2026"];
+  mef.documentation.traceabilityMatrix = [
+    {
+      requirement: "SHA-F3",
+      subelement: "SHA",
+      dataRefs: ["EARTH-SCIENCE-DATA-1"],
+      modelRefs: ["SOURCE-LT-1", "GM-LT-1", "SITE-RESPONSE-METHOD-1"],
+      resultRefs: ["HAZARD-CURVE-MEAN-1HZ", "UHS-1E-4-H"],
+      documentationRefs: ["EVIDENCE-SHA-REPORT", "SHA-REPORT-2026"],
+    },
+    {
+      requirement: "SFR-E1",
+      subelement: "SFR",
+      dataRefs: ["SEL-2026", "QUALIFICATION-PRIMARY", "CAPACITY-SECONDARY"],
+      modelRefs: ["STRUCTURAL-MODEL-1", "MECHANISM-PRIMARY", "MECHANISM-SECONDARY"],
+      resultRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"],
+      documentationRefs: ["EVIDENCE-SFR-CALCS", "SFR-REPORT-2026"],
+    },
+    {
+      requirement: "SPR-E1",
+      subelement: "SPR",
+      dataRefs: ["SEL-2026", "HAZARD-CURVE-MEAN-1HZ"],
+      modelRefs: ["SY-SEISMIC-MODEL", "DISCRETIZATION-1"],
+      resultRefs: ["ESF-QUANT-1", "CONTRIBUTOR-SECONDARY-SSC"],
+      documentationRefs: ["EVIDENCE-SEL", "SPR-REPORT-2026", "SEISMIC-INTEGRATION-REPORT-2026"],
+    },
+  ];
   mef.configurationControlRecordId = `CC-SEISMIC-${kind.toUpperCase()}-2026`;
   mef.newlyDevelopedMethodIds = ["NM-SEISMIC-BIN-INTEGRATION"];
   mef.exampleDocuments = [

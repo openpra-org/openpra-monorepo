@@ -1,9 +1,11 @@
-use crate::cli::args::{Algorithm, Args, Backend, CutOffBasis, Vrt};
+use crate::cli::args::{Algorithm, Args, Backend, CutOffBasis, OutputFormat, Vrt};
 use crate::cli::event_tree;
 use crate::cli::fault_tree;
 use crate::cli::output::{writer_stdout, writer_vec};
-use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::io::parser::{parse_any_mef, ParsedInput};
+use praxis::io::pbf::decode_fault_tree;
+use praxis::io::ftc::serialize_saphire_v2;
+use praxis::io::reporter::{write_comprehensive_report, AnalysisReport, EventTreeMonteCarloReport};
 use praxis::io::serializer::{write_results, write_results_with_monte_carlo};
 use std::fs;
 
@@ -157,6 +159,18 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(2);
     }
 
+    if cli.output_format == OutputFormat::Ftc {
+        if !analysis_requires_cut_sets {
+            eprintln!("error: '--output-format ftc' requires a cut-set analysis mode");
+            eprintln!("Use '--analysis cutsets-only' or '--analysis cutsets-and-probability'.");
+            std::process::exit(2);
+        }
+        if cli.saphire_project.as_deref().is_none_or(str::is_empty) {
+            eprintln!("error: '--output-format ftc' requires '--saphire-project <PROJECT>'");
+            std::process::exit(2);
+        }
+    }
+
     if cli.input_file.is_none() {
         eprintln!("Error: No input file specified");
         eprintln!("Usage: praxis <FILE> [OPTIONS]");
@@ -170,7 +184,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         .expect("input_file is required")
         .clone();
 
-    let input_content = fs::read_to_string(&input_path)
+    let input_bytes = fs::read(&input_path)
         .map_err(|e| format!("Failed to read file '{}': {}", input_path.display(), e))?;
 
     if verbose {
@@ -180,8 +194,38 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let parsed_input = parse_any_mef(&input_content)
-        .map_err(|e| format!("Failed to parse input file '{}': {}", input_path.display(), e))?;
+    let is_pbf = input_bytes.starts_with(b"PBM1")
+        || input_path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("pbf"));
+
+    let parsed_input = if is_pbf {
+        decode_fault_tree(&input_bytes)
+            .map(ParsedInput::FaultTree)
+            .map_err(|e| {
+                format!(
+                    "Failed to parse PBF input file '{}': {}",
+                    input_path.display(),
+                    e
+                )
+            })?
+    } else {
+        let input_content = std::str::from_utf8(&input_bytes).map_err(|e| {
+            format!(
+                "Failed to decode XML input file '{}' as UTF-8: {}",
+                input_path.display(),
+                e
+            )
+        })?;
+        parse_any_mef(input_content).map_err(|e| {
+            format!(
+                "Failed to parse input file '{}': {}",
+                input_path.display(),
+                e
+            )
+        })?
+    };
 
     if cli.widths_only {
         let fault_tree_model = match parsed_input {
@@ -198,6 +242,10 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     let fault_tree_model = match parsed_input {
         ParsedInput::EventTreeModel(event_tree_model) => {
+            if cli.output_format == OutputFormat::Ftc {
+                eprintln!("error: '--output-format ftc' is supported for fault-tree inputs only");
+                std::process::exit(2);
+            }
             match cli.algorithm {
                 Algorithm::MonteCarlo => {
                     event_tree::run_monte_carlo_from_parsed(&cli, &event_tree_model, verbose)?;
@@ -276,7 +324,20 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Writing results to: {}", output_path.display());
         }
 
-        let mut writer = writer_vec();
+        if cli.output_format == OutputFormat::Ftc {
+            let cut_sets = computed_cut_sets.as_deref().ok_or(
+                "FTC output was requested, but the selected analysis did not produce cut sets",
+            )?;
+            let ftc_output = serialize_saphire_v2(
+                cli.saphire_project.as_deref().expect("validated above"),
+                fault_tree.element().id(),
+                &cli.saphire_analysis,
+                cut_sets,
+            )?;
+            fs::write(output_path, ftc_output)
+                .map_err(|e| format!("Failed to write FTC output file: {}", e))?;
+        } else {
+            let mut writer = writer_vec();
 
             if computed_cut_sets.is_some() || !computed_event_tree_monte_carlo.is_empty() {
                 let mut report = AnalysisReport::new(result.clone());
@@ -309,8 +370,9 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             let xml_output = String::from_utf8(writer.into_inner())
                 .map_err(|e| format!("Failed to convert XML to string: {}", e))?;
 
-        fs::write(output_path, xml_output)
-            .map_err(|e| format!("Failed to write output file: {}", e))?;
+            fs::write(output_path, xml_output)
+                .map_err(|e| format!("Failed to write output file: {}", e))?;
+        }
 
         if verbose {
             eprintln!("Results written successfully");
@@ -318,7 +380,19 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if !cli.print && cli.output_file.is_none() {
-        let mut writer = writer_stdout();
+        if cli.output_format == OutputFormat::Ftc {
+            let cut_sets = computed_cut_sets.as_deref().ok_or(
+                "FTC output was requested, but the selected analysis did not produce cut sets",
+            )?;
+            let ftc_output = serialize_saphire_v2(
+                cli.saphire_project.as_deref().expect("validated above"),
+                fault_tree.element().id(),
+                &cli.saphire_analysis,
+                cut_sets,
+            )?;
+            print!("{ftc_output}");
+        } else {
+            let mut writer = writer_stdout();
 
             if computed_cut_sets.is_some() || !computed_event_tree_monte_carlo.is_empty() {
                 let mut report = AnalysisReport::new(result.clone());
@@ -347,6 +421,7 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 write_results(&mut writer, &fault_tree, &result)?;
             }
+        }
     }
 
     Ok(())

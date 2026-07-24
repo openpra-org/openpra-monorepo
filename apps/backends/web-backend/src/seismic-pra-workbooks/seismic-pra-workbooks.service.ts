@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
+import { synchronizeSeismicPraDerivedRegisters } from "interfaces-mef-types/seismic/seismic-pra-validation";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { ProjectsService } from "../projects/projects.service";
 import { healMef } from "../pos-workbooks/mef-heal";
@@ -60,7 +61,16 @@ export class SeismicPraWorkbooksService {
    */
   private async findOrInitialize(workbookId: string, acting: ActingUser): Promise<SeismicPraWorkbookDocument> {
     const existing = await this.workbookModel.findOne({ workbookId }).exec();
-    if (existing) return existing;
+    if (existing) {
+      const current = existing.mef as { name?: string; owner?: string };
+      const healed = healMef(existing.mef, createBlankSeismicPra(current.name ?? "Seismic PRA Workbook", current.owner ?? existing.ownerUsername));
+      const parsed = SeismicPRASchema.safeParse(healed);
+      if (parsed.success && JSON.stringify(parsed.data) !== JSON.stringify(existing.mef)) {
+        existing.mef = parsed.data;
+        await existing.save();
+      }
+      return existing;
+    }
 
     const baseWorkbook = await this.baseWorkbookModel.findOne({ _id: workbookId, elementCode: "S" }).exec();
     if (!baseWorkbook) throw new NotFoundException("Seismic PRA workbook not found");
@@ -95,7 +105,7 @@ export class SeismicPraWorkbooksService {
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Seismic PRA workbook");
     const parsed = SeismicPRASchema.safeParse(stripNulls(mef));
     if (!parsed.success) throw new ForbiddenException(`Invalid Seismic PRA workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
+    doc.mef = synchronizeSeismicPraDerivedRegisters(parsed.data);
     await doc.save();
     return toResponse(doc, await this.loadMyRoles(workbookId, acting.username));
   }
@@ -112,7 +122,7 @@ export class SeismicPraWorkbooksService {
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     doc.previousMefJson = JSON.stringify(doc.mef);
     doc.mef = {
-      ...parsed.data,
+      ...synchronizeSeismicPraDerivedRegisters(parsed.data),
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };

@@ -1,4 +1,5 @@
 import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
+import { reviewBlockingSeismicPraDiagnostics, validateSeismicPra } from "interfaces-mef-types/seismic/seismic-pra-validation";
 import { SEISMIC_PRA_ANALYSIS_HTGR } from "../../example-workbooks/seeds/seismic-pra-seed-htgr";
 import { SEISMIC_PRA_ANALYSIS } from "../../example-workbooks/seeds/seismic-pra-seed";
 import { createBlankSeismicPra } from "../blank-seismic-pra";
@@ -11,6 +12,9 @@ describe("Seismic PRA MEF documents", () => {
     expect(mef.conformanceMatrix.filter((row) => row.sr.startsWith("SHA-"))).toHaveLength(40);
     expect(mef.conformanceMatrix.filter((row) => row.sr.startsWith("SFR-"))).toHaveLength(28);
     expect(mef.conformanceMatrix.filter((row) => row.sr.startsWith("SPR-"))).toHaveLength(41);
+    expect(mef.applications).toHaveLength(0);
+    expect(mef.evidenceRegister).toHaveLength(0);
+    expect(validateSeismicPra(mef).some((diagnostic) => diagnostic.severity === "ERROR")).toBe(true);
   });
 
   it.each([
@@ -26,5 +30,8 @@ describe("Seismic PRA MEF documents", () => {
     expect(mef.seismicPlantResponseAnalysis.quantification.eventSequenceFamilyQuantifications.length).toBeGreaterThan(0);
     expect(mef.integration.interfaces).toHaveLength(3);
     expect(mef.integration.unresolvedInterfaces).toHaveLength(0);
+    expect(mef.applications.length).toBeGreaterThan(0);
+    expect(mef.evidenceRegister.length).toBeGreaterThan(0);
+    expect(reviewBlockingSeismicPraDiagnostics(mef)).toHaveLength(0);
   });
 });

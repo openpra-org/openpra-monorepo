@@ -4,9 +4,11 @@ import { APP_FILTER, RouterModule } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { HttpExceptionFilter } from './http-exception.filter';
 import { QuantificationModule } from './quantification/quantification.module';
+import { ExecutionModule } from './execution/execution.module';
 @Module({
     imports: [
         QuantificationModule,
+        ExecutionModule,
         ConfigModule.forRoot({
             envFilePath: '.env',
             isGlobal: true,
@@ -23,6 +25,10 @@ import { QuantificationModule } from './quantification/quantification.module';
                         module: QuantificationModule,
                     },
                 ],
+            },
+            {
+                path: 'q',
+                module: ExecutionModule,
             },
         ]),
     ],

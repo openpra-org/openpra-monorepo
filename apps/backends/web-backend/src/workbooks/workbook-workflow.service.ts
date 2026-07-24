@@ -180,6 +180,10 @@ export class WorkbookWorkflowService {
     if (mef.workflowState !== "DRAFT" && mef.workflowState !== "REVISION_REQUIRED") {
       throw new BadRequestException(`Cannot submit for review from state ${mef.workflowState}`);
     }
+    const reviewBlockers = this.registry.get(wb.elementCode).validateForReview?.(mef) ?? [];
+    if (reviewBlockers.length > 0) {
+      throw new BadRequestException(`Resolve ${reviewBlockers.length} workbook validation blocker${reviewBlockers.length === 1 ? "" : "s"} before review: ${reviewBlockers.slice(0, 3).join(" ")}`);
+    }
     const reviewers = await this.assignedUsernames(workbookId, "reviewer");
     if (reviewers.length === 0) throw new BadRequestException("Assign at least one reviewer before submitting");
     await this.signoffModel.deleteMany({ workbookId }).exec();

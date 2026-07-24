@@ -11,6 +11,7 @@ export interface WorkbookElementAdapter {
   createBlank(workbookId: string, projectId: string, name: string, ownerUsername: string): Promise<void>;
   load(workbookId: string): Promise<{ projectId: string; ownerUsername: string; mef: unknown } | null>;
   save(workbookId: string, mef: unknown): Promise<unknown>;
+  validateForReview?(mef: object): string[];
   exampleVariants?(): WorkbookExampleVariant[];
   loadExample?(workbookId: string, acting: { username: string }, exampleId: string): Promise<void>;
 }

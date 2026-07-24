@@ -1,5 +1,7 @@
 use crate::cli::args::{Algorithm, Analysis, Approximation, Args, Backend, Vrt as CliVrt};
-use crate::cli::metadata::{display_zbdd_metadata, prompt_for_limits, ZbddSequenceMetadata};
+use crate::cli::metadata::{
+    display_zbdd_metadata, prompt_for_limits_with_defaults, ZbddSequenceMetadata,
+};
 use crate::cli::optimize::{
     estimate_fault_tree_nodes, optimize_run_params_for_cpu, optimize_run_params_for_cuda,
 };
@@ -74,6 +76,38 @@ fn enumerate_cut_sets(
         .collect()
 }
 
+fn diagram_cut_set_count(zbdd: &ZbddEngine, root: praxis::algorithms::zbdd_engine::ZbddRef) -> u64 {
+    zbdd.stats_by_order(root)
+        .values()
+        .fold(0u64, |total, (count, _, _)| total.saturating_add(*count))
+}
+
+fn choose_zbdd_filters_interactively(
+    cli: &Args,
+    zbdd: &mut ZbddEngine,
+    root: praxis::algorithms::zbdd_engine::ZbddRef,
+) -> praxis::algorithms::zbdd_engine::ZbddRef {
+    let mut default_order = cli.limit_order.map(|value| value as usize);
+    let mut default_cut_off = cli.cut_off;
+
+    loop {
+        let (limit_order, cut_off) =
+            prompt_for_limits_with_defaults(default_order, default_cut_off);
+        let filtered_root = apply_zbdd_filters(zbdd, root, limit_order, cut_off);
+        let retained = diagram_cut_set_count(zbdd, filtered_root);
+
+        println!("  Selected filters retain {retained} cut sets.");
+        if retained == 0 {
+            println!("  No cut sets remain; choose less restrictive limits.\n");
+        } else {
+            return filtered_root;
+        }
+
+        default_order = limit_order;
+        default_cut_off = cut_off;
+    }
+}
+
 fn print_cut_sets_summary(label: &str, ft_id: &str, cut_sets: &[CutSet], verbosity_level: u32) {
     println!("\n=== {} Minimal Cut Sets ===", label);
     println!("Fault Tree: {}", ft_id);
@@ -126,9 +160,7 @@ fn zbdd_wf1_no_approx_no_limits(
     )];
     display_zbdd_metadata(&meta);
 
-    let (limit_order, cut_off) = prompt_for_limits();
-
-    let filtered_root = apply_zbdd_filters(&mut zbdd, zbdd_root, limit_order, cut_off);
+    let filtered_root = choose_zbdd_filters_interactively(cli, &mut zbdd, zbdd_root);
 
     let cut_sets = enumerate_cut_sets(&zbdd, filtered_root, pdag, order);
 
@@ -167,11 +199,9 @@ fn zbdd_wf2_approx_no_limits(
     )];
     display_zbdd_metadata(&meta);
 
-    let (limit_order, cut_off) = prompt_for_limits();
+    let filtered_root = choose_zbdd_filters_interactively(cli, &mut zbdd, zbdd_root);
 
-    let filtered_root = apply_zbdd_filters(&mut zbdd, zbdd_root, limit_order, cut_off);
-
-    let final_prob = if limit_order.is_some() || cut_off.is_some() {
+    let final_prob = if filtered_root != zbdd_root {
         compute_approx(&zbdd, filtered_root, cli.approximation)
     } else {
         approx_prob
@@ -540,11 +570,32 @@ fn run_pre_event_tree_impl(
         let (pdag, order, mut bdd, bdd_root) =
             build_pdag_and_bdd(&fault_tree, cli_build_options(cli))?;
 
-        let has_limits = cli.limit_order.is_some() || cli.cut_off.is_some();
+        if cli.cut_set_stats_only {
+            let exact_probability = bdd.probability(bdd_root);
+            bdd.freeze();
+            let (zbdd, zbdd_root) = ZbddEngine::build_from_bdd_with_limits(
+                &bdd,
+                bdd_root,
+                false,
+                cli.limit_order.map(|value| value as usize),
+                cli.cut_off,
+                1.0,
+            );
+            let metadata = vec![ZbddSequenceMetadata::from_stats(
+                fault_tree.element().id().to_string(),
+                exact_probability,
+                zbdd.stats_by_order(zbdd_root),
+                1.0,
+            )];
+            display_zbdd_metadata(&metadata);
+            println!("No cut sets were materialized.");
+            return Ok(FaultTreePreOutcome::ExitOk);
+        }
+
         let has_approx = cli.approximation.is_some();
 
-        let (cut_sets, probability) = match (has_approx, has_limits) {
-            (false, false) => zbdd_wf1_no_approx_no_limits(
+        let (cut_sets, probability) = match (has_approx, cli.interactive_truncation) {
+            (false, true) => zbdd_wf1_no_approx_no_limits(
                 cli,
                 &fault_tree,
                 &pdag,
@@ -553,7 +604,7 @@ fn run_pre_event_tree_impl(
                 bdd_root,
                 verbosity_level,
             )?,
-            (true, false) => zbdd_wf2_approx_no_limits(
+            (true, true) => zbdd_wf2_approx_no_limits(
                 cli,
                 &fault_tree,
                 &pdag,
@@ -562,7 +613,7 @@ fn run_pre_event_tree_impl(
                 bdd_root,
                 verbosity_level,
             )?,
-            (false, true) => zbdd_wf3_no_approx_limits(
+            (false, false) => zbdd_wf3_no_approx_limits(
                 cli,
                 &fault_tree,
                 &pdag,
@@ -571,7 +622,7 @@ fn run_pre_event_tree_impl(
                 bdd_root,
                 verbosity_level,
             )?,
-            (true, true) => zbdd_wf4_approx_limits(
+            (true, false) => zbdd_wf4_approx_limits(
                 cli,
                 &fault_tree,
                 &pdag,
@@ -623,13 +674,15 @@ fn run_pre_event_tree_impl(
                     CutSet::new(
                         c.literals
                             .into_iter()
-                            .map(|(name, negated)| {
-                                if negated {
-                                    format!("~{}", name)
-                                } else {
-                                    name
-                                }
-                            })
+                            .map(
+                                |(name, negated)| {
+                                    if negated {
+                                        format!("~{}", name)
+                                    } else {
+                                        name
+                                    }
+                                },
+                            )
                             .collect(),
                     )
                 })
@@ -654,7 +707,6 @@ fn run_pre_event_tree_impl(
 
     if cli.algorithm == Algorithm::Mocus || cli.algorithm == Algorithm::Zbdd {
         if let Some(approximation) = cli.approximation {
-
             if cli.algorithm == Algorithm::Mocus {
                 if let Some(ref cut_sets) = computed_cut_sets {
                     let event_probs: std::collections::HashMap<String, f64> = fault_tree
@@ -672,7 +724,9 @@ fn run_pre_event_tree_impl(
                         })
                         .collect();
                     result.top_event_probability = match approximation {
-                        Approximation::RareEvent => praxis::analysis::approximations::rare_event(&probs),
+                        Approximation::RareEvent => {
+                            praxis::analysis::approximations::rare_event(&probs)
+                        }
                         Approximation::Mcub => praxis::analysis::approximations::mcub(&probs),
                     };
                 } else if verbose {
@@ -1144,7 +1198,10 @@ pub fn run_post_event_tree(
         if cli.print || verbose {
             println!("\n=== Importance Measures ===");
             println!("Top event probability: {:.6e}", nominal);
-            println!("Basic events ranked by Birnbaum importance: {}", records.len());
+            println!(
+                "Basic events ranked by Birnbaum importance: {}",
+                records.len()
+            );
             println!();
             println!(
                 "{:<24} {:>13} {:>13} {:>13} {:>10} {:>10}",

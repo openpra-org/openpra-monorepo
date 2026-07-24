@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
+import { reviewBlockingSeismicPraDiagnostics, synchronizeSeismicPraDerivedRegisters } from "interfaces-mef-types/seismic/seismic-pra-validation";
 import { SEISMIC_PRA_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { WorkbookElementRegistry, type WorkbookElementAdapter, type WorkbookExampleVariant } from "../workbooks/workbook-element-registry";
@@ -35,9 +36,15 @@ export class SeismicPraMefAdapter implements WorkbookElementAdapter, OnModuleIni
     if (!doc) throw new BadRequestException("Seismic PRA workbook not found");
     const parsed = SeismicPRASchema.safeParse(stripNulls(mef));
     if (!parsed.success) throw new BadRequestException(`Invalid Seismic PRA workbook payload: ${parsed.error.message}`);
-    doc.mef = parsed.data;
+    doc.mef = synchronizeSeismicPraDerivedRegisters(parsed.data);
     await doc.save();
-    return parsed.data;
+    return doc.mef;
+  }
+
+  validateForReview(mef: object): string[] {
+    const parsed = SeismicPRASchema.safeParse(stripNulls(mef));
+    if (!parsed.success) return ["The Seismic PRA data does not conform to its MEF schema."];
+    return reviewBlockingSeismicPraDiagnostics(parsed.data).map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`);
   }
 
   exampleVariants(): WorkbookExampleVariant[] {

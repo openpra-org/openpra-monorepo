@@ -107,6 +107,25 @@ export class SeismicPraDocumentsService implements OnModuleInit {
     return { documentId, filename: created.filename, mimeType: created.mimeType, size: created.size, uploadedBy: created.uploadedBy, uploadedAt: created.createdAt.toISOString() };
   }
 
+  async update(workbookId: string, documentId: string, requestedName: string | undefined, acting: ActingUser): Promise<SeismicPraDocumentEntry> {
+    const roles = await this.authorize(workbookId, acting, true);
+    if (!roles.includes("preparer") && !roles.includes("co_preparer")) throw new ForbiddenException("Only preparers can edit documents");
+    const document = await this.documentModel.findOne({ workbookId, documentId }).exec();
+    if (!document) throw new NotFoundException("Document not found");
+    const name = requestedName?.trim() ?? "";
+    if (name.length === 0) throw new BadRequestException("Document name cannot be empty");
+    document.filename = name;
+    await document.save();
+    return {
+      documentId: document.documentId,
+      filename: document.filename,
+      mimeType: document.mimeType,
+      size: document.size,
+      uploadedBy: document.uploadedBy,
+      uploadedAt: document.createdAt.toISOString(),
+    };
+  }
+
   async remove(workbookId: string, documentId: string, acting: ActingUser): Promise<void> {
     const roles = await this.authorize(workbookId, acting, true);
     if (!roles.includes("preparer") && !roles.includes("co_preparer")) throw new ForbiddenException("Only preparers can delete documents");

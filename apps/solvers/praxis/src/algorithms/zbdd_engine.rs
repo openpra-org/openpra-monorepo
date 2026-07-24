@@ -621,24 +621,36 @@ impl ZbddEngine {
 
     pub fn enumerate(&self, f: ZbddRef) -> Vec<Vec<usize>> {
         let mut result = Vec::new();
-        let mut current = Vec::new();
-        self.collect_sets(f, &mut current, &mut result);
+        self.for_each_set(f, |set| result.push(set.to_vec()));
         result
     }
 
-    fn collect_sets(&self, f: ZbddRef, current: &mut Vec<usize>, result: &mut Vec<Vec<usize>>) {
+    /// Visit each represented set without first materializing the complete
+    /// collection. The slice is valid only for the duration of the callback.
+    pub fn for_each_set<F>(&self, f: ZbddRef, mut visitor: F)
+    where
+        F: FnMut(&[usize]),
+    {
+        let mut current = Vec::new();
+        self.visit_sets(f, &mut current, &mut visitor);
+    }
+
+    fn visit_sets<F>(&self, f: ZbddRef, current: &mut Vec<usize>, visitor: &mut F)
+    where
+        F: FnMut(&[usize]),
+    {
         if f.is_empty() {
             return;
         }
         if f.is_base() {
-            result.push(current.clone());
+            visitor(current);
             return;
         }
         let node = self.node(f);
         current.push(node.var);
-        self.collect_sets(node.high, current, result);
+        self.visit_sets(node.high, current, visitor);
         current.pop();
-        self.collect_sets(node.low, current, result);
+        self.visit_sets(node.low, current, visitor);
     }
 
     pub fn count_by_order(&self, f: ZbddRef) -> HashMap<usize, u64> {
@@ -666,7 +678,8 @@ impl ZbddEngine {
             let low = self.count_by_order_rec(node.low, cache);
             let mut merged: HashMap<usize, u64> = low;
             for (order, count) in high {
-                *merged.entry(order + 1).or_insert(0) += count;
+                let entry = merged.entry(order + 1).or_insert(0);
+                *entry = entry.saturating_add(count);
             }
             merged
         };
@@ -1521,7 +1534,7 @@ impl ZbddEngine {
                 let e = merged
                     .entry(order + 1)
                     .or_insert((0, f64::INFINITY, f64::NEG_INFINITY));
-                e.0 += count;
+                e.0 = e.0.saturating_add(count);
                 let scaled_min = min_p * p_var;
                 let scaled_max = max_p * p_var;
                 if scaled_min < e.1 {
@@ -2149,6 +2162,17 @@ mod tests {
         assert_eq!(sets, vec![Vec::<usize>::new()]);
     }
 
+    #[test]
+    fn for_each_set_visits_without_materializing_an_intermediate_collection() {
+        let (z, root) = or_zbdd(0.1, 0.2);
+        let expected = z.enumerate(root);
+        let mut visited = Vec::new();
+
+        z.for_each_set(root, |set| visited.push(set.to_vec()));
+
+        assert_eq!(visited, expected);
+    }
+
     fn or_zbdd(p0: f64, p1: f64) -> (ZbddEngine, ZbddRef) {
         let (bdd, bdd_root) = build_bdd(&two_var_ft(Formula::Or, p0, p1));
         ZbddEngine::build_from_bdd(&bdd, bdd_root, true)
@@ -2209,5 +2233,41 @@ mod tests {
         let re = z.rare_event_probability(root);
         let mcub = z.min_cut_upper_bound(root);
         assert!(re > mcub);
+    }
+
+    #[test]
+    fn stats_by_order_reports_counts_and_probability_ranges_without_enumeration() {
+        let mut z = ZbddEngine::new();
+        z.set_var_probs(vec![0.1, 0.2, 0.3]);
+        let order_one = z.multiply(0, ZBDD_BASE);
+        let event_two = z.multiply(2, ZBDD_BASE);
+        let order_two = z.multiply(1, event_two);
+        let root = z.union(order_one, order_two);
+
+        let stats = z.stats_by_order(root);
+
+        assert_eq!(stats[&1].0, 1);
+        assert!((stats[&1].1 - 0.1).abs() < 1e-12);
+        assert!((stats[&1].2 - 0.1).abs() < 1e-12);
+        assert_eq!(stats[&2].0, 1);
+        assert!((stats[&2].1 - 0.06).abs() < 1e-12);
+        assert!((stats[&2].2 - 0.06).abs() < 1e-12);
+    }
+
+    #[test]
+    fn diagram_filters_run_before_cut_set_enumeration() {
+        let mut z = ZbddEngine::new();
+        z.set_var_probs(vec![0.1, 0.2, 0.3]);
+        let order_one = z.multiply(0, ZBDD_BASE);
+        let event_two = z.multiply(2, ZBDD_BASE);
+        let order_two = z.multiply(1, event_two);
+        let root = z.union(order_one, order_two);
+
+        let by_order = z.limit_order(root, 1);
+        assert_eq!(z.count_by_order(by_order).values().sum::<u64>(), 1);
+
+        let by_probability = z.prune_below_probability(root, 0.08);
+        assert_eq!(z.count_by_order(by_probability).values().sum::<u64>(), 1);
+        assert_eq!(z.enumerate(by_probability), vec![vec![0]]);
     }
 }

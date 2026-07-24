@@ -10,6 +10,52 @@ import { SeismicFragilityAnalysisSchema } from "../sfr/seismic-fragility-analysi
 import { SeismicPlantResponseAnalysisSchema } from "../spr/seismic-plant-response-analysis";
 import { SeismicPraInterfaceRecordSchema, SeismicPraSubelementSchema } from "./seismic-pra-common";
 
+export const SeismicPraApplicationSchema = z.object({
+  uuid: z.string(),
+  name: z.string(),
+  purpose: z.string(),
+  decisionContext: z.string(),
+  supportedRiskMetrics: z.array(z.string()),
+  consumingElementRefs: z.array(z.string()),
+  configurationBasis: z.string(),
+  limitations: z.array(z.string()),
+  evidenceRefs: z.array(z.string()),
+  status: z.enum(["PLANNED", "ACTIVE", "COMPLETED", "SUPERSEDED"]),
+});
+
+export const SeismicPraEvidenceRecordSchema = z.object({
+  uuid: z.string(),
+  name: z.string(),
+  evidenceType: z.enum(["DATA", "MODEL", "CALCULATION", "DOCUMENT", "REVIEW", "DECISION", "OTHER"]),
+  sourceReference: z.string(),
+  revision: z.string().optional(),
+  effectiveDate: z.string().optional(),
+  owner: z.string(),
+  applicableSubelements: z.array(SeismicPraSubelementSchema),
+  applicability: z.string(),
+  qualityAndLimitations: z.string(),
+  fileReference: z.string().optional(),
+  supersedesEvidenceRef: z.string().optional(),
+  status: z.enum(["DRAFT", "CONTROLLED", "SUPERSEDED"]),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
+export const SeismicPraConfigurationBaselineSchema = z.object({
+  uuid: z.string(),
+  name: z.string(),
+  asOfDate: z.string(),
+  plantConfigurationRefs: z.array(z.string()),
+  modelVersionRefs: z.array(z.string()),
+  dataCutoffDates: z.array(z.object({
+    area: z.string(),
+    cutoffDate: z.string(),
+    basis: z.string(),
+  })),
+  assumptions: z.array(z.string()),
+  changeControlProcess: z.string(),
+  openItems: z.array(z.string()),
+});
+
 export const SeismicPraConsistencyCheckSchema = z.object({
   uuid: z.string(),
   name: z.string(),
@@ -135,6 +181,9 @@ export const SeismicPraExampleDocumentSchema = z.object({
 export const SeismicPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SEISMIC_PRA).shape,
   praScope: z.string(),
+  applications: z.array(SeismicPraApplicationSchema),
+  evidenceRegister: z.array(SeismicPraEvidenceRecordSchema),
+  configurationBaseline: SeismicPraConfigurationBaselineSchema,
   seismicHazardAnalysis: SeismicHazardAnalysisSchema,
   seismicFragilityAnalysis: SeismicFragilityAnalysisSchema,
   seismicPlantResponseAnalysis: SeismicPlantResponseAnalysisSchema,

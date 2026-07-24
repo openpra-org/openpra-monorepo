@@ -147,10 +147,9 @@ pub fn enumerate_event_names(
     pdag: &Pdag,
     order: &[NodeIndex],
 ) -> Vec<Vec<String>> {
-    zbdd.enumerate(root)
-        .iter()
-        .map(|set| {
-            let mut events: Vec<String> = set
+    let mut event_sets = Vec::new();
+    zbdd.for_each_set(root, |set| {
+        let mut events: Vec<String> = set
                 .iter()
                 .filter_map(|&pos| {
                     order
@@ -159,8 +158,8 @@ pub fn enumerate_event_names(
                         .and_then(|node| node.id().map(|id| id.to_string()))
                 })
                 .collect();
-            events.sort();
-            events
-        })
-        .collect()
+        events.sort();
+        event_sets.push(events);
+    });
+    event_sets
 }

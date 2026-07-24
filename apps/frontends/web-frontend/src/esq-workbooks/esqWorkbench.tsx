@@ -447,9 +447,11 @@ function EsqWorkbench({
           {renderScreen()}
 
           <div className="posnav">
-            <button type="button" className={`posnav__btn posnav__btn--sm${prev ? "" : " posnav__btn--ghost"}`} disabled={prev === undefined} onClick={() => { if (prev !== undefined) setStepId(prev.id); }}>
-              <ESQIcon.ArrowL /> {prev ? prev.label : "Start"}
-            </button>
+            {prev ? (
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setStepId(prev.id)}>
+                <ESQIcon.ArrowL /> {prev.label}
+              </button>
+            ) : <span />}
             {next ? (
               <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => setStepId(next.id)}>Next: {next.label} <ESQIcon.ArrowR /></button>
             ) : <span />}

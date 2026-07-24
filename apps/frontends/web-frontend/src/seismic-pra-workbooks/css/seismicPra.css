@@ -44,7 +44,7 @@
 .smain__head h1 { margin: 0; color: var(--color-text); font-family: "Literata",Georgia,serif; font-size: clamp(24px,2.2vw,34px); letter-spacing: -.025em; }
 .smain__head p { margin: 8px 0 0; max-width: 760px; color: var(--color-text-muted); font-size: 13px; line-height: 1.55; }
 .smain__body { display: flex; flex-direction: column; gap: 18px; padding: 24px 36px 36px; }
-.smain__nav { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 36px; border-top: 1px solid var(--color-border); color: var(--color-text-subtle); font-size: 11px; }
+.smain__nav { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 36px; color: var(--color-text-subtle); font-size: 11px; }
 
 
 .ssection { overflow: hidden; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); box-shadow: 0 1px 2px rgba(25,30,42,.03); }

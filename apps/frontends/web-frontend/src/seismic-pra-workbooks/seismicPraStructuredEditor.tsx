@@ -7,6 +7,7 @@ type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
 interface JsonObject { [key: string]: JsonValue }
 type EditorPath = (string | number)[];
+type RootFieldSelection = string[] | ((value: JsonObject) => string[]);
 
 interface StructuredEditorDrawerProps<S extends z.ZodType> {
   eyebrow?: string;
@@ -17,6 +18,8 @@ interface StructuredEditorDrawerProps<S extends z.ZodType> {
   editable: boolean;
   initialFocus?: EditorPath;
   createAt?: EditorPath;
+  hiddenRootFields?: string[];
+  visibleRootFields?: RootFieldSelection;
   onClose: () => void;
   onApply: (value: z.output<S>) => void;
   onRemove?: () => void;
@@ -42,16 +45,17 @@ function humanize(value: string): string {
     .replace(/\brisk significant\b/g, "risk-significant");
   const label = `${separated.charAt(0).toUpperCase()}${separated.slice(1)}`;
   return label
-    .replace(/\bpra\b/g, "PRA")
-    .replace(/\bsscs?\b/g, (match) => match.endsWith("s") ? "SSCs" : "SSC")
-    .replace(/\bsrs\b/g, "SRs")
-    .replace(/\bhlr\b/g, "HLR")
-    .replace(/\bhclpf\b/g, "HCLPF")
-    .replace(/\bhep\b/g, "HEP")
-    .replace(/\bhfe\b/g, "HFE")
-    .replace(/\bhra\b/g, "HRA")
-    .replace(/\bssi\b/g, "SSI")
-    .replace(/\bfirs\b/g, "FIRS")
+    .replace(/\bsshac\b/gi, "SSHAC")
+    .replace(/\bpra\b/gi, "PRA")
+    .replace(/\bsscs?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "SSCs" : "SSC")
+    .replace(/\bsrs\b/gi, "SRs")
+    .replace(/\bhlr\b/gi, "HLR")
+    .replace(/\bhclpf\b/gi, "HCLPF")
+    .replace(/\bhep\b/gi, "HEP")
+    .replace(/\bhfe\b/gi, "HFE")
+    .replace(/\bhra\b/gi, "HRA")
+    .replace(/\bssi\b/gi, "SSI")
+    .replace(/\bfirs\b/gi, "FIRS")
     .replace(/\brefs\b/g, "references")
     .replace(/\bref\b/g, "reference")
     .replace(/\buuid\b/g, "record ID")
@@ -88,6 +92,30 @@ const FIELD_LABELS: Record<string, string> = {
   hfeDefinitionRequirementCompliance: "HFE definition requirement compliance",
   esqRequirementCompliance: "ESQ requirement compliance",
   firsDerivationMethod: "FIRS derivation method",
+  siteBasis: "Site basis",
+  applicableSiteRange: "Sites covered by the bounding basis",
+  selectionAndApplicabilityBasis: "Bounding-site justification",
+  boundsAllSitesInScope: "Bounding site covers the full PRA scope",
+  processType: "Defined PSHA process",
+  alternateProcessDescription: "Other defined process",
+  processLevelBasis: "Why this process level is appropriate",
+  centerBodyRangeDemonstration: "How center, body, and range are represented",
+  parameterType: "Ground-motion parameter",
+  dampingRatio: "Damping ratio",
+  oscillatorFrequencyHz: "Oscillator frequency (Hz)",
+  componentDefinition: "Component definition",
+  selectedRange: "Ground-motion range",
+  selectedFrequencyRangeHz: "Frequency range",
+  usedForHazard: "Used for hazard",
+  usedForFragility: "Used for fragility",
+  usedForPlantResponse: "Used for plant response",
+  maximumGroundMotion: "Maximum ground motion",
+  truncationImpactEvaluation: "Effect of truncation on PRA results",
+  sequenceRankingUnaffected: "Sequence ranking is unaffected",
+  lowerBoundMagnitude: "Lower-bound magnitude",
+  lowerBoundMagnitudeBasis: "Why smaller earthquakes cannot damage SSCs",
+  epsilonLimit: "Epsilon limit",
+  epsilonLimitBasis: "Why the epsilon limit captures aleatory variability",
 };
 
 function fieldLabel(key: string): string {
@@ -308,7 +336,7 @@ function inferredSchema(value: JsonValue): z.ZodType {
   return z.string();
 }
 
-function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle, schema, value, editable, initialFocus = [], createAt, onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
+function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle, schema, value, editable, initialFocus = [], createAt, hiddenRootFields = [], visibleRootFields, onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
   const [initialState] = useState(() => initialEditorState(schema, value, initialFocus, createAt));
   const [draft, setDraft] = useState<JsonValue>(initialState.draft);
   const [focus, setFocus] = useState<EditorPath>(initialState.focus);
@@ -366,7 +394,14 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
   }
 
   function renderObject(objectSchema: z.ZodObject, objectValue: JsonObject): JSX.Element {
-    const entries = Object.entries(objectSchema.shape).filter(([key]) => !isSystemField(key));
+    const atRoot = focus.length === rootDepth;
+    const selectedRootFields = typeof visibleRootFields === "function"
+      ? visibleRootFields(objectValue)
+      : visibleRootFields;
+    const entries = Object.entries(objectSchema.shape).filter(([key]) =>
+      !isSystemField(key)
+      && !(atRoot && hiddenRootFields.includes(key))
+      && !(atRoot && selectedRootFields !== undefined && !selectedRootFields.includes(key)));
     const primitiveEntries = entries.filter(([, childSchema]) => isPrimitiveSchema(childSchema as z.ZodType));
     const conciseEntries = primitiveEntries.filter(([key, childSchema]) => !(unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key)));
     const narrativeEntries = primitiveEntries.filter(([key, childSchema]) => unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key));
@@ -385,7 +420,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
       </div>}
       {nestedEntries.length > 0 && <div className="sstructured__navlist">{nestedEntries.map(([key, childSchema]) => {
         const childValue = objectValue[key] ?? defaultFor(childSchema as z.ZodType, key);
-        return <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{navigationMeta(childValue)}</small></span><POSIcon.ArrowR /></button>;
+        return <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{fieldLabel(key)}</strong><small>{navigationMeta(childValue)}</small></span><POSIcon.ArrowR /></button>;
       })}</div>}
     </>;
   }

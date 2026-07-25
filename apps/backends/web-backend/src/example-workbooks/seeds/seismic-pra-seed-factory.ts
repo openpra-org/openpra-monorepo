@@ -121,7 +121,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     selectionAndApplicabilityBasis: "The defined coordinates, foundation footprint, and geotechnical profiles match the plant configuration used by fragility and response analyses.",
     boundsAllSitesInScope: true,
     boundingDemonstration: "The weighted lower, best-estimate, and upper profiles span measured velocity and damping uncertainty.",
-    implementsSrs: srs("SHA-A1", "SHA-A2"),
+    implementsSrs: srs("SHA-A1"),
   };
   sha.analysisBasis.structuredProcess = {
     ...sha.analysisBasis.structuredProcess,
@@ -158,7 +158,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     qualityAssuranceProcess: "Independent calculation checks, controlled scripts, peer checking, and traceable workshop records.",
     independentReviewProcess: "An independent hazard reviewer examined inputs, judgments, weights, calculations, and documentation.",
     deviationsAndLimitations: [],
-    implementsSrs: srs("SHA-A3", "SHA-A4", "SHA-A5", "SHA-A6", "SHA-A7"),
+    implementsSrs: srs("SHA-A2"),
   };
   sha.analysisBasis.groundMotionParameters = [{
     uuid: "GMP-SA-1HZ",
@@ -177,7 +177,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     usedForPlantResponse: true,
     consistencyBasis: "A single identifier, component definition, units, range, and control point are transferred through SHA, SFR, and SPR.",
     downstreamElementRefs: ["REFERENCE-EQ-1", "FRAGILITY-PRIMARY", "DISCRETIZATION-1"],
-    implementsSrs: srs("SHA-A2", "SHA-A7"),
+    implementsSrs: srs("SHA-A3", "SHA-A4"),
   }];
   sha.analysisBasis.calculationBounds = {
     maximumGroundMotion: 3,
@@ -187,11 +187,11 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     sequenceRankingUnaffected: true,
     lowerBoundMagnitude: 4.5,
     magnitudeScale: "Mw",
-    lowerBoundMagnitudeBasis: "Events below Mw 4.5 do not contribute materially at the selected motion range.",
+    lowerBoundMagnitudeBasis: "Earthquakes below Mw 4.5 are not expected to damage the engineered SSCs included in the PRA.",
     epsilonLimit: 3,
     epsilonTailTreatment: "Truncated-normal residual with branch sensitivity at epsilon 4.",
-    epsilonLimitBasis: "Record support and hazard sensitivity justify the selected truncation.",
-    implementsSrs: srs("SHA-H1", "SHA-H2", "SHA-H3", "SHA-H4"),
+    epsilonLimitBasis: "An epsilon-4 sensitivity case confirms that truncation at epsilon 3 adequately represents the aleatory tail in the risk-significant range.",
+    implementsSrs: srs("SHA-A5", "SHA-A6", "SHA-A7"),
   };
   sha.earthScienceInputs.dataSets = [{
     uuid: "EARTH-SCIENCE-DATA-1",
@@ -1277,7 +1277,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     { uuid: "IF-SHA-SPR", name: "Hazard-to-plant-response interface", producer: "SHA", consumer: "SPR", payloadType: "HAZARD_INTERVAL", producerRefs: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((item) => item.uuid), consumerRefs: ["DISCRETIZATION-1"], transferBasis: "Non-overlapping interval frequencies and representative motion values are transferred from the mean hazard curve.", consistencyChecks: ["Frequencies reconcile", "range reaches fragility saturation", "bin refinement converges"], consistent: true, openItems: [], implementsSrs: srs("SHA-F3", "SPR-E1") },
   ];
   mef.integration.consistencyChecks = [
-    { uuid: "CHECK-GMP", name: "Ground-motion parameter consistency", checkType: "GROUND_MOTION_PARAMETER", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["GMP-SA-1HZ", "REFERENCE-EQ-1", "DISCRETIZATION-1"], method: "Compare identifier, definition, direction, units, frequency, damping, and use range.", result: "PASS", evidence: "All three subelements use geometric-mean horizontal SA at 1 Hz in g at the foundation control point.", openItems: [], implementsSrs: srs("SHA-A2", "SFR-B1", "SPR-E1") },
+    { uuid: "CHECK-GMP", name: "Ground-motion parameter consistency", checkType: "GROUND_MOTION_PARAMETER", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["GMP-SA-1HZ", "REFERENCE-EQ-1", "DISCRETIZATION-1"], method: "Compare identifier, definition, direction, units, frequency, damping, and use range.", result: "PASS", evidence: "All three subelements use geometric-mean horizontal SA at 1 Hz in g at the foundation control point.", openItems: [], implementsSrs: srs("SHA-A4", "SFR-B1", "SPR-E1") },
     { uuid: "CHECK-SEL", name: "Seismic equipment list coverage", checkType: "SEISMIC_EQUIPMENT_LIST", subelements: ["SFR", "SPR"], comparedRefs: ["SEL-2026", "FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"], method: "Resolve every active equipment failure mode through fragility and plant-response basic event.", result: "PASS", evidence: "Two active example SEL items have controlling fragilities and induced-failure models; thresholded scope is separately confirmed.", openItems: [], implementsSrs: srs("SFR-A1", "SPR-B1") },
     { uuid: "CHECK-SECONDARY", name: "Secondary-hazard consistency", checkType: "SECONDARY_HAZARD", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["SECONDARY-LIQUEFACTION", "MECHANISM-SECONDARY", "INITIATOR-LIQUEFACTION"], method: "Trace retained hazard through affected SSC, mechanism, fragility, initiating event, and sequence quantification.", result: "PASS", evidence: "The liquefaction mechanism is retained and fully traced through all three subelements.", openItems: [], implementsSrs: srs("SHA-I2", "SFR-E5", "SPR-A4") },
   ];

@@ -6,7 +6,7 @@ import { POSIcon } from "../pos-workbooks/posIcons";
 import { seismicConformanceItems, seismicConformanceScore } from "./seismicPraConformance";
 import { generateSeismicPraReport } from "./seismicPraDocx";
 import { Drawer, EmptyState, Field, NumberInput, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
-import { seismicPraInterfaceLanes, type SeismicPraInterfaceFlow } from "./seismicPraInterfaces";
+import { seismicPraInterfaceLanes, type SeismicPraInterfaceLane } from "./seismicPraInterfaces";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "./seismicPraStructuredEditor";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
 
@@ -16,6 +16,7 @@ interface CollectionEditorTarget {
   subtitle: string;
   focus: EditorPath;
   createAt?: EditorPath;
+  visibleRootFields?: string[];
   removeLabel?: string;
 }
 interface AddCategoryOption {
@@ -67,11 +68,11 @@ function displayLabel(value: string): string {
     .replace(/\bnon seismic\b/g, "non-seismic");
   const sentence = `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
   return sentence
-    .replace(/\bsshac\b/g, "SSHAC")
-    .replace(/\bpga\b/g, "PGA")
-    .replace(/\bssc\b/g, "SSC")
-    .replace(/\bpra\b/g, "PRA")
-    .replace(/\bhfe\b/g, "HFE");
+    .replace(/\bsshac\b/gi, "SSHAC")
+    .replace(/\bpga\b/gi, "PGA")
+    .replace(/\bssc\b/gi, "SSC")
+    .replace(/\bpra\b/gi, "PRA")
+    .replace(/\bhfe\b/gi, "HFE");
 }
 
 function displayParameter(value: string): string {
@@ -81,12 +82,23 @@ function displayParameter(value: string): string {
   return displayLabel(value);
 }
 
+function structuredProcessLabel(value: string): string {
+  const match = /^SSHAC_LEVEL_(\d+)$/.exec(value);
+  return match === null ? displayLabel(value) : `SSHAC Level ${match[1]}`;
+}
+
 function useUpdate(): { mef: SeismicPRA; editable: boolean; update: (change: (draft: SeismicPRA) => void) => void } {
   const { mef, editable, mutate } = useSeismicPraWorkbook();
   function update(change: (draft: SeismicPRA) => void): void {
     mutate((current) => {
       const draft = structuredClone(current);
       change(draft);
+      const siteDefinition = draft.seismicHazardAnalysis.analysisBasis.site;
+      if (siteDefinition.siteBasis === "IDENTIFIED_SITE") {
+        const referenceSiteName = draft.metadata.plantIdentity?.siteName?.trim() ?? "";
+        siteDefinition.name = referenceSiteName.length > 0 ? referenceSiteName : "Identified site";
+        siteDefinition.siteName = referenceSiteName.length > 0 ? referenceSiteName : undefined;
+      }
       Object.assign(draft, synchronizeSeismicPraDerivedRegisters(draft));
       const now = new Date().toISOString();
       draft.modified = now;
@@ -132,7 +144,7 @@ function Narrative({ label, value, empty = "Not documented yet." }: { label: str
 }
 
 function Table({ headers, children, minWidth = 720, caption }: { headers: string[]; children: ReactNode; minWidth?: number; caption?: string }): JSX.Element {
-  return <div className="stablewrap"><table className="stable postable postable--mid" style={{ minWidth }}>{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
+  return <div className="stablewrap"><table className="stable postable" style={{ minWidth }}>{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 }
 
 function DiagnosticTable({ diagnostics }: { diagnostics: SeismicPraDiagnostic[] }): JSX.Element {
@@ -142,29 +154,29 @@ function DiagnosticTable({ diagnostics }: { diagnostics: SeismicPraDiagnostic[] 
   </Table>;
 }
 
-function MefEditor({ tone, title, subtitle, focus, createAt, removeLabel, onClose }: { tone: Tone; title: string; subtitle: string; focus: EditorPath; createAt?: EditorPath; removeLabel?: string; onClose: () => void }): JSX.Element {
+function MefEditor({ tone, title, subtitle, focus, createAt, hiddenRootFields, visibleRootFields, removeLabel, onClose }: { tone: Tone; title: string; subtitle: string; focus: EditorPath; createAt?: EditorPath; hiddenRootFields?: string[]; visibleRootFields?: string[] | ((value: Record<string, unknown>) => string[]); removeLabel?: string; onClose: () => void }): JSX.Element {
   const { mef, editable, update } = useUpdate();
-  return <StructuredEditorDrawer eyebrow={EDITOR_LABELS[tone]} title={title} subtitle={subtitle} schema={SeismicPRASchema} value={mef} editable={editable} initialFocus={focus} createAt={createAt} onClose={onClose} onApply={(value) => update((draft) => { Object.assign(draft, value); })} onRemove={removeLabel === undefined ? undefined : () => update((draft) => { Object.assign(draft, removeStructuredRecord(draft, focus)); })} removeLabel={removeLabel} />;
+  return <StructuredEditorDrawer eyebrow={EDITOR_LABELS[tone]} title={title} subtitle={subtitle} schema={SeismicPRASchema} value={mef} editable={editable} initialFocus={focus} createAt={createAt} hiddenRootFields={hiddenRootFields} visibleRootFields={visibleRootFields} onClose={onClose} onApply={(value) => update((draft) => { Object.assign(draft, value); })} onRemove={removeLabel === undefined ? undefined : () => update((draft) => { Object.assign(draft, removeStructuredRecord(draft, focus)); })} removeLabel={removeLabel} />;
 }
 
 function CollectionEditor({ tone, target, onClose }: { tone: Tone; target: CollectionEditorTarget | null; onClose: () => void }): JSX.Element | null {
   if (target === null) return null;
-  return <MefEditor tone={tone} title={target.title} subtitle={target.subtitle} focus={target.focus} createAt={target.createAt} removeLabel={target.removeLabel} onClose={onClose} />;
+  return <MefEditor tone={tone} title={target.title} subtitle={target.subtitle} focus={target.focus} createAt={target.createAt} visibleRootFields={target.visibleRootFields} removeLabel={target.removeLabel} onClose={onClose} />;
 }
 
-function InterfaceFlowTable({ title, items }: { title: string; items: SeismicPraInterfaceFlow[] }): JSX.Element {
+function InterfaceFlowTable({ title, lane }: { title: string; lane: SeismicPraInterfaceLane }): JSX.Element {
   return <div className="sinterface__flow">
     <div className="sinterface__flow-title">{title}</div>
-    {items.length === 0 ? <p className="posmuted sinterface__empty">No handoff is defined in this direction.</p> : <div className="sinterface__table-wrap"><table className="postable postable--mid">
-      <thead><tr><th>Information</th><th>Handoff</th><th>References</th></tr></thead>
-      <tbody>{items.map((item) => <tr key={item.information}><td><div className="postable__name">{item.information}</div></td><td>{item.handoff}</td><td className="mono">{item.references.length > 0 ? item.references.join(" · ") : "—"}</td></tr>)}</tbody>
+    {lane.rows.length === 0 ? <p className="posmuted sinterface__empty">{lane.empty}</p> : <div className="sinterface__table-wrap"><table className="postable postable--mid">
+      <thead><tr>{lane.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+      <tbody>{lane.rows.map((row) => <tr key={row.id}><td><div className="postable__name">{row.name}</div></td>{row.values.map((value, index) => <td key={`${row.id}-${lane.columns[index + 1] ?? index}`}>{value}</td>)}</tr>)}</tbody>
     </table></div>}
   </div>;
 }
 
 function SeismicInterfacesSection(): JSX.Element {
-  const { mef } = useSeismicPraWorkbook();
-  const lanes = useMemo(() => seismicPraInterfaceLanes(mef), [mef]);
+  const { mef, linkedInputs } = useSeismicPraWorkbook();
+  const lanes = useMemo(() => seismicPraInterfaceLanes(mef, linkedInputs), [mef, linkedInputs]);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const selectedLane = lanes.find((lane) => lane.code === selectedElement);
   const selectedRole = selectedLane === undefined ? "" : `${selectedLane.role.charAt(0).toLowerCase()}${selectedLane.role.slice(1)}`;
@@ -179,7 +191,7 @@ function SeismicInterfacesSection(): JSX.Element {
       </button>)}
     </div>
     {selectedLane !== undefined && <div className="sinterface__details">
-      <InterfaceFlowTable title={selectedLane.direction === "out" ? `${selectedLane.element} receives ${selectedRole} from Seismic PRA` : `Seismic PRA receives ${selectedRole} from ${selectedLane.element}`} items={selectedLane.rows} />
+      <InterfaceFlowTable title={selectedLane.direction === "out" ? `${selectedLane.element} receives ${selectedRole} from Seismic PRA` : `Seismic PRA receives ${selectedRole} from ${selectedLane.element}`} lane={selectedLane} />
     </div>}
   </div>;
 }
@@ -271,25 +283,57 @@ function HazardBasisScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const sha = mef.seismicHazardAnalysis;
   const site = sha.analysisBasis.site;
-  const [basisOpen, setBasisOpen] = useState(false);
+  const process = sha.analysisBasis.structuredProcess;
+  const bounds = sha.analysisBasis.calculationBounds;
+  const referenceSiteName = mef.metadata.plantIdentity?.siteName?.trim() || "Not defined in Step 01";
+  const siteSelection = site.siteBasis === "IDENTIFIED_SITE"
+    ? referenceSiteName
+    : site.applicableSiteRange?.trim() || "Bounding site not described";
+  const groundMotionFields = [
+    "name",
+    "parameterType",
+    "direction",
+    "units",
+    "dampingRatio",
+    "selectedRange",
+    "selectedFrequencyRangeHz",
+    "usedForHazard",
+    "usedForFragility",
+    "usedForPlantResponse",
+  ];
+  const [siteOpen, setSiteOpen] = useState(false);
+  const [processOpen, setProcessOpen] = useState(false);
+  const [boundsOpen, setBoundsOpen] = useState(false);
   const [parameterEditor, setParameterEditor] = useState<CollectionEditorTarget | null>(null);
   return <>
-    <Section eyebrow="SHA · HLR-A" title="Site and structured hazard process" description="The selected process establishes the center, body, and range of technically defensible interpretations." tone="sha" actions={<EditButton label="Edit hazard basis" onClick={() => setBasisOpen(true)} />}>
-      <div className="sreadouts">
-        <Readout label="Site basis" value={displayLabel(site.siteBasis)} />
-        <Readout label="Site" value={site.siteName ?? "Bounding site"} />
-        <Readout label="Structured process" value={displayLabel(sha.analysisBasis.structuredProcess.processType)} />
-        <Readout label="Calculation upper bound" value={`${sha.analysisBasis.calculationBounds.maximumGroundMotion} ${sha.analysisBasis.calculationBounds.groundMotionUnits}`} />
+    <Section title="Site and PSHA basis" description="Identify the applicable site basis and the defined process used to represent technically defensible interpretations." tone="sha" actions={<>
+      <EditButton label="Edit site basis" onClick={() => setSiteOpen(true)} />
+      <EditButton label="Edit PSHA process" onClick={() => setProcessOpen(true)} />
+    </>}>
+      <div className="sreadouts sreadouts--two">
+        <Readout label="Site basis" value={`${site.siteBasis === "IDENTIFIED_SITE" ? "Identified site" : "Bounding site"} · ${siteSelection}`} />
+        <Readout label="PSHA process" value={structuredProcessLabel(process.processType)} />
       </div>
-      <Narrative label="Selection and applicability" value={site.selectionAndApplicabilityBasis} />
-      <Narrative label="Center, body, and range" value={sha.analysisBasis.structuredProcess.centerBodyRangeDemonstration} />
     </Section>
-    <Section eyebrow="Shared motion definition" title="Ground-motion parameters" description="These definitions are produced by SHA and consumed consistently by SFR and SPR." tone="sha" actions={editable ? <AddButton label="Add parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Shared ground-motion definition and downstream use", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"] })} /> : undefined}>
-      {sha.analysisBasis.groundMotionParameters.length === 0 ? <EmptyState title="No ground-motion parameters" detail="The shared motion definition has not been established." /> : <Table headers={["Parameter", "Direction", "Range", "Frequency range", "Used by", ""]}>
-        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Shared ground-motion parameter and downstream consistency", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], removeLabel: "Remove parameter" })}><td><strong>{item.name}</strong><code>{displayLabel(item.parameterType)}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{item.selectedFrequencyRangeHz.lower}–{item.selectedFrequencyRangeHz.upper} Hz</td><td>{[item.usedForHazard && "SHA", item.usedForFragility && "SFR", item.usedForPlantResponse && "SPR"].filter(Boolean).join(" · ")}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+
+    <Section title="Shared ground-motion definition" description="Use the same motion parameter and frequency range for hazard, fragility, and plant-response analysis." tone="sha" actions={editable ? <AddButton label="Add parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Parameter shared by hazard, fragility, and plant response", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"], visibleRootFields: groundMotionFields })} /> : undefined}>
+      {sha.analysisBasis.groundMotionParameters.length === 0 ? <EmptyState title="No ground-motion parameters" detail="The shared motion definition has not been established." /> : <Table headers={["Parameter", "Direction", "Range", "Frequency range", "Used by"]} minWidth={0}>
+        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Parameter shared by hazard, fragility, and plant response", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], visibleRootFields: groundMotionFields, removeLabel: "Remove parameter" })}><td><strong>{item.name}</strong><code>{[displayLabel(item.parameterType), item.dampingRatio === undefined ? undefined : `${item.dampingRatio * 100}% damping`].filter(Boolean).join(" · ")}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{item.selectedFrequencyRangeHz.lower}–{item.selectedFrequencyRangeHz.upper} Hz</td><td>{[item.usedForHazard && "Hazard", item.usedForFragility && "Fragility", item.usedForPlantResponse && "Plant response"].filter(Boolean).join(" · ") || "None selected"}</td></tr>)}
       </Table>}
     </Section>
-    {basisOpen && <MefEditor tone="sha" title="Hazard analysis basis" subtitle="Site definition, structured process, shared ground motion, and calculation bounds" focus={["seismicHazardAnalysis", "analysisBasis"]} onClose={() => setBasisOpen(false)} />}
+
+    <Section title="Calculation limits" description="Set the three cutoffs that can change the hazard or final PRA results, and justify each one." tone="sha" actions={<EditButton label="Edit limits" onClick={() => setBoundsOpen(true)} />}>
+      <div className="sreadouts">
+        <Readout label="Upper ground motion" value={`${bounds.maximumGroundMotion} ${bounds.groundMotionUnits}`} />
+        <Readout label="Truncation effect" value={bounds.sequenceRankingUnaffected ? "None" : "Unresolved"} />
+        <Readout label="Lower-bound magnitude" value={`${bounds.magnitudeScale} ${bounds.lowerBoundMagnitude}`} />
+        <Readout label="Aleatory-tail limit" value={`ε = ${bounds.epsilonLimit}`} />
+      </div>
+    </Section>
+
+    {siteOpen && <MefEditor tone="sha" title="Site basis" subtitle="Select the site basis used by the probabilistic hazard analysis" focus={["seismicHazardAnalysis", "analysisBasis", "site"]} visibleRootFields={(value) => value.siteBasis === "BOUNDING_SITE" ? ["siteBasis", "applicableSiteRange", "selectionAndApplicabilityBasis", "boundsAllSitesInScope"] : ["siteBasis"]} onClose={() => setSiteOpen(false)} />}
+    {processOpen && <MefEditor tone="sha" title="PSHA process" subtitle="Select the defined process and document how it represents center, body, and range" focus={["seismicHazardAnalysis", "analysisBasis", "structuredProcess"]} visibleRootFields={(value) => value.processType === "OTHER_STRUCTURED_PROCESS" ? ["processType", "alternateProcessDescription", "processLevelBasis", "centerBodyRangeDemonstration"] : ["processType", "processLevelBasis", "centerBodyRangeDemonstration"]} onClose={() => setProcessOpen(false)} />}
+    {boundsOpen && <MefEditor tone="sha" title="Calculation limits" subtitle="Maximum motion, lower-bound magnitude, and epsilon truncation" focus={["seismicHazardAnalysis", "analysisBasis", "calculationBounds"]} visibleRootFields={["maximumGroundMotion", "groundMotionUnits", "truncationImpactEvaluation", "sequenceRankingUnaffected", "lowerBoundMagnitude", "magnitudeScale", "lowerBoundMagnitudeBasis", "epsilonLimit", "epsilonLimitBasis"]} onClose={() => setBoundsOpen(false)} />}
     <CollectionEditor tone="sha" target={parameterEditor} onClose={() => setParameterEditor(null)} />
   </>;
 }

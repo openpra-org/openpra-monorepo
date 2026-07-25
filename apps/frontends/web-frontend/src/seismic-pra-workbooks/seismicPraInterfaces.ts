@@ -1,9 +1,10 @@
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
+import { seismicPraVariant, type SeismicPraLinkedInputs } from "./seismicPraWorkbookContext";
 
-interface SeismicPraInterfaceFlow {
-  information: string;
-  handoff: string;
-  references: string[];
+interface SeismicPraInterfaceRow {
+  id: string;
+  name: string;
+  values: string[];
 }
 
 interface SeismicPraInterfaceLane {
@@ -11,204 +12,297 @@ interface SeismicPraInterfaceLane {
   element: string;
   role: string;
   direction: "in" | "out";
-  rows: SeismicPraInterfaceFlow[];
+  columns: string[];
+  rows: SeismicPraInterfaceRow[];
+  empty: string;
 }
 
-function uniqueReferences(values: (string | undefined)[]): string[] {
-  return Array.from(new Set(values.filter((value): value is string => value !== undefined && value.trim().length > 0)));
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value.trim().length > 0)));
 }
 
-function seismicPraInterfaceLanes(mef: SeismicPRA): SeismicPraInterfaceLane[] {
+function label(value: string): string {
+  const normalized = value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\bex control room\b/g, "ex-control-room");
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+    .replace(/\bssc\b/gi, "SSC")
+    .replace(/\bhfe\b/gi, "HFE");
+}
+
+function list(values: string[]): string {
+  const items = unique(values);
+  return items.length === 0 ? "—" : items.join(" · ");
+}
+
+function scientific(value: number | undefined): string {
+  return value === undefined ? "—" : value.toExponential(2).replace("e", "E");
+}
+
+function frequency(value: number | undefined): string {
+  return value === undefined ? "—" : `${scientific(value)} /plant-yr`;
+}
+
+function percentage(value: number | undefined): string {
+  return value === undefined ? "—" : `${(value * 100).toFixed(1)} %`;
+}
+
+function validateLanes(lanes: SeismicPraInterfaceLane[]): SeismicPraInterfaceLane[] {
+  for (const lane of lanes) {
+    for (const row of lane.rows) {
+      if (row.values.length !== lane.columns.length - 1) {
+        throw new Error(
+          `Seismic PRA interface ${lane.code} row ${row.id} has ${String(row.values.length)} values for ${String(lane.columns.length)} columns`,
+        );
+      }
+    }
+  }
+  return lanes;
+}
+
+function seismicPraInterfaceLanes(
+  mef: SeismicPRA,
+  linkedInputs: SeismicPraLinkedInputs | null,
+): SeismicPraInterfaceLane[] {
   const spr = mef.seismicPlantResponseAnalysis;
-  const initiatingEvents = [...spr.initiatingEventIdentification.directInitiators, ...spr.initiatingEventIdentification.secondaryHazardInitiators];
-  const externalFloodModels = spr.plantResponseModel.retainedHazardModels.filter((model) => model.hazardType === "EXTERNAL_FLOOD");
+  const sha = mef.seismicHazardAnalysis;
+  const variant = seismicPraVariant(mef);
+  const links = variant !== null && linkedInputs?.variant === variant ? linkedInputs : null;
+  const posStates = links?.posStates ?? [];
+  const totalPosHours = posStates.reduce((total, state) => total + state.durationHours, 0);
+  const baseFloodModels = spr.plantResponseModel.baseNonSeismicHazardModelRefs.filter((ref) => ref.toUpperCase().includes("FLOOD"));
+  const baseFireModels = spr.plantResponseModel.baseNonSeismicHazardModelRefs.filter((ref) => ref.toUpperCase().includes("FIRE"));
+  const floodInputs = [
+    ...unique(baseFloodModels).map((ref) => ({ id: `model-${ref}`, name: ref, type: "Base PRA model" })),
+    ...unique(spr.seismicEquipmentListDevelopment.internalFloodSourceRefs).map((ref) => ({ id: `source-${ref}`, name: ref, type: "SEL flood source" })),
+  ];
+  const fireInputs = [
+    ...unique(baseFireModels).map((ref) => ({ id: `model-${ref}`, name: ref, type: "Base PRA model" })),
+    ...unique(spr.seismicEquipmentListDevelopment.internalFireIgnitionSourceRefs).map((ref) => ({ id: `source-${ref}`, name: ref, type: "SEL ignition source" })),
+  ];
+  const externalFloodHazards = sha.secondaryHazardEvaluation.hazards.filter(
+    (hazard) => hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING" || hazard.externalFloodingInterface !== undefined,
+  );
+  const otherRetainedHazards = sha.secondaryHazardEvaluation.hazards.filter(
+    (hazard) => hazard.screening.disposition === "RETAINED"
+      && hazard.hazardType !== "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING",
+  );
 
-  return [
+  return validateLanes([
     {
       code: "POS",
       element: "Plant Operating States",
-      role: "Plant states & source scope",
+      role: "Operating states & source scope",
       direction: "in",
-      rows: [
-        {
-          information: "Plant operating states in scope",
-          handoff: "Defines the operating configurations for seismic initiators, event sequences, and quantification.",
-          references: uniqueReferences([
-            ...spr.initiatingEventIdentification.plantOperatingStateRefs,
-            ...spr.plantResponseModel.plantOperatingStateRefs,
-          ]),
-        },
-        {
-          information: "Radioactive-material source scope",
-          handoff: "Identifies the reactor units and radioactive-material sources represented by the seismic model.",
-          references: uniqueReferences(initiatingEvents.flatMap((event) => [...event.reactorUnitRefs, ...event.radioactiveMaterialSourceRefs])),
-        },
-      ],
+      columns: ["Operating state", "Mode", "Time fraction", "Radioactive-material sources"],
+      rows: posStates.map((state) => ({
+        id: state.id,
+        name: `${state.id} · ${state.name}`,
+        values: [
+          label(state.mode),
+          totalPosHours > 0 ? `${((state.durationHours / totalPosHours) * 100).toFixed(1)} %` : "—",
+          list(state.materialSources),
+        ],
+      })),
+      empty: "No linked plant operating-state data are available.",
     },
     {
       code: "IE",
       element: "Initiating Event Analysis",
-      role: "Initiator basis",
+      role: "Initiator groups & frequencies",
       direction: "in",
-      rows: [
-        {
-          information: "Internal-events initiator analogues",
-          handoff: "Provides existing initiator definitions used to align trips, transients, and combined-event treatment.",
-          references: uniqueReferences(initiatingEvents.map((event) => event.internalEventsInitiatingEventRef)),
-        },
-        {
-          information: "Industry initiating-event experience",
-          handoff: "Supports completeness review and identification of seismically induced initiating mechanisms.",
-          references: uniqueReferences(initiatingEvents.flatMap((event) => event.industryExperienceRefs)),
-        },
-      ],
+      columns: ["Initiating-event group", "Mean frequency", "Applicable states", "Risk importance"],
+      rows: (links?.ieGroups ?? []).map((group) => ({
+        id: group.id,
+        name: `${group.id} · ${group.name}`,
+        values: [
+          frequency(group.meanFrequency),
+          list(group.applicableStates),
+          label(group.riskImportance),
+        ],
+      })),
+      empty: "No linked initiating-event groups are available.",
     },
     {
       code: "ES",
       element: "Event Sequence Analysis",
-      role: "Event-sequence logic",
+      role: "Event-sequence families",
       direction: "in",
-      rows: [
-        {
-          information: "Base event-sequence logic",
-          handoff: "Provides the sequence structure adapted for seismic failures, secondary hazards, and multi-unit effects.",
-          references: uniqueReferences(spr.plantResponseModel.eventSequenceRefs),
-        },
-      ],
+      columns: ["Event-sequence family", "End state", "Member-sequence count"],
+      rows: (links?.esFamilies ?? []).map((family) => ({
+        id: family.id,
+        name: `${family.id} · ${family.name}`,
+        values: [label(family.endState), family.memberCount === undefined ? "—" : String(family.memberCount)],
+      })),
+      empty: "No linked event-sequence families are available.",
     },
     {
       code: "SC",
       element: "Success Criteria Development",
-      role: "Success criteria & mission times",
+      role: "Mission times",
       direction: "in",
-      rows: [
-        {
-          information: "Success criteria and mission-time basis",
-          handoff: "Provides credited functions and response durations that must remain valid in the seismic environment.",
-          references: uniqueReferences(
-            spr.plantResponseModel.missionTimeAssessments.flatMap((assessment) => [assessment.successCriteriaRef, assessment.eventSequenceRef]),
-          ),
-        },
-      ],
+      columns: ["Mission-time record", "Event sequence", "Mission hours", "Risk significance"],
+      rows: (links?.scMissionTimes ?? []).map((mission) => ({
+        id: mission.id,
+        name: mission.id,
+        values: [
+          mission.eventSequence,
+          `${mission.hours} h`,
+          mission.riskSignificant === undefined ? "—" : mission.riskSignificant ? "Yes" : "No",
+        ],
+      })),
+      empty: "No linked success-criteria mission times are available.",
     },
     {
       code: "SY",
       element: "Systems Analysis",
-      role: "Systems logic & equipment scope",
+      role: "System models",
       direction: "in",
-      rows: [
-        {
-          information: "Internal-events systems model",
-          handoff: "Provides systems logic, basic events, credited functions, and failure modes used to establish the seismic equipment list.",
-          references: uniqueReferences([
-            spr.seismicEquipmentListDevelopment.internalEventsSystemsModelRef,
-            ...spr.plantResponseModel.systemsLogicModelRefs,
-          ]),
-        },
-      ],
+      columns: ["System", "Mission hours", "Applicable states", "Basic-event count"],
+      rows: (links?.sySystems ?? []).map((system) => ({
+        id: system.id,
+        name: `${system.id} · ${system.name}`,
+        values: [
+          system.missionTimeHours === undefined ? "—" : `${system.missionTimeHours} h`,
+          list(system.applicableStates),
+          system.basicEventCount === undefined ? "—" : String(system.basicEventCount),
+        ],
+      })),
+      empty: "No linked systems-analysis models are available.",
     },
     {
       code: "HR",
       element: "Human Reliability Analysis",
-      role: "Human actions & HEPs",
+      role: "Human failure events & HEPs",
       direction: "in",
-      rows: [
-        {
-          information: "Relevant internal-events human failure events",
-          handoff: "Provides the base actions, dependencies, timing, and recovery candidates evaluated for seismic conditions.",
-          references: uniqueReferences([
-            ...spr.humanReliabilityModel.relevantInternalEventsHfeRefs,
-            ...spr.plantResponseModel.humanErrorRefs,
-          ]),
-        },
-      ],
+      columns: ["Human failure event", "Timing", "Affected systems", "HEP"],
+      rows: (links?.hrActions ?? []).map((action) => ({
+        id: action.id,
+        name: `${action.id} · ${action.name}`,
+        values: [
+          label(action.timing),
+          list(action.affectedSystems),
+          scientific(action.humanErrorProbability),
+        ],
+      })),
+      empty: "No linked human failure events are available.",
     },
     {
       code: "DA",
       element: "Data Analysis",
-      role: "Failure & availability data",
+      role: "Parameter estimates",
       direction: "in",
-      rows: [
-        {
-          information: "Non-seismic failure and unavailability parameters",
-          handoff: "Provides the random-failure and unavailability terms retained alongside seismic failures in the plant-response model.",
-          references: uniqueReferences([...spr.plantResponseModel.nonSeismicFailureRefs, ...spr.plantResponseModel.unavailabilityRefs]),
-        },
-      ],
-    },
-    {
-      code: "F",
-      element: "Internal Fire PRA",
-      role: "Fire-source scope",
-      direction: "in",
-      rows: [
-        {
-          information: "Internal-fire ignition sources",
-          handoff: "Provides ignition sources and affected equipment considered in the seismic equipment and fragility scope.",
-          references: uniqueReferences(spr.seismicEquipmentListDevelopment.internalFireIgnitionSourceRefs),
-        },
-      ],
+      columns: ["Parameter", "Basic event", "System", "Estimate with parameter type"],
+      rows: (links?.daParameters ?? []).map((parameter) => ({
+        id: parameter.id,
+        name: `${parameter.id} · ${parameter.name}`,
+        values: [
+          parameter.basicEvent,
+          parameter.system,
+          `${scientific(parameter.value)} · ${label(parameter.parameterType).toLowerCase()}`,
+        ],
+      })),
+      empty: "No linked data-analysis parameters are available.",
     },
     {
       code: "FL",
       element: "Internal Flood PRA",
-      role: "Flood-source scope",
+      role: "Base flood model & SEL sources",
       direction: "in",
-      rows: [
-        {
-          information: "Internal-flood sources",
-          handoff: "Provides flood sources and affected equipment considered in the seismic equipment and fragility scope.",
-          references: uniqueReferences(spr.seismicEquipmentListDevelopment.internalFloodSourceRefs),
-        },
-      ],
+      columns: ["Stored internal-flood model/source", "Input type"],
+      rows: floodInputs.map((input) => ({
+        id: input.id,
+        name: input.name,
+        values: [input.type],
+      })),
+      empty: "No internal-flood model or SEL flood source is linked.",
+    },
+    {
+      code: "F",
+      element: "Internal Fire PRA",
+      role: "Base fire model & SEL sources",
+      direction: "in",
+      columns: ["Stored internal-fire model/source", "Input type"],
+      rows: fireInputs.map((input) => ({
+        id: input.id,
+        name: input.name,
+        values: [input.type],
+      })),
+      empty: "No internal-fire model or SEL ignition source is linked.",
     },
     {
       code: "XF",
       element: "External Flooding PRA",
       role: "Earthquake-induced flooding",
       direction: "out",
-      rows: [
-        {
-          information: "Earthquake-induced flood models",
-          handoff: "Provides retained flooding mechanisms, initiating events, affected SSCs, and seismic fragility links.",
-          references: uniqueReferences([...mef.integration.externalFloodingAnalysisRefs, ...externalFloodModels.map((model) => model.uuid)]),
-        },
-      ],
+      columns: ["Earthquake-induced flooding hazard", "Mechanism", "Hazard-result references", "Fragility-mechanism references"],
+      rows: externalFloodHazards.map((hazard) => ({
+        id: hazard.uuid,
+        name: hazard.name,
+        values: [
+          hazard.externalFloodingInterface?.mechanismDescription ?? list(hazard.initiatingMechanisms),
+          list(hazard.externalFloodingInterface?.hazardParameterResultsRefs ?? []),
+          list(hazard.externalFloodingInterface?.fragilityFailureMechanismRefs ?? []),
+        ],
+      })),
+      empty: "No earthquake-induced external-flood transfer is defined.",
+    },
+    {
+      code: "O",
+      element: "Other Hazards PRA",
+      role: "Retained secondary hazards",
+      direction: "out",
+      columns: ["Retained secondary hazard", "Hazard parameter", "Affected SSCs", "Failure mechanisms"],
+      rows: otherRetainedHazards.map((hazard) => ({
+        id: hazard.uuid,
+        name: hazard.name,
+        values: [
+          hazard.retainedAnalysis === undefined
+            ? "—"
+            : `${hazard.retainedAnalysis.hazardParameter} (${hazard.retainedAnalysis.parameterUnits})`,
+          list(hazard.potentiallyAffectedSeismicEquipmentListItemRefs),
+          list(hazard.retainedAnalysis?.failureMechanisms.map((mechanism) => mechanism.name) ?? []),
+        ],
+      })),
+      empty: "No retained secondary-hazard transfer is defined.",
     },
     {
       code: "ESQ",
       element: "Event Sequence Quantification",
-      role: "Seismic family quantification",
+      role: "Seismic family frequencies",
       direction: "out",
-      rows: [
-        {
-          information: "Seismic event-sequence family quantifications",
-          handoff: "Provides mean family frequencies, uncertainty, sensitivities, and hazard-bin contributions.",
-          references: uniqueReferences([
-            ...mef.integration.eventSequenceQuantificationRefs,
-            ...mef.integration.eventSequenceFamilyQuantificationRefs,
-          ]),
-        },
-      ],
+      columns: ["Seismic event-sequence family", "Point estimate", "Mean frequency", "Release category"],
+      rows: spr.quantification.eventSequenceFamilyQuantifications.map((result) => ({
+        id: result.uuid,
+        name: `${result.eventSequenceFamilyRef} · ${result.name}`,
+        values: [
+          frequency(result.pointEstimateFrequency),
+          frequency(result.meanFrequency),
+          result.releaseCategoryRef ?? "—",
+        ],
+      })),
+      empty: "No seismic event-sequence-family frequencies are available.",
     },
     {
       code: "RI",
       element: "Risk Integration",
-      role: "Seismic risk results & insights",
+      role: "Risk-significant contributors",
       direction: "out",
-      rows: [
-        {
-          information: "Integrated seismic risk contribution",
-          handoff: "Provides seismic sequence-family results, risk-significant contributors, uncertainties, and decision insights.",
-          references: uniqueReferences([
-            ...mef.integration.riskIntegrationRefs,
-            ...spr.quantification.riskSignificantContributors.map((contributor) => contributor.uuid),
-          ]),
-        },
-      ],
+      columns: ["Risk contributor", "Contributor type", "Contribution", "Importance"],
+      rows: spr.quantification.riskSignificantContributors.map((contributor) => ({
+        id: contributor.uuid,
+        name: contributor.name,
+        values: [
+          label(contributor.contributorType),
+          percentage(contributor.contributionValue),
+          label(String(contributor.importance)),
+        ],
+      })),
+      empty: "No seismic risk contributors are available.",
     },
-  ];
+  ]);
 }
 
 export { seismicPraInterfaceLanes };
-export type { SeismicPraInterfaceFlow, SeismicPraInterfaceLane };
+export type { SeismicPraInterfaceLane, SeismicPraInterfaceRow };

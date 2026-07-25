@@ -10,8 +10,8 @@ import { WorkbookRoster } from "../workbooks/workbookRoster";
 import { WorkbookSignCard } from "../workbooks/workbookSignCard";
 import { patchWorkbookComment, postWorkbookComment, requestWorkbookRevision, submitWorkbookForReview } from "../workbooks/workbookReviewApi";
 import { SeismicPraDocumentsCard } from "./seismicPraDocumentsCard";
-import { getSeismicPraExamples, getSeismicPraWorkbook, loadSeismicPraExample, unloadSeismicPraExample, type SeismicPraExampleOption, type SeismicPraWorkbookRoleName } from "./seismicPraWorkbookApi";
-import { SeismicPraWorkbookProvider } from "./seismicPraWorkbookContext";
+import { fetchSeismicPraLinkedInputs, getSeismicPraExamples, getSeismicPraWorkbook, loadSeismicPraExample, seismicPraVariant, unloadSeismicPraExample, type SeismicPraExampleOption, type SeismicPraWorkbookRoleName } from "./seismicPraWorkbookApi";
+import { SeismicPraWorkbookProvider, type SeismicPraLinkedInputs } from "./seismicPraWorkbookContext";
 import { SeismicPraWorkbench, type SeismicPraPersona } from "./seismicPraWorkbench";
 import { useSeismicPraMefPatch } from "./useSeismicPraMefPatch";
 
@@ -19,6 +19,7 @@ function SeismicPraWorkbookPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [mef, setMef] = useState<SeismicPRA | null>(null);
+  const [linkedInputs, setLinkedInputs] = useState<SeismicPraLinkedInputs | null>(null);
   const [roles, setRoles] = useState<SeismicPraWorkbookRoleName[]>([]);
   const [options, setOptions] = useState<SeismicPraExampleOption[]>([]);
   const [projectName, setProjectName] = useState("");
@@ -42,6 +43,17 @@ function SeismicPraWorkbookPage(): JSX.Element {
     return () => { cancelled = true; };
   }, [id]);
 
+  const exampleVariant = mef === null ? null : seismicPraVariant(mef);
+  useEffect(() => {
+    let cancelled = false;
+    setLinkedInputs(null);
+    if (exampleVariant === null) return () => { cancelled = true; };
+    fetchSeismicPraLinkedInputs(exampleVariant)
+      .then((links) => { if (!cancelled) setLinkedInputs(links); })
+      .catch(() => { if (!cancelled) setLinkedInputs(null); });
+    return () => { cancelled = true; };
+  }, [exampleVariant]);
+
   const onSaveSuccess = useCallback((next: SeismicPRA): void => { setMef(next); setSaveError(null); }, []);
   const onSaveError = useCallback((message: string): void => setSaveError(message), []);
   const { patchDebounced } = useSeismicPraMefPatch(id ?? "", mef, onSaveSuccess, onSaveError);
@@ -62,6 +74,7 @@ function SeismicPraWorkbookPage(): JSX.Element {
   const canPrepare = roles.includes("preparer") || roles.includes("co_preparer");
   const editable = persona === "preparer" && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
   const canLoad = canPrepare && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED");
+  const activeLinkedInputs = linkedInputs?.variant === exampleVariant ? linkedInputs : null;
   const actions = {
     submitForReview: async (): Promise<void> => setMef(await submitWorkbookForReview(id) as SeismicPRA),
     requestRevision: async (note: string): Promise<void> => setMef(await requestWorkbookRevision(id, note) as SeismicPRA),
@@ -69,12 +82,12 @@ function SeismicPraWorkbookPage(): JSX.Element {
     toggleResolve: async (commentId: string, resolved: boolean): Promise<void> => setMef(await patchWorkbookComment(id, commentId, { resolved }) as SeismicPRA),
   };
 
-  return <SeismicPraWorkbookProvider mef={mef} editable={editable} mutate={mutate}>
+  return <SeismicPraWorkbookProvider mef={mef} linkedInputs={activeLinkedInputs} editable={editable} mutate={mutate}>
     <SeismicPraWorkbench persona={persona} setPersona={setPersona} availablePersonas={availablePersonas} showPersonaPicker={availablePersonas.length > 1} onOpenRoles={() => setRolesOpen(true)} onLoadExample={canLoad ? () => setLoadOpen(true) : undefined} onUnloadExample={canLoad && hasPrevious ? () => setUnloadOpen(true) : undefined} headerMeta={{ projectName, workbookName: mef.name, workbookVersion: mef.version }} actions={actions} renderDocuments={() => <SeismicPraDocumentsCard workbookId={id} canEdit={canPrepare} />} renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />} renderSignCard={() => <WorkbookSignCard workbookId={id} actingUsername={user?.username ?? ""} currentPersona={persona} myOpenComments={mef.internalReviewComments.comments.filter((comment) => comment.authorId === (user?.username ?? "") && !comment.resolved).length} refreshSignal={approvalRefresh} onSigned={() => setApprovalRefresh((value) => value + 1)} />} renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />} />
     {saveError !== null && <div className="ie-savebar" role="alert"><span>Could not save changes: {saveError}</span><button type="button" className="ie-savebar__dismiss" onClick={() => setSaveError(null)}>Dismiss</button></div>}
     {rolesOpen && <WorkbookRolesModal workbookId={id} onClose={() => setRolesOpen(false)} onChanged={(response) => setRoles(response.myRoles as SeismicPraWorkbookRoleName[])} />}
-    {loadOpen && <LoadExampleModal exampleName="Seismic PRA" exampleOptions={options} onCancel={() => setLoadOpen(false)} onConfirm={async (exampleId) => { const response = await loadSeismicPraExample(id, exampleId); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setLoadOpen(false); }} />}
-    {unloadOpen && <UnloadExampleModal onCancel={() => setUnloadOpen(false)} onConfirm={async () => { const response = await unloadSeismicPraExample(id); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setUnloadOpen(false); }} />}
+    {loadOpen && <LoadExampleModal exampleName="Seismic PRA" exampleOptions={options} onCancel={() => setLoadOpen(false)} onConfirm={async (exampleId) => { setLinkedInputs(null); const response = await loadSeismicPraExample(id, exampleId); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setLoadOpen(false); }} />}
+    {unloadOpen && <UnloadExampleModal onCancel={() => setUnloadOpen(false)} onConfirm={async () => { setLinkedInputs(null); const response = await unloadSeismicPraExample(id); setMef(response.mef); setHasPrevious(response.hasPreviousMef); setUnloadOpen(false); }} />}
   </SeismicPraWorkbookProvider>;
 }
 

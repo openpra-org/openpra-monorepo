@@ -43,7 +43,7 @@ interface Step {
 
 const STEPS: Step[] = [
   { id: "scope", num: "01", label: "Scope", subelement: "INTEGRATED", title: "Scope", subtitle: "Plant basis, capability category, applications, assumptions, and the shared analysis boundary." },
-  { id: "hazard-basis", num: "02", label: "Hazard basis", subelement: "SHA", hlr: "A", title: "Site and hazard basis", subtitle: "Structured process, site definition, ground-motion parameters, and calculation bounds." },
+  { id: "hazard-basis", num: "02", label: "Hazard study basis", subelement: "SHA", hlr: "A", title: "Hazard study basis", subtitle: "Set the site basis, PSHA process, shared motion definition, and justified calculation limits." },
   { id: "earth-science", num: "03", label: "Earth science", subelement: "SHA", hlr: "B", title: "Earth-science inputs", subtitle: "Data sets, study region, earthquake catalog, methods inventory, and currentness review." },
   { id: "sources-motion", num: "04", label: "Sources & motion", subelement: "SHA", hlr: "C–D", title: "Sources and ground motion", subtitle: "Source characterization, prediction models, reference horizon, and epistemic logic trees." },
   { id: "site-response", num: "05", label: "Site response", subelement: "SHA", hlr: "E", title: "Local site response", subtitle: "Topography, geotechnical profiles, analysis methods, amplification, and variability." },

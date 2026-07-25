@@ -40,22 +40,6 @@ export const SeismicPraEvidenceRecordSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const SeismicPraConfigurationBaselineSchema = z.object({
-  uuid: z.string(),
-  name: z.string(),
-  asOfDate: z.string(),
-  plantConfigurationRefs: z.array(z.string()),
-  modelVersionRefs: z.array(z.string()),
-  dataCutoffDates: z.array(z.object({
-    area: z.string(),
-    cutoffDate: z.string(),
-    basis: z.string(),
-  })),
-  assumptions: z.array(z.string()),
-  changeControlProcess: z.string(),
-  openItems: z.array(z.string()),
-});
-
 export const SeismicPraConsistencyCheckSchema = z.object({
   uuid: z.string(),
   name: z.string(),
@@ -143,7 +127,6 @@ export const SeismicPraPeerReviewBasisSchema = z.object({
 
 export const SeismicPraDocumentationSchema = z.object({
   overallProcessDescription: z.string(),
-  scopeAndApplications: z.string(),
   shaSummary: z.string(),
   sfrSummary: z.string(),
   sprSummary: z.string(),
@@ -183,7 +166,6 @@ export const SeismicPRASchema = z.object({
   praScope: z.string(),
   applications: z.array(SeismicPraApplicationSchema),
   evidenceRegister: z.array(SeismicPraEvidenceRecordSchema),
-  configurationBaseline: SeismicPraConfigurationBaselineSchema,
   seismicHazardAnalysis: SeismicHazardAnalysisSchema,
   seismicFragilityAnalysis: SeismicFragilityAnalysisSchema,
   seismicPlantResponseAnalysis: SeismicPlantResponseAnalysisSchema,

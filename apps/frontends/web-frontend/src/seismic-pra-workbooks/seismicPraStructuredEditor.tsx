@@ -9,9 +9,9 @@ interface JsonObject { [key: string]: JsonValue }
 type EditorPath = (string | number)[];
 
 interface StructuredEditorDrawerProps<S extends z.ZodType> {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   schema: S;
   value: z.output<S>;
   editable: boolean;
@@ -24,10 +24,83 @@ interface StructuredEditorDrawerProps<S extends z.ZodType> {
 }
 
 function humanize(value: string): string {
-  return value
+  const separated = value
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .toLowerCase()
+    .replace(/\bground motion\b/g, "ground-motion")
+    .replace(/\bplant specific\b/g, "plant-specific")
+    .replace(/\bsite specific\b/g, "site-specific")
+    .replace(/\bseismic specific\b/g, "seismic-specific")
+    .replace(/\bevent sequence\b/g, "event-sequence")
+    .replace(/\binternal events\b/g, "internal-events")
+    .replace(/\bnon seismic\b/g, "non-seismic")
+    .replace(/\bmulti reactor\b/g, "multi-reactor")
+    .replace(/\bpre operational\b/g, "pre-operational")
+    .replace(/\bsite to site\b/g, "site-to-site")
+    .replace(/\bex control room\b/g, "ex-control-room")
+    .replace(/\brisk significant\b/g, "risk-significant");
+  const label = `${separated.charAt(0).toUpperCase()}${separated.slice(1)}`;
+  return label
+    .replace(/\bpra\b/g, "PRA")
+    .replace(/\bsscs?\b/g, (match) => match.endsWith("s") ? "SSCs" : "SSC")
+    .replace(/\bsrs\b/g, "SRs")
+    .replace(/\bhlr\b/g, "HLR")
+    .replace(/\bhclpf\b/g, "HCLPF")
+    .replace(/\bhep\b/g, "HEP")
+    .replace(/\bhfe\b/g, "HFE")
+    .replace(/\bhra\b/g, "HRA")
+    .replace(/\bssi\b/g, "SSI")
+    .replace(/\bfirs\b/g, "FIRS")
+    .replace(/\brefs\b/g, "references")
+    .replace(/\bref\b/g, "reference")
+    .replace(/\buuid\b/g, "record ID")
+    .replace(/\bkm\b/g, "(km)")
+    .replace(/\bhz\b/g, "(Hz)")
+    .replace(/\bhours\b/g, "(h)")
+    .replace(/\bseconds\b/g, "(s)")
+    .replace(/\bbeta randomness\b/g, "Randomness, βR")
+    .replace(/\bbeta uncertainty\b/g, "Uncertainty, βU")
+    .replace(/\bannual frequency of exceedance\b/g, "Annual exceedance frequency")
+    .replace(/\ba value\b/g, "a-value")
+    .replace(/\bb value\b/g, "b-value");
+}
+
+function singularize(value: string): string {
+  if (value.endsWith("ies")) return `${value.slice(0, -3)}y`;
+  if (value.endsWith("ses")) return value.slice(0, -2);
+  if (value.endsWith("s") && !value.endsWith("ss")) return value.slice(0, -1);
+  return value;
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  betaRandomness: "Randomness, βR",
+  betaUncertainty: "Uncertainty, βU",
+  compositeBeta: "Composite β",
+  highConfidenceLowProbabilityOfFailureCapacity: "HCLPF capacity",
+  humanErrorProbability: "HEP",
+  humanFailureEventRef: "HFE reference",
+  sourceInternalEventsHfeRef: "Source internal-events HFE",
+  humanReliabilityAnalysisRef: "HRA reference",
+  controlRoomOrExControlRoom: "Control-room / ex-control-room",
+  sscRef: "SSC reference",
+  sscRefs: "SSC references",
+  hfeDefinitionRequirementCompliance: "HFE definition requirement compliance",
+  esqRequirementCompliance: "ESQ requirement compliance",
+  firsDerivationMethod: "FIRS derivation method",
+};
+
+function fieldLabel(key: string): string {
+  return FIELD_LABELS[key] ?? humanize(key);
+}
+
+function isSystemField(key: string): boolean {
+  return key === "uuid"
+    || key === "implementsSrs"
+    || key === "createdAt"
+    || key === "modifiedAt"
+    || key === "lastModifiedDate"
+    || key === "lastModifiedBy";
 }
 
 function toJson(value: object): JsonValue {
@@ -163,6 +236,7 @@ function initialEditorState<S extends z.ZodType>(schema: S, value: z.output<S>, 
 }
 
 function needsTextarea(key: string): boolean {
+  if (/-\d+$/.test(key)) return false;
   return /(description|basis|method|review|treatment|justification|limitation|approach|impact|insight|result|scope|process|evidence|summary|conclusion|documentation|uncertainty|assumption|responsibilit|qualification|implementation|validity|sufficiency|coverage|interpretation)/i.test(key);
 }
 
@@ -191,20 +265,41 @@ function isPrimitiveSchema(inputSchema: z.ZodType): boolean {
 
 function recordLabel(value: JsonValue, index: number): string {
   if (!isObject(value)) return `Item ${index + 1}`;
-  for (const key of ["name", "title", "description", "requirement", "eventDateOrAge", "source", "assumption", "alternative"]) {
+  for (const key of ["name", "title", "description", "requirement", "recordReference", "sourceReference", "sscRef", "eventSequenceFamilyRef", "humanFailureEventRef", "eventDateOrAge", "source", "assumption", "alternative"]) {
     const candidate = value[key];
     if (typeof candidate === "string" && candidate.trim().length > 0) return candidate;
   }
-  return `Record ${index + 1}`;
+  return `Untitled ${index + 1}`;
 }
 
 function recordMeta(value: JsonValue): string {
+  if (Array.isArray(value)) return value.length === 0 ? "No entries" : `${value.length} entr${value.length === 1 ? "y" : "ies"}`;
   if (!isObject(value)) return "";
-  for (const key of ["uuid", "id", "type", "status", "result", "disposition", "sourceType", "hazardType", "modelKind"]) {
+  for (const key of ["status", "result", "disposition", "type", "kind", "sourceType", "hazardType", "modelKind", "direction", "origin", "analysisCategory", "investigationType", "profileType", "calculationMethod", "method", "softwareAndVersion", "processType"]) {
     const candidate = value[key];
-    if (typeof candidate === "string" && candidate.trim().length > 0) return key === "uuid" || key === "id" ? candidate : humanize(candidate);
+    if (typeof candidate === "string" && candidate.trim().length > 0) return humanize(candidate);
   }
-  return `${Object.keys(value).length} fields`;
+  for (const key of ["sourceReference", "recordReference", "controlPointRef", "groundMotionParameterRef", "structureRef", "systemRef"]) {
+    const candidate = value[key];
+    if (typeof candidate === "string" && candidate.trim().length > 0) return candidate;
+  }
+  return "Open details";
+}
+
+function navigationMeta(value: JsonValue): string {
+  if (Array.isArray(value)) return value.length === 0 ? "No entries" : `${value.length} entr${value.length === 1 ? "y" : "ies"}`;
+  const summary = recordMeta(value);
+  return summary.length > 0 ? summary : "Open details";
+}
+
+function validationMessage(error: z.ZodError): string {
+  return error.issues
+    .slice(0, 4)
+    .map((issue) => {
+      const location = issue.path.length === 0 ? "Current record" : issue.path.map((segment) => typeof segment === "number" ? segment + 1 : humanize(String(segment))).join(" › ");
+      return `${location}: ${issue.message}`;
+    })
+    .join("\n");
 }
 
 function inferredSchema(value: JsonValue): z.ZodType {
@@ -228,6 +323,11 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     return typeof segment === "number" ? recordLabel(pathValue, segment) : humanize(String(segment));
   };
   const focusTitle = pathLabel(focus);
+  const parentPath = focus.slice(0, -1);
+  const parentSchema = focus.length > 0 ? unwrap(schemaAt(schema, parentPath)) : undefined;
+  const canRemoveNested = focus.length > rootDepth && (parentSchema instanceof z.ZodArray || parentSchema instanceof z.ZodRecord);
+  const canRemoveRoot = focus.length === rootDepth && onRemove !== undefined;
+  const currentCollectionName = singularize(humanize(String(focus[focus.length - 1] ?? "entry")));
 
   function updateCurrent(next: JsonValue): void {
     setDraft((current) => replaceAt(current, focus, next));
@@ -237,65 +337,72 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
   function save(): void {
     const parsed = currentSchema.safeParse(currentValue);
     if (!parsed.success) {
-      setError(z.prettifyError(parsed.error));
+      setError(validationMessage(parsed.error));
       return;
     }
     onApply(draft as z.output<S>);
     onClose();
   }
 
+  function removeCurrent(): void {
+    if (canRemoveNested) {
+      setDraft((current) => removeAt(current, focus));
+      setFocus(parentPath);
+      setError(null);
+      return;
+    }
+    if (canRemoveRoot && onRemove !== undefined) {
+      onRemove();
+      onClose();
+    }
+  }
+
   function renderPrimitiveArray(arraySchema: z.ZodArray, arrayValue: JsonValue[]): JSX.Element {
     return <div className="sstructured__collection">
-      <div className="sstructured__collection-head"><div><span className="sstructured__caption">Items</span><strong>{arrayValue.length} item{arrayValue.length === 1 ? "" : "s"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => updateCurrent([...arrayValue, defaultFor(arraySchema.element as z.ZodType)])}><POSIcon.Plus /> Add item</button>}</div>
+      {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateCurrent([...arrayValue, defaultFor(arraySchema.element as z.ZodType)])}><POSIcon.Plus /> Add {currentCollectionName}</button></div>}
+      {arrayValue.length === 0 && <p className="sstructured__empty">No entries have been added.</p>}
       <div className="sstructured__primitive-list">{arrayValue.map((item, index) => <div className="sstructured__primitive-row" key={index}><PrimitiveControl schema={arraySchema.element as z.ZodType} fieldKey={`${String(focus[focus.length - 1] ?? "item")}-${index}`} value={item} editable={editable} onChange={(next) => updateCurrent(arrayValue.map((entry, entryIndex) => entryIndex === index ? next : entry))} />{editable && <button type="button" className="posdrawer__close" aria-label="Remove item" onClick={() => updateCurrent(arrayValue.filter((_, entryIndex) => entryIndex !== index))}><POSIcon.Close /></button>}</div>)}</div>
     </div>;
   }
 
   function renderObject(objectSchema: z.ZodObject, objectValue: JsonObject): JSX.Element {
-    const entries = Object.entries(objectSchema.shape);
+    const entries = Object.entries(objectSchema.shape).filter(([key]) => !isSystemField(key));
     const primitiveEntries = entries.filter(([, childSchema]) => isPrimitiveSchema(childSchema as z.ZodType));
-    const primitiveArrays = entries.filter(([, childSchema]) => {
-      const unwrapped = unwrap(childSchema as z.ZodType);
-      return unwrapped instanceof z.ZodArray && isPrimitiveSchema(unwrapped.element as z.ZodType);
-    });
+    const conciseEntries = primitiveEntries.filter(([key, childSchema]) => !(unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key)));
+    const narrativeEntries = primitiveEntries.filter(([key, childSchema]) => unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key));
     const nestedEntries = entries.filter(([, childSchema]) => {
       const unwrapped = unwrap(childSchema as z.ZodType);
-      return !isPrimitiveSchema(unwrapped) && !(unwrapped instanceof z.ZodArray && isPrimitiveSchema(unwrapped.element as z.ZodType));
+      return !isPrimitiveSchema(unwrapped);
     });
     return <>
-      {primitiveEntries.length > 0 && <div className="sstructured__fields">{primitiveEntries.map(([key, childSchema]) => <div className={`sstructured__field${needsTextarea(key) ? " sstructured__field--wide" : ""}`} key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{humanize(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>}
-      {primitiveArrays.map(([key, childSchema]) => {
-        const arraySchema = unwrap(childSchema as z.ZodType) as z.ZodArray;
-        const arrayValue = Array.isArray(objectValue[key]) ? objectValue[key] as JsonValue[] : [];
-        return <div className="sstructured__subsection" key={key}><div className="sstructured__subhead"><div><span className="sstructured__caption">{humanize(key)}</span><strong>{arrayValue.length} item{arrayValue.length === 1 ? "" : "s"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => updateCurrent({ ...objectValue, [key]: [...arrayValue, defaultFor(arraySchema.element as z.ZodType)] })}><POSIcon.Plus /> Add {humanize(key).replace(/s$/, "")}</button>}</div>{renderInlinePrimitiveArray(key, arraySchema, arrayValue, objectValue)}</div>;
-      })}
+      {conciseEntries.length > 0 && <div className="sstructured__section">
+        {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Details</h3>}
+        <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
+      </div>}
+      {narrativeEntries.length > 0 && <div className="sstructured__section">
+        {(conciseEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Technical basis</h3>}
+        <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
+      </div>}
       {nestedEntries.length > 0 && <div className="sstructured__navlist">{nestedEntries.map(([key, childSchema]) => {
         const childValue = objectValue[key] ?? defaultFor(childSchema as z.ZodType, key);
-        const count = Array.isArray(childValue) ? childValue.length : isObject(childValue) ? Object.keys(childValue).length : 0;
-        return <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{Array.isArray(childValue) ? `${count} record${count === 1 ? "" : "s"}` : `${count} fields`}</small></span><POSIcon.ArrowR /></button>;
+        return <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{navigationMeta(childValue)}</small></span><POSIcon.ArrowR /></button>;
       })}</div>}
     </>;
-  }
-
-  function renderInlinePrimitiveArray(key: string, arraySchema: z.ZodArray, arrayValue: JsonValue[], objectValue: JsonObject): JSX.Element {
-    return <div className="sstructured__primitive-list">
-      {arrayValue.map((item, index) => <div className="sstructured__primitive-row" key={index}><PrimitiveControl schema={arraySchema.element as z.ZodType} fieldKey={`${key}-${index}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: arrayValue.map((entry, entryIndex) => entryIndex === index ? next : entry) })} />{editable && <button type="button" className="posdrawer__close" aria-label="Remove item" onClick={() => updateCurrent({ ...objectValue, [key]: arrayValue.filter((_, entryIndex) => entryIndex !== index) })}><POSIcon.Close /></button>}</div>)}
-    </div>;
   }
 
   function renderArray(arraySchema: z.ZodArray, arrayValue: JsonValue[]): JSX.Element {
     if (isPrimitiveSchema(arraySchema.element as z.ZodType)) return renderPrimitiveArray(arraySchema, arrayValue);
     return <div className="sstructured__collection">
-      <div className="sstructured__collection-head"><div><span className="sstructured__caption">Collection</span><strong>{arrayValue.length} record{arrayValue.length === 1 ? "" : "s"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => updateCurrent([...arrayValue, defaultFor(arraySchema.element as z.ZodType)])}><POSIcon.Plus /> Add record</button>}</div>
-      {arrayValue.length === 0 ? <div className="sstructured__empty"><strong>No records yet</strong><span>Add the first record to complete this section.</span></div> : <div className="sstructured__records">{arrayValue.map((item, index) => <div className="sstructured__record" key={index}><button type="button" className="sstructured__record-open" onClick={() => setFocus([...focus, index])}><span><strong>{recordLabel(item, index)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button>{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${recordLabel(item, index)}`} onClick={() => setDraft((current) => removeAt(current, [...focus, index]))}><POSIcon.Close /></button>}</div>)}</div>}
+      {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateCurrent([...arrayValue, defaultFor(arraySchema.element as z.ZodType)])}><POSIcon.Plus /> Add {currentCollectionName}</button></div>}
+      {arrayValue.length === 0 ? <p className="sstructured__empty">No entries have been added.</p> : <div className="sstructured__records">{arrayValue.map((item, index) => <button type="button" className="sstructured__record-open" key={index} onClick={() => setFocus([...focus, index])}><span><strong>{recordLabel(item, index)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button>)}</div>}
     </div>;
   }
 
   function renderRecord(recordSchema: z.ZodRecord, recordValue: JsonObject): JSX.Element {
     const entries = Object.entries(recordValue);
     return <div className="sstructured__collection">
-      <div className="sstructured__collection-head"><div><span className="sstructured__caption">Keyed values</span><strong>{entries.length} entr{entries.length === 1 ? "y" : "ies"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => { let key = "newKey"; let suffix = 1; while (key in recordValue) { key = `newKey${suffix}`; suffix += 1; } updateCurrent({ ...recordValue, [key]: defaultFor(recordSchema.valueType as z.ZodType) }); }}><POSIcon.Plus /> Add entry</button>}</div>
-      {entries.map(([key, entryValue]) => <div className="sstructured__record" key={key}><button type="button" className="sstructured__record-open" onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(entryValue)}</small></span><POSIcon.ArrowR /></button>{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${key}`} onClick={() => setDraft((current) => removeAt(current, [...focus, key]))}><POSIcon.Close /></button>}</div>)}
+      {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { let key = "newKey"; let suffix = 1; while (key in recordValue) { key = `newKey${suffix}`; suffix += 1; } updateCurrent({ ...recordValue, [key]: defaultFor(recordSchema.valueType as z.ZodType) }); }}><POSIcon.Plus /> Add entry</button></div>}
+      {entries.length === 0 ? <p className="sstructured__empty">No entries have been added.</p> : <div className="sstructured__records">{entries.map(([key, entryValue]) => <button type="button" className="sstructured__record-open" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(entryValue)}</small></span><POSIcon.ArrowR /></button>)}</div>}
     </div>;
   }
 
@@ -306,15 +413,15 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
   function renderDynamic(dynamicValue: JsonValue): JSX.Element {
     if (Array.isArray(dynamicValue)) {
       return <div className="sstructured__collection">
-        <div className="sstructured__collection-head"><div><span className="sstructured__caption">Flexible collection</span><strong>{dynamicValue.length} item{dynamicValue.length === 1 ? "" : "s"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => updateCurrent([...dynamicValue, ""])}><POSIcon.Plus /> Add item</button>}</div>
-        <div className="sstructured__records">{dynamicValue.map((item, index) => isObject(item) || Array.isArray(item) ? <div className="sstructured__record" key={index}><button type="button" className="sstructured__record-open" onClick={() => setFocus([...focus, index])}><span><strong>{recordLabel(item, index)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button>{editable && <button type="button" className="posdrawer__close" aria-label="Remove item" onClick={() => updateCurrent(dynamicValue.filter((_, itemIndex) => itemIndex !== index))}><POSIcon.Close /></button>}</div> : <div className="sstructured__primitive-row" key={index}><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${index}`} value={item} editable={editable} onChange={(next) => updateCurrent(dynamicValue.map((entry, itemIndex) => itemIndex === index ? next : entry))} />{editable && <button type="button" className="posdrawer__close" aria-label="Remove item" onClick={() => updateCurrent(dynamicValue.filter((_, itemIndex) => itemIndex !== index))}><POSIcon.Close /></button>}</div>)}</div>
+        {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateCurrent([...dynamicValue, ""])}><POSIcon.Plus /> Add item</button></div>}
+        {dynamicValue.length === 0 ? <p className="sstructured__empty">No entries have been added.</p> : <div className="sstructured__records">{dynamicValue.map((item, index) => isObject(item) || Array.isArray(item) ? <button type="button" className="sstructured__record-open" key={index} onClick={() => setFocus([...focus, index])}><span><strong>{recordLabel(item, index)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button> : <div className="sstructured__primitive-row" key={index}><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${index}`} value={item} editable={editable} onChange={(next) => updateCurrent(dynamicValue.map((entry, itemIndex) => itemIndex === index ? next : entry))} />{editable && <button type="button" className="posdrawer__close" aria-label="Remove item" onClick={() => updateCurrent(dynamicValue.filter((_, itemIndex) => itemIndex !== index))}><POSIcon.Close /></button>}</div>)}</div>}
       </div>;
     }
     if (isObject(dynamicValue)) {
       const entries = Object.entries(dynamicValue);
       return <div className="sstructured__collection">
-        <div className="sstructured__collection-head"><div><span className="sstructured__caption">Flexible fields</span><strong>{entries.length} field{entries.length === 1 ? "" : "s"}</strong></div>{editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => { let key = "newField"; let suffix = 1; while (key in dynamicValue) { key = `newField${suffix}`; suffix += 1; } updateCurrent({ ...dynamicValue, [key]: "" }); }}><POSIcon.Plus /> Add field</button>}</div>
-        <div className="sstructured__fields">{entries.map(([key, item]) => isObject(item) || Array.isArray(item) ? <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button> : <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-dynamic-${key}`}>{humanize(key)}</label><div className="sstructured__primitive-row"><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${key}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...dynamicValue, [key]: next })} />{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${key}`} onClick={() => { const next = { ...dynamicValue }; delete next[key]; updateCurrent(next); }}><POSIcon.Close /></button>}</div></div>)}</div>
+        {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { let key = "newField"; let suffix = 1; while (key in dynamicValue) { key = `newField${suffix}`; suffix += 1; } updateCurrent({ ...dynamicValue, [key]: "" }); }}><POSIcon.Plus /> Add field</button></div>}
+        {entries.length === 0 ? <p className="sstructured__empty">No fields have been added.</p> : <div className="sstructured__fields">{entries.map(([key, item]) => isObject(item) || Array.isArray(item) ? <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button> : <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-dynamic-${key}`}>{humanize(key)}</label><div className="sstructured__primitive-row"><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${key}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...dynamicValue, [key]: next })} />{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${key}`} onClick={() => { const next = { ...dynamicValue }; delete next[key]; updateCurrent(next); }}><POSIcon.Close /></button>}</div></div>)}</div>}
       </div>;
     }
     return <PrimitiveControl schema={inferredSchema(dynamicValue)} fieldKey={String(focus[focus.length - 1] ?? "value")} value={dynamicValue} editable={editable} onChange={updateCurrent} />;
@@ -335,12 +442,18 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     return <PrimitiveControl schema={activeSchema} fieldKey={String(focus[focus.length - 1] ?? "value")} value={currentValue} editable={editable} onChange={updateCurrent} />;
   }
 
-  return <Drawer eyebrow={eyebrow} title={focusTitle} subtitle={focus.length === rootDepth ? subtitle : `${title} · complete record editor`} onClose={onClose} footer={<>{error !== null && <span className="sstructured__footer-error">Resolve validation errors before saving.</span>}<button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>{editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}><POSIcon.Check /> Save changes</button>}</>}>
+  const removeActionLabel = canRemoveRoot ? removeLabel : `Remove ${focusTitle}`;
+
+  return <Drawer eyebrow={focus.length === rootDepth ? eyebrow : title} title={focusTitle} subtitle={focus.length === rootDepth ? subtitle : undefined} plainHeader onClose={onClose} footer={<>
+    {error !== null && <span className="sstructured__footer-error">Review the current record.</span>}
+    {editable && (canRemoveRoot || canRemoveNested) && <button type="button" className="posnav__btn sstructured__remove-action" onClick={removeCurrent}><POSIcon.Close /> {removeActionLabel}</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}><POSIcon.Check /> Save changes</button>}
+  </>}>
     {focus.length > rootDepth && <button type="button" className="sstructured__back" onClick={() => setFocus(focus.slice(0, -1))}><POSIcon.ArrowL /> Back to {pathLabel(focus.slice(0, -1))}</button>}
-    <div className="sstructured__context"><span>{focus.length === rootDepth ? "Complete section" : pathLabel(focus)}</span>{!editable && <span className="posbadge">Read only</span>}</div>
+    {!editable && <span className="posbadge sstructured__readonly">Read only</span>}
     {renderCurrent()}
-    {error !== null && <pre className="sstructured__error">{error}</pre>}
-    {editable && onRemove !== undefined && <div className="poscard sstructured__remove"><div className="poscard__head"><h3 className="poscard__title">{removeLabel}</h3></div><p className="posfield__hint">This removes the selected entry from the Seismic PRA workbook.</p><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { onRemove(); onClose(); }}><POSIcon.Close /> {removeLabel}</button></div>}
+    {error !== null && <p className="sstructured__error">{error}</p>}
   </Drawer>;
 }
 

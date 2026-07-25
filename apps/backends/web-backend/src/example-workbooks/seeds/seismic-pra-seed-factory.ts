@@ -54,21 +54,6 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     evidenceRefs: ["EVIDENCE-SHA-REPORT", "EVIDENCE-SFR-CALCS", "EVIDENCE-SEL"],
     status: "ACTIVE",
   }];
-  mef.configurationBaseline = {
-    uuid: `BASELINE-${kind.toUpperCase()}-2026`,
-    name: `${reactor} Seismic PRA baseline`,
-    asOfDate: "2026-06-22",
-    plantConfigurationRefs: [`${kind.toUpperCase()}-DESIGN-BASELINE-2026`, "SEL-2026"],
-    modelVersionRefs: ["SHA-MODEL-2026.1", "SFR-MODEL-2026.1", "SPR-MODEL-2026.1"],
-    dataCutoffDates: [
-      { area: "Earth-science data", cutoffDate: "2026-02-28", basis: "Published and project-acquired data available before the technical integration workshop." },
-      { area: "Plant design", cutoffDate: "2026-06-01", basis: "Issued reference-design and vendor information incorporated in the seismic equipment list." },
-      { area: "Operating experience", cutoffDate: "2026-03-31", basis: "Plant-specific analogue and industry seismic experience review cutoff." },
-    ],
-    assumptions: [`The ${site} profile suite bounds final foundation conditions.`, "Reference-design SSC locations and anchorage are representative pending as-built confirmation."],
-    changeControlProcess: "Changes to plant configuration, inputs, models, calculations, interfaces, or conclusions require impact screening, affected-record revision, rerun of diagnostics, and multidisciplinary approval.",
-    openItems: ["Confirm final as-built configuration and close the physical walkdown action before operational use."],
-  };
   mef.evidenceRegister = [
     {
       uuid: "EVIDENCE-SHA-REPORT",
@@ -80,7 +65,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
       owner: "Hazard team",
       applicableSubelements: ["SHA", "SFR", "SPR"],
       applicability: "Controls the hazard basis, motion definitions, spectra, intervals, and secondary-hazard results transferred downstream.",
-      qualityAndLimitations: "Independently checked; final site confirmation is tracked in the configuration baseline.",
+      qualityAndLimitations: "Independently checked; final site confirmation remains a tracked pre-operational closure item.",
       fileReference: "DOC-SHA",
       status: "CONTROLLED",
       implementsSrs: srs("SHA-I1", "SHA-I2", "SHA-I3"),
@@ -1337,7 +1322,6 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   }];
   mef.integratedSensitivityStudies = [...sfr.results.sensitivityStudies, ...spr.quantification.sensitivityStudies];
   mef.documentation.overallProcessDescription = "The Seismic PRA is one integrated technical element composed of SHA, SFR, and SPR, with controlled interfaces and shared identifiers from site characterization through risk insights.";
-  mef.documentation.scopeAndApplications = mef.praScope;
   mef.documentation.shaSummary = "Site-specific SSHAC Level 2 mean hazard, spectra, discretization, and retained secondary hazards.";
   mef.documentation.sfrSummary = "Median-centered response, investigations, explicit failure mechanisms, mean fragilities, uncertainty, and correlation.";
   mef.documentation.sprSummary = "Seismic initiators, reconciled SEL, adapted plant model and HRA, converged hazard-bin integration, and risk insights.";

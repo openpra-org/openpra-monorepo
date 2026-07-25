@@ -34,20 +34,6 @@ export interface SeismicPraEvidenceRecord extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
-export interface SeismicPraConfigurationBaseline extends Unique, Named {
-  asOfDate: string;
-  plantConfigurationRefs: string[];
-  modelVersionRefs: string[];
-  dataCutoffDates: {
-    area: string;
-    cutoffDate: string;
-    basis: string;
-  }[];
-  assumptions: string[];
-  changeControlProcess: string;
-  openItems: string[];
-}
-
 export interface SeismicPraConsistencyCheck extends Unique, Named {
   checkType:
     | "GROUND_MOTION_PARAMETER"
@@ -130,7 +116,6 @@ export interface SeismicPraPeerReviewBasis {
 
 export interface SeismicPraDocumentation {
   overallProcessDescription: string;
-  scopeAndApplications: string;
   shaSummary: string;
   sfrSummary: string;
   sprSummary: string;
@@ -167,7 +152,6 @@ export interface SeismicPRA extends TechnicalElement<TechnicalElementTypes.SEISM
   praScope: string;
   applications: SeismicPraApplication[];
   evidenceRegister: SeismicPraEvidenceRecord[];
-  configurationBaseline: SeismicPraConfigurationBaseline;
   seismicHazardAnalysis: SeismicHazardAnalysis;
   seismicFragilityAnalysis: SeismicFragilityAnalysis;
   seismicPlantResponseAnalysis: SeismicPlantResponseAnalysis;

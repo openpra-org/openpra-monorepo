@@ -74,9 +74,9 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
   );
 
   out.push(heading("Executive Summary", HeadingLevel.HEADING_1));
-  out.push(para(mef.documentation.scopeAndApplications), para(mef.documentation.integratedResultsSummary), para(mef.documentation.integratedRiskInsights));
+  out.push(para(mef.praScope), para(mef.documentation.integratedResultsSummary), para(mef.documentation.integratedRiskInsights));
 
-  out.push(heading("1. Scope, Basis, and Configuration", HeadingLevel.HEADING_1));
+  out.push(heading("1. Scope and Basis", HeadingLevel.HEADING_1));
   out.push(para(mef.praScope), para(mef.documentation.overallProcessDescription), para(mef.documentation.configurationControlDescription));
   for (const limitation of mef.metadata.limitations) out.push(bullet(limitation));
   out.push(heading("1.1 Intended Applications", HeadingLevel.HEADING_2));
@@ -84,8 +84,7 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
     ["Application", "Status", "Purpose", "Decision context", "Risk metrics", "Limitations"],
     mef.applications.map((application) => [application.name, application.status, application.purpose, application.decisionContext, application.supportedRiskMetrics.join("; "), application.limitations.join("; ")]),
   ));
-  out.push(heading("1.2 Configuration Baseline and Evidence", HeadingLevel.HEADING_2));
-  out.push(para(`Baseline: ${mef.configurationBaseline.name}. As of: ${mef.configurationBaseline.asOfDate}.`), para(mef.configurationBaseline.changeControlProcess));
+  out.push(heading("1.2 Evidence Register", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Evidence", "Type", "Source", "Revision", "Owner", "Status", "Applicability"],
     mef.evidenceRegister.map((evidence) => [evidence.name, evidence.evidenceType, evidence.sourceReference, evidence.revision ?? "—", evidence.owner, evidence.status, evidence.applicability]),

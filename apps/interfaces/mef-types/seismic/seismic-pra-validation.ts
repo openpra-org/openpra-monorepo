@@ -89,9 +89,6 @@ function validateSeismicPra(mef: SeismicPRA): SeismicPraDiagnostic[] {
   if (mef.praScope.trim().length === 0) add("SCOPE-001", "ERROR", "SCOPE", "Define the integrated Seismic PRA scope.");
   if (mef.applications.length === 0) add("SCOPE-002", "WARNING", "SCOPE", "Register at least one intended Seismic PRA application.");
   if (mef.evidenceRegister.length === 0) add("SCOPE-003", "WARNING", "SCOPE", "The common evidence register is empty.");
-  if (mef.configurationBaseline.plantConfigurationRefs.length === 0) add("SCOPE-004", "ERROR", "SCOPE", "Link the plant configuration represented by the analysis.");
-  if (mef.configurationBaseline.changeControlProcess.trim().length === 0) add("SCOPE-005", "WARNING", "SCOPE", "Document the configuration change-control process.");
-  if (mef.configurationBaseline.openItems.length > 0) add("SCOPE-006", "WARNING", "SCOPE", "The configuration baseline has open items that require tracked closure.", mef.configurationBaseline.openItems);
   const duplicateUuids = findDuplicateUuids(mef);
   if (duplicateUuids.length > 0) add("SCOPE-007", "ERROR", "SCOPE", "Duplicate UUIDs within a controlled register prevent unambiguous end-to-end traceability.", duplicateUuids);
   const evidenceRefs = new Set(mef.evidenceRegister.map((evidence) => evidence.uuid));

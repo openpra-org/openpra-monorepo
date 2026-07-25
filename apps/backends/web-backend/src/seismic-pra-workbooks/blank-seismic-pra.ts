@@ -56,17 +56,6 @@ export function createBlankSeismicPra(name: string, owner: string): SeismicPRA {
     praScope: "",
     applications: [],
     evidenceRegister: [],
-    configurationBaseline: {
-      uuid: randomUUID(),
-      name: "Seismic PRA configuration baseline",
-      asOfDate: now,
-      plantConfigurationRefs: [],
-      modelVersionRefs: [],
-      dataCutoffDates: [],
-      assumptions: [],
-      changeControlProcess: "",
-      openItems: [],
-    },
     seismicHazardAnalysis: {
       uuid: shaId,
       name: "Seismic Hazard Analysis",
@@ -466,7 +455,6 @@ export function createBlankSeismicPra(name: string, owner: string): SeismicPRA {
     modelUncertainty: modelUncertainty("Integrated Seismic PRA model uncertainty documentation"),
     documentation: {
       overallProcessDescription: "",
-      scopeAndApplications: "",
       shaSummary: "",
       sfrSummary: "",
       sprSummary: "",

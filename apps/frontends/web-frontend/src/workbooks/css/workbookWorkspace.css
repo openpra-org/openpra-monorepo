@@ -485,6 +485,16 @@
   margin: 0;
   color: var(--color-text);
 }
+
+.possetup {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 .poscard__sub {
   font-size: 13px;
   color: var(--color-text-muted);
@@ -879,28 +889,6 @@
 }
 
 /* ─── Uploads ───────────────────────────────────────────────────────── */
-.posupload {
-  border: 1.5px dashed var(--color-border-strong);
-  border-radius: 12px;
-  background: var(--color-surface-low);
-  padding: 22px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-.posupload__icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.posupload__icon svg { width: 22px; height: 22px; }
-.posupload__copy { flex: 1; min-width: 0; }
-.posupload__copy-title { font-weight: 700; font-size: 14px; color: var(--color-text); }
-.posupload__copy-sub   { font-size: 12.5px; color: var(--color-text-subtle); margin-top: 2px; }
-
 .posdoc-list {
   display: flex;
   flex-direction: column;
@@ -1564,15 +1552,6 @@
   }
   .poscard__title { flex: 1 1 100%; min-width: 0; }
   .poscard__head .posrow { flex-wrap: wrap; gap: 6px; }
-
-  /* Upload card stacks vertically */
-  .posupload {
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 16px;
-  }
-  .posupload__copy { flex: 1 1 100%; }
-  .posupload > .posnav__btn { flex: 1 1 100%; justify-content: center; }
 
   /* Uploaded document rows: pure flex, vertical stack, no overlap */
   .posdoc {

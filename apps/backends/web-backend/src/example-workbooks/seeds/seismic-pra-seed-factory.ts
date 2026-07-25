@@ -4,6 +4,7 @@ import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { createBlankSeismicPra } from "../../seismic-pra-workbooks/blank-seismic-pra";
 
 type ReactorKind = "sfr" | "htgr";
+type GroundMotionParameter = SeismicPRA["seismicHazardAnalysis"]["analysisBasis"]["groundMotionParameters"][number];
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((sr) => ({ sr, hlr: sr.split("-")[1]!.charAt(0) as SRReference["hlr"] }));
@@ -160,25 +161,67 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     deviationsAndLimitations: [],
     implementsSrs: srs("SHA-A2"),
   };
-  sha.analysisBasis.groundMotionParameters = [{
-    uuid: "GMP-SA-1HZ",
-    name: "Geometric-mean horizontal SA at 1 Hz",
-    parameterType: "SPECTRAL_ACCELERATION",
-    direction: "GEOMETRIC_MEAN_HORIZONTAL",
-    units: "g",
-    dampingRatio: 0.05,
-    oscillatorPeriodSeconds: 1,
-    oscillatorFrequencyHz: 1,
-    componentDefinition: "Geometric mean of two orthogonal horizontal components at the free-field rock control point.",
-    selectedRange: { minimum: 0.01, maximum: 3.0 },
-    selectedFrequencyRangeHz: { lower: 0.5, upper: 100 },
-    usedForHazard: true,
-    usedForFragility: true,
-    usedForPlantResponse: true,
-    consistencyBasis: "A single identifier, component definition, units, range, and control point are transferred through SHA, SFR, and SPR.",
-    downstreamElementRefs: ["REFERENCE-EQ-1", "FRAGILITY-PRIMARY", "DISCRETIZATION-1"],
-    implementsSrs: srs("SHA-A3", "SHA-A4"),
-  }];
+  // NRC hazard evaluations use spectral control points at 1, 2.5, 5, 10, and
+  // 25 Hz plus PGA; 0.5 Hz is retained for low-frequency structural response.
+  const spectralFrequenciesHz = [0.5, 1, 2.5, 5, 10, 25] as const;
+  const frequencyToken = (frequency: number): string => String(frequency).replace(".", "P");
+  const spectralParameter = (
+    direction: "GEOMETRIC_MEAN_HORIZONTAL" | "VERTICAL",
+    frequency: number,
+  ): GroundMotionParameter => {
+    const isHorizontal = direction === "GEOMETRIC_MEAN_HORIZONTAL";
+    const uuid = isHorizontal && frequency === 1
+      ? "GMP-SA-1HZ"
+      : `GMP-${isHorizontal ? "H" : "V"}-SA-${frequencyToken(frequency)}HZ`;
+    return {
+      uuid,
+      name: `${isHorizontal ? "Geometric-mean horizontal" : "Vertical"} SA at ${frequency} Hz`,
+      parameterType: "SPECTRAL_ACCELERATION",
+      direction,
+      units: "g",
+      dampingRatio: 0.05,
+      oscillatorPeriodSeconds: 1 / frequency,
+      oscillatorFrequencyHz: frequency,
+      componentDefinition: isHorizontal
+        ? "Geometric mean of two orthogonal horizontal free-field components at the foundation control point."
+        : "Vertical free-field component at the foundation control point.",
+      selectedRange: { minimum: 0.005, maximum: isHorizontal ? 3 : 2.5 },
+      selectedFrequencyRangeHz: { lower: frequency, upper: frequency },
+      usedForHazard: true,
+      usedForFragility: true,
+      usedForPlantResponse: true,
+      consistencyBasis: "The parameter identifier, component definition, damping, units, amplitude range, and frequency are shared by SHA, SFR, and SPR.",
+      downstreamElementRefs: ["REFERENCE-EQ-1", "FRAGILITY-PRIMARY", "DISCRETIZATION-1"],
+      implementsSrs: srs("SHA-A3", "SHA-A4"),
+    };
+  };
+  const pgaParameter = (direction: "GEOMETRIC_MEAN_HORIZONTAL" | "VERTICAL"): GroundMotionParameter => {
+    const isHorizontal = direction === "GEOMETRIC_MEAN_HORIZONTAL";
+    return {
+      uuid: `GMP-${isHorizontal ? "H" : "V"}-PGA`,
+      name: `${isHorizontal ? "Geometric-mean horizontal" : "Vertical"} PGA`,
+      parameterType: "PEAK_GROUND_ACCELERATION",
+      direction,
+      units: "g",
+      componentDefinition: isHorizontal
+        ? "Geometric mean of two orthogonal horizontal free-field peak accelerations at the foundation control point."
+        : "Vertical free-field peak acceleration at the foundation control point.",
+      selectedRange: { minimum: 0.005, maximum: isHorizontal ? 2 : 1.5 },
+      selectedFrequencyRangeHz: { lower: 100, upper: 100 },
+      usedForHazard: true,
+      usedForFragility: true,
+      usedForPlantResponse: true,
+      consistencyBasis: "PGA is represented by the 100 Hz rigid-response control point and shared by SHA, SFR, and SPR.",
+      downstreamElementRefs: ["REFERENCE-EQ-1", "FRAGILITY-PRIMARY", "DISCRETIZATION-1"],
+      implementsSrs: srs("SHA-A3", "SHA-A4"),
+    };
+  };
+  sha.analysisBasis.groundMotionParameters = [
+    ...spectralFrequenciesHz.map((frequency) => spectralParameter("GEOMETRIC_MEAN_HORIZONTAL", frequency)),
+    pgaParameter("GEOMETRIC_MEAN_HORIZONTAL"),
+    ...spectralFrequenciesHz.map((frequency) => spectralParameter("VERTICAL", frequency)),
+    pgaParameter("VERTICAL"),
+  ];
   sha.analysisBasis.calculationBounds = {
     maximumGroundMotion: 3,
     groundMotionUnits: "g",
@@ -1291,7 +1334,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     modeledSecondaryHazardRefs: ["SECONDARY-LIQUEFACTION"],
     coverageBasis: "Automated identifier reconciliation plus joint SHA/SFR/SPR technical review.",
   };
-  mef.integration.selectedGroundMotionParameterRefs = ["GMP-SA-1HZ"];
+  mef.integration.selectedGroundMotionParameterRefs = sha.analysisBasis.groundMotionParameters.map((parameter) => parameter.uuid);
   mef.integration.selectedControlPointRefs = ["CONTROL-POINT-FOUNDATION"];
   mef.integration.hazardCurveRefs = ["HAZARD-CURVE-MEAN-1HZ"];
   mef.integration.responseSpectrumRefs = ["UHS-1E-4-H"];

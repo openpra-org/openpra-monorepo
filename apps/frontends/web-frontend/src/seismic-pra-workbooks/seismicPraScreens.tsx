@@ -1,11 +1,12 @@
 import { SEISMIC_PRA_SR_CATALOG, type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
+import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { synchronizeSeismicPraDerivedRegisters, validateSeismicPra, type SeismicPraDiagnostic } from "interfaces-mef-types/seismic/seismic-pra-validation";
 import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
 import { type JSX, type ReactNode, useMemo, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { seismicConformanceItems, seismicConformanceScore } from "./seismicPraConformance";
 import { generateSeismicPraReport } from "./seismicPraDocx";
-import { Drawer, EmptyState, Field, NumberInput, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
+import { Drawer, EmptyState, Field, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
 import { seismicPraInterfaceLanes, type SeismicPraInterfaceLane } from "./seismicPraInterfaces";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "./seismicPraStructuredEditor";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
@@ -16,7 +17,7 @@ interface CollectionEditorTarget {
   subtitle: string;
   focus: EditorPath;
   createAt?: EditorPath;
-  visibleRootFields?: string[];
+  visibleRootFields?: string[] | ((value: Record<string, unknown>) => string[]);
   removeLabel?: string;
 }
 interface AddCategoryOption {
@@ -143,6 +144,11 @@ function Narrative({ label, value, empty = "Not documented yet." }: { label: str
   return <div className="snarrative"><span>{label}</span><p className={value.trim().length === 0 ? "snarrative__empty" : ""}>{value.trim().length > 0 ? value : empty}</p></div>;
 }
 
+function BasisDetail({ label, value }: { label: string; value: string }): JSX.Element {
+  const populated = value.trim().length > 0;
+  return <div className="sbasis__detail"><span>{label}</span><p className={populated ? "" : "sbasis__detail-empty"}>{populated ? value : "Not documented yet."}</p></div>;
+}
+
 function Table({ headers, children, minWidth = 720, caption }: { headers: string[]; children: ReactNode; minWidth?: number; caption?: string }): JSX.Element {
   return <div className="stablewrap"><table className="stable postable" style={{ minWidth }}>{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 }
@@ -182,7 +188,7 @@ function SeismicInterfacesSection(): JSX.Element {
   const selectedRole = selectedLane === undefined ? "" : `${selectedLane.role.charAt(0).toLowerCase()}${selectedLane.role.slice(1)}`;
   return <div className="poscard">
     <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
-    <p className="poscard__sub">Seismic PRA receives the plant and base-PRA model, adds seismic hazard, fragility, and response information, and returns integrated risk results. Select an element to inspect the handoff.</p>
+    <p className="poscard__sub">Review technical inputs and outputs by element.</p>
     <div className="poshandoff__grid">
       {lanes.map((lane) => <button key={lane.code} type="button" className={`poshandoff__tile${selectedElement === lane.code ? " poshandoff__tile--active" : ""}`} onClick={() => setSelectedElement(selectedElement === lane.code ? null : lane.code)}>
         <span className="poshandoff__tile-code">{lane.code}</span>
@@ -196,87 +202,205 @@ function SeismicInterfacesSection(): JSX.Element {
   </div>;
 }
 
-function ScopePlantEditor({ onClose }: { onClose: () => void }): JSX.Element {
+function ScopeScreen({ renderDocuments }: { renderDocuments?: () => ReactNode }): JSX.Element {
   const { mef, editable, update } = useUpdate();
-  const identity = mef.metadata.plantIdentity;
-  const [praScope, setPraScope] = useState(mef.praScope);
-  const [plantStage, setPlantStage] = useState(mef.plantStage);
-  const [capabilityCategory, setCapabilityCategory] = useState(mef.capabilityCategory ?? "CC-II");
-  const [plantName, setPlantName] = useState(identity?.name ?? "");
-  const [vendor, setVendor] = useState(identity?.vendor ?? "");
-  const [reactorType, setReactorType] = useState(identity?.reactorType ?? "");
-  const [siteName, setSiteName] = useState(identity?.siteName ?? "");
-  const [numberOfModules, setNumberOfModules] = useState(identity?.numberOfModules ?? 1);
-  const [thermalPower, setThermalPower] = useState(identity?.thermalPower ?? "");
-  const [primaryCoolant, setPrimaryCoolant] = useState(identity?.primaryCoolant ?? "");
-  const [intermediateCoolant, setIntermediateCoolant] = useState(identity?.intermediateCoolant ?? "");
-  const [powerConversionFluid, setPowerConversionFluid] = useState(identity?.powerConversionFluid ?? "");
-  const [limitations, setLimitations] = useState(mef.metadata.limitations.join("\n"));
+  const identity: PlantIdentity = mef.metadata.plantIdentity ?? {
+    name: "",
+    vendor: "",
+    reactorType: "",
+    thermalPower: "",
+    primaryCoolant: "",
+    siteName: "",
+    numberOfModules: 1,
+  };
+  function updatePraScope(value: string): void {
+    update((draft) => {
+      draft.praScope = value;
+      draft.metadata.scope = value;
+      draft.seismicHazardAnalysis.praScope = value;
+      draft.seismicFragilityAnalysis.praScope = value;
+      draft.seismicPlantResponseAnalysis.praScope = value;
+    });
+  }
+
+  function updatePlantIdentity<K extends keyof PlantIdentity>(key: K, value: PlantIdentity[K]): void {
+    update((draft) => {
+      const current = draft.metadata.plantIdentity ?? {
+        name: "",
+        vendor: "",
+        reactorType: "",
+        thermalPower: "",
+        primaryCoolant: "",
+      };
+      draft.metadata.plantIdentity = { ...current, [key]: value };
+    });
+  }
+
+  return <>
+    <SeismicInterfacesSection />
+    <Section title="Scope and reference plant and site" tone="integration">
+      <fieldset className="sinlineeditor" disabled={!editable}>
+        <div className="sinlineeditor__group">
+          <h3 className="sinlineeditor__title">Reference plant and site</h3>
+          <div className="posfield-grid">
+            <label className="posfield"><span className="posfield__label">Plant name</span><input className="posfield__input" value={identity.name} onChange={(event) => updatePlantIdentity("name", event.target.value)} /></label>
+            <label className="posfield"><span className="posfield__label">Vendor / designer</span><input className="posfield__input" value={identity.vendor} onChange={(event) => updatePlantIdentity("vendor", event.target.value)} /></label>
+            <label className="posfield"><span className="posfield__label">Reactor type</span><input className="posfield__input" value={identity.reactorType} onChange={(event) => updatePlantIdentity("reactorType", event.target.value)} /></label>
+            <label className="posfield"><span className="posfield__label">Thermal power</span><input className="posfield__input" value={identity.thermalPower} onChange={(event) => updatePlantIdentity("thermalPower", event.target.value)} /></label>
+            <label className="posfield"><span className="posfield__label">Site</span><input className="posfield__input" value={identity.siteName ?? ""} onChange={(event) => updatePlantIdentity("siteName", event.target.value)} /></label>
+            <label className="posfield"><span className="posfield__label">Modules or units</span><input className="posfield__input" type="number" min="1" step="1" value={identity.numberOfModules ?? 1} onChange={(event) => updatePlantIdentity("numberOfModules", Number(event.target.value))} /></label>
+          </div>
+        </div>
+        <div className="sinlineeditor__group">
+          <h3 className="sinlineeditor__title">PRA scope</h3>
+          <textarea className="posfield__textarea" rows={4} value={mef.praScope} onChange={(event) => updatePraScope(event.target.value)} />
+        </div>
+        <div className="sinlineeditor__group">
+          <h3 className="sinlineeditor__title">Plant stage</h3>
+          <div className="sinlineeditor__choices">
+            {([
+              ["PRE_OPERATIONAL", "Pre-operational", "Plant information is based on the available design and must be confirmed as the plant is built."],
+              ["OPERATIONAL", "Operational", "The analysis is maintained against the as-built and as-operated plant."],
+            ] as const).map(([value, label, detail]) => <label className={`sinlineeditor__choice${mef.plantStage === value ? " sinlineeditor__choice--active" : ""}`} key={value}>
+              <input type="radio" name="seismic-plant-stage" checked={mef.plantStage === value} onChange={() => update((draft) => { draft.plantStage = value; })} />
+              <span><strong>{label}</strong><small>{detail}</small></span>
+            </label>)}
+          </div>
+        </div>
+        <div className="sinlineeditor__group">
+          <h3 className="sinlineeditor__title">Capability category</h3>
+          <div className="sinlineeditor__choices">
+            {([
+              ["CC-I", "Bounding", "Coarse scope, generic data, and bounding assumptions."],
+              ["CC-II", "Plant-specific", "Plant-specific data and finer resolution for risk-significant contributors."],
+            ] as const).map(([value, label, detail]) => <label className={`sinlineeditor__choice${(mef.capabilityCategory ?? "CC-II") === value ? " sinlineeditor__choice--active" : ""}`} key={value}>
+              <input type="radio" name="seismic-capability-category" checked={(mef.capabilityCategory ?? "CC-II") === value} onChange={() => update((draft) => { draft.capabilityCategory = value; })} />
+              <span><strong>{value} · {label}</strong><small>{detail}</small></span>
+            </label>)}
+          </div>
+        </div>
+      </fieldset>
+    </Section>
+    {renderDocuments?.()}
+  </>;
+}
+
+type HazardAnalysisBasis = SeismicPRA["seismicHazardAnalysis"]["analysisBasis"];
+type SeismicSiteBasis = HazardAnalysisBasis["site"]["siteBasis"];
+type StructuredHazardProcessType = HazardAnalysisBasis["structuredProcess"]["processType"];
+
+const SITE_BASIS_OPTIONS: { value: SeismicSiteBasis; label: string }[] = [
+  { value: "IDENTIFIED_SITE", label: "Identified site" },
+  { value: "BOUNDING_SITE", label: "Bounding site" },
+];
+
+const PSHA_PROCESS_OPTIONS: { value: StructuredHazardProcessType; label: string }[] = [
+  { value: "SSHAC_LEVEL_1", label: "SSHAC Level 1" },
+  { value: "SSHAC_LEVEL_2", label: "SSHAC Level 2" },
+  { value: "SSHAC_LEVEL_3", label: "SSHAC Level 3" },
+  { value: "SSHAC_LEVEL_4", label: "SSHAC Level 4" },
+  { value: "OTHER_STRUCTURED_PROCESS", label: "Other defined process" },
+];
+
+function SiteAndPshaBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const referenceSiteName = mef.metadata.plantIdentity?.siteName?.trim() || "Not defined in Step 01";
+  const [draft, setDraft] = useState<Pick<HazardAnalysisBasis, "site" | "structuredProcess">>(() => ({
+    site: structuredClone(mef.seismicHazardAnalysis.analysisBasis.site),
+    structuredProcess: structuredClone(mef.seismicHazardAnalysis.analysisBasis.structuredProcess),
+  }));
+  const process = draft.structuredProcess;
 
   function save(): void {
-    update((draft) => {
-      draft.praScope = praScope;
-      draft.metadata.scope = praScope;
-      draft.seismicHazardAnalysis.praScope = praScope;
-      draft.seismicFragilityAnalysis.praScope = praScope;
-      draft.seismicPlantResponseAnalysis.praScope = praScope;
-      draft.plantStage = plantStage;
-      draft.capabilityCategory = capabilityCategory;
-      draft.metadata.plantIdentity = {
-        name: plantName,
-        vendor,
-        reactorType,
-        thermalPower,
-        primaryCoolant,
-        siteName,
-        numberOfModules,
-        ...(intermediateCoolant.trim().length > 0 ? { intermediateCoolant } : {}),
-        ...(powerConversionFluid.trim().length > 0 ? { powerConversionFluid } : {}),
-      };
-      draft.metadata.limitations = limitations.split("\n").map((limitation) => limitation.trim()).filter((limitation) => limitation.length > 0);
+    update((next) => {
+      next.seismicHazardAnalysis.analysisBasis.site = draft.site;
+      next.seismicHazardAnalysis.analysisBasis.structuredProcess = draft.structuredProcess;
     });
     onClose();
   }
 
-  return <Drawer title="Scope and reference plant and site" plainHeader onClose={onClose} footer={<><button type="button" className="posnav__btn" onClick={onClose}>Cancel</button><button type="button" className="posnav__btn posnav__btn--primary" disabled={!editable} onClick={save}><POSIcon.Check /> Save changes</button></>}>
-    <Field label="PRA Scope" wide><TextArea value={praScope} rows={5} disabled={!editable} onChange={setPraScope} /></Field>
-    <FieldGrid>
-      <Field label="Plant stage"><SelectInput value={plantStage} disabled={!editable} options={[{ value: "PRE_OPERATIONAL", label: "Pre-operational" }, { value: "OPERATIONAL", label: "Operational" }]} onChange={(value) => setPlantStage(value as SeismicPRA["plantStage"])} /></Field>
-      <Field label="Capability category"><SelectInput value={capabilityCategory} disabled={!editable} options={[{ value: "CC-I", label: "CC-I" }, { value: "CC-II", label: "CC-II" }]} onChange={(value) => setCapabilityCategory(value as NonNullable<SeismicPRA["capabilityCategory"]>)} /></Field>
-      <Field label="Plant name"><TextInput value={plantName} disabled={!editable} onChange={setPlantName} /></Field>
-      <Field label="Vendor / designer"><TextInput value={vendor} disabled={!editable} onChange={setVendor} /></Field>
-      <Field label="Reactor type"><TextInput value={reactorType} disabled={!editable} onChange={setReactorType} /></Field>
-      <Field label="Site"><TextInput value={siteName} disabled={!editable} onChange={setSiteName} /></Field>
-      <Field label="Modules or units"><NumberInput value={numberOfModules} disabled={!editable} step="1" onChange={setNumberOfModules} /></Field>
-      <Field label="Thermal power"><TextInput value={thermalPower} disabled={!editable} onChange={setThermalPower} /></Field>
-      <Field label="Primary coolant"><TextInput value={primaryCoolant} disabled={!editable} onChange={setPrimaryCoolant} /></Field>
-      <Field label="Intermediate coolant"><TextInput value={intermediateCoolant} disabled={!editable} onChange={setIntermediateCoolant} /></Field>
-      <Field label="Power conversion working fluid"><TextInput value={powerConversionFluid} disabled={!editable} onChange={setPowerConversionFluid} /></Field>
-    </FieldGrid>
-    <Field label="Analysis limitations" wide hint="Enter one limitation per line."><TextArea value={limitations} rows={4} disabled={!editable} onChange={setLimitations} /></Field>
-  </Drawer>;
-}
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Site and PSHA basis" subtitle="Site selection and PSHA process" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor sbasis-editor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Site basis</h3>
+        <FieldGrid>
+          <Field label="Reference site" hint="Managed in Step 01.">
+            <TextInput value={referenceSiteName} disabled onChange={() => undefined} />
+          </Field>
+          <Field label="Site basis">
+            <SelectInput value={draft.site.siteBasis} options={SITE_BASIS_OPTIONS} onChange={(value) => setDraft((current) => ({
+              ...current,
+              site: { ...current.site, siteBasis: value as SeismicSiteBasis },
+            }))} />
+          </Field>
+        </FieldGrid>
+        {draft.site.siteBasis === "BOUNDING_SITE" && <>
+          <Field label="Sites covered by the bounding basis">
+            <TextArea rows={3} value={draft.site.applicableSiteRange ?? ""} onChange={(value) => setDraft((current) => ({
+              ...current,
+              site: { ...current.site, applicableSiteRange: value },
+            }))} />
+          </Field>
+          <Field label="Bounding-site justification">
+            <TextArea rows={4} value={draft.site.selectionAndApplicabilityBasis} onChange={(value) => setDraft((current) => ({
+              ...current,
+              site: { ...current.site, selectionAndApplicabilityBasis: value },
+            }))} />
+          </Field>
+          <label className="sbasis-editor__check">
+            <input type="checkbox" checked={draft.site.boundsAllSitesInScope} onChange={(event) => setDraft((current) => ({
+              ...current,
+              site: { ...current.site, boundsAllSitesInScope: event.target.checked },
+            }))} />
+            <span>Bounding site covers the full PRA scope</span>
+          </label>
+        </>}
+      </div>
 
-function ScopeScreen({ renderDocuments }: { renderDocuments?: () => ReactNode }): JSX.Element {
-  const { mef, editable } = useUpdate();
-  const identity = mef.metadata.plantIdentity;
-  const [applicationEditor, setApplicationEditor] = useState<CollectionEditorTarget | null>(null);
-  const [scopeOpen, setScopeOpen] = useState(false);
-  return <>
-    <SeismicInterfacesSection />
-    <Section title="Scope and reference plant and site" tone="integration" actions={<EditButton label="Edit scope" onClick={() => setScopeOpen(true)} />}>
-      <div className="sreadouts sreadouts--plain"><Readout label="Plant name" value={identity?.name ?? "Not defined"} /><Readout label="Vendor / designer" value={identity?.vendor ?? "Not defined"} /><Readout label="Reactor type" value={identity?.reactorType ?? "Not defined"} /><Readout label="Site" value={identity?.siteName ?? "Not defined"} /><Readout label="Modules or units" value={identity?.numberOfModules ?? 1} /><Readout label="Thermal power" value={identity?.thermalPower ?? "Not defined"} /><Readout label="Plant stage" value={displayLabel(mef.plantStage)} /><Readout label="Capability" value={mef.capabilityCategory ?? "CC-II"} /></div>
-      <Narrative label="PRA Scope" value={mef.praScope} />
-    </Section>
-    <Section title="Application register" description="Each risk-informed use is tied to its decision context, metrics, consuming elements, evidence, and limitations." tone="integration" actions={editable ? <AddButton label="Add application" onClick={() => setApplicationEditor({ title: "New application", subtitle: "Decision context, risk metrics, consuming elements, evidence, and limitations", focus: [], createAt: ["applications"] })} /> : undefined}>
-      {mef.applications.length === 0 ? <EmptyState title="No applications registered" detail="Define the intended decisions and constraints before relying on the Seismic PRA results." /> : <Table headers={["Application", "Status", "Decision context", "Risk metrics", "Evidence", ""]}>
-        {mef.applications.map((application, index) => <tr className="postable__row--clickable" key={application.uuid} onClick={() => setApplicationEditor({ title: application.name, subtitle: "Decision context, risk metrics, consuming elements, evidence, and limitations", focus: ["applications", index], removeLabel: "Remove application" })}><td><strong>{application.name}</strong><code>{application.purpose}</code></td><td><Tag tone={application.status === "ACTIVE" ? "good" : "neutral"}>{application.status}</Tag></td><td>{application.decisionContext}</td><td>{application.supportedRiskMetrics.join("; ")}</td><td>{application.evidenceRefs.length}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>}
-    </Section>
-    {renderDocuments?.()}
-    {scopeOpen && <ScopePlantEditor onClose={() => setScopeOpen(false)} />}
-    <CollectionEditor tone="integration" target={applicationEditor} onClose={() => setApplicationEditor(null)} />
-  </>;
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">PSHA process</h3>
+        <Field label="Defined process">
+          <SelectInput value={process.processType} options={PSHA_PROCESS_OPTIONS} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, processType: value as StructuredHazardProcessType },
+          }))} />
+        </Field>
+        {process.processType === "OTHER_STRUCTURED_PROCESS" && <Field label="Other defined process">
+          <TextArea rows={3} value={process.alternateProcessDescription ?? ""} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, alternateProcessDescription: value },
+          }))} />
+        </Field>}
+        <Field label="Study objective and intended application">
+          <TextArea rows={3} value={process.studyObjective} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, studyObjective: value },
+          }))} />
+        </Field>
+        <Field label="Why this process level is appropriate">
+          <TextArea rows={3} value={process.processLevelBasis} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, processLevelBasis: value },
+          }))} />
+        </Field>
+        <Field label="Technical integration approach">
+          <TextArea rows={3} value={process.technicalIntegrationApproach} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, technicalIntegrationApproach: value },
+          }))} />
+        </Field>
+        <Field label="How center, body, and range are represented">
+          <TextArea rows={4} value={process.centerBodyRangeDemonstration} onChange={(value) => setDraft((current) => ({
+            ...current,
+            structuredProcess: { ...current.structuredProcess, centerBodyRangeDemonstration: value },
+          }))} />
+        </Field>
+      </div>
+    </fieldset>
+  </Drawer>;
 }
 
 function HazardBasisScreen(): JSX.Element {
@@ -289,41 +413,56 @@ function HazardBasisScreen(): JSX.Element {
   const siteSelection = site.siteBasis === "IDENTIFIED_SITE"
     ? referenceSiteName
     : site.applicableSiteRange?.trim() || "Bounding site not described";
-  const groundMotionFields = [
+  const groundMotionFields = (value: Record<string, unknown>): string[] => [
     "name",
     "parameterType",
     "direction",
     "units",
-    "dampingRatio",
+    ...(value.parameterType === "PEAK_GROUND_ACCELERATION" ? [] : ["dampingRatio", "oscillatorFrequencyHz"]),
     "selectedRange",
     "selectedFrequencyRangeHz",
     "usedForHazard",
     "usedForFragility",
     "usedForPlantResponse",
   ];
-  const [siteOpen, setSiteOpen] = useState(false);
-  const [processOpen, setProcessOpen] = useState(false);
+  const [basisOpen, setBasisOpen] = useState(false);
   const [boundsOpen, setBoundsOpen] = useState(false);
   const [parameterEditor, setParameterEditor] = useState<CollectionEditorTarget | null>(null);
+  const frequencyRangeLabel = (lower: number, upper: number): string => lower === upper ? `${lower} Hz` : `${lower}–${upper} Hz`;
   return <>
-    <Section title="Site and PSHA basis" description="Identify the applicable site basis and the defined process used to represent technically defensible interpretations." tone="sha" actions={<>
-      <EditButton label="Edit site basis" onClick={() => setSiteOpen(true)} />
-      <EditButton label="Edit PSHA process" onClick={() => setProcessOpen(true)} />
-    </>}>
-      <div className="sreadouts sreadouts--two">
-        <Readout label="Site basis" value={`${site.siteBasis === "IDENTIFIED_SITE" ? "Identified site" : "Bounding site"} · ${siteSelection}`} />
-        <Readout label="PSHA process" value={structuredProcessLabel(process.processType)} />
+    <Section title="Site and PSHA basis" tone="sha" actions={<EditButton label="Edit basis" onClick={() => setBasisOpen(true)} />}>
+      <div className="sbasis">
+        <div className="sbasis__overview">
+          <div className="sbasis__summary">
+            <span>Reference site</span>
+            <strong>{siteSelection}</strong>
+          </div>
+          <div className="sbasis__summary">
+            <span>Defined process</span>
+            <strong>{structuredProcessLabel(process.processType)}</strong>
+          </div>
+        </div>
+        {site.siteBasis === "BOUNDING_SITE" && <div className="sbasis__bounding">
+          <BasisDetail label="Sites covered" value={site.applicableSiteRange ?? ""} />
+          <BasisDetail label="Bounding basis" value={site.selectionAndApplicabilityBasis} />
+        </div>}
+        <div className="sbasis__technical-grid">
+          <BasisDetail label="Study objective" value={process.studyObjective} />
+          <BasisDetail label="Level selection" value={process.processLevelBasis} />
+          <BasisDetail label="Technical integration" value={process.technicalIntegrationApproach} />
+          <BasisDetail label="Center, body, and range" value={process.centerBodyRangeDemonstration} />
+        </div>
       </div>
     </Section>
 
-    <Section title="Shared ground-motion definition" description="Use the same motion parameter and frequency range for hazard, fragility, and plant-response analysis." tone="sha" actions={editable ? <AddButton label="Add parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Parameter shared by hazard, fragility, and plant response", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"], visibleRootFields: groundMotionFields })} /> : undefined}>
-      {sha.analysisBasis.groundMotionParameters.length === 0 ? <EmptyState title="No ground-motion parameters" detail="The shared motion definition has not been established." /> : <Table headers={["Parameter", "Direction", "Range", "Frequency range", "Used by"]} minWidth={0}>
-        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Parameter shared by hazard, fragility, and plant response", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], visibleRootFields: groundMotionFields, removeLabel: "Remove parameter" })}><td><strong>{item.name}</strong><code>{[displayLabel(item.parameterType), item.dampingRatio === undefined ? undefined : `${item.dampingRatio * 100}% damping`].filter(Boolean).join(" · ")}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{item.selectedFrequencyRangeHz.lower}–{item.selectedFrequencyRangeHz.upper} Hz</td><td>{[item.usedForHazard && "Hazard", item.usedForFragility && "Fragility", item.usedForPlantResponse && "Plant response"].filter(Boolean).join(" · ") || "None selected"}</td></tr>)}
+    <Section title="Shared ground-motion definition" description="Define motion parameters shared across seismic analyses." tone="sha" actions={editable ? <AddButton label="Add parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Parameter shared by hazard, fragility, and plant response", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"], visibleRootFields: groundMotionFields })} /> : undefined}>
+      {sha.analysisBasis.groundMotionParameters.length === 0 ? <EmptyState title="No ground-motion parameters" detail="The shared motion definition has not been established." /> : <Table headers={["Parameter", "Direction", "Range", "Frequency range"]} minWidth={0}>
+        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Parameter shared by hazard, fragility, and plant response", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], visibleRootFields: groundMotionFields, removeLabel: "Remove parameter" })}><td><strong>{item.name}</strong><code>{[displayLabel(item.parameterType), item.dampingRatio === undefined ? undefined : `${item.dampingRatio * 100}% damping`].filter(Boolean).join(" · ")}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{frequencyRangeLabel(item.selectedFrequencyRangeHz.lower, item.selectedFrequencyRangeHz.upper)}</td></tr>)}
       </Table>}
     </Section>
 
-    <Section title="Calculation limits" description="Set the three cutoffs that can change the hazard or final PRA results, and justify each one." tone="sha" actions={<EditButton label="Edit limits" onClick={() => setBoundsOpen(true)} />}>
-      <div className="sreadouts">
+    <Section title="Calculation limits" description="Set the hazard calculation bounds." tone="sha" actions={<EditButton label="Edit limits" onClick={() => setBoundsOpen(true)} />}>
+      <div className="sreadouts sreadouts--calculation-limits">
         <Readout label="Upper ground motion" value={`${bounds.maximumGroundMotion} ${bounds.groundMotionUnits}`} />
         <Readout label="Truncation effect" value={bounds.sequenceRankingUnaffected ? "None" : "Unresolved"} />
         <Readout label="Lower-bound magnitude" value={`${bounds.magnitudeScale} ${bounds.lowerBoundMagnitude}`} />
@@ -331,8 +470,7 @@ function HazardBasisScreen(): JSX.Element {
       </div>
     </Section>
 
-    {siteOpen && <MefEditor tone="sha" title="Site basis" subtitle="Select the site basis used by the probabilistic hazard analysis" focus={["seismicHazardAnalysis", "analysisBasis", "site"]} visibleRootFields={(value) => value.siteBasis === "BOUNDING_SITE" ? ["siteBasis", "applicableSiteRange", "selectionAndApplicabilityBasis", "boundsAllSitesInScope"] : ["siteBasis"]} onClose={() => setSiteOpen(false)} />}
-    {processOpen && <MefEditor tone="sha" title="PSHA process" subtitle="Select the defined process and document how it represents center, body, and range" focus={["seismicHazardAnalysis", "analysisBasis", "structuredProcess"]} visibleRootFields={(value) => value.processType === "OTHER_STRUCTURED_PROCESS" ? ["processType", "alternateProcessDescription", "processLevelBasis", "centerBodyRangeDemonstration"] : ["processType", "processLevelBasis", "centerBodyRangeDemonstration"]} onClose={() => setProcessOpen(false)} />}
+    {basisOpen && <SiteAndPshaBasisEditor onClose={() => setBasisOpen(false)} />}
     {boundsOpen && <MefEditor tone="sha" title="Calculation limits" subtitle="Maximum motion, lower-bound magnitude, and epsilon truncation" focus={["seismicHazardAnalysis", "analysisBasis", "calculationBounds"]} visibleRootFields={["maximumGroundMotion", "groundMotionUnits", "truncationImpactEvaluation", "sequenceRankingUnaffected", "lowerBoundMagnitude", "magnitudeScale", "lowerBoundMagnitudeBasis", "epsilonLimit", "epsilonLimitBasis"]} onClose={() => setBoundsOpen(false)} />}
     <CollectionEditor tone="sha" target={parameterEditor} onClose={() => setParameterEditor(null)} />
   </>;

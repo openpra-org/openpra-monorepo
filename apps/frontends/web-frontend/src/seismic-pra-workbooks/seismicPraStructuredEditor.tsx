@@ -93,10 +93,12 @@ const FIELD_LABELS: Record<string, string> = {
   esqRequirementCompliance: "ESQ requirement compliance",
   firsDerivationMethod: "FIRS derivation method",
   siteBasis: "Site basis",
+  site: "Site basis",
   applicableSiteRange: "Sites covered by the bounding basis",
   selectionAndApplicabilityBasis: "Bounding-site justification",
   boundsAllSitesInScope: "Bounding site covers the full PRA scope",
   processType: "Defined PSHA process",
+  structuredProcess: "PSHA process",
   alternateProcessDescription: "Other defined process",
   processLevelBasis: "Why this process level is appropriate",
   centerBodyRangeDemonstration: "How center, body, and range are represented",
@@ -395,24 +397,73 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
 
   function renderObject(objectSchema: z.ZodObject, objectValue: JsonObject): JSX.Element {
     const atRoot = focus.length === rootDepth;
-    const selectedRootFields = typeof visibleRootFields === "function"
-      ? visibleRootFields(objectValue)
-      : visibleRootFields;
+    const fieldSelection = atRoot ? visibleRootFields : undefined;
+    const selectedFields = typeof fieldSelection === "function"
+      ? fieldSelection(objectValue)
+      : fieldSelection;
     const entries = Object.entries(objectSchema.shape).filter(([key]) =>
       !isSystemField(key)
       && !(atRoot && hiddenRootFields.includes(key))
-      && !(atRoot && selectedRootFields !== undefined && !selectedRootFields.includes(key)));
-    const primitiveEntries = entries.filter(([, childSchema]) => isPrimitiveSchema(childSchema as z.ZodType));
+      && !(selectedFields !== undefined && !selectedFields.includes(key)));
+    const isGroundMotionParameter = "selectedRange" in objectSchema.shape
+      && "selectedFrequencyRangeHz" in objectSchema.shape
+      && "usedForHazard" in objectSchema.shape
+      && "usedForFragility" in objectSchema.shape
+      && "usedForPlantResponse" in objectSchema.shape;
+    const groupedGroundMotionFields = new Set([
+      "selectedRange",
+      "selectedFrequencyRangeHz",
+      "usedForHazard",
+      "usedForFragility",
+      "usedForPlantResponse",
+    ]);
+    const standardEntries = isGroundMotionParameter
+      ? entries.filter(([key]) => !groupedGroundMotionFields.has(key))
+      : entries;
+    const primitiveEntries = standardEntries.filter(([, childSchema]) => isPrimitiveSchema(childSchema as z.ZodType));
     const conciseEntries = primitiveEntries.filter(([key, childSchema]) => !(unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key)));
     const narrativeEntries = primitiveEntries.filter(([key, childSchema]) => unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key));
-    const nestedEntries = entries.filter(([, childSchema]) => {
+    const nestedEntries = standardEntries.filter(([, childSchema]) => {
       const unwrapped = unwrap(childSchema as z.ZodType);
       return !isPrimitiveSchema(unwrapped);
     });
+    const selectedRange = isObject(objectValue.selectedRange) ? objectValue.selectedRange : { minimum: 0, maximum: 0 };
+    const frequencyRange = isObject(objectValue.selectedFrequencyRangeHz) ? objectValue.selectedFrequencyRangeHz : { lower: 0, upper: 0 };
+    const showGroundMotionRange = entries.some(([key]) => key === "selectedRange");
+    const showFrequencyRange = entries.some(([key]) => key === "selectedFrequencyRangeHz");
+    const usageOptions = [
+      ["usedForHazard", "Hazard"],
+      ["usedForFragility", "Fragility"],
+      ["usedForPlantResponse", "Plant response"],
+    ] as const;
+    const shownUsageOptions = usageOptions.filter(([key]) => entries.some(([entryKey]) => entryKey === key));
     return <>
       {conciseEntries.length > 0 && <div className="sstructured__section">
         {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Details</h3>}
         <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
+      </div>}
+      {isGroundMotionParameter && (showGroundMotionRange || showFrequencyRange) && <div className="sstructured__section">
+        <h3 className="sstructured__section-title">Ranges</h3>
+        <div className="sstructured__fields">
+          {showGroundMotionRange && <div className="sstructured__field">
+            <span className="posfield__label">Ground-motion range</span>
+            <div className="sstructured__range-pair">
+              <label><span>Minimum</span><input className="posfield__input posmono" type="number" step="any" value={typeof selectedRange.minimum === "number" ? selectedRange.minimum : 0} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, selectedRange: { ...selectedRange, minimum: Number(event.target.value) } })} /></label>
+              <label><span>Maximum</span><input className="posfield__input posmono" type="number" step="any" value={typeof selectedRange.maximum === "number" ? selectedRange.maximum : 0} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, selectedRange: { ...selectedRange, maximum: Number(event.target.value) } })} /></label>
+            </div>
+          </div>}
+          {showFrequencyRange && <div className="sstructured__field">
+            <span className="posfield__label">Frequency range (Hz)</span>
+            <div className="sstructured__range-pair">
+              <label><span>Lower</span><input className="posfield__input posmono" type="number" step="any" value={typeof frequencyRange.lower === "number" ? frequencyRange.lower : 0} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, selectedFrequencyRangeHz: { ...frequencyRange, lower: Number(event.target.value) } })} /></label>
+              <label><span>Upper</span><input className="posfield__input posmono" type="number" step="any" value={typeof frequencyRange.upper === "number" ? frequencyRange.upper : 0} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, selectedFrequencyRangeHz: { ...frequencyRange, upper: Number(event.target.value) } })} /></label>
+            </div>
+          </div>}
+        </div>
+      </div>}
+      {isGroundMotionParameter && shownUsageOptions.length > 0 && <div className="sstructured__section">
+        <h3 className="sstructured__section-title">Used by</h3>
+        <div className="sstructured__check-group">{shownUsageOptions.map(([key, label]) => <label key={key}><input type="checkbox" checked={objectValue[key] === true} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, [key]: event.target.checked })} /><span>{label}</span></label>)}</div>
       </div>}
       {narrativeEntries.length > 0 && <div className="sstructured__section">
         {(conciseEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Technical basis</h3>}

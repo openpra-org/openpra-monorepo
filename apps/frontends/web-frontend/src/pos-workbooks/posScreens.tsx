@@ -225,7 +225,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
   }
 
   return (
-    <fieldset disabled={!canEdit} style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+    <fieldset className="possetup" disabled={!canEdit}>
       {!canEdit && (
         <div className="poscard" style={{ background: "var(--color-bg-to)" }}>
           <p className="poscard__sub" style={{ margin: 0 }}>Steps 1 through 9 are read only in this view.</p>
@@ -599,10 +599,6 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
   const exampleDocs = pos.exampleDocuments ?? [];
   const showExampleDocs = exampleDocs.length > 0 && (!isReal || realDocuments.length === 0);
 
-  function pickFile(): void {
-    fileInputRef.current?.click();
-  }
-
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
     if (file === undefined || onUploadFile === undefined) return;
@@ -630,40 +626,28 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
   }
 
   return (
-    <>
-      <div className="posupload">
-        <div className="posupload__icon"><POSIcon.Upload /></div>
-        <div className="posupload__copy">
-          <div className="posupload__copy-title">Drag &amp; drop design documents, P&amp;IDs, procedures, or prior PRAs</div>
-          <div className="posupload__copy-sub">OpenPRA reads the contents, identifies relevant inputs, and links them to the right operating-state fields.</div>
-        </div>
+    <div className="poscard">
+      <div className="poscard__head">
+        <h3 className="poscard__title">Uploaded documents</h3>
         {isReal ? (
           <>
-            <input ref={fileInputRef} type="file" style={{ display: "none" }} onChange={handleFileChange} />
+            <input ref={fileInputRef} type="file" hidden onChange={handleFileChange} />
             <button
               type="button"
-              className="posnav__btn posnav__btn--primary"
-              onClick={pickFile}
+              className="posnav__btn posnav__btn--sm posnav__btn--primary"
+              onClick={() => fileInputRef.current?.click()}
               disabled={uploading || canUpload !== true}
             >
-              <POSIcon.Upload /> {uploading ? "Uploading…" : "Browse files"}
+              <POSIcon.Plus /> {uploading ? "Uploading…" : "Upload"}
             </button>
           </>
         ) : (
-          <button type="button" className="posnav__btn posnav__btn--primary" onClick={() => onAction("Document picker opening…")}>
-            <POSIcon.Upload /> Browse files
+          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => onAction("Document picker opening…")}>
+            <POSIcon.Plus /> Upload
           </button>
         )}
       </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <h3 className="poscard__title">Uploaded documents</h3>
-          <div className="posrow" style={{ gap: 12 }}>
-            <Badge kind="ok">{(showExampleDocs ? exampleDocs.length : (isReal ? realDocuments.length : POS_DOCUMENTS.length))} files</Badge>
-          </div>
-        </div>
-        <div className="posdoc-list">
+      <div className="posdoc-list">
           {showExampleDocs
             ? exampleDocs.map((d) => (
               <div key={d.id} className="posdoc">
@@ -724,10 +708,8 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
                 )}
               </div>
             ))}
-        </div>
       </div>
-
-    </>
+    </div>
   );
 }
 

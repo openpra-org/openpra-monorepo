@@ -164,10 +164,164 @@ function plural(value: number): string {
   return value === 1 ? "" : "s";
 }
 
+function hasText(value: string | undefined): boolean {
+  return value !== undefined && value.trim().length > 0;
+}
+
+function earthScienceRequirementSatisfied(mef: SeismicPRA, sr: string): boolean {
+  const inputs = mef.seismicHazardAnalysis.earthScienceInputs;
+  const disciplines = new Set(inputs.dataSets.map((dataSet) => dataSet.discipline));
+  const region = inputs.studyRegions[0];
+  const eventTypes = new Set(inputs.earthquakeCatalog.events.map((event) => event.recordType));
+
+  switch (sr) {
+    case "SHA-B1":
+      return ["GEOLOGY", "SEISMOLOGY", "GEOPHYSICS", "GEOTECHNICAL"].every((discipline) => disciplines.has(discipline as typeof inputs.dataSets[number]["discipline"]))
+        && inputs.dataSets.every((dataSet) => hasText(dataSet.currentnessAssessment))
+        && hasText(inputs.compilationCutoffDate)
+        && hasText(inputs.subjectMatterExpertReview);
+    case "SHA-B2":
+      return region !== undefined
+        && hasText(region.boundaryDescription)
+        && hasText(region.majorContributorCoverageBasis)
+        && hasText(region.uncertaintyCoverageBasis)
+        && inputs.dataSets.length > 0;
+    case "SHA-B3":
+      return region !== undefined
+        && hasText(region.regionalPropagationDataSufficiency)
+        && hasText(region.localSiteEffectsDataSufficiency)
+        && disciplines.has("GEOTECHNICAL")
+        && disciplines.has("STRONG_MOTION");
+    case "SHA-B4":
+      return inputs.modelAndMethodInventory.length > 0
+        && inputs.modelAndMethodInventory.every((item) => hasText(item.potentialImpactOnHazard) && hasText(item.dispositionBasis));
+    case "SHA-B5":
+      return ["HISTORICAL", "INSTRUMENTAL", "PALEOSEISMIC"].every((recordType) => eventTypes.has(recordType as typeof inputs.earthquakeCatalog.events[number]["recordType"]))
+        && hasText(inputs.earthquakeCatalog.catalogStartDateOrAge)
+        && hasText(inputs.earthquakeCatalog.catalogEndDate)
+        && inputs.earthquakeCatalog.sourceReferences.length > 0;
+    default:
+      return true;
+  }
+}
+
+function sourceAndGroundMotionRequirementSatisfied(mef: SeismicPRA, sr: string): boolean {
+  const source = mef.seismicHazardAnalysis.sourceCharacterization;
+  const ground = mef.seismicHazardAnalysis.groundMotionCharacterization;
+  const sourceWeightsValid = source.sourceLogicTree.nodes.every((node) =>
+    node.branches.length > 0 && Math.abs(node.branches.reduce((sum, branch) => sum + branch.weight, 0) - 1) < 1e-9);
+  const groundWeightsValid = ground.groundMotionLogicTree.nodes.every((node) =>
+    node.branches.length > 0 && Math.abs(node.branches.reduce((sum, branch) => sum + branch.weight, 0) - 1) < 1e-9);
+  const modelWeightSum = ground.predictionModels.reduce((sum, model) => sum + model.logicTreeWeight, 0);
+
+  switch (sr) {
+    case "SHA-C1":
+      return source.earthquakeSources.length > 0 && source.earthquakeSources.some((item) => item.majorHazardContributor);
+    case "SHA-C2":
+      return hasText(source.structuredApproach)
+        && source.earthquakeSources.every((item) => item.sourceDataRefs.length > 0 && hasText(item.characterizationBasis));
+    case "SHA-C3":
+      return hasText(source.uncertaintyIdentificationMethod)
+        && source.sourceLogicTree.nodes.length > 0
+        && sourceWeightsValid
+        && source.earthquakeSources.every((item) => item.uncertainties.length > 0);
+    case "SHA-C4":
+      return source.existingModelAssessments.length > 0
+        && source.existingModelAssessments.every((item) =>
+          item.newDataModelMethodRefs.length > 0
+          && hasText(item.centerBodyRangeCoverageEvaluation)
+          && hasText(item.technicalValidityEvaluation));
+    case "SHA-C5":
+      return source.existingModelAssessments.length > 0
+        && source.existingModelAssessments.every((item) =>
+          !item.updateRequired
+          || (hasText(item.updateLevel) && hasText(item.updateMethod) && hasText(item.updateJustification)));
+    case "SHA-D1":
+      return ground.governingMechanisms.length > 0
+        && hasText(ground.historicalAndInstrumentalReview)
+        && ground.strongMotionDataSets.length > 0
+        && ground.modelSelectionCriteria.length > 0
+        && ground.predictionModels.length > 0
+        && ground.referenceHorizons.length > 0
+        && ground.referenceHorizons.every((item) =>
+          item.shearWaveVelocity > 0 && item.density > 0 && item.dampingRatio > 0 && hasText(item.definitionBasis));
+    case "SHA-D2":
+      return hasText(ground.processCompatibilityBasis)
+        && ground.groundMotionLogicTree.nodes.length > 0
+        && groundWeightsValid;
+    case "SHA-D3":
+      return ground.uncertainties.length > 0
+        && ground.predictionModels.every((item) => item.sigmaComponents?.total !== undefined)
+        && Math.abs(modelWeightSum - 1) < 1e-9
+        && hasText(ground.groundMotionLogicTree.centerBodyRangeCoverage);
+    case "SHA-D4":
+      return ground.existingModelAssessments.length > 0
+        && ground.existingModelAssessments.every((item) =>
+          item.newDataModelMethodRefs.length > 0
+          && hasText(item.technicalValidityEvaluation)
+          && (!item.updateRequired || (hasText(item.updateMethod) && hasText(item.updateJustification))));
+    default:
+      return true;
+  }
+}
+
 function sectionEvidence(mef: SeismicPRA, sr: string): string {
   const sha = mef.seismicHazardAnalysis;
   const sfr = mef.seismicFragilityAnalysis;
   const spr = mef.seismicPlantResponseAnalysis;
+  const earthScienceInputs = sha.earthScienceInputs;
+  const studyRegion = earthScienceInputs.studyRegions[0];
+  const catalogEvents = earthScienceInputs.earthquakeCatalog.events;
+  if (sr === "SHA-B1") {
+    const disciplines = new Set(earthScienceInputs.dataSets.map((dataSet) => dataSet.discipline));
+    return `${earthScienceInputs.dataSets.length} current data sets cover ${disciplines.size} earth-science disciplines through ${earthScienceInputs.compilationCutoffDate || "an unspecified cutoff"}.`;
+  }
+  if (sr === "SHA-B2") {
+    return studyRegion === undefined
+      ? "No seismic study region has been defined."
+      : `${studyRegion.name} extends ${studyRegion.radialExtentKm ?? "an unspecified distance"} km; ${studyRegion.majorContributorCoverageBasis || "major-contributor coverage is not documented"}`;
+  }
+  if (sr === "SHA-B3") {
+    return studyRegion === undefined
+      ? "Regional propagation and local site-effect data sufficiency have not been assessed."
+      : `Regional propagation: ${studyRegion.regionalPropagationDataSufficiency || "not assessed"} Local site effects: ${studyRegion.localSiteEffectsDataSufficiency || "not assessed"}`;
+  }
+  if (sr === "SHA-B4") {
+    const dispositions = new Set(earthScienceInputs.modelAndMethodInventory.map((item) => item.disposition));
+    return `${earthScienceInputs.modelAndMethodInventory.length} model or method source${plural(earthScienceInputs.modelAndMethodInventory.length)} assessed across ${dispositions.size} disposition${plural(dispositions.size)}.`;
+  }
+  if (sr === "SHA-B5") {
+    const count = (recordType: typeof catalogEvents[number]["recordType"]): number => catalogEvents.filter((event) => event.recordType === recordType).length;
+    return `${count("HISTORICAL")} historical, ${count("INSTRUMENTAL")} instrumental, and ${count("PALEOSEISMIC")} paleoseismic catalog records cover ${earthScienceInputs.earthquakeCatalog.catalogStartDateOrAge} through ${earthScienceInputs.earthquakeCatalog.catalogEndDate}.`;
+  }
+  if (sr === "SHA-C1") {
+    const majorSources = sha.sourceCharacterization.earthquakeSources.filter((source) => source.majorHazardContributor).length;
+    return `${sha.sourceCharacterization.earthquakeSources.length} credible sources characterized; ${majorSources} identified as major hazard contributors.`;
+  }
+  if (sr === "SHA-C2") {
+    const recurrenceModels = sha.sourceCharacterization.earthquakeSources.reduce((sum, source) => sum + source.magnitudeFrequencyModels.length, 0);
+    return `${recurrenceModels} recurrence models use the structured source-characterization approach and linked earth-science inputs.`;
+  }
+  if (sr === "SHA-C3") {
+    return `${sha.sourceCharacterization.sourceLogicTree.nodes.length} source logic-tree nodes produce ${sha.sourceCharacterization.sourceLogicTree.totalEndBranchCount ?? 0} weighted end branches.`;
+  }
+  if (sr === "SHA-C4" || sr === "SHA-C5") {
+    const updated = sha.sourceCharacterization.existingModelAssessments.filter((item) => item.updateRequired).length;
+    return `${sha.sourceCharacterization.existingModelAssessments.length} existing source-model assessment${plural(sha.sourceCharacterization.existingModelAssessments.length)} completed; ${updated} targeted update${plural(updated)} required.`;
+  }
+  if (sr === "SHA-D1") {
+    return `${sha.groundMotionCharacterization.predictionModels.length} prediction models use ${sha.groundMotionCharacterization.strongMotionDataSets.length} strong-motion data sets and ${sha.groundMotionCharacterization.referenceHorizons.length} reference horizons.`;
+  }
+  if (sr === "SHA-D2") {
+    return `${sha.groundMotionCharacterization.groundMotionLogicTree.totalEndBranchCount ?? 0} ground-motion end branches use the Step 02 structured-process basis.`;
+  }
+  if (sr === "SHA-D3") {
+    return `${sha.groundMotionCharacterization.uncertainties.length} ground-motion uncertainties are propagated across model, median-adjustment, sigma, and reference-horizon alternatives.`;
+  }
+  if (sr === "SHA-D4") {
+    const updated = sha.groundMotionCharacterization.existingModelAssessments.filter((item) => item.updateRequired).length;
+    return `${sha.groundMotionCharacterization.existingModelAssessments.length} existing ground-motion assessment${plural(sha.groundMotionCharacterization.existingModelAssessments.length)} completed; ${updated} model update${plural(updated)} incorporated.`;
+  }
   switch (sectionKey(sr)) {
     case "SHA-A": {
       const parameters = sha.analysisBasis.groundMotionParameters.length;
@@ -235,7 +389,9 @@ function seismicConformanceItems(mef: SeismicPRA): SeismicConformanceItem[] {
     const row = bySr.get(sr);
     const key = sectionKey(sr);
     const inStage = catalog.stages.includes(mef.plantStage);
-    const status = inStage ? statusTone(row?.status ?? "PENDING_REVIEW") : "na";
+    const recordedStatus = inStage ? statusTone(row?.status ?? "PENDING_REVIEW") : "na";
+    const evidenceSatisfied = earthScienceRequirementSatisfied(mef, sr) && sourceAndGroundMotionRequirementSatisfied(mef, sr);
+    const status = recordedStatus === "ok" && !evidenceSatisfied ? "warn" : recordedStatus;
     const prefix = sr.split("-")[0] ?? "S";
     return {
       id: sr,

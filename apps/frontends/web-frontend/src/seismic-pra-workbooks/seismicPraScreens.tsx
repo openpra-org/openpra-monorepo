@@ -6,7 +6,7 @@ import { type JSX, type ReactNode, useMemo, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { seismicConformanceItems, seismicConformanceScore } from "./seismicPraConformance";
 import { generateSeismicPraReport } from "./seismicPraDocx";
-import { Drawer, EmptyState, Field, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
+import { Drawer, EmptyState, Field, NumberInput, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
 import { seismicPraInterfaceLanes, type SeismicPraInterfaceLane } from "./seismicPraInterfaces";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "./seismicPraStructuredEditor";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
@@ -476,51 +476,475 @@ function HazardBasisScreen(): JSX.Element {
   </>;
 }
 
+type EarthScienceInputs = SeismicPRA["seismicHazardAnalysis"]["earthScienceInputs"];
+type SeismicStudyRegion = EarthScienceInputs["studyRegions"][number];
+
+function newStudyRegion(): SeismicStudyRegion {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Regional seismic study area",
+    boundaryDescription: "",
+    tectonicSetting: "",
+    includedSourceRegions: [],
+    majorContributorCoverageBasis: "",
+    regionalPropagationDataSufficiency: "",
+    localSiteEffectsDataSufficiency: "",
+    uncertaintyCoverageBasis: "",
+    implementsSrs: [{ sr: "SHA-B2", hlr: "B" }, { sr: "SHA-B3", hlr: "B" }],
+  };
+}
+
+function EarthScienceCoverageEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const inputs = mef.seismicHazardAnalysis.earthScienceInputs;
+  const [draft, setDraft] = useState(() => ({
+    compilationCutoffDate: inputs.compilationCutoffDate,
+    dataGapAssessment: inputs.dataGapAssessment,
+    subjectMatterExpertReview: inputs.subjectMatterExpertReview,
+    studyRegion: structuredClone(inputs.studyRegions[0] ?? newStudyRegion()),
+  }));
+
+  function save(): void {
+    update((next) => {
+      const nextInputs = next.seismicHazardAnalysis.earthScienceInputs;
+      nextInputs.compilationCutoffDate = draft.compilationCutoffDate;
+      nextInputs.dataGapAssessment = draft.dataGapAssessment;
+      nextInputs.subjectMatterExpertReview = draft.subjectMatterExpertReview;
+      nextInputs.studyRegions = [draft.studyRegion, ...nextInputs.studyRegions.slice(1)];
+    });
+    onClose();
+  }
+
+  function updateRegion(change: Partial<SeismicStudyRegion>): void {
+    setDraft((current) => ({ ...current, studyRegion: { ...current.studyRegion, ...change } }));
+  }
+
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Coverage" subtitle="Study extent and data sufficiency" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Study region</h3>
+        <FieldGrid>
+          <Field label="Region name">
+            <TextInput value={draft.studyRegion.name} onChange={(value) => updateRegion({ name: value })} />
+          </Field>
+          <Field label="Radial extent (km)">
+            <NumberInput value={draft.studyRegion.radialExtentKm ?? 0} onChange={(value) => updateRegion({ radialExtentKm: value })} />
+          </Field>
+          <Field label="Compilation cutoff">
+            <TextInput value={draft.compilationCutoffDate} onChange={(value) => setDraft((current) => ({ ...current, compilationCutoffDate: value }))} />
+          </Field>
+        </FieldGrid>
+        <Field label="Boundary">
+          <TextArea rows={3} value={draft.studyRegion.boundaryDescription} onChange={(value) => updateRegion({ boundaryDescription: value })} />
+        </Field>
+        <Field label="Tectonic setting">
+          <TextArea rows={3} value={draft.studyRegion.tectonicSetting} onChange={(value) => updateRegion({ tectonicSetting: value })} />
+        </Field>
+        <Field label="Credible contributor coverage">
+          <TextArea rows={3} value={draft.studyRegion.majorContributorCoverageBasis} onChange={(value) => updateRegion({ majorContributorCoverageBasis: value })} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Data sufficiency</h3>
+        <Field label="Regional propagation">
+          <TextArea rows={3} value={draft.studyRegion.regionalPropagationDataSufficiency} onChange={(value) => updateRegion({ regionalPropagationDataSufficiency: value })} />
+        </Field>
+        <Field label="Local site effects">
+          <TextArea rows={3} value={draft.studyRegion.localSiteEffectsDataSufficiency} onChange={(value) => updateRegion({ localSiteEffectsDataSufficiency: value })} />
+        </Field>
+        <Field label="Uncertainty coverage">
+          <TextArea rows={3} value={draft.studyRegion.uncertaintyCoverageBasis} onChange={(value) => updateRegion({ uncertaintyCoverageBasis: value })} />
+        </Field>
+        <Field label="Data-gap assessment">
+          <TextArea rows={3} value={draft.dataGapAssessment} onChange={(value) => setDraft((current) => ({ ...current, dataGapAssessment: value }))} />
+        </Field>
+        <Field label="Technical review">
+          <TextArea rows={3} value={draft.subjectMatterExpertReview} onChange={(value) => setDraft((current) => ({ ...current, subjectMatterExpertReview: value }))} />
+        </Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
 function EarthScienceScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const inputs = mef.seismicHazardAnalysis.earthScienceInputs;
-  const [basisOpen, setBasisOpen] = useState(false);
+  const studyRegion = inputs.studyRegions[0];
+  const catalog = inputs.earthquakeCatalog;
+  const dataFields = [
+    "name", "discipline", "sourceOrganization", "sourceReference",
+    "publicationOrAcquisitionDate", "dataCutoffDate", "spatialCoverage",
+    "temporalCoverage", "resolution", "format", "qualityAndLimitations",
+    "currentnessAssessment", "fileReference",
+  ];
+  const modelFields = [
+    "name", "modelKind", "version", "publicationDate", "sourceReference",
+    "applicability", "knownToExistingAnalysis", "previouslyUsed",
+    "potentialImpactOnHazard", "disposition", "dispositionBasis",
+  ];
+  const [coverageOpen, setCoverageOpen] = useState(false);
   const [dataEditor, setDataEditor] = useState<CollectionEditorTarget | null>(null);
+  const [modelEditor, setModelEditor] = useState<CollectionEditorTarget | null>(null);
   return <>
-    <Section eyebrow="SHA · HLR-B" title="Compilation and currentness" description="The earth-science basis remains traceable to its compilation cutoff, catalog period, data-gap review, and subject-matter-expert review." tone="sha" actions={<EditButton label="Edit compilation basis" onClick={() => setBasisOpen(true)} />}>
-      <div className="sreadouts"><Readout label="Compilation cutoff" value={inputs.compilationCutoffDate} /><Readout label="Catalog period" value={`${inputs.earthquakeCatalog.catalogStartDateOrAge} – ${inputs.earthquakeCatalog.catalogEndDate}`} /><Readout label="Study regions" value={inputs.studyRegions.length} /><Readout label="Methods assessed" value={inputs.modelAndMethodInventory.length} /></div>
-      <Narrative label="Data-gap assessment" value={inputs.dataGapAssessment} />
-      <Narrative label="Subject-matter-expert review" value={inputs.subjectMatterExpertReview} />
+    <Section title="Coverage" description="Study extent and data sufficiency." tone="sha" actions={<EditButton label="Edit coverage" onClick={() => setCoverageOpen(true)} />}>
+      <div className="sreadouts">
+        <Readout label="Study region" value={studyRegion?.name ?? "Not defined"} />
+        <Readout label="Radial extent" value={studyRegion?.radialExtentKm === undefined ? "Not defined" : `${studyRegion.radialExtentKm} km`} />
+        <Readout label="Compilation cutoff" value={inputs.compilationCutoffDate || "Not defined"} />
+        <Readout label="Catalog period" value={`${catalog.catalogStartDateOrAge} through ${catalog.catalogEndDate}`} />
+      </div>
     </Section>
-    <Section eyebrow="Evidence inventory" title="Earth-science data sets" description="Geology, seismology, geophysics, geotechnical, topographic, paleoseismic, and strong-motion inputs." tone="sha" actions={editable ? <AddButton label="Add data set" onClick={() => setDataEditor({ title: "New earth-science data set", subtitle: "Discipline, provenance, coverage, quality, and currentness", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets"] })} /> : undefined}>
-      {inputs.dataSets.length === 0 ? <EmptyState title="No data sets" detail="No earth-science evidence has been registered." /> : <Table headers={["Data set", "Discipline", "Organization", "Coverage", "Currentness", ""]}>
-        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], removeLabel: "Remove data set" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.sourceOrganization}</td><td>{item.spatialCoverage}</td><td>{item.currentnessAssessment}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+
+    <Section title="Earth-science data" description="Current technical inputs used by the hazard analysis." tone="sha" actions={editable ? <AddButton label="Add data set" onClick={() => setDataEditor({ title: "New earth-science data set", subtitle: "Source, coverage, quality, and currentness", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets"], visibleRootFields: dataFields })} /> : undefined}>
+      {inputs.dataSets.length === 0 ? <EmptyState title="No data sets" detail="No earth-science evidence has been registered." /> : <Table headers={["Data set", "Discipline", "Coverage", "Data cutoff", "Quality or limitation"]} minWidth={980}>
+        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], visibleRootFields: dataFields, removeLabel: "Remove data set" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.spatialCoverage}</td><td>{item.dataCutoffDate ?? "Not recorded"}</td><td>{item.qualityAndLimitations}</td></tr>)}
       </Table>}
     </Section>
-    {basisOpen && <MefEditor tone="sha" title="Earth-science compilation" subtitle="Every data set, region, catalog event, model, currentness finding, and technical review" focus={["seismicHazardAnalysis", "earthScienceInputs"]} onClose={() => setBasisOpen(false)} />}
+
+    <Section title="Models and methods" description="Sources assessed for potential hazard impact." tone="sha" actions={editable ? <AddButton label="Add source" onClick={() => setModelEditor({ title: "New model or method", subtitle: "Applicability, potential impact, and disposition", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory"], visibleRootFields: modelFields })} /> : undefined}>
+      {inputs.modelAndMethodInventory.length === 0 ? <EmptyState title="No models or methods" detail="No new or existing technical source has been assessed." /> : <Table headers={["Source or model", "Type", "Version or date", "Applicability", "Disposition", "Hazard impact"]} minWidth={1100}>
+        {inputs.modelAndMethodInventory.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setModelEditor({ title: item.name, subtitle: item.sourceReference, focus: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory", index], visibleRootFields: modelFields, removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>{[item.version, item.publicationDate].filter(Boolean).join(" · ") || "Not recorded"}</td><td>{item.applicability}</td><td><Tag tone={item.disposition === "REQUIRES_UPDATE" ? "warn" : item.disposition === "EXCLUDED" ? "neutral" : "good"}>{displayLabel(item.disposition)}</Tag></td><td>{item.potentialImpactOnHazard}</td></tr>)}
+      </Table>}
+    </Section>
+
+    {coverageOpen && <EarthScienceCoverageEditor onClose={() => setCoverageOpen(false)} />}
     <CollectionEditor tone="sha" target={dataEditor} onClose={() => setDataEditor(null)} />
+    <CollectionEditor tone="sha" target={modelEditor} onClose={() => setModelEditor(null)} />
   </>;
+}
+
+type SourceCharacterization = SeismicPRA["seismicHazardAnalysis"]["sourceCharacterization"];
+type GroundMotionCharacterization = SeismicPRA["seismicHazardAnalysis"]["groundMotionCharacterization"];
+type ExistingModelAssessment = SourceCharacterization["existingModelAssessments"][number];
+type ReferenceHorizon = GroundMotionCharacterization["referenceHorizons"][number];
+
+function technicalList(value: string): string[] {
+  return value.split(/[,\n]/).map((item) => item.trim()).filter((item) => item.length > 0);
+}
+
+function newExistingModelAssessment(modelType: ExistingModelAssessment["modelType"]): ExistingModelAssessment {
+  const hlr = modelType === "SEISMIC_SOURCE" ? "C" : "D";
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Existing model assessment",
+    modelType,
+    modelVersion: "",
+    newDataModelMethodRefs: [],
+    centerBodyRangeCoverageEvaluation: "",
+    technicalValidityEvaluation: "",
+    updateRequired: false,
+    implementsSrs: [{ sr: `SHA-${hlr}4`, hlr }],
+  };
+}
+
+function newReferenceHorizon(): ReferenceHorizon {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Reference rock horizon",
+    horizonType: "ROCK",
+    depth: 0,
+    depthUnit: "m",
+    shearWaveVelocity: 0,
+    shearWaveVelocityUnit: "m/s",
+    density: 0,
+    densityUnit: "kg/m3",
+    dampingRatio: 0,
+    definitionBasis: "",
+    uncertaintyDescription: "",
+    implementsSrs: [{ sr: "SHA-D1", hlr: "D" }, { sr: "SHA-D3", hlr: "D" }],
+  };
+}
+
+function SourceCharacterizationBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const source = mef.seismicHazardAnalysis.sourceCharacterization;
+  const [draft, setDraft] = useState<SourceCharacterization>(() => {
+    const initial = structuredClone(source);
+    if (initial.existingModelAssessments.length === 0) initial.existingModelAssessments.push(newExistingModelAssessment("SEISMIC_SOURCE"));
+    return initial;
+  });
+  const assessment = draft.existingModelAssessments[0]!;
+
+  function updateLogicTree(change: Partial<SourceCharacterization["sourceLogicTree"]>): void {
+    setDraft((current) => ({ ...current, sourceLogicTree: { ...current.sourceLogicTree, ...change } }));
+  }
+
+  function updateAssessment(change: Partial<ExistingModelAssessment>): void {
+    setDraft((current) => ({
+      ...current,
+      existingModelAssessments: [{ ...current.existingModelAssessments[0]!, ...change }, ...current.existingModelAssessments.slice(1)],
+    }));
+  }
+
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.sourceCharacterization = draft;
+    });
+    onClose();
+  }
+
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Source basis" subtitle="Source model, logic tree, and existing-model update" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Source model</h3>
+        <Field label="Source model reference">
+          <TextInput value={draft.sourceModelReference} onChange={(value) => setDraft((current) => ({ ...current, sourceModelReference: value }))} />
+        </Field>
+        <Field label="Structured approach">
+          <TextArea rows={3} value={draft.structuredApproach} onChange={(value) => setDraft((current) => ({ ...current, structuredApproach: value }))} />
+        </Field>
+        <Field label="Uncertainty identification">
+          <TextArea rows={3} value={draft.uncertaintyIdentificationMethod} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyIdentificationMethod: value }))} />
+        </Field>
+        <Field label="Technical integration">
+          <TextArea rows={3} value={draft.technicalIntegrationSummary} onChange={(value) => setDraft((current) => ({ ...current, technicalIntegrationSummary: value }))} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Logic tree</h3>
+        <Field label="End branches">
+          <NumberInput value={draft.sourceLogicTree.totalEndBranchCount ?? 0} onChange={(value) => updateLogicTree({ totalEndBranchCount: value })} />
+        </Field>
+        <Field label="Branch-weight review">
+          <TextArea rows={3} value={draft.sourceLogicTree.branchWeightReview} onChange={(value) => updateLogicTree({ branchWeightReview: value })} />
+        </Field>
+        <Field label="Dependencies and correlations">
+          <TextArea rows={3} value={draft.sourceLogicTree.dependenciesAndCorrelations} onChange={(value) => updateLogicTree({ dependenciesAndCorrelations: value })} />
+        </Field>
+        <Field label="Center, body, and range">
+          <TextArea rows={3} value={draft.sourceLogicTree.centerBodyRangeCoverage} onChange={(value) => updateLogicTree({ centerBodyRangeCoverage: value })} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Existing model update</h3>
+        <FieldGrid>
+          <Field label="Model version">
+            <TextInput value={assessment.modelVersion} onChange={(value) => updateAssessment({ modelVersion: value })} />
+          </Field>
+          <Field label="Original study date">
+            <TextInput value={assessment.originalStudyDate ?? ""} onChange={(value) => updateAssessment({ originalStudyDate: value.length === 0 ? undefined : value })} />
+          </Field>
+        </FieldGrid>
+        <Field label="Center, body, and range evaluation">
+          <TextArea rows={3} value={assessment.centerBodyRangeCoverageEvaluation} onChange={(value) => updateAssessment({ centerBodyRangeCoverageEvaluation: value })} />
+        </Field>
+        <Field label="Technical validity">
+          <TextArea rows={3} value={assessment.technicalValidityEvaluation} onChange={(value) => updateAssessment({ technicalValidityEvaluation: value })} />
+        </Field>
+        <label className="sbasis-editor__check">
+          <input type="checkbox" checked={assessment.updateRequired} onChange={(event) => updateAssessment({ updateRequired: event.target.checked })} />
+          <span>Existing source model requires an update</span>
+        </label>
+        {assessment.updateRequired && <>
+          <Field label="Update level">
+            <TextInput value={assessment.updateLevel ?? ""} onChange={(value) => updateAssessment({ updateLevel: value })} />
+          </Field>
+          <Field label="Update method">
+            <TextArea rows={3} value={assessment.updateMethod ?? ""} onChange={(value) => updateAssessment({ updateMethod: value })} />
+          </Field>
+          <Field label="Update justification">
+            <TextArea rows={3} value={assessment.updateJustification ?? ""} onChange={(value) => updateAssessment({ updateJustification: value })} />
+          </Field>
+          <Field label="Resulting model reference">
+            <TextInput value={assessment.resultingModelRef ?? ""} onChange={(value) => updateAssessment({ resultingModelRef: value })} />
+          </Field>
+        </>}
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function GroundMotionBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const ground = mef.seismicHazardAnalysis.groundMotionCharacterization;
+  const [draft, setDraft] = useState<GroundMotionCharacterization>(() => {
+    const initial = structuredClone(ground);
+    if (initial.referenceHorizons.length === 0) initial.referenceHorizons.push(newReferenceHorizon());
+    if (initial.existingModelAssessments.length === 0) initial.existingModelAssessments.push(newExistingModelAssessment("GROUND_MOTION"));
+    return initial;
+  });
+  const [governingMechanisms, setGoverningMechanisms] = useState(ground.governingMechanisms.join(", "));
+  const [selectionCriteria, setSelectionCriteria] = useState(ground.modelSelectionCriteria.join(", "));
+  const horizon = draft.referenceHorizons[0]!;
+  const assessment = draft.existingModelAssessments[0]!;
+
+  function updateHorizon(change: Partial<ReferenceHorizon>): void {
+    setDraft((current) => ({
+      ...current,
+      referenceHorizons: [{ ...current.referenceHorizons[0]!, ...change }, ...current.referenceHorizons.slice(1)],
+    }));
+  }
+
+  function updateLogicTree(change: Partial<GroundMotionCharacterization["groundMotionLogicTree"]>): void {
+    setDraft((current) => ({ ...current, groundMotionLogicTree: { ...current.groundMotionLogicTree, ...change } }));
+  }
+
+  function updateAssessment(change: Partial<ExistingModelAssessment>): void {
+    setDraft((current) => ({
+      ...current,
+      existingModelAssessments: [{ ...current.existingModelAssessments[0]!, ...change }, ...current.existingModelAssessments.slice(1)],
+    }));
+  }
+
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.groundMotionCharacterization = {
+        ...draft,
+        governingMechanisms: technicalList(governingMechanisms),
+        modelSelectionCriteria: technicalList(selectionCriteria),
+      };
+    });
+    onClose();
+  }
+
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Ground-motion basis" subtitle="Data, reference horizon, compatibility, and uncertainty" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Motion basis</h3>
+        <Field label="Governing mechanisms" hint="Separate entries with commas.">
+          <TextArea rows={3} value={governingMechanisms} onChange={setGoverningMechanisms} />
+        </Field>
+        <Field label="Historical and instrumental review">
+          <TextArea rows={3} value={draft.historicalAndInstrumentalReview} onChange={(value) => setDraft((current) => ({ ...current, historicalAndInstrumentalReview: value }))} />
+        </Field>
+        <Field label="Model-selection criteria" hint="Separate entries with commas.">
+          <TextArea rows={4} value={selectionCriteria} onChange={setSelectionCriteria} />
+        </Field>
+        <Field label="Compatibility with the structured process">
+          <TextArea rows={3} value={draft.processCompatibilityBasis} onChange={(value) => setDraft((current) => ({ ...current, processCompatibilityBasis: value }))} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Reference horizon</h3>
+        <FieldGrid>
+          <Field label="Name">
+            <TextInput value={horizon.name} onChange={(value) => updateHorizon({ name: value })} />
+          </Field>
+          <Field label="Type">
+            <SelectInput value={horizon.horizonType} options={[{ value: "ROCK", label: "Rock" }, { value: "SOIL", label: "Soil" }]} onChange={(value) => updateHorizon({ horizonType: value as ReferenceHorizon["horizonType"] })} />
+          </Field>
+          <Field label="Depth">
+            <NumberInput value={horizon.depth} onChange={(value) => updateHorizon({ depth: value })} />
+          </Field>
+          <Field label="Depth unit">
+            <TextInput value={horizon.depthUnit} onChange={(value) => updateHorizon({ depthUnit: value })} />
+          </Field>
+          <Field label="Shear-wave velocity">
+            <NumberInput value={horizon.shearWaveVelocity} onChange={(value) => updateHorizon({ shearWaveVelocity: value })} />
+          </Field>
+          <Field label="Velocity unit">
+            <TextInput value={horizon.shearWaveVelocityUnit} onChange={(value) => updateHorizon({ shearWaveVelocityUnit: value })} />
+          </Field>
+          <Field label="Density">
+            <NumberInput value={horizon.density} onChange={(value) => updateHorizon({ density: value })} />
+          </Field>
+          <Field label="Density unit">
+            <TextInput value={horizon.densityUnit} onChange={(value) => updateHorizon({ densityUnit: value })} />
+          </Field>
+          <Field label="Damping ratio">
+            <NumberInput value={horizon.dampingRatio} onChange={(value) => updateHorizon({ dampingRatio: value })} />
+          </Field>
+        </FieldGrid>
+        <Field label="Definition basis">
+          <TextArea rows={3} value={horizon.definitionBasis} onChange={(value) => updateHorizon({ definitionBasis: value })} />
+        </Field>
+        <Field label="Uncertainty">
+          <TextArea rows={3} value={horizon.uncertaintyDescription} onChange={(value) => updateHorizon({ uncertaintyDescription: value })} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Logic tree and update</h3>
+        <Field label="End branches">
+          <NumberInput value={draft.groundMotionLogicTree.totalEndBranchCount ?? 0} onChange={(value) => updateLogicTree({ totalEndBranchCount: value })} />
+        </Field>
+        <Field label="Branch-weight review">
+          <TextArea rows={3} value={draft.groundMotionLogicTree.branchWeightReview} onChange={(value) => updateLogicTree({ branchWeightReview: value })} />
+        </Field>
+        <Field label="Dependencies and correlations">
+          <TextArea rows={3} value={draft.groundMotionLogicTree.dependenciesAndCorrelations} onChange={(value) => updateLogicTree({ dependenciesAndCorrelations: value })} />
+        </Field>
+        <Field label="Center, body, and range">
+          <TextArea rows={3} value={draft.groundMotionLogicTree.centerBodyRangeCoverage} onChange={(value) => updateLogicTree({ centerBodyRangeCoverage: value })} />
+        </Field>
+        <label className="sbasis-editor__check">
+          <input type="checkbox" checked={draft.siteToSiteVariabilityIncluded} onChange={(event) => setDraft((current) => ({ ...current, siteToSiteVariabilityIncluded: event.target.checked }))} />
+          <span>Include site-to-site variability</span>
+        </label>
+        <Field label="Site-variability treatment">
+          <TextArea rows={3} value={draft.siteToSiteVariabilityTreatment ?? ""} onChange={(value) => setDraft((current) => ({ ...current, siteToSiteVariabilityTreatment: value }))} />
+        </Field>
+        <FieldGrid>
+          <Field label="Existing model version">
+            <TextInput value={assessment.modelVersion} onChange={(value) => updateAssessment({ modelVersion: value })} />
+          </Field>
+          <Field label="Original study date">
+            <TextInput value={assessment.originalStudyDate ?? ""} onChange={(value) => updateAssessment({ originalStudyDate: value.length === 0 ? undefined : value })} />
+          </Field>
+        </FieldGrid>
+        <Field label="Technical validity">
+          <TextArea rows={3} value={assessment.technicalValidityEvaluation} onChange={(value) => updateAssessment({ technicalValidityEvaluation: value })} />
+        </Field>
+        <label className="sbasis-editor__check">
+          <input type="checkbox" checked={assessment.updateRequired} onChange={(event) => updateAssessment({ updateRequired: event.target.checked })} />
+          <span>Existing ground-motion model requires an update</span>
+        </label>
+        {assessment.updateRequired && <>
+          <Field label="Update method">
+            <TextArea rows={3} value={assessment.updateMethod ?? ""} onChange={(value) => updateAssessment({ updateMethod: value })} />
+          </Field>
+          <Field label="Update justification">
+            <TextArea rows={3} value={assessment.updateJustification ?? ""} onChange={(value) => updateAssessment({ updateJustification: value })} />
+          </Field>
+          <Field label="Resulting model reference">
+            <TextInput value={assessment.resultingModelRef ?? ""} onChange={(value) => updateAssessment({ resultingModelRef: value })} />
+          </Field>
+        </>}
+      </div>
+    </fieldset>
+  </Drawer>;
 }
 
 function SourceGroundMotionScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const source = mef.seismicHazardAnalysis.sourceCharacterization;
   const ground = mef.seismicHazardAnalysis.groundMotionCharacterization;
+  const sourceMagnitudeRange = (models: typeof source.earthquakeSources[number]["magnitudeFrequencyModels"]): string => {
+    if (models.length === 0) return "Not defined";
+    const minimum = Math.min(...models.map((model) => model.minimumMagnitude));
+    const maximum = Math.max(...models.map((model) => model.maximumMagnitude));
+    return `${models[0]?.magnitudeScale ?? "M"} ${minimum} to ${maximum}`;
+  };
   const [sourceBasisOpen, setSourceBasisOpen] = useState(false);
   const [groundBasisOpen, setGroundBasisOpen] = useState(false);
   const [collectionEditor, setCollectionEditor] = useState<CollectionEditorTarget | null>(null);
   return <>
-    <Section eyebrow="SHA · HLR-C" title="Seismic source characterization" description="Source geometry, maximum magnitude, recurrence, dependencies, and epistemic alternatives." tone="sha" actions={editable ? <AddButton label="Add source" onClick={() => setCollectionEditor({ title: "New seismic source", subtitle: "Geometry, magnitude, recurrence, dependencies, and epistemic alternatives", focus: [], createAt: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources"] })} /> : undefined}>
-      <SectionEditorRow title="Source-characterization basis" description="Structured approach, dependencies, alternatives, logic trees, uncertainty, and integration." onClick={() => setSourceBasisOpen(true)} />
-      <Narrative label="Structured approach" value={source.structuredApproach} />
-      <Table headers={["Source", "Type", "Closest distance", "MFD models", "Hazard role", ""]}>
-        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td>{displayLabel(item.sourceType)}</td><td>{item.geometry.closestDistanceToSiteKm ?? "—"} km</td><td>{item.magnitudeFrequencyModels.length}</td><td><Tag tone={item.majorHazardContributor ? "warn" : "sha"}>{item.majorHazardContributor ? "Major contributor" : "Contributor"}</Tag></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
+    <Section title="Seismic sources" description="Credible sources and recurrence models." tone="sha" actions={<>
+      <EditButton label="Edit basis" onClick={() => setSourceBasisOpen(true)} />
+      {editable && <AddButton label="Add source" onClick={() => setCollectionEditor({ title: "New seismic source", subtitle: "Geometry, magnitude, recurrence, dependencies, and epistemic alternatives", focus: [], createAt: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources"] })} />}
+    </>}>
+      {source.earthquakeSources.length === 0 ? <EmptyState title="No seismic sources" detail="No credible earthquake source has been characterized." /> : <Table headers={["Source", "Geometry", "Distance", "Magnitude range", "Hazard role"]} minWidth={880}>
+        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td><strong>{item.sourceType === item.geometry.geometryType ? displayLabel(item.sourceType) : `${displayLabel(item.sourceType)} / ${displayLabel(item.geometry.geometryType)}`}</strong><code>{item.faultMechanisms.map(displayLabel).join(", ")}</code></td><td>{item.geometry.closestDistanceToSiteKm === undefined ? "Not recorded" : `${item.geometry.closestDistanceToSiteKm} km`}</td><td>{sourceMagnitudeRange(item.magnitudeFrequencyModels)}</td><td><Tag tone={item.majorHazardContributor ? "warn" : "sha"}>{item.majorHazardContributor ? "Major contributor" : "Contributor"}</Tag></td></tr>)}
+      </Table>}
     </Section>
-    <Section eyebrow="SHA · HLR-D" title="Ground-motion characterization" description="Prediction models, strong-motion data, aleatory variability, reference horizons, and site-to-site variability." tone="sha" actions={editable ? <AddButton label="Add prediction model" onClick={() => setCollectionEditor({ title: "New prediction model", subtitle: "Model range, source basis, logic-tree weight, and applicability", focus: [], createAt: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels"] })} /> : undefined}>
-      <SectionEditorRow title="Ground-motion basis" description="Strong-motion data, reference horizons, variability, model selection, and uncertainty." onClick={() => setGroundBasisOpen(true)} />
-      <Narrative label="Historical and instrumental review" value={ground.historicalAndInstrumentalReview} />
-      <Table headers={["Prediction model", "Kind", "Magnitude range", "Distance range", "Weight", ""]}>
-        {ground.predictionModels.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Ground-motion prediction model", focus: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels", index], removeLabel: "Remove prediction model" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>M {item.magnitudeRange.minimum}–{item.magnitudeRange.maximum}</td><td>{item.distanceRangeKm.minimum}–{item.distanceRangeKm.maximum} km</td><td>{item.logicTreeWeight.toFixed(2)}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
+    <Section title="Ground-motion models" description="Prediction ranges, variability, and weights." tone="sha" actions={<>
+      <EditButton label="Edit basis" onClick={() => setGroundBasisOpen(true)} />
+      {editable && <AddButton label="Add model" onClick={() => setCollectionEditor({ title: "New prediction model", subtitle: "Model range, source basis, logic-tree weight, and applicability", focus: [], createAt: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels"] })} />}
+    </>}>
+      {ground.predictionModels.length === 0 ? <EmptyState title="No prediction models" detail="No ground-motion prediction model has been selected." /> : <Table headers={["Prediction model", "Type", "Magnitude range", "Distance range", "Total sigma", "Weight"]} minWidth={920}>
+        {ground.predictionModels.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Ground-motion prediction model", focus: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels", index], removeLabel: "Remove prediction model" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>M {item.magnitudeRange.minimum} to {item.magnitudeRange.maximum}</td><td>{item.distanceRangeKm.minimum} to {item.distanceRangeKm.maximum} km</td><td>{item.sigmaComponents?.total ?? "Not recorded"}</td><td>{item.logicTreeWeight.toFixed(2)}</td></tr>)}
+      </Table>}
     </Section>
-    {sourceBasisOpen && <MefEditor tone="sha" title="Source-characterization basis" subtitle="Sources, recurrence, dependencies, alternatives, logic trees, uncertainty, and integration" focus={["seismicHazardAnalysis", "sourceCharacterization"]} onClose={() => setSourceBasisOpen(false)} />}
-    {groundBasisOpen && <MefEditor tone="sha" title="Ground-motion basis" subtitle="Strong-motion data, prediction models, horizons, variability, and uncertainty" focus={["seismicHazardAnalysis", "groundMotionCharacterization"]} onClose={() => setGroundBasisOpen(false)} />}
+    {sourceBasisOpen && <SourceCharacterizationBasisEditor onClose={() => setSourceBasisOpen(false)} />}
+    {groundBasisOpen && <GroundMotionBasisEditor onClose={() => setGroundBasisOpen(false)} />}
     <CollectionEditor tone="sha" target={collectionEditor} onClose={() => setCollectionEditor(null)} />
   </>;
 }

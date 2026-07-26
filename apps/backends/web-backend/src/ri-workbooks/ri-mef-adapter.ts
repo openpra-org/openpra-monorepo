@@ -2,8 +2,14 @@ import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { RiskIntegrationSchema } from "interfaces-mef-types/zod/ri/risk-integration";
-import { WorkbookElementRegistry, type WorkbookElementAdapter } from "../workbooks/workbook-element-registry";
+import { RI_EXAMPLES, exampleWorkbookName } from "../example-workbooks/seeds";
+import {
+  WorkbookElementRegistry,
+  type WorkbookElementAdapter,
+  type WorkbookExampleVariant,
+} from "../workbooks/workbook-element-registry";
 import { RiWorkbook, type RiWorkbookDocument } from "./ri-workbook.schema";
+import { RiWorkbooksService } from "./ri-workbooks.service";
 import { createBlankRi } from "./blank-ri";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 
@@ -14,6 +20,7 @@ export class RiMefAdapter implements WorkbookElementAdapter, OnModuleInit {
   constructor(
     @InjectModel(RiWorkbook.name) private readonly riWorkbookModel: Model<RiWorkbookDocument>,
     private readonly registry: WorkbookElementRegistry,
+    private readonly riWorkbooksService: RiWorkbooksService,
   ) {}
 
   onModuleInit(): void {
@@ -39,5 +46,17 @@ export class RiMefAdapter implements WorkbookElementAdapter, OnModuleInit {
     doc.mef = parsed.data;
     await doc.save();
     return parsed.data;
+  }
+
+  exampleVariants(): WorkbookExampleVariant[] {
+    return RI_EXAMPLES.map((example) => ({
+      exampleId: example.id,
+      label: example.label,
+      workbookName: exampleWorkbookName(example.slug),
+    }));
+  }
+
+  async loadExample(workbookId: string, acting: { username: string }, exampleId: string): Promise<void> {
+    await this.riWorkbooksService.loadExample(workbookId, acting, exampleId);
   }
 }

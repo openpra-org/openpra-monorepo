@@ -7,6 +7,7 @@ import { POSIcon } from "../pos-workbooks/posIcons";
 import { seismicConformanceItems, seismicConformanceScore } from "./seismicPraConformance";
 import { generateSeismicPraReport } from "./seismicPraDocx";
 import { Drawer, EmptyState, Field, NumberInput, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
+import { hazardCurveFanSeries, motionValueAtFrequency, responseSpectrumFanSeries, secondaryHazardFanSeries, structuralResponseFanSeries, type HazardFanPoint, type SpectrumDirection } from "./seismicPraHazardCharts";
 import { seismicPraInterfaceLanes, type SeismicPraInterfaceLane } from "./seismicPraInterfaces";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "./seismicPraStructuredEditor";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
@@ -149,8 +150,8 @@ function BasisDetail({ label, value }: { label: string; value: string }): JSX.El
   return <div className="sbasis__detail"><span>{label}</span><p className={populated ? "" : "sbasis__detail-empty"}>{populated ? value : "Not documented yet."}</p></div>;
 }
 
-function Table({ headers, children, minWidth = 720, caption }: { headers: string[]; children: ReactNode; minWidth?: number; caption?: string }): JSX.Element {
-  return <div className="stablewrap"><table className="stable postable" style={{ minWidth }}>{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
+function Table({ headers, children, minWidth = 720, caption, columnWidths, className }: { headers: string[]; children: ReactNode; minWidth?: number; caption?: string; columnWidths?: string[]; className?: string }): JSX.Element {
+  return <div className="stablewrap"><table className={`stable postable${className === undefined ? "" : ` ${className}`}`} style={{ minWidth, tableLayout: minWidth === 0 ? "fixed" : undefined }}>{columnWidths !== undefined && <colgroup>{columnWidths.map((width, index) => <col key={`${width}-${index}`} style={{ width }} />)}</colgroup>}{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
 }
 
 function DiagnosticTable({ diagnostics }: { diagnostics: SeismicPraDiagnostic[] }): JSX.Element {
@@ -599,14 +600,14 @@ function EarthScienceScreen(): JSX.Element {
     </Section>
 
     <Section title="Earth-science data" description="Current technical inputs used by the hazard analysis." tone="sha" actions={editable ? <AddButton label="Add data set" onClick={() => setDataEditor({ title: "New earth-science data set", subtitle: "Source, coverage, quality, and currentness", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets"], visibleRootFields: dataFields })} /> : undefined}>
-      {inputs.dataSets.length === 0 ? <EmptyState title="No data sets" detail="No earth-science evidence has been registered." /> : <Table headers={["Data set", "Discipline", "Coverage", "Data cutoff", "Quality or limitation"]} minWidth={980}>
-        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], visibleRootFields: dataFields, removeLabel: "Remove data set" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.spatialCoverage}</td><td>{item.dataCutoffDate ?? "Not recorded"}</td><td>{item.qualityAndLimitations}</td></tr>)}
+      {inputs.dataSets.length === 0 ? <EmptyState title="No data sets" detail="No earth-science evidence has been registered." /> : <Table headers={["Data set", "Discipline", "Coverage", "Quality or limitation"]} minWidth={820}>
+        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], visibleRootFields: dataFields, removeLabel: "Remove data set" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.spatialCoverage}</td><td>{item.qualityAndLimitations}</td></tr>)}
       </Table>}
     </Section>
 
     <Section title="Models and methods" description="Sources assessed for potential hazard impact." tone="sha" actions={editable ? <AddButton label="Add source" onClick={() => setModelEditor({ title: "New model or method", subtitle: "Applicability, potential impact, and disposition", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory"], visibleRootFields: modelFields })} /> : undefined}>
-      {inputs.modelAndMethodInventory.length === 0 ? <EmptyState title="No models or methods" detail="No new or existing technical source has been assessed." /> : <Table headers={["Source or model", "Type", "Version or date", "Applicability", "Disposition", "Hazard impact"]} minWidth={1100}>
-        {inputs.modelAndMethodInventory.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setModelEditor({ title: item.name, subtitle: item.sourceReference, focus: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory", index], visibleRootFields: modelFields, removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>{[item.version, item.publicationDate].filter(Boolean).join(" · ") || "Not recorded"}</td><td>{item.applicability}</td><td><Tag tone={item.disposition === "REQUIRES_UPDATE" ? "warn" : item.disposition === "EXCLUDED" ? "neutral" : "good"}>{displayLabel(item.disposition)}</Tag></td><td>{item.potentialImpactOnHazard}</td></tr>)}
+      {inputs.modelAndMethodInventory.length === 0 ? <EmptyState title="No models or methods" detail="No new or existing technical source has been assessed." /> : <Table headers={["Source or model", "Type", "Applicability", "Hazard impact"]} minWidth={850}>
+        {inputs.modelAndMethodInventory.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setModelEditor({ title: item.name, subtitle: item.sourceReference, focus: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory", index], visibleRootFields: modelFields, removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>{item.applicability}</td><td>{item.potentialImpactOnHazard}</td></tr>)}
       </Table>}
     </Section>
 
@@ -931,8 +932,8 @@ function SourceGroundMotionScreen(): JSX.Element {
       <EditButton label="Edit basis" onClick={() => setSourceBasisOpen(true)} />
       {editable && <AddButton label="Add source" onClick={() => setCollectionEditor({ title: "New seismic source", subtitle: "Geometry, magnitude, recurrence, dependencies, and epistemic alternatives", focus: [], createAt: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources"] })} />}
     </>}>
-      {source.earthquakeSources.length === 0 ? <EmptyState title="No seismic sources" detail="No credible earthquake source has been characterized." /> : <Table headers={["Source", "Geometry", "Distance", "Magnitude range", "Hazard role"]} minWidth={880}>
-        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td><strong>{item.sourceType === item.geometry.geometryType ? displayLabel(item.sourceType) : `${displayLabel(item.sourceType)} / ${displayLabel(item.geometry.geometryType)}`}</strong><code>{item.faultMechanisms.map(displayLabel).join(", ")}</code></td><td>{item.geometry.closestDistanceToSiteKm === undefined ? "Not recorded" : `${item.geometry.closestDistanceToSiteKm} km`}</td><td>{sourceMagnitudeRange(item.magnitudeFrequencyModels)}</td><td><Tag tone={item.majorHazardContributor ? "warn" : "sha"}>{item.majorHazardContributor ? "Major contributor" : "Contributor"}</Tag></td></tr>)}
+      {source.earthquakeSources.length === 0 ? <EmptyState title="No seismic sources" detail="No credible earthquake source has been characterized." /> : <Table headers={["Source", "Geometry", "Distance", "Magnitude range"]} minWidth={760}>
+        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td><strong>{item.sourceType === item.geometry.geometryType ? displayLabel(item.sourceType) : `${displayLabel(item.sourceType)} / ${displayLabel(item.geometry.geometryType)}`}</strong><code>{item.faultMechanisms.map(displayLabel).join(", ")}</code></td><td>{item.geometry.closestDistanceToSiteKm === undefined ? "Not recorded" : `${item.geometry.closestDistanceToSiteKm} km`}</td><td>{sourceMagnitudeRange(item.magnitudeFrequencyModels)}</td></tr>)}
       </Table>}
     </Section>
     <Section title="Ground-motion models" description="Prediction ranges, variability, and weights." tone="sha" actions={<>
@@ -949,24 +950,418 @@ function SourceGroundMotionScreen(): JSX.Element {
   </>;
 }
 
+type SiteResponseAnalysis = SeismicPRA["seismicHazardAnalysis"]["siteResponseAnalysis"];
+type SiteProfile = SiteResponseAnalysis["profiles"][number];
+type SiteLayer = SiteProfile["layers"][number];
+type SiteProperty = SiteLayer["properties"][number];
+type SiteMethod = SiteResponseAnalysis["methods"][number];
+type SiteInputMotion = SiteResponseAnalysis["inputMotions"][number];
+type SiteUncertainty = SiteResponseAnalysis["uncertainties"][number];
+type SiteResult = SiteResponseAnalysis["amplificationResults"][number];
+
+function numericRange(values: number[], unit = ""): string {
+  if (values.length === 0) return "Not defined";
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  return `${minimum} to ${maximum}${unit.length > 0 ? ` ${unit}` : ""}`;
+}
+
+function siteProperty(layer: SiteLayer, propertyType: SiteProperty["propertyType"]): number | undefined {
+  return layer.properties.find((property) => property.propertyType === propertyType)?.value;
+}
+
+function setSiteProperty(layer: SiteLayer, propertyType: SiteProperty["propertyType"], value: number, units: string): SiteLayer {
+  const properties = [...layer.properties];
+  const index = properties.findIndex((property) => property.propertyType === propertyType);
+  if (index >= 0) {
+    properties[index] = { ...properties[index]!, value, units };
+  } else {
+    properties.push({
+      uuid: crypto.randomUUID(),
+      name: displayLabel(propertyType),
+      propertyType,
+      value,
+      units,
+      sourceReference: layer.sourceReferences[0] ?? "",
+      basisAndLimitations: "",
+    });
+  }
+  return { ...layer, properties };
+}
+
+function newSiteLayer(index: number): SiteLayer {
+  return {
+    uuid: crypto.randomUUID(),
+    name: `Layer ${index + 1}`,
+    materialType: "",
+    topDepth: 0,
+    bottomDepth: 0,
+    depthUnit: "m",
+    thickness: 0,
+    properties: [],
+    spatialVariability: "",
+    sourceReferences: [],
+  };
+}
+
+function newSiteProfile(): SiteProfile {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New site profile",
+    profileType: "ALTERNATIVE",
+    locationDescription: "",
+    layers: [newSiteLayer(0)],
+    depthToBedrock: 0,
+    depthUnit: "m",
+    bedrockDefinition: "",
+    profileWeight: 0,
+    siteVariabilityBasis: "",
+    sourceReferences: [],
+    implementsSrs: [{ sr: "SHA-E1", hlr: "E" }, { sr: "SHA-E3", hlr: "E" }, { sr: "SHA-E5", hlr: "E" }],
+  };
+}
+
+function newSiteMethod(): SiteMethod {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Site-response method",
+    dimension: "ONE_DIMENSIONAL",
+    analysisType: "EQUIVALENT_LINEAR",
+    methodDescription: "",
+    dimensionSelectionBasis: "",
+    inputLocation: "",
+    outputLocation: "CONTROL-POINT-FOUNDATION",
+    boundaryConditions: "",
+    materialModelDescription: "",
+    verificationAndValidation: "",
+    limitations: [],
+    implementsSrs: [{ sr: "SHA-E3", hlr: "E" }, { sr: "SHA-E5", hlr: "E" }],
+  };
+}
+
+function newSiteInputMotion(): SiteInputMotion {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Input-motion set",
+    inputType: "FOURIER_AMPLITUDE_SPECTRUM",
+    referenceHorizonRef: "",
+    groundMotionParameterRef: "",
+    amplitudeLevels: [],
+    units: "g",
+    selectionAndScalingBasis: "",
+  };
+}
+
+function newSiteUncertainty(): SiteUncertainty {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Site-response uncertainty",
+    uncertaintyType: "EPISTEMIC",
+    analysisArea: "SITE_RESPONSE",
+    description: "",
+    affectedModelRefs: [],
+    affectedResultRefs: [],
+    characterizationMethod: "",
+    propagationMethod: "",
+    implementsSrs: [{ sr: "SHA-E3", hlr: "E" }],
+  };
+}
+
+function newSiteResult(site: SiteResponseAnalysis): SiteResult {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Site amplification calculation",
+    profileRefs: site.profiles.map((profile) => profile.uuid),
+    methodRef: site.methods[0]?.uuid ?? "",
+    inputMotionRef: site.inputMotions[0]?.uuid ?? "",
+    outputControlPointRef: "CONTROL-POINT-FOUNDATION",
+    points: [],
+    weightingAndCombinationMethod: "",
+    nonlinearEffectsTreatment: "",
+    uncertaintyTreatment: "",
+    implementsSrs: [{ sr: "SHA-E3", hlr: "E" }, { sr: "SHA-E5", hlr: "E" }],
+  };
+}
+
+function SiteConditionsEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<SiteResponseAnalysis>(() => structuredClone(mef.seismicHazardAnalysis.siteResponseAnalysis));
+  const topography = draft.topographyAndGeology;
+  function updateTopography(change: Partial<SiteResponseAnalysis["topographyAndGeology"]>): void {
+    setDraft((current) => ({ ...current, topographyAndGeology: { ...current.topographyAndGeology, ...change } }));
+  }
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.siteResponseAnalysis = draft;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Site conditions" subtitle="Topography, geology, and response basis" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Local conditions</h3>
+        <Field label="Topography"><TextArea rows={3} value={topography.topographicDescription} onChange={(value) => updateTopography({ topographicDescription: value })} /></Field>
+        <Field label="Topography references" hint="Separate references with commas."><TextInput value={topography.topographicDataRefs.join(", ")} onChange={(value) => updateTopography({ topographicDataRefs: technicalList(value) })} /></Field>
+        <Field label="Surficial deposits"><TextArea rows={3} value={topography.surficialDepositDescription} onChange={(value) => updateTopography({ surficialDepositDescription: value })} /></Field>
+        <Field label="Surficial-geology references" hint="Separate references with commas."><TextInput value={topography.surficialGeologyDataRefs.join(", ")} onChange={(value) => updateTopography({ surficialGeologyDataRefs: technicalList(value) })} /></Field>
+        <Field label="Geologic structure"><TextArea rows={3} value={topography.geologicStructureDescription} onChange={(value) => updateTopography({ geologicStructureDescription: value })} /></Field>
+        <Field label="Geotechnical references" hint="Separate references with commas."><TextInput value={topography.geotechnicalInvestigationRefs.join(", ")} onChange={(value) => updateTopography({ geotechnicalInvestigationRefs: technicalList(value) })} /></Field>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={topography.topographicEffectsSignificant} onChange={(event) => updateTopography({ topographicEffectsSignificant: event.target.checked })} /><span>Topographic effects are significant</span></label>
+        <Field label="Topographic-effects treatment"><TextArea rows={3} value={topography.topographicEffectsTreatment} onChange={(value) => updateTopography({ topographicEffectsTreatment: value })} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Hazard integration</h3>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.localSiteResponseIncluded} onChange={(event) => setDraft((current) => ({ ...current, localSiteResponseIncluded: event.target.checked }))} /><span>Include local site response</span></label>
+        <Field label="Approach justification"><TextArea rows={4} value={draft.approachJustification} onChange={(value) => setDraft((current) => ({ ...current, approachJustification: value }))} /></Field>
+        <Field label="Incorporation into hazard"><TextArea rows={4} value={draft.incorporationIntoHazardMethod} onChange={(value) => setDraft((current) => ({ ...current, incorporationIntoHazardMethod: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SiteProfileEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const source = index === null ? newSiteProfile() : mef.seismicHazardAnalysis.siteResponseAnalysis.profiles[index]!;
+  const [draft, setDraft] = useState<SiteProfile>(() => structuredClone(source));
+  const [sources, setSources] = useState(draft.sourceReferences.join(", "));
+  function updateLayer(layerIndex: number, change: (layer: SiteLayer) => SiteLayer): void {
+    setDraft((current) => ({ ...current, layers: current.layers.map((layer, candidate) => candidate === layerIndex ? change(layer) : layer) }));
+  }
+  function save(): void {
+    update((next) => {
+      const profiles = next.seismicHazardAnalysis.siteResponseAnalysis.profiles;
+      const saved = { ...draft, sourceReferences: technicalList(sources) };
+      if (index === null) profiles.push(saved);
+      else profiles[index] = saved;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicHazardAnalysis.siteResponseAnalysis.profiles.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle="Weighted subsurface profile" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove profile</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save profile</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Profile</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+          <Field label="Type"><SelectInput value={draft.profileType} options={[
+            { value: "BEST_ESTIMATE", label: "Best estimate" },
+            { value: "LOWER_BOUND", label: "Lower bound" },
+            { value: "UPPER_BOUND", label: "Upper bound" },
+            { value: "ALTERNATIVE", label: "Alternative" },
+            { value: "BOUNDING_SITE", label: "Bounding site" },
+          ]} onChange={(value) => setDraft((current) => ({ ...current, profileType: value as SiteProfile["profileType"] }))} /></Field>
+          <Field label="Depth to bedrock (m)"><NumberInput value={draft.depthToBedrock} onChange={(value) => setDraft((current) => ({ ...current, depthToBedrock: value }))} /></Field>
+          <Field label="Groundwater depth (m)"><NumberInput value={draft.groundwaterDepth ?? 0} onChange={(value) => setDraft((current) => ({ ...current, groundwaterDepth: value }))} /></Field>
+          <Field label="Weight"><NumberInput value={draft.profileWeight ?? 0} onChange={(value) => setDraft((current) => ({ ...current, profileWeight: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Location"><TextArea rows={2} value={draft.locationDescription} onChange={(value) => setDraft((current) => ({ ...current, locationDescription: value }))} /></Field>
+        <Field label="Bedrock definition"><TextArea rows={2} value={draft.bedrockDefinition} onChange={(value) => setDraft((current) => ({ ...current, bedrockDefinition: value }))} /></Field>
+        <Field label="Variability basis"><TextArea rows={3} value={draft.siteVariabilityBasis} onChange={(value) => setDraft((current) => ({ ...current, siteVariabilityBasis: value }))} /></Field>
+        <Field label="Source references" hint="Separate references with commas."><TextInput value={sources} onChange={setSources} /></Field>
+      </div>
+      {draft.layers.map((layer, layerIndex) => <div className="sinlineeditor__group" key={layer.uuid}>
+        <h3 className="sinlineeditor__title">Layer {layerIndex + 1}</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={layer.name} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, name: value }))} /></Field>
+          <Field label="Material"><TextInput value={layer.materialType} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, materialType: value }))} /></Field>
+          <Field label="Top depth (m)"><NumberInput value={layer.topDepth} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, topDepth: value, thickness: current.bottomDepth - value }))} /></Field>
+          <Field label="Bottom depth (m)"><NumberInput value={layer.bottomDepth} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, bottomDepth: value, thickness: value - current.topDepth }))} /></Field>
+          <Field label="Shear-wave velocity (m/s)"><NumberInput value={siteProperty(layer, "SHEAR_WAVE_VELOCITY") ?? 0} onChange={(value) => updateLayer(layerIndex, (current) => setSiteProperty(current, "SHEAR_WAVE_VELOCITY", value, "m/s"))} /></Field>
+          <Field label="Density (kg/m3)"><NumberInput value={siteProperty(layer, "DENSITY") ?? 0} onChange={(value) => updateLayer(layerIndex, (current) => setSiteProperty(current, "DENSITY", value, "kg/m3"))} /></Field>
+          <Field label="Damping ratio"><NumberInput value={siteProperty(layer, "DAMPING") ?? 0} onChange={(value) => updateLayer(layerIndex, (current) => setSiteProperty(current, "DAMPING", value, "ratio"))} /></Field>
+        </FieldGrid>
+        <Field label="Spatial variability"><TextArea rows={2} value={layer.spatialVariability} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, spatialVariability: value }))} /></Field>
+        {editable && draft.layers.length > 1 && <button type="button" className="posnav__btn" onClick={() => setDraft((current) => ({ ...current, layers: current.layers.filter((_, candidate) => candidate !== layerIndex) }))}>Remove layer</button>}
+      </div>)}
+      {editable && <button type="button" className="posnav__btn" onClick={() => setDraft((current) => ({ ...current, layers: [...current.layers, newSiteLayer(current.layers.length)] }))}>Add layer</button>}
+    </fieldset>
+  </Drawer>;
+}
+
+function SiteResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<SiteResponseAnalysis>(() => {
+    const initial = structuredClone(mef.seismicHazardAnalysis.siteResponseAnalysis);
+    if (initial.methods.length === 0) initial.methods.push(newSiteMethod());
+    if (initial.inputMotions.length === 0) initial.inputMotions.push(newSiteInputMotion());
+    if (initial.uncertainties.length === 0) initial.uncertainties.push(newSiteUncertainty());
+    return initial;
+  });
+  function updateMethod(index: number, change: Partial<SiteMethod>): void {
+    setDraft((current) => ({ ...current, methods: current.methods.map((method, candidate) => candidate === index ? { ...method, ...change } : method) }));
+  }
+  function updateInput(index: number, change: Partial<SiteInputMotion>): void {
+    setDraft((current) => ({ ...current, inputMotions: current.inputMotions.map((input, candidate) => candidate === index ? { ...input, ...change } : input) }));
+  }
+  function updateUncertainty(index: number, change: Partial<SiteUncertainty>): void {
+    setDraft((current) => ({ ...current, uncertainties: current.uncertainties.map((uncertainty, candidate) => candidate === index ? { ...uncertainty, ...change } : uncertainty) }));
+  }
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.siteResponseAnalysis = draft;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Response setup" subtitle="Methods, input motions, and uncertainty" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      {draft.methods.map((method, index) => <div className="sinlineeditor__group" key={method.uuid}>
+        <h3 className="sinlineeditor__title">Method {index + 1}</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={method.name} onChange={(value) => updateMethod(index, { name: value })} /></Field>
+          <Field label="Software"><TextInput value={method.softwareAndVersion ?? ""} onChange={(value) => updateMethod(index, { softwareAndVersion: value })} /></Field>
+          <Field label="Dimension"><SelectInput value={method.dimension} options={["ONE_DIMENSIONAL", "TWO_DIMENSIONAL", "THREE_DIMENSIONAL"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateMethod(index, { dimension: value as SiteMethod["dimension"] })} /></Field>
+          <Field label="Analysis type"><SelectInput value={method.analysisType} options={["EQUIVALENT_LINEAR", "NONLINEAR", "RANDOM_VIBRATION_THEORY", "TIME_DOMAIN", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateMethod(index, { analysisType: value as SiteMethod["analysisType"] })} /></Field>
+        </FieldGrid>
+        <Field label="Method"><TextArea rows={3} value={method.methodDescription} onChange={(value) => updateMethod(index, { methodDescription: value })} /></Field>
+        <Field label="Dimensionality basis"><TextArea rows={3} value={method.dimensionSelectionBasis} onChange={(value) => updateMethod(index, { dimensionSelectionBasis: value })} /></Field>
+        <Field label="Material model"><TextArea rows={3} value={method.materialModelDescription} onChange={(value) => updateMethod(index, { materialModelDescription: value })} /></Field>
+        <Field label="Verification and validation"><TextArea rows={3} value={method.verificationAndValidation} onChange={(value) => updateMethod(index, { verificationAndValidation: value })} /></Field>
+      </div>)}
+      {draft.inputMotions.map((input, index) => <div className="sinlineeditor__group" key={input.uuid}>
+        <h3 className="sinlineeditor__title">Input motion {index + 1}</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={input.name} onChange={(value) => updateInput(index, { name: value })} /></Field>
+          <Field label="Type"><SelectInput value={input.inputType} options={["RESPONSE_SPECTRUM", "TIME_HISTORY", "FOURIER_AMPLITUDE_SPECTRUM", "RANDOM_VIBRATION"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateInput(index, { inputType: value as SiteInputMotion["inputType"] })} /></Field>
+          <Field label="Reference horizon"><TextInput value={input.referenceHorizonRef} onChange={(value) => updateInput(index, { referenceHorizonRef: value })} /></Field>
+          <Field label="Motion parameter"><TextInput value={input.groundMotionParameterRef} onChange={(value) => updateInput(index, { groundMotionParameterRef: value })} /></Field>
+        </FieldGrid>
+        <Field label={`Amplitude levels (${input.units})`} hint="Separate values with commas."><TextInput value={input.amplitudeLevels.join(", ")} onChange={(value) => updateInput(index, { amplitudeLevels: technicalList(value).map(Number).filter(Number.isFinite) })} /></Field>
+        <Field label="Selection and scaling"><TextArea rows={3} value={input.selectionAndScalingBasis} onChange={(value) => updateInput(index, { selectionAndScalingBasis: value })} /></Field>
+      </div>)}
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Uncertainty sources</h3>
+        {draft.uncertainties.map((uncertainty, index) => <div className="sinlineeditor__subgroup" key={uncertainty.uuid}>
+          <FieldGrid>
+            <Field label="Name"><TextInput value={uncertainty.name} onChange={(value) => updateUncertainty(index, { name: value })} /></Field>
+            <Field label="Importance"><SelectInput value={uncertainty.importance ?? "MEDIUM"} options={["LOW", "MEDIUM", "HIGH"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateUncertainty(index, { importance: value as SiteUncertainty["importance"] })} /></Field>
+          </FieldGrid>
+          <Field label="Description"><TextArea rows={2} value={uncertainty.description} onChange={(value) => updateUncertainty(index, { description: value })} /></Field>
+          <Field label="Propagation"><TextArea rows={2} value={uncertainty.propagationMethod} onChange={(value) => updateUncertainty(index, { propagationMethod: value })} /></Field>
+        </div>)}
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SiteResultEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const site = mef.seismicHazardAnalysis.siteResponseAnalysis;
+  const [draft, setDraft] = useState<SiteResult>(() => structuredClone(index === null ? newSiteResult(site) : site.amplificationResults[index]!));
+  function save(): void {
+    update((next) => {
+      const results = next.seismicHazardAnalysis.siteResponseAnalysis.amplificationResults;
+      if (index === null) results.push(draft);
+      else results[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicHazardAnalysis.siteResponseAnalysis.amplificationResults.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle="Foundation amplification result" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove calculation</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save calculation</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Calculation</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Method"><SelectInput value={draft.methodRef} options={site.methods.map((method) => ({ value: method.uuid, label: method.name }))} onChange={(value) => setDraft((current) => ({ ...current, methodRef: value }))} /></Field>
+          <Field label="Input motion"><SelectInput value={draft.inputMotionRef} options={site.inputMotions.map((input) => ({ value: input.uuid, label: input.name }))} onChange={(value) => setDraft((current) => ({ ...current, inputMotionRef: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Profile references" hint="Separate references with commas."><TextInput value={draft.profileRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, profileRefs: technicalList(value) }))} /></Field>
+        <Field label="Weighting and combination"><TextArea rows={3} value={draft.weightingAndCombinationMethod} onChange={(value) => setDraft((current) => ({ ...current, weightingAndCombinationMethod: value }))} /></Field>
+        <Field label="Nonlinear effects"><TextArea rows={3} value={draft.nonlinearEffectsTreatment} onChange={(value) => setDraft((current) => ({ ...current, nonlinearEffectsTreatment: value }))} /></Field>
+        <Field label="Uncertainty treatment"><TextArea rows={3} value={draft.uncertaintyTreatment} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyTreatment: value }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Amplification points</h3>
+        {draft.points.length === 0 ? <EmptyState title="No amplification points" detail="Add the input levels and frequencies calculated by this result." /> : <div className="sresponsepoints"><Table headers={["Input motion", "Frequency (Hz)", "Median", "Log sigma"]} minWidth={0}>
+          {draft.points.map((point, pointIndex) => <tr key={`${point.inputGroundMotion}-${point.frequencyHz}-${pointIndex}`}>
+            <td><NumberInput value={point.inputGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((candidate, indexValue) => indexValue === pointIndex ? { ...candidate, inputGroundMotion: value } : candidate) }))} /></td>
+            <td><NumberInput value={point.frequencyHz} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((candidate, indexValue) => indexValue === pointIndex ? { ...candidate, frequencyHz: value } : candidate) }))} /></td>
+            <td><NumberInput value={point.medianAmplification} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((candidate, indexValue) => indexValue === pointIndex ? { ...candidate, medianAmplification: value } : candidate) }))} /></td>
+            <td><NumberInput value={point.logarithmicStandardDeviation ?? 0} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((candidate, indexValue) => indexValue === pointIndex ? { ...candidate, logarithmicStandardDeviation: value } : candidate) }))} /></td>
+          </tr>)}
+        </Table></div>}
+        {editable && <button type="button" className="posnav__btn" onClick={() => setDraft((current) => ({ ...current, points: [...current.points, { inputGroundMotion: 0, frequencyHz: 0, medianAmplification: 0, logarithmicStandardDeviation: 0 }] }))}>Add point</button>}
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
 function SiteResponseScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const site = mef.seismicHazardAnalysis.siteResponseAnalysis;
-  const [basisOpen, setBasisOpen] = useState(false);
-  const [profileEditor, setProfileEditor] = useState<CollectionEditorTarget | null>(null);
+  const topography = site.topographyAndGeology;
+  const [conditionsOpen, setConditionsOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [profileIndex, setProfileIndex] = useState<number | null | undefined>(undefined);
+  const [resultIndex, setResultIndex] = useState<number | null | undefined>(undefined);
+  const profileVelocityRange = (profile: SiteProfile): string => numericRange(profile.layers.map((layer) => siteProperty(layer, "SHEAR_WAVE_VELOCITY")).filter((value): value is number => value !== undefined), "m/s");
   return <>
-    <Section eyebrow="SHA · HLR-E" title="Local site-response basis" description="Profiles, strain-dependent properties, analysis methods, input motions, amplification, topology, and epistemic uncertainty." tone="sha" actions={<EditButton label="Edit response basis" onClick={() => setBasisOpen(true)} />}>
-      <div className="sreadouts"><Readout label="Local response" value={site.localSiteResponseIncluded ? "Included" : "Not included"} /><Readout label="Bounding variability" value={site.boundingSiteVariabilityIncluded ? "Included" : "Not included"} /><Readout label="Profiles" value={site.profiles.length} /><Readout label="Analysis methods" value={site.methods.length} /></div>
-      <Narrative label="Approach justification" value={site.approachJustification} />
-      <Narrative label="Incorporation into hazard" value={site.incorporationIntoHazardMethod} />
+    <Section title="Site conditions" description="Local conditions that affect ground motion." tone="sha" actions={<EditButton label="Edit conditions" onClick={() => setConditionsOpen(true)} />}>
+      <Table headers={["Condition", "Site characterization"]} minWidth={0}>
+        <tr><td><strong>Topography</strong></td><td>{topography.topographicDescription || "Not defined"}</td></tr>
+        <tr><td><strong>Surficial deposits</strong></td><td>{topography.surficialDepositDescription || "Not defined"}</td></tr>
+        <tr><td><strong>Geologic structure</strong></td><td>{topography.geologicStructureDescription || "Not defined"}</td></tr>
+        <tr><td><strong>Topographic effects</strong></td><td>{topography.topographicEffectsTreatment || "Not evaluated"}</td></tr>
+      </Table>
     </Section>
-    <Section eyebrow="Subsurface model" title="Site profiles" description="Each profile carries its weight, layering, material properties, bedrock depth, and groundwater basis." tone="sha" actions={editable ? <AddButton label="Add profile" onClick={() => setProfileEditor({ title: "New site profile", subtitle: "Profile type, layers, material properties, bedrock, groundwater, and weight", focus: [], createAt: ["seismicHazardAnalysis", "siteResponseAnalysis", "profiles"] })} /> : undefined}>
-      {site.profiles.length === 0 ? <EmptyState title="No site profiles" detail="The local site model does not yet contain a profile." /> : <Table headers={["Profile", "Location", "Subsurface model", "Weight", ""]}>
-        {site.profiles.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setProfileEditor({ title: item.name, subtitle: displayLabel(item.profileType), focus: ["seismicHazardAnalysis", "siteResponseAnalysis", "profiles", index], removeLabel: "Remove profile" })}><td><strong>{item.name}</strong><code>{displayLabel(item.profileType)}</code></td><td>{item.locationDescription}</td><td><strong>{item.layers.length} layers · bedrock at {item.depthToBedrock} {item.depthUnit}</strong><code>{item.bedrockDefinition}</code></td><td>{item.profileWeight ?? "—"}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+    <Section title="Site profiles" description="Weighted subsurface branches used in the response analysis." tone="sha" actions={editable ? <AddButton label="Add profile" onClick={() => setProfileIndex(null)} /> : undefined}>
+      {site.profiles.length === 0 ? <EmptyState title="No site profiles" detail="Add the subsurface profiles used by the local response analysis." /> : <Table headers={["Profile", "Layers", "Vs range", "Depths", "Weight"]} minWidth={0}>
+        {site.profiles.map((profile, index) => <tr className="postable__row--clickable" key={profile.uuid} onClick={() => setProfileIndex(index)}>
+          <td><strong>{profile.name}</strong><code>{displayLabel(profile.profileType)}</code></td>
+          <td>{profile.layers.length}</td>
+          <td>{profileVelocityRange(profile)}</td>
+          <td><strong>Bedrock {profile.depthToBedrock} {profile.depthUnit}</strong><code>Groundwater {profile.groundwaterDepth === undefined ? "not defined" : `${profile.groundwaterDepth} ${profile.depthUnit}`}</code></td>
+          <td>{profile.profileWeight?.toFixed(2) ?? "Not defined"}</td>
+        </tr>)}
       </Table>}
     </Section>
-    {basisOpen && <MefEditor tone="sha" title="Site-response basis" subtitle="Profiles, material properties, methods, motions, amplification, topography, and uncertainty" focus={["seismicHazardAnalysis", "siteResponseAnalysis"]} onClose={() => setBasisOpen(false)} />}
-    <CollectionEditor tone="sha" target={profileEditor} onClose={() => setProfileEditor(null)} />
+    <Section title="Response calculations" description="Foundation amplification across the hazard range." tone="sha" actions={<>
+      <EditButton label="Edit setup" onClick={() => setSetupOpen(true)} />
+      {editable && <AddButton label="Add calculation" onClick={() => setResultIndex(null)} />}
+    </>}>
+      {site.amplificationResults.length === 0 ? <EmptyState title="No response calculations" detail="Add an amplification calculation for the foundation control point." /> : <Table headers={["Calculation", "Method", "Analysis range", "Amplification"]} minWidth={0}>
+        {site.amplificationResults.map((result, index) => {
+          const method = site.methods.find((candidate) => candidate.uuid === result.methodRef);
+          const input = site.inputMotions.find((candidate) => candidate.uuid === result.inputMotionRef);
+          return <tr className="postable__row--clickable" key={result.uuid} onClick={() => setResultIndex(index)}>
+            <td><strong>{result.name}</strong></td>
+            <td><strong>{method?.name ?? "Missing method"}</strong><code>{method === undefined ? result.methodRef : `${displayLabel(method.dimension)} · ${displayLabel(method.analysisType)}`}</code></td>
+            <td><strong>{input === undefined ? "Missing input" : numericRange(input.amplitudeLevels, input.units)}</strong><code>{numericRange(result.points.map((point) => point.frequencyHz), "Hz")}</code></td>
+            <td><strong>{numericRange(result.points.map((point) => point.medianAmplification))}</strong><code>Log σ {numericRange(result.points.map((point) => point.logarithmicStandardDeviation).filter((value): value is number => value !== undefined))}</code></td>
+          </tr>;
+        })}
+      </Table>}
+    </Section>
+    {conditionsOpen && <SiteConditionsEditor onClose={() => setConditionsOpen(false)} />}
+    {setupOpen && <SiteResponseSetupEditor onClose={() => setSetupOpen(false)} />}
+    {profileIndex !== undefined && <SiteProfileEditor index={profileIndex} onClose={() => setProfileIndex(undefined)} />}
+    {resultIndex !== undefined && <SiteResultEditor index={resultIndex} onClose={() => setResultIndex(undefined)} />}
   </>;
 }
 
@@ -980,7 +1375,7 @@ function LineChart({ series, xLabel, yLabel, color = "#315fc7" }: { series: { x:
   return <div className="schart"><svg viewBox="0 0 570 290" role="img" aria-label={`${yLabel} versus ${xLabel}`}><line x1="50" x2="530" y1="235" y2="235" className="schart__axis" /><line x1="50" x2="50" y1="25" y2="235" className="schart__axis" />{[0, .25, .5, .75, 1].map((fraction) => <g key={fraction}><line x1="50" x2="530" y1={25 + fraction * 210} y2={25 + fraction * 210} className="schart__grid" /><text x="43" y={29 + fraction * 210} textAnchor="end">{(10 ** (Math.log10(yMax) - fraction * (Math.log10(yMax) - Math.log10(yMin)))).toExponential(0)}</text></g>)}<polyline points={points} fill="none" stroke={color} strokeWidth="3" />{series.map((point, index) => <circle key={index} cx={px(point.x)} cy={py(point.y)} r="4" fill={color} />)}<text x="290" y="276" textAnchor="middle" className="schart__label">{xLabel}</text><text x="15" y="130" textAnchor="middle" transform="rotate(-90 15 130)" className="schart__label">{yLabel}</text><text x="50" y="253">{xMin}</text><text x="530" y="253" textAnchor="end">{xMax}</text></svg></div>;
 }
 
-function HazardResultsScreen(): JSX.Element {
+function LegacyHazardResultsScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const quant = mef.seismicHazardAnalysis.hazardQuantification;
   const spectra = mef.seismicHazardAnalysis.responseSpectraEvaluation;
@@ -1028,47 +1423,1881 @@ function HazardResultsScreen(): JSX.Element {
   </>;
 }
 
+type HazardQuantification = SeismicPRA["seismicHazardAnalysis"]["hazardQuantification"];
+type HazardCurve = HazardQuantification["hazardCurves"][number];
+type HazardInterval = HazardQuantification["seismicPraInputs"]["hazardIntervals"][number];
+type HazardDeaggregation = HazardQuantification["deaggregations"][number];
+type HazardSensitivity = HazardQuantification["sensitivityStudies"][number];
+type ResponseSpectraEvaluation = SeismicPRA["seismicHazardAnalysis"]["responseSpectraEvaluation"];
+type ResponseSpectrum = ResponseSpectraEvaluation["horizontalSpectra"][number];
+
+function annualFrequency(value: number | undefined): string {
+  return value === undefined ? "Not defined" : value.toExponential(1);
+}
+
+function motionAtFrequency(curve: HazardCurve | undefined, target: number): string {
+  const motion = motionValueAtFrequency(curve, target);
+  return motion === undefined || curve === undefined
+    ? "Not calculated"
+    : `${Number(motion.toPrecision(3))} ${curve.groundMotionUnits}`;
+}
+
+function HazardCurveFamilyEditor({ parameterRef, onClose }: { parameterRef: string; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const parameter = mef.seismicHazardAnalysis.analysisBasis.groundMotionParameters.find((item) => item.uuid === parameterRef);
+  const [draft, setDraft] = useState<HazardCurve[]>(() =>
+    structuredClone(mef.seismicHazardAnalysis.hazardQuantification.hazardCurves.filter((curve) => curve.groundMotionParameterRef === parameterRef)),
+  );
+  function updatePoint(curveIndex: number, pointIndex: number, change: Partial<HazardCurve["points"][number]>): void {
+    setDraft((current) => current.map((curve, currentCurveIndex) => currentCurveIndex !== curveIndex ? curve : {
+      ...curve,
+      points: curve.points.map((point, currentPointIndex) => currentPointIndex === pointIndex ? { ...point, ...change } : point),
+    }));
+  }
+  function save(): void {
+    update((next) => {
+      const replacements = new Map(draft.map((curve) => [curve.uuid, curve]));
+      next.seismicHazardAnalysis.hazardQuantification.hazardCurves =
+        next.seismicHazardAnalysis.hazardQuantification.hazardCurves.map((curve) => replacements.get(curve.uuid) ?? curve);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={parameter?.name ?? parameterRef} subtitle="Mean and fractile hazard curves" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save curves</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      {draft.map((curve, curveIndex) => <div className="sinlineeditor__group" key={curve.uuid}>
+        <h3 className="sinlineeditor__title">{curve.statistic === "MEAN" ? "Mean" : `${Math.round((curve.fractile ?? 0) * 100)}th fractile`}</h3>
+        <FieldGrid>
+          <Field label="Control point"><TextInput value={curve.controlPointRef} onChange={(value) => setDraft((current) => current.map((item, index) => index === curveIndex ? { ...item, controlPointRef: value } : item))} /></Field>
+          <Field label="Calculation run"><TextInput value={curve.calculationRunRef} onChange={(value) => setDraft((current) => current.map((item, index) => index === curveIndex ? { ...item, calculationRunRef: value } : item))} /></Field>
+        </FieldGrid>
+        <Table headers={["Ground motion", "Annual frequency"]} minWidth={0}>
+          {curve.points.map((point, pointIndex) => <tr key={`${curve.uuid}-${pointIndex}`}>
+            <td><NumberInput value={point.groundMotion} onChange={(value) => updatePoint(curveIndex, pointIndex, { groundMotion: value })} /></td>
+            <td><NumberInput value={point.annualFrequencyOfExceedance} onChange={(value) => updatePoint(curveIndex, pointIndex, { annualFrequencyOfExceedance: value })} /></td>
+          </tr>)}
+        </Table>
+      </div>)}
+    </fieldset>
+  </Drawer>;
+}
+
+function HazardIntervalEditor({ index, onClose }: { index: number; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<HazardInterval>(() =>
+    structuredClone(mef.seismicHazardAnalysis.hazardQuantification.seismicPraInputs.hazardIntervals[index]!),
+  );
+  function save(): void {
+    update((next) => {
+      const inputs = next.seismicHazardAnalysis.hazardQuantification.seismicPraInputs;
+      inputs.hazardIntervals[index] = draft;
+      inputs.plantResponseInputRefs = inputs.hazardIntervals.map((item) => item.uuid);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle="PRA hazard bin" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save bin</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Lower motion"><NumberInput value={draft.lowerGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, lowerGroundMotion: value }))} /></Field>
+          <Field label="Upper motion"><NumberInput value={draft.upperGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, upperGroundMotion: value }))} /></Field>
+          <Field label="Representative motion"><NumberInput value={draft.representativeGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, representativeGroundMotion: value }))} /></Field>
+          <Field label="Annual frequency"><NumberInput value={draft.annualFrequency} onChange={(value) => setDraft((current) => ({ ...current, annualFrequency: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Frequency calculation"><TextArea rows={3} value={draft.frequencyCalculationMethod} onChange={(value) => setDraft((current) => ({ ...current, frequencyCalculationMethod: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Horizontal curve"><TextInput value={draft.sourceHazardCurveRef} onChange={(value) => setDraft((current) => ({ ...current, sourceHazardCurveRef: value }))} /></Field>
+          <Field label="Vertical motion"><TextInput value={draft.verticalMotionRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, verticalMotionRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Secondary-hazard results" hint="Separate references with commas."><TextInput value={(draft.secondaryHazardResultRefs ?? []).join(", ")} onChange={(value) => setDraft((current) => ({ ...current, secondaryHazardResultRefs: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function DeaggregationEditor({ index, onClose }: { index: number; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<HazardDeaggregation>(() =>
+    structuredClone(mef.seismicHazardAnalysis.hazardQuantification.deaggregations[index]!),
+  );
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.hazardQuantification.deaggregations[index] = draft;
+    });
+    onClose();
+  }
+  const updateContribution = (
+    collection: "sourceContributions" | "groundMotionModelContributions",
+    contributionIndex: number,
+    change: Partial<HazardDeaggregation["sourceContributions"][number]>,
+  ): void => setDraft((current) => ({
+    ...current,
+    [collection]: current[collection].map((item, itemIndex) => itemIndex === contributionIndex ? { ...item, ...change } : item),
+  }));
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle="Magnitude, distance, source, and model contributions" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save deaggregation</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Hazard level</h3>
+        <FieldGrid>
+          <Field label="Ground motion"><NumberInput value={draft.groundMotionLevel} onChange={(value) => setDraft((current) => ({ ...current, groundMotionLevel: value }))} /></Field>
+          <Field label="Annual frequency"><NumberInput value={draft.annualFrequencyOfExceedance ?? 0} onChange={(value) => setDraft((current) => ({ ...current, annualFrequencyOfExceedance: value }))} /></Field>
+          <Field label="Mean magnitude"><NumberInput value={draft.meanMagnitude} onChange={(value) => setDraft((current) => ({ ...current, meanMagnitude: value }))} /></Field>
+          <Field label="Mean distance (km)"><NumberInput value={draft.meanDistanceKm} onChange={(value) => setDraft((current) => ({ ...current, meanDistanceKm: value }))} /></Field>
+        </FieldGrid>
+      </div>
+      {(["sourceContributions", "groundMotionModelContributions"] as const).map((collection) => <div className="sinlineeditor__group" key={collection}>
+        <h3 className="sinlineeditor__title">{collection === "sourceContributions" ? "Source contributions" : "Ground-motion model contributions"}</h3>
+        <Table headers={["Contributor", "Fraction"]} minWidth={0}>
+          {draft[collection].map((item, contributionIndex) => <tr key={`${collection}-${item.contributorRef}`}>
+            <td><TextInput value={item.contributorName} onChange={(value) => updateContribution(collection, contributionIndex, { contributorName: value })} /></td>
+            <td><NumberInput value={item.contributionFraction} onChange={(value) => updateContribution(collection, contributionIndex, { contributionFraction: value })} /></td>
+          </tr>)}
+        </Table>
+      </div>)}
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Magnitude-distance bins</h3>
+        <Table headers={["Magnitude", "Distance (km)", "Fraction"]} minWidth={0}>
+          {draft.magnitudeDistanceBins.map((bin, binIndex) => <tr key={`${bin.magnitudeLower}-${bin.distanceLowerKm}-${binIndex}`}>
+            <td>{bin.magnitudeLower} to {bin.magnitudeUpper}</td>
+            <td>{bin.distanceLowerKm} to {bin.distanceUpperKm}</td>
+            <td><NumberInput value={bin.contributionFraction} onChange={(value) => setDraft((current) => ({ ...current, magnitudeDistanceBins: current.magnitudeDistanceBins.map((item, itemIndex) => itemIndex === binIndex ? { ...item, contributionFraction: value } : item) }))} /></td>
+          </tr>)}
+        </Table>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function ResponseSpectrumEditor({ direction, index, onClose }: { direction: "horizontal" | "vertical"; index: number; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const spectra = mef.seismicHazardAnalysis.responseSpectraEvaluation;
+  const source = direction === "horizontal" ? spectra.horizontalSpectra[index]! : spectra.verticalSpectra[index]!;
+  const [draft, setDraft] = useState<ResponseSpectrum>(() => structuredClone(source));
+  const [horizontalBasis, setHorizontalBasis] = useState(() =>
+    structuredClone(spectra.horizontalShapeBases.find((item) => item.spectrumRef === source.uuid)),
+  );
+  const [verticalBasis, setVerticalBasis] = useState(() =>
+    structuredClone(spectra.verticalSpectrumBases.find((item) => item.spectrumRef === source.uuid)),
+  );
+  function save(): void {
+    update((next) => {
+      const evaluation = next.seismicHazardAnalysis.responseSpectraEvaluation;
+      if (direction === "horizontal") evaluation.horizontalSpectra[index] = draft;
+      else evaluation.verticalSpectra[index] = draft;
+      if (horizontalBasis !== undefined) {
+        const basisIndex = evaluation.horizontalShapeBases.findIndex((item) => item.uuid === horizontalBasis.uuid);
+        if (basisIndex >= 0) evaluation.horizontalShapeBases[basisIndex] = horizontalBasis;
+      }
+      if (verticalBasis !== undefined) {
+        const basisIndex = evaluation.verticalSpectrumBases.findIndex((item) => item.uuid === verticalBasis.uuid);
+        if (basisIndex >= 0) evaluation.verticalSpectrumBases[basisIndex] = verticalBasis;
+      }
+      next.seismicHazardAnalysis.hazardQuantification.uniformHazardSpectra =
+        [...evaluation.horizontalSpectra, ...evaluation.verticalSpectra];
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle={`${displayLabel(draft.direction)} response spectrum`} plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save spectrum</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Spectrum</h3>
+        <FieldGrid>
+          <Field label="Annual frequency"><NumberInput value={draft.annualFrequencyOfExceedance ?? 0} onChange={(value) => setDraft((current) => ({ ...current, annualFrequencyOfExceedance: value }))} /></Field>
+          <Field label="Damping ratio"><NumberInput value={draft.dampingRatio} onChange={(value) => setDraft((current) => ({ ...current, dampingRatio: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Derivation"><TextArea rows={3} value={draft.derivationMethod} onChange={(value) => setDraft((current) => ({ ...current, derivationMethod: value }))} /></Field>
+        <Table headers={["Period (s)", "Frequency (Hz)", "Acceleration (g)"]} minWidth={0}>
+          {draft.points.map((point, pointIndex) => <tr key={`${point.periodSeconds}-${pointIndex}`}>
+            <td><NumberInput value={point.periodSeconds} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((item, itemIndex) => itemIndex === pointIndex ? { ...item, periodSeconds: value } : item) }))} /></td>
+            <td><NumberInput value={point.frequencyHz} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((item, itemIndex) => itemIndex === pointIndex ? { ...item, frequencyHz: value } : item) }))} /></td>
+            <td><NumberInput value={point.spectralAcceleration} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((item, itemIndex) => itemIndex === pointIndex ? { ...item, spectralAcceleration: value } : item) }))} /></td>
+          </tr>)}
+        </Table>
+      </div>
+      {horizontalBasis !== undefined && <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Site-specific horizontal shape</h3>
+        <FieldGrid>
+          <Field label="Mean magnitude"><NumberInput value={horizontalBasis.meanMagnitude} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, meanMagnitude: value })} /></Field>
+          <Field label="Mean distance (km)"><NumberInput value={horizontalBasis.meanDistanceKm} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, meanDistanceKm: value })} /></Field>
+        </FieldGrid>
+        <Field label="Evaluation basis"><TextArea rows={4} value={horizontalBasis.evaluationBasis} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, evaluationBasis: value })} /></Field>
+      </div>}
+      {verticalBasis !== undefined && <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Vertical-motion method</h3>
+        <Field label="Method"><TextArea rows={3} value={verticalBasis.methodDescription} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, methodDescription: value })} /></Field>
+        <Field label="State of knowledge"><TextArea rows={4} value={verticalBasis.stateOfKnowledgeAssessment} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, stateOfKnowledgeAssessment: value })} /></Field>
+        <Field label="Why it is appropriate"><TextArea rows={4} value={verticalBasis.appropriatenessJustification} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, appropriatenessJustification: value })} /></Field>
+      </div>}
+    </fieldset>
+  </Drawer>;
+}
+
+function HazardBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const quantification = mef.seismicHazardAnalysis.hazardQuantification;
+  const [draft, setDraft] = useState(() => ({
+    uncertaintyPropagationMethod: quantification.uncertaintyPropagationMethod,
+    aleatoryUncertaintiesPropagated: quantification.aleatoryUncertaintiesPropagated,
+    epistemicUncertaintiesPropagated: quantification.epistemicUncertaintiesPropagated,
+    transferBasis: quantification.seismicPraInputs.transferBasis,
+    consistencyChecks: quantification.seismicPraInputs.consistencyChecks,
+  }));
+  function save(): void {
+    update((next) => {
+      const quant = next.seismicHazardAnalysis.hazardQuantification;
+      quant.uncertaintyPropagationMethod = draft.uncertaintyPropagationMethod;
+      quant.aleatoryUncertaintiesPropagated = draft.aleatoryUncertaintiesPropagated;
+      quant.epistemicUncertaintiesPropagated = draft.epistemicUncertaintiesPropagated;
+      quant.seismicPraInputs.transferBasis = draft.transferBasis;
+      quant.seismicPraInputs.consistencyChecks = draft.consistencyChecks;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Hazard calculation basis" subtitle="Uncertainty propagation and PRA transfer" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Uncertainty propagation</h3>
+        <div className="sinlineeditor__checks">
+          <label><input type="checkbox" checked={draft.aleatoryUncertaintiesPropagated} onChange={(event) => setDraft((current) => ({ ...current, aleatoryUncertaintiesPropagated: event.target.checked }))} /> Aleatory uncertainty propagated</label>
+          <label><input type="checkbox" checked={draft.epistemicUncertaintiesPropagated} onChange={(event) => setDraft((current) => ({ ...current, epistemicUncertaintiesPropagated: event.target.checked }))} /> Epistemic uncertainty propagated</label>
+        </div>
+        <Field label="Method"><TextArea rows={4} value={draft.uncertaintyPropagationMethod} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyPropagationMethod: value }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">PRA transfer</h3>
+        <Field label="Transfer basis"><TextArea rows={4} value={draft.transferBasis} onChange={(value) => setDraft((current) => ({ ...current, transferBasis: value }))} /></Field>
+        <Field label="Consistency checks" hint="One check per line."><TextArea rows={7} value={draft.consistencyChecks.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, consistencyChecks: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function HazardSensitivityEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const quantification = mef.seismicHazardAnalysis.hazardQuantification;
+  const [studies, setStudies] = useState<HazardSensitivity[]>(() => structuredClone(quantification.sensitivityStudies));
+  const [findings, setFindings] = useState(() => structuredClone(quantification.keyUncertaintyFindings));
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.hazardQuantification.sensitivityStudies = studies;
+      next.seismicHazardAnalysis.hazardQuantification.keyUncertaintyFindings = findings;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Uncertainty sensitivities" subtitle="Studies that can change hazard or PRA results" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save studies</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      {studies.map((study, index) => {
+        const findingIndex = findings.findIndex((finding) => finding.sensitivityStudyRefs.includes(study.uuid));
+        const finding = findings[findingIndex];
+        return <div className="sinlineeditor__group" key={study.uuid}>
+          <h3 className="sinlineeditor__title">{study.name ?? `Sensitivity ${index + 1}`}</h3>
+          <FieldGrid>
+            <Field label="Study"><TextInput value={study.name ?? ""} onChange={(value) => setStudies((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: value } : item))} /></Field>
+            <Field label="Importance"><SelectInput value={finding?.importance ?? "LOW"} options={["LOW", "MEDIUM", "HIGH"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => findingIndex >= 0 && setFindings((current) => current.map((item, itemIndex) => itemIndex === findingIndex ? { ...item, importance: value as typeof item.importance } : item))} /></Field>
+          </FieldGrid>
+          <Field label="Varied parameters" hint="Separate values with commas."><TextInput value={study.variedParameters.join(", ")} onChange={(value) => setStudies((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, variedParameters: technicalList(value) } : item))} /></Field>
+          <Field label="Hazard effect"><TextArea rows={2} value={study.results ?? ""} onChange={(value) => setStudies((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, results: value } : item))} /></Field>
+          <Field label="PRA impact"><TextArea rows={2} value={study.impact ?? ""} onChange={(value) => setStudies((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, impact: value } : item))} /></Field>
+        </div>;
+      })}
+    </fieldset>
+  </Drawer>;
+}
+
+function chartTick(value: number): string {
+  if (value === 0) return "0";
+  if (Math.abs(value) < 0.001 || Math.abs(value) >= 1000) {
+    return value.toExponential(0);
+  }
+  return Number(value.toPrecision(3)).toString();
+}
+
+function geometricBlend(lower: number, upper: number, fraction: number): number {
+  if (lower <= 0 || upper <= 0) return lower + (upper - lower) * fraction;
+  return Math.exp(Math.log(lower) + (Math.log(upper) - Math.log(lower)) * fraction);
+}
+
+function DistributionFanChart({
+  points,
+  xLabel,
+  yLabel,
+  ariaLabel,
+  yScale = "linear",
+}: {
+  points: HazardFanPoint[];
+  xLabel: string;
+  yLabel: string;
+  ariaLabel: string;
+  yScale?: "linear" | "log";
+}): JSX.Element {
+  const sorted = [...points]
+    .filter((point) =>
+      point.x > 0
+      && point.low > 0
+      && point.median > 0
+      && point.mean > 0
+      && point.high > 0)
+    .sort((left, right) => left.x - right.x)
+    .map((point) => ({
+      ...point,
+      innerLow: geometricBlend(point.low, point.median, 4 / 9),
+      innerHigh: geometricBlend(point.median, point.high, 5 / 9),
+    }));
+  if (sorted.length < 2) {
+    return <EmptyState title="Distribution unavailable" detail="Mean, 5th, 50th, and 95th-fractile curves are required." />;
+  }
+
+  const left = 62;
+  const right = 654;
+  const top = 22;
+  const bottom = 264;
+  const xMin = Math.min(...sorted.map((point) => point.x));
+  const xMax = Math.max(...sorted.map((point) => point.x));
+  const observedYMin = Math.min(...sorted.flatMap((point) => [point.low, point.median, point.mean, point.high]));
+  const observedYMax = Math.max(...sorted.flatMap((point) => [point.low, point.median, point.mean, point.high]));
+  const yMin = yScale === "log" ? observedYMin : 0;
+  const yMax = yScale === "log" ? observedYMax : observedYMax * 1.08;
+  const transform = (value: number, scale: "linear" | "log"): number =>
+    scale === "log" ? Math.log10(value) : value;
+  const xLow = transform(xMin, "log");
+  const xHigh = transform(xMax, "log");
+  const yLow = transform(yMin, yScale);
+  const yHigh = transform(yMax, yScale);
+  const xPosition = (value: number): number =>
+    left + ((transform(value, "log") - xLow) / Math.max(xHigh - xLow, 1e-12)) * (right - left);
+  const yPosition = (value: number): number =>
+    bottom - ((transform(value, yScale) - yLow) / Math.max(yHigh - yLow, 1e-12)) * (bottom - top);
+  const linePoints = (key: "low" | "median" | "mean" | "high"): string =>
+    sorted.map((point) => `${xPosition(point.x)},${yPosition(point[key])}`).join(" ");
+  const bandPoints = (lowerKey: "low" | "innerLow", upperKey: "high" | "innerHigh"): string =>
+    [
+      ...sorted.map((point) => `${xPosition(point.x)},${yPosition(point[upperKey])}`),
+      ...[...sorted].reverse().map((point) => `${xPosition(point.x)},${yPosition(point[lowerKey])}`),
+    ].join(" ");
+  const tickFractions = [0, 0.25, 0.5, 0.75, 1];
+  const xTickValue = (fraction: number): number =>
+    10 ** (xLow + fraction * (xHigh - xLow));
+  const yTickValue = (fraction: number): number => {
+    const transformed = yLow + fraction * (yHigh - yLow);
+    return yScale === "log" ? 10 ** transformed : transformed;
+  };
+
+  return <div className="sdistribution">
+    <div className="sdistribution__legend" aria-hidden="true">
+      <span><i className="sdistribution__swatch sdistribution__swatch--outer" />5th–95th</span>
+      <span><i className="sdistribution__swatch sdistribution__swatch--inner" />25th–75th</span>
+      <span><i className="sdistribution__line sdistribution__line--median" />Median</span>
+      <span><i className="sdistribution__line sdistribution__line--mean" />Mean</span>
+    </div>
+    <div className="schart schart--distribution">
+      <svg viewBox="0 0 700 310" role="img" aria-label={ariaLabel}>
+        <title>{ariaLabel}</title>
+        {tickFractions.map((fraction) => {
+          const y = bottom - fraction * (bottom - top);
+          return <g key={`y-${fraction}`}>
+            <line x1={left} x2={right} y1={y} y2={y} className="schart__grid" />
+            <text x={left - 9} y={y + 3} textAnchor="end">{chartTick(yTickValue(fraction))}</text>
+          </g>;
+        })}
+        {tickFractions.map((fraction) => {
+          const x = left + fraction * (right - left);
+          return <g key={`x-${fraction}`}>
+            <line x1={x} x2={x} y1={top} y2={bottom} className="schart__grid" />
+            <text x={x} y={bottom + 17} textAnchor="middle">{chartTick(xTickValue(fraction))}</text>
+          </g>;
+        })}
+        <polygon points={bandPoints("low", "high")} className="schart__fan schart__fan--outer" />
+        <polygon points={bandPoints("innerLow", "innerHigh")} className="schart__fan schart__fan--inner" />
+        <polyline points={linePoints("low")} className="schart__fractile" />
+        <polyline points={linePoints("high")} className="schart__fractile" />
+        <polyline points={linePoints("median")} className="schart__median" />
+        <polyline points={linePoints("mean")} className="schart__mean" />
+        <line x1={left} x2={right} y1={bottom} y2={bottom} className="schart__axis" />
+        <line x1={left} x2={left} y1={top} y2={bottom} className="schart__axis" />
+        <text x={(left + right) / 2} y="304" textAnchor="middle" className="schart__label">{xLabel}</text>
+        <text x="15" y={(top + bottom) / 2} textAnchor="middle" transform={`rotate(-90 15 ${(top + bottom) / 2})`} className="schart__label">{yLabel}</text>
+      </svg>
+    </div>
+  </div>;
+}
+
+function HazardResultsScreen(): JSX.Element {
+  const { mef } = useUpdate();
+  const sha = mef.seismicHazardAnalysis;
+  const quant = sha.hazardQuantification;
+  const spectra = sha.responseSpectraEvaluation;
+  const parameters = sha.analysisBasis.groundMotionParameters;
+  const [basisOpen, setBasisOpen] = useState(false);
+  const [curveParameter, setCurveParameter] = useState<string | null>(null);
+  const [intervalIndex, setIntervalIndex] = useState<number | null>(null);
+  const [deaggregationIndex, setDeaggregationIndex] = useState<number | null>(null);
+  const [spectrumTarget, setSpectrumTarget] = useState<{ direction: "horizontal" | "vertical"; index: number } | null>(null);
+  const [sensitivitiesOpen, setSensitivitiesOpen] = useState(false);
+  const [hazardChartParameter, setHazardChartParameter] = useState(
+    parameters.find((parameter) => parameter.uuid === "GMP-SA-1HZ")?.uuid
+      ?? parameters[0]?.uuid
+      ?? "",
+  );
+  const [spectrumChartDirection, setSpectrumChartDirection] =
+    useState<SpectrumDirection>("HORIZONTAL");
+  const [spectrumChartFrequency, setSpectrumChartFrequency] = useState(1e-4);
+  const hazardChartPoints = useMemo(
+    () => hazardCurveFanSeries(mef, hazardChartParameter),
+    [hazardChartParameter, mef],
+  );
+  const spectrumChartPoints = useMemo(
+    () => responseSpectrumFanSeries(
+      mef,
+      spectrumChartDirection,
+      spectrumChartFrequency,
+    ),
+    [mef, spectrumChartDirection, spectrumChartFrequency],
+  );
+  const spectrumFrequencies = useMemo(
+    () => Array.from(new Set(
+      spectra.horizontalSpectra
+        .map((spectrum) => spectrum.annualFrequencyOfExceedance)
+        .filter((frequency): frequency is number => frequency !== undefined),
+    )).sort((left, right) => right - left),
+    [spectra.horizontalSpectra],
+  );
+  const parameterName = (reference: string): string =>
+    parameters.find((parameter) => parameter.uuid === reference)?.name ?? reference;
+  return <>
+    <Section title="Hazard curves" description="Mean and fractile hazard for every defined motion." tone="sha" actions={<EditButton label="Edit basis" onClick={() => setBasisOpen(true)} />}>
+      <div className="sdistribution__head">
+        <div><strong>Hazard distribution</strong><span>Outer and central uncertainty bands across the calculated curve family.</span></div>
+        <label className="splotselect"><span>Ground-motion parameter</span><select className="sinput" aria-label="Hazard chart ground-motion parameter" value={hazardChartParameter} onChange={(event) => setHazardChartParameter(event.target.value)}>
+          {parameters.map((parameter) => <option key={parameter.uuid} value={parameter.uuid}>{parameter.name}</option>)}
+        </select></label>
+      </div>
+      <DistributionFanChart points={hazardChartPoints} xLabel="Ground motion (g, log scale)" yLabel="Annual frequency (log scale)" yScale="log" ariaLabel={`${parameterName(hazardChartParameter)} hazard distribution from the 5th through 95th fractiles`} />
+      {parameters.length === 0 ? <EmptyState title="No motion parameters" detail="Define the ground-motion parameters in Step 02 first." /> : <Table headers={["Ground-motion parameter", "1E-4 motion", "1E-5 motion", "Curve set", "Range"]} minWidth={0} columnWidths={["34%", "16%", "16%", "18%", "16%"]}>
+        {parameters.map((parameter) => {
+          const curves = quant.hazardCurves.filter((curve) => curve.groundMotionParameterRef === parameter.uuid);
+          const meanCurve = curves.find((curve) => curve.statistic === "MEAN");
+          return <tr className="postable__row--clickable" key={parameter.uuid} onClick={() => setCurveParameter(parameter.uuid)}>
+            <td><strong>{parameter.name}</strong><code>{displayLabel(parameter.direction)} · {parameter.uuid}</code></td>
+            <td><strong>{motionAtFrequency(meanCurve, 1e-4)}</strong></td>
+            <td>{motionAtFrequency(meanCurve, 1e-5)}</td>
+            <td>{curves.length === 0 ? "None" : `Mean + ${curves.filter((curve) => curve.statistic === "FRACTILE").length} fractiles`}</td>
+            <td>{meanCurve === undefined ? "Not calculated" : numericRange(meanCurve.points.map((point) => point.groundMotion), meanCurve.groundMotionUnits)}</td>
+          </tr>;
+        })}
+      </Table>}
+      <Table caption="Calculation runs" headers={["Run", "Software", "Logic-tree branches", "Annual-frequency range", "Checks"]} minWidth={0} columnWidths={["28%", "18%", "18%", "24%", "12%"]}>
+        {quant.calculationRuns.map((run) => <tr key={run.uuid}>
+          <td><strong>{run.name}</strong><code>{run.calculationDate}</code></td>
+          <td>{run.software} {run.softwareVersion}</td>
+          <td>{run.logicTreeEndBranchCount?.toLocaleString() ?? "Not defined"}</td>
+          <td>{annualFrequency(run.annualFrequencyRange.maximum)} to {annualFrequency(run.annualFrequencyRange.minimum)}</td>
+          <td>{run.verificationChecks.length}</td>
+        </tr>)}
+      </Table>
+    </Section>
+
+    <Section title="PRA bins" description="Non-overlapping inputs passed to plant response." tone="sha">
+      {quant.seismicPraInputs.hazardIntervals.length === 0 ? <EmptyState title="No PRA bins" detail="Discretize the mean hazard curve for plant-response quantification." /> : <Table headers={["Bin", "Motion range", "Representative", "Annual frequency", "Coupled results"]} minWidth={0} columnWidths={["18%", "20%", "18%", "17%", "27%"]}>
+        {quant.seismicPraInputs.hazardIntervals.map((interval, index) => <tr className="postable__row--clickable" key={interval.uuid} onClick={() => setIntervalIndex(index)}>
+          <td><strong>{interval.name}</strong></td>
+          <td>{interval.lowerGroundMotion} to {interval.upperGroundMotion} {interval.groundMotionUnits}</td>
+          <td><strong>{interval.representativeGroundMotion} {interval.groundMotionUnits}</strong></td>
+          <td className="smono">{interval.annualFrequency.toExponential(2)}</td>
+          <td><strong>{interval.verticalMotionRef === undefined ? "No vertical motion" : "Vertical motion included"}</strong><code>{(interval.secondaryHazardResultRefs ?? []).length === 0 ? "No secondary hazard" : "Secondary hazard included"}</code></td>
+        </tr>)}
+      </Table>}
+    </Section>
+
+    <Section title="Deaggregation" description="What controls important hazard levels." tone="sha">
+      {quant.deaggregations.length === 0 ? <EmptyState title="No deaggregation results" detail="Calculate magnitude, distance, source, and model contributions at important motion levels." /> : <Table headers={["Hazard level", "Annual frequency", "Mean magnitude", "Mean distance", "Top source", "Top model"]} minWidth={0} columnWidths={["25%", "14%", "12%", "12%", "19%", "18%"]}>
+        {quant.deaggregations.map((result, index) => <tr className="postable__row--clickable" key={result.uuid} onClick={() => setDeaggregationIndex(index)}>
+          <td><strong>{parameterName(result.groundMotionParameterRef)}</strong><code>{result.groundMotionLevel} {result.groundMotionUnits}</code></td>
+          <td className="smono">{annualFrequency(result.annualFrequencyOfExceedance)}</td>
+          <td>{result.meanMagnitude.toFixed(2)}</td>
+          <td>{result.meanDistanceKm.toFixed(1)} km</td>
+          <td><strong>{result.sourceContributions[0]?.contributorName ?? "None"}</strong><code>{((result.sourceContributions[0]?.contributionFraction ?? 0) * 100).toFixed(0)}%</code></td>
+          <td><strong>{result.groundMotionModelContributions[0]?.contributorName ?? "None"}</strong><code>{((result.groundMotionModelContributions[0]?.contributionFraction ?? 0) * 100).toFixed(0)}%</code></td>
+        </tr>)}
+      </Table>}
+    </Section>
+
+    <Section title="Response spectra" description="Horizontal, vertical, and foundation inputs." tone="sha">
+      <div className="sdistribution__head">
+        <div><strong>Response spectrum distribution</strong><span>Fractile bands derived at the selected annual exceedance frequency.</span></div>
+        <div className="splotselects">
+          <label className="splotselect"><span>Direction</span><select className="sinput" aria-label="Response spectrum chart direction" value={spectrumChartDirection} onChange={(event) => setSpectrumChartDirection(event.target.value as SpectrumDirection)}>
+            <option value="HORIZONTAL">Horizontal</option>
+            <option value="VERTICAL">Vertical</option>
+          </select></label>
+          <label className="splotselect"><span>Annual frequency</span><select className="sinput" aria-label="Response spectrum chart annual frequency" value={spectrumChartFrequency} onChange={(event) => setSpectrumChartFrequency(Number(event.target.value))}>
+            {spectrumFrequencies.map((frequency) => <option key={frequency} value={frequency}>{frequency.toExponential(0)}</option>)}
+          </select></label>
+        </div>
+      </div>
+      <DistributionFanChart points={spectrumChartPoints} xLabel="Period (seconds, log scale)" yLabel="Spectral acceleration (g)" ariaLabel={`${displayLabel(spectrumChartDirection)} response spectrum distribution at ${spectrumChartFrequency.toExponential(0)} annual frequency`} />
+      <Table headers={["Spectrum", "Direction", "Annual frequency", "Acceleration range", "Technical basis"]} minWidth={0} columnWidths={["30%", "12%", "16%", "18%", "24%"]}>
+        {spectra.horizontalSpectra.map((spectrum, index) => {
+          const basis = spectra.horizontalShapeBases.find((item) => item.spectrumRef === spectrum.uuid);
+          return <tr className="postable__row--clickable" key={spectrum.uuid} onClick={() => setSpectrumTarget({ direction: "horizontal", index })}>
+            <td><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
+            <td>Horizontal</td>
+            <td className="smono">{annualFrequency(spectrum.annualFrequencyOfExceedance)}</td>
+            <td>{numericRange(spectrum.points.map((point) => point.spectralAcceleration), "g")}</td>
+            <td>{basis === undefined ? "UHS interpolation" : `Site-specific M ${basis.meanMagnitude.toFixed(2)}, R ${basis.meanDistanceKm.toFixed(0)} km`}</td>
+          </tr>;
+        })}
+        {spectra.verticalSpectra.map((spectrum, index) => {
+          const basis = spectra.verticalSpectrumBases.find((item) => item.spectrumRef === spectrum.uuid);
+          return <tr className="postable__row--clickable" key={spectrum.uuid} onClick={() => setSpectrumTarget({ direction: "vertical", index })}>
+            <td><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
+            <td>Vertical</td>
+            <td className="smono">{annualFrequency(spectrum.annualFrequencyOfExceedance)}</td>
+            <td>{numericRange(spectrum.points.map((point) => point.spectralAcceleration), "g")}</td>
+            <td>{basis === undefined ? "Not defined" : displayLabel(basis.methodType)}</td>
+          </tr>;
+        })}
+      </Table>
+      <Table caption="Foundation inputs" headers={["Input", "Structure", "Horizontal spectrum", "Vertical spectrum", "Control point"]} minWidth={0} columnWidths={["24%", "20%", "19%", "19%", "18%"]}>
+        {spectra.foundationInputResponseSpectra.map((input) => <tr key={input.uuid}>
+          <td><strong>{input.name}</strong></td>
+          <td>{input.structureRef}</td>
+          <td>{input.horizontalSpectrumRefs.join(", ")}</td>
+          <td>{input.verticalSpectrumRef ?? "None"}</td>
+          <td>{input.controlPointRef}</td>
+        </tr>)}
+      </Table>
+    </Section>
+
+    <Section title="Uncertainty sensitivities" description="Uncertainties that can change PRA results." tone="sha" actions={<EditButton label="Edit studies" onClick={() => setSensitivitiesOpen(true)} />}>
+      {quant.sensitivityStudies.length === 0 ? <EmptyState title="No sensitivity studies" detail="Evaluate source, ground-motion, site-response, vertical-motion, and secondary-hazard uncertainties." /> : <Table headers={["Study", "Area", "Varied parameters", "Hazard effect", "PRA importance"]} minWidth={0} columnWidths={["20%", "12%", "22%", "34%", "12%"]}>
+        {quant.sensitivityStudies.map((study) => {
+          const finding = quant.keyUncertaintyFindings.find((item) => item.sensitivityStudyRefs.includes(study.uuid));
+          return <tr key={study.uuid}>
+            <td><strong>{study.name ?? study.uuid}</strong></td>
+            <td>{displayLabel(String(study.elementSpecificProperties?.analysisArea ?? finding?.analysisArea ?? "Not defined"))}</td>
+            <td>{study.variedParameters.join(", ")}</td>
+            <td>{study.results ?? "Not evaluated"}</td>
+            <td><Tag tone={finding?.importance === "HIGH" ? "warn" : finding?.importance === "MEDIUM" ? "sha" : "neutral"}>{finding?.importance ?? "Not ranked"}</Tag></td>
+          </tr>;
+        })}
+      </Table>}
+    </Section>
+
+    {basisOpen && <HazardBasisEditor onClose={() => setBasisOpen(false)} />}
+    {curveParameter !== null && <HazardCurveFamilyEditor parameterRef={curveParameter} onClose={() => setCurveParameter(null)} />}
+    {intervalIndex !== null && <HazardIntervalEditor index={intervalIndex} onClose={() => setIntervalIndex(null)} />}
+    {deaggregationIndex !== null && <DeaggregationEditor index={deaggregationIndex} onClose={() => setDeaggregationIndex(null)} />}
+    {spectrumTarget !== null && <ResponseSpectrumEditor direction={spectrumTarget.direction} index={spectrumTarget.index} onClose={() => setSpectrumTarget(null)} />}
+    {sensitivitiesOpen && <HazardSensitivityEditor onClose={() => setSensitivitiesOpen(false)} />}
+  </>;
+}
+
+type SecondaryHazardEvaluation =
+  SeismicPRA["seismicHazardAnalysis"]["secondaryHazardEvaluation"];
+type SecondaryHazard = SecondaryHazardEvaluation["hazards"][number];
+type RetainedSecondaryHazard = NonNullable<SecondaryHazard["retainedAnalysis"]>;
+type SecondaryHazardCurve = RetainedSecondaryHazard["hazardCurves"][number];
+
+const EXTERNAL_FLOODING_INTERFACE_EXAMPLES = [
+  {
+    hazard: "Upstream embankment-dam breach",
+    mechanism: "Coseismic settlement and cracking initiate a breach; the breach hydrograph is routed to the plant boundary.",
+    coverage: "XFHA A-G",
+    results: "Peak depth 0.8 m; velocity 0.6 m/s; arrival 2.3 h",
+    fragility: "Exterior-door hydrostatic failure; below-grade inundation",
+  },
+  {
+    hazard: "Intake-reservoir seiche",
+    mechanism: "Horizontal ground motion excites the reservoir and produces runup and overtopping at the intake structure.",
+    coverage: "XFHA A, C, D, F, G",
+    results: "Runup 1.2 m; overtopping 0.15 m³/s/m; duration 18 min",
+    fragility: "Intake-wall overtopping; pump-motor submergence",
+  },
+  {
+    hazard: "Landslide-generated wave",
+    mechanism: "Earthquake-triggered slope collapse displaces the impoundment and sends a wave toward the protected area.",
+    coverage: "XFHA A-G",
+    results: "Runup elevation 103.1 m; depth 0.35 m; arrival 11 min",
+    fragility: "Flood-barrier overtopping; cable-vault inundation",
+  },
+] as const;
+
+function TechnicalEmptyState({ title, detail }: { title: string; detail: string }): JSX.Element {
+  return <div className="stechnicalempty"><strong>{title}</strong><span>{detail}</span></div>;
+}
+
+function newSecondaryCurve(
+  statistic: SecondaryHazardCurve["statistic"],
+  fractile?: number,
+): SecondaryHazardCurve {
+  const factor = fractile === 0.05 ? 0.45 : fractile === 0.95 ? 2.5 : statistic === "MEAN" ? 1.2 : 1;
+  return {
+    uuid: crypto.randomUUID(),
+    name: statistic === "MEAN" ? "Mean hazard curve" : `${Math.round((fractile ?? 0) * 100)}th-fractile hazard curve`,
+    hazardParameter: "Permanent ground displacement",
+    hazardParameterUnits: "cm",
+    statistic,
+    fractile,
+    points: [0.1, 1, 10].map((hazardLevel, index) => ({
+      hazardLevel,
+      annualFrequencyOfExceedance: [1e-3, 1e-4, 1e-6][index]! * factor,
+    })),
+    implementsSrs: [{ sr: "SHA-H3", hlr: "H" }],
+  };
+}
+
+function newRetainedSecondaryHazard(): RetainedSecondaryHazard {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Retained secondary-hazard analysis",
+    hazardParameter: "Permanent ground displacement",
+    parameterUnits: "cm",
+    affectedSeismicEquipmentListItemRefs: [],
+    failureMechanisms: [{
+      id: crypto.randomUUID(),
+      name: "Secondary-hazard failure mechanism",
+      description: "",
+      fragilityParameter: "Permanent displacement",
+      fragilityUnits: "cm",
+    }],
+    hazardCurves: [
+      newSecondaryCurve("FRACTILE", 0.05),
+      newSecondaryCurve("FRACTILE", 0.5),
+      newSecondaryCurve("MEAN"),
+      newSecondaryCurve("FRACTILE", 0.95),
+    ],
+    calculationMethod: "",
+    dataAndModelRefs: [],
+    uncertainties: [],
+    sensitivityStudyRefs: [],
+    outputRefs: [],
+    implementsSrs: [{ sr: "SHA-H3", hlr: "H" }],
+  };
+}
+
+function newExternalFloodingInterface(): NonNullable<SecondaryHazard["externalFloodingInterface"]> {
+  return {
+    mechanismDescription: "",
+    interfaceRequirements: ["XFHA-A", "XFHA-B", "XFHA-C", "XFHA-D", "XFHA-E", "XFHA-F", "XFHA-G"].map((requirementGroup) => ({
+      requirementGroup: requirementGroup as "XFHA-A" | "XFHA-B" | "XFHA-C" | "XFHA-D" | "XFHA-E" | "XFHA-F" | "XFHA-G",
+      applicable: true,
+      status: "PARTIAL",
+      satisfiedByRefs: [],
+      evidence: "",
+    })),
+    hazardParameterResultsRefs: [],
+    fragilityFailureMechanismRefs: [],
+    interfaceBasis: "",
+    implementsSrs: [{ sr: "SHA-H4", hlr: "H" }],
+  };
+}
+
+function newSecondaryHazard(): SecondaryHazard {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New secondary seismic hazard",
+    hazardType: "OTHER",
+    description: "",
+    initiatingMechanisms: [],
+    siteEvidenceRefs: [],
+    potentiallyAffectedArea: "",
+    potentiallyAffectedSeismicEquipmentListItemRefs: [],
+    screening: {
+      disposition: "SCREENED_OUT",
+      criterion: "SCR-2",
+      methodology: "",
+      demonstrablyConservative: true,
+      screeningBasis: "",
+      calculationsAndEvidenceRefs: [],
+      implementsSrs: [{ sr: "SHA-H2", hlr: "H" }],
+    },
+    implementsSrs: [{ sr: "SHA-H1", hlr: "H" }, { sr: "SHA-H2", hlr: "H" }],
+  };
+}
+
+function SecondaryHazardBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<SecondaryHazardEvaluation>(() =>
+    structuredClone(mef.seismicHazardAnalysis.secondaryHazardEvaluation),
+  );
+  function save(): void {
+    update((next) => {
+      next.seismicHazardAnalysis.secondaryHazardEvaluation = draft;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title="Secondary-hazard basis" subtitle="Identification, screening, and transfer controls" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Identification</h3>
+        <Field label="Identification method"><TextArea rows={4} value={draft.identificationMethod} onChange={(value) => setDraft((current) => ({ ...current, identificationMethod: value }))} /></Field>
+        <Field label="Site and regional sources" hint="Separate references with commas."><TextArea rows={5} value={draft.siteAndRegionalHazardListSources.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, siteAndRegionalHazardListSources: technicalList(value) }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Screening and transfer</h3>
+        <FieldGrid>
+          <Field label="Screening criteria reference"><TextInput value={draft.screeningCriteriaReference} onChange={(value) => setDraft((current) => ({ ...current, screeningCriteriaReference: value }))} /></Field>
+          <Field label="Seismic equipment list"><TextInput value={draft.seismicEquipmentListRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, seismicEquipmentListRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Cross-hazard dependencies" hint="One dependency per line."><TextArea rows={5} value={draft.crossHazardDependencies.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, crossHazardDependencies: technicalList(value) }))} /></Field>
+        <Field label="Completeness review"><TextArea rows={4} value={draft.completenessReview} onChange={(value) => setDraft((current) => ({ ...current, completenessReview: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SecondaryHazardEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const source = index === null
+    ? newSecondaryHazard()
+    : mef.seismicHazardAnalysis.secondaryHazardEvaluation.hazards[index]!;
+  const [draft, setDraft] = useState<SecondaryHazard>(() => structuredClone(source));
+  const retained = draft.retainedAnalysis;
+
+  function save(): void {
+    update((next) => {
+      const hazards = next.seismicHazardAnalysis.secondaryHazardEvaluation.hazards;
+      if (index === null) hazards.push(draft);
+      else hazards[index] = draft;
+      const outputRefs = hazards.flatMap((hazard) => hazard.retainedAnalysis?.outputRefs ?? []);
+      const inputs = next.seismicHazardAnalysis.hazardQuantification.seismicPraInputs;
+      inputs.secondaryHazardResultRefs = outputRefs;
+      inputs.hazardIntervals.forEach((interval, intervalIndex) => {
+        interval.secondaryHazardResultRefs = intervalIndex >= 3 ? [...outputRefs] : [];
+      });
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicHazardAnalysis.secondaryHazardEvaluation.hazards.splice(index, 1);
+    });
+    onClose();
+  }
+  function setDisposition(disposition: SecondaryHazard["screening"]["disposition"]): void {
+    setDraft((current) => {
+      const isRetained = disposition === "RETAINED";
+      const retainedAnalysis = isRetained
+        ? current.retainedAnalysis ?? newRetainedSecondaryHazard()
+        : undefined;
+      const externalFloodingInterface = isRetained
+        && current.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING"
+        ? current.externalFloodingInterface ?? newExternalFloodingInterface()
+        : undefined;
+      return {
+        ...current,
+        screening: {
+          ...current.screening,
+          disposition,
+          criterion: isRetained ? "NOT_SCREENED" : current.screening.criterion === "NOT_SCREENED" ? "SCR-2" : current.screening.criterion,
+        },
+        retainedAnalysis,
+        externalFloodingInterface,
+      };
+    });
+  }
+  function setHazardType(hazardType: SecondaryHazard["hazardType"]): void {
+    setDraft((current) => ({
+      ...current,
+      hazardType,
+      externalFloodingInterface:
+        hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING"
+        && current.screening.disposition === "RETAINED"
+          ? current.externalFloodingInterface ?? newExternalFloodingInterface()
+          : undefined,
+    }));
+  }
+  function updateRetained(change: Partial<RetainedSecondaryHazard>): void {
+    setDraft((current) => current.retainedAnalysis === undefined
+      ? current
+      : { ...current, retainedAnalysis: { ...current.retainedAnalysis, ...change } });
+  }
+  function updateCurvePoint(
+    curveId: string,
+    pointIndex: number,
+    annualFrequencyOfExceedance: number,
+  ): void {
+    if (retained === undefined) return;
+    updateRetained({
+      hazardCurves: retained.hazardCurves.map((curve) => curve.uuid === curveId
+        ? {
+            ...curve,
+            points: curve.points.map((point, candidate) => candidate === pointIndex
+              ? { ...point, annualFrequencyOfExceedance }
+              : point),
+          }
+        : curve),
+    });
+  }
+  function updateHazardLevel(pointIndex: number, hazardLevel: number): void {
+    if (retained === undefined) return;
+    updateRetained({
+      hazardCurves: retained.hazardCurves.map((curve) => ({
+        ...curve,
+        points: curve.points.map((point, candidate) => candidate === pointIndex
+          ? { ...point, hazardLevel }
+          : point),
+      })),
+    });
+  }
+  const curve = (statistic: SecondaryHazardCurve["statistic"], fractile?: number): SecondaryHazardCurve | undefined =>
+    retained?.hazardCurves.find((item) =>
+      item.statistic === statistic
+      && (statistic === "MEAN" || Math.abs((item.fractile ?? -1) - (fractile ?? -2)) < 1e-9));
+  const p05 = curve("FRACTILE", 0.05);
+  const p50 = curve("FRACTILE", 0.5);
+  const mean = curve("MEAN");
+  const p95 = curve("FRACTILE", 0.95);
+
+  return <Drawer eyebrow={EDITOR_LABELS.sha} title={draft.name} subtitle="Identification, screening, and retained analysis" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove hazard</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save hazard</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Hazard</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+          <Field label="Type"><SelectInput value={draft.hazardType} options={["FAULT_DISPLACEMENT", "LANDSLIDE", "SOIL_LIQUEFACTION", "SOIL_SETTLEMENT", "GROUND_FAILURE", "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING", "TSUNAMI_OR_SEICHE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setHazardType(value as SecondaryHazard["hazardType"])} /></Field>
+        </FieldGrid>
+        {draft.hazardType === "OTHER" && <Field label="Other hazard type"><TextInput value={draft.otherHazardType ?? ""} onChange={(value) => setDraft((current) => ({ ...current, otherHazardType: value || undefined }))} /></Field>}
+        <Field label="Technical description"><TextArea rows={3} value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} /></Field>
+        <Field label="Initiating mechanisms" hint="Separate values with commas."><TextInput value={draft.initiatingMechanisms.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, initiatingMechanisms: technicalList(value) }))} /></Field>
+        <Field label="Potentially affected area"><TextArea rows={2} value={draft.potentiallyAffectedArea} onChange={(value) => setDraft((current) => ({ ...current, potentiallyAffectedArea: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Site evidence" hint="Separate references with commas."><TextInput value={draft.siteEvidenceRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, siteEvidenceRefs: technicalList(value) }))} /></Field>
+          <Field label="Potentially affected SEL items" hint="Separate references with commas."><TextInput value={draft.potentiallyAffectedSeismicEquipmentListItemRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, potentiallyAffectedSeismicEquipmentListItemRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Screening</h3>
+        <FieldGrid>
+          <Field label="Disposition"><SelectInput value={draft.screening.disposition} options={[{ value: "SCREENED_OUT", label: "Screened out" }, { value: "RETAINED", label: "Retained" }]} onChange={(value) => setDisposition(value as SecondaryHazard["screening"]["disposition"])} /></Field>
+          <Field label="Criterion"><SelectInput value={draft.screening.criterion} options={["SCR-2", "SCR-3", "NOT_SCREENED"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, criterion: value as SecondaryHazard["screening"]["criterion"] } }))} /></Field>
+        </FieldGrid>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.screening.demonstrablyConservative} onChange={(event) => setDraft((current) => ({ ...current, screening: { ...current.screening, demonstrablyConservative: event.target.checked } }))} /><span>Screening method is demonstrably conservative</span></label>
+        <Field label="Method"><TextArea rows={3} value={draft.screening.methodology} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, methodology: value } }))} /></Field>
+        <Field label="Technical basis"><TextArea rows={4} value={draft.screening.screeningBasis} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, screeningBasis: value } }))} /></Field>
+        <FieldGrid>
+          <Field label="Calculation and evidence references" hint="Separate references with commas."><TextInput value={draft.screening.calculationsAndEvidenceRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, calculationsAndEvidenceRefs: technicalList(value) } }))} /></Field>
+          <Field label="Reviewer"><TextInput value={draft.screening.reviewer ?? ""} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, reviewer: value || undefined } }))} /></Field>
+        </FieldGrid>
+      </div>
+      {retained !== undefined && <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Retained analysis</h3>
+        <FieldGrid>
+          <Field label="Hazard parameter"><TextInput value={retained.hazardParameter} onChange={(value) => updateRetained({ hazardParameter: value, hazardCurves: retained.hazardCurves.map((item) => ({ ...item, hazardParameter: value })) })} /></Field>
+          <Field label="Units"><TextInput value={retained.parameterUnits} onChange={(value) => updateRetained({ parameterUnits: value, hazardCurves: retained.hazardCurves.map((item) => ({ ...item, hazardParameterUnits: value })) })} /></Field>
+        </FieldGrid>
+        <Field label="Affected SEL items" hint="Separate references with commas."><TextInput value={retained.affectedSeismicEquipmentListItemRefs.join(", ")} onChange={(value) => updateRetained({ affectedSeismicEquipmentListItemRefs: technicalList(value) })} /></Field>
+        <Field label="Calculation method"><TextArea rows={4} value={retained.calculationMethod} onChange={(value) => updateRetained({ calculationMethod: value })} /></Field>
+        <FieldGrid>
+          <Field label="Data and model references" hint="Separate references with commas."><TextArea rows={4} value={retained.dataAndModelRefs.join("\n")} onChange={(value) => updateRetained({ dataAndModelRefs: technicalList(value) })} /></Field>
+          <Field label="Output references" hint="Separate references with commas."><TextArea rows={4} value={retained.outputRefs.join("\n")} onChange={(value) => updateRetained({ outputRefs: technicalList(value) })} /></Field>
+        </FieldGrid>
+        <div className="sresponsepoints">
+          <Table headers={[`Level (${retained.parameterUnits || "units"})`, "P05 AFE", "Median AFE", "Mean AFE", "P95 AFE"]} minWidth={640}>
+            {(mean?.points ?? []).map((point, pointIndex) => <tr key={`${point.hazardLevel}-${pointIndex}`}>
+              <td><NumberInput value={point.hazardLevel} onChange={(value) => updateHazardLevel(pointIndex, value)} /></td>
+              <td><NumberInput value={p05?.points[pointIndex]?.annualFrequencyOfExceedance ?? 0} onChange={(value) => p05 !== undefined && updateCurvePoint(p05.uuid, pointIndex, value)} /></td>
+              <td><NumberInput value={p50?.points[pointIndex]?.annualFrequencyOfExceedance ?? 0} onChange={(value) => p50 !== undefined && updateCurvePoint(p50.uuid, pointIndex, value)} /></td>
+              <td><NumberInput value={point.annualFrequencyOfExceedance} onChange={(value) => mean !== undefined && updateCurvePoint(mean.uuid, pointIndex, value)} /></td>
+              <td><NumberInput value={p95?.points[pointIndex]?.annualFrequencyOfExceedance ?? 0} onChange={(value) => p95 !== undefined && updateCurvePoint(p95.uuid, pointIndex, value)} /></td>
+            </tr>)}
+          </Table>
+        </div>
+        {retained.failureMechanisms.map((mechanism, mechanismIndex) => <div className="sinlineeditor__subgroup" key={mechanism.id}>
+          <FieldGrid>
+            <Field label={`Failure mechanism ${mechanismIndex + 1}`}><TextInput value={mechanism.name} onChange={(value) => updateRetained({ failureMechanisms: retained.failureMechanisms.map((item, candidate) => candidate === mechanismIndex ? { ...item, name: value } : item) })} /></Field>
+            <Field label="Fragility parameter"><TextInput value={mechanism.fragilityParameter} onChange={(value) => updateRetained({ failureMechanisms: retained.failureMechanisms.map((item, candidate) => candidate === mechanismIndex ? { ...item, fragilityParameter: value } : item) })} /></Field>
+          </FieldGrid>
+          <Field label="Description"><TextArea rows={2} value={mechanism.description} onChange={(value) => updateRetained({ failureMechanisms: retained.failureMechanisms.map((item, candidate) => candidate === mechanismIndex ? { ...item, description: value } : item) })} /></Field>
+        </div>)}
+      </div>}
+      {draft.externalFloodingInterface !== undefined && <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">External flooding interface</h3>
+        <Field label="Mechanism"><TextArea rows={3} value={draft.externalFloodingInterface.mechanismDescription} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, mechanismDescription: value } })} /></Field>
+        <Field label="Interface basis"><TextArea rows={3} value={draft.externalFloodingInterface.interfaceBasis} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, interfaceBasis: value } })} /></Field>
+        {draft.externalFloodingInterface.interfaceRequirements.map((requirement, requirementIndex) => <div className="sinlineeditor__subgroup" key={requirement.requirementGroup}>
+          <FieldGrid>
+            <Field label={requirement.requirementGroup}><SelectInput value={requirement.status} options={["MET", "PARTIAL", "NOT_MET", "NOT_APPLICABLE"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, interfaceRequirements: current.externalFloodingInterface.interfaceRequirements.map((item, candidate) => candidate === requirementIndex ? { ...item, status: value as typeof item.status } : item) } })} /></Field>
+            <Field label="Satisfied by"><TextInput value={requirement.satisfiedByRefs.join(", ")} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, interfaceRequirements: current.externalFloodingInterface.interfaceRequirements.map((item, candidate) => candidate === requirementIndex ? { ...item, satisfiedByRefs: technicalList(value) } : item) } })} /></Field>
+          </FieldGrid>
+          <Field label="Evidence"><TextArea rows={2} value={requirement.evidence} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, interfaceRequirements: current.externalFloodingInterface.interfaceRequirements.map((item, candidate) => candidate === requirementIndex ? { ...item, evidence: value } : item) } })} /></Field>
+        </div>)}
+      </div>}
+    </fieldset>
+  </Drawer>;
+}
+
 function SecondaryHazardsScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const evaluation = mef.seismicHazardAnalysis.secondaryHazardEvaluation;
+  const retainedHazards = evaluation.hazards.filter((hazard) => hazard.screening.disposition === "RETAINED" && hazard.retainedAnalysis !== undefined);
+  const retainedFloods = retainedHazards.filter((hazard) => hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING" && hazard.externalFloodingInterface !== undefined);
   const [basisOpen, setBasisOpen] = useState(false);
-  const [hazardEditor, setHazardEditor] = useState<CollectionEditorTarget | null>(null);
+  const [hazardIndex, setHazardIndex] = useState<number | null | undefined>(undefined);
+  const [selectedRetainedRef, setSelectedRetainedRef] = useState(retainedHazards[0]?.uuid ?? "");
+  const selectedRetained = retainedHazards.find((hazard) => hazard.uuid === selectedRetainedRef) ?? retainedHazards[0];
+  const selectedAnalysis = selectedRetained?.retainedAnalysis;
+  const fanPoints = useMemo(
+    () => secondaryHazardFanSeries(selectedAnalysis?.hazardCurves ?? []),
+    [selectedAnalysis],
+  );
   return <>
-    <Section eyebrow="SHA · HLR-H" title="Secondary seismic hazards" description="Fault displacement, slope instability, liquefaction, settlement, ground failure, and earthquake-induced flooding are explicitly screened or retained." tone="sha" actions={editable ? <AddButton label="Add secondary hazard" onClick={() => setHazardEditor({ title: "New secondary hazard", subtitle: "Screening, retained modeling, affected equipment, interfaces, and evidence", focus: [], createAt: ["seismicHazardAnalysis", "secondaryHazardEvaluation", "hazards"] })} /> : undefined}>
-      <SectionEditorRow title="Secondary-hazard evaluation basis" description="Identification process, screening methods, interfaces, and completeness review." onClick={() => setBasisOpen(true)} />
-      <Table headers={["Hazard", "Type", "Disposition", "Criterion", "Affected SEL items", ""]}>
-        {evaluation.hazards.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setHazardEditor({ title: item.name, subtitle: displayLabel(item.hazardType), focus: ["seismicHazardAnalysis", "secondaryHazardEvaluation", "hazards", index], removeLabel: "Remove secondary hazard" })}><td><strong>{item.name}</strong><code>{item.description}</code></td><td>{displayLabel(item.hazardType)}</td><td><Tag tone={item.screening.disposition === "RETAINED" ? "warn" : "good"}>{displayLabel(item.screening.disposition)}</Tag></td><td>{item.screening.criterion}</td><td>{item.potentiallyAffectedSeismicEquipmentListItemRefs.length}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
-      <Narrative label="Completeness review" value={evaluation.completenessReview} />
+    <Section title="Hazard screening" description="Identify each hazard and apply a conservative site-specific disposition." tone="sha" actions={editable ? <>
+      <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setBasisOpen(true)}>Edit basis</button>
+      <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => setHazardIndex(null)}>Add hazard</button>
+    </> : undefined}>
+      {evaluation.hazards.length === 0 ? <TechnicalEmptyState title="No secondary hazards" detail="Identify the site-relevant non-vibratory seismic hazards before screening." /> : <Table headers={["Hazard", "Site condition", "Result", "Technical basis"]} minWidth={0} columnWidths={["25%", "24%", "16%", "35%"]}>
+        {evaluation.hazards.map((hazard, index) => <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(index)}>
+          <td><strong>{hazard.name}</strong><code>{displayLabel(hazard.hazardType)}</code></td>
+          <td>{hazard.potentiallyAffectedArea}<code>{hazard.siteEvidenceRefs.length} site evidence references</code></td>
+          <td><Tag tone={hazard.screening.disposition === "RETAINED" ? "warn" : "good"}>{hazard.screening.disposition === "RETAINED" ? "Retained" : "Screened"}</Tag><code>{hazard.screening.criterion.replace("_", " ")}</code></td>
+          <td>{hazard.screening.screeningBasis}</td>
+        </tr>)}
+      </Table>}
     </Section>
-    {basisOpen && <MefEditor tone="sha" title="Secondary-hazard evaluation" subtitle="Identification, screening, retained hazard curves, affected equipment, interfaces, and completeness" focus={["seismicHazardAnalysis", "secondaryHazardEvaluation"]} onClose={() => setBasisOpen(false)} />}
-    <CollectionEditor tone="sha" target={hazardEditor} onClose={() => setHazardEditor(null)} />
+
+    <Section title="Retained analysis" description="Parameter-frequency curves and fragility inputs for hazards that remain." tone="sha">
+      {selectedRetained === undefined || selectedAnalysis === undefined ? <TechnicalEmptyState title="No retained secondary hazard" detail="Every identified secondary hazard has been screened out." /> : <>
+        <div className="sdistribution__head">
+          <div><strong>Hazard distribution</strong><span>Calculated frequency range for the selected retained parameter.</span></div>
+          <label className="splotselect"><span>Retained hazard</span><select className="sinput" aria-label="Retained secondary hazard" value={selectedRetained.uuid} onChange={(event) => setSelectedRetainedRef(event.target.value)}>
+            {retainedHazards.map((hazard) => <option key={hazard.uuid} value={hazard.uuid}>{hazard.name}</option>)}
+          </select></label>
+        </div>
+        <DistributionFanChart points={fanPoints} xLabel={`${selectedAnalysis.hazardParameter} (${selectedAnalysis.parameterUnits}, log scale)`} yLabel="Annual frequency (log scale)" yScale="log" ariaLabel={`${selectedRetained.name} frequency distribution from the 5th through 95th fractiles`} />
+        <Table headers={["Parameter and output", "Calculated range", "Affected SEL", "Failure mechanisms"]} minWidth={0} columnWidths={["30%", "22%", "18%", "30%"]} className="stable--wrapheads">
+          {retainedHazards.map((hazard) => {
+            const analysis = hazard.retainedAnalysis!;
+            const meanCurve = analysis.hazardCurves.find((item) => item.statistic === "MEAN");
+            const levels = meanCurve?.points.map((point) => point.hazardLevel) ?? [];
+            const frequencies = meanCurve?.points.map((point) => point.annualFrequencyOfExceedance) ?? [];
+            return <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(evaluation.hazards.findIndex((item) => item.uuid === hazard.uuid))}>
+              <td><strong>{analysis.hazardParameter}</strong><code>{analysis.parameterUnits} | {analysis.outputRefs.join(", ") || "No output"}</code></td>
+              <td>{numericRange(levels, analysis.parameterUnits)}<code>{frequencies.length === 0 ? "No mean curve" : `${annualFrequency(Math.max(...frequencies))} to ${annualFrequency(Math.min(...frequencies))} /yr`}</code></td>
+              <td>{analysis.affectedSeismicEquipmentListItemRefs.join(", ") || "None"}</td>
+              <td>{analysis.failureMechanisms.map((mechanism) => mechanism.name).join(", ") || "None"}</td>
+            </tr>;
+          })}
+        </Table>
+      </>}
+    </Section>
+
+    <Section title="External flooding interface" description="Required only when earthquake-induced flooding remains after screening." tone="sha">
+      {retainedFloods.length === 0 ? <>
+        <Table headers={["Hazard", "Mechanism", "XFHA coverage", "Hazard results", "Fragility mechanisms"]} minWidth={0} columnWidths={["20%", "30%", "14%", "18%", "18%"]}>
+          {EXTERNAL_FLOODING_INTERFACE_EXAMPLES.map((example) => <tr key={example.hazard}>
+            <td><strong>{example.hazard}</strong><code>Illustrative example</code></td>
+            <td>{example.mechanism}</td>
+            <td><strong>{example.coverage}</strong></td>
+            <td>{example.results}</td>
+            <td>{example.fragility}</td>
+          </tr>)}
+        </Table>
+      </> : <Table headers={["Hazard", "Mechanism", "XFHA coverage", "Hazard results", "Fragility mechanisms"]} minWidth={0} columnWidths={["20%", "30%", "14%", "18%", "18%"]}>
+        {retainedFloods.map((hazard) => {
+          const flood = hazard.externalFloodingInterface!;
+          const met = flood.interfaceRequirements.filter((requirement) => requirement.status === "MET" || requirement.status === "NOT_APPLICABLE").length;
+          return <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(evaluation.hazards.findIndex((item) => item.uuid === hazard.uuid))}>
+            <td><strong>{hazard.name}</strong></td>
+            <td>{flood.mechanismDescription}</td>
+            <td><strong>{met} / {flood.interfaceRequirements.length}</strong></td>
+            <td>{flood.hazardParameterResultsRefs.join(", ") || "None"}</td>
+            <td>{flood.fragilityFailureMechanismRefs.join(", ") || "None"}</td>
+          </tr>;
+        })}
+      </Table>}
+    </Section>
+
+    {basisOpen && <SecondaryHazardBasisEditor onClose={() => setBasisOpen(false)} />}
+    {hazardIndex !== undefined && <SecondaryHazardEditor index={hazardIndex} onClose={() => setHazardIndex(undefined)} />}
   </>;
+}
+
+type SelDevelopment =
+  SeismicPRA["seismicPlantResponseAnalysis"]["seismicEquipmentListDevelopment"];
+type SelEntry = SelDevelopment["equipment"][number];
+type SelFailureMode = SelEntry["failureModes"][number];
+type SfrResponseAnalysis =
+  SeismicPRA["seismicFragilityAnalysis"]["seismicResponseAnalysis"];
+type SfrReferenceEarthquake = SfrResponseAnalysis["referenceEarthquakes"][number];
+type SfrStructuralModel = SfrResponseAnalysis["structuralModels"][number];
+type SfrResponseResult = SfrResponseAnalysis["responseResults"][number];
+type SfrSsiAnalysis = SfrResponseAnalysis["soilStructureInteractionAnalyses"][number];
+type SfrSimulation = SfrResponseAnalysis["probabilisticSimulations"][number];
+
+const SEL_INCLUSION_OPTIONS = [
+  "INTERNAL_EVENTS_SYSTEM_MODEL",
+  "SEISMIC_EVENT_SEQUENCE_MODEL",
+  "ADDITIONAL_SEISMIC_SSC",
+  "INTERNAL_FLOOD_SOURCE",
+  "INTERNAL_FIRE_IGNITION_SOURCE",
+  "SECONDARY_HAZARD",
+  "INVESTIGATION_FINDING",
+] as const;
+
+function newSelFailureMode(): SelFailureMode {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "Loss of credited function",
+    failureModeType: "FUNCTIONAL",
+    description: "",
+    creditedFunction: "",
+    failureDefinition: "",
+    requiredState: "FUNCTION_AFTER_EARTHQUAKE",
+    systemModelBasicEventRefs: [],
+    eventSequenceRefs: [],
+    fragilityMechanismRefs: [],
+    consequenceDescription: "",
+    implementsSrs: [{ sr: "SPR-C6", hlr: "C" }, { sr: "SFR-A1", hlr: "A" }],
+  };
+}
+
+function newSelEntry(): SelEntry {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New seismic equipment item",
+    sscType: "COMPONENT",
+    reactorUnitRefs: [],
+    radioactiveMaterialSourceRefs: [],
+    building: "",
+    roomOrArea: "",
+    elevation: "",
+    orientation: "Plant coordinate axes",
+    mountingAndAnchorage: "",
+    creditedFunctions: [],
+    inclusionSources: ["INTERNAL_EVENTS_SYSTEM_MODEL"],
+    sourceElementRefs: [],
+    failureModes: [newSelFailureMode()],
+    correlationGroupRefs: [],
+    disposition: "ACTIVE",
+    dispositionBasis: "",
+    revisionHistory: [{
+      date: new Date().toISOString().slice(0, 10),
+      action: "ADDED",
+      reason: "Added during SEL reconciliation",
+      actor: "workbook.preparer",
+    }],
+    implementsSrs: [
+      { sr: "SPR-C1", hlr: "C" },
+      { sr: "SPR-C2", hlr: "C" },
+      { sr: "SPR-C6", hlr: "C" },
+      { sr: "SFR-A1", hlr: "A" },
+    ],
+  };
+}
+
+function SelBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [draft, setDraft] = useState<SelDevelopment>(() =>
+    structuredClone(mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment));
+  function save(): void {
+    update((next) => {
+      const equipment = next.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+      next.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment = {
+        ...draft,
+        equipment,
+      };
+      next.seismicFragilityAnalysis.scope.seismicEquipmentListRef =
+        draft.internalEventsSystemsModelRef.length > 0 ? "SEL-CONTROLLED" : "";
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.spr} title="Equipment-list basis" subtitle="Scope sources, failure modes, coordination, and revision control" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Source models</h3>
+        <Field label="Internal-events systems model">
+          <TextInput value={draft.internalEventsSystemsModelRef} onChange={(value) => setDraft((current) => ({ ...current, internalEventsSystemsModelRef: value }))} />
+        </Field>
+        <Field label="Additional seismic systems" hint="Separate values with commas.">
+          <TextArea rows={3} value={draft.additionalSeismicSystemRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, additionalSeismicSystemRefs: technicalList(value) }))} />
+        </Field>
+        <FieldGrid>
+          <Field label="Internal-flood sources" hint="Separate references with commas.">
+            <TextArea rows={3} value={draft.internalFloodSourceRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, internalFloodSourceRefs: technicalList(value) }))} />
+          </Field>
+          <Field label="Internal-fire sources" hint="Separate references with commas.">
+            <TextArea rows={3} value={draft.internalFireIgnitionSourceRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, internalFireIgnitionSourceRefs: technicalList(value) }))} />
+          </Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Secondary-hazard SSCs" hint="Separate references with commas.">
+            <TextArea rows={3} value={draft.secondaryHazardSscRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, secondaryHazardSscRefs: technicalList(value) }))} />
+          </Field>
+          <Field label="Structures and passive SSCs" hint="Separate references with commas.">
+            <TextArea rows={3} value={draft.additionalStructuresAndPassiveSscRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, additionalStructuresAndPassiveSscRefs: technicalList(value) }))} />
+          </Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Selection control</h3>
+        <Field label="Failure-mode identification">
+          <TextArea rows={4} value={draft.failureModeIdentificationProcess} onChange={(value) => setDraft((current) => ({ ...current, failureModeIdentificationProcess: value }))} />
+        </Field>
+        <Field label="Systems and fragility coordination">
+          <TextArea rows={4} value={draft.systemsFragilityAnalystCoordination} onChange={(value) => setDraft((current) => ({ ...current, systemsFragilityAnalystCoordination: value }))} />
+        </Field>
+        <Field label="Completeness checks" hint="One check per line.">
+          <TextArea rows={7} value={draft.completenessChecks.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, completenessChecks: technicalList(value) }))} />
+        </Field>
+        <Field label="Revision basis">
+          <TextArea rows={4} value={draft.revisionBasis} onChange={(value) => setDraft((current) => ({ ...current, revisionBasis: value }))} />
+        </Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SelEntryEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newSelEntry()
+    : mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment[index]!;
+  const [draft, setDraft] = useState<SelEntry>(() => structuredClone(original));
+  function changeFailureMode(modeIndex: number, change: Partial<SelFailureMode>): void {
+    setDraft((current) => ({
+      ...current,
+      failureModes: current.failureModes.map((mode, candidate) =>
+        candidate === modeIndex ? { ...mode, ...change } : mode),
+    }));
+  }
+  function toggleInclusion(source: typeof SEL_INCLUSION_OPTIONS[number], checked: boolean): void {
+    setDraft((current) => ({
+      ...current,
+      inclusionSources: checked
+        ? [...new Set([...current.inclusionSources, source])]
+        : current.inclusionSources.filter((item) => item !== source),
+    }));
+  }
+  function save(): void {
+    update((next) => {
+      const equipment = next.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+      if (index === null) equipment.push(draft);
+      else equipment[index] = draft;
+      next.seismicFragilityAnalysis.scope.includedSscRefs = equipment.map((item) => item.uuid);
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      const equipment = next.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+      equipment.splice(index, 1);
+      next.seismicFragilityAnalysis.scope.includedSscRefs = equipment.map((item) => item.uuid);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.spr} title={draft.name} subtitle="SSC identity, selection source, failure modes, and fragility treatment" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove SSC</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save SSC</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">SSC</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+          <Field label="Type"><SelectInput value={draft.sscType} options={["STRUCTURE", "SYSTEM", "COMPONENT", "RELAY", "PANEL", "CABINET", "FLOOD_SOURCE", "FIRE_SOURCE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, sscType: value as SelEntry["sscType"] }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="System reference"><TextInput value={draft.systemRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, systemRef: value || undefined }))} /></Field>
+          <Field label="Structure reference"><TextInput value={draft.structureRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, structureRef: value || undefined }))} /></Field>
+          <Field label="Component reference"><TextInput value={draft.componentRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, componentRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Building"><TextInput value={draft.building} onChange={(value) => setDraft((current) => ({ ...current, building: value }))} /></Field>
+          <Field label="Room or area"><TextInput value={draft.roomOrArea ?? ""} onChange={(value) => setDraft((current) => ({ ...current, roomOrArea: value || undefined }))} /></Field>
+          <Field label="Elevation"><TextInput value={draft.elevation ?? ""} onChange={(value) => setDraft((current) => ({ ...current, elevation: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Orientation"><TextInput value={draft.orientation ?? ""} onChange={(value) => setDraft((current) => ({ ...current, orientation: value || undefined }))} /></Field>
+        <Field label="Mounting and anchorage"><TextArea rows={3} value={draft.mountingAndAnchorage} onChange={(value) => setDraft((current) => ({ ...current, mountingAndAnchorage: value }))} /></Field>
+        <Field label="Credited functions" hint="Separate values with commas."><TextArea rows={3} value={draft.creditedFunctions.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, creditedFunctions: technicalList(value) }))} /></Field>
+        <FieldGrid>
+          <Field label="Reactor units" hint="Separate references with commas."><TextInput value={draft.reactorUnitRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, reactorUnitRefs: technicalList(value) }))} /></Field>
+          <Field label="Radioactive-material sources" hint="Separate references with commas."><TextInput value={(draft.radioactiveMaterialSourceRefs ?? []).join(", ")} onChange={(value) => setDraft((current) => ({ ...current, radioactiveMaterialSourceRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Selected from</h3>
+        <div className="sinlineeditor__choices">
+          {SEL_INCLUSION_OPTIONS.map((source) => <label className={`sinlineeditor__choice${draft.inclusionSources.includes(source) ? " sinlineeditor__choice--active" : ""}`} key={source}>
+            <input type="checkbox" checked={draft.inclusionSources.includes(source)} onChange={(event) => toggleInclusion(source, event.target.checked)} />
+            <span><strong>{displayLabel(source)}</strong></span>
+          </label>)}
+        </div>
+        <Field label="Source model references" hint="Separate references with commas."><TextArea rows={3} value={draft.sourceElementRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, sourceElementRefs: technicalList(value) }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Failure modes</h3>
+        {draft.failureModes.map((mode, modeIndex) => <div className="sinlineeditor__subgroup" key={mode.uuid}>
+          <FieldGrid>
+            <Field label={`Failure mode ${modeIndex + 1}`}><TextInput value={mode.name} onChange={(value) => changeFailureMode(modeIndex, { name: value })} /></Field>
+            <Field label="Type"><SelectInput value={mode.failureModeType} options={["FUNCTIONAL", "STRUCTURAL", "ANCHORAGE", "PRESSURE_BOUNDARY", "CONTACT_CHATTER", "FLOOD_SOURCE", "FIRE_IGNITION_SOURCE", "SEISMIC_INTERACTION", "SOIL_FAILURE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => changeFailureMode(modeIndex, { failureModeType: value as SelFailureMode["failureModeType"] })} /></Field>
+            <Field label="Required state"><SelectInput value={mode.requiredState} options={["FUNCTION_DURING_EARTHQUAKE", "FUNCTION_AFTER_EARTHQUAKE", "MAINTAIN_BOUNDARY", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => changeFailureMode(modeIndex, { requiredState: value as SelFailureMode["requiredState"] })} /></Field>
+          </FieldGrid>
+          <Field label="Description"><TextArea rows={2} value={mode.description} onChange={(value) => changeFailureMode(modeIndex, { description: value })} /></Field>
+          <Field label="Credited function"><TextArea rows={2} value={mode.creditedFunction} onChange={(value) => changeFailureMode(modeIndex, { creditedFunction: value })} /></Field>
+          <Field label="Failure definition"><TextArea rows={2} value={mode.failureDefinition} onChange={(value) => changeFailureMode(modeIndex, { failureDefinition: value })} /></Field>
+          <FieldGrid>
+            <Field label="System basic events" hint="Separate references with commas."><TextInput value={mode.systemModelBasicEventRefs.join(", ")} onChange={(value) => changeFailureMode(modeIndex, { systemModelBasicEventRefs: technicalList(value) })} /></Field>
+            <Field label="Event sequences" hint="Separate references with commas."><TextInput value={(mode.eventSequenceRefs ?? []).join(", ")} onChange={(value) => changeFailureMode(modeIndex, { eventSequenceRefs: technicalList(value) })} /></Field>
+          </FieldGrid>
+          <Field label="Fragility mechanisms" hint="Separate references with commas."><TextInput value={mode.fragilityMechanismRefs.join(", ")} onChange={(value) => changeFailureMode(modeIndex, { fragilityMechanismRefs: technicalList(value) })} /></Field>
+          <Field label="Failure effect"><TextArea rows={2} value={mode.consequenceDescription} onChange={(value) => changeFailureMode(modeIndex, { consequenceDescription: value })} /></Field>
+          {editable && draft.failureModes.length > 1 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, failureModes: current.failureModes.filter((_, candidate) => candidate !== modeIndex) }))}>Remove failure mode</button>}
+        </div>)}
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, failureModes: [...current.failureModes, newSelFailureMode()] }))}>Add failure mode</button>}
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Fragility treatment</h3>
+        <FieldGrid>
+          <Field label="Disposition"><SelectInput value={draft.disposition} options={["ACTIVE", "INHERENTLY_RUGGED", "ABOVE_FRAGILITY_THRESHOLD", "REMOVED_FROM_MODEL"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, disposition: value as SelEntry["disposition"] }))} /></Field>
+          <Field label="Fragility reference"><TextInput value={draft.fragilityAnalysisRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, fragilityAnalysisRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Correlation groups" hint="Separate references with commas."><TextInput value={draft.correlationGroupRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, correlationGroupRefs: technicalList(value) }))} /></Field>
+        <Field label="Disposition basis"><TextArea rows={3} value={draft.dispositionBasis} onChange={(value) => setDraft((current) => ({ ...current, dispositionBasis: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function newReferenceEarthquake(): SfrReferenceEarthquake {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New reference earthquake",
+    hazardSpectrumRef: "",
+    groundMotionParameterRef: "",
+    controlPointRef: "",
+    groundMotionLevel: 0,
+    groundMotionUnits: "g",
+    horizontalComponentRefs: [],
+    verticalComponentRef: "",
+    hazardRangeOfInterest: {
+      lowerGroundMotion: 0,
+      upperGroundMotion: 0,
+      basis: "",
+    },
+    selectionMethod: "",
+    selectionValidation: "",
+    nonlinearBehaviorBasis: "",
+    implementsSrs: [{ sr: "SFR-B1", hlr: "B" }, { sr: "SFR-B2", hlr: "B" }],
+  };
+}
+
+function newStructuralModel(): SfrStructuralModel {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New three-dimensional structural model",
+    structureRef: "",
+    modelType: "THREE_DIMENSIONAL_FINITE_ELEMENT",
+    softwareAndVersion: "",
+    modelFileRefs: [],
+    asModeledCondition: "AS_DESIGNED",
+    stiffnessRepresentation: "",
+    massRepresentation: "",
+    dampingRepresentation: "",
+    stressStateRepresentation: "",
+    directionalCoupling: "",
+    rotationalInertia: "",
+    diaphragmFlexibility: "",
+    torsionalEffects: "",
+    structuralCoupling: "",
+    foundationAndEmbedment: "",
+    nonlinearFeatures: [],
+    modalProperties: [],
+    verificationAndValidation: "",
+    limitations: [],
+    implementsSrs: [{ sr: "SFR-B3", hlr: "B" }],
+  };
+}
+
+function newResponseResult(): SfrResponseResult {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New seismic response result",
+    responseModelRef: "",
+    referenceEarthquakeRef: "",
+    location: "",
+    responseQuantity: "FLOOR_RESPONSE_SPECTRUM",
+    direction: "X",
+    units: "g",
+    spectrumPoints: [
+      { frequencyHz: 1, periodSeconds: 1, medianResponse: 0 },
+      { frequencyHz: 5, periodSeconds: 0.2, medianResponse: 0 },
+      { frequencyHz: 10, periodSeconds: 0.1, medianResponse: 0 },
+    ],
+    betaRandomness: 0,
+    betaUncertainty: 0,
+    compositeBeta: 0,
+    variabilityBasis: "",
+    applicableSscRefs: [],
+    implementsSrs: [{ sr: "SFR-B4", hlr: "B" }],
+  };
+}
+
+function newSsiAnalysis(): SfrSsiAnalysis {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New soil-structure interaction analysis",
+    applicable: true,
+    significanceAssessment: "",
+    analysisType: "PROBABILISTIC",
+    method: "",
+    siteSpecific: true,
+    soilProfileRefs: [],
+    strainCompatibleProperties: true,
+    embedmentTreatment: "",
+    groundMotionIncoherenceTreatment: "",
+    structureSoilStructureInteractionTreatment: "",
+    medianResponseResultRefs: [],
+    uncertaintyResultRefs: [],
+    exclusionOrMethodBasis: "",
+    implementsSrs: [{ sr: "SFR-B5", hlr: "B" }],
+  };
+}
+
+function newSimulation(): SfrSimulation {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New probabilistic response simulation",
+    method: "LATIN_HYPERCUBE",
+    simulationCount: 0,
+    inputMotionSetCount: 0,
+    componentsPerSet: 3,
+    sampledAleatoryVariables: [],
+    sampledEpistemicVariables: [],
+    correlationTreatment: "",
+    convergenceMetric: "",
+    convergenceCriterion: "",
+    convergenceResults: [],
+    stableResponsesDemonstrated: false,
+    outputResultRefs: [],
+    implementsSrs: [{ sr: "SFR-B6", hlr: "B" }],
+  };
+}
+
+function ResponseBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const response = mef.seismicFragilityAnalysis.seismicResponseAnalysis;
+  const [draft, setDraft] = useState(() => ({
+    hazardSpectrumRefs: [...response.hazardSpectrumRefs],
+    threeOrthogonalDirectionsUsed: response.threeOrthogonalDirectionsUsed,
+    groundMotionParameterConsistency: response.groundMotionParameterConsistency,
+    controlPointConsistency: response.controlPointConsistency,
+    timeHistoryDevelopmentBasis: response.timeHistoryDevelopmentBasis,
+    medianCentered: response.medianCentered,
+    approximationBiasAssessment: response.approximationBiasAssessment,
+  }));
+  function save(): void {
+    update((next) => {
+      Object.assign(next.seismicFragilityAnalysis.seismicResponseAnalysis, draft);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title="Structural-response basis" subtitle="Shared motion, three components, median response, and approximation control" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Input motion</h3>
+        <Field label="Hazard spectra" hint="Separate references with commas."><TextArea rows={3} value={draft.hazardSpectrumRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, hazardSpectrumRefs: technicalList(value) }))} /></Field>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.threeOrthogonalDirectionsUsed} onChange={(event) => setDraft((current) => ({ ...current, threeOrthogonalDirectionsUsed: event.target.checked }))} /><span>Use three simultaneous orthogonal directions</span></label>
+        <Field label="Ground-motion definition"><TextArea rows={3} value={draft.groundMotionParameterConsistency} onChange={(value) => setDraft((current) => ({ ...current, groundMotionParameterConsistency: value }))} /></Field>
+        <Field label="Control-point transfer"><TextArea rows={3} value={draft.controlPointConsistency} onChange={(value) => setDraft((current) => ({ ...current, controlPointConsistency: value }))} /></Field>
+        <Field label="Time-history development"><TextArea rows={4} value={draft.timeHistoryDevelopmentBasis} onChange={(value) => setDraft((current) => ({ ...current, timeHistoryDevelopmentBasis: value }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Response treatment</h3>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.medianCentered} onChange={(event) => setDraft((current) => ({ ...current, medianCentered: event.target.checked }))} /><span>Response analysis is median-centered</span></label>
+        <Field label="Approximation and scaling bias"><TextArea rows={4} value={draft.approximationBiasAssessment} onChange={(value) => setDraft((current) => ({ ...current, approximationBiasAssessment: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function ReferenceEarthquakeEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newReferenceEarthquake()
+    : mef.seismicFragilityAnalysis.seismicResponseAnalysis.referenceEarthquakes[index]!;
+  const [draft, setDraft] = useState<SfrReferenceEarthquake>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.seismicResponseAnalysis.referenceEarthquakes;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.seismicResponseAnalysis.referenceEarthquakes.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Hazard level, three-component input, and applicable response range" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove earthquake</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save earthquake</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Reference motion</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Hazard spectrum"><TextInput value={draft.hazardSpectrumRef} onChange={(value) => setDraft((current) => ({ ...current, hazardSpectrumRef: value }))} /></Field>
+          <Field label="Ground-motion parameter"><TextInput value={draft.groundMotionParameterRef} onChange={(value) => setDraft((current) => ({ ...current, groundMotionParameterRef: value }))} /></Field>
+          <Field label="Control point"><TextInput value={draft.controlPointRef} onChange={(value) => setDraft((current) => ({ ...current, controlPointRef: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Annual exceedance frequency"><NumberInput value={draft.annualFrequencyOfExceedance ?? 0} onChange={(value) => setDraft((current) => ({ ...current, annualFrequencyOfExceedance: value }))} /></Field>
+          <Field label="Input level"><NumberInput value={draft.groundMotionLevel} onChange={(value) => setDraft((current) => ({ ...current, groundMotionLevel: value }))} /></Field>
+          <Field label="Units"><TextInput value={draft.groundMotionUnits} onChange={(value) => setDraft((current) => ({ ...current, groundMotionUnits: value }))} /></Field>
+          <Field label="Risk-dominant level"><NumberInput value={draft.riskDominantInputLevel ?? 0} onChange={(value) => setDraft((current) => ({ ...current, riskDominantInputLevel: value || undefined }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Horizontal components" hint="Separate references with commas."><TextArea rows={3} value={draft.horizontalComponentRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, horizontalComponentRefs: technicalList(value) }))} /></Field>
+          <Field label="Vertical component"><TextInput value={draft.verticalComponentRef} onChange={(value) => setDraft((current) => ({ ...current, verticalComponentRef: value }))} /></Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Applicable range</h3>
+        <FieldGrid>
+          <Field label="Lower motion"><NumberInput value={draft.hazardRangeOfInterest.lowerGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, hazardRangeOfInterest: { ...current.hazardRangeOfInterest, lowerGroundMotion: value } }))} /></Field>
+          <Field label="Upper motion"><NumberInput value={draft.hazardRangeOfInterest.upperGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, hazardRangeOfInterest: { ...current.hazardRangeOfInterest, upperGroundMotion: value } }))} /></Field>
+        </FieldGrid>
+        <Field label="Range basis"><TextArea rows={3} value={draft.hazardRangeOfInterest.basis} onChange={(value) => setDraft((current) => ({ ...current, hazardRangeOfInterest: { ...current.hazardRangeOfInterest, basis: value } }))} /></Field>
+        <Field label="Selection method"><TextArea rows={3} value={draft.selectionMethod} onChange={(value) => setDraft((current) => ({ ...current, selectionMethod: value }))} /></Field>
+        <Field label="Selection validation"><TextArea rows={3} value={draft.selectionValidation} onChange={(value) => setDraft((current) => ({ ...current, selectionValidation: value }))} /></Field>
+        <Field label="Nonlinear behavior"><TextArea rows={3} value={draft.nonlinearBehaviorBasis} onChange={(value) => setDraft((current) => ({ ...current, nonlinearBehaviorBasis: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function StructuralModelEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newStructuralModel()
+    : mef.seismicFragilityAnalysis.seismicResponseAnalysis.structuralModels[index]!;
+  const [draft, setDraft] = useState<SfrStructuralModel>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.seismicResponseAnalysis.structuralModels;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.seismicResponseAnalysis.structuralModels.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Three-dimensional model, dynamic properties, SSI boundary, and verification" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove model</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save model</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Model</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Structure reference"><TextInput value={draft.structureRef} onChange={(value) => setDraft((current) => ({ ...current, structureRef: value }))} /></Field>
+          <Field label="Model type"><SelectInput value={draft.modelType} options={["THREE_DIMENSIONAL_FINITE_ELEMENT", "THREE_DIMENSIONAL_LUMPED_MASS", "OTHER_THREE_DIMENSIONAL"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, modelType: value as SfrStructuralModel["modelType"] }))} /></Field>
+          <Field label="Plant condition"><SelectInput value={draft.asModeledCondition} options={["AS_DESIGNED", "AS_BUILT", "AS_OPERATED", "AS_INTENDED_TO_OPERATE"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, asModeledCondition: value as SfrStructuralModel["asModeledCondition"] }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Software"><TextInput value={draft.softwareAndVersion} onChange={(value) => setDraft((current) => ({ ...current, softwareAndVersion: value }))} /></Field>
+          <Field label="Model files" hint="Separate references with commas."><TextArea rows={3} value={draft.modelFileRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, modelFileRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Three-dimensional representation</h3>
+        <FieldGrid>
+          <Field label="Stiffness"><TextArea rows={3} value={draft.stiffnessRepresentation} onChange={(value) => setDraft((current) => ({ ...current, stiffnessRepresentation: value }))} /></Field>
+          <Field label="Mass"><TextArea rows={3} value={draft.massRepresentation} onChange={(value) => setDraft((current) => ({ ...current, massRepresentation: value }))} /></Field>
+          <Field label="Damping"><TextArea rows={3} value={draft.dampingRepresentation} onChange={(value) => setDraft((current) => ({ ...current, dampingRepresentation: value }))} /></Field>
+          <Field label="Stress state"><TextArea rows={3} value={draft.stressStateRepresentation} onChange={(value) => setDraft((current) => ({ ...current, stressStateRepresentation: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Directional coupling"><TextArea rows={3} value={draft.directionalCoupling} onChange={(value) => setDraft((current) => ({ ...current, directionalCoupling: value }))} /></Field>
+          <Field label="Rotational inertia"><TextArea rows={3} value={draft.rotationalInertia} onChange={(value) => setDraft((current) => ({ ...current, rotationalInertia: value }))} /></Field>
+          <Field label="Diaphragm flexibility"><TextArea rows={3} value={draft.diaphragmFlexibility} onChange={(value) => setDraft((current) => ({ ...current, diaphragmFlexibility: value }))} /></Field>
+          <Field label="Torsional effects"><TextArea rows={3} value={draft.torsionalEffects} onChange={(value) => setDraft((current) => ({ ...current, torsionalEffects: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Structural coupling"><TextArea rows={3} value={draft.structuralCoupling} onChange={(value) => setDraft((current) => ({ ...current, structuralCoupling: value }))} /></Field>
+        <Field label="Foundation and embedment"><TextArea rows={3} value={draft.foundationAndEmbedment} onChange={(value) => setDraft((current) => ({ ...current, foundationAndEmbedment: value }))} /></Field>
+        <Field label="Nonlinear features" hint="One feature per line."><TextArea rows={4} value={draft.nonlinearFeatures.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, nonlinearFeatures: technicalList(value) }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Modal properties</h3>
+        <div className="sresponsepoints">
+          <Table headers={["Mode", "Frequency (Hz)", "Damping", "Direction", "Mass participation"]} minWidth={620}>
+            {draft.modalProperties.map((mode, modeIndex) => <tr key={`${mode.mode}-${modeIndex}`}>
+              <td><NumberInput value={mode.mode} onChange={(value) => setDraft((current) => ({ ...current, modalProperties: current.modalProperties.map((item, candidate) => candidate === modeIndex ? { ...item, mode: value } : item) }))} /></td>
+              <td><NumberInput value={mode.frequencyHz} onChange={(value) => setDraft((current) => ({ ...current, modalProperties: current.modalProperties.map((item, candidate) => candidate === modeIndex ? { ...item, frequencyHz: value } : item) }))} /></td>
+              <td><NumberInput value={mode.dampingRatio} onChange={(value) => setDraft((current) => ({ ...current, modalProperties: current.modalProperties.map((item, candidate) => candidate === modeIndex ? { ...item, dampingRatio: value } : item) }))} /></td>
+              <td><TextInput value={mode.direction} onChange={(value) => setDraft((current) => ({ ...current, modalProperties: current.modalProperties.map((item, candidate) => candidate === modeIndex ? { ...item, direction: value } : item) }))} /></td>
+              <td><NumberInput value={mode.massParticipationFraction} onChange={(value) => setDraft((current) => ({ ...current, modalProperties: current.modalProperties.map((item, candidate) => candidate === modeIndex ? { ...item, massParticipationFraction: value } : item) }))} /></td>
+            </tr>)}
+          </Table>
+        </div>
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, modalProperties: [...current.modalProperties, { mode: current.modalProperties.length + 1, frequencyHz: 0, dampingRatio: 0.05, direction: "X", massParticipationFraction: 0 }] }))}>Add mode</button>}
+        <Field label="Verification and validation"><TextArea rows={4} value={draft.verificationAndValidation} onChange={(value) => setDraft((current) => ({ ...current, verificationAndValidation: value }))} /></Field>
+        <Field label="Limitations" hint="One limitation per line."><TextArea rows={4} value={draft.limitations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, limitations: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function ResponseResultEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newResponseResult()
+    : mef.seismicFragilityAnalysis.seismicResponseAnalysis.responseResults[index]!;
+  const [draft, setDraft] = useState<SfrResponseResult>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.seismicResponseAnalysis.responseResults;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.seismicResponseAnalysis.responseResults.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Median response, variability, location, and applicable SSCs" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove result</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save result</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Response result</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Structural model"><TextInput value={draft.responseModelRef} onChange={(value) => setDraft((current) => ({ ...current, responseModelRef: value }))} /></Field>
+          <Field label="Reference earthquake"><TextInput value={draft.referenceEarthquakeRef} onChange={(value) => setDraft((current) => ({ ...current, referenceEarthquakeRef: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Location"><TextInput value={draft.location} onChange={(value) => setDraft((current) => ({ ...current, location: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Response quantity"><SelectInput value={draft.responseQuantity} options={["FLOOR_RESPONSE_SPECTRUM", "STRUCTURAL_LOAD", "DISPLACEMENT", "ACCELERATION", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, responseQuantity: value as SfrResponseResult["responseQuantity"] }))} /></Field>
+          <Field label="Direction"><SelectInput value={draft.direction} options={["X", "Y", "Z", "COMBINED"].map((value) => ({ value, label: value }))} onChange={(value) => setDraft((current) => ({ ...current, direction: value as SfrResponseResult["direction"] }))} /></Field>
+          <Field label="Units"><TextInput value={draft.units} onChange={(value) => setDraft((current) => ({ ...current, units: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Randomness, beta R"><NumberInput value={draft.betaRandomness} onChange={(value) => setDraft((current) => ({ ...current, betaRandomness: value }))} /></Field>
+          <Field label="Uncertainty, beta U"><NumberInput value={draft.betaUncertainty} onChange={(value) => setDraft((current) => ({ ...current, betaUncertainty: value }))} /></Field>
+          <Field label="Composite beta"><NumberInput value={draft.compositeBeta ?? 0} onChange={(value) => setDraft((current) => ({ ...current, compositeBeta: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Variability basis"><TextArea rows={4} value={draft.variabilityBasis} onChange={(value) => setDraft((current) => ({ ...current, variabilityBasis: value }))} /></Field>
+        <Field label="Applicable SSCs" hint="Separate references with commas."><TextArea rows={4} value={draft.applicableSscRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, applicableSscRefs: technicalList(value) }))} /></Field>
+        <Field label="Output file"><TextInput value={draft.outputFileRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, outputFileRef: value || undefined }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Median spectrum</h3>
+        <div className="sresponsepoints">
+          <Table headers={["Frequency (Hz)", "Period (s)", `Median (${draft.units || "units"})`]} minWidth={520}>
+            {(draft.spectrumPoints ?? []).map((point, pointIndex) => <tr key={`${point.frequencyHz}-${pointIndex}`}>
+              <td><NumberInput value={point.frequencyHz} onChange={(value) => setDraft((current) => ({ ...current, spectrumPoints: (current.spectrumPoints ?? []).map((item, candidate) => candidate === pointIndex ? { ...item, frequencyHz: value } : item) }))} /></td>
+              <td><NumberInput value={point.periodSeconds} onChange={(value) => setDraft((current) => ({ ...current, spectrumPoints: (current.spectrumPoints ?? []).map((item, candidate) => candidate === pointIndex ? { ...item, periodSeconds: value } : item) }))} /></td>
+              <td><NumberInput value={point.medianResponse} onChange={(value) => setDraft((current) => ({ ...current, spectrumPoints: (current.spectrumPoints ?? []).map((item, candidate) => candidate === pointIndex ? { ...item, medianResponse: value } : item) }))} /></td>
+            </tr>)}
+          </Table>
+        </div>
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, spectrumPoints: [...(current.spectrumPoints ?? []), { frequencyHz: 0, periodSeconds: 0, medianResponse: 0 }] }))}>Add spectrum point</button>}
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SsiAnalysisEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newSsiAnalysis()
+    : mef.seismicFragilityAnalysis.seismicResponseAnalysis.soilStructureInteractionAnalyses[index]!;
+  const [draft, setDraft] = useState<SfrSsiAnalysis>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.seismicResponseAnalysis.soilStructureInteractionAnalyses;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.seismicResponseAnalysis.soilStructureInteractionAnalyses.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Site-specific soil, embedment, incoherence, and response uncertainty" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove SSI analysis</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save SSI analysis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">SSI treatment</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.applicable} onChange={(event) => setDraft((current) => ({ ...current, applicable: event.target.checked }))} /><span>SSI is applicable</span></label>
+        <Field label="Significance assessment"><TextArea rows={3} value={draft.significanceAssessment} onChange={(value) => setDraft((current) => ({ ...current, significanceAssessment: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Analysis type"><SelectInput value={draft.analysisType ?? "PROBABILISTIC"} options={["DETERMINISTIC", "PROBABILISTIC"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, analysisType: value as SfrSsiAnalysis["analysisType"] }))} /></Field>
+          <Field label="Method"><TextInput value={draft.method ?? ""} onChange={(value) => setDraft((current) => ({ ...current, method: value || undefined }))} /></Field>
+        </FieldGrid>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.siteSpecific} onChange={(event) => setDraft((current) => ({ ...current, siteSpecific: event.target.checked }))} /><span>Use site-specific soil properties</span></label>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.strainCompatibleProperties} onChange={(event) => setDraft((current) => ({ ...current, strainCompatibleProperties: event.target.checked }))} /><span>Use strain-compatible soil properties</span></label>
+        <Field label="Soil profiles" hint="Separate references with commas."><TextInput value={draft.soilProfileRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, soilProfileRefs: technicalList(value) }))} /></Field>
+        <Field label="Embedment"><TextArea rows={3} value={draft.embedmentTreatment ?? ""} onChange={(value) => setDraft((current) => ({ ...current, embedmentTreatment: value || undefined }))} /></Field>
+        <Field label="Ground-motion incoherence"><TextArea rows={3} value={draft.groundMotionIncoherenceTreatment ?? ""} onChange={(value) => setDraft((current) => ({ ...current, groundMotionIncoherenceTreatment: value || undefined }))} /></Field>
+        <Field label="Structure-soil-structure interaction"><TextArea rows={3} value={draft.structureSoilStructureInteractionTreatment ?? ""} onChange={(value) => setDraft((current) => ({ ...current, structureSoilStructureInteractionTreatment: value || undefined }))} /></Field>
+        <FieldGrid>
+          <Field label="Median-response results" hint="Separate references with commas."><TextArea rows={3} value={draft.medianResponseResultRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, medianResponseResultRefs: technicalList(value) }))} /></Field>
+          <Field label="Uncertainty results" hint="Separate references with commas."><TextArea rows={3} value={draft.uncertaintyResultRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyResultRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+        <Field label="Method basis"><TextArea rows={4} value={draft.exclusionOrMethodBasis} onChange={(value) => setDraft((current) => ({ ...current, exclusionOrMethodBasis: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function SimulationEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newSimulation()
+    : mef.seismicFragilityAnalysis.seismicResponseAnalysis.probabilisticSimulations[index]!;
+  const [draft, setDraft] = useState<SfrSimulation>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.seismicResponseAnalysis.probabilisticSimulations;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.seismicResponseAnalysis.probabilisticSimulations.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Probabilistic sampling, correlation, and response convergence" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove simulation</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save simulation</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Sampling</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Method"><SelectInput value={draft.method} options={["MONTE_CARLO", "LATIN_HYPERCUBE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, method: value as SfrSimulation["method"] }))} /></Field>
+          <Field label="Simulations"><NumberInput value={draft.simulationCount} onChange={(value) => setDraft((current) => ({ ...current, simulationCount: value }))} /></Field>
+          <Field label="Random seed"><NumberInput value={draft.randomSeed ?? 0} onChange={(value) => setDraft((current) => ({ ...current, randomSeed: value || undefined }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Input-motion sets"><NumberInput value={draft.inputMotionSetCount} onChange={(value) => setDraft((current) => ({ ...current, inputMotionSetCount: value }))} /></Field>
+          <Field label="Components per set"><NumberInput value={draft.componentsPerSet} onChange={(value) => setDraft((current) => ({ ...current, componentsPerSet: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Aleatory variables" hint="One variable per line."><TextArea rows={5} value={draft.sampledAleatoryVariables.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sampledAleatoryVariables: technicalList(value) }))} /></Field>
+          <Field label="Epistemic variables" hint="One variable per line."><TextArea rows={5} value={draft.sampledEpistemicVariables.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sampledEpistemicVariables: technicalList(value) }))} /></Field>
+        </FieldGrid>
+        <Field label="Correlation treatment"><TextArea rows={4} value={draft.correlationTreatment} onChange={(value) => setDraft((current) => ({ ...current, correlationTreatment: value }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Convergence</h3>
+        <Field label="Metric"><TextArea rows={3} value={draft.convergenceMetric} onChange={(value) => setDraft((current) => ({ ...current, convergenceMetric: value }))} /></Field>
+        <Field label="Criterion"><TextArea rows={3} value={draft.convergenceCriterion} onChange={(value) => setDraft((current) => ({ ...current, convergenceCriterion: value }))} /></Field>
+        <label className="sbasis-editor__check"><input type="checkbox" checked={draft.stableResponsesDemonstrated} onChange={(event) => setDraft((current) => ({ ...current, stableResponsesDemonstrated: event.target.checked }))} /><span>Stable response is demonstrated</span></label>
+        <div className="sresponsepoints">
+          <Table headers={["Sample count", "Metric"]} minWidth={420}>
+            {draft.convergenceResults.map((result, resultIndex) => <tr key={`${result.sampleCount}-${resultIndex}`}>
+              <td><NumberInput value={result.sampleCount} onChange={(value) => setDraft((current) => ({ ...current, convergenceResults: current.convergenceResults.map((item, candidate) => candidate === resultIndex ? { ...item, sampleCount: value } : item) }))} /></td>
+              <td><NumberInput value={result.metricValue} onChange={(value) => setDraft((current) => ({ ...current, convergenceResults: current.convergenceResults.map((item, candidate) => candidate === resultIndex ? { ...item, metricValue: value } : item) }))} /></td>
+            </tr>)}
+          </Table>
+        </div>
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, convergenceResults: [...current.convergenceResults, { sampleCount: 0, metricValue: 0 }] }))}>Add convergence point</button>}
+        <Field label="Output results" hint="Separate references with commas."><TextArea rows={4} value={draft.outputResultRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, outputResultRefs: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
 }
 
 function SelResponseScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const sel = mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment;
   const response = mef.seismicFragilityAnalysis.seismicResponseAnalysis;
-  const [selOpen, setSelOpen] = useState(false);
-  const [responseOpen, setResponseOpen] = useState(false);
-  const [collectionEditor, setCollectionEditor] = useState<CollectionEditorTarget | null>(null);
+  const [selBasisOpen, setSelBasisOpen] = useState(false);
+  const [selIndex, setSelIndex] = useState<number | null | undefined>(undefined);
+  const [responseBasisOpen, setResponseBasisOpen] = useState(false);
+  const [referenceIndex, setReferenceIndex] = useState<number | null | undefined>(undefined);
+  const [modelIndex, setModelIndex] = useState<number | null | undefined>(undefined);
+  const [resultIndex, setResultIndex] = useState<number | null | undefined>(undefined);
+  const [ssiIndex, setSsiIndex] = useState<number | null | undefined>(undefined);
+  const [simulationIndex, setSimulationIndex] = useState<number | null | undefined>(undefined);
+  const [selectedResponseRef, setSelectedResponseRef] = useState(response.responseResults[0]?.uuid ?? "");
+  const selectedResponse = response.responseResults.find((result) => result.uuid === selectedResponseRef)
+    ?? response.responseResults[0];
+  const responseFan = useMemo(
+    () => structuralResponseFanSeries(selectedResponse),
+    [selectedResponse],
+  );
   return <>
-    <Section eyebrow="SPR · HLR-C / SFR · HLR-A" title="Seismic equipment list" description="One controlled list connects systems failure modes, investigations, fragility mechanisms, correlation, and plant-response events." tone="spr" actions={editable ? <AddButton label="Add equipment" onClick={() => setCollectionEditor({ title: "New seismic equipment item", subtitle: "SSC identity, credited functions, failure modes, disposition, and traceability", focus: [], createAt: ["seismicPlantResponseAnalysis", "seismicEquipmentListDevelopment", "equipment"] })} /> : undefined}>
-      <SectionEditorRow title="Equipment-list basis" description="Source lists, inclusion logic, completeness, coordination, and revision control." onClick={() => setSelOpen(true)} />
-      <Table headers={["SSC", "Type and location", "Credited functions", "Failure modes", "Disposition", ""]}>
-        {sel.equipment.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: `${item.sscType} · ${item.building}`, focus: ["seismicPlantResponseAnalysis", "seismicEquipmentListDevelopment", "equipment", index], removeLabel: "Remove equipment" })}><td><strong>{item.name}</strong><code>{item.roomOrArea ?? item.building}</code></td><td>{item.sscType}<br /><span>{item.building}</span></td><td>{item.creditedFunctions.join("; ")}</td><td>{item.failureModes.map((mode) => mode.name).join("; ")}</td><td><Tag tone={item.disposition === "ACTIVE" ? "spr" : "neutral"}>{displayLabel(item.disposition)}</Tag></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+    <Section title="Seismic equipment list" description="SSCs and failure modes selected from plant-response logic." tone="spr" actions={<>
+      <EditButton label="Edit basis" onClick={() => setSelBasisOpen(true)} />
+      {editable && <AddButton label="Add SSC" onClick={() => setSelIndex(null)} />}
+    </>}>
+      {sel.equipment.length === 0 ? <TechnicalEmptyState title="No seismic equipment" detail="Select SSCs and failure modes from the plant-response model." /> : <Table headers={["SSC", "Credited function", "Failure mode", "Selected from", "Fragility treatment"]} minWidth={0} columnWidths={["23%", "23%", "22%", "16%", "16%"]} className="stable--wrapheads">
+        {sel.equipment.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setSelIndex(index)}>
+          <td><strong>{item.name}</strong><code>{displayLabel(item.sscType)} | {item.building} | {item.roomOrArea ?? "Area not defined"} | {item.elevation ?? "Elevation not defined"}</code></td>
+          <td>{item.creditedFunctions.join("; ") || "Not defined"}</td>
+          <td>{item.failureModes.map((mode) => mode.name).join("; ") || "Not defined"}<code>{item.failureModes.map((mode) => displayLabel(mode.failureModeType)).join(" | ")}</code></td>
+          <td>{item.inclusionSources.map(displayLabel).join("; ")}</td>
+          <td><Tag tone={item.disposition === "ACTIVE" ? "spr" : item.disposition === "REMOVED_FROM_MODEL" ? "neutral" : "good"}>{displayLabel(item.disposition)}</Tag><code>{item.fragilityAnalysisRef ?? item.dispositionBasis}</code></td>
+        </tr>)}
+      </Table>}
+    </Section>
+    <Section title="Reference motion and structural models" description="Hazard-consistent three-direction input and realistic 3-D response models." tone="sfr" actions={<>
+      <EditButton label="Edit basis" onClick={() => setResponseBasisOpen(true)} />
+      {editable && <AddButton label="Add earthquake" onClick={() => setReferenceIndex(null)} />}
+      {editable && <AddButton label="Add model" onClick={() => setModelIndex(null)} />}
+    </>}>
+      <Table caption="Reference earthquakes" headers={["Reference earthquake", "Annual frequency", "Input motion", "Hazard range", "Components"]} minWidth={0} columnWidths={["25%", "14%", "21%", "20%", "20%"]} className="stable--wrapheads">
+        {response.referenceEarthquakes.map((earthquake, index) => <tr className="postable__row--clickable" key={earthquake.uuid} onClick={() => setReferenceIndex(index)}>
+          <td><strong>{earthquake.name}</strong><code>{earthquake.hazardSpectrumRef}</code></td>
+          <td className="smono">{earthquake.annualFrequencyOfExceedance === undefined ? "Not defined" : annualFrequency(earthquake.annualFrequencyOfExceedance)}</td>
+          <td><strong>{earthquake.groundMotionLevel} {earthquake.groundMotionUnits}</strong><code>{earthquake.groundMotionParameterRef} | {earthquake.controlPointRef}</code></td>
+          <td>{earthquake.hazardRangeOfInterest.lowerGroundMotion}-{earthquake.hazardRangeOfInterest.upperGroundMotion} {earthquake.groundMotionUnits}</td>
+          <td>{earthquake.horizontalComponentRefs.length} horizontal + 1 vertical</td>
+        </tr>)}
+      </Table>
+      <Table caption="Structural models" headers={["Structural model", "Condition", "Dynamic model", "Foundation and SSI boundary", "Verification"]} minWidth={0} columnWidths={["24%", "13%", "21%", "24%", "18%"]} className="stable--wrapheads">
+        {response.structuralModels.map((model, index) => {
+          const frequencies = model.modalProperties.map((mode) => mode.frequencyHz);
+          const participation = model.modalProperties.reduce((sum, mode) => sum + mode.massParticipationFraction, 0);
+          return <tr className="postable__row--clickable" key={model.uuid} onClick={() => setModelIndex(index)}>
+            <td><strong>{model.name}</strong><code>{model.structureRef} | {model.softwareAndVersion}</code></td>
+            <td>{displayLabel(model.asModeledCondition)}</td>
+            <td><strong>{displayLabel(model.modelType)}</strong><code>{model.modalProperties.length} modes | {numericRange(frequencies, "Hz")} | participation {participation.toFixed(2)}</code></td>
+            <td>{model.foundationAndEmbedment}</td>
+            <td>{model.verificationAndValidation}</td>
+          </tr>;
+        })}
+      </Table>
+      <Table caption="Scaling checks" headers={["Target response", "Scale factor", "Target spectrum", "Model and foundation", "Nonlinear check"]} minWidth={0} columnWidths={["23%", "11%", "16%", "26%", "24%"]} className="stable--wrapheads">
+        {response.scalingEvaluations.map((scaling) => <tr key={scaling.uuid}>
+          <td><strong>{scaling.name}</strong><code>{scaling.sourceResponseAnalysisRef}</code></td>
+          <td className="smono">{scaling.scaleFactor.toFixed(3)}</td>
+          <td>{scaling.targetSpectrumRef}</td>
+          <td>{scaling.structuralModelSimilarity}<code>{scaling.foundationSimilarity}</code></td>
+          <td>{scaling.nonlinearPhenomenaEvaluation}</td>
+        </tr>)}
       </Table>
     </Section>
-    <Section eyebrow="SFR · HLR-B" title="Reference earthquake and structural response" description="Three-direction input, realistic 3-D response, SSI, median centering, variability, convergence, scaling, and probabilistic simulation over the hazard range." tone="sfr" actions={editable ? <AddButton label="Add structural model" onClick={() => setCollectionEditor({ title: "New structural model", subtitle: "Model condition, software, modal properties, verification, and traceability", focus: [], createAt: ["seismicFragilityAnalysis", "seismicResponseAnalysis", "structuralModels"] })} /> : undefined}>
-      <SectionEditorRow title="Structural-response basis" description="Reference earthquakes, SSI, scaling, simulations, response results, and consistency." onClick={() => setResponseOpen(true)} />
-      <Table headers={["Structural model", "Software", "Condition", "Modes", "Verification", ""]}>
-        {response.structuralModels.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Structural response model", focus: ["seismicFragilityAnalysis", "seismicResponseAnalysis", "structuralModels", index], removeLabel: "Remove structural model" })}><td><strong>{item.name}</strong><code>{item.structureRef}</code></td><td>{item.softwareAndVersion}</td><td>{displayLabel(item.asModeledCondition)}</td><td>{item.modalProperties.length}</td><td>{item.verificationAndValidation}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+
+    <Section title="Response distributions and stability" description="Median demand, variability, SSI, and simulation convergence." tone="sfr" actions={<>
+      {editable && <AddButton label="Add response" onClick={() => setResultIndex(null)} />}
+      {editable && <AddButton label="Add SSI" onClick={() => setSsiIndex(null)} />}
+      {editable && <AddButton label="Add simulation" onClick={() => setSimulationIndex(null)} />}
+    </>}>
+      {selectedResponse === undefined ? <TechnicalEmptyState title="No response results" detail="Calculate structural loads or floor-response spectra for the selected SSC locations." /> : <>
+        <div className="sdistribution__head">
+          <div><strong>{selectedResponse.name}</strong><span>{selectedResponse.responseModelRef} | {selectedResponse.referenceEarthquakeRef}</span></div>
+          <label className="splotselect"><span>Response location</span><select className="sinput" aria-label="Response distribution" value={selectedResponse.uuid} onChange={(event) => setSelectedResponseRef(event.target.value)}>
+            {response.responseResults.map((result) => <option key={result.uuid} value={result.uuid}>{result.name}</option>)}
+          </select></label>
+        </div>
+        <DistributionFanChart points={responseFan} xLabel="Frequency (Hz, log scale)" yLabel={`Response (${selectedResponse.units})`} ariaLabel={`${selectedResponse.name} median response and 5th through 95th percentile distribution`} />
+      </>}
+      <Table caption="Response results" headers={["Response", "Model and direction", "Median range", "Variability", "Applicable SSCs"]} minWidth={0} columnWidths={["25%", "20%", "17%", "16%", "22%"]} className="stable--wrapheads">
+        {response.responseResults.map((result, index) => {
+          const medians = result.spectrumPoints?.map((point) => point.medianResponse)
+            ?? (result.medianValue === undefined ? [] : [result.medianValue]);
+          return <tr className="postable__row--clickable" key={result.uuid} onClick={() => { setSelectedResponseRef(result.uuid); setResultIndex(index); }}>
+            <td><strong>{result.name}</strong><code>{result.location}</code></td>
+            <td>{result.responseModelRef}<code>{result.direction} | {displayLabel(result.responseQuantity)}</code></td>
+            <td><strong>{numericRange(medians, result.units)}</strong><code>{result.spectrumPoints?.length ?? 1} result points</code></td>
+            <td>Beta R {result.betaRandomness.toFixed(3)}<code>Beta U {result.betaUncertainty.toFixed(3)} | composite {(result.compositeBeta ?? Math.sqrt(result.betaRandomness ** 2 + result.betaUncertainty ** 2)).toFixed(3)}</code></td>
+            <td>{result.applicableSscRefs.join(", ")}</td>
+          </tr>;
+        })}
+      </Table>
+      <Table caption="Soil-structure interaction" headers={["Analysis", "Method", "Profiles", "Response outputs", "Technical basis"]} minWidth={0} columnWidths={["23%", "21%", "14%", "16%", "26%"]} className="stable--wrapheads">
+        {response.soilStructureInteractionAnalyses.map((ssi, index) => <tr className="postable__row--clickable" key={ssi.uuid} onClick={() => setSsiIndex(index)}>
+          <td><strong>{ssi.name}</strong><code>{ssi.applicable ? "Included" : "Not applicable"} | {ssi.analysisType === undefined ? "Method not defined" : displayLabel(ssi.analysisType)}</code></td>
+          <td>{ssi.method ?? "Not defined"}<code>{ssi.strainCompatibleProperties ? "Strain-compatible properties" : "Nominal soil properties"}</code></td>
+          <td>{ssi.soilProfileRefs.join(", ")}</td>
+          <td>{ssi.medianResponseResultRefs.length} median | {ssi.uncertaintyResultRefs.length} uncertainty</td>
+          <td>{ssi.significanceAssessment}</td>
+        </tr>)}
+      </Table>
+      <Table caption="Probabilistic response convergence" headers={["Simulation", "Trials and motion sets", "Sampled variables", "Convergence criterion", "Result"]} minWidth={0} columnWidths={["22%", "16%", "25%", "25%", "12%"]} className="stable--wrapheads">
+        {response.probabilisticSimulations.map((simulation, index) => {
+          const final = simulation.convergenceResults.at(-1);
+          return <tr className="postable__row--clickable" key={simulation.uuid} onClick={() => setSimulationIndex(index)}>
+            <td><strong>{simulation.name}</strong><code>{displayLabel(simulation.method)}</code></td>
+            <td><strong>{simulation.simulationCount} trials</strong><code>{simulation.inputMotionSetCount} sets x {simulation.componentsPerSet} components</code></td>
+            <td>{simulation.sampledAleatoryVariables.join(", ")}<code>{simulation.sampledEpistemicVariables.join(", ")}</code></td>
+            <td>{simulation.convergenceCriterion}</td>
+            <td><Tag tone={simulation.stableResponsesDemonstrated ? "good" : "warn"}>{simulation.stableResponsesDemonstrated ? "Stable" : "Open"}</Tag><code>{final === undefined ? "No metric" : `${(final.metricValue * 100).toFixed(2)}% at ${final.sampleCount}`}</code></td>
+          </tr>;
+        })}
       </Table>
     </Section>
-    {selOpen && <MefEditor tone="spr" title="Seismic equipment list" subtitle="Equipment, sources, structures, failure modes, completeness, coordination, and revision control" focus={["seismicPlantResponseAnalysis", "seismicEquipmentListDevelopment"]} onClose={() => setSelOpen(false)} />}
-    {responseOpen && <MefEditor tone="sfr" title="Seismic-response analysis" subtitle="Reference earthquake, structural models, SSI, scaling, simulations, results, and consistency" focus={["seismicFragilityAnalysis", "seismicResponseAnalysis"]} onClose={() => setResponseOpen(false)} />}
-    <CollectionEditor tone={(collectionEditor?.createAt?.[0] ?? collectionEditor?.focus[0]) === "seismicPlantResponseAnalysis" ? "spr" : "sfr"} target={collectionEditor} onClose={() => setCollectionEditor(null)} />
+
+    {selBasisOpen && <SelBasisEditor onClose={() => setSelBasisOpen(false)} />}
+    {selIndex !== undefined && <SelEntryEditor index={selIndex} onClose={() => setSelIndex(undefined)} />}
+    {responseBasisOpen && <ResponseBasisEditor onClose={() => setResponseBasisOpen(false)} />}
+    {referenceIndex !== undefined && <ReferenceEarthquakeEditor index={referenceIndex} onClose={() => setReferenceIndex(undefined)} />}
+    {modelIndex !== undefined && <StructuralModelEditor index={modelIndex} onClose={() => setModelIndex(undefined)} />}
+    {resultIndex !== undefined && <ResponseResultEditor index={resultIndex} onClose={() => setResultIndex(undefined)} />}
+    {ssiIndex !== undefined && <SsiAnalysisEditor index={ssiIndex} onClose={() => setSsiIndex(undefined)} />}
+    {simulationIndex !== undefined && <SimulationEditor index={simulationIndex} onClose={() => setSimulationIndex(undefined)} />}
   </>;
 }
 

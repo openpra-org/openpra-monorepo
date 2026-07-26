@@ -82,7 +82,10 @@ function seismicPraInterfaceLanes(
     ...unique(spr.seismicEquipmentListDevelopment.internalFireIgnitionSourceRefs).map((ref) => ({ id: `source-${ref}`, name: ref, type: "SEL ignition source" })),
   ];
   const externalFloodHazards = sha.secondaryHazardEvaluation.hazards.filter(
-    (hazard) => hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING" || hazard.externalFloodingInterface !== undefined,
+    (hazard) =>
+      hazard.screening.disposition === "RETAINED"
+      && (hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING"
+        || hazard.externalFloodingInterface !== undefined),
   );
   const otherRetainedHazards = sha.secondaryHazardEvaluation.hazards.filter(
     (hazard) => hazard.screening.disposition === "RETAINED"

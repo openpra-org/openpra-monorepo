@@ -98,3 +98,43 @@ describe("Seismic PRA HLR-C and HLR-D readiness", () => {
     expect(items.find((item) => item.id === "SHA-D3")?.status).toBe("warn");
   });
 });
+
+describe("Seismic PRA HLR-E readiness", () => {
+  it.each(["htgr", "sfr"] as const)("reports the identified-site requirements correctly for %s", (variant) => {
+    const statuses = Object.fromEntries(
+      seismicConformanceItems(createSeismicPraExample(variant))
+        .filter((item) => item.id.startsWith("SHA-E"))
+        .map((item) => [item.id, item.status]),
+    );
+
+    expect(statuses).toEqual({
+      "SHA-E1": "ok",
+      "SHA-E2": "na",
+      "SHA-E3": "ok",
+      "SHA-E4": "na",
+      "SHA-E5": "ok",
+      "SHA-E6": "na",
+    });
+  });
+
+  it("requires documented conditions and material properties for SHA-E1", () => {
+    const mef = createSeismicPraExample("htgr");
+    mef.seismicHazardAnalysis.siteResponseAnalysis.topographyAndGeology.topographicDescription = "";
+
+    expect(seismicConformanceItems(mef).find((item) => item.id === "SHA-E1")?.status).toBe("warn");
+  });
+
+  it("requires propagated uncertainty for SHA-E3", () => {
+    const mef = createSeismicPraExample("sfr");
+    mef.seismicHazardAnalysis.siteResponseAnalysis.uncertainties = [];
+
+    expect(seismicConformanceItems(mef).find((item) => item.id === "SHA-E3")?.status).toBe("warn");
+  });
+
+  it("requires justified methods and linked inputs for SHA-E5", () => {
+    const mef = createSeismicPraExample("htgr");
+    mef.seismicHazardAnalysis.siteResponseAnalysis.methods[0]!.dimensionSelectionBasis = "";
+
+    expect(seismicConformanceItems(mef).find((item) => item.id === "SHA-E5")?.status).toBe("warn");
+  });
+});

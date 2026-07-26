@@ -130,8 +130,16 @@ describe("seismicPraInterfaceLanes", () => {
       expect(lane(code).rows).toHaveLength(0);
       expect(lane(code).empty.length).toBeGreaterThan(0);
     }
-    expect(lane("FL").rows).toEqual([{ id: "model-INTERNAL-FLOOD-REFERENCE", name: "INTERNAL-FLOOD-REFERENCE", values: ["Base PRA model"] }]);
-    expect(lane("F").rows).toEqual([{ id: "model-INTERNAL-FIRE-REFERENCE", name: "INTERNAL-FIRE-REFERENCE", values: ["Base PRA model"] }]);
+    expect(lane("FL").rows).toEqual([
+      { id: "model-INTERNAL-FLOOD-REFERENCE", name: "INTERNAL-FLOOD-REFERENCE", values: ["Base PRA model"] },
+      { id: "source-SEL-HTGR-SERVICE-WATER", name: "SEL-HTGR-SERVICE-WATER", values: ["SEL flood source"] },
+      { id: "source-SEL-HTGR-RCCS-WATER", name: "SEL-HTGR-RCCS-WATER", values: ["SEL flood source"] },
+    ]);
+    expect(lane("F").rows).toEqual([
+      { id: "model-INTERNAL-FIRE-REFERENCE", name: "INTERNAL-FIRE-REFERENCE", values: ["Base PRA model"] },
+      { id: "source-SEL-HTGR-TRANSFORMER", name: "SEL-HTGR-TRANSFORMER", values: ["SEL ignition source"] },
+      { id: "source-SEL-HTGR-BATTERY-CHARGER", name: "SEL-HTGR-BATTERY-CHARGER", values: ["SEL ignition source"] },
+    ]);
     expect(lane("XF").rows).toHaveLength(0);
     expect(lane("O").rows.length).toBeGreaterThan(0);
     expect(lane("ESQ").rows.length).toBeGreaterThan(0);

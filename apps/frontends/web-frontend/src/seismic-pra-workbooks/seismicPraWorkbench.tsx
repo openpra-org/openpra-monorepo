@@ -46,9 +46,9 @@ const STEPS: Step[] = [
   { id: "hazard-basis", num: "02", label: "Hazard study basis", subelement: "SHA", hlr: "A", title: "Hazard study basis", subtitle: "Set the site basis, PSHA process, shared motion definition, and justified calculation limits." },
   { id: "earth-science", num: "03", label: "Earth science", subelement: "SHA", hlr: "B", title: "Earth-science inputs", subtitle: "Data sets, study region, earthquake catalog, methods inventory, and currentness review." },
   { id: "sources-motion", num: "04", label: "Sources & motion", subelement: "SHA", hlr: "C–D", title: "Sources and ground motion", subtitle: "Source characterization, prediction models, reference horizon, and epistemic logic trees." },
-  { id: "site-response", num: "05", label: "Site response", subelement: "SHA", hlr: "E", title: "Local site response", subtitle: "Topography, geotechnical profiles, analysis methods, amplification, and variability." },
-  { id: "hazard-results", num: "06", label: "Hazard results", subelement: "SHA", hlr: "F–G", title: "Hazard results and spectra", subtitle: "Curves, uncertainty, discretization, deaggregation, control points, and horizontal/vertical spectra." },
-  { id: "secondary-hazards", num: "07", label: "Secondary hazards", subelement: "SHA", hlr: "H", title: "Secondary seismic hazards", subtitle: "Screening, retained hazard analyses, external-flooding interfaces, and transfer to fragility/response." },
+  { id: "site-response", num: "05", label: "Site response", subelement: "SHA", hlr: "E", title: "Local site response", subtitle: "Site conditions, weighted profiles, and foundation amplification." },
+  { id: "hazard-results", num: "06", label: "Hazard results", subelement: "SHA", hlr: "F–G", title: "Hazard results and spectra", subtitle: "Hazard curves, PRA bins, deaggregation, spectra, and uncertainty." },
+  { id: "secondary-hazards", num: "07", label: "Secondary hazards", subelement: "SHA", hlr: "H", title: "Secondary seismic hazards", subtitle: "Identify, screen, and quantify non-vibratory seismic hazards." },
   { id: "sel-response", num: "08", label: "SEL & response", subelement: "SFR", hlr: "A–B", title: "Equipment scope and response", subtitle: "The shared SEL, reference earthquake, 3-D response, SSI, median response, and convergence." },
   { id: "thresholds", num: "09", label: "Thresholds & investigations", subelement: "SFR", hlr: "C–D", title: "Thresholds and investigations", subtitle: "Inherent ruggedness, cumulative thresholds, walkdowns, design review, and vulnerability findings." },
   { id: "fragility-results", num: "10", label: "Fragility results", subelement: "SFR", hlr: "E", title: "Fragility models and results", subtitle: "Failure mechanisms, capacities, beta values, HCLPF, curves, correlation, uncertainty, and model transfer." },
@@ -140,7 +140,7 @@ function ConformanceDock({ mobileOpen, onClose, onGoToSetup }: { mobileOpen: boo
       {sections.map(([sectionName, sectionItems]) => <div key={sectionName}>
         <div className="posdock__section-head">
           {sectionName}
-          <span className="posdock__section-head-count">{sectionItems.filter((item) => item.status === "ok").length} / {sectionItems.length}</span>
+          <span className="posdock__section-head-count">{sectionItems.filter((item) => item.status === "ok").length} / {sectionItems.filter((item) => item.status !== "na").length}</span>
         </div>
         {sectionItems.map((item) => <div key={item.id} className={`posdock__item posdock__item--${item.status}`}>
           <span className="posdock__item-dot" />

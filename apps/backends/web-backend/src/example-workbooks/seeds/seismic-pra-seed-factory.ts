@@ -3,10 +3,13 @@ import { type SRReference } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { createBlankSeismicPra } from "../../seismic-pra-workbooks/blank-seismic-pra";
+import { populateHazardResults } from "./seismic-pra-hazard-results-seed";
+import { populateSelAndResponse } from "./seismic-pra-sel-response-seed";
+import { populateSecondaryHazards } from "./seismic-pra-secondary-hazards-seed";
+import { populateSiteResponseAnalysis } from "./seismic-pra-site-response-seed";
 
 type ReactorKind = "sfr" | "htgr";
 type GroundMotionParameter = SeismicPRA["seismicHazardAnalysis"]["analysisBasis"]["groundMotionParameters"][number];
-
 function srs(...codes: string[]): SRReference[] {
   return codes.map((sr) => ({ sr, hlr: sr.split("-")[1]!.charAt(0) as SRReference["hlr"] }));
 }
@@ -1136,224 +1139,10 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   }];
   sha.groundMotionCharacterization.implementsSrs = srs("SHA-D1", "SHA-D2", "SHA-D3", "SHA-D4");
 
-  sha.siteResponseAnalysis.topographyAndGeology = {
-    topographicDescription: "Gently sloping engineered platform without sharp ridges at the safety-related footprint.",
-    topographicDataRefs: ["SITE-LIDAR-2025"],
-    surficialDepositDescription: "Layered alluvium over weathered and competent rock.",
-    surficialGeologyDataRefs: ["GEOTECH-REPORT-2026"],
-    geologicStructureDescription: "Subhorizontal layers with limited lateral variability across the footprint.",
-    geotechnicalInvestigationRefs: ["BORING-LOGS-B1-B12", "CROSSHOLE-VELOCITY-2026"],
-    topographicEffectsSignificant: false,
-    topographicEffectsTreatment: "Two-dimensional screening calculations show less than five-percent amplification over the 1–20 Hz range.",
-    implementsSrs: srs("SHA-E1", "SHA-E6"),
-  };
-  sha.siteResponseAnalysis.profiles = [{
-    uuid: "PROFILE-BEST",
-    name: "Best-estimate geotechnical profile",
-    profileType: "BEST_ESTIMATE",
-    locationDescription: building,
-    layers: [{
-      uuid: "LAYER-1",
-      name: "Engineered fill and dense alluvium",
-      materialType: "Dense granular soil",
-      topDepth: 0,
-      bottomDepth: 18,
-      depthUnit: "m",
-      thickness: 18,
-      properties: [{
-        uuid: "VS-LAYER-1",
-        name: "Small-strain shear-wave velocity",
-        propertyType: "SHEAR_WAVE_VELOCITY",
-        value: isSfr ? 420 : 510,
-        units: "m/s",
-        sourceReference: "CROSSHOLE-VELOCITY-2026",
-        basisAndLimitations: "Median of accepted measurements; epistemic bounds use the measured range.",
-      }],
-      spatialVariability: "Coefficient of variation 0.18 across the building footprint.",
-      sourceReferences: ["GEOTECH-REPORT-2026"],
-    }],
-    depthToBedrock: isSfr ? 52 : 34,
-    depthUnit: "m",
-    bedrockDefinition: "Material with Vs at or above 760 m/s.",
-    groundwaterDepth: isSfr ? 22 : 48,
-    profileWeight: 0.5,
-    siteVariabilityBasis: "Borehole-to-borehole and laboratory variability with lower and upper profile branches.",
-    sourceReferences: ["GEOTECH-REPORT-2026"],
-    implementsSrs: srs("SHA-E1", "SHA-E2"),
-  }];
-  sha.siteResponseAnalysis.methods = [{
-    uuid: "SITE-RESPONSE-METHOD-1",
-    name: "One-dimensional nonlinear site response",
-    dimension: "ONE_DIMENSIONAL",
-    analysisType: "NONLINEAR",
-    softwareAndVersion: "OpenSiteResponse 2.1",
-    methodDescription: "Time-domain nonlinear propagation of suites scaled across the hazard range.",
-    dimensionSelectionBasis: "Measured layering is approximately horizontal and 2-D screening found limited edge effects.",
-    inputLocation: "REF-HORIZON-ROCK",
-    outputLocation: "CONTROL-POINT-FOUNDATION",
-    boundaryConditions: "Compliant base with transmitting lateral boundaries.",
-    materialModelDescription: "Pressure-dependent modulus reduction and damping calibrated to laboratory curves.",
-    verificationAndValidation: "Benchmark problems, energy checks, and independent input/output review completed.",
-    limitations: ["One-dimensional method is restricted to the safety-related platform."],
-    implementsSrs: srs("SHA-E2", "SHA-E3", "SHA-E4"),
-  }];
-  sha.siteResponseAnalysis.incorporationIntoHazardMethod = "Profile and property branches are convolved with reference-rock hazard to obtain control-point hazard.";
-  sha.siteResponseAnalysis.localSiteResponseIncluded = true;
-  sha.siteResponseAnalysis.boundingSiteVariabilityIncluded = false;
-  sha.siteResponseAnalysis.approachJustification = "The site is identified and supported by site-specific investigation, so explicit local response is appropriate.";
-  sha.siteResponseAnalysis.implementsSrs = srs("SHA-E1", "SHA-E2", "SHA-E3", "SHA-E4", "SHA-E5", "SHA-E6");
+  populateSiteResponseAnalysis(mef, kind, building);
 
-  sha.responseSpectraEvaluation.controlPoints = [{
-    uuid: "CONTROL-POINT-FOUNDATION",
-    name: "Safety-related foundation control point",
-    controlPointType: "FOUNDATION",
-    locationDescription: `Basemat elevation of the ${building}`,
-    elevation: isSfr ? 794 : 1448,
-    elevationUnit: "m",
-    applicableStructureRefs: ["STRUCTURE-REACTOR-BUILDING"],
-    basis: "Common control point for hazard, structural response, fragility, and plant-response discretization.",
-  }];
-  const curvePoints = [
-    { groundMotion: 0.05, annualFrequencyOfExceedance: isSfr ? 2.2e-2 : 1.5e-2 },
-    { groundMotion: 0.1, annualFrequencyOfExceedance: isSfr ? 4.8e-3 : 3.2e-3 },
-    { groundMotion: 0.2, annualFrequencyOfExceedance: isSfr ? 7.4e-4 : 5.1e-4 },
-    { groundMotion: 0.4, annualFrequencyOfExceedance: isSfr ? 7.2e-5 : 5.6e-5 },
-    { groundMotion: 0.8, annualFrequencyOfExceedance: isSfr ? 4.1e-6 : 3.3e-6 },
-    { groundMotion: 1.6, annualFrequencyOfExceedance: isSfr ? 1.2e-7 : 9.5e-8 },
-    { groundMotion: 3.0, annualFrequencyOfExceedance: 1e-9 },
-  ];
-  sha.hazardQuantification.hazardCurves = [{
-    uuid: "HAZARD-CURVE-MEAN-1HZ",
-    name: "Mean foundation SA(1 Hz) hazard curve",
-    groundMotionParameterRef: "GMP-SA-1HZ",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    direction: "GEOMETRIC_MEAN_HORIZONTAL",
-    statistic: "MEAN",
-    groundMotionUnits: "g",
-    frequencyUnit: "per plant-year",
-    points: curvePoints,
-    interpolationMethod: "Log-log linear interpolation",
-    extrapolationMethod: "Terminal log-linear slope",
-    calculationRunRef: "HAZARD-RUN-2026",
-    implementsSrs: srs("SHA-F1", "SHA-H1"),
-  }];
-  const spectrumPoints = [0.01, 0.1, 0.2, 0.5, 1, 2].map((periodSeconds) => ({
-    periodSeconds,
-    frequencyHz: 1 / periodSeconds,
-    spectralAcceleration: (isSfr ? 0.42 : 0.36) * (periodSeconds <= 0.2 ? 1.35 : periodSeconds <= 0.5 ? 1.1 : periodSeconds <= 1 ? 0.8 : 0.45),
-    units: "g",
-  }));
-  sha.hazardQuantification.uniformHazardSpectra = [{
-    uuid: "UHS-1E-4-H",
-    name: "1E-4 mean horizontal uniform hazard spectrum",
-    spectrumType: "UNIFORM_HAZARD",
-    direction: "GEOMETRIC_MEAN_HORIZONTAL",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    annualFrequencyOfExceedance: 1e-4,
-    dampingRatio: 0.05,
-    statistic: "MEAN",
-    points: spectrumPoints,
-    derivationMethod: "Interpolate each spectral hazard curve at 1E-4 annual exceedance.",
-    sourceHazardCurveRefs: ["HAZARD-CURVE-MEAN-1HZ"],
-    implementsSrs: srs("SHA-F1", "SHA-G1"),
-  }];
-  sha.hazardQuantification.calculationRuns = [{
-    uuid: "HAZARD-RUN-2026",
-    name: "Integrated hazard calculation",
-    calculationDate: "2026-05-21",
-    software: "OpenPSHA",
-    softwareVersion: "4.0",
-    sourceModelRef: "SOURCE-MODEL-2026",
-    groundMotionModelRef: "GM-LT-1",
-    siteResponseModelRefs: ["SITE-RESPONSE-METHOD-1"],
-    logicTreeEndBranchCount: 72,
-    numericalIntegrationMethod: "Adaptive magnitude-distance integration over all end branches.",
-    magnitudeStep: 0.1,
-    distanceStepKm: 1,
-    annualFrequencyRange: { minimum: 1e-9, maximum: 1e-2 },
-    convergenceCriteria: "Less than one percent change in hazard across refined integration grids.",
-    convergenceDemonstration: "Magnitude and distance step-halving changed risk-range hazard by at most 0.6 percent.",
-    verificationChecks: ["Branch weights sum to one", "independent spot calculations", "monotonic curve check"],
-    warningsAndLimitations: [],
-    outputFileRefs: ["SHA-RESULTS-2026.H5"],
-    implementsSrs: srs("SHA-F1", "SHA-F2", "SHA-F3", "SHA-F4"),
-  }];
-  sha.hazardQuantification.seismicPraInputs.hazardIntervals = [
-    { lower: 0.1, upper: 0.2, representative: 0.15, frequency: isSfr ? 4.06e-3 : 2.69e-3 },
-    { lower: 0.2, upper: 0.4, representative: 0.3, frequency: isSfr ? 6.68e-4 : 4.54e-4 },
-    { lower: 0.4, upper: 0.8, representative: 0.6, frequency: isSfr ? 6.79e-5 : 5.27e-5 },
-    { lower: 0.8, upper: 1.6, representative: 1.2, frequency: isSfr ? 3.98e-6 : 3.21e-6 },
-  ].map((bin, index) => ({
-    uuid: `HAZARD-INTERVAL-${index + 1}`,
-    name: `Hazard interval ${index + 1}`,
-    groundMotionParameterRef: "GMP-SA-1HZ",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    lowerGroundMotion: bin.lower,
-    upperGroundMotion: bin.upper,
-    representativeGroundMotion: bin.representative,
-    groundMotionUnits: "g",
-    annualFrequency: bin.frequency,
-    frequencyUnit: "per plant-year",
-    frequencyCalculationMethod: "Difference of mean hazard-curve exceedance frequencies at interval bounds.",
-    sourceHazardCurveRef: "HAZARD-CURVE-MEAN-1HZ",
-    usedByEventSequenceFamilyRefs: ["ESF-SEISMIC-DAMAGE"],
-    implementsSrs: srs("SHA-F3", "SPR-E1"),
-  }));
-  sha.hazardQuantification.seismicPraInputs.fragilityInputSpectrumRefs = ["UHS-1E-4-H"];
-  sha.hazardQuantification.seismicPraInputs.plantResponseInputRefs = sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((item) => item.uuid);
-  sha.hazardQuantification.seismicPraInputs.eventSequenceQuantificationInputRefs = ["ESF-SEISMIC-DAMAGE"];
-  sha.hazardQuantification.seismicPraInputs.transferBasis = "Mean hazard curves, common control point, consistent motion definitions, and non-overlapping intervals are transferred under configuration control.";
-  sha.hazardQuantification.seismicPraInputs.consistencyChecks = ["Motion units and components match SFR", "interval frequencies reconcile to hazard curve", "upper tail extends past fragility saturation"];
-  sha.hazardQuantification.seismicPraInputs.implementsSrs = srs("SHA-F1", "SHA-F2", "SHA-F3", "SHA-F4");
-  sha.hazardQuantification.uncertaintyPropagationMethod = "Full logic-tree integration of epistemic branches with aleatory variability integrated within branches.";
-  sha.hazardQuantification.aleatoryUncertaintiesPropagated = true;
-  sha.hazardQuantification.epistemicUncertaintiesPropagated = true;
-  sha.hazardQuantification.resultQualityChecks = ["Hazard curves are monotonic", "fractiles bracket the mean", "deaggregation contributions sum to one"];
-  sha.hazardQuantification.implementsSrs = srs("SHA-F1", "SHA-F2", "SHA-F3", "SHA-F4");
-  sha.responseSpectraEvaluation.horizontalSpectra = sha.hazardQuantification.uniformHazardSpectra;
-  sha.responseSpectraEvaluation.downstreamConsistencyBasis = "The same spectra, control point, damping, direction, and units are used for structural response and fragility reference earthquake selection.";
-  sha.responseSpectraEvaluation.implementsSrs = srs("SHA-G1", "SHA-G2");
-  sha.secondaryHazardEvaluation.identificationMethod = "Systematic review of ground deformation, slope, settlement, liquefaction, seiche, and earthquake-induced flooding mechanisms.";
-  sha.secondaryHazardEvaluation.siteAndRegionalHazardListSources = ["SITE-CHARACTERIZATION-REPORT", "HAZARDS-SCREENING-WORKBOOK"];
-  sha.secondaryHazardEvaluation.hazards = [{
-    uuid: "SECONDARY-LIQUEFACTION",
-    name: "Earthquake-induced soil liquefaction",
-    hazardType: "SOIL_LIQUEFACTION",
-    description: "Potential cyclic pore-pressure generation in a localized saturated sand lens away from the basemat.",
-    initiatingMechanisms: ["Strong shaking", "elevated groundwater"],
-    siteEvidenceRefs: ["CPT-2026", "GROUNDWATER-MONITORING"],
-    potentiallyAffectedArea: "Buried service corridor east of the reactor building",
-    potentiallyAffectedSeismicEquipmentListItemRefs: ["SEL-SECONDARY"],
-    screening: {
-      disposition: "RETAINED",
-      criterion: "NOT_SCREENED",
-      methodology: "Site-specific cyclic resistance and deformation evaluation.",
-      demonstrablyConservative: true,
-      screeningBasis: "Retained because deformation cannot be excluded at the lowest profile branch.",
-      calculationsAndEvidenceRefs: ["LIQUEFACTION-CALC-01"],
-      implementsSrs: srs("SHA-I1", "SHA-I2"),
-    },
-    retainedAnalysis: {
-      uuid: "LIQUEFACTION-ANALYSIS-1",
-      name: "Localized liquefaction deformation analysis",
-      hazardParameter: "Permanent ground displacement",
-      parameterUnits: "cm",
-      affectedSeismicEquipmentListItemRefs: ["SEL-SECONDARY"],
-      failureMechanisms: [{ id: "LIQ-MECH-1", name: "Differential settlement", description: "Settlement-induced loss of cooler alignment", fragilityParameter: "settlement", fragilityUnits: "cm" }],
-      hazardCurves: [],
-      calculationMethod: "Probabilistic cyclic stress and post-liquefaction deformation analysis.",
-      dataAndModelRefs: ["CPT-2026", "LIQUEFACTION-CALC-01"],
-      uncertainties: [],
-      sensitivityStudyRefs: ["SENS-LIQUEFACTION"],
-      outputRefs: ["LIQUEFACTION-HAZARD-RESULTS"],
-      implementsSrs: srs("SHA-I2", "SHA-I3"),
-    },
-    implementsSrs: srs("SHA-I1", "SHA-I2", "SHA-I3"),
-  }];
-  sha.secondaryHazardEvaluation.screeningCriteriaReference = "Non-LWR PRA Standard SCR-2/SCR-3 criteria and project hazards-screening procedure.";
-  sha.secondaryHazardEvaluation.crossHazardDependencies = ["Liquefaction deformation conditional on strong ground motion"];
-  sha.secondaryHazardEvaluation.completenessReview = "All site-region seismic secondary hazards are dispositioned and retained mechanisms are transferred to SFR and SPR.";
-  sha.secondaryHazardEvaluation.implementsSrs = srs("SHA-I1", "SHA-I2", "SHA-I3");
+  const spectrumPoints = populateHazardResults(mef, kind, building);
+  populateSecondaryHazards(mef, kind);
   sha.documentation.processDescription = "A structured SSHAC Level 2 process develops source, ground-motion, site-response, spectra, and secondary-hazard results for Seismic PRA.";
   sha.documentation.inputsDescription = "Regional and site earth-science data, catalog records, geotechnical investigations, and strong-motion models are controlled and traceable.";
   sha.documentation.modelStructureDescription = "Coupled source, ground-motion, and site-response logic trees are integrated into mean and fractile control-point hazard.";
@@ -1759,65 +1548,14 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     retainedInitiatingEventRefs: ["INITIATOR-DIRECT-GROUND-MOTION", "INITIATOR-LIQUEFACTION"],
     implementsSrs: srs("SPR-A1", "SPR-A2", "SPR-A3", "SPR-A4"),
   };
-  const equipment = [
-    { id: "SEL-PRIMARY", name: primarySsc, type: "COMPONENT" as const, function: isSfr ? "Maintain primary sodium circulation or provide coastdown" : "Maintain forced helium circulation when credited", failure: "FAILURE-MODE-PRIMARY", fragility: "FRAGILITY-PRIMARY" },
-    { id: "SEL-SECONDARY", name: secondarySsc, type: "SYSTEM" as const, function: isSfr ? "Provide passive/active decay heat rejection" : "Provide passive cavity heat removal", failure: "FAILURE-MODE-SECONDARY", fragility: "FRAGILITY-SECONDARY" },
-  ].map((item) => ({
-    uuid: item.id,
-    name: item.name,
-    sscType: item.type,
-    componentRef: item.id === "SEL-PRIMARY" ? "COMPONENT-PRIMARY" : undefined,
-    systemRef: item.id === "SEL-SECONDARY" ? "SYSTEM-DECAY-HEAT-REMOVAL" : "SYSTEM-PRIMARY-HEAT-TRANSPORT",
-    reactorUnitRefs: [isSfr ? "UNIT-1" : "MODULES-1-4"],
-    radioactiveMaterialSourceRefs: ["SOURCE-REACTOR"],
-    building,
-    roomOrArea: item.id === "SEL-PRIMARY" ? "Primary equipment area" : "Heat removal area",
-    elevation: isSfr ? "812 m" : "1460 m",
-    orientation: "Plant coordinate axes",
-    mountingAndAnchorage: "Qualified steel frame and post-installed/embedded anchorage represented in fragility evaluation.",
-    creditedFunctions: [item.function],
-    inclusionSources: ["INTERNAL_EVENTS_SYSTEM_MODEL" as const, "SEISMIC_EVENT_SEQUENCE_MODEL" as const, "SECONDARY_HAZARD" as const],
-    sourceElementRefs: ["SY-REFERENCE-MODEL", "ES-SEISMIC-DAMAGE"],
-    failureModes: [{
-      uuid: item.failure,
-      name: `${item.name} loss of credited function`,
-      failureModeType: item.id === "SEL-PRIMARY" ? "FUNCTIONAL" as const : isSfr ? "SOIL_FAILURE" as const : "ANCHORAGE" as const,
-      description: `Seismically induced failure prevents ${item.function.toLowerCase()}.`,
-      creditedFunction: item.function,
-      failureDefinition: "Loss of the credited state for the required mission time.",
-      requiredState: "FUNCTION_AFTER_EARTHQUAKE" as const,
-      systemModelBasicEventRefs: [`BE-${item.id}`],
-      eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
-      fragilityMechanismRefs: [item.id === "SEL-PRIMARY" ? "MECHANISM-PRIMARY" : "MECHANISM-SECONDARY"],
-      consequenceDescription: "Challenges successful heat removal and increases release-sequence frequency.",
-      implementsSrs: srs("SPR-B1", "SPR-B3", "SPR-C2"),
-    }],
-    correlationGroupRefs: ["CORR-COLOCATED-EQUIPMENT"],
-    fragilityAnalysisRef: item.fragility,
-    disposition: "ACTIVE" as const,
-    dispositionBasis: "Explicitly modeled because preliminary quantification and capability review show potential risk significance.",
-    revisionHistory: [{ date: "2026-05-01", action: "ADDED" as const, reason: "Initial Seismic PRA scope reconciliation", actor: "example.preparer" }],
-    implementsSrs: srs("SPR-B1", "SPR-B2", "SPR-C1", "SPR-C2"),
-  }));
-  spr.seismicEquipmentListDevelopment = {
-    internalEventsSystemsModelRef: "SY-REFERENCE-MODEL",
-    additionalSeismicSystemRefs: ["SYSTEM-SEISMIC-SUPPORT"],
-    equipment,
-    internalFloodSourceRefs: [],
-    internalFireIgnitionSourceRefs: [],
-    secondaryHazardSscRefs: ["SEL-SECONDARY"],
-    additionalStructuresAndPassiveSscRefs: ["STRUCTURE-REACTOR-BUILDING"],
-    failureModeIdentificationProcess: "Trace every seismic initiator and event sequence through system logic, passive structures, flood/fire sources, secondary hazards, relays, supports, and interactions.",
-    systemsFragilityAnalystCoordination: "Joint SEL reviews reconcile identifiers, failure definitions, response locations, fragility mechanisms, and correlation groups.",
-    completenessChecks: ["Every seismic basic event maps to an SEL failure mode", "every active SEL failure mode maps to fragility", "retained SHA hazards map to affected SEL items"],
-    revisionBasis: "Controlled revisions follow system-model changes, design information, investigation findings, and fragility updates.",
-    implementsSrs: srs("SPR-B1", "SPR-B2", "SPR-B3", "SPR-B4"),
-  };
+  const equipment = populateSelAndResponse(mef, kind, building);
   spr.plantResponseModel.baseInternalEventsModelRefs = ["ES-REFERENCE-MODEL", "SY-REFERENCE-MODEL", "SC-REFERENCE-BASIS"];
   spr.plantResponseModel.baseNonSeismicHazardModelRefs = ["INTERNAL-FLOOD-REFERENCE", "INTERNAL-FIRE-REFERENCE"];
   spr.plantResponseModel.eventSequenceRefs = ["ES-SEISMIC-SUCCESS", "ES-SEISMIC-DAMAGE"];
   spr.plantResponseModel.systemsLogicModelRefs = ["SY-SEISMIC-MODEL"];
-  spr.plantResponseModel.inducedFailures = equipment.map((item, index) => ({
+  spr.plantResponseModel.inducedFailures = equipment
+    .filter((item) => item.disposition === "ACTIVE")
+    .map((item, index) => ({
     uuid: `INDUCED-FAILURE-${index + 1}`,
     name: item.failureModes[0]!.name,
     sscRef: item.uuid,
@@ -1830,8 +1568,8 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     causalDependencyRefs: [],
     eventSequenceRefs: item.failureModes[0]!.eventSequenceRefs ?? [],
     modelImplementation: "Hazard-bin-dependent basic-event probability obtained from the linked mean fragility curve.",
-    implementsSrs: srs("SPR-B3", "SPR-B5", "SPR-B6"),
-  }));
+      implementsSrs: srs("SPR-B3", "SPR-B5", "SPR-B6"),
+    }));
   spr.plantResponseModel.plantOperatingStateRefs = ["POS-POWER", "POS-SHUTDOWN"];
   spr.plantResponseModel.radioactiveMaterialSourceRefs = ["SOURCE-REACTOR", "SOURCE-SPENT-FUEL"];
   spr.plantResponseModel.fragilityThresholds = [{
@@ -1960,7 +1698,14 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     pointEstimateFrequency: isSfr ? 3.2e-5 : 2.4e-5,
     meanFrequency: isSfr ? 3.5e-5 : 2.6e-5,
     frequencyUnit: "PER_PLANT_YEAR",
-    hazardBinContributions: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((interval, index) => ({ binRef: `SPR-${interval.uuid}`, frequencyContribution: (isSfr ? [3e-6, 9e-6, 1.4e-5, 6e-6] : [2e-6, 7e-6, 1e-5, 5e-6])[index]! })),
+    hazardBinContributions: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((interval, index) => ({
+      binRef: `SPR-${interval.uuid}`,
+      frequencyContribution: (
+        isSfr
+          ? [4e-7, 1.1e-6, 3.4e-6, 8.3e-6, 1.02e-5, 6.7e-6, 2.1e-6, 3e-7]
+          : [3e-7, 8e-7, 2.5e-6, 6.2e-6, 7.8e-6, 5.1e-6, 1.6e-6, 2e-7]
+      )[index]!,
+    })),
     uncertaintyContributions: [
       { sourceType: "HAZARD", sourceRef: "GM-LT-1", contributionDescription: "Ground-motion model median and sigma." },
       { sourceType: "FRAGILITY", sourceRef: "FRAGILITY-SECONDARY", contributionDescription: "Secondary SSC capacity and beta uncertainty." },

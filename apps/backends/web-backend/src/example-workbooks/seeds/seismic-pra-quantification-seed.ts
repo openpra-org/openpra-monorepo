@@ -140,6 +140,20 @@ function familySeeds(kind: ReactorKind): FamilySeed[] {
       weights: [0, 0, 0.02, 0.12, 0.28, 0.3, 0.2, 0.08],
     },
     {
+      id: "ESF-QUANT-EXTERNAL-FLOOD",
+      name: "Seismically induced upstream-reservoir flooding",
+      familyRef: "ESF-SEISMIC-EXTERNAL-FLOOD",
+      initiators: ["INITIATOR-EXTERNAL-FLOOD"],
+      sequences: ["ES-SEISMIC-EXTERNAL-FLOOD"],
+      releaseCategory: "RC-SEISMIC-LIMITED-RELEASE",
+      sourceTerm: isSfr ? "MS-SFR-REACTOR-RELEASE" : "MS-HTGR-FUEL-RELEASE",
+      point: isSfr ? 2.2e-7 : 1.4e-7,
+      mean: isSfr ? 3e-7 : 1.9e-7,
+      median: isSfr ? 1.3e-7 : 8e-8,
+      errorFactor: 5.5,
+      weights: [0, 0, 0.01, 0.09, 0.27, 0.33, 0.22, 0.08],
+    },
+    {
       id: "ESF-QUANT-COMBINED",
       name: isSfr
         ? "Seismic sodium-boundary release and fire"
@@ -559,6 +573,9 @@ export function populateQuantification(
   const combined = quant.eventSequenceFamilyQuantifications.find(
     (family) => family.uuid === "ESF-QUANT-COMBINED",
   )!;
+  const externalFlood = quant.eventSequenceFamilyQuantifications.find(
+    (family) => family.uuid === "ESF-QUANT-EXTERNAL-FLOOD",
+  )!;
   quant.rareEventApproximationAssessments = [
     {
       uuid: "RARE-EVENT-SATURATED-FRAGILITY",
@@ -885,6 +902,24 @@ export function populateQuantification(
       importance: ImportanceLevel.MEDIUM,
       designOperationMaintenanceContext: "Foundation improvement, buried-service flexibility, alternate access, and monitoring determine the retained soil-deformation contribution.",
       riskInsight: "Preserve the alternate heat-removal path and verify ground-improvement acceptance criteria.",
+      implementsSrs: srs("SPR-E4", "SPR-E8"),
+    },
+    {
+      uuid: "CONTRIBUTOR-EXTERNAL-FLOOD",
+      name: "Seismically induced upstream-reservoir flooding",
+      contributorType: "INITIATING_EVENT",
+      contributorRef: "INITIATOR-EXTERNAL-FLOOD",
+      affectedEventSequenceFamilyRefs: [
+        externalFlood.eventSequenceFamilyRef,
+        damage.eventSequenceFamilyRef,
+      ],
+      contributionValue: rounded(
+        (externalFlood.meanFrequency ?? 0) / totalReleaseFrequency,
+      ),
+      contributionMetric: "Fraction of aggregate release-family mean frequency",
+      importance: ImportanceLevel.MEDIUM,
+      designOperationMaintenanceContext: "Reservoir operating range, embankment condition, drainage geometry, flood-door and penetration configuration, protected electrical boundaries, and post-earthquake access control the contribution.",
+      riskInsight: "Maintain reservoir surveillance, site drainage, flood barriers, penetration seals, and the protected access route as one configuration-controlled external-flood defense.",
       implementsSrs: srs("SPR-E4", "SPR-E8"),
     },
     {

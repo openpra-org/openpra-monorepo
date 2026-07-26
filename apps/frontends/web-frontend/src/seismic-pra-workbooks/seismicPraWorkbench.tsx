@@ -144,10 +144,7 @@ function ConformanceDock({ mobileOpen, onClose, onGoToSetup }: { mobileOpen: boo
         </div>
         {sectionItems.map((item) => <div key={item.id} className={`posdock__item posdock__item--${item.status}`}>
           <span className="posdock__item-dot" />
-          <span>
-            <span className="posdock__item-text">{item.text}</span>
-            <span className="posdock__item-meta">{item.meta}</span>
-          </span>
+          <span className="posdock__item-text">{item.text}</span>
         </div>)}
       </div>)}
     </div>

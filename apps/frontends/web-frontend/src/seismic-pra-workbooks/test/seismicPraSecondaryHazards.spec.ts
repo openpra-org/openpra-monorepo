@@ -32,17 +32,19 @@ describe("Seismic PRA Step 07 secondary hazards", () => {
   );
 
   it.each(["htgr", "sfr"] as const)(
-    "screens six hazards and quantifies the retained liquefaction hazard for %s",
+    "screens five hazards and completes both retained hazard paths for %s",
     (variant) => {
       const mef = createSeismicPraExample(variant);
       const hazards =
         mef.seismicHazardAnalysis.secondaryHazardEvaluation.hazards;
       const screened = hazards.filter((hazard) =>
         hazard.screening.disposition === "SCREENED_OUT");
-      const retained = hazards.find((hazard) =>
-        hazard.screening.disposition === "RETAINED");
+      const liquefaction = hazards.find((hazard) =>
+        hazard.uuid === "SECONDARY-LIQUEFACTION");
+      const externalFlood = hazards.find((hazard) =>
+        hazard.uuid === "SECONDARY-EXTERNAL-FLOODING");
 
-      expect(screened).toHaveLength(6);
+      expect(screened).toHaveLength(5);
       expect(screened.every((hazard) =>
         ["SCR-2", "SCR-3"].includes(hazard.screening.criterion)
         && hazard.screening.demonstrablyConservative
@@ -50,16 +52,32 @@ describe("Seismic PRA Step 07 secondary hazards", () => {
         && hazard.screening.screeningBasis.length > 0
         && hazard.screening.calculationsAndEvidenceRefs.length > 0)).toBe(true);
 
-      expect(retained?.uuid).toBe("SECONDARY-LIQUEFACTION");
-      expect(retained?.screening.criterion).toBe("NOT_SCREENED");
-      expect(retained?.retainedAnalysis?.hazardCurves).toHaveLength(4);
-      expect(retained?.retainedAnalysis?.hazardCurves.every((curve) =>
+      expect(liquefaction?.screening.criterion).toBe("NOT_SCREENED");
+      expect(liquefaction?.retainedAnalysis?.hazardCurves).toHaveLength(4);
+      expect(liquefaction?.retainedAnalysis?.hazardCurves.every((curve) =>
         curve.points.length === 9)).toBe(true);
-      expect(retained?.retainedAnalysis?.failureMechanisms).toHaveLength(2);
-      expect(retained?.retainedAnalysis?.uncertainties).toHaveLength(4);
-      expect(retained?.retainedAnalysis?.dataAndModelRefs).toHaveLength(6);
-      expect(retained?.retainedAnalysis?.affectedSeismicEquipmentListItemRefs)
+      expect(liquefaction?.retainedAnalysis?.failureMechanisms).toHaveLength(2);
+      expect(liquefaction?.retainedAnalysis?.uncertainties).toHaveLength(4);
+      expect(liquefaction?.retainedAnalysis?.dataAndModelRefs).toHaveLength(6);
+      expect(liquefaction?.retainedAnalysis?.affectedSeismicEquipmentListItemRefs)
         .toEqual(["SEL-SECONDARY"]);
+
+      expect(externalFlood?.screening).toMatchObject({
+        disposition: "RETAINED",
+        criterion: "NOT_SCREENED",
+      });
+      expect(externalFlood?.externalFloodingInterface?.interfaceRequirements)
+        .toHaveLength(7);
+      expect(externalFlood?.externalFloodingInterface?.interfaceRequirements
+        .every((requirement) =>
+          requirement.applicable
+          && requirement.status === "MET"
+          && requirement.satisfiedByRefs.length > 0
+          && requirement.evidence.length > 80)).toBe(true);
+      expect(externalFlood?.externalFloodingInterface?.hazardParameterResultsRefs)
+        .toHaveLength(4);
+      expect(externalFlood?.externalFloodingInterface?.fragilityFailureMechanismRefs)
+        .toHaveLength(4);
     },
   );
 
@@ -136,7 +154,7 @@ describe("Seismic PRA HLR-H readiness", () => {
         "SHA-H1": "ok",
         "SHA-H2": "ok",
         "SHA-H3": "ok",
-        "SHA-H4": "na",
+        "SHA-H4": "ok",
       });
     },
   );
@@ -176,11 +194,9 @@ describe("Seismic PRA HLR-H readiness", () => {
     const flood = mef.seismicHazardAnalysis.secondaryHazardEvaluation
       .hazards.find((hazard) =>
         hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING")!;
-    const liquefaction = mef.seismicHazardAnalysis.secondaryHazardEvaluation
-      .hazards.find((hazard) => hazard.uuid === "SECONDARY-LIQUEFACTION")!;
-    flood.screening.disposition = "RETAINED";
-    flood.screening.criterion = "NOT_SCREENED";
-    flood.retainedAnalysis = liquefaction.retainedAnalysis;
+    if (flood.externalFloodingInterface !== undefined) {
+      flood.externalFloodingInterface.interfaceRequirements = [];
+    }
 
     expect(seismicConformanceItems(mef)
       .find((item) => item.id === "SHA-H4")?.status).toBe("warn");

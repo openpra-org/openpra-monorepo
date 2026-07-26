@@ -2345,7 +2345,10 @@ function SecondaryHazardsScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const evaluation = mef.seismicHazardAnalysis.secondaryHazardEvaluation;
   const retainedHazards = evaluation.hazards.filter((hazard) => hazard.screening.disposition === "RETAINED" && hazard.retainedAnalysis !== undefined);
-  const retainedFloods = retainedHazards.filter((hazard) => hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING" && hazard.externalFloodingInterface !== undefined);
+  const retainedFloods = evaluation.hazards.filter((hazard) =>
+    hazard.screening.disposition === "RETAINED"
+    && hazard.hazardType === "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING"
+    && hazard.externalFloodingInterface !== undefined);
   const [basisOpen, setBasisOpen] = useState(false);
   const [hazardIndex, setHazardIndex] = useState<number | null | undefined>(undefined);
   const [selectedRetainedRef, setSelectedRetainedRef] = useState(retainedHazards[0]?.uuid ?? "");

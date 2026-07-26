@@ -240,7 +240,7 @@ const SFR_ACTIONS: ActionSeed[] = [
     required: 13,
     hep: 0.011,
     errorFactor: 5,
-    training: "The seismic response procedure and simulator scenario cover scram confirmation, primary pump coastdown, and DRACS/RVACS status.",
+    training: "The seismic response procedure and simulator scenario cover scram confirmation, primary pump coastdown, and both passive DRACS train statuses.",
     workload: "Scram alarms, sodium leak checks, electrical status, and spent-fuel monitoring create high early workload.",
     mitigation: "Negative reactivity feedback, scram, thermal inertia, and passive heat rejection preserve diagnosis time.",
     access: "All credited diagnosis uses qualified control-room indications during the initial response.",

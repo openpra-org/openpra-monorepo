@@ -102,9 +102,9 @@ describe("Seismic PRA Step 11 plant-response model", () => {
       expect(model.inducedFailures).toHaveLength(2);
       expect(model.fragilityThresholds).toHaveLength(4);
       expect(model.contactChatterModels).toHaveLength(1);
-      expect(model.missionTimeAssessments).toHaveLength(5);
+      expect(model.missionTimeAssessments).toHaveLength(6);
       expect(model.newSeismicLogic).toHaveLength(5);
-      expect(model.retainedHazardModels).toHaveLength(1);
+      expect(model.retainedHazardModels).toHaveLength(2);
       expect(model.multiReactorModels).toHaveLength(1);
       expect(model.modificationsFromBaseModel.length).toBeGreaterThanOrEqual(10);
       expect(model.completenessAndConsistencyReview.length)
@@ -165,6 +165,13 @@ describe("Seismic PRA Step 11 plant-response model", () => {
         .toBe("SECONDARY-LIQUEFACTION");
       expect(model.retainedHazardModels[0]?.requirementCompliance)
         .toHaveLength(2);
+      expect(model.retainedHazardModels[1]).toMatchObject({
+        hazardAnalysisRef: "SECONDARY-EXTERNAL-FLOODING",
+        hazardType: "EXTERNAL_FLOOD",
+        initiatingEventRefs: ["INITIATOR-EXTERNAL-FLOOD"],
+      });
+      expect(model.retainedHazardModels[1]?.requirementCompliance)
+        .toHaveLength(7);
       expect(() => SeismicPRASchema.parse(mef)).not.toThrow();
     },
   );
@@ -196,7 +203,7 @@ describe("Seismic PRA Step 11 conformance", () => {
         "SPR-B8": "ok",
         "SPR-B9": "na",
         "SPR-B10": "na",
-        "SPR-B11": "na",
+        "SPR-B11": "ok",
         "SPR-B12": "ok",
         "SPR-B13": variant === "htgr" ? "ok" : "na",
       });

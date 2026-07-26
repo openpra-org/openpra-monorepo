@@ -276,7 +276,7 @@ function sourceAndGroundMotionRequirementSatisfied(mef: SeismicPRA, sr: string):
 }
 
 function siteResponseRequirementApplicable(mef: SeismicPRA, sr: string): boolean {
-  return !["SHA-E2", "SHA-E4", "SHA-E6"].includes(sr)
+  return !["SHA-E2", "SHA-E4", "SHA-E6", "SHA-I3"].includes(sr)
     || mef.seismicHazardAnalysis.analysisBasis.site.siteBasis === "BOUNDING_SITE";
 }
 
@@ -1731,7 +1731,11 @@ function seismicConformanceItems(mef: SeismicPRA): SeismicConformanceItem[] {
       && siteResponseRequirementApplicable(mef, sr)
       && secondaryHazardRequirementApplicable(mef, sr)
       && plantResponseRequirementApplicable(mef, sr);
-    const recordedStatus = requirementApplicable ? statusTone(row?.status ?? "PENDING_REVIEW") : "na";
+    const recordedStatus = !requirementApplicable
+      ? "na"
+      : row?.status === "NOT_APPLICABLE"
+        ? "warn"
+        : statusTone(row?.status ?? "PENDING_REVIEW");
     const evidenceSatisfied = earthScienceRequirementSatisfied(mef, sr)
       && sourceAndGroundMotionRequirementSatisfied(mef, sr)
       && siteResponseRequirementSatisfied(mef, sr)

@@ -40,7 +40,37 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     siteName: site,
     numberOfModules: isSfr ? 1 : 4,
   };
-  mef.metadata.limitations = ["Reference-design information is used where final as-built data are not yet available."];
+  mef.metadata.limitations = [
+    "This is an illustrative fictional reference design and site. Hazard curves, fragilities, human-error probabilities, and sequence frequencies are synthetic but internally consistent and are not suitable for licensing or safety decisions.",
+    "Reference-design information is used where final as-built data are not yet available.",
+  ];
+  mef.metadata.reviewers = [
+    {
+      id: `REVIEWER-${kind.toUpperCase()}-HAZARD`,
+      name: "Seismic hazard independent reviewer",
+      role: "EXTERNAL_PEER_REVIEWER",
+      organization: "Illustrative independent review team",
+      title: "Hazard review lead",
+      qualification: "SSHAC, PSHA, and site-response review experience",
+    },
+    {
+      id: `REVIEWER-${kind.toUpperCase()}-CAPABILITY`,
+      name: "Seismic capability independent reviewer",
+      role: "EXTERNAL_PEER_REVIEWER",
+      organization: "Illustrative independent review team",
+      title: "Fragility review lead",
+      qualification: "Nuclear structural response, walkdown, and equipment-fragility experience",
+    },
+    {
+      id: `REVIEWER-${kind.toUpperCase()}-SYSTEMS`,
+      name: "Seismic PRA systems independent reviewer",
+      role: "EXTERNAL_PEER_REVIEWER",
+      organization: "Illustrative independent review team",
+      title: "Systems and integration review lead",
+      qualification: "Systems analysis, seismic HRA, quantification, and integrated SPRA experience",
+    },
+  ];
+  mef.activePeerReviewIds = ["SEISMIC-PEER-REVIEW-2026"];
   mef.commonAssumptions = [{
     uuid: `ASSUMPTION-${kind.toUpperCase()}-SITE`,
     description: `The selected ${site} profiles bound the final safety-related building footprint.`,
@@ -127,8 +157,8 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
       verticalDatum: "NAVD88",
     },
     selectionAndApplicabilityBasis: "The defined coordinates, foundation footprint, and geotechnical profiles match the plant configuration used by fragility and response analyses.",
-    boundsAllSitesInScope: true,
-    boundingDemonstration: "The weighted lower, best-estimate, and upper profiles span measured velocity and damping uncertainty.",
+    boundsAllSitesInScope: false,
+    boundingDemonstration: "Not applicable. This is an identified-site analysis; measured profile variability is represented in the site-response logic tree.",
     implementsSrs: srs("SHA-A1"),
   };
   sha.analysisBasis.structuredProcess = {
@@ -138,28 +168,142 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     processType: "SSHAC_LEVEL_2",
     processLevelBasis: "The study complexity, available regional models, and intended CC-II applications support a documented Level 2 process.",
     studyObjective: "Develop technically defensible center, body, and range distributions for seismic sources, ground motion, and site response.",
-    participants: [{
-      uuid: "SHA-PARTICIPANT-TI",
-      name: "Technical Integration Team",
-      organization: "OpenPRA Reference Program",
-      role: "TECHNICAL_INTEGRATOR",
-      discipline: "INTEGRATION",
-      responsibilities: ["Integrate source, ground-motion, and site-response evaluations", "Document CBR judgments"],
-      qualifications: "Senior hazard specialists with SSHAC project experience",
-      conflictOfInterestEvaluation: "No conflicts identified",
-    }],
-    activities: [{
-      uuid: "SHA-ACTIVITY-WORKSHOP",
-      name: "Data evaluation and integration workshop",
-      activityType: "WORKSHOP",
-      date: "2026-03-12",
-      objective: "Challenge alternative interpretations and establish preliminary weights.",
-      participants: ["SHA-PARTICIPANT-TI"],
-      inputs: ["CATALOG-1", "REGIONAL-FAULT-DB", `EARTH-DATA-${kind.toUpperCase()}-STRONG-MOTION`],
-      decisions: ["Retain two source recurrence alternatives and three NGA ground-motion models."],
-      outputs: ["SOURCE-LT-1", "GM-LT-1"],
-      recordReference: "SHA-WORKSHOP-MINUTES-02",
-    }],
+    participants: [
+      {
+        uuid: "SHA-PARTICIPANT-PM",
+        name: "Hazard project manager",
+        organization: "OpenPRA illustrative reference program",
+        role: "PROJECT_MANAGER",
+        discipline: "INTEGRATION",
+        responsibilities: ["Control scope, schedule, records, and quality assurance", "Maintain independence between evaluation and review"],
+        qualifications: "Nuclear-project quality assurance and PSHA project-management experience",
+        conflictOfInterestEvaluation: "No role conflict identified for the illustrative study",
+      },
+      {
+        uuid: "SHA-PARTICIPANT-TI",
+        name: "Technical integrator",
+        organization: "OpenPRA illustrative reference program",
+        role: "TECHNICAL_INTEGRATOR",
+        discipline: "INTEGRATION",
+        responsibilities: ["Integrate source, ground-motion, and site-response evaluations", "Document center, body, and range judgments"],
+        qualifications: "Senior hazard specialist with SSHAC integration experience",
+        conflictOfInterestEvaluation: "No role conflict identified for the illustrative study",
+      },
+      {
+        uuid: "SHA-PARTICIPANT-SSC",
+        name: "Seismic-source evaluator",
+        organization: "OpenPRA illustrative reference program",
+        role: "EVALUATOR_EXPERT",
+        discipline: "GEOLOGY",
+        responsibilities: ["Evaluate tectonic setting, source geometry, recurrence, and maximum magnitude"],
+        qualifications: "Engineering geology, paleoseismology, and seismic-source characterization experience",
+        conflictOfInterestEvaluation: "No role conflict identified for the illustrative study",
+      },
+      {
+        uuid: "SHA-PARTICIPANT-GMC",
+        name: "Ground-motion evaluator",
+        organization: "OpenPRA illustrative reference program",
+        role: "EVALUATOR_EXPERT",
+        discipline: "STRONG_MOTION",
+        responsibilities: ["Evaluate model applicability, component definitions, sigma, and regional residuals"],
+        qualifications: "Strong-motion seismology and probabilistic ground-motion modeling experience",
+        conflictOfInterestEvaluation: "No role conflict identified for the illustrative study",
+      },
+      {
+        uuid: "SHA-PARTICIPANT-SITE",
+        name: "Site-response evaluator",
+        organization: "OpenPRA illustrative reference program",
+        role: "EVALUATOR_EXPERT",
+        discipline: "GEOTECHNICAL",
+        responsibilities: ["Evaluate velocity profiles, dynamic properties, nonlinear response, and reference-horizon transfer"],
+        qualifications: "Geotechnical earthquake engineering and probabilistic site-response experience",
+        conflictOfInterestEvaluation: "No role conflict identified for the illustrative study",
+      },
+      {
+        uuid: "SHA-PARTICIPANT-REVIEW",
+        name: "Independent hazard reviewer",
+        organization: "Illustrative independent review team",
+        role: "PEER_REVIEWER",
+        discipline: "INTEGRATION",
+        responsibilities: ["Review data completeness, technical judgments, calculations, and traceability"],
+        qualifications: "Independent SSHAC, PSHA, and nuclear-site review experience",
+        conflictOfInterestEvaluation: "Independent from model development and weighting",
+      },
+    ],
+    activities: [
+      {
+        uuid: "SHA-ACTIVITY-PLAN",
+        name: "Project planning and scope definition",
+        activityType: "PLANNING",
+        date: "2026-01-08",
+        objective: "Confirm the site, PRA applications, motion definitions, calculation limits, roles, and review controls.",
+        participants: ["SHA-PARTICIPANT-PM", "SHA-PARTICIPANT-TI", "SHA-PARTICIPANT-REVIEW"],
+        inputs: ["PRA-SCOPE-2026", `SITE-${kind.toUpperCase()}`, "ASME-ANS-RA-S-1.4-2021"],
+        decisions: ["Use a documented SSHAC Level 2 process for the identified site and CC-II application."],
+        outputs: ["SHA-PROJECT-PLAN-2026", "SHA-DATA-CUTOFF-2026-01-31"],
+        recordReference: "SHA-PLANNING-MINUTES-01",
+      },
+      {
+        uuid: "SHA-ACTIVITY-DATA",
+        name: "Data compilation and evaluation",
+        activityType: "DATA_EVALUATION",
+        date: "2026-02-12",
+        objective: "Evaluate current regional and site data for quality, applicability, dependence, and gaps.",
+        participants: ["SHA-PARTICIPANT-SSC", "SHA-PARTICIPANT-GMC", "SHA-PARTICIPANT-SITE", "SHA-PARTICIPANT-TI"],
+        inputs: ["CATALOG-1", "USGS-2023-NSHM", `EARTH-DATA-${kind.toUpperCase()}-STRONG-MOTION`, `EARTH-DATA-${kind.toUpperCase()}-VELOCITY`],
+        decisions: ["Retain catalog-completeness, recurrence, path, and site-profile uncertainty for model development."],
+        outputs: ["SHA-DATA-EVALUATION-REPORT-2026", "SHA-ALTERNATIVE-HYPOTHESES-REGISTER"],
+        recordReference: "SHA-DATA-WORKSHOP-MINUTES-01",
+      },
+      {
+        uuid: "SHA-ACTIVITY-MODEL",
+        name: "Source and ground-motion model workshop",
+        activityType: "WORKSHOP",
+        date: "2026-03-12",
+        objective: "Challenge credible alternatives and establish preliminary source and ground-motion weights.",
+        participants: ["SHA-PARTICIPANT-TI", "SHA-PARTICIPANT-SSC", "SHA-PARTICIPANT-GMC", "SHA-PARTICIPANT-REVIEW"],
+        inputs: ["SHA-ALTERNATIVE-HYPOTHESES-REGISTER", `EARTH-DATA-${kind.toUpperCase()}-STRONG-MOTION`, `SOURCE-MODEL-${kind.toUpperCase()}-2026`],
+        decisions: ["Retain four source-model families and four ground-motion model families with conditional applicability."],
+        outputs: [`SOURCE-LT-${kind.toUpperCase()}-2026`, `GM-LT-${kind.toUpperCase()}-2026`],
+        recordReference: "SHA-MODEL-WORKSHOP-MINUTES-02",
+      },
+      {
+        uuid: "SHA-ACTIVITY-SITE",
+        name: "Site-response model development",
+        activityType: "MODEL_DEVELOPMENT",
+        date: "2026-04-09",
+        objective: "Develop weighted velocity, modulus-reduction, damping, and reference-horizon alternatives.",
+        participants: ["SHA-PARTICIPANT-TI", "SHA-PARTICIPANT-SITE", "SHA-PARTICIPANT-GMC"],
+        inputs: [`EARTH-DATA-${kind.toUpperCase()}-VELOCITY`, `REF-HORIZON-${kind.toUpperCase()}-ROCK`],
+        decisions: ["Propagate three measured-profile branches and retain a hard-rock reference-horizon sensitivity."],
+        outputs: ["SITE-RESPONSE-METHOD-1", `SITE-AMPLIFICATION-${kind.toUpperCase()}-WEIGHTED`],
+        recordReference: "SHA-SITE-RESPONSE-DECISION-01",
+      },
+      {
+        uuid: "SHA-ACTIVITY-INTEGRATE",
+        name: "Hazard integration and sensitivity review",
+        activityType: "INTEGRATION",
+        date: "2026-05-14",
+        objective: "Integrate the logic trees and demonstrate center, body, range, numerical stability, and risk-significant uncertainty.",
+        participants: ["SHA-PARTICIPANT-TI", "SHA-PARTICIPANT-SSC", "SHA-PARTICIPANT-GMC", "SHA-PARTICIPANT-SITE"],
+        inputs: [`SOURCE-LT-${kind.toUpperCase()}-2026`, `GM-LT-${kind.toUpperCase()}-2026`, "SITE-RESPONSE-METHOD-1"],
+        decisions: ["Accept converged mean and fractile curves over the selected motion and frequency ranges."],
+        outputs: ["SHA-RESULTS-2026.H5", "SHA-SENSITIVITY-REGISTER-2026"],
+        recordReference: "SHA-INTEGRATION-MINUTES-03",
+      },
+      {
+        uuid: "SHA-ACTIVITY-REVIEW",
+        name: "Independent technical review",
+        activityType: "REVIEW",
+        date: "2026-06-10",
+        objective: "Review implementation, calculations, interfaces, traceability, and open pre-operational limitations.",
+        participants: ["SHA-PARTICIPANT-REVIEW"],
+        inputs: ["SHA-REPORT-2026", "SHA-RESULTS-2026.H5", "SHA-SENSITIVITY-REGISTER-2026"],
+        decisions: ["Accept the illustrative example for demonstration use with the stated non-licensing limitation."],
+        outputs: ["SHA-INDEPENDENT-REVIEW-2026"],
+        recordReference: "SHA-REVIEW-REPORT-2026",
+      },
+    ],
     technicalIntegrationApproach: "Repeated evaluation, challenge, feedback, and documented weighting by the technical integrator.",
     evaluationAndIntegrationMethods: "Data sets and models are evaluated for quality, applicability, and dependence before logic-tree integration.",
     centerBodyRangeDemonstration: "Sensitivity cases and branch diagnostics show that the logic trees span credible interpretations and center on the integrator's best estimate.",
@@ -168,6 +312,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     deviationsAndLimitations: [],
     implementsSrs: srs("SHA-A2"),
   };
+  sha.analysisBasis.implementsSrs = srs("SHA-A1", "SHA-A2", "SHA-A3", "SHA-A4", "SHA-A5", "SHA-A6", "SHA-A7");
   // NRC hazard evaluations use spectral control points at 1, 2.5, 5, 10, and
   // 25 Hz plus PGA; 0.5 Hz is retained for low-frequency structural response.
   const spectralFrequenciesHz = [0.5, 1, 2.5, 5, 10, 25] as const;
@@ -394,7 +539,9 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     name: "Regional seismic study area",
     boundaryDescription: "A 500 km regional source study area with focused propagation review within 200 km and local characterization within 50 km.",
     radialExtentKm: 500,
-    tectonicSetting: isSfr ? "Basin-and-range extension with distributed crustal faulting" : "Stable continental interior adjacent to the Intermountain seismic belt",
+    tectonicSetting: isSfr
+      ? "Western Idaho extensional crust influenced by Basin-and-Range deformation and distributed Intermountain seismicity"
+      : "Western Colorado Plateau near the Basin-and-Range transition, with active extensional faults and distributed background seismicity",
     includedSourceRegions: ["LOCAL-FAULT-ZONE", "REGIONAL-BACKGROUND"],
     majorContributorCoverageBasis: "Deaggregation confirms all sources contributing more than one percent are within the study region.",
     regionalPropagationDataSufficiency: "Regional strong-motion data are supplemented by applicable NGA data.",
@@ -417,22 +564,24 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     duplicateResolutionMethod: "Agency priority hierarchy followed by record-level reconciliation.",
     events: isSfr
       ? [
-        { uuid: "EQ-SFR-HIST-1916", recordType: "HISTORICAL", eventDateOrAge: "1916-07-12", locationDescription: "Southern Idaho historical earthquake", magnitude: 6.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["STATE-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED"] },
-        { uuid: "EQ-SFR-HIST-1944", recordType: "HISTORICAL", eventDateOrAge: "1944-07-12", locationDescription: "Intermountain historical reference earthquake", magnitude: 6.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.25, sourceReferences: ["USGS-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED"] },
+        { uuid: "EQ-SFR-HIST-1934", recordType: "HISTORICAL", eventDateOrAge: "1934-03-12", locationDescription: "Hansel Valley, Utah earthquake used as a regional normal-faulting analog", magnitude: 6.6, magnitudeScale: "Mw", magnitudeUncertainty: 0.2, sourceReferences: ["USGS-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED", "REGIONAL-ANALOG"] },
+        { uuid: "EQ-SFR-HIST-1915", recordType: "HISTORICAL", eventDateOrAge: "1915-10-03", locationDescription: "Pleasant Valley, Nevada earthquake used as a Basin-and-Range normal-faulting analog", magnitude: 7.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.25, sourceReferences: ["USGS-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED", "REGIONAL-ANALOG"] },
         { uuid: "EQ-SFR-INST-1983", recordType: "INSTRUMENTAL", eventDateOrAge: "1983-10-28", locationDescription: "Borah Peak earthquake", magnitude: 6.9, magnitudeScale: "Mw", magnitudeUncertainty: 0.1, depthKm: 16, depthUncertaintyKm: 2, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED"] },
         { uuid: "EQ-SFR-INST-2020", recordType: "INSTRUMENTAL", eventDateOrAge: "2020-03-31", locationDescription: "Stanley earthquake", magnitude: 6.5, magnitudeScale: "Mw", magnitudeUncertainty: 0.08, depthKm: 12, depthUncertaintyKm: 2, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED"] },
-        { uuid: "EQ-SFR-PALEO-LOST-RIVER", recordType: "PALEOSEISMIC", eventDateOrAge: "6.9 ka BP", locationDescription: "Lost River fault paleoseismic event", magnitude: 7.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.3, sourceReferences: ["USGS-QUATERNARY-FAULT-DB", "PUBLISHED-TRENCH-STUDY"], qualityFlags: ["AGE-RANGE"] },
-        { uuid: "EQ-SFR-PALEO-LEMHI", recordType: "PALEOSEISMIC", eventDateOrAge: "15 ka BP", locationDescription: "Lemhi fault paleoseismic event", magnitude: 6.9, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["USGS-QUATERNARY-FAULT-DB"], qualityFlags: ["AGE-RANGE"] },
+        { uuid: "EQ-SFR-PALEO-LOCAL", recordType: "PALEOSEISMIC", eventDateOrAge: "6.9 ka BP", locationDescription: "Illustrative Pioneer Mesa local-source trench event", magnitude: 7.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.3, sourceReferences: ["ILLUSTRATIVE-SITE-TRENCH-LOG-PM-01"], qualityFlags: ["AGE-RANGE", "ILLUSTRATIVE-SITE-DATA"] },
+        { uuid: "EQ-SFR-PALEO-REGIONAL", recordType: "PALEOSEISMIC", eventDateOrAge: "12 to 15 ka BP", locationDescription: "Illustrative central Idaho regional-source surface-rupture event", magnitude: 6.9, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["ILLUSTRATIVE-REGIONAL-PALEO-COMPILATION"], qualityFlags: ["AGE-RANGE", "ILLUSTRATIVE-SITE-DATA"] },
       ]
       : [
         { uuid: "EQ-HTGR-HIST-1887", recordType: "HISTORICAL", eventDateOrAge: "1887-05-03", locationDescription: "Northern Sonora historical earthquake", magnitude: 7.5, magnitudeScale: "Mw", magnitudeUncertainty: 0.3, sourceReferences: ["USGS-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED"] },
-        { uuid: "EQ-HTGR-HIST-1906", recordType: "HISTORICAL", eventDateOrAge: "1906-11-15", locationDescription: "Regional historical reference earthquake", magnitude: 6.2, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["STATE-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED"] },
-        { uuid: "EQ-HTGR-INST-1959", recordType: "INSTRUMENTAL", eventDateOrAge: "1959-08-18", locationDescription: "Intermountain reference earthquake", magnitude: 7.2, magnitudeScale: "Mw", magnitudeUncertainty: 0.15, depthKm: 10, depthUncertaintyKm: 3, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED"] },
-        { uuid: "EQ-HTGR-INST-1992", recordType: "INSTRUMENTAL", eventDateOrAge: "1992-06-28", locationDescription: "Southwestern United States reference earthquake", magnitude: 7.3, magnitudeScale: "Mw", magnitudeUncertainty: 0.1, depthKm: 8, depthUncertaintyKm: 2, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED"] },
-        { uuid: "EQ-HTGR-PALEO-LOCAL", recordType: "PALEOSEISMIC", eventDateOrAge: "4.2 ka BP", locationDescription: "Local fault-zone paleoseismic event", magnitude: 6.8, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["PUBLISHED-TRENCH-STUDY"], qualityFlags: ["AGE-RANGE"] },
-        { uuid: "EQ-HTGR-PALEO-REGIONAL", recordType: "PALEOSEISMIC", eventDateOrAge: "11 ka BP", locationDescription: "Regional fault-system paleoseismic event", magnitude: 7, magnitudeScale: "Mw", magnitudeUncertainty: 0.4, sourceReferences: ["USGS-QUATERNARY-FAULT-DB"], qualityFlags: ["AGE-RANGE"] },
+        { uuid: "EQ-HTGR-HIST-1906", recordType: "HISTORICAL", eventDateOrAge: "1906-11-15", locationDescription: "Flagstaff-area historical earthquake", magnitude: 6.1, magnitudeScale: "Mw", magnitudeUncertainty: 0.3, sourceReferences: ["ARIZONA-GEOLOGICAL-SURVEY-HISTORICAL-CATALOG"], qualityFlags: ["HISTORICAL-REVIEWED"] },
+        { uuid: "EQ-HTGR-INST-1959", recordType: "INSTRUMENTAL", eventDateOrAge: "1959-08-18", locationDescription: "Hebgen Lake earthquake used as an Intermountain normal-faulting analog", magnitude: 7.2, magnitudeScale: "Mw", magnitudeUncertainty: 0.15, depthKm: 10, depthUncertaintyKm: 3, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED", "REGIONAL-ANALOG"] },
+        { uuid: "EQ-HTGR-INST-1992", recordType: "INSTRUMENTAL", eventDateOrAge: "1992-06-28", locationDescription: "Landers earthquake used as a western-US active-crustal analog", magnitude: 7.3, magnitudeScale: "Mw", magnitudeUncertainty: 0.1, depthKm: 8, depthUncertaintyKm: 2, sourceReferences: ["USGS-COMCAT"], qualityFlags: ["REVIEWED", "REGIONAL-ANALOG"] },
+        { uuid: "EQ-HTGR-PALEO-LOCAL", recordType: "PALEOSEISMIC", eventDateOrAge: "4.2 ka BP", locationDescription: "Illustrative Cedar Basin local-source trench event", magnitude: 6.8, magnitudeScale: "Mw", magnitudeUncertainty: 0.35, sourceReferences: ["ILLUSTRATIVE-SITE-TRENCH-LOG-CB-01"], qualityFlags: ["AGE-RANGE", "ILLUSTRATIVE-SITE-DATA"] },
+        { uuid: "EQ-HTGR-PALEO-REGIONAL", recordType: "PALEOSEISMIC", eventDateOrAge: "9 to 12 ka BP", locationDescription: "Illustrative plateau-transition regional-source surface-rupture event", magnitude: 7, magnitudeScale: "Mw", magnitudeUncertainty: 0.4, sourceReferences: ["ILLUSTRATIVE-REGIONAL-PALEO-COMPILATION"], qualityFlags: ["AGE-RANGE", "ILLUSTRATIVE-SITE-DATA"] },
       ],
-    sourceReferences: ["USGS-COMCAT", "USGS-HISTORICAL-CATALOG", "STATE-HISTORICAL-CATALOG", "USGS-QUATERNARY-FAULT-DB"],
+    sourceReferences: isSfr
+      ? ["USGS-COMCAT", "USGS-HISTORICAL-CATALOG", "USGS-QUATERNARY-FAULT-DB", "ILLUSTRATIVE-SITE-TRENCH-LOG-PM-01"]
+      : ["USGS-COMCAT", "USGS-HISTORICAL-CATALOG", "ARIZONA-GEOLOGICAL-SURVEY-HISTORICAL-CATALOG", "USGS-QUATERNARY-FAULT-DB", "ILLUSTRATIVE-SITE-TRENCH-LOG-CB-01"],
     implementsSrs: srs("SHA-B2", "SHA-B3", "SHA-B5"),
   };
   sha.earthScienceInputs.modelAndMethodInventory = [
@@ -544,8 +693,8 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const regionalSourceId = `SOURCE-${kind.toUpperCase()}-REGIONAL-FAULT`;
   const backgroundSourceId = `SOURCE-${kind.toUpperCase()}-BACKGROUND`;
   const distalSourceId = `SOURCE-${kind.toUpperCase()}-DISTAL`;
-  const localPaleoseismicRefs = isSfr ? ["EQ-SFR-PALEO-LOST-RIVER"] : ["EQ-HTGR-PALEO-LOCAL"];
-  const regionalPaleoseismicRefs = isSfr ? ["EQ-SFR-PALEO-LEMHI"] : ["EQ-HTGR-PALEO-REGIONAL"];
+  const localPaleoseismicRefs = isSfr ? ["EQ-SFR-PALEO-LOCAL"] : ["EQ-HTGR-PALEO-LOCAL"];
+  const regionalPaleoseismicRefs = isSfr ? ["EQ-SFR-PALEO-REGIONAL"] : ["EQ-HTGR-PALEO-REGIONAL"];
   const instrumentalEventRefs = isSfr
     ? ["EQ-SFR-INST-1983", "EQ-SFR-INST-2020"]
     : ["EQ-HTGR-INST-1959", "EQ-HTGR-INST-1992"];
@@ -554,7 +703,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sha.sourceCharacterization.earthquakeSources = [
     {
       uuid: localSourceId,
-      name: isSfr ? "Lost River fault system" : "Cedar Basin local fault zone",
+      name: isSfr ? "Pioneer Mesa local fault zone" : "Cedar Basin local fault zone",
       sourceType: "FAULT",
       tectonicRegionType: "Active shallow crust",
       active: true,
@@ -611,7 +760,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     },
     {
       uuid: regionalSourceId,
-      name: isSfr ? "Lemhi fault system" : "Intermountain seismic belt source region",
+      name: isSfr ? "Central Idaho extensional source system" : "Colorado Plateau transition source region",
       sourceType: isSfr ? "FAULT" : "AREA",
       tectonicRegionType: "Active shallow crust",
       active: true,
@@ -666,9 +815,9 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     },
     {
       uuid: backgroundSourceId,
-      name: isSfr ? "Basin and Range background seismicity" : "Cedar Basin background seismicity",
+      name: isSfr ? "Western Idaho background seismicity" : "Cedar Basin transition-zone background seismicity",
       sourceType: "BACKGROUND",
-      tectonicRegionType: isSfr ? "Basin and Range active crust" : "Stable continental and transitional crust",
+      tectonicRegionType: isSfr ? "Basin and Range active crust" : "Colorado Plateau transition active crust",
       active: true,
       faultMechanisms: isSfr ? ["NORMAL", "OBLIQUE", "UNKNOWN"] : ["STRIKE_SLIP", "NORMAL", "UNKNOWN"],
       geometry: {
@@ -704,19 +853,19 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     },
     {
       uuid: distalSourceId,
-      name: isSfr ? "Eastern Snake River Plain source zone" : "Stable continental background source",
-      sourceType: isSfr ? "AREA" : "BACKGROUND",
-      tectonicRegionType: isSfr ? "Volcanic and extensional crust" : "Stable continental crust",
+      name: isSfr ? "Intermountain distributed source zone" : "Basin-and-Range distal source zone",
+      sourceType: "AREA",
+      tectonicRegionType: isSfr ? "Volcanic and extensional crust" : "Basin and Range active crust",
       active: true,
       faultMechanisms: isSfr ? ["NORMAL", "UNKNOWN"] : ["REVERSE", "STRIKE_SLIP", "UNKNOWN"],
       geometry: {
-        geometryType: isSfr ? "AREA" : "VOLUME",
+        geometryType: "AREA",
         geometryDescription: isSfr
-          ? "Regional areal source representing distributed seismicity across the volcanic plain."
-          : "Broad stable-crustal source volume extending across the regional study area.",
+          ? "Regional areal source representing distributed Intermountain and volcanic-plain seismicity."
+          : "Regional areal source representing distributed Basin-and-Range seismicity west of the site.",
         coordinateReferenceSystem: "EPSG:4326",
         geometryFileRef: `SHA-${kind.toUpperCase()}-DISTAL-SOURCE.gpkg`,
-        closestDistanceToSiteKm: isSfr ? 68 : 0,
+        closestDistanceToSiteKm: isSfr ? 68 : 92,
         depthRangeKm: { minimum: 4, maximum: 30 },
         uncertaintyDescription: "Source boundary, seismogenic thickness, activity rate, and maximum magnitude are treated epistemically.",
       },
@@ -814,28 +963,30 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const strongMotionDataRefs = [
     `STRONG-MOTION-${kind.toUpperCase()}-REGIONAL`,
     "STRONG-MOTION-NGA-WEST2",
-    "STRONG-MOTION-NGA-EAST",
+    "STRONG-MOTION-WUS-NORMAL-FAULT",
   ];
   const groundMotionModelWeights = isSfr
-    ? { west: 0.4, east: 0.15, regional: 0.25, simulation: 0.2 }
-    : { west: 0.25, east: 0.35, regional: 0.25, simulation: 0.15 };
+    ? { west: 0.4, national: 0.2, regional: 0.25, simulation: 0.15 }
+    : { west: 0.35, national: 0.25, regional: 0.25, simulation: 0.15 };
   const groundMotionModelIds = {
     west: `GMM-${kind.toUpperCase()}-NGA-WEST2`,
-    east: `GMM-${kind.toUpperCase()}-NGA-EAST`,
+    national: `GMM-${kind.toUpperCase()}-USGS-2023-WUS`,
     regional: `GMM-${kind.toUpperCase()}-REGIONAL`,
     simulation: `GMM-${kind.toUpperCase()}-SIMULATION`,
   };
 
   sha.groundMotionCharacterization.governingMechanisms = isSfr
     ? ["Normal and oblique active-crustal faulting", "Basin and Range background seismicity", "Volcanic-plain distributed seismicity"]
-    : ["Active-crustal faulting", "Stable continental background seismicity", "Transitional-crust path attenuation"];
+    : ["Normal and oblique active-crustal faulting", "Colorado Plateau transition-zone background seismicity", "Basin-and-Range distributed seismicity"];
   sha.groundMotionCharacterization.historicalAndInstrumentalReview = "Macroseismic observations, regional network recordings, strong-motion records, path attenuation, and site-condition metadata were compared with candidate model residuals.";
   sha.groundMotionCharacterization.strongMotionDataSets = [
     {
       uuid: strongMotionDataRefs[0]!,
       name: `${site} regional strong-motion subset`,
       sourceReference: `${earthDataPrefix}-STRONG-MOTION`,
-      tectonicRegions: isSfr ? ["Basin and Range active crust", "Intermountain active crust"] : ["Stable continental crust", "Intermountain active crust"],
+      tectonicRegions: isSfr
+        ? ["Basin and Range active crust", "Intermountain active crust"]
+        : ["Colorado Plateau transition crust", "Basin and Range active crust", "Intermountain active crust"],
       magnitudeRange: { minimum: 3.5, maximum: isSfr ? 7.2 : 7.5 },
       distanceRangeKm: { minimum: 8, maximum: 500 },
       siteConditionRange: "Reference rock through firm soil, with measured or inferred Vs30",
@@ -859,16 +1010,16 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     },
     {
       uuid: strongMotionDataRefs[2]!,
-      name: "NGA-East stable-continental database subset",
-      sourceReference: "NGA-EAST-DATABASE",
-      tectonicRegions: ["Stable continental crust"],
-      magnitudeRange: { minimum: 2.5, maximum: 7.6 },
-      distanceRangeKm: { minimum: 5, maximum: 1500 },
-      siteConditionRange: "Hard rock through firm soil",
-      recordCount: 8900,
-      componentDefinition: "Horizontal geometric-mean motions with consistent magnitude and distance metrics.",
-      qualityScreening: "Database quality flags, bandwidth limits, magnitude conversions, and site-condition screening applied.",
-      useInCalibration: "Constrains stable-crust median, sigma, and long-distance attenuation alternatives.",
+      name: "Project western-US normal-faulting strong-motion subset",
+      sourceReference: "ILLUSTRATIVE-PROJECT-EXTRACT-NGA-WEST2-USGS-2026",
+      tectonicRegions: ["Western United States active shallow crust", "Basin and Range active crust", "Intermountain active crust"],
+      magnitudeRange: { minimum: 3.5, maximum: 7.4 },
+      distanceRangeKm: { minimum: 1, maximum: 400 },
+      siteConditionRange: "Hard rock through firm soil with measured or quality-screened inferred Vs30",
+      recordCount: 1284,
+      componentDefinition: "Three-component records reduced to the project geometric-mean horizontal and vertical definitions.",
+      qualityScreening: "Illustrative project extraction applies mechanism, usable-period, clipping, orientation, distance, and site-metadata checks to public western-US records.",
+      useInCalibration: "Challenges normal-faulting median and sigma behavior in the NGA-West2 and USGS 2023 western-US model implementations.",
     },
   ];
   sha.groundMotionCharacterization.modelSelectionCriteria = [
@@ -898,33 +1049,33 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
       aleatoryVariabilityDescription: "Magnitude- and distance-dependent inter-event and intra-event sigma.",
       sigmaComponents: { total: 0.62, interEvent: 0.28, intraEvent: 0.55 },
       extrapolationAndTruncation: "Risk-significant calculations remain within supported ranges; residuals are integrated to epsilon 3.",
-      applicabilityAndLimitations: "Primary model for active-crustal sources; stable-crust sources use conditional alternatives.",
+      applicabilityAndLimitations: "Primary empirical model for active-crustal sources; common data dependence with the national model suite is accounted for in weighting.",
       calibrationDataRefs: [strongMotionDataRefs[0]!, strongMotionDataRefs[1]!],
       logicTreeWeight: groundMotionModelWeights.west,
       selectionBasis: "Retained for broad data support, mechanism coverage, component compatibility, and regional residual performance.",
       implementsSrs: srs("SHA-D1", "SHA-D2", "SHA-D3", "SHA-D4"),
     },
     {
-      uuid: groundMotionModelIds.east,
-      name: "NGA-East stable-continental ensemble",
+      uuid: groundMotionModelIds.national,
+      name: "USGS 2023 NSHM western-US ground-motion model suite",
       modelKind: "PUBLISHED_GMPE",
-      version: "2018 with 2025 applicability review",
-      sourceReference: "NGA-EAST-ENSEMBLE",
-      tectonicRegionTypes: ["Stable continental crust", "Stable continental and transitional crust"],
-      faultMechanisms: ["REVERSE", "STRIKE_SLIP", "NORMAL", "UNKNOWN"],
-      magnitudeRange: { minimum: 3, maximum: 8.2 },
-      distanceRangeKm: { minimum: 0, maximum: 1500 },
+      version: "2023 with 2026 site-applicability review",
+      sourceReference: "USGS-2023-NSHM-GROUND-MOTION-WUS",
+      tectonicRegionTypes: ["Western United States active shallow crust", "Basin and Range active crust", "Intermountain active crust"],
+      faultMechanisms: ["NORMAL", "OBLIQUE", "STRIKE_SLIP", "REVERSE", "UNKNOWN"],
+      magnitudeRange: { minimum: 3, maximum: 8.5 },
+      distanceRangeKm: { minimum: 0, maximum: 500 },
       supportedParameterRefs: groundMotionParameterRefs,
-      horizontalComponentDefinition: "Geometric-mean horizontal motion on the project reference-rock basis.",
-      siteTermDefinition: "Hard-rock median adjusted to the selected reference-rock horizon before local site response.",
-      medianModelDescription: "Stable-continental median suite spanning alternative stress-drop and attenuation models.",
-      aleatoryVariabilityDescription: "Magnitude-dependent ergodic sigma with a non-ergodic sensitivity treatment.",
-      sigmaComponents: { total: 0.68, interEvent: 0.3, intraEvent: 0.61 },
-      extrapolationAndTruncation: "The calculation uses supported magnitude-distance ranges and epsilon 3 truncation.",
-      applicabilityAndLimitations: "Applied conditionally to stable and transitional crust; sparse nearby large events drive epistemic spread.",
+      horizontalComponentDefinition: "Published western-US horizontal components converted to the project geometric-mean definition.",
+      siteTermDefinition: "Western-US reference-rock medians are transferred to the project horizon before probabilistic local site response.",
+      medianModelDescription: "The current national western-US logic tree combines active-crustal median models, normal-faulting treatment, basin effects, and epistemic adjustments.",
+      aleatoryVariabilityDescription: "Model-specific magnitude-, distance-, and period-dependent sigma is retained with common-data dependence tracked.",
+      sigmaComponents: { total: 0.63, interEvent: 0.28, intraEvent: 0.56 },
+      extrapolationAndTruncation: "The calculation remains within the evaluated western-US magnitude-distance range and integrates residuals to epsilon 3.",
+      applicabilityAndLimitations: "Used as a current national-model comparison; dependence on NGA-West2 data reduces its otherwise independent weight.",
       calibrationDataRefs: [strongMotionDataRefs[0]!, strongMotionDataRefs[2]!],
-      logicTreeWeight: groundMotionModelWeights.east,
-      selectionBasis: "Retained to represent stable-crust attenuation, stress-drop, and sigma alternatives.",
+      logicTreeWeight: groundMotionModelWeights.national,
+      selectionBasis: "Retained to reflect the current USGS western-US hazard-model implementation and alternative model weighting.",
       implementsSrs: srs("SHA-D1", "SHA-D2", "SHA-D3", "SHA-D4"),
     },
     {
@@ -933,7 +1084,9 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
       modelKind: "PROJECT_SPECIFIC_GMPE",
       version: "2026.1",
       sourceReference: `SHA-${kind.toUpperCase()}-REGIONAL-GMM-2026`,
-      tectonicRegionTypes: isSfr ? ["Basin and Range active crust", "Volcanic and extensional crust"] : ["Stable continental and transitional crust", "Active shallow crust"],
+      tectonicRegionTypes: isSfr
+        ? ["Basin and Range active crust", "Volcanic and extensional crust"]
+        : ["Colorado Plateau transition crust", "Basin and Range active crust", "Active shallow crust"],
       faultMechanisms: ["NORMAL", "OBLIQUE", "STRIKE_SLIP", "UNKNOWN"],
       magnitudeRange: { minimum: 3.5, maximum: 7.6 },
       distanceRangeKm: { minimum: 5, maximum: 500 },
@@ -956,7 +1109,9 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
       modelKind: "HYBRID",
       version: "2026.1",
       sourceReference: `SHA-${kind.toUpperCase()}-BROADBAND-SIM-2026`,
-      tectonicRegionTypes: isSfr ? ["Basin and Range active crust"] : ["Stable continental crust", "Active shallow crust"],
+      tectonicRegionTypes: isSfr
+        ? ["Basin and Range active crust"]
+        : ["Colorado Plateau transition crust", "Basin and Range active crust", "Active shallow crust"],
       faultMechanisms: ["NORMAL", "OBLIQUE", "STRIKE_SLIP", "REVERSE"],
       magnitudeRange: { minimum: 5, maximum: 8 },
       distanceRangeKm: { minimum: 2, maximum: 500 },
@@ -985,7 +1140,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
         nodeKind: "GROUND_MOTION_MODEL",
         branches: [
           { uuid: `GM-BRANCH-${kind.toUpperCase()}-WEST`, name: "Active-crustal ensemble", modelRef: groundMotionModelIds.west, weight: groundMotionModelWeights.west, technicalBasis: "Broad active-crustal database and regional applicability.", dataSupport: [strongMotionDataRefs[0]!, strongMotionDataRefs[1]!] },
-          { uuid: `GM-BRANCH-${kind.toUpperCase()}-EAST`, name: "Stable-continental ensemble", modelRef: groundMotionModelIds.east, weight: groundMotionModelWeights.east, technicalBasis: "Stable-crust attenuation and stress-drop alternatives.", dataSupport: [strongMotionDataRefs[0]!, strongMotionDataRefs[2]!] },
+          { uuid: `GM-BRANCH-${kind.toUpperCase()}-NATIONAL`, name: "USGS 2023 western-US model suite", modelRef: groundMotionModelIds.national, weight: groundMotionModelWeights.national, technicalBasis: "Current national western-US model implementation with explicit dependence adjustment.", dataSupport: [strongMotionDataRefs[0]!, strongMotionDataRefs[2]!] },
           { uuid: `GM-BRANCH-${kind.toUpperCase()}-REGIONAL`, name: "Regional empirical adjustment", modelRef: groundMotionModelIds.regional, weight: groundMotionModelWeights.regional, technicalBasis: "Observed regional residual trends.", dataSupport: strongMotionDataRefs },
           { uuid: `GM-BRANCH-${kind.toUpperCase()}-SIM`, name: "Simulation-informed model", modelRef: groundMotionModelIds.simulation, weight: groundMotionModelWeights.simulation, technicalBasis: "Independent large-magnitude and near-source behavior.", dataSupport: strongMotionDataRefs },
         ],
@@ -1149,12 +1304,33 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sha.documentation.processDescription = "A structured SSHAC Level 2 process develops source, ground-motion, site-response, spectra, and secondary-hazard results for Seismic PRA.";
   sha.documentation.inputsDescription = "Regional and site earth-science data, catalog records, geotechnical investigations, and strong-motion models are controlled and traceable.";
   sha.documentation.modelStructureDescription = "Coupled source, ground-motion, and site-response logic trees are integrated into mean and fractile control-point hazard.";
+  sha.documentation.structuredProcessDescription = "Planning, data evaluation, evaluator workshops, model development, technical integration, sensitivity review, and independent review document the technically defensible center, body, and range.";
+  sha.documentation.sourceCharacterizationMethods = "Mapped and distributed active-crustal sources use alternative geometry, recurrence, maximum-magnitude, and event-allocation models constrained by the catalog, deformation, geophysics, and illustrative site-specific paleoseismic observations.";
+  sha.documentation.groundMotionCharacterizationMethods = "NGA-West2, the USGS 2023 western-US implementation, project regional residuals, and broadband simulations are evaluated on one component and reference-horizon basis with explicit median, sigma, and dependence treatment.";
+  sha.documentation.localSiteResponseMethods = "Weighted lower, best-estimate, and upper velocity profiles combine measured density, modulus-reduction, and damping distributions in probabilistic one-dimensional response, with multidimensional and reference-horizon sensitivities.";
+  sha.documentation.scientificInterpretations = `The ${site} model treats nearby active faulting, regional distributed seismicity, path attenuation, and nonlinear site response as coupled interpretations rather than fixed values.`;
   sha.documentation.hazardResultsSummary = "Mean curves and spectra cover 1E-2 to below 1E-8 per plant-year and are discretized for response quantification.";
   sha.documentation.secondaryHazardMethods = "Secondary mechanisms are systematically identified, screened, or retained with hazard and fragility interfaces.";
   sha.documentation.riskSignificantUncertaintiesAndAssumptions = "Local-fault recurrence, ground-motion median, and nonlinear site response dominate hazard uncertainty.";
   sha.documentation.modelUncertaintyDocumentation = "Reasonable source, prediction-model, and site-response alternatives are carried in the logic tree or sensitivity studies.";
-  sha.documentation.dataAndModelReferences = [`SHA-${kind.toUpperCase()}-GEOLOGY-2026`, "SOURCE-MODEL-2026", "GM-LT-1", "SITE-RESPONSE-METHOD-1"];
+  sha.documentation.verticalSpectraMethods = "Vertical spectra use hazard-consistent vertical-to-horizontal ratios checked against available vertical recordings and preserve frequency dependence, uncertainty, damping, units, and the common foundation control point.";
+  sha.documentation.existingAnalysisEvaluation = "Current source and ground-motion models were compared with the prior regional framework; material mapping, recurrence, path, and simulation updates were incorporated through targeted model and weight revisions.";
+  sha.documentation.limitations = [...mef.metadata.limitations];
+  sha.documentation.dataAndModelReferences = [
+    `SHA-${kind.toUpperCase()}-GEOLOGY-2026`,
+    sourceModelRef,
+    `SOURCE-LT-${kind.toUpperCase()}-2026`,
+    `GM-LT-${kind.toUpperCase()}-2026`,
+    "USGS-2023-NSHM",
+    "SITE-RESPONSE-METHOD-1",
+  ];
   sha.documentation.calculationFileRefs = ["SHA-RESULTS-2026.H5"];
+  sha.documentation.reviewRecordRefs = [
+    "SHA-DATA-WORKSHOP-MINUTES-01",
+    "SHA-MODEL-WORKSHOP-MINUTES-02",
+    "SHA-INTEGRATION-MINUTES-03",
+    "SHA-REVIEW-REPORT-2026",
+  ];
   sha.documentation.traceabilityLinks = [
     {
       uuid: "TRACE-SHA-DATA-RESULT",
@@ -1297,8 +1473,15 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sfr.documentation.seismicResponseAnalysis = "Median-centered 3-D response and SSI simulations propagate aleatory and epistemic response variability.";
   sfr.documentation.ruggedAndThresholdMethodology = "Ruggedness and cumulative threshold methods include anchorage, supports, caveats, correlations, and final model confirmation.";
   sfr.documentation.investigationProcedures = "Risk-informed computerized walkdown and document review cover all SEL items and relevant interactions.";
+  sfr.documentation.investigationTeamAndQualifications = "The illustrative team combines seismic walkdown leadership, structural and geotechnical engineers, equipment-capability specialists, systems analysts, fire and flood specialists, and plant-operations reviewers; independent reviewers cover response, anchorage, mechanisms, capacity, uncertainty, and model transfer.";
+  sfr.documentation.investigationObservationsAndConclusions = "Investigations confirm credited load paths and anchorage where supported, identify interaction and secondary-hazard sources requiring explicit modeling, and retain pre-operational confirmation items for inaccessible or not-yet-installed SSCs.";
+  sfr.documentation.designDocumentReview = "Controlled structural drawings, equipment specifications, qualification records, anchorage calculations, piping and cable-routing information, fire and flood source records, and systems-model failure effects are reconciled to each SEL item and failure mode.";
+  sfr.documentation.failureMechanismIdentification = "Controlling functional, structural, anchorage, relay-chatter, soil, fire-source, and flood-source mechanisms are selected from demand-capacity screening, investigations, qualification evidence, and systems failure effects.";
+  sfr.documentation.capacityEvaluationMethods = "Median capacities combine test or qualification evidence, code and drawing calculations, anchorage and support capacity, in-structure demand, uncertainty separation, HCLPF checks, and full mean fragility curves over the hazard range of interest.";
+  sfr.documentation.engineeringJudgments = "Judgments identify applicable equipment classes, scale sparse test evidence, assign dependence and correlation, and bound incomplete pre-operational details; each judgment is tied to sensitivity or closure evidence.";
   sfr.documentation.fragilityParameterResults = "Median, betaR, betaU, composite beta, HCLPF, and full mean curves are provided for modeled failure modes.";
   sfr.documentation.modelUncertaintiesAndAlternatives = "Demand, capacity, correlation, and secondary-hazard alternatives are evaluated in sensitivities.";
+  sfr.documentation.preOperationalAndBoundingSiteLimitations = mef.metadata.limitations.join(" ");
   sfr.documentation.dataAndCalculationRefs = ["SFR-RESPONSE-RESULTS.H5", "QUALIFICATION-PRIMARY", "CAPACITY-SECONDARY"];
   sfr.documentation.traceability = [
     {
@@ -1334,7 +1517,251 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   spr.documentation.seismicEquipmentListDevelopment = "The SEL is reconciled to initiators, system logic, fragility scope, investigations, and retained secondary hazards.";
   spr.documentation.baseModelModifications = "Seismic initiators, conditional component failure, correlation, contact/interaction effects, mission times, and seismic-specific actions are added to the internal-events base.";
   spr.documentation.seismicHumanReliabilityInfluences = "Seismic cues, stress, workload, access, physical hazards, timing, training, and dependency are represented.";
+  spr.documentation.preOperationalLimitations = mef.metadata.limitations.join(" ");
   spr.documentation.implementsSrs = srs("SPR-F1", "SPR-F2", "SPR-F3", "SPR-F4", "SPR-F5");
+
+  mef.modelUncertainty = {
+    uuid: `MODEL-UNCERTAINTY-SEISMIC-${kind.toUpperCase()}`,
+    name: `${reactor} integrated Seismic PRA model uncertainty`,
+    uncertaintySources: [
+      {
+        source: "Dependence among hazard, structural response, capacity, and fragility parameters",
+        impact: "Can widen integrated frequency distributions and change the relative importance of common-cause SSC groups.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+      {
+        source: "Pre-operational plant configuration and performance assumptions",
+        impact: "Could change SEL scope, spatial interactions, operator access, and the leading systems contributors after as-built confirmation.",
+        applicableElements: ["SFR", "SPR"],
+      },
+      {
+        source: "Secondary-hazard source-to-plant coupling",
+        impact: "Affects retained hazard occurrence, affected SSC scope, and conditional sequence response.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+    ],
+    relatedAssumptions: [
+      {
+        assumption: `The ${site} profile set bounds the final safety-related footprint.`,
+        basis: "Measured lower, best-estimate, and upper profiles are propagated and scheduled for construction confirmation.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+      {
+        assumption: "Reference-design SSC locations, anchorage, and routing represent the intended plant configuration.",
+        basis: "Controlled design records are used with explicit pre-operational closure actions.",
+        applicableElements: ["SFR", "SPR"],
+      },
+    ],
+    reasonableAlternatives: [
+      {
+        alternative: "Fully coupled Monte Carlo sampling across every hazard, response, fragility, systems, and HRA parameter",
+        reasonNotSelected: "The reference calculation preserves material dependencies with stratified sampling and targeted coupling sensitivities at lower demonstration cost.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+      {
+        alternative: "Treat every shared SSC and support as fully correlated",
+        reasonNotSelected: "Mechanism-specific correlation groups better represent common demand, shared construction, and independent capacities; full correlation is retained as a sensitivity.",
+        applicableElements: ["SFR", "SPR"],
+      },
+    ],
+    requirementReference: "SHA-I1; SFR-F2; SPR-F3",
+  };
+  sha.modelUncertainty = {
+    uuid: `MODEL-UNCERTAINTY-SHA-${kind.toUpperCase()}`,
+    name: `${site} seismic hazard model uncertainty`,
+    uncertaintySources: [
+      {
+        source: "Fault geometry, recurrence, event allocation, and maximum magnitude",
+        impact: "Controls the local and regional source contribution across the risk-significant motion range.",
+        applicableElements: ["SHA"],
+      },
+      {
+        source: "Ground-motion median, sigma, regional path, and model dependence",
+        impact: "Controls the slope and epistemic spread of the mean and fractile hazard curves.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+      {
+        source: "Reference horizon and nonlinear local site response",
+        impact: "Changes foundation input spectra and the motion transferred to response and fragility calculations.",
+        applicableElements: ["SHA", "SFR"],
+      },
+    ],
+    relatedAssumptions: [
+      {
+        assumption: "The selected magnitude, distance, frequency, amplitude, and epsilon limits capture all material hazard contribution.",
+        basis: "Edge-bin and expanded-range sensitivities show negligible omitted contribution.",
+        applicableElements: ["SHA"],
+      },
+    ],
+    reasonableAlternatives: [
+      {
+        alternative: "Use the USGS 2023 NSHM without project-specific source, path, or site-response evaluation",
+        reasonNotSelected: "The national model is a comparison and input source, but the identified-site nuclear application requires project-specific evaluation and uncertainty propagation.",
+        applicableElements: ["SHA"],
+      },
+      {
+        alternative: "Use a deterministic bounding spectrum",
+        reasonNotSelected: "It would not provide annual-frequency curves, epistemic fractiles, deaggregation, or hazard intervals needed by Seismic PRA.",
+        applicableElements: ["SHA", "SFR", "SPR"],
+      },
+    ],
+    requirementReference: "SHA-C3; SHA-D3; SHA-E2; SHA-I1",
+  };
+  sfr.modelUncertainty = {
+    uuid: `MODEL-UNCERTAINTY-SFR-${kind.toUpperCase()}`,
+    name: `${reactor} seismic response and fragility model uncertainty`,
+    uncertaintySources: [
+      {
+        source: "Structural stiffness, damping, SSI, and response-scaling representation",
+        impact: "Changes in-structure median demand and its variability at SSC locations.",
+        applicableElements: ["SFR", "SPR"],
+      },
+      {
+        source: "Failure-mechanism selection, capacity scaling, and qualification-data applicability",
+        impact: "Changes median capacity, HCLPF, fragility slope, and the controlling failure mode.",
+        applicableElements: ["SFR", "SPR"],
+      },
+      {
+        source: "Fragility correlation and shared support behavior",
+        impact: "Can change multi-SSC failure probability and sequence-family frequency.",
+        applicableElements: ["SFR", "SPR"],
+      },
+    ],
+    relatedAssumptions: [
+      {
+        assumption: "Reference-design anchorage and support details are representative of the intended as-built configuration.",
+        basis: "Design-document review supports the model and a physical walkdown remains a tracked closure item.",
+        applicableElements: ["SFR", "SPR"],
+      },
+    ],
+    reasonableAlternatives: [
+      {
+        alternative: "Equivalent-static demand for every SSC",
+        reasonNotSelected: "Three-dimensional median-centered response and SSI are needed for structures and risk-significant distributed equipment; static checks remain limited to justified rugged items.",
+        applicableElements: ["SFR"],
+      },
+      {
+        alternative: "Independent fragility sampling for all SSCs",
+        reasonNotSelected: "Common demand, construction, qualification, and support dependencies require mechanism-specific correlation groups.",
+        applicableElements: ["SFR", "SPR"],
+      },
+    ],
+    requirementReference: "SFR-B3; SFR-E3; SFR-F2",
+  };
+  spr.modelUncertainty = {
+    uuid: `MODEL-UNCERTAINTY-SPR-${kind.toUpperCase()}`,
+    name: `${reactor} seismic plant-response model uncertainty`,
+    uncertaintySources: [
+      {
+        source: "Seismic initiator, induced-failure, and spatial-interaction logic",
+        impact: "Changes accident-sequence paths and the importance of shared support and secondary effects.",
+        applicableElements: ["SPR"],
+      },
+      {
+        source: "Post-earthquake operator performance and dependency",
+        impact: "Changes credited recovery and stabilization probabilities under degraded access, cues, and workload.",
+        applicableElements: ["SPR"],
+      },
+      {
+        source: "Hazard-bin discretization and rare-event approximation",
+        impact: "Can bias integrated frequency if bins are too coarse or conditional sequence probability is not small.",
+        applicableElements: ["SPR"],
+      },
+    ],
+    relatedAssumptions: [
+      {
+        assumption: "Internal-events success criteria remain applicable after explicitly modeled seismic-induced failures and mission-time changes.",
+        basis: "Systems review reconciles seismic initiators, unavailable equipment, interactions, operator actions, and retained hazards.",
+        applicableElements: ["SPR"],
+      },
+    ],
+    reasonableAlternatives: [
+      {
+        alternative: "Apply a single screening multiplier to the internal-events result",
+        reasonNotSelected: "Explicit hazard-bin, fragility, correlation, sequence, and HRA integration is required to preserve physical contributors and risk insights.",
+        applicableElements: ["SPR"],
+      },
+      {
+        alternative: "Use point-estimate HEPs without seismic context or dependency",
+        reasonNotSelected: "Post-earthquake timing, cues, stress, access, workload, and action dependence materially affect credited response.",
+        applicableElements: ["SPR"],
+      },
+    ],
+    requirementReference: "SPR-B1; SPR-D1; SPR-E5; SPR-F3",
+  };
+
+  mef.evidenceRegister.push(
+    {
+      uuid: "EVIDENCE-NON-LWR-STANDARD",
+      name: "Non-LWR PRA standard seismic requirements",
+      evidenceType: "DOCUMENT",
+      sourceReference: "ASME/ANS RA-S-1.4-2021, Sections 4.3.10 through 4.3.12",
+      revision: "2021",
+      owner: "Standards basis",
+      applicableSubelements: ["SHA", "SFR", "SPR"],
+      applicability: "Defines the supporting requirements used to structure the hazard, fragility, plant-response, documentation, interface, and peer-review content.",
+      qualityAndLimitations: "Normative requirements source; the example remains an illustrative implementation and does not claim formal conformance certification.",
+      status: "CONTROLLED",
+      implementsSrs: srs("SHA-I1", "SFR-F1", "SPR-F1"),
+    },
+    {
+      uuid: "EVIDENCE-SSHAC-GUIDANCE",
+      name: "NRC SSHAC implementation guidance",
+      evidenceType: "DOCUMENT",
+      sourceReference: "NUREG-2213, Updated Implementation Guidelines for SSHAC Hazard Studies",
+      revision: "2018",
+      owner: "Hazard team",
+      applicableSubelements: ["SHA"],
+      applicability: "Supports the Level 2 process roles, evaluation and integration activities, center-body-range demonstration, documentation, and independent review.",
+      qualityAndLimitations: "Authoritative implementation guidance; project-specific procedural details remain illustrative.",
+      status: "CONTROLLED",
+      implementsSrs: srs("SHA-A2", "SHA-C1", "SHA-D1", "SHA-I1"),
+    },
+    {
+      uuid: "EVIDENCE-USGS-2023-NSHM",
+      name: "USGS 2023 National Seismic Hazard Model basis",
+      evidenceType: "MODEL",
+      sourceReference: "USGS 2023 50-State National Seismic Hazard Model and ground-motion characterization",
+      revision: "2023",
+      owner: "Hazard team",
+      applicableSubelements: ["SHA"],
+      applicability: "Provides a current public benchmark for western-US catalogs, source characterization, ground-motion models, site classes, spectra, curves, and deaggregation.",
+      qualityAndLimitations: "National-scale public model; evaluated as an input and comparison rather than substituted for the identified-site nuclear hazard analysis.",
+      status: "CONTROLLED",
+      implementsSrs: srs("SHA-B2", "SHA-B4", "SHA-C4", "SHA-D2", "SHA-F1"),
+    },
+    {
+      uuid: `EVIDENCE-REACTOR-BASIS-${kind.toUpperCase()}`,
+      name: `${reactor} public technology basis`,
+      evidenceType: "DOCUMENT",
+      sourceReference: isSfr
+        ? "NRC and DOE public sodium fast reactor design-criteria and passive-decay-heat-removal references"
+        : "DOE and INL public modular HTGR, TRISO, helium-coolant, and passive-decay-heat-removal references",
+      revision: "Public references reviewed through 2026",
+      owner: "Systems and fragility team",
+      applicableSubelements: ["SFR", "SPR"],
+      applicability: isSfr
+        ? "Constrains pool-type sodium system functions, passive air heat removal, sodium interactions, and representative equipment failure effects."
+        : "Constrains modular helium-cooled system functions, TRISO fuel retention, graphite heat capacity, reactor-cavity cooling, and representative equipment failure effects.",
+      qualityAndLimitations: "Public technology characteristics anchor the fictional reference design; plant-specific equipment, dimensions, capacities, and risk values remain illustrative.",
+      status: "CONTROLLED",
+      implementsSrs: srs("SFR-A1", "SFR-D1", "SPR-B1", "SPR-B6"),
+    },
+    {
+      uuid: "EVIDENCE-PEER-REVIEW-2026",
+      name: `${reactor} illustrative Seismic PRA independent review record`,
+      evidenceType: "REVIEW",
+      sourceReference: "SEISMIC-PEER-REVIEW-2026",
+      revision: "Draft 1",
+      effectiveDate: "2026-06-10",
+      owner: "Independent review team",
+      applicableSubelements: ["SHA", "SFR", "SPR"],
+      applicability: "Records multidisciplinary review coverage, demonstration findings, and pre-operational closure items.",
+      qualityAndLimitations: "Illustrative review record for workflow demonstration; not an actual ASME/ANS peer review.",
+      status: "DRAFT",
+      implementsSrs: srs("SHA-I1", "SFR-F1", "SPR-F1"),
+    },
+  );
 
   mef.integration.interfaces = [
     { uuid: "IF-SHA-SFR", name: "Hazard-to-fragility interface", producer: "SHA", consumer: "SFR", payloadType: "RESPONSE_SPECTRUM", producerRefs: ["UHS-1E-4-H", "GMP-SA-1HZ", "CONTROL-POINT-FOUNDATION"], consumerRefs: ["REFERENCE-EQ-1", "STRUCTURAL-MODEL-1"], transferBasis: "Controlled spectra, motion definitions, control point, damping, and hazard range.", consistencyChecks: ["Parameter identifier resolves", "units and direction agree", "HROI lies within SHA range"], consistent: true, openItems: [], implementsSrs: srs("SHA-G1", "SFR-B1") },
@@ -1344,7 +1771,7 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   mef.integration.consistencyChecks = [
     { uuid: "CHECK-GMP", name: "Ground-motion parameter consistency", checkType: "GROUND_MOTION_PARAMETER", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["GMP-SA-1HZ", "REFERENCE-EQ-1", spr.quantification.hazardDiscretizations[0]?.uuid ?? "DISCRETIZATION-1"], method: "Compare identifier, definition, direction, units, frequency, damping, and use range.", result: "PASS", evidence: "All three subelements use geometric-mean horizontal SA at 1 Hz in g at the foundation control point.", openItems: [], implementsSrs: srs("SHA-A4", "SFR-B1", "SPR-E1") },
     { uuid: "CHECK-SEL", name: "Seismic equipment list coverage", checkType: "SEISMIC_EQUIPMENT_LIST", subelements: ["SFR", "SPR"], comparedRefs: ["SEL-2026", ...sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid)], method: "Resolve every active equipment failure mode through fragility and plant-response basic event.", result: "PASS", evidence: "Two active example SEL items have controlling fragilities and induced-failure models; threshold confirmations and specialized source evaluations remain separately traceable.", openItems: [], implementsSrs: srs("SFR-A1", "SPR-B1") },
-    { uuid: "CHECK-SECONDARY", name: "Secondary-hazard consistency", checkType: "SECONDARY_HAZARD", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["SECONDARY-LIQUEFACTION", "MECHANISM-SECONDARY", "INITIATOR-LIQUEFACTION"], method: "Trace retained hazard through affected SSC, mechanism, fragility, initiating event, and sequence quantification.", result: "PASS", evidence: "The liquefaction mechanism is retained and fully traced through all three subelements.", openItems: [], implementsSrs: srs("SHA-I2", "SFR-E5", "SPR-A4") },
+    { uuid: "CHECK-SECONDARY", name: "Secondary-hazard consistency", checkType: "SECONDARY_HAZARD", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["SECONDARY-LIQUEFACTION", "MECHANISM-SECONDARY", "INITIATOR-LIQUEFACTION", "SECONDARY-EXTERNAL-FLOODING", "INITIATOR-EXTERNAL-FLOOD", "ESF-QUANT-EXTERNAL-FLOOD"], method: "Trace each retained hazard through its affected SSCs, mechanisms or external-hazard interface, fragilities, initiating event, and sequence quantification.", result: "PASS", evidence: "Liquefaction and seismically induced upstream-reservoir flooding are retained and fully traced through the applicable SHA, external-flood, fragility, and plant-response records.", openItems: [], implementsSrs: srs("SHA-H4", "SHA-I2", "SFR-E5", "SPR-A4", "SPR-B11") },
   ];
   mef.integration.coverage = {
     sprEquipmentCount: equipment.length,
@@ -1352,8 +1779,14 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     quantifiedFragilityCount: sfr.results.fragilityEvaluations.length,
     unlinkedEquipmentRefs: [],
     unmodeledFailureModeRefs: [],
-    retainedSecondaryHazardRefs: ["SECONDARY-LIQUEFACTION"],
-    modeledSecondaryHazardRefs: ["SECONDARY-LIQUEFACTION"],
+    retainedSecondaryHazardRefs: [
+      "SECONDARY-LIQUEFACTION",
+      "SECONDARY-EXTERNAL-FLOODING",
+    ],
+    modeledSecondaryHazardRefs: [
+      "SECONDARY-LIQUEFACTION",
+      "SECONDARY-EXTERNAL-FLOODING",
+    ],
     coverageBasis: "Automated identifier reconciliation plus joint SHA/SFR/SPR technical review.",
   };
   mef.integration.selectedGroundMotionParameterRefs = sha.analysisBasis.groundMotionParameters.map((parameter) => parameter.uuid);
@@ -1366,6 +1799,11 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid);
   mef.integration.eventSequenceFamilyQuantificationRefs =
     spr.quantification.eventSequenceFamilyQuantifications.map((family) => family.uuid);
+  mef.integration.externalFloodingAnalysisRefs = [
+    kind === "sfr"
+      ? "PIONEER-MESA-XF-ANALYSIS-2026"
+      : "CEDAR-BASIN-XF-ANALYSIS-2026",
+  ];
   mef.integration.eventSequenceQuantificationRefs = ["ESQ-REFERENCE-MODEL"];
   mef.integration.riskIntegrationRefs = ["RI-SEISMIC-CONTRIBUTION"];
   mef.integration.integrationMethod = "Configuration-controlled identifiers, explicit producer/consumer records, automated coverage checks, and multidisciplinary review maintain SHA/SFR/SPR consistency.";
@@ -1444,12 +1882,67 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     { id: "DOC-SEL", name: `${reactor} seismic equipment list.xlsx`, kind: "sheet", sizeLabel: "2.1 MB", uploadedLabel: "Systems team", extracted: "SSC scope, functions, failure modes, correlations, and dispositions", linked: 22 },
   ];
 
-  mef.conformanceMatrix = mef.conformanceMatrix.map((row) => ({
-    ...row,
-    status: "MET",
-    satisfiedByElementPaths: [row.sr.startsWith("SHA-") ? "seismicHazardAnalysis" : row.sr.startsWith("SFR-") ? "seismicFragilityAnalysis" : "seismicPlantResponseAnalysis"],
-    evidence: `${row.sr} is implemented in the ${row.sr.startsWith("SHA-") ? "hazard" : row.sr.startsWith("SFR-") ? "fragility" : "plant-response"} models, calculations, interfaces, and traceable documentation for the ${reactor} example.`,
-  }));
+  const conformancePaths: Record<string, Record<string, string>> = {
+    SHA: {
+      A: "seismicHazardAnalysis.analysisBasis",
+      B: "seismicHazardAnalysis.earthScienceInputs",
+      C: "seismicHazardAnalysis.sourceCharacterization",
+      D: "seismicHazardAnalysis.groundMotionCharacterization",
+      E: "seismicHazardAnalysis.siteResponseAnalysis",
+      F: "seismicHazardAnalysis.hazardQuantification",
+      G: "seismicHazardAnalysis.responseSpectraEvaluation",
+      H: "seismicHazardAnalysis.secondaryHazardEvaluation",
+      I: "seismicHazardAnalysis.documentation",
+    },
+    SFR: {
+      A: "seismicFragilityAnalysis.scope",
+      B: "seismicFragilityAnalysis.seismicResponseAnalysis",
+      C: "seismicFragilityAnalysis.thresholdProgram",
+      D: "seismicFragilityAnalysis.plantInvestigations",
+      E: "seismicFragilityAnalysis.results",
+      F: "seismicFragilityAnalysis.documentation",
+    },
+    SPR: {
+      A: "seismicPlantResponseAnalysis.initiatingEventIdentification",
+      B: "seismicPlantResponseAnalysis.plantResponseModel",
+      C: "seismicPlantResponseAnalysis.seismicEquipmentListDevelopment",
+      D: "seismicPlantResponseAnalysis.humanReliabilityModel",
+      E: "seismicPlantResponseAnalysis.quantification",
+      F: "seismicPlantResponseAnalysis.documentation",
+    },
+  };
+  const conformanceEvidence: Record<string, string> = {
+    SHA: "EVIDENCE-SHA-REPORT, EVIDENCE-SSHAC-GUIDANCE, and EVIDENCE-USGS-2023-NSHM",
+    SFR: `EVIDENCE-SFR-CALCS, EVIDENCE-SEL, and EVIDENCE-REACTOR-BASIS-${kind.toUpperCase()}`,
+    SPR: `EVIDENCE-SEL, EVIDENCE-REACTOR-BASIS-${kind.toUpperCase()}, and EVIDENCE-PEER-REVIEW-2026`,
+  };
+  const notApplicableSrs = new Set([
+    "SHA-E2",
+    "SHA-E4",
+    "SHA-E6",
+    "SHA-I3",
+    "SFR-D3",
+    "SPR-B9",
+    "SPR-B10",
+    ...(isSfr ? ["SPR-B13"] : []),
+  ]);
+  mef.conformanceMatrix = mef.conformanceMatrix.map((row) => {
+    const [subelement = "SPR", requirement = "F"] = row.sr.split("-");
+    const hlr = requirement.charAt(0);
+    const path = conformancePaths[subelement]?.[hlr] ?? "documentation";
+    const isNotApplicable = notApplicableSrs.has(row.sr);
+    return {
+      ...row,
+      status: isNotApplicable ? "NOT_APPLICABLE" : "MET",
+      satisfiedByElementPaths: [path],
+      evidence: isNotApplicable
+        ? `${row.sr} is not applicable to the ${reactor} identified-site, pre-operational configuration and retained-hazard scope.`
+        : `${row.sr} is implemented at ${path} for the ${reactor} illustrative example and is supported by ${conformanceEvidence[subelement]}.`,
+      reviewNotes: isNotApplicable
+        ? "Applicability was evaluated against site basis, plant stage, reactor count, and retained secondary hazards."
+        : "Example status demonstrates a complete seeded workflow; it is not a formal peer-review or licensing determination.",
+    };
+  });
 
   return mef;
 }

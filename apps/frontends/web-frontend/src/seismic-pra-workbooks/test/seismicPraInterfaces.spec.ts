@@ -90,6 +90,23 @@ describe("seismicPraInterfaceLanes", () => {
     }
   });
 
+  it.each(["htgr", "sfr"] as const)(
+    "populates every technical interface for the complete %s example",
+    (variant) => {
+      const lanes = seismicPraInterfaceLanes(
+        createSeismicPraExample(variant),
+        linkedInputs(variant),
+      );
+
+      expect(lanes).toHaveLength(13);
+      expect(lanes.every((lane) => lane.rows.length > 0)).toBe(true);
+      expect(lanes.find((lane) => lane.code === "XF")?.rows[0]).toMatchObject({
+        id: "SECONDARY-EXTERNAL-FLOODING",
+        name: "Seismically induced upstream-reservoir flooding",
+      });
+    },
+  );
+
   it("uses linked upstream records instead of Seismic-derived substitutes", () => {
     const lanes = seismicPraInterfaceLanes(createSeismicPraExample("htgr"), linkedInputs("htgr"));
     const lane = (code: string) => lanes.find((item) => item.code === code)!;
@@ -140,7 +157,9 @@ describe("seismicPraInterfaceLanes", () => {
       { id: "source-SEL-HTGR-TRANSFORMER", name: "SEL-HTGR-TRANSFORMER", values: ["SEL ignition source"] },
       { id: "source-SEL-HTGR-BATTERY-CHARGER", name: "SEL-HTGR-BATTERY-CHARGER", values: ["SEL ignition source"] },
     ]);
-    expect(lane("XF").rows).toHaveLength(0);
+    expect(lane("XF").rows).toHaveLength(1);
+    expect(lane("XF").rows[0]?.values[1]).toContain("CEDAR-BASIN-XF");
+    expect(lane("XF").rows[0]?.values[2]).toContain("FLOOD-DOOR-HYDROSTATIC");
     expect(lane("O").rows.length).toBeGreaterThan(0);
     expect(lane("ESQ").rows.length).toBeGreaterThan(0);
     expect(lane("RI").rows.length).toBeGreaterThan(0);

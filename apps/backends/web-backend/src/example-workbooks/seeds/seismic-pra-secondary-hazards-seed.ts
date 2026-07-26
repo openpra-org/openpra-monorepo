@@ -7,6 +7,8 @@ type Evaluation =
   SeismicPRA["seismicHazardAnalysis"]["secondaryHazardEvaluation"];
 type SecondaryHazard = Evaluation["hazards"][number];
 type RetainedAnalysis = NonNullable<SecondaryHazard["retainedAnalysis"]>;
+type ExternalFloodingInterface =
+  NonNullable<SecondaryHazard["externalFloodingInterface"]>;
 
 function srs(...codes: string[]): SRReference[] {
   return codes.map((sr) => ({
@@ -207,6 +209,138 @@ function retainedLiquefaction(kind: ReactorKind): SecondaryHazard {
   };
 }
 
+function retainedExternalFlooding(kind: ReactorKind): SecondaryHazard {
+  const isSfr = kind === "sfr";
+  const sitePrefix = isSfr ? "PIONEER-MESA" : "CEDAR-BASIN";
+  const xfPrefix = `${sitePrefix}-XF`;
+  const reservoir = isSfr
+    ? "Pioneer Mesa raw-water balancing reservoir"
+    : "Cedar Basin upper water-supply reservoir";
+  const affectedSscRefs = isSfr
+    ? [
+        "SEL-SFR-SWITCHGEAR",
+        "SEL-SFR-DC-BATTERY-A",
+        "SEL-SFR-DHR-DAMPER",
+      ]
+    : [
+        "SEL-HTGR-SWITCHGEAR",
+        "SEL-HTGR-DC-BATTERY-A",
+        "SEL-HTGR-RCCS-HEADER",
+      ];
+  const hazardResultRefs = [
+    `${xfPrefix}-PEAK-WATER-SURFACE`,
+    `${xfPrefix}-DEPTH-VELOCITY`,
+    `${xfPrefix}-ARRIVAL-DURATION`,
+    `${xfPrefix}-DEBRIS-HYDRODYNAMIC-LOAD`,
+  ];
+  const fragilityMechanismRefs = [
+    `${xfPrefix}-FLOOD-DOOR-HYDROSTATIC`,
+    `${xfPrefix}-CABLE-VAULT-INGRESS`,
+    `${xfPrefix}-DRAIN-BACKFLOW`,
+    `${xfPrefix}-YARD-EQUIPMENT-INUNDATION`,
+  ];
+  const requirementInputs: Array<{
+    requirementGroup: ExternalFloodingInterface["interfaceRequirements"][number]["requirementGroup"];
+    refs: string[];
+    evidence: string;
+  }> = [
+    {
+      requirementGroup: "XFHA-A",
+      refs: [`${xfPrefix}-HAZARD-SCOPE`, `${xfPrefix}-SEISMIC-INITIATOR-FREQUENCY`],
+      evidence: `The ${reservoir} breach scenario is defined as a seismically initiated external-flood mechanism and is conditional on the shared earthquake source and ground-motion branches.`,
+    },
+    {
+      requirementGroup: "XFHA-B",
+      refs: [`${xfPrefix}-RESERVOIR-INVENTORY`, `${xfPrefix}-EMBANKMENT-CONDITION`, `${xfPrefix}-TERRAIN-MODEL`],
+      evidence: "Reservoir operating range, embankment geometry and condition, downstream terrain, drainage features, plant elevations, and uncertainties are controlled inputs.",
+    },
+    {
+      requirementGroup: "XFHA-C",
+      refs: [`${xfPrefix}-BREACH-MODEL`, `${xfPrefix}-ROUTING-MODEL`, `${xfPrefix}-MODEL-CALIBRATION`],
+      evidence: "Alternative breach-development branches are routed over the site terrain with mass-balance, mesh, roughness, and sensitivity checks.",
+    },
+    {
+      requirementGroup: "XFHA-D",
+      refs: hazardResultRefs,
+      evidence: "Frequency-tagged water-surface elevation, depth, velocity, arrival time, duration, debris, and hydrodynamic-load results are available at each affected plant area.",
+    },
+    {
+      requirementGroup: "XFHA-E",
+      refs: fragilityMechanismRefs,
+      evidence: "Flood-door loading, below-grade ingress, drainage backflow, and yard-equipment inundation mechanisms are linked to the affected SSC and protection-feature fragilities.",
+    },
+    {
+      requirementGroup: "XFHA-F",
+      refs: [
+        `${xfPrefix}-PLANT-RESPONSE-MODEL`,
+        "ES-SEISMIC-EXTERNAL-FLOOD",
+        "MISSION-TIME-EXTERNAL-FLOOD",
+      ],
+      evidence: "The plant-response model carries inundation of affected electrical and heat-removal support functions, access constraints, mission time, and common-cause spatial effects.",
+    },
+    {
+      requirementGroup: "XFHA-G",
+      refs: [`${xfPrefix}-CALC-PACKAGE-2026`, `${xfPrefix}-INDEPENDENT-REVIEW-2026`],
+      evidence: "Inputs, assumptions, model versions, calculations, sensitivities, results, interfaces, and independent-review resolutions are traceable in the controlled flood-analysis package.",
+    },
+  ];
+
+  return {
+    uuid: "SECONDARY-EXTERNAL-FLOODING",
+    name: "Seismically induced upstream-reservoir flooding",
+    hazardType: "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING",
+    description: `Strong shaking can damage the ${reservoir} embankment, initiate a breach, and route a flood wave through the hydraulically connected drainage toward protected plant areas.`,
+    initiatingMechanisms: [
+      "Coseismic embankment deformation and cracking",
+      "Internal erosion and progressive breach formation",
+      "Breach-hydrograph routing to plant grade",
+    ],
+    siteEvidenceRefs: [
+      `${xfPrefix}-RESERVOIR-INVENTORY`,
+      `${xfPrefix}-EMBANKMENT-CONDITION`,
+      `${xfPrefix}-SURVEY-AND-LIDAR-2025`,
+      `${xfPrefix}-HYDRAULIC-CONNECTIVITY`,
+      `${xfPrefix}-PLANT-ELEVATION-SURVEY`,
+    ],
+    potentiallyAffectedArea: isSfr
+      ? "Electrical-service building entrances, below-grade cable routes, DRACS air-path equipment, and the credited site-access route"
+      : "Shared electrical-service building entrances, below-grade cable routes, RCCS service headers, and the credited site-access route",
+    potentiallyAffectedSeismicEquipmentListItemRefs: affectedSscRefs,
+    screening: {
+      disposition: "RETAINED",
+      criterion: "NOT_SCREENED",
+      methodology: "Conditional embankment-response and breach-frequency analysis followed by two-dimensional unsteady hydraulic routing to plant-area receptor points.",
+      demonstrablyConservative: false,
+      screeningBasis: "The upper credible embankment-response and breach-development branches produce nonzero inundation at protected plant areas, so site-feasibility screening is not used.",
+      calculationsAndEvidenceRefs: [
+        `${xfPrefix}-SEISMIC-EMBANKMENT-CALC`,
+        `${xfPrefix}-BREACH-FREQUENCY-CALC`,
+        `${xfPrefix}-ROUTING-CALC`,
+        `${xfPrefix}-PLANT-AREA-RESULTS`,
+      ],
+      reviewer: "External-flood and seismic-hazards integration lead",
+      reviewDate: "2026-05-22",
+      implementsSrs: srs("SHA-H2", "SHA-H4"),
+    },
+    externalFloodingInterface: {
+      externalFloodingAnalysisRef: `${xfPrefix}-ANALYSIS-2026`,
+      mechanismDescription: `Earthquake-conditioned deformation of the ${reservoir} embankment can progress to breach; the resulting hydrograph is routed to plant-area receptor points with shared seismic, breach, and hydraulic uncertainty branches.`,
+      interfaceRequirements: requirementInputs.map((requirement) => ({
+        requirementGroup: requirement.requirementGroup,
+        applicable: true,
+        status: "MET",
+        satisfiedByRefs: requirement.refs,
+        evidence: requirement.evidence,
+      })),
+      hazardParameterResultsRefs: hazardResultRefs,
+      fragilityFailureMechanismRefs: fragilityMechanismRefs,
+      interfaceBasis: "The seismic hazard supplies earthquake occurrence, magnitude, duration, and ground-motion branches; the external-flood analysis supplies conditional embankment failure, breach development, inundation severity and frequency, flood-protection fragility, and plant-area effects without treating these quantities as independent.",
+      implementsSrs: srs("SHA-H4"),
+    },
+    implementsSrs: srs("SHA-H1", "SHA-H2", "SHA-H4"),
+  };
+}
+
 function screenedHazards(kind: ReactorKind): SecondaryHazard[] {
   const isSfr = kind === "sfr";
   const sitePrefix = isSfr ? "PIONEER-MESA" : "CEDAR-BASIN";
@@ -288,21 +422,6 @@ function screenedHazards(kind: ReactorKind): SecondaryHazard[] {
       calculations: [`${sitePrefix}-GROUND-FAILURE-SCREEN`],
     },
     {
-      uuid: "SECONDARY-EXTERNAL-FLOODING",
-      name: "Earthquake-induced external flooding",
-      hazardType: "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING",
-      description: "Flooding from seismically induced failure of upstream dams, embankments, canals, or water-retaining structures.",
-      mechanisms: ["Upstream impoundment failure", "Canal breach", "Seismic settlement of water-retaining embankments"],
-      evidence: [`${sitePrefix}-WATERSHED-INVENTORY`, `${sitePrefix}-DAM-BREAK-SCREEN`, `${sitePrefix}-HYDRAULIC-CONNECTIVITY`],
-      area: "Protected plant grade and safety-related building entrances",
-      criterion: "SCR-2",
-      methodology: "Regional water-retaining-structure inventory and conservative hydraulic-connectivity screening.",
-      basis: isSfr
-        ? "No upstream impoundment or canal has a hydraulic path to the mesa; local tanks are treated as internal flood sources."
-        : "The only upstream impoundment is outside the hydraulically connected basin and its conservative breach wave terminates below plant grade.",
-      calculations: [`${sitePrefix}-XF-SCREEN`, `${sitePrefix}-DAM-BREAK-SCREEN`],
-    },
-    {
       uuid: "SECONDARY-TSUNAMI-SEICHE",
       name: "Tsunami and seiche",
       hazardType: "TSUNAMI_OR_SEICHE",
@@ -368,25 +487,31 @@ export function populateSecondaryHazards(
         "CEDAR-BASIN-WATERSHED-INVENTORY",
         "CEDAR-BASIN-HAZARDS-SCREENING-WORKBOOK",
       ];
+  const screened = screenedHazards(kind);
   evaluation.hazards = [
-    ...screenedHazards(kind).slice(0, 2),
+    ...screened.slice(0, 2),
     retainedLiquefaction(kind),
-    ...screenedHazards(kind).slice(2),
+    ...screened.slice(2, 4),
+    retainedExternalFlooding(kind),
+    ...screened.slice(4),
   ];
   evaluation.seismicEquipmentListRef = "SEL-2026";
   evaluation.screeningCriteriaReference =
     "Project secondary-hazard procedure implementing SCR-2 site-feasibility and SCR-3 demonstrably conservative failure-frequency screening.";
   evaluation.crossHazardDependencies = [
     "Liquefaction triggering is conditional on the shared horizontal ground-motion hazard and earthquake magnitude.",
-    "Groundwater elevation is common to liquefaction, settlement, and external-flood screening.",
+    "Groundwater elevation is common to liquefaction and settlement; earthquake magnitude, duration, and ground-motion branches are shared with the external-flood embankment response.",
     "Seismically induced internal flooding from plant tanks and piping remains in the internal-flood and fragility interfaces, not this external-hazard list.",
   ];
   evaluation.completenessReview =
-    "All standard secondary-seismic-hazard classes were checked against current site data; every screened record has a conservative criterion and the retained liquefaction output is linked to SEL, fragility, and plant-response records.";
+    "All standard secondary-seismic-hazard classes were checked against current site data; every screened record has a conservative criterion, liquefaction is linked through the non-flood hazard model, and upstream-reservoir flooding is linked through the complete XFHA interface and plant-response model.";
   evaluation.implementsSrs = srs("SHA-H1", "SHA-H2", "SHA-H3", "SHA-H4");
 
   const retainedOutputRefs = evaluation.hazards.flatMap(
-    (hazard) => hazard.retainedAnalysis?.outputRefs ?? [],
+    (hazard) => [
+      ...(hazard.retainedAnalysis?.outputRefs ?? []),
+      ...(hazard.externalFloodingInterface?.hazardParameterResultsRefs ?? []),
+    ],
   );
   const inputs =
     mef.seismicHazardAnalysis.hazardQuantification.seismicPraInputs;

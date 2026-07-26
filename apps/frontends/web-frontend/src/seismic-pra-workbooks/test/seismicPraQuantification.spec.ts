@@ -22,13 +22,13 @@ describe("Seismic PRA Step 13 quantification", () => {
         .toBeLessThanOrEqual(discretization.convergenceTolerance);
       expect(quant.rareEventApproximationAssessments).toHaveLength(3);
       expect(quant.esqRequirementCompliance).toHaveLength(35);
-      expect(quant.eventSequenceFamilyQuantifications).toHaveLength(6);
+      expect(quant.eventSequenceFamilyQuantifications).toHaveLength(7);
       expect(quant.modelUncertainties).toHaveLength(8);
       expect(quant.sensitivityStudies).toHaveLength(8);
-      expect(quant.riskSignificantContributors).toHaveLength(12);
+      expect(quant.riskSignificantContributors).toHaveLength(13);
       expect(quant.outputQualityChecks).toHaveLength(12);
       expect(spr.preOperationalAssumptions).toHaveLength(5);
-      expect(spr.documentation.traceability).toHaveLength(6);
+      expect(spr.documentation.traceability).toHaveLength(7);
       expect(mef.integration.eventSequenceFamilyQuantificationRefs)
         .toEqual(familyIds);
 

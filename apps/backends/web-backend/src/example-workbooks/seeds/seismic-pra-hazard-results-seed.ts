@@ -141,9 +141,9 @@ export function populateHazardResults(
       name: "Free-field surface",
       controlPointType: "FREE_FIELD",
       locationDescription: "Instrumented free-field location outside the structure-soil interaction zone",
-      elevation: isSfr ? 806 : 1460,
+      elevation: isSfr ? 812 : 1460,
       elevationUnit: "m",
-      coordinateReference: isSfr ? "32.1184 N, 110.8421 W" : "39.2862 N, 113.4176 W",
+      coordinateReference: isSfr ? "43.1860 N, 116.4210 W" : "35.6420 N, 112.2840 W",
       transferFunctionRef: `SITE-AMPLIFICATION-${token}-WEIGHTED`,
       basis: "Surface-motion check point for site-response and field-instrument comparisons.",
     },
@@ -154,7 +154,7 @@ export function populateHazardResults(
       locationDescription: isSfr
         ? "Top of competent volcanic rock beneath the weathered interval"
         : "Competent carbonate rock below the surficial alluvium",
-      elevation: isSfr ? 761 : 1414,
+      elevation: isSfr ? 760 : 1426,
       elevationUnit: "m",
       transferFunctionRef: `SITE-AMPLIFICATION-${token}-WEIGHTED`,
       basis: "Input horizon shared by the source-to-site and site-response calculations.",

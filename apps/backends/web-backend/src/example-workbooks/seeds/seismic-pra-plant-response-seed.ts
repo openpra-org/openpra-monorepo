@@ -247,13 +247,23 @@ function populateInitiators(mef: SeismicPRA, kind: ReactorKind): void {
     ),
     secondary(
       "INITIATOR-EXTERNAL-FLOOD",
-      "Earthquake-induced external flooding",
-      "Potential dam, embankment, canal, and water-retaining-structure failures were checked for a hydraulic path to plant grade.",
+      "Seismically induced upstream-reservoir flooding",
+      "Earthquake-conditioned embankment damage and breach can route an external flood wave to electrical, heat-removal support, below-grade cable, and site-access areas.",
       "SECONDARY-EXTERNAL-FLOODING",
-      [],
-      [],
-      false,
-      "The Step 07 site-feasibility evaluation found no hydraulically connected source capable of reaching protected plant grade.",
+      isSfr
+        ? [
+            "SEL-SFR-SWITCHGEAR",
+            "SEL-SFR-DC-BATTERY-A",
+            "SEL-SFR-DHR-DAMPER",
+          ]
+        : [
+            "SEL-HTGR-SWITCHGEAR",
+            "SEL-HTGR-DC-BATTERY-A",
+            "SEL-HTGR-RCCS-HEADER",
+          ],
+      ["ES-SEISMIC-EXTERNAL-FLOOD"],
+      true,
+      "Retained because upper credible embankment-response and breach-routing branches produce inundation at protected plant areas; the complete XFHA interface is carried into the plant-response model.",
     ),
     secondary(
       "INITIATOR-SECONDARY-SETTLEMENT",
@@ -290,6 +300,7 @@ function populateInitiators(mef: SeismicPRA, kind: ReactorKind): void {
   identification.retainedInitiatingEventRefs = [
     ...directInitiators.map((initiator) => initiator.uuid),
     "INITIATOR-LIQUEFACTION",
+    "INITIATOR-EXTERNAL-FLOOD",
   ];
   identification.implementsSrs = srs("SPR-A1", "SPR-A2", "SPR-A3", "SPR-A4");
 }
@@ -297,6 +308,7 @@ function populateInitiators(mef: SeismicPRA, kind: ReactorKind): void {
 function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
   const isSfr = kind === "sfr";
   const prefix = kind.toUpperCase();
+  const xfPrefix = isSfr ? "PIONEER-MESA-XF" : "CEDAR-BASIN-XF";
   const model = mef.seismicPlantResponseAnalysis.plantResponseModel;
   const equipment = mef.seismicPlantResponseAnalysis
     .seismicEquipmentListDevelopment.equipment;
@@ -326,6 +338,7 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
     "ES-SEISMIC-SHUTDOWN",
     "ES-SEISMIC-SPENT-FUEL",
     "ES-SEISMIC-LIQUEFACTION",
+    "ES-SEISMIC-EXTERNAL-FLOOD",
     "ES-SEISMIC-FLOOD",
     "ES-SEISMIC-FIRE",
     isSfr ? "ES-SEISMIC-SODIUM" : "ES-MULTIMODULE-SEISMIC",
@@ -404,8 +417,8 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
       relevanceToSeismicPra: "Seismic debris, aftershocks, loss of infrastructure, and staffing constraints may persist beyond the internal-events recovery window.",
       potentialAmplificationInSeismicModel: "Using the shorter internal-events mission without checking accessibility could over-credit recovery and replenishment.",
       resolutionStatus: "RESOLVED",
-      resolution: "Reassessed five seismic mission times using thermal-hydraulic demand, stored inventories, access, aftershock, and emergency-response capability.",
-      incorporatedModelRefs: ["MISSION-TIME-1", "MISSION-TIME-SHUTDOWN", "MISSION-TIME-SPENT-FUEL", "MISSION-TIME-LIQUEFACTION", "MISSION-TIME-LONG-TERM"],
+      resolution: "Reassessed six seismic mission times using thermal-hydraulic demand, stored inventories, flood persistence, access, aftershock, and emergency-response capability.",
+      incorporatedModelRefs: ["MISSION-TIME-1", "MISSION-TIME-SHUTDOWN", "MISSION-TIME-SPENT-FUEL", "MISSION-TIME-LIQUEFACTION", "MISSION-TIME-EXTERNAL-FLOOD", "MISSION-TIME-LONG-TERM"],
       evidenceRefs: [`${prefix}-SEISMIC-MISSION-TIME-012`],
       implementsSrs: srs("SPR-B2", "SPR-B7"),
     },
@@ -531,7 +544,7 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
       response: "On-site response is available with degraded communications; no off-site replenishment is credited before 24 hours.",
       duration: "Strong motion is brief, but aftershocks, debris, loss of lighting, and infrastructure disruption are carried through 72 hours.",
       basis: isSfr
-        ? "Pool thermal inertia, DRACS/RVACS capacity, stored electrical energy, and passive heat rejection support a 72-hour mission."
+        ? "Pool thermal inertia, two passive DRACS trains, natural-circulation sodium, stored electrical energy, and atmospheric heat rejection support a 72-hour mission."
         : "Core and vessel thermal response, RCCS inventory, natural circulation, and passive heat rejection support a 72-hour mission.",
     },
     {
@@ -570,6 +583,19 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
       basis: "The success criterion uses unaffected heat-removal capability and explicitly excludes repair of the deformed foundation or buried connection.",
     },
     {
+      uuid: "MISSION-TIME-EXTERNAL-FLOOD",
+      name: "External-flood isolation and stable cooling",
+      eventSequenceRef: "ES-SEISMIC-EXTERNAL-FLOOD",
+      successCriteriaRef: "SC-EXTERNAL-FLOOD-STABLE-COOLING",
+      hours: 72,
+      access: "Inundated yard and below-grade routes are unavailable until surveyed; the model uses the elevated protected route and does not credit access through flooded electrical areas.",
+      response: "On-site staffing and protected communications support isolation and monitoring; off-site entry through the affected access route is not credited during the flood plateau.",
+      duration: "Arrival time, flood rise, peak inundation, recession, drainage, debris, and aftershock restrictions are represented through the 72-hour mission.",
+      basis: isSfr
+        ? "Protected DC power, isolated electrical penetrations, one available DRACS air path, and stored monitoring capability support the flood-conditioned mission."
+        : "Protected DC power, compartment isolation, unaffected passive RCCS heat rejection, and stored monitoring capability support the flood-conditioned mission.",
+    },
+    {
       uuid: "MISSION-TIME-LONG-TERM",
       name: "Long-term stable cooling and monitoring",
       eventSequenceRef: "ES-SEISMIC-SUCCESS",
@@ -602,7 +628,7 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
       logicType: "EVENT_SEQUENCE",
       reasonNeeded: "Internal-events sequences do not represent common ground motion, secondary soil deformation, or concurrent source challenges.",
       baseInternalEventsModelRef: "ES-REFERENCE-MODEL",
-      modelRefs: ["ES-SEISMIC-DAMAGE", "ES-SEISMIC-SHUTDOWN", "ES-SEISMIC-LIQUEFACTION"],
+      modelRefs: ["ES-SEISMIC-DAMAGE", "ES-SEISMIC-SHUTDOWN", "ES-SEISMIC-LIQUEFACTION", "ES-SEISMIC-EXTERNAL-FLOOD"],
       requirementCompliance: compliance(["HLR-ES-A", "HLR-ES-B"], ["ES-SEISMIC-REVIEW-2026"]),
       verificationAndValidation: "Sequence headings, transfers, end states, and family mapping were independently reviewed and exercised with boundary cases.",
       implementsSrs: srs("SPR-B1", "SPR-B8"),
@@ -659,42 +685,98 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
       implementsSrs: srs("SPR-B8"),
     },
   ];
-  model.retainedHazardModels = [{
-    uuid: "RETAINED-HAZARD-LIQUEFACTION",
-    name: "Liquefaction and permanent ground deformation",
-    hazardType: "OTHER_SECONDARY_HAZARD",
-    hazardAnalysisRef: "SECONDARY-LIQUEFACTION",
-    initiatingEventRefs: ["INITIATOR-LIQUEFACTION"],
-    sourceSscRefs: [`SEL-${prefix}-REACTOR-BUILDING`],
-    affectedSscRefs: ["SEL-SECONDARY"],
-    fragilityRefs: ["FRAGILITY-SECONDARY", "FRAGILITY-SOIL"],
-    plantResponseModelRefs: [
-      "INDUCED-FAILURE-2",
-      "ES-SEISMIC-LIQUEFACTION",
-      "MISSION-TIME-LIQUEFACTION",
-    ],
-    requirementCompliance: [
-      {
-        requirementGroup: "HLR-OFR-A",
-        capabilityCategory: "CC-II",
+  model.retainedHazardModels = [
+    {
+      uuid: "RETAINED-HAZARD-LIQUEFACTION",
+      name: "Liquefaction and permanent ground deformation",
+      hazardType: "OTHER_SECONDARY_HAZARD",
+      hazardAnalysisRef: "SECONDARY-LIQUEFACTION",
+      initiatingEventRefs: ["INITIATOR-LIQUEFACTION"],
+      sourceSscRefs: [`SEL-${prefix}-REACTOR-BUILDING`],
+      affectedSscRefs: ["SEL-SECONDARY"],
+      fragilityRefs: ["FRAGILITY-SECONDARY", "FRAGILITY-SOIL"],
+      plantResponseModelRefs: [
+        "INDUCED-FAILURE-2",
+        "ES-SEISMIC-LIQUEFACTION",
+        "MISSION-TIME-LIQUEFACTION",
+      ],
+      requirementCompliance: [
+        {
+          requirementGroup: "HLR-OFR-A",
+          capabilityCategory: "CC-II",
+          applicable: true,
+          status: "MET",
+          satisfiedByRefs: ["FRAGILITY-SECONDARY", "FRAGILITY-SOIL"],
+          evidence: "The affected functions use site-specific soil-deformation hazard and realistic fragility evaluations.",
+        },
+        {
+          requirementGroup: "HLR-OPR-B",
+          capabilityCategory: "CC-II",
+          applicable: true,
+          status: "MET",
+          satisfiedByRefs: ["ES-SEISMIC-LIQUEFACTION", "MISSION-TIME-LIQUEFACTION"],
+          evidence: "The plant-response sequence preserves permanent loss of the affected support and the alternate recovery path.",
+        },
+      ],
+      integrationBasis:
+        "Condition the linked SSC fragilities and permanent access impacts on the displacement-hazard result, preserve correlation with ground motion, and quantify the retained sequence in the same hazard-bin solution.",
+      implementsSrs: srs("SPR-B12"),
+    },
+    {
+      uuid: "RETAINED-HAZARD-EXTERNAL-FLOOD",
+      name: "Seismically induced upstream-reservoir flooding",
+      hazardType: "EXTERNAL_FLOOD",
+      hazardAnalysisRef: "SECONDARY-EXTERNAL-FLOODING",
+      initiatingEventRefs: ["INITIATOR-EXTERNAL-FLOOD"],
+      sourceSscRefs: [`${xfPrefix}-RESERVOIR-EMBANKMENT`],
+      affectedSscRefs: isSfr
+        ? [
+            "SEL-SFR-SWITCHGEAR",
+            "SEL-SFR-DC-BATTERY-A",
+            "SEL-SFR-DHR-DAMPER",
+          ]
+        : [
+            "SEL-HTGR-SWITCHGEAR",
+            "SEL-HTGR-DC-BATTERY-A",
+            "SEL-HTGR-RCCS-HEADER",
+          ],
+      fragilityRefs: [
+        `${xfPrefix}-FLOOD-DOOR-HYDROSTATIC`,
+        `${xfPrefix}-CABLE-VAULT-INGRESS`,
+        `${xfPrefix}-DRAIN-BACKFLOW`,
+        `${xfPrefix}-YARD-EQUIPMENT-INUNDATION`,
+      ],
+      plantResponseModelRefs: [
+        `${xfPrefix}-PLANT-RESPONSE-MODEL`,
+        "ES-SEISMIC-EXTERNAL-FLOOD",
+        "MISSION-TIME-EXTERNAL-FLOOD",
+        "ESF-SEISMIC-EXTERNAL-FLOOD",
+      ],
+      requirementCompliance: [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+      ].map((group) => ({
+        requirementGroup: `HLR-XFHA-${group}`,
+        capabilityCategory: "CC-II" as const,
         applicable: true,
-        status: "MET",
-        satisfiedByRefs: ["FRAGILITY-SECONDARY", "FRAGILITY-SOIL"],
-        evidence: "The affected functions use site-specific soil-deformation hazard and realistic fragility evaluations.",
-      },
-      {
-        requirementGroup: "HLR-OPR-B",
-        capabilityCategory: "CC-II",
-        applicable: true,
-        status: "MET",
-        satisfiedByRefs: ["ES-SEISMIC-LIQUEFACTION", "MISSION-TIME-LIQUEFACTION"],
-        evidence: "The plant-response sequence preserves permanent loss of the affected support and the alternate recovery path.",
-      },
-    ],
-    integrationBasis:
-      "Condition the linked SSC fragilities and permanent access impacts on the displacement-hazard result, preserve correlation with ground motion, and quantify the retained sequence in the same hazard-bin solution.",
-    implementsSrs: srs("SPR-B12"),
-  }];
+        status: "MET" as const,
+        satisfiedByRefs: [
+          `${xfPrefix}-ANALYSIS-2026`,
+          `${xfPrefix}-PLANT-RESPONSE-MODEL`,
+          "ES-SEISMIC-EXTERNAL-FLOOD",
+        ],
+        evidence: `The controlled external-flood package applies HLR-XFHA-${group} to the earthquake-conditioned hazard, flood-protection fragility, and plant-response sequence.`,
+      })),
+      integrationBasis:
+        "Condition embankment response and breach on the common earthquake branch, route the breach hydrograph to plant-area receptors, apply frequency-dependent flood-protection fragilities, and quantify spatially correlated inundation and access effects without multiplying independent seismic and flood frequencies.",
+      implementsSrs: srs("SPR-B11"),
+    },
+  ];
   model.multiReactorModels = [{
     uuid: "MULTI-REACTOR-1",
     name: isSfr
@@ -735,10 +817,11 @@ function populatePlantModel(mef: SeismicPRA, kind: ReactorKind): void {
     "Implemented fragility correlation groups and shared causal dependencies from the fragility analysis.",
     "Applied four cumulative fragility thresholds only after correlated hazard integration.",
     "Evaluated relay contact chatter against installed state, cabinet response, and system effect.",
-    "Reassessed five mission times for access, aftershock, infrastructure, staffing, and stored-resource effects.",
+    "Reassessed six mission times for access, aftershock, flood persistence, infrastructure, staffing, and stored-resource effects.",
     "Added seismic-specific event-sequence, success-criteria, systems, data, and human-action logic under CC-II controls.",
     "Reconciled seismic internal-flood and fire sources to source fragility and consequence models.",
     "Retained site-specific liquefaction as a coupled hazard-fragility-plant-response sequence.",
+    "Retained seismically induced upstream-reservoir flooding through the complete external-flood hazard, fragility, and plant-response interface.",
     isSfr
       ? "Captured concurrent reactor, spent-fuel, and sodium-source effects within the single-unit model."
       : "Captured concurrent four-module trips, shared SSC failures, and shared response resources.",

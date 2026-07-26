@@ -7,6 +7,8 @@ type SecondaryHazardCurve = NonNullable<
 >["hazardCurves"][number];
 type SeismicResponseResult =
   SeismicPRA["seismicFragilityAnalysis"]["seismicResponseAnalysis"]["responseResults"][number];
+type FragilityEvaluation =
+  SeismicPRA["seismicFragilityAnalysis"]["results"]["fragilityEvaluations"][number];
 
 interface HazardFanPoint {
   x: number;
@@ -231,7 +233,53 @@ function structuralResponseFanSeries(
     }));
 }
 
+function fragilityFanSeries(
+  evaluation: FragilityEvaluation | undefined,
+): HazardFanPoint[] {
+  if (evaluation === undefined) return [];
+  const curves = evaluation.uncertaintyFractileCurves ?? [];
+  const curveAt = (
+    fractile: number,
+  ): FragilityEvaluation["meanFragilityCurve"] | undefined => curves.find(
+    (curve) => Math.abs(curve.fractile - fractile) < 1e-9,
+  )?.points;
+  const lowCurve = curveAt(0.05);
+  const medianCurve = curveAt(0.5);
+  const highCurve = curveAt(0.95);
+  if (
+    lowCurve === undefined
+    || medianCurve === undefined
+    || highCurve === undefined
+    || evaluation.meanFragilityCurve.length === 0
+  ) return [];
+
+  const probabilityAtMotion = (
+    curve: FragilityEvaluation["meanFragilityCurve"],
+  ): Map<number, number> => new Map(curve.map((point) => [
+    point.groundMotion,
+    point.conditionalFailureProbability,
+  ]));
+  const lowValues = probabilityAtMotion(lowCurve);
+  const medianValues = probabilityAtMotion(medianCurve);
+  const highValues = probabilityAtMotion(highCurve);
+  return evaluation.meanFragilityCurve.flatMap((point) => {
+    const low = lowValues.get(point.groundMotion);
+    const median = medianValues.get(point.groundMotion);
+    const high = highValues.get(point.groundMotion);
+    return low === undefined || median === undefined || high === undefined
+      ? []
+      : [{
+        x: point.groundMotion,
+        low,
+        median,
+        mean: point.conditionalFailureProbability,
+        high,
+      }];
+  });
+}
+
 export {
+  fragilityFanSeries,
   hazardCurveFanSeries,
   motionValueAtFrequency,
   responseSpectrumFanSeries,

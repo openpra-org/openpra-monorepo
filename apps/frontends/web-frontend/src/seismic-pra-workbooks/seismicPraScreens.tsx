@@ -7,7 +7,7 @@ import { POSIcon } from "../pos-workbooks/posIcons";
 import { seismicConformanceItems, seismicConformanceScore } from "./seismicPraConformance";
 import { generateSeismicPraReport } from "./seismicPraDocx";
 import { Drawer, EmptyState, Field, NumberInput, Section, SelectInput, Tag, TextArea, TextInput } from "./seismicPraFields";
-import { hazardCurveFanSeries, motionValueAtFrequency, responseSpectrumFanSeries, secondaryHazardFanSeries, structuralResponseFanSeries, type HazardFanPoint, type SpectrumDirection } from "./seismicPraHazardCharts";
+import { fragilityFanSeries, hazardCurveFanSeries, motionValueAtFrequency, responseSpectrumFanSeries, secondaryHazardFanSeries, structuralResponseFanSeries, type HazardFanPoint, type SpectrumDirection } from "./seismicPraHazardCharts";
 import { seismicPraInterfaceLanes, type SeismicPraInterfaceLane } from "./seismicPraInterfaces";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "./seismicPraStructuredEditor";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
@@ -19,6 +19,8 @@ interface CollectionEditorTarget {
   focus: EditorPath;
   createAt?: EditorPath;
   visibleRootFields?: string[] | ((value: Record<string, unknown>) => string[]);
+  inlinePrimitiveArrays?: boolean;
+  inlineObjectFields?: string[];
   removeLabel?: string;
 }
 interface AddCategoryOption {
@@ -28,27 +30,6 @@ interface AddCategoryOption {
   subtitle: string;
   createAt: EditorPath;
 }
-
-const UncertaintyPackageSchema = SeismicPRASchema.pick({
-  integratedUncertainties: true,
-  integratedSensitivityStudies: true,
-  modelUncertainty: true,
-  preOperationalAssumptions: true,
-}).extend({
-  seismicHazardAnalysis: SeismicPRASchema.shape.seismicHazardAnalysis.pick({
-    uncertainties: true,
-    modelUncertainty: true,
-    preOperationalAssumptions: true,
-  }),
-  seismicFragilityAnalysis: SeismicPRASchema.shape.seismicFragilityAnalysis.pick({
-    modelUncertainty: true,
-    preOperationalAssumptions: true,
-  }),
-  seismicPlantResponseAnalysis: SeismicPRASchema.shape.seismicPlantResponseAnalysis.pick({
-    modelUncertainty: true,
-    preOperationalAssumptions: true,
-  }),
-});
 
 const EDITOR_LABELS: Record<Tone, string> = {
   sha: "Seismic Hazard Analysis",
@@ -151,7 +132,14 @@ function BasisDetail({ label, value }: { label: string; value: string }): JSX.El
 }
 
 function Table({ headers, children, minWidth = 720, caption, columnWidths, className }: { headers: string[]; children: ReactNode; minWidth?: number; caption?: string; columnWidths?: string[]; className?: string }): JSX.Element {
-  return <div className="stablewrap"><table className={`stable postable${className === undefined ? "" : ` ${className}`}`} style={{ minWidth, tableLayout: minWidth === 0 ? "fixed" : undefined }}>{columnWidths !== undefined && <colgroup>{columnWidths.map((width, index) => <col key={`${width}-${index}`} style={{ width }} />)}</colgroup>}{caption !== undefined && <caption>{caption}</caption>}<thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>;
+  return <div className="stablewrap">
+    {caption !== undefined && <div className="stable__caption">{caption}</div>}
+    <table aria-label={caption} className={`stable postable${className === undefined ? "" : ` ${className}`}`} style={{ minWidth, tableLayout: minWidth === 0 ? "fixed" : undefined }}>
+      {columnWidths !== undefined && <colgroup>{columnWidths.map((width, index) => <col key={`${width}-${index}`} style={{ width }} />)}</colgroup>}
+      <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead>
+      <tbody>{children}</tbody>
+    </table>
+  </div>;
 }
 
 function DiagnosticTable({ diagnostics }: { diagnostics: SeismicPraDiagnostic[] }): JSX.Element {
@@ -161,14 +149,14 @@ function DiagnosticTable({ diagnostics }: { diagnostics: SeismicPraDiagnostic[] 
   </Table>;
 }
 
-function MefEditor({ tone, title, subtitle, focus, createAt, hiddenRootFields, visibleRootFields, removeLabel, onClose }: { tone: Tone; title: string; subtitle: string; focus: EditorPath; createAt?: EditorPath; hiddenRootFields?: string[]; visibleRootFields?: string[] | ((value: Record<string, unknown>) => string[]); removeLabel?: string; onClose: () => void }): JSX.Element {
+function MefEditor({ tone, title, subtitle, focus, createAt, hiddenRootFields, visibleRootFields, inlinePrimitiveArrays, inlineObjectFields, removeLabel, onClose }: { tone: Tone; title: string; subtitle: string; focus: EditorPath; createAt?: EditorPath; hiddenRootFields?: string[]; visibleRootFields?: string[] | ((value: Record<string, unknown>) => string[]); inlinePrimitiveArrays?: boolean; inlineObjectFields?: string[]; removeLabel?: string; onClose: () => void }): JSX.Element {
   const { mef, editable, update } = useUpdate();
-  return <StructuredEditorDrawer eyebrow={EDITOR_LABELS[tone]} title={title} subtitle={subtitle} schema={SeismicPRASchema} value={mef} editable={editable} initialFocus={focus} createAt={createAt} hiddenRootFields={hiddenRootFields} visibleRootFields={visibleRootFields} onClose={onClose} onApply={(value) => update((draft) => { Object.assign(draft, value); })} onRemove={removeLabel === undefined ? undefined : () => update((draft) => { Object.assign(draft, removeStructuredRecord(draft, focus)); })} removeLabel={removeLabel} />;
+  return <StructuredEditorDrawer eyebrow={EDITOR_LABELS[tone]} title={title} subtitle={subtitle} schema={SeismicPRASchema} value={mef} editable={editable} initialFocus={focus} createAt={createAt} hiddenRootFields={hiddenRootFields} visibleRootFields={visibleRootFields} inlinePrimitiveArrays={inlinePrimitiveArrays} inlineObjectFields={inlineObjectFields} onClose={onClose} onApply={(value) => update((draft) => { Object.assign(draft, value); })} onRemove={removeLabel === undefined ? undefined : () => update((draft) => { Object.assign(draft, removeStructuredRecord(draft, focus)); })} removeLabel={removeLabel} />;
 }
 
 function CollectionEditor({ tone, target, onClose }: { tone: Tone; target: CollectionEditorTarget | null; onClose: () => void }): JSX.Element | null {
   if (target === null) return null;
-  return <MefEditor tone={tone} title={target.title} subtitle={target.subtitle} focus={target.focus} createAt={target.createAt} visibleRootFields={target.visibleRootFields} removeLabel={target.removeLabel} onClose={onClose} />;
+  return <MefEditor tone={tone} title={target.title} subtitle={target.subtitle} focus={target.focus} createAt={target.createAt} visibleRootFields={target.visibleRootFields} inlinePrimitiveArrays={target.inlinePrimitiveArrays} inlineObjectFields={target.inlineObjectFields} removeLabel={target.removeLabel} onClose={onClose} />;
 }
 
 function InterfaceFlowTable({ title, lane }: { title: string; lane: SeismicPraInterfaceLane }): JSX.Element {
@@ -458,7 +446,7 @@ function HazardBasisScreen(): JSX.Element {
 
     <Section title="Shared ground-motion definition" description="Define motion parameters shared across seismic analyses." tone="sha" actions={editable ? <AddButton label="Add parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Parameter shared by hazard, fragility, and plant response", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"], visibleRootFields: groundMotionFields })} /> : undefined}>
       {sha.analysisBasis.groundMotionParameters.length === 0 ? <EmptyState title="No ground-motion parameters" detail="The shared motion definition has not been established." /> : <Table headers={["Parameter", "Direction", "Range", "Frequency range"]} minWidth={0}>
-        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Parameter shared by hazard, fragility, and plant response", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], visibleRootFields: groundMotionFields, removeLabel: "Remove parameter" })}><td><strong>{item.name}</strong><code>{[displayLabel(item.parameterType), item.dampingRatio === undefined ? undefined : `${item.dampingRatio * 100}% damping`].filter(Boolean).join(" · ")}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{frequencyRangeLabel(item.selectedFrequencyRangeHz.lower, item.selectedFrequencyRangeHz.upper)}</td></tr>)}
+        {sha.analysisBasis.groundMotionParameters.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setParameterEditor({ title: item.name, subtitle: "Parameter shared by hazard, fragility, and plant response", focus: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters", index], visibleRootFields: groundMotionFields, removeLabel: "Remove parameter" })}><td className="stable__key"><strong>{item.name}</strong><code>{[displayLabel(item.parameterType), item.dampingRatio === undefined ? undefined : `${item.dampingRatio * 100}% damping`].filter(Boolean).join(" · ")}</code></td><td>{displayLabel(item.direction)}</td><td>{item.selectedRange.minimum}–{item.selectedRange.maximum} {item.units}</td><td>{frequencyRangeLabel(item.selectedFrequencyRangeHz.lower, item.selectedFrequencyRangeHz.upper)}</td></tr>)}
       </Table>}
     </Section>
 
@@ -601,13 +589,13 @@ function EarthScienceScreen(): JSX.Element {
 
     <Section title="Earth-science data" description="Current technical inputs used by the hazard analysis." tone="sha" actions={editable ? <AddButton label="Add data set" onClick={() => setDataEditor({ title: "New earth-science data set", subtitle: "Source, coverage, quality, and currentness", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets"], visibleRootFields: dataFields })} /> : undefined}>
       {inputs.dataSets.length === 0 ? <EmptyState title="No data sets" detail="No earth-science evidence has been registered." /> : <Table headers={["Data set", "Discipline", "Coverage", "Quality or limitation"]} minWidth={820}>
-        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], visibleRootFields: dataFields, removeLabel: "Remove data set" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.spatialCoverage}</td><td>{item.qualityAndLimitations}</td></tr>)}
+        {inputs.dataSets.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setDataEditor({ title: item.name, subtitle: displayLabel(item.discipline), focus: ["seismicHazardAnalysis", "earthScienceInputs", "dataSets", index], visibleRootFields: dataFields, removeLabel: "Remove data set" })}><td className="stable__key"><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td><Tag tone="sha">{displayLabel(item.discipline)}</Tag></td><td>{item.spatialCoverage}</td><td>{item.qualityAndLimitations}</td></tr>)}
       </Table>}
     </Section>
 
     <Section title="Models and methods" description="Sources assessed for potential hazard impact." tone="sha" actions={editable ? <AddButton label="Add source" onClick={() => setModelEditor({ title: "New model or method", subtitle: "Applicability, potential impact, and disposition", focus: [], createAt: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory"], visibleRootFields: modelFields })} /> : undefined}>
       {inputs.modelAndMethodInventory.length === 0 ? <EmptyState title="No models or methods" detail="No new or existing technical source has been assessed." /> : <Table headers={["Source or model", "Type", "Applicability", "Hazard impact"]} minWidth={850}>
-        {inputs.modelAndMethodInventory.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setModelEditor({ title: item.name, subtitle: item.sourceReference, focus: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory", index], visibleRootFields: modelFields, removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>{item.applicability}</td><td>{item.potentialImpactOnHazard}</td></tr>)}
+        {inputs.modelAndMethodInventory.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setModelEditor({ title: item.name, subtitle: item.sourceReference, focus: ["seismicHazardAnalysis", "earthScienceInputs", "modelAndMethodInventory", index], visibleRootFields: modelFields, removeLabel: "Remove source" })}><td className="stable__key"><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>{item.applicability}</td><td>{item.potentialImpactOnHazard}</td></tr>)}
       </Table>}
     </Section>
 
@@ -933,7 +921,7 @@ function SourceGroundMotionScreen(): JSX.Element {
       {editable && <AddButton label="Add source" onClick={() => setCollectionEditor({ title: "New seismic source", subtitle: "Geometry, magnitude, recurrence, dependencies, and epistemic alternatives", focus: [], createAt: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources"] })} />}
     </>}>
       {source.earthquakeSources.length === 0 ? <EmptyState title="No seismic sources" detail="No credible earthquake source has been characterized." /> : <Table headers={["Source", "Geometry", "Distance", "Magnitude range"]} minWidth={760}>
-        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td><strong>{item.sourceType === item.geometry.geometryType ? displayLabel(item.sourceType) : `${displayLabel(item.sourceType)} / ${displayLabel(item.geometry.geometryType)}`}</strong><code>{item.faultMechanisms.map(displayLabel).join(", ")}</code></td><td>{item.geometry.closestDistanceToSiteKm === undefined ? "Not recorded" : `${item.geometry.closestDistanceToSiteKm} km`}</td><td>{sourceMagnitudeRange(item.magnitudeFrequencyModels)}</td></tr>)}
+        {source.earthquakeSources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.sourceType), focus: ["seismicHazardAnalysis", "sourceCharacterization", "earthquakeSources", index], removeLabel: "Remove source" })}><td className="stable__key"><strong>{item.name}</strong><code>{item.tectonicRegionType}</code></td><td><strong>{item.sourceType === item.geometry.geometryType ? displayLabel(item.sourceType) : `${displayLabel(item.sourceType)} / ${displayLabel(item.geometry.geometryType)}`}</strong><code>{item.faultMechanisms.map(displayLabel).join(", ")}</code></td><td>{item.geometry.closestDistanceToSiteKm === undefined ? "Not recorded" : `${item.geometry.closestDistanceToSiteKm} km`}</td><td>{sourceMagnitudeRange(item.magnitudeFrequencyModels)}</td></tr>)}
       </Table>}
     </Section>
     <Section title="Ground-motion models" description="Prediction ranges, variability, and weights." tone="sha" actions={<>
@@ -941,7 +929,7 @@ function SourceGroundMotionScreen(): JSX.Element {
       {editable && <AddButton label="Add model" onClick={() => setCollectionEditor({ title: "New prediction model", subtitle: "Model range, source basis, logic-tree weight, and applicability", focus: [], createAt: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels"] })} />}
     </>}>
       {ground.predictionModels.length === 0 ? <EmptyState title="No prediction models" detail="No ground-motion prediction model has been selected." /> : <Table headers={["Prediction model", "Type", "Magnitude range", "Distance range", "Total sigma", "Weight"]} minWidth={920}>
-        {ground.predictionModels.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Ground-motion prediction model", focus: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels", index], removeLabel: "Remove prediction model" })}><td><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>M {item.magnitudeRange.minimum} to {item.magnitudeRange.maximum}</td><td>{item.distanceRangeKm.minimum} to {item.distanceRangeKm.maximum} km</td><td>{item.sigmaComponents?.total ?? "Not recorded"}</td><td>{item.logicTreeWeight.toFixed(2)}</td></tr>)}
+        {ground.predictionModels.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Ground-motion prediction model", focus: ["seismicHazardAnalysis", "groundMotionCharacterization", "predictionModels", index], removeLabel: "Remove prediction model" })}><td className="stable__key"><strong>{item.name}</strong><code>{item.sourceReference}</code></td><td>{displayLabel(item.modelKind)}</td><td>M {item.magnitudeRange.minimum} to {item.magnitudeRange.maximum}</td><td>{item.distanceRangeKm.minimum} to {item.distanceRangeKm.maximum} km</td><td>{item.sigmaComponents?.total ?? "Not recorded"}</td><td>{item.logicTreeWeight.toFixed(2)}</td></tr>)}
       </Table>}
     </Section>
     {sourceBasisOpen && <SourceCharacterizationBasisEditor onClose={() => setSourceBasisOpen(false)} />}
@@ -1324,16 +1312,16 @@ function SiteResponseScreen(): JSX.Element {
   return <>
     <Section title="Site conditions" description="Local conditions that affect ground motion." tone="sha" actions={<EditButton label="Edit conditions" onClick={() => setConditionsOpen(true)} />}>
       <Table headers={["Condition", "Site characterization"]} minWidth={0}>
-        <tr><td><strong>Topography</strong></td><td>{topography.topographicDescription || "Not defined"}</td></tr>
-        <tr><td><strong>Surficial deposits</strong></td><td>{topography.surficialDepositDescription || "Not defined"}</td></tr>
-        <tr><td><strong>Geologic structure</strong></td><td>{topography.geologicStructureDescription || "Not defined"}</td></tr>
-        <tr><td><strong>Topographic effects</strong></td><td>{topography.topographicEffectsTreatment || "Not evaluated"}</td></tr>
+        <tr><td className="stable__key"><strong>Topography</strong></td><td>{topography.topographicDescription || "Not defined"}</td></tr>
+        <tr><td className="stable__key"><strong>Surficial deposits</strong></td><td>{topography.surficialDepositDescription || "Not defined"}</td></tr>
+        <tr><td className="stable__key"><strong>Geologic structure</strong></td><td>{topography.geologicStructureDescription || "Not defined"}</td></tr>
+        <tr><td className="stable__key"><strong>Topographic effects</strong></td><td>{topography.topographicEffectsTreatment || "Not evaluated"}</td></tr>
       </Table>
     </Section>
     <Section title="Site profiles" description="Weighted subsurface branches used in the response analysis." tone="sha" actions={editable ? <AddButton label="Add profile" onClick={() => setProfileIndex(null)} /> : undefined}>
       {site.profiles.length === 0 ? <EmptyState title="No site profiles" detail="Add the subsurface profiles used by the local response analysis." /> : <Table headers={["Profile", "Layers", "Vs range", "Depths", "Weight"]} minWidth={0}>
         {site.profiles.map((profile, index) => <tr className="postable__row--clickable" key={profile.uuid} onClick={() => setProfileIndex(index)}>
-          <td><strong>{profile.name}</strong><code>{displayLabel(profile.profileType)}</code></td>
+          <td className="stable__key"><strong>{profile.name}</strong><code>{displayLabel(profile.profileType)}</code></td>
           <td>{profile.layers.length}</td>
           <td>{profileVelocityRange(profile)}</td>
           <td><strong>Bedrock {profile.depthToBedrock} {profile.depthUnit}</strong><code>Groundwater {profile.groundwaterDepth === undefined ? "not defined" : `${profile.groundwaterDepth} ${profile.depthUnit}`}</code></td>
@@ -1350,7 +1338,7 @@ function SiteResponseScreen(): JSX.Element {
           const method = site.methods.find((candidate) => candidate.uuid === result.methodRef);
           const input = site.inputMotions.find((candidate) => candidate.uuid === result.inputMotionRef);
           return <tr className="postable__row--clickable" key={result.uuid} onClick={() => setResultIndex(index)}>
-            <td><strong>{result.name}</strong></td>
+            <td className="stable__key"><strong>{result.name}</strong></td>
             <td><strong>{method?.name ?? "Missing method"}</strong><code>{method === undefined ? result.methodRef : `${displayLabel(method.dimension)} · ${displayLabel(method.analysisType)}`}</code></td>
             <td><strong>{input === undefined ? "Missing input" : numericRange(input.amplitudeLevels, input.units)}</strong><code>{numericRange(result.points.map((point) => point.frequencyHz), "Hz")}</code></td>
             <td><strong>{numericRange(result.points.map((point) => point.medianAmplification))}</strong><code>Log σ {numericRange(result.points.map((point) => point.logarithmicStandardDeviation).filter((value): value is number => value !== undefined))}</code></td>
@@ -1895,7 +1883,7 @@ function HazardResultsScreen(): JSX.Element {
           const curves = quant.hazardCurves.filter((curve) => curve.groundMotionParameterRef === parameter.uuid);
           const meanCurve = curves.find((curve) => curve.statistic === "MEAN");
           return <tr className="postable__row--clickable" key={parameter.uuid} onClick={() => setCurveParameter(parameter.uuid)}>
-            <td><strong>{parameter.name}</strong><code>{displayLabel(parameter.direction)} · {parameter.uuid}</code></td>
+            <td className="stable__key"><strong>{parameter.name}</strong><code>{displayLabel(parameter.direction)} · {parameter.uuid}</code></td>
             <td><strong>{motionAtFrequency(meanCurve, 1e-4)}</strong></td>
             <td>{motionAtFrequency(meanCurve, 1e-5)}</td>
             <td>{curves.length === 0 ? "None" : `Mean + ${curves.filter((curve) => curve.statistic === "FRACTILE").length} fractiles`}</td>
@@ -1905,7 +1893,7 @@ function HazardResultsScreen(): JSX.Element {
       </Table>}
       <Table caption="Calculation runs" headers={["Run", "Software", "Logic-tree branches", "Annual-frequency range", "Checks"]} minWidth={0} columnWidths={["28%", "18%", "18%", "24%", "12%"]}>
         {quant.calculationRuns.map((run) => <tr key={run.uuid}>
-          <td><strong>{run.name}</strong><code>{run.calculationDate}</code></td>
+          <td className="stable__key"><strong>{run.name}</strong><code>{run.calculationDate}</code></td>
           <td>{run.software} {run.softwareVersion}</td>
           <td>{run.logicTreeEndBranchCount?.toLocaleString() ?? "Not defined"}</td>
           <td>{annualFrequency(run.annualFrequencyRange.maximum)} to {annualFrequency(run.annualFrequencyRange.minimum)}</td>
@@ -1917,7 +1905,7 @@ function HazardResultsScreen(): JSX.Element {
     <Section title="PRA bins" description="Non-overlapping inputs passed to plant response." tone="sha">
       {quant.seismicPraInputs.hazardIntervals.length === 0 ? <EmptyState title="No PRA bins" detail="Discretize the mean hazard curve for plant-response quantification." /> : <Table headers={["Bin", "Motion range", "Representative", "Annual frequency", "Coupled results"]} minWidth={0} columnWidths={["18%", "20%", "18%", "17%", "27%"]}>
         {quant.seismicPraInputs.hazardIntervals.map((interval, index) => <tr className="postable__row--clickable" key={interval.uuid} onClick={() => setIntervalIndex(index)}>
-          <td><strong>{interval.name}</strong></td>
+          <td className="stable__key"><strong>{interval.name}</strong></td>
           <td>{interval.lowerGroundMotion} to {interval.upperGroundMotion} {interval.groundMotionUnits}</td>
           <td><strong>{interval.representativeGroundMotion} {interval.groundMotionUnits}</strong></td>
           <td className="smono">{interval.annualFrequency.toExponential(2)}</td>
@@ -1929,7 +1917,7 @@ function HazardResultsScreen(): JSX.Element {
     <Section title="Deaggregation" description="What controls important hazard levels." tone="sha">
       {quant.deaggregations.length === 0 ? <EmptyState title="No deaggregation results" detail="Calculate magnitude, distance, source, and model contributions at important motion levels." /> : <Table headers={["Hazard level", "Annual frequency", "Mean magnitude", "Mean distance", "Top source", "Top model"]} minWidth={0} columnWidths={["25%", "14%", "12%", "12%", "19%", "18%"]}>
         {quant.deaggregations.map((result, index) => <tr className="postable__row--clickable" key={result.uuid} onClick={() => setDeaggregationIndex(index)}>
-          <td><strong>{parameterName(result.groundMotionParameterRef)}</strong><code>{result.groundMotionLevel} {result.groundMotionUnits}</code></td>
+          <td className="stable__key"><strong>{parameterName(result.groundMotionParameterRef)}</strong><code>{result.groundMotionLevel} {result.groundMotionUnits}</code></td>
           <td className="smono">{annualFrequency(result.annualFrequencyOfExceedance)}</td>
           <td>{result.meanMagnitude.toFixed(2)}</td>
           <td>{result.meanDistanceKm.toFixed(1)} km</td>
@@ -1957,7 +1945,7 @@ function HazardResultsScreen(): JSX.Element {
         {spectra.horizontalSpectra.map((spectrum, index) => {
           const basis = spectra.horizontalShapeBases.find((item) => item.spectrumRef === spectrum.uuid);
           return <tr className="postable__row--clickable" key={spectrum.uuid} onClick={() => setSpectrumTarget({ direction: "horizontal", index })}>
-            <td><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
+            <td className="stable__key"><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
             <td>Horizontal</td>
             <td className="smono">{annualFrequency(spectrum.annualFrequencyOfExceedance)}</td>
             <td>{numericRange(spectrum.points.map((point) => point.spectralAcceleration), "g")}</td>
@@ -1967,7 +1955,7 @@ function HazardResultsScreen(): JSX.Element {
         {spectra.verticalSpectra.map((spectrum, index) => {
           const basis = spectra.verticalSpectrumBases.find((item) => item.spectrumRef === spectrum.uuid);
           return <tr className="postable__row--clickable" key={spectrum.uuid} onClick={() => setSpectrumTarget({ direction: "vertical", index })}>
-            <td><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
+            <td className="stable__key"><strong>{spectrum.name}</strong><code>{(spectrum.dampingRatio * 100).toFixed(0)}% · {spectrum.controlPointRef}</code></td>
             <td>Vertical</td>
             <td className="smono">{annualFrequency(spectrum.annualFrequencyOfExceedance)}</td>
             <td>{numericRange(spectrum.points.map((point) => point.spectralAcceleration), "g")}</td>
@@ -1977,7 +1965,7 @@ function HazardResultsScreen(): JSX.Element {
       </Table>
       <Table caption="Foundation inputs" headers={["Input", "Structure", "Horizontal spectrum", "Vertical spectrum", "Control point"]} minWidth={0} columnWidths={["24%", "20%", "19%", "19%", "18%"]}>
         {spectra.foundationInputResponseSpectra.map((input) => <tr key={input.uuid}>
-          <td><strong>{input.name}</strong></td>
+          <td className="stable__key"><strong>{input.name}</strong></td>
           <td>{input.structureRef}</td>
           <td>{input.horizontalSpectrumRefs.join(", ")}</td>
           <td>{input.verticalSpectrumRef ?? "None"}</td>
@@ -1991,7 +1979,7 @@ function HazardResultsScreen(): JSX.Element {
         {quant.sensitivityStudies.map((study) => {
           const finding = quant.keyUncertaintyFindings.find((item) => item.sensitivityStudyRefs.includes(study.uuid));
           return <tr key={study.uuid}>
-            <td><strong>{study.name ?? study.uuid}</strong></td>
+            <td className="stable__key"><strong>{study.name ?? study.uuid}</strong></td>
             <td>{displayLabel(String(study.elementSpecificProperties?.analysisArea ?? finding?.analysisArea ?? "Not defined"))}</td>
             <td>{study.variedParameters.join(", ")}</td>
             <td>{study.results ?? "Not evaluated"}</td>
@@ -2374,7 +2362,7 @@ function SecondaryHazardsScreen(): JSX.Element {
     </> : undefined}>
       {evaluation.hazards.length === 0 ? <TechnicalEmptyState title="No secondary hazards" detail="Identify the site-relevant non-vibratory seismic hazards before screening." /> : <Table headers={["Hazard", "Site condition", "Result", "Technical basis"]} minWidth={0} columnWidths={["25%", "24%", "16%", "35%"]}>
         {evaluation.hazards.map((hazard, index) => <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(index)}>
-          <td><strong>{hazard.name}</strong><code>{displayLabel(hazard.hazardType)}</code></td>
+          <td className="stable__key"><strong>{hazard.name}</strong><code>{displayLabel(hazard.hazardType)}</code></td>
           <td>{hazard.potentiallyAffectedArea}<code>{hazard.siteEvidenceRefs.length} site evidence references</code></td>
           <td><Tag tone={hazard.screening.disposition === "RETAINED" ? "warn" : "good"}>{hazard.screening.disposition === "RETAINED" ? "Retained" : "Screened"}</Tag><code>{hazard.screening.criterion.replace("_", " ")}</code></td>
           <td>{hazard.screening.screeningBasis}</td>
@@ -2398,7 +2386,7 @@ function SecondaryHazardsScreen(): JSX.Element {
             const levels = meanCurve?.points.map((point) => point.hazardLevel) ?? [];
             const frequencies = meanCurve?.points.map((point) => point.annualFrequencyOfExceedance) ?? [];
             return <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(evaluation.hazards.findIndex((item) => item.uuid === hazard.uuid))}>
-              <td><strong>{analysis.hazardParameter}</strong><code>{analysis.parameterUnits} | {analysis.outputRefs.join(", ") || "No output"}</code></td>
+              <td className="stable__key"><strong>{analysis.hazardParameter}</strong><code>{analysis.parameterUnits} | {analysis.outputRefs.join(", ") || "No output"}</code></td>
               <td>{numericRange(levels, analysis.parameterUnits)}<code>{frequencies.length === 0 ? "No mean curve" : `${annualFrequency(Math.max(...frequencies))} to ${annualFrequency(Math.min(...frequencies))} /yr`}</code></td>
               <td>{analysis.affectedSeismicEquipmentListItemRefs.join(", ") || "None"}</td>
               <td>{analysis.failureMechanisms.map((mechanism) => mechanism.name).join(", ") || "None"}</td>
@@ -2412,7 +2400,7 @@ function SecondaryHazardsScreen(): JSX.Element {
       {retainedFloods.length === 0 ? <>
         <Table headers={["Hazard", "Mechanism", "XFHA coverage", "Hazard results", "Fragility mechanisms"]} minWidth={0} columnWidths={["20%", "30%", "14%", "18%", "18%"]}>
           {EXTERNAL_FLOODING_INTERFACE_EXAMPLES.map((example) => <tr key={example.hazard}>
-            <td><strong>{example.hazard}</strong><code>Illustrative example</code></td>
+            <td className="stable__key"><strong>{example.hazard}</strong><code>Illustrative example</code></td>
             <td>{example.mechanism}</td>
             <td><strong>{example.coverage}</strong></td>
             <td>{example.results}</td>
@@ -2424,7 +2412,7 @@ function SecondaryHazardsScreen(): JSX.Element {
           const flood = hazard.externalFloodingInterface!;
           const met = flood.interfaceRequirements.filter((requirement) => requirement.status === "MET" || requirement.status === "NOT_APPLICABLE").length;
           return <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => setHazardIndex(evaluation.hazards.findIndex((item) => item.uuid === hazard.uuid))}>
-            <td><strong>{hazard.name}</strong></td>
+            <td className="stable__key"><strong>{hazard.name}</strong></td>
             <td>{flood.mechanismDescription}</td>
             <td><strong>{met} / {flood.interfaceRequirements.length}</strong></td>
             <td>{flood.hazardParameterResultsRefs.join(", ") || "None"}</td>
@@ -3194,7 +3182,7 @@ function SelResponseScreen(): JSX.Element {
     </>}>
       {sel.equipment.length === 0 ? <TechnicalEmptyState title="No seismic equipment" detail="Select SSCs and failure modes from the plant-response model." /> : <Table headers={["SSC", "Credited function", "Failure mode", "Selected from", "Fragility treatment"]} minWidth={0} columnWidths={["23%", "23%", "22%", "16%", "16%"]} className="stable--wrapheads">
         {sel.equipment.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setSelIndex(index)}>
-          <td><strong>{item.name}</strong><code>{displayLabel(item.sscType)} | {item.building} | {item.roomOrArea ?? "Area not defined"} | {item.elevation ?? "Elevation not defined"}</code></td>
+          <td className="stable__key"><strong>{item.name}</strong><code>{displayLabel(item.sscType)} | {item.building} | {item.roomOrArea ?? "Area not defined"} | {item.elevation ?? "Elevation not defined"}</code></td>
           <td>{item.creditedFunctions.join("; ") || "Not defined"}</td>
           <td>{item.failureModes.map((mode) => mode.name).join("; ") || "Not defined"}<code>{item.failureModes.map((mode) => displayLabel(mode.failureModeType)).join(" | ")}</code></td>
           <td>{item.inclusionSources.map(displayLabel).join("; ")}</td>
@@ -3209,7 +3197,7 @@ function SelResponseScreen(): JSX.Element {
     </>}>
       <Table caption="Reference earthquakes" headers={["Reference earthquake", "Annual frequency", "Input motion", "Hazard range", "Components"]} minWidth={0} columnWidths={["25%", "14%", "21%", "20%", "20%"]} className="stable--wrapheads">
         {response.referenceEarthquakes.map((earthquake, index) => <tr className="postable__row--clickable" key={earthquake.uuid} onClick={() => setReferenceIndex(index)}>
-          <td><strong>{earthquake.name}</strong><code>{earthquake.hazardSpectrumRef}</code></td>
+          <td className="stable__key"><strong>{earthquake.name}</strong><code>{earthquake.hazardSpectrumRef}</code></td>
           <td className="smono">{earthquake.annualFrequencyOfExceedance === undefined ? "Not defined" : annualFrequency(earthquake.annualFrequencyOfExceedance)}</td>
           <td><strong>{earthquake.groundMotionLevel} {earthquake.groundMotionUnits}</strong><code>{earthquake.groundMotionParameterRef} | {earthquake.controlPointRef}</code></td>
           <td>{earthquake.hazardRangeOfInterest.lowerGroundMotion}-{earthquake.hazardRangeOfInterest.upperGroundMotion} {earthquake.groundMotionUnits}</td>
@@ -3221,7 +3209,7 @@ function SelResponseScreen(): JSX.Element {
           const frequencies = model.modalProperties.map((mode) => mode.frequencyHz);
           const participation = model.modalProperties.reduce((sum, mode) => sum + mode.massParticipationFraction, 0);
           return <tr className="postable__row--clickable" key={model.uuid} onClick={() => setModelIndex(index)}>
-            <td><strong>{model.name}</strong><code>{model.structureRef} | {model.softwareAndVersion}</code></td>
+            <td className="stable__key"><strong>{model.name}</strong><code>{model.structureRef} | {model.softwareAndVersion}</code></td>
             <td>{displayLabel(model.asModeledCondition)}</td>
             <td><strong>{displayLabel(model.modelType)}</strong><code>{model.modalProperties.length} modes | {numericRange(frequencies, "Hz")} | participation {participation.toFixed(2)}</code></td>
             <td>{model.foundationAndEmbedment}</td>
@@ -3231,7 +3219,7 @@ function SelResponseScreen(): JSX.Element {
       </Table>
       <Table caption="Scaling checks" headers={["Target response", "Scale factor", "Target spectrum", "Model and foundation", "Nonlinear check"]} minWidth={0} columnWidths={["23%", "11%", "16%", "26%", "24%"]} className="stable--wrapheads">
         {response.scalingEvaluations.map((scaling) => <tr key={scaling.uuid}>
-          <td><strong>{scaling.name}</strong><code>{scaling.sourceResponseAnalysisRef}</code></td>
+          <td className="stable__key"><strong>{scaling.name}</strong><code>{scaling.sourceResponseAnalysisRef}</code></td>
           <td className="smono">{scaling.scaleFactor.toFixed(3)}</td>
           <td>{scaling.targetSpectrumRef}</td>
           <td>{scaling.structuralModelSimilarity}<code>{scaling.foundationSimilarity}</code></td>
@@ -3259,7 +3247,7 @@ function SelResponseScreen(): JSX.Element {
           const medians = result.spectrumPoints?.map((point) => point.medianResponse)
             ?? (result.medianValue === undefined ? [] : [result.medianValue]);
           return <tr className="postable__row--clickable" key={result.uuid} onClick={() => { setSelectedResponseRef(result.uuid); setResultIndex(index); }}>
-            <td><strong>{result.name}</strong><code>{result.location}</code></td>
+            <td className="stable__key"><strong>{result.name}</strong><code>{result.location}</code></td>
             <td>{result.responseModelRef}<code>{result.direction} | {displayLabel(result.responseQuantity)}</code></td>
             <td><strong>{numericRange(medians, result.units)}</strong><code>{result.spectrumPoints?.length ?? 1} result points</code></td>
             <td>Beta R {result.betaRandomness.toFixed(3)}<code>Beta U {result.betaUncertainty.toFixed(3)} | composite {(result.compositeBeta ?? Math.sqrt(result.betaRandomness ** 2 + result.betaUncertainty ** 2)).toFixed(3)}</code></td>
@@ -3280,7 +3268,7 @@ function SelResponseScreen(): JSX.Element {
         {response.probabilisticSimulations.map((simulation, index) => {
           const final = simulation.convergenceResults.at(-1);
           return <tr className="postable__row--clickable" key={simulation.uuid} onClick={() => setSimulationIndex(index)}>
-            <td><strong>{simulation.name}</strong><code>{displayLabel(simulation.method)}</code></td>
+            <td className="stable__key"><strong>{simulation.name}</strong><code>{displayLabel(simulation.method)}</code></td>
             <td><strong>{simulation.simulationCount} trials</strong><code>{simulation.inputMotionSetCount} sets x {simulation.componentsPerSet} components</code></td>
             <td>{simulation.sampledAleatoryVariables.join(", ")}<code>{simulation.sampledEpistemicVariables.join(", ")}</code></td>
             <td>{simulation.convergenceCriterion}</td>
@@ -3301,53 +3289,1300 @@ function SelResponseScreen(): JSX.Element {
   </>;
 }
 
+type SfrThresholdProgram =
+  SeismicPRA["seismicFragilityAnalysis"]["thresholdProgram"];
+type SfrRuggednessBasis =
+  SfrThresholdProgram["inherentlyRuggedBases"][number];
+type SfrThresholdMethod = SfrThresholdProgram["thresholdMethods"][number];
+type SfrInvestigation =
+  SeismicPRA["seismicFragilityAnalysis"]["plantInvestigations"][number];
+type SfrFinding = SfrInvestigation["findings"][number];
+type SfrTeamMember = SfrInvestigation["team"][number];
+
+function newRuggednessBasis(): SfrRuggednessBasis {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New inherently rugged basis",
+    referenceGroundMotionParameter: "",
+    genericRuggedComponentTypes: [],
+    guidanceReferences: [],
+    plantSpecificAdditions: [],
+    excludedComponentTypes: [],
+    capacityBeyondRiskSignificantRangeBasis: "",
+    hazardIndependentBasis: "",
+    implementsSrs: [{ sr: "SFR-C1", hlr: "C" }],
+  };
+}
+
+function newThresholdMethod(): SfrThresholdMethod {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New fragility threshold method",
+    plantResponseThresholdRef: "",
+    groundMotionParameterRef: "",
+    controlPointRef: "",
+    thresholdCapacity: 0,
+    capacityUnits: "g",
+    cumulativeSscCountBasis: 0,
+    correlationTreatment: "",
+    screeningCapacitySources: [],
+    caveatsAndInclusionRules: [],
+    comparisonMethod: "",
+    satisfiesScr2: false,
+    implementsSrs: [{ sr: "SFR-C2", hlr: "C" }],
+  };
+}
+
+function newTeamMember(): SfrTeamMember {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New team member",
+    organization: "",
+    role: "",
+    seismicPerformanceExperience: "",
+    walkdownExperience: "",
+    systemsOrOperationsExperience: "",
+    qualifications: [],
+  };
+}
+
+function newInvestigation(): SfrInvestigation {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New plant investigation",
+    investigationType: "DESIGN_DOCUMENT_REVIEW",
+    conditionBasis: "AS_DESIGNED",
+    date: new Date().toISOString().slice(0, 10),
+    scope: "",
+    procedures: "",
+    team: [newTeamMember()],
+    designDocumentRefs: [],
+    sscRefsReviewed: [],
+    anchorageAndLoadPathReview: "",
+    observations: [],
+    findings: [],
+    fragilityThresholdConfirmations: [],
+    conclusions: "",
+    limitations: [],
+    implementsSrs: [
+      { sr: "SFR-D1", hlr: "D" },
+      { sr: "SFR-D2", hlr: "D" },
+      { sr: "SFR-D5", hlr: "D" },
+    ],
+  };
+}
+
+function newFinding(sscRef: string): SfrFinding {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New vulnerability finding",
+    sscRef,
+    findingType: "ANCHORAGE_LOAD_PATH",
+    description: "",
+    location: "",
+    credible: true,
+    potentiallyRiskSignificant: false,
+    affectedFunctionOrAction: "",
+    affectedFailureModeRefs: [],
+    resolutionOrFragilityTreatment: "",
+    evidenceRefs: [],
+    implementsSrs: [
+      { sr: "SFR-D2", hlr: "D" },
+      { sr: "SFR-D5", hlr: "D" },
+    ],
+  };
+}
+
+function ThresholdProgramEditor({ onClose }: { onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const program = mef.seismicFragilityAnalysis.thresholdProgram;
+  const [draft, setDraft] = useState(() => ({
+    screenedSscRefs: [...program.screenedSscRefs],
+    screeningConfirmationMethod: program.screeningConfirmationMethod,
+    anchorageAndSupportIncluded: program.anchorageAndSupportIncluded,
+  }));
+  function save(): void {
+    update((next) => {
+      Object.assign(next.seismicFragilityAnalysis.thresholdProgram, draft);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title="Fragility-screening basis" subtitle="Screened SSC scope and final disposition checks" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Screening control</h3>
+        <Field label="Screened SSC references" hint="One reference per line.">
+          <TextArea rows={10} value={draft.screenedSscRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, screenedSscRefs: technicalList(value) }))} />
+        </Field>
+        <label className="sbasis-editor__check">
+          <input type="checkbox" checked={draft.anchorageAndSupportIncluded} onChange={(event) => setDraft((current) => ({ ...current, anchorageAndSupportIncluded: event.target.checked }))} />
+          <span>Include anchorage and the complete support load path</span>
+        </label>
+        <Field label="Final confirmation method">
+          <TextArea rows={6} value={draft.screeningConfirmationMethod} onChange={(value) => setDraft((current) => ({ ...current, screeningConfirmationMethod: value }))} />
+        </Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function RuggednessBasisEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newRuggednessBasis()
+    : mef.seismicFragilityAnalysis.thresholdProgram.inherentlyRuggedBases[index]!;
+  const [draft, setDraft] = useState<SfrRuggednessBasis>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.thresholdProgram.inherentlyRuggedBases;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.thresholdProgram.inherentlyRuggedBases.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Component scope, evidence, exceptions, and capacity basis" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove basis</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save basis</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Ruggedness basis</h3>
+        <FieldGrid>
+          <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+          <Field label="Ground-motion parameter"><TextInput value={draft.referenceGroundMotionParameter} onChange={(value) => setDraft((current) => ({ ...current, referenceGroundMotionParameter: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Generic component configurations" hint="One configuration per line.">
+          <TextArea rows={5} value={draft.genericRuggedComponentTypes.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, genericRuggedComponentTypes: technicalList(value) }))} />
+        </Field>
+        <Field label="Technical guidance and evidence" hint="One reference per line.">
+          <TextArea rows={5} value={draft.guidanceReferences.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, guidanceReferences: technicalList(value) }))} />
+        </Field>
+        <Field label="Excluded configurations" hint="One exclusion per line.">
+          <TextArea rows={5} value={draft.excludedComponentTypes.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, excludedComponentTypes: technicalList(value) }))} />
+        </Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Plant-specific additions</h3>
+        {draft.plantSpecificAdditions.map((addition, additionIndex) => <div className="sinlineeditor__subgroup" key={`${addition.componentType}-${additionIndex}`}>
+          <Field label="Component configuration"><TextInput value={addition.componentType} onChange={(value) => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.map((item, candidate) => candidate === additionIndex ? { ...item, componentType: value } : item) }))} /></Field>
+          <Field label="Justification"><TextArea rows={3} value={addition.justification} onChange={(value) => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.map((item, candidate) => candidate === additionIndex ? { ...item, justification: value } : item) }))} /></Field>
+          <Field label="Supporting references" hint="One reference per line."><TextArea rows={3} value={addition.supportingRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.map((item, candidate) => candidate === additionIndex ? { ...item, supportingRefs: technicalList(value) } : item) }))} /></Field>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.filter((_, candidate) => candidate !== additionIndex) }))}>Remove addition</button>}
+        </div>)}
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, plantSpecificAdditions: [...current.plantSpecificAdditions, { componentType: "", justification: "", supportingRefs: [] }] }))}>Add plant-specific configuration</button>}
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Decision basis</h3>
+        <Field label="Capacity beyond the risk-significant range"><TextArea rows={5} value={draft.capacityBeyondRiskSignificantRangeBasis} onChange={(value) => setDraft((current) => ({ ...current, capacityBeyondRiskSignificantRangeBasis: value }))} /></Field>
+        <Field label="Hazard-independent ruggedness basis"><TextArea rows={5} value={draft.hazardIndependentBasis} onChange={(value) => setDraft((current) => ({ ...current, hazardIndependentBasis: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function ThresholdMethodEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newThresholdMethod()
+    : mef.seismicFragilityAnalysis.thresholdProgram.thresholdMethods[index]!;
+  const [draft, setDraft] = useState<SfrThresholdMethod>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.thresholdProgram.thresholdMethods;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.thresholdProgram.thresholdMethods.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Capacity threshold, cumulative treatment, and technical acceptance" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove method</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save method</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Threshold</h3>
+        <Field label="Method name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Plant-response threshold reference"><TextInput value={draft.plantResponseThresholdRef} onChange={(value) => setDraft((current) => ({ ...current, plantResponseThresholdRef: value }))} /></Field>
+          <Field label="Ground-motion parameter"><TextInput value={draft.groundMotionParameterRef} onChange={(value) => setDraft((current) => ({ ...current, groundMotionParameterRef: value }))} /></Field>
+          <Field label="Control point"><TextInput value={draft.controlPointRef} onChange={(value) => setDraft((current) => ({ ...current, controlPointRef: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Threshold capacity"><NumberInput value={draft.thresholdCapacity} onChange={(value) => setDraft((current) => ({ ...current, thresholdCapacity: value }))} /></Field>
+          <Field label="Units"><TextInput value={draft.capacityUnits} onChange={(value) => setDraft((current) => ({ ...current, capacityUnits: value }))} /></Field>
+          <Field label="Cumulative SSC count"><NumberInput value={draft.cumulativeSscCountBasis} onChange={(value) => setDraft((current) => ({ ...current, cumulativeSscCountBasis: value }))} /></Field>
+        </FieldGrid>
+        <label className="sbasis-editor__check">
+          <input type="checkbox" checked={draft.satisfiesScr2} onChange={(event) => setDraft((current) => ({ ...current, satisfiesScr2: event.target.checked }))} />
+          <span>The cumulative comparison satisfies SCR-2</span>
+        </label>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Technical method</h3>
+        <Field label="Capacity evidence" hint="One source per line."><TextArea rows={5} value={draft.screeningCapacitySources.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, screeningCapacitySources: technicalList(value) }))} /></Field>
+        <Field label="Inclusion rules and caveats" hint="One rule per line."><TextArea rows={5} value={draft.caveatsAndInclusionRules.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, caveatsAndInclusionRules: technicalList(value) }))} /></Field>
+        <Field label="Correlation treatment"><TextArea rows={4} value={draft.correlationTreatment} onChange={(value) => setDraft((current) => ({ ...current, correlationTreatment: value }))} /></Field>
+        <Field label="Cumulative comparison"><TextArea rows={5} value={draft.comparisonMethod} onChange={(value) => setDraft((current) => ({ ...current, comparisonMethod: value }))} /></Field>
+        <Field label="Higher-seismicity adjustment"><TextArea rows={3} value={draft.higherSeismicityAdjustment ?? ""} onChange={(value) => setDraft((current) => ({ ...current, higherSeismicityAdjustment: value || undefined }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function InvestigationEditor({ index, onClose }: { index: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newInvestigation()
+    : mef.seismicFragilityAnalysis.plantInvestigations[index]!;
+  const [draft, setDraft] = useState<SfrInvestigation>(() => structuredClone(original));
+  function changeTeamMember(memberIndex: number, change: Partial<SfrTeamMember>): void {
+    setDraft((current) => ({
+      ...current,
+      team: current.team.map((member, candidate) =>
+        candidate === memberIndex ? { ...member, ...change } : member),
+    }));
+  }
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.plantInvestigations;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.plantInvestigations.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Scope, evidence, qualified team, confirmations, and conclusion" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove investigation</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save investigation</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Investigation</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Method"><SelectInput value={draft.investigationType} options={["WALKDOWN", "TABLETOP_REVIEW", "COMPUTERIZED_WALKDOWN", "DESIGN_DOCUMENT_REVIEW", "INTERVIEW"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, investigationType: value as SfrInvestigation["investigationType"] }))} /></Field>
+          <Field label="Configuration basis"><SelectInput value={draft.conditionBasis} options={["AS_DESIGNED", "AS_BUILT", "AS_OPERATED", "AS_INTENDED_TO_OPERATE"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, conditionBasis: value as SfrInvestigation["conditionBasis"] }))} /></Field>
+          <Field label="Date"><TextInput value={draft.date ?? ""} onChange={(value) => setDraft((current) => ({ ...current, date: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Scope"><TextArea rows={4} value={draft.scope} onChange={(value) => setDraft((current) => ({ ...current, scope: value }))} /></Field>
+        <Field label="Procedure"><TextArea rows={5} value={draft.procedures} onChange={(value) => setDraft((current) => ({ ...current, procedures: value }))} /></Field>
+        <Field label="Reviewed SSC references" hint="One reference per line."><TextArea rows={9} value={draft.sscRefsReviewed.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sscRefsReviewed: technicalList(value) }))} /></Field>
+        <Field label="Design and evidence references" hint="One reference per line."><TextArea rows={5} value={draft.designDocumentRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, designDocumentRefs: technicalList(value) }))} /></Field>
+        <Field label="Anchorage and support load-path review"><TextArea rows={5} value={draft.anchorageAndLoadPathReview} onChange={(value) => setDraft((current) => ({ ...current, anchorageAndLoadPathReview: value }))} /></Field>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Qualified team</h3>
+        {draft.team.map((member, memberIndex) => <div className="sinlineeditor__subgroup" key={member.uuid}>
+          <FieldGrid>
+            <Field label="Name"><TextInput value={member.name} onChange={(value) => changeTeamMember(memberIndex, { name: value })} /></Field>
+            <Field label="Role"><TextInput value={member.role} onChange={(value) => changeTeamMember(memberIndex, { role: value })} /></Field>
+          </FieldGrid>
+          <Field label="Organization"><TextInput value={member.organization ?? ""} onChange={(value) => changeTeamMember(memberIndex, { organization: value || undefined })} /></Field>
+          <Field label="Seismic-performance experience"><TextArea rows={3} value={member.seismicPerformanceExperience} onChange={(value) => changeTeamMember(memberIndex, { seismicPerformanceExperience: value })} /></Field>
+          <Field label="Walkdown experience"><TextArea rows={2} value={member.walkdownExperience ?? ""} onChange={(value) => changeTeamMember(memberIndex, { walkdownExperience: value || undefined })} /></Field>
+          <Field label="Systems or operations experience"><TextArea rows={2} value={member.systemsOrOperationsExperience ?? ""} onChange={(value) => changeTeamMember(memberIndex, { systemsOrOperationsExperience: value || undefined })} /></Field>
+          <Field label="Qualifications" hint="One qualification per line."><TextArea rows={3} value={member.qualifications.join("\n")} onChange={(value) => changeTeamMember(memberIndex, { qualifications: technicalList(value) })} /></Field>
+          {editable && draft.team.length > 1 && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, team: current.team.filter((_, candidate) => candidate !== memberIndex) }))}>Remove team member</button>}
+        </div>)}
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, team: [...current.team, newTeamMember()] }))}>Add team member</button>}
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Threshold confirmations</h3>
+        {draft.fragilityThresholdConfirmations.map((confirmation, confirmationIndex) => <div className="sinlineeditor__subgroup" key={`${confirmation.sscRef}-${confirmationIndex}`}>
+          <Field label="SSC reference"><TextInput value={confirmation.sscRef} onChange={(value) => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: current.fragilityThresholdConfirmations.map((item, candidate) => candidate === confirmationIndex ? { ...item, sscRef: value } : item) }))} /></Field>
+          <div className="sinlineeditor__choices">
+            {([
+              ["anchorageConfirmed", "Anchorage confirmed"],
+              ["supportConfirmed", "Support path confirmed"],
+              ["thresholdSatisfied", "Threshold satisfied"],
+            ] as const).map(([key, label]) => <label className={`sinlineeditor__choice${confirmation[key] ? " sinlineeditor__choice--active" : ""}`} key={key}>
+              <input type="checkbox" checked={confirmation[key]} onChange={(event) => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: current.fragilityThresholdConfirmations.map((item, candidate) => candidate === confirmationIndex ? { ...item, [key]: event.target.checked } : item) }))} />
+              <span><strong>{label}</strong></span>
+            </label>)}
+          </div>
+          <Field label="Technical basis"><TextArea rows={3} value={confirmation.basis} onChange={(value) => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: current.fragilityThresholdConfirmations.map((item, candidate) => candidate === confirmationIndex ? { ...item, basis: value } : item) }))} /></Field>
+          {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: current.fragilityThresholdConfirmations.filter((_, candidate) => candidate !== confirmationIndex) }))}>Remove confirmation</button>}
+        </div>)}
+        {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: [...current.fragilityThresholdConfirmations, { sscRef: "", anchorageConfirmed: false, supportConfirmed: false, thresholdSatisfied: false, basis: "" }] }))}>Add confirmation</button>}
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Result</h3>
+        <Field label="Observations" hint="One observation per line."><TextArea rows={6} value={draft.observations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, observations: technicalList(value) }))} /></Field>
+        <Field label="Conclusion"><TextArea rows={5} value={draft.conclusions} onChange={(value) => setDraft((current) => ({ ...current, conclusions: value }))} /></Field>
+        <Field label="Limitations or closure items" hint="One item per line."><TextArea rows={5} value={draft.limitations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, limitations: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function FindingEditor({ investigationIndex, findingIndex, onClose }: { investigationIndex: number; findingIndex: number | null; onClose: () => void }): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const equipment = mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+  const original = findingIndex === null
+    ? newFinding(equipment[0]?.uuid ?? "")
+    : mef.seismicFragilityAnalysis.plantInvestigations[investigationIndex]!.findings[findingIndex]!;
+  const [draft, setDraft] = useState<SfrFinding>(() => structuredClone(original));
+  function save(): void {
+    update((next) => {
+      const findings = next.seismicFragilityAnalysis.plantInvestigations[investigationIndex]!.findings;
+      if (findingIndex === null) findings.push(draft);
+      else findings[findingIndex] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (findingIndex === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.plantInvestigations[investigationIndex]!.findings.splice(findingIndex, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Credible vulnerability, affected function, and model treatment" plainHeader onClose={onClose} footer={<>
+    {editable && findingIndex !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove finding</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save finding</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Vulnerability</h3>
+        <Field label="Finding name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="SSC"><SelectInput value={draft.sscRef} options={equipment.map((item) => ({ value: item.uuid, label: `${item.name} | ${item.uuid}` }))} onChange={(value) => setDraft((current) => ({ ...current, sscRef: value }))} /></Field>
+          <Field label="Finding type"><SelectInput value={draft.findingType} options={["ANCHORAGE_LOAD_PATH", "INTERNAL_ASSEMBLY", "CLEARANCE", "DIFFERENTIAL_DISPLACEMENT", "FALLING_HAZARD", "MAINTENANCE_CONDITION", "FLOOD_SOURCE", "FIRE_SOURCE", "INTERACTION", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, findingType: value as SfrFinding["findingType"] }))} /></Field>
+        </FieldGrid>
+        <Field label="Location"><TextInput value={draft.location} onChange={(value) => setDraft((current) => ({ ...current, location: value }))} /></Field>
+        <Field label="Technical description"><TextArea rows={5} value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} /></Field>
+        <div className="sinlineeditor__choices">
+          <label className={`sinlineeditor__choice${draft.credible ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.credible} onChange={(event) => setDraft((current) => ({ ...current, credible: event.target.checked }))} /><span><strong>Credible mechanism</strong></span></label>
+          <label className={`sinlineeditor__choice${draft.potentiallyRiskSignificant ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.potentiallyRiskSignificant} onChange={(event) => setDraft((current) => ({ ...current, potentiallyRiskSignificant: event.target.checked }))} /><span><strong>Potentially risk-significant</strong></span></label>
+        </div>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">PRA treatment</h3>
+        <Field label="Affected function or operator action"><TextArea rows={4} value={draft.affectedFunctionOrAction} onChange={(value) => setDraft((current) => ({ ...current, affectedFunctionOrAction: value }))} /></Field>
+        <Field label="Affected failure-mode references" hint="One reference per line."><TextArea rows={4} value={draft.affectedFailureModeRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, affectedFailureModeRefs: technicalList(value) }))} /></Field>
+        <Field label="Resolution or fragility treatment"><TextArea rows={5} value={draft.resolutionOrFragilityTreatment} onChange={(value) => setDraft((current) => ({ ...current, resolutionOrFragilityTreatment: value }))} /></Field>
+        <Field label="Evidence references" hint="One reference per line."><TextArea rows={4} value={draft.evidenceRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, evidenceRefs: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
 function ThresholdInvestigationScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const threshold = mef.seismicFragilityAnalysis.thresholdProgram;
   const investigations = mef.seismicFragilityAnalysis.plantInvestigations;
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+  const equipmentByRef = new Map(equipment.map((item) => [item.uuid, item]));
+  const confirmations = new Map(
+    investigations.flatMap((investigation) =>
+      investigation.fragilityThresholdConfirmations.map((confirmation) =>
+        [confirmation.sscRef, confirmation] as const)),
+  );
+  const findings = investigations.flatMap((investigation, sourceIndex) =>
+    investigation.findings.map((finding, findingIndex) => ({
+      finding,
+      sourceIndex,
+      findingIndex,
+      investigationName: investigation.name,
+    })));
   const [thresholdOpen, setThresholdOpen] = useState(false);
-  const [collectionEditor, setCollectionEditor] = useState<CollectionEditorTarget | null>(null);
+  const [ruggednessIndex, setRuggednessIndex] =
+    useState<number | null | undefined>(undefined);
+  const [methodIndex, setMethodIndex] =
+    useState<number | null | undefined>(undefined);
+  const [investigationIndex, setInvestigationIndex] =
+    useState<number | null | undefined>(undefined);
+  const [findingTarget, setFindingTarget] = useState<{
+    investigationIndex: number;
+    findingIndex: number | null;
+  } | null>(null);
+
   return <>
-    <Section eyebrow="SFR · HLR-C" title="Ruggedness and fragility thresholds" description="Capacity-based screening includes ruggedness bases, methods, anchorage, supports, caveats, correlations, cumulative count, and final model confirmation." tone="sfr" actions={editable ? <CategorizedAddButton label="Add threshold entry" title="Add threshold entry" options={[
-      { label: "Ruggedness basis", description: "A generic or plant-specific inherently rugged equipment basis.", title: "New ruggedness basis", subtitle: "Reference motion, component types, guidance, exclusions, and capacity basis", createAt: ["seismicFragilityAnalysis", "thresholdProgram", "inherentlyRuggedBases"] },
-      { label: "Threshold method", description: "A capacity-based screening or fragility-threshold method.", title: "New threshold method", subtitle: "Capacity, control point, correlation, screening sources, caveats, and comparison method", createAt: ["seismicFragilityAnalysis", "thresholdProgram", "thresholdMethods"] },
-    ]} onChoose={setCollectionEditor} /> : undefined}>
-      <SectionEditorRow title="Threshold-program basis" description="Screening confirmation, anchorage and support, screened SSC scope, and requirement coverage." onClick={() => setThresholdOpen(true)} />
-      <div className="sreadouts"><Readout label="Rugged bases" value={threshold.inherentlyRuggedBases.length} /><Readout label="Threshold methods" value={threshold.thresholdMethods.length} /><Readout label="Screened SSCs" value={threshold.screenedSscRefs.length} /><Readout label="Anchorage and support" value={threshold.anchorageAndSupportIncluded ? "Included" : "Open"} /></div>
-      <Narrative label="Screening confirmation method" value={threshold.screeningConfirmationMethod} />
-      <Table caption="Ruggedness bases" headers={["Ruggedness basis", "Ground-motion parameter", "Generic types", "Plant additions", "Exclusions", ""]}>
-        {threshold.inherentlyRuggedBases.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Inherently rugged equipment basis", focus: ["seismicFragilityAnalysis", "thresholdProgram", "inherentlyRuggedBases", index], removeLabel: "Remove ruggedness basis" })}><td><strong>{item.name}</strong><code>{item.hazardIndependentBasis}</code></td><td>{item.referenceGroundMotionParameter}</td><td>{item.genericRuggedComponentTypes.length}</td><td>{item.plantSpecificAdditions.length}</td><td>{item.excludedComponentTypes.length}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
-      <Table caption="Threshold methods" headers={["Threshold method", "Capacity", "Ground-motion parameter", "Control point", "SCR-2", ""]}>
-        {threshold.thresholdMethods.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Fragility threshold method", focus: ["seismicFragilityAnalysis", "thresholdProgram", "thresholdMethods", index], removeLabel: "Remove threshold method" })}><td><strong>{item.name}</strong><code>{item.plantResponseThresholdRef}</code></td><td>{item.thresholdCapacity} {item.capacityUnits}</td><td>{item.groundMotionParameterRef}</td><td>{item.controlPointRef}</td><td><Tag tone={item.satisfiesScr2 ? "good" : "warn"}>{item.satisfiesScr2 ? "Satisfied" : "Open"}</Tag></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
+    <Section title="Fragility screening" description="Define when an SSC can be screened instead of explicitly modeled." tone="sfr">
+      <div className="sstep09actions">
+        <EditButton label="Edit screening basis" onClick={() => setThresholdOpen(true)} />
+        {editable && <AddButton label="Add ruggedness basis" onClick={() => setRuggednessIndex(null)} />}
+        {editable && <AddButton label="Add threshold method" onClick={() => setMethodIndex(null)} />}
+      </div>
+      {threshold.inherentlyRuggedBases.length === 0
+        ? <EmptyState title="No ruggedness bases" detail="Define the configurations whose demonstrated capacity is beyond the risk-significant hazard range." />
+        : <Table caption="Ruggedness bases" headers={["Basis", "Component scope", "Technical evidence", "Excluded configurations", "Capacity decision"]} minWidth={0} columnWidths={["19%", "21%", "18%", "18%", "24%"]} className="stable--wrapheads stable--step09">
+          {threshold.inherentlyRuggedBases.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setRuggednessIndex(index)}>
+            <td className="stable__key"><strong>{item.name}</strong><code>{item.referenceGroundMotionParameter}</code></td>
+            <td>{item.genericRuggedComponentTypes.join(", ")}{item.plantSpecificAdditions.length > 0 && <code>{item.plantSpecificAdditions.map((addition) => addition.componentType).join(", ")}</code>}</td>
+            <td>{item.guidanceReferences.join(", ")}</td>
+            <td>{item.excludedComponentTypes.join(", ") || "None"}</td>
+            <td>{item.capacityBeyondRiskSignificantRangeBasis}<code>{item.hazardIndependentBasis}</code></td>
+          </tr>)}
+        </Table>
+      }
+      {threshold.thresholdMethods.length === 0
+        ? <EmptyState title="No threshold methods" detail="Define the capacity comparison, cumulative treatment, and decision criterion." />
+        : <Table caption="Threshold methods" headers={["Method", "Threshold", "Parameter and control point", "Cumulative treatment", "Decision"]} minWidth={0} columnWidths={["21%", "13%", "19%", "28%", "19%"]} className="stable--wrapheads stable--step09">
+          {threshold.thresholdMethods.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setMethodIndex(index)}>
+            <td className="stable__key"><strong>{item.name}</strong><code>{item.plantResponseThresholdRef}</code></td>
+            <td><strong>{item.thresholdCapacity} {item.capacityUnits}</strong><code>{item.cumulativeSscCountBasis} SSCs</code></td>
+            <td>{item.groundMotionParameterRef}<code>{item.controlPointRef}</code></td>
+            <td>{item.correlationTreatment}<code>{item.comparisonMethod}</code></td>
+            <td><Tag tone={item.satisfiesScr2 ? "good" : "warn"}>{item.satisfiesScr2 ? "SCR-2 satisfied" : "Open"}</Tag><code>{item.caveatsAndInclusionRules.join(", ")}</code></td>
+          </tr>)}
+        </Table>
+      }
+      {threshold.screenedSscRefs.length === 0
+        ? <EmptyState title="No screened SSCs" detail="Non-active SEL dispositions will appear here after a technical basis is assigned." />
+        : <Table caption="Screened SSC confirmations" headers={["SSC", "Disposition", "Credited failure mode", "Anchorage and support", "Technical basis"]} minWidth={0} columnWidths={["22%", "15%", "21%", "17%", "25%"]} className="stable--wrapheads stable--step09">
+          {threshold.screenedSscRefs.map((reference) => {
+            const item = equipmentByRef.get(reference);
+            const confirmation = confirmations.get(reference);
+            return <tr key={reference}>
+              <td className="stable__key"><strong>{item?.name ?? reference}</strong><code>{reference}</code></td>
+              <td><Tag tone={item?.disposition === "INHERENTLY_RUGGED" ? "good" : "sfr"}>{item === undefined ? "Unmatched" : displayLabel(item.disposition)}</Tag></td>
+              <td>{item?.failureModes.map((mode) => mode.name).join(", ") ?? "No linked SEL record"}</td>
+              <td><Tag tone={confirmation?.anchorageConfirmed && confirmation.supportConfirmed ? "good" : "bad"}>{confirmation?.anchorageConfirmed && confirmation.supportConfirmed ? "Confirmed" : "Open"}</Tag><code>{confirmation?.thresholdSatisfied ? "Threshold satisfied" : "Threshold not confirmed"}</code></td>
+              <td>{confirmation?.basis ?? "No investigation confirmation recorded."}</td>
+            </tr>;
+          })}
+        </Table>
+      }
     </Section>
-    <Section eyebrow="SFR · HLR-D" title="Plant investigations" description="Walkdowns and design reviews address condition, load paths, spatial interactions, fire/flood sources, and team qualifications." tone="sfr" actions={editable ? <AddButton label="Add investigation" onClick={() => setCollectionEditor({ title: "New plant investigation", subtitle: "Investigation type, date, team, reviewed SSCs, findings, and limitations", focus: [], createAt: ["seismicFragilityAnalysis", "plantInvestigations"] })} /> : undefined}>
-      {investigations.length === 0 ? <EmptyState title="No investigations recorded" detail="No walkdown, computerized review, or design-document investigation is recorded." /> : <Table headers={["Investigation", "Type and date", "Coverage", "Findings", ""]}>
-        {investigations.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.investigationType), focus: ["seismicFragilityAnalysis", "plantInvestigations", index], removeLabel: "Remove investigation" })}><td><strong>{item.name}</strong><code>{item.scope}</code></td><td><strong>{displayLabel(item.investigationType)}</strong><code>{item.date ?? "Date pending"}</code></td><td>{item.team.length} team members · {item.sscRefsReviewed.length} SSCs</td><td><Tag tone={item.limitations.length === 0 ? "good" : "warn"}>{item.findings.length} findings</Tag></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>}
+
+    <Section title="Plant investigations" description="Confirm installed capability and identify vulnerabilities that require PRA treatment." tone="sfr">
+      <div className="sstep09actions">
+        {editable && <AddButton label="Add investigation" onClick={() => setInvestigationIndex(null)} />}
+        {editable && investigations.length > 0 && <AddButton label="Add finding" onClick={() => setFindingTarget({ investigationIndex: 0, findingIndex: null })} />}
+      </div>
+      {investigations.length === 0
+        ? <EmptyState title="No investigations recorded" detail="Add a design review, walkdown, or other plant investigation." />
+        : <Table caption="Investigation program" headers={["Investigation", "Configuration", "Technical scope", "Evidence and team", "Conclusion"]} minWidth={0} columnWidths={["21%", "15%", "24%", "18%", "22%"]} className="stable--wrapheads stable--step09">
+          {investigations.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setInvestigationIndex(index)}>
+            <td className="stable__key"><strong>{item.name}</strong><code>{displayLabel(item.investigationType)}</code></td>
+            <td><strong>{displayLabel(item.conditionBasis)}</strong><code>{item.date ?? "Date pending"}</code></td>
+            <td>{item.scope}<code>{item.sscRefsReviewed.length} SSCs reviewed</code></td>
+            <td>{item.designDocumentRefs.join(", ")}<code>{item.team.map((member) => `${member.role}: ${member.name}`).join(", ")}</code></td>
+            <td>{item.conclusions}<code>{item.limitations.length === 0 ? "No open limitations" : item.limitations.join(", ")}</code></td>
+          </tr>)}
+        </Table>
+      }
+      {findings.length === 0
+        ? <EmptyState title="No vulnerability findings" detail="Credible anchorage, functional, flood, fire, and interaction findings will appear here." />
+        : <Table caption="Vulnerability findings" headers={["Finding and SSC", "Mechanism and location", "Risk disposition", "Affected function", "PRA treatment"]} minWidth={0} columnWidths={["20%", "21%", "14%", "20%", "25%"]} className="stable--wrapheads stable--step09">
+          {findings.map(({ finding, sourceIndex, findingIndex, investigationName }) => {
+            const item = equipmentByRef.get(finding.sscRef);
+            return <tr className="postable__row--clickable" key={finding.uuid} onClick={() => setFindingTarget({ investigationIndex: sourceIndex, findingIndex })}>
+              <td className="stable__key"><strong>{finding.name}</strong><code>{item?.name ?? finding.sscRef}</code></td>
+              <td>{displayLabel(finding.findingType)}<code>{finding.location}</code></td>
+              <td><Tag tone={finding.potentiallyRiskSignificant ? "warn" : finding.credible ? "sfr" : "neutral"}>{finding.potentiallyRiskSignificant ? "PRA treatment" : finding.credible ? "Credible" : "Screened"}</Tag><code>{investigationName}</code></td>
+              <td>{finding.affectedFunctionOrAction}<code>{finding.affectedFailureModeRefs.join(", ")}</code></td>
+              <td>{finding.resolutionOrFragilityTreatment}<code>{finding.evidenceRefs.join(", ")}</code></td>
+            </tr>;
+          })}
+        </Table>
+      }
     </Section>
-    {thresholdOpen && <MefEditor tone="sfr" title="Fragility-threshold program" subtitle="Ruggedness bases, threshold methods, screening confirmation, limitations, and final model treatment" focus={["seismicFragilityAnalysis", "thresholdProgram"]} onClose={() => setThresholdOpen(false)} />}
-    <CollectionEditor tone="sfr" target={collectionEditor} onClose={() => setCollectionEditor(null)} />
+
+    {thresholdOpen && <ThresholdProgramEditor onClose={() => setThresholdOpen(false)} />}
+    {ruggednessIndex !== undefined && <RuggednessBasisEditor index={ruggednessIndex} onClose={() => setRuggednessIndex(undefined)} />}
+    {methodIndex !== undefined && <ThresholdMethodEditor index={methodIndex} onClose={() => setMethodIndex(undefined)} />}
+    {investigationIndex !== undefined && <InvestigationEditor index={investigationIndex} onClose={() => setInvestigationIndex(undefined)} />}
+    {findingTarget !== null && <FindingEditor {...findingTarget} onClose={() => setFindingTarget(null)} />}
   </>;
+}
+
+type SfrFragilityResults =
+  SeismicPRA["seismicFragilityAnalysis"]["results"];
+type SfrFailureMechanism = SfrFragilityResults["failureMechanisms"][number];
+type SfrFragilityEvaluation =
+  SfrFragilityResults["fragilityEvaluations"][number];
+type SfrCorrelationGroup = SfrFragilityResults["correlationGroups"][number];
+type SfrFragilityUncertainty = SfrFragilityResults["uncertainties"][number];
+type SfrSensitivityStudy = SfrFragilityResults["sensitivityStudies"][number];
+
+const FRAGILITY_MECHANISM_TYPES: SfrFailureMechanism["mechanismType"][] = [
+  "SLIDING",
+  "OVERTURNING",
+  "STRUCTURAL_YIELDING",
+  "EXCESSIVE_DRIFT",
+  "ANCHORAGE_FAILURE",
+  "FUNCTIONAL_FAILURE",
+  "IMPACT",
+  "BRACING_FAILURE",
+  "CONTACT_CHATTER",
+  "PRESSURE_BOUNDARY_FAILURE",
+  "LIQUEFACTION",
+  "SLOPE_INSTABILITY",
+  "DIFFERENTIAL_SETTLEMENT",
+  "FIRE_IGNITION",
+  "FLOOD_RELEASE",
+  "OTHER",
+];
+
+function frontendNormalCdf(value: number): number {
+  const sign = value < 0 ? -1 : 1;
+  const x = Math.abs(value) / Math.sqrt(2);
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) * Math.exp(-x * x);
+  return 0.5 * (1 + sign * erf);
+}
+
+function frontendFragilityCurve(
+  median: number,
+  beta: number,
+  groundMotions?: number[],
+): SfrFragilityEvaluation["meanFragilityCurve"] {
+  const motions = groundMotions ?? Array.from(
+    { length: 25 },
+    (_, index) => Number((median * Math.exp(-2.4 + index * 0.2)).toPrecision(6)),
+  );
+  return motions.map((groundMotion) => ({
+    groundMotion,
+    conditionalFailureProbability: Number(Math.min(
+      0.999999,
+      Math.max(
+        0.000001,
+        frontendNormalCdf(
+          Math.log(groundMotion / Math.max(median, 1e-6))
+          / Math.max(beta, 0.01),
+        ),
+      ),
+    ).toPrecision(7)),
+  }));
+}
+
+function refreshFragilityCurves(
+  evaluation: SfrFragilityEvaluation,
+): SfrFragilityEvaluation {
+  const betaR = Math.max(evaluation.betaRandomness, 0.01);
+  const betaU = Math.max(evaluation.betaUncertainty, 0.01);
+  const median = Math.max(evaluation.medianCapacity, 1e-6);
+  const composite = Math.sqrt(betaR ** 2 + betaU ** 2);
+  const meanCurve = frontendFragilityCurve(median, composite);
+  const groundMotions = meanCurve.map((point) => point.groundMotion);
+  return {
+    ...evaluation,
+    compositeBeta: Number(composite.toPrecision(5)),
+    highConfidenceLowProbabilityOfFailureCapacity: Number(
+      (median * Math.exp(-1.644854 * (betaR + betaU))).toPrecision(5),
+    ),
+    meanFragilityCurve: meanCurve,
+    uncertaintyFractileCurves: [
+      {
+        fractile: 0.05,
+        points: frontendFragilityCurve(
+          median * Math.exp(1.644854 * betaU),
+          betaR,
+          groundMotions,
+        ),
+      },
+      {
+        fractile: 0.5,
+        points: frontendFragilityCurve(median, betaR, groundMotions),
+      },
+      {
+        fractile: 0.95,
+        points: frontendFragilityCurve(
+          median * Math.exp(-1.644854 * betaU),
+          betaR,
+          groundMotions,
+        ),
+      },
+    ],
+  };
+}
+
+function synchronizeSpecializedFragilityRefs(
+  results: SfrFragilityResults,
+): void {
+  const refsFor = (
+    category: SfrFragilityEvaluation["analysisCategory"],
+  ): string[] => results.fragilityEvaluations
+    .filter((evaluation) => evaluation.analysisCategory === category)
+    .map((evaluation) => evaluation.uuid);
+  results.floodSourceFragilityRefs = refsFor("FLOOD_SOURCE");
+  results.fireSourceFragilityRefs = refsFor("FIRE_SOURCE");
+  results.contactChatterFragilityRefs = refsFor("CONTACT_CHATTER");
+  results.soilFragilityRefs = refsFor("SOIL");
+}
+
+function newFailureMechanism(mef: SeismicPRA): SfrFailureMechanism {
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment[0];
+  const failureMode = equipment?.failureModes[0];
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New failure mechanism",
+    sscRef: equipment?.uuid ?? "",
+    systemsFailureModeRef: failureMode?.uuid ?? "",
+    mechanismType: "FUNCTIONAL_FAILURE",
+    failureModeType: failureMode?.failureModeType ?? "FUNCTIONAL",
+    description: "",
+    demandParameter: "",
+    demandUnits: "g",
+    demandResultRefs: [],
+    capacityParameter: "",
+    capacityUnits: "g",
+    capacityDataRefs: [],
+    anchorageAndSupportLoadPath: equipment?.mountingAndAnchorage ?? "",
+    interactionRefs: [],
+    conservativeBounding: false,
+    realisticForRiskSignificantSsc: true,
+    controlling: true,
+    selectionBasis: "",
+    implementsSrs: [{ sr: "SFR-E1", hlr: "E" }],
+  };
+}
+
+function newFragilityEvaluation(mef: SeismicPRA): SfrFragilityEvaluation {
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment[0];
+  const failureMode = equipment?.failureModes[0];
+  const mechanism =
+    mef.seismicFragilityAnalysis.results.failureMechanisms.find((item) =>
+      item.sscRef === equipment?.uuid);
+  return refreshFragilityCurves({
+    uuid: crypto.randomUUID(),
+    name: "New fragility evaluation",
+    sscRef: equipment?.uuid ?? "",
+    systemsFailureModeRef: failureMode?.uuid ?? "",
+    mechanismRefs: mechanism === undefined ? [] : [mechanism.uuid],
+    controllingMechanismRef: mechanism?.uuid ?? "",
+    analysisCategory: "GENERAL_SSC",
+    evaluationBasis: "PLANT_SPECIFIC_CALCULATION",
+    plantSpecific: true,
+    riskSignificance: "MEDIUM" as SfrFragilityEvaluation["riskSignificance"],
+    groundMotionParameterRef: "GMP-H-PGA",
+    controlPointRef: "CONTROL-POINT-FOUNDATION",
+    medianCapacity: 1,
+    capacityUnits: "g",
+    betaRandomness: 0.3,
+    betaUncertainty: 0.35,
+    meanFragilityCurve: [],
+    demandToCapacityMethod: "",
+    responseResultRefs: [],
+    capacityDataRefs: [],
+    correlationGroupRefs: [],
+    thresholdSatisfied: false,
+    sensitivityStudyRefs: [],
+    assumptions: [],
+    limitations: [],
+    implementsSrs: [{ sr: "SFR-E3", hlr: "E" }],
+  });
+}
+
+function newCorrelationGroup(): SfrCorrelationGroup {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New correlation group",
+    memberSscRefs: [],
+    correlationModel: "PARTIAL",
+    correlationCoefficient: 0.5,
+    commonDemandBasis: "",
+    constructionSimilarity: "",
+    installationSimilarity: "",
+    locationAndOrientationSimilarity: "",
+    capacitySimilarity: "",
+    modelingImplementation: "",
+    justification: "",
+    sensitivityStudyRefs: [],
+    implementsSrs: [{ sr: "SFR-E6", hlr: "E" }],
+  };
+}
+
+function newFragilityUncertainty(): SfrFragilityUncertainty {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New fragility uncertainty",
+    uncertaintyType: "MODEL",
+    description: "",
+    affectedSscRefs: [],
+    affectedFragilityRefs: [],
+    relatedAssumptions: [],
+    reasonableAlternatives: [],
+    treatment: "",
+    importance: "MEDIUM" as SfrFragilityUncertainty["importance"],
+    implementsSrs: [{ sr: "SFR-E6", hlr: "E" }],
+  };
+}
+
+function newFragilitySensitivity(): SfrSensitivityStudy {
+  return {
+    uuid: crypto.randomUUID(),
+    name: "New sensitivity study",
+    description: "",
+    variedParameters: [],
+    parameterRanges: {},
+    results: "",
+    insights: "",
+    implementsSrs: [{ sr: "SFR-E6", hlr: "E" }],
+  };
+}
+
+function parameterRangeText(
+  ranges: SfrSensitivityStudy["parameterRanges"],
+): string {
+  return Object.entries(ranges)
+    .map(([parameter, [lower, upper]]) => `${parameter}: ${lower}, ${upper}`)
+    .join("\n");
+}
+
+function parseParameterRanges(
+  value: string,
+): SfrSensitivityStudy["parameterRanges"] {
+  return Object.fromEntries(
+    value.split(/\r?\n/).flatMap((line) => {
+      const [parameter, range] = line.split(":", 2);
+      const values = range?.split(",").map((item) => Number(item.trim()));
+      return parameter?.trim().length > 0
+        && values?.length === 2
+        && values.every(Number.isFinite)
+        ? [[parameter.trim(), [values[0]!, values[1]!] as [number, number]]]
+        : [];
+    }),
+  );
+}
+
+function FragilityResultsBasisEditor(
+  { onClose }: { onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const [transferBasis, setTransferBasis] = useState(
+    mef.seismicFragilityAnalysis.results.systemsModelTransferBasis,
+  );
+  function save(): void {
+    update((next) => {
+      next.seismicFragilityAnalysis.results.systemsModelTransferBasis =
+        transferBasis;
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title="Plant-model transfer" subtitle="How evaluated failure modes enter the seismic plant-response model" plainHeader onClose={onClose} footer={<>
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save transfer</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <Field label="Transfer basis"><TextArea rows={10} value={transferBasis} onChange={setTransferBasis} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function FailureMechanismEditor(
+  { index, onClose }: { index: number | null; onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+  const original = index === null
+    ? newFailureMechanism(mef)
+    : mef.seismicFragilityAnalysis.results.failureMechanisms[index]!;
+  const [draft, setDraft] = useState<SfrFailureMechanism>(
+    () => structuredClone(original),
+  );
+  const failureModes = equipment.flatMap((item) =>
+    item.failureModes.map((failureMode) => ({
+      ...failureMode,
+      sscRef: item.uuid,
+      sscName: item.name,
+    })));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.results.failureMechanisms;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      const results = next.seismicFragilityAnalysis.results;
+      const removed = results.failureMechanisms[index]!;
+      results.failureMechanisms.splice(index, 1);
+      results.fragilityEvaluations.forEach((evaluation) => {
+        evaluation.mechanismRefs = evaluation.mechanismRefs.filter(
+          (ref) => ref !== removed.uuid,
+        );
+        if (evaluation.controllingMechanismRef === removed.uuid) {
+          evaluation.controllingMechanismRef =
+            evaluation.mechanismRefs[0] ?? "";
+        }
+      });
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Credible mechanism, demand, capacity evidence, and controlling basis" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove mechanism</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save mechanism</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Failure mechanism</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="SSC"><SelectInput value={draft.sscRef} options={equipment.map((item) => ({ value: item.uuid, label: `${item.name} | ${item.uuid}` }))} onChange={(value) => {
+            const item = equipment.find((candidate) => candidate.uuid === value);
+            const failureMode = item?.failureModes[0];
+            setDraft((current) => ({
+              ...current,
+              sscRef: value,
+              systemsFailureModeRef: failureMode?.uuid ?? "",
+              failureModeType: failureMode?.failureModeType ?? current.failureModeType,
+              anchorageAndSupportLoadPath:
+                item?.mountingAndAnchorage ?? current.anchorageAndSupportLoadPath,
+            }));
+          }} /></Field>
+          <Field label="Systems failure mode"><SelectInput value={draft.systemsFailureModeRef} options={failureModes.filter((failureMode) => failureMode.sscRef === draft.sscRef).map((failureMode) => ({ value: failureMode.uuid, label: failureMode.name }))} onChange={(value) => {
+            const failureMode = failureModes.find((candidate) => candidate.uuid === value);
+            setDraft((current) => ({
+              ...current,
+              systemsFailureModeRef: value,
+              failureModeType: failureMode?.failureModeType ?? current.failureModeType,
+            }));
+          }} /></Field>
+          <Field label="Mechanism"><SelectInput value={draft.mechanismType} options={FRAGILITY_MECHANISM_TYPES.map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, mechanismType: value as SfrFailureMechanism["mechanismType"] }))} /></Field>
+        </FieldGrid>
+        {draft.mechanismType === "OTHER" && <Field label="Other mechanism"><TextInput value={draft.otherMechanismType ?? ""} onChange={(value) => setDraft((current) => ({ ...current, otherMechanismType: value || undefined }))} /></Field>}
+        <Field label="Technical description"><TextArea rows={5} value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} /></Field>
+        <div className="sinlineeditor__choices">
+          <label className={`sinlineeditor__choice${draft.realisticForRiskSignificantSsc ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.realisticForRiskSignificantSsc} onChange={(event) => setDraft((current) => ({ ...current, realisticForRiskSignificantSsc: event.target.checked }))} /><span><strong>Realistic for risk-significant SSC</strong></span></label>
+          <label className={`sinlineeditor__choice${draft.controlling ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.controlling} onChange={(event) => setDraft((current) => ({ ...current, controlling: event.target.checked }))} /><span><strong>Controlling mechanism</strong></span></label>
+          <label className={`sinlineeditor__choice${draft.conservativeBounding ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.conservativeBounding} onChange={(event) => setDraft((current) => ({ ...current, conservativeBounding: event.target.checked }))} /><span><strong>Conservative bound</strong></span></label>
+        </div>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Demand and capacity</h3>
+        <FieldGrid>
+          <Field label="Demand parameter"><TextInput value={draft.demandParameter} onChange={(value) => setDraft((current) => ({ ...current, demandParameter: value }))} /></Field>
+          <Field label="Demand units"><TextInput value={draft.demandUnits} onChange={(value) => setDraft((current) => ({ ...current, demandUnits: value }))} /></Field>
+          <Field label="Capacity parameter"><TextInput value={draft.capacityParameter} onChange={(value) => setDraft((current) => ({ ...current, capacityParameter: value }))} /></Field>
+          <Field label="Capacity units"><TextInput value={draft.capacityUnits} onChange={(value) => setDraft((current) => ({ ...current, capacityUnits: value }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Response-result references" hint="One reference per line."><TextArea rows={5} value={draft.demandResultRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, demandResultRefs: technicalList(value) }))} /></Field>
+          <Field label="Capacity evidence" hint="One reference per line."><TextArea rows={5} value={draft.capacityDataRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, capacityDataRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+        <Field label="Anchorage and support load path"><TextArea rows={5} value={draft.anchorageAndSupportLoadPath} onChange={(value) => setDraft((current) => ({ ...current, anchorageAndSupportLoadPath: value }))} /></Field>
+        <Field label="Interaction or finding references" hint="One reference per line."><TextArea rows={4} value={draft.interactionRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, interactionRefs: technicalList(value) }))} /></Field>
+        <Field label="Why this mechanism controls"><TextArea rows={5} value={draft.selectionBasis} onChange={(value) => setDraft((current) => ({ ...current, selectionBasis: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function FragilityEvaluationEditor(
+  { index, onClose }: { index: number | null; onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const results = mef.seismicFragilityAnalysis.results;
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+  const original = index === null
+    ? newFragilityEvaluation(mef)
+    : results.fragilityEvaluations[index]!;
+  const [draft, setDraft] = useState<SfrFragilityEvaluation>(
+    () => structuredClone(original),
+  );
+  const failureModes = equipment.flatMap((item) =>
+    item.failureModes.map((failureMode) => ({
+      ...failureMode,
+      sscRef: item.uuid,
+    })));
+  function save(): void {
+    update((next) => {
+      const target = next.seismicFragilityAnalysis.results;
+      const refreshed = refreshFragilityCurves(draft);
+      if (index === null) target.fragilityEvaluations.push(refreshed);
+      else target.fragilityEvaluations[index] = refreshed;
+      synchronizeSpecializedFragilityRefs(target);
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      const target = next.seismicFragilityAnalysis.results;
+      target.fragilityEvaluations.splice(index, 1);
+      synchronizeSpecializedFragilityRefs(target);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Capacity, variability, curve distribution, correlation, and model transfer" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove fragility</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save fragility</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Evaluation</h3>
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="SSC"><SelectInput value={draft.sscRef} options={equipment.map((item) => ({ value: item.uuid, label: `${item.name} | ${item.uuid}` }))} onChange={(value) => {
+            const item = equipment.find((candidate) => candidate.uuid === value);
+            const failureMode = item?.failureModes[0];
+            const mechanism = results.failureMechanisms.find((candidate) => candidate.sscRef === value);
+            setDraft((current) => ({
+              ...current,
+              sscRef: value,
+              systemsFailureModeRef: failureMode?.uuid ?? "",
+              mechanismRefs: mechanism === undefined ? [] : [mechanism.uuid],
+              controllingMechanismRef: mechanism?.uuid ?? "",
+            }));
+          }} /></Field>
+          <Field label="Systems failure mode"><SelectInput value={draft.systemsFailureModeRef} options={failureModes.filter((failureMode) => failureMode.sscRef === draft.sscRef).map((failureMode) => ({ value: failureMode.uuid, label: failureMode.name }))} onChange={(value) => setDraft((current) => ({ ...current, systemsFailureModeRef: value }))} /></Field>
+          <Field label="Analysis category"><SelectInput value={draft.analysisCategory} options={["GENERAL_SSC", "SOIL", "CONTACT_CHATTER", "FLOOD_SOURCE", "FIRE_SOURCE"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, analysisCategory: value as SfrFragilityEvaluation["analysisCategory"] }))} /></Field>
+          <Field label="Evaluation basis"><SelectInput value={draft.evaluationBasis} options={["PLANT_SPECIFIC_CALCULATION", "PLANT_SPECIFIC_TEST", "GENERIC_TEST_DATA", "EARTHQUAKE_EXPERIENCE", "SEISMIC_QUALIFICATION_DATA", "DESIGN_CRITERIA", "CONSERVATIVE_ASSUMPTION", "ENGINEERING_JUDGMENT"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, evaluationBasis: value as SfrFragilityEvaluation["evaluationBasis"] }))} /></Field>
+          <Field label="Risk significance"><SelectInput value={draft.riskSignificance} options={["LOW", "MEDIUM", "HIGH"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, riskSignificance: value as SfrFragilityEvaluation["riskSignificance"] }))} /></Field>
+        </FieldGrid>
+        <div className="sinlineeditor__choices">
+          <label className={`sinlineeditor__choice${draft.plantSpecific ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.plantSpecific} onChange={(event) => setDraft((current) => ({ ...current, plantSpecific: event.target.checked }))} /><span><strong>Plant-specific evaluation</strong></span></label>
+          <label className={`sinlineeditor__choice${draft.thresholdSatisfied ? " sinlineeditor__choice--active" : ""}`}><input type="checkbox" checked={draft.thresholdSatisfied} onChange={(event) => setDraft((current) => ({ ...current, thresholdSatisfied: event.target.checked }))} /><span><strong>Threshold confirmed</strong></span></label>
+        </div>
+        {!draft.plantSpecific && <Field label="Generic-data justification"><TextArea rows={6} value={draft.genericDataJustification ?? ""} onChange={(value) => setDraft((current) => ({ ...current, genericDataJustification: value || undefined }))} /></Field>}
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Capacity distribution</h3>
+        <FieldGrid>
+          <Field label="Median capacity"><NumberInput value={draft.medianCapacity} onChange={(value) => setDraft((current) => ({ ...current, medianCapacity: value }))} /></Field>
+          <Field label="Units"><TextInput value={draft.capacityUnits} onChange={(value) => setDraft((current) => ({ ...current, capacityUnits: value }))} /></Field>
+          <Field label="Randomness, βR"><NumberInput value={draft.betaRandomness} onChange={(value) => setDraft((current) => ({ ...current, betaRandomness: value }))} /></Field>
+          <Field label="Uncertainty, βU"><NumberInput value={draft.betaUncertainty} onChange={(value) => setDraft((current) => ({ ...current, betaUncertainty: value }))} /></Field>
+          <Field label="Ground-motion parameter"><TextInput value={draft.groundMotionParameterRef} onChange={(value) => setDraft((current) => ({ ...current, groundMotionParameterRef: value }))} /></Field>
+          <Field label="Control point"><TextInput value={draft.controlPointRef} onChange={(value) => setDraft((current) => ({ ...current, controlPointRef: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Demand-to-capacity method"><TextArea rows={6} value={draft.demandToCapacityMethod} onChange={(value) => setDraft((current) => ({ ...current, demandToCapacityMethod: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Failure mechanisms" hint="One reference per line."><TextArea rows={5} value={draft.mechanismRefs.join("\n")} onChange={(value) => {
+            const refs = technicalList(value);
+            setDraft((current) => ({
+              ...current,
+              mechanismRefs: refs,
+              controllingMechanismRef: refs.includes(current.controllingMechanismRef) ? current.controllingMechanismRef : refs[0] ?? "",
+            }));
+          }} /></Field>
+          <Field label="Controlling mechanism"><SelectInput value={draft.controllingMechanismRef} options={draft.mechanismRefs.map((value) => ({ value, label: results.failureMechanisms.find((mechanism) => mechanism.uuid === value)?.name ?? value }))} onChange={(value) => setDraft((current) => ({ ...current, controllingMechanismRef: value }))} /></Field>
+          <Field label="Response results" hint="One reference per line."><TextArea rows={5} value={draft.responseResultRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, responseResultRefs: technicalList(value) }))} /></Field>
+          <Field label="Capacity evidence" hint="One reference per line."><TextArea rows={5} value={draft.capacityDataRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, capacityDataRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+      </div>
+      <div className="sinlineeditor__group">
+        <h3 className="sinlineeditor__title">Model treatment</h3>
+        <FieldGrid>
+          <Field label="Correlation groups" hint="One reference per line."><TextArea rows={5} value={draft.correlationGroupRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, correlationGroupRefs: technicalList(value) }))} /></Field>
+          <Field label="Sensitivity studies" hint="One reference per line."><TextArea rows={5} value={draft.sensitivityStudyRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sensitivityStudyRefs: technicalList(value) }))} /></Field>
+          <Field label="Threshold method"><TextInput value={draft.thresholdMethodRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, thresholdMethodRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Masking evaluation"><TextArea rows={5} value={draft.maskingEvaluation ?? ""} onChange={(value) => setDraft((current) => ({ ...current, maskingEvaluation: value || undefined }))} /></Field>
+        <FieldGrid>
+          <Field label="Assumptions" hint="One assumption per line."><TextArea rows={6} value={draft.assumptions.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, assumptions: technicalList(value) }))} /></Field>
+          <Field label="Limitations and closure items" hint="One item per line."><TextArea rows={6} value={draft.limitations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, limitations: technicalList(value) }))} /></Field>
+        </FieldGrid>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function CorrelationGroupEditor(
+  { index, onClose }: { index: number | null; onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newCorrelationGroup()
+    : mef.seismicFragilityAnalysis.results.correlationGroups[index]!;
+  const [draft, setDraft] = useState<SfrCorrelationGroup>(
+    () => structuredClone(original),
+  );
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.results.correlationGroups;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+      next.seismicFragilityAnalysis.scope.correlationGroupRefs =
+        records.map((record) => record.uuid);
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      const results = next.seismicFragilityAnalysis.results;
+      const removed = results.correlationGroups[index]!;
+      results.correlationGroups.splice(index, 1);
+      results.fragilityEvaluations.forEach((evaluation) => {
+        evaluation.correlationGroupRefs =
+          evaluation.correlationGroupRefs.filter((ref) => ref !== removed.uuid);
+      });
+      next.seismicFragilityAnalysis.scope.correlationGroupRefs =
+        results.correlationGroups.map((record) => record.uuid);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Common demand, capacity similarity, and conditional failure treatment" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove group</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save group</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Correlation model"><SelectInput value={draft.correlationModel} options={["PERFECT", "INDEPENDENT", "PARTIAL", "CAUSAL_DEPENDENCY"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, correlationModel: value as SfrCorrelationGroup["correlationModel"] }))} /></Field>
+          <Field label="Correlation coefficient"><NumberInput value={draft.correlationCoefficient ?? 0} onChange={(value) => setDraft((current) => ({ ...current, correlationCoefficient: value }))} /></Field>
+          <Field label="Causal logic reference"><TextInput value={draft.causalLogicRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, causalLogicRef: value || undefined }))} /></Field>
+        </FieldGrid>
+        <Field label="Member SSCs" hint="One reference per line."><TextArea rows={7} value={draft.memberSscRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, memberSscRefs: technicalList(value) }))} /></Field>
+        <Field label="Common demand"><TextArea rows={4} value={draft.commonDemandBasis} onChange={(value) => setDraft((current) => ({ ...current, commonDemandBasis: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Construction similarity"><TextArea rows={4} value={draft.constructionSimilarity} onChange={(value) => setDraft((current) => ({ ...current, constructionSimilarity: value }))} /></Field>
+          <Field label="Installation similarity"><TextArea rows={4} value={draft.installationSimilarity} onChange={(value) => setDraft((current) => ({ ...current, installationSimilarity: value }))} /></Field>
+          <Field label="Location and orientation"><TextArea rows={4} value={draft.locationAndOrientationSimilarity} onChange={(value) => setDraft((current) => ({ ...current, locationAndOrientationSimilarity: value }))} /></Field>
+          <Field label="Capacity similarity"><TextArea rows={4} value={draft.capacitySimilarity} onChange={(value) => setDraft((current) => ({ ...current, capacitySimilarity: value }))} /></Field>
+        </FieldGrid>
+        <Field label="Model implementation"><TextArea rows={5} value={draft.modelingImplementation} onChange={(value) => setDraft((current) => ({ ...current, modelingImplementation: value }))} /></Field>
+        <Field label="Technical justification"><TextArea rows={5} value={draft.justification} onChange={(value) => setDraft((current) => ({ ...current, justification: value }))} /></Field>
+        <Field label="Sensitivity studies" hint="One reference per line."><TextArea rows={4} value={draft.sensitivityStudyRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sensitivityStudyRefs: technicalList(value) }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function FragilityUncertaintyEditor(
+  { index, onClose }: { index: number | null; onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newFragilityUncertainty()
+    : mef.seismicFragilityAnalysis.results.uncertainties[index]!;
+  const [draft, setDraft] = useState<SfrFragilityUncertainty>(
+    () => structuredClone(original),
+  );
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.results.uncertainties;
+      if (index === null) records.push(draft);
+      else records[index] = draft;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.results.uncertainties.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name} subtitle="Uncertainty source, affected fragilities, alternatives, and treatment" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove uncertainty</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save uncertainty</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Type"><SelectInput value={draft.uncertaintyType} options={["PARAMETER_ALEATORY", "PARAMETER_EPISTEMIC", "MODEL"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyType: value as SfrFragilityUncertainty["uncertaintyType"] }))} /></Field>
+          <Field label="Importance"><SelectInput value={draft.importance ?? "MEDIUM"} options={["LOW", "MEDIUM", "HIGH"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, importance: value as SfrFragilityUncertainty["importance"] }))} /></Field>
+        </FieldGrid>
+        <Field label="Technical description"><TextArea rows={5} value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} /></Field>
+        <FieldGrid>
+          <Field label="Affected SSCs" hint="One reference per line."><TextArea rows={7} value={draft.affectedSscRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, affectedSscRefs: technicalList(value) }))} /></Field>
+          <Field label="Affected fragilities" hint="One reference per line."><TextArea rows={7} value={draft.affectedFragilityRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, affectedFragilityRefs: technicalList(value) }))} /></Field>
+        </FieldGrid>
+        <FieldGrid>
+          <Field label="Lower capacity factor"><NumberInput value={draft.estimatedCapacityImpact?.lowerFactor ?? 1} onChange={(value) => setDraft((current) => ({ ...current, estimatedCapacityImpact: { lowerFactor: value, upperFactor: current.estimatedCapacityImpact?.upperFactor ?? 1 } }))} /></Field>
+          <Field label="Upper capacity factor"><NumberInput value={draft.estimatedCapacityImpact?.upperFactor ?? 1} onChange={(value) => setDraft((current) => ({ ...current, estimatedCapacityImpact: { lowerFactor: current.estimatedCapacityImpact?.lowerFactor ?? 1, upperFactor: value } }))} /></Field>
+        </FieldGrid>
+        <Field label="Related assumptions" hint="One assumption per line."><TextArea rows={5} value={draft.relatedAssumptions.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, relatedAssumptions: technicalList(value) }))} /></Field>
+        <Field label="Reasonable alternatives" hint="One alternative per line."><TextArea rows={5} value={draft.reasonableAlternatives.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, reasonableAlternatives: technicalList(value) }))} /></Field>
+        <Field label="Quantification treatment"><TextArea rows={6} value={draft.treatment} onChange={(value) => setDraft((current) => ({ ...current, treatment: value }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
+}
+
+function FragilitySensitivityEditor(
+  { index, onClose }: { index: number | null; onClose: () => void },
+): JSX.Element {
+  const { mef, editable, update } = useUpdate();
+  const original = index === null
+    ? newFragilitySensitivity()
+    : mef.seismicFragilityAnalysis.results.sensitivityStudies[index]!;
+  const [draft, setDraft] = useState<SfrSensitivityStudy>(
+    () => structuredClone(original),
+  );
+  const [ranges, setRanges] = useState(() =>
+    parameterRangeText(original.parameterRanges));
+  function save(): void {
+    update((next) => {
+      const records = next.seismicFragilityAnalysis.results.sensitivityStudies;
+      const saved = { ...draft, parameterRanges: parseParameterRanges(ranges) };
+      if (index === null) records.push(saved);
+      else records[index] = saved;
+    });
+    onClose();
+  }
+  function remove(): void {
+    if (index === null) return;
+    update((next) => {
+      next.seismicFragilityAnalysis.results.sensitivityStudies.splice(index, 1);
+    });
+    onClose();
+  }
+  return <Drawer eyebrow={EDITOR_LABELS.sfr} title={draft.name ?? "Sensitivity study"} subtitle="Reasonable alternative, parameter range, result, and decision" plainHeader onClose={onClose} footer={<>
+    {editable && index !== null && <button type="button" className="posnav__btn" onClick={remove}>Remove study</button>}
+    <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
+    {editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save study</button>}
+  </>}>
+    <fieldset className="sinlineeditor" disabled={!editable}>
+      <div className="sinlineeditor__group">
+        <Field label="Name"><TextInput value={draft.name ?? ""} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
+        <Field label="Alternative tested"><TextArea rows={5} value={draft.description} onChange={(value) => setDraft((current) => ({ ...current, description: value }))} /></Field>
+        <Field label="Varied parameters" hint="One parameter per line."><TextArea rows={5} value={draft.variedParameters.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, variedParameters: technicalList(value) }))} /></Field>
+        <Field label="Parameter ranges" hint="Use one line per parameter: parameter: lower, upper"><TextArea rows={6} value={ranges} onChange={setRanges} /></Field>
+        <Field label="Quantified result"><TextArea rows={5} value={draft.results ?? ""} onChange={(value) => setDraft((current) => ({ ...current, results: value || undefined }))} /></Field>
+        <Field label="Decision or insight"><TextArea rows={5} value={draft.insights ?? ""} onChange={(value) => setDraft((current) => ({ ...current, insights: value || undefined }))} /></Field>
+      </div>
+    </fieldset>
+  </Drawer>;
 }
 
 function FragilityResultsScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const results = mef.seismicFragilityAnalysis.results;
-  const selected = results.fragilityEvaluations[0];
+  const equipment =
+    mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
   const [basisOpen, setBasisOpen] = useState(false);
-  const [fragilityEditor, setFragilityEditor] = useState<CollectionEditorTarget | null>(null);
+  const [mechanismIndex, setMechanismIndex] =
+    useState<number | null | undefined>(undefined);
+  const [fragilityIndex, setFragilityIndex] =
+    useState<number | null | undefined>(undefined);
+  const [correlationIndex, setCorrelationIndex] =
+    useState<number | null | undefined>(undefined);
+  const [uncertaintyIndex, setUncertaintyIndex] =
+    useState<number | null | undefined>(undefined);
+  const [sensitivityIndex, setSensitivityIndex] =
+    useState<number | null | undefined>(undefined);
+  const [selectedFragilityRef, setSelectedFragilityRef] = useState(
+    results.fragilityEvaluations[0]?.uuid ?? "",
+  );
+  const selected = results.fragilityEvaluations.find(
+    (evaluation) => evaluation.uuid === selectedFragilityRef,
+  ) ?? results.fragilityEvaluations[0];
+  const chartPoints = useMemo(
+    () => fragilityFanSeries(selected),
+    [selected],
+  );
+  const equipmentName = (ref: string): string =>
+    equipment.find((item) => item.uuid === ref)?.name ?? ref;
+  const mechanismName = (ref: string): string =>
+    results.failureMechanisms.find((item) => item.uuid === ref)?.name ?? ref;
   return <>
-    <Section eyebrow="SFR · HLR-E" title="Fragility results" description="Controlling mechanisms, median capacities, randomness, uncertainty, HCLPF, curves, specialized failures, correlation, sensitivity, and plant-model transfer." tone="sfr" actions={editable ? <AddButton label="Add fragility" onClick={() => setFragilityEditor({ title: "New fragility evaluation", subtitle: "SSC failure mode, capacity, uncertainty, curve, correlation, and transfer", focus: [], createAt: ["seismicFragilityAnalysis", "results", "fragilityEvaluations"] })} /> : undefined}>
-      <SectionEditorRow title="Fragility-results basis" description="Failure mechanisms, correlation, specialized sources, uncertainty, sensitivity, and SPR transfer." onClick={() => setBasisOpen(true)} />
-      {selected !== undefined && <><div className="scharthead"><div><strong>{selected.name}</strong><span>Median {selected.medianCapacity} {selected.capacityUnits} · βR {selected.betaRandomness} · βU {selected.betaUncertainty}</span></div><Tag tone="sfr">HCLPF {selected.highConfidenceLowProbabilityOfFailureCapacity ?? "—"}</Tag></div><LineChart series={selected.meanFragilityCurve.map((point) => ({ x: point.groundMotion, y: Math.max(point.conditionalFailureProbability, 1e-4) }))} xLabel={`Ground motion (${selected.capacityUnits})`} yLabel="Conditional failure probability" color="#b05a2b" /></>}
-      <Table headers={["Fragility", "SSC and failure mode", "Capacity", "Variability", "Importance", ""]}>
-        {results.fragilityEvaluations.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setFragilityEditor({ title: item.name, subtitle: `${item.sscRef} · ${item.systemsFailureModeRef}`, focus: ["seismicFragilityAnalysis", "results", "fragilityEvaluations", index], removeLabel: "Remove fragility" })}><td><strong>{item.name}</strong><code>{displayLabel(item.analysisCategory)}</code></td><td><strong>{item.sscRef}</strong><code>{item.systemsFailureModeRef}</code></td><td><strong>Median {item.medianCapacity} {item.capacityUnits}</strong><code>HCLPF {item.highConfidenceLowProbabilityOfFailureCapacity ?? "—"}</code></td><td>βR {item.betaRandomness} · βU {item.betaUncertainty}</td><td><Tag tone={item.riskSignificance === "HIGH" ? "warn" : "neutral"}>{displayLabel(item.riskSignificance)}</Tag></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+    <Section eyebrow="SFR · HLR-E" title="Failure mechanisms" description="Credible mechanisms for modeled failure modes." tone="sfr">
+      {editable && <div className="sstep10actions">
+        <EditButton label="Edit transfer" onClick={() => setBasisOpen(true)} />
+        <AddButton label="Add mechanism" onClick={() => setMechanismIndex(null)} />
+      </div>}
+      <Table caption="Controlling failure mechanisms" headers={["SSC and failure mode", "Mechanism", "Demand and response", "Capacity evidence", "Decision"]} minWidth={0} columnWidths={["23%", "20%", "21%", "20%", "16%"]} className="stable--wrapheads stable--technical">
+        {results.failureMechanisms.map((mechanism, index) => <tr className="postable__row--clickable" key={mechanism.uuid} onClick={() => setMechanismIndex(index)}>
+          <td className="stable__key"><strong>{equipmentName(mechanism.sscRef)}</strong><code>{mechanism.systemsFailureModeRef}</code></td>
+          <td><strong>{displayLabel(mechanism.mechanismType)}</strong><code>{mechanism.description}</code></td>
+          <td>{mechanism.demandParameter}<code>{mechanism.demandResultRefs.join(", ")}</code></td>
+          <td>{mechanism.capacityParameter}<code>{mechanism.capacityDataRefs.join(", ")}</code></td>
+          <td><Tag tone={mechanism.realisticForRiskSignificantSsc ? "good" : mechanism.conservativeBounding ? "warn" : "neutral"}>{mechanism.realisticForRiskSignificantSsc ? "Realistic" : mechanism.conservativeBounding ? "Bounding" : "Review"}</Tag><code>{mechanism.selectionBasis}</code></td>
+        </tr>)}
       </Table>
     </Section>
-    {basisOpen && <MefEditor tone="sfr" title="Fragility analysis results" subtitle="Mechanisms, evaluations, curves, correlation, specialized sources, uncertainty, sensitivity, and SPR transfer" focus={["seismicFragilityAnalysis", "results"]} onClose={() => setBasisOpen(false)} />}
-    <CollectionEditor tone="sfr" target={fragilityEditor} onClose={() => setFragilityEditor(null)} />
+
+    <Section eyebrow="Capacity distributions" title="Fragility curves" description="Median capacity, variability, and lower-tail capacity." tone="sfr">
+      {editable && <div className="sstep10actions"><AddButton label="Add fragility" onClick={() => setFragilityIndex(null)} /></div>}
+      {selected !== undefined && <>
+        <div className="sdistribution__head">
+          <div><strong>{selected.name}</strong><span>Median {selected.medianCapacity} {selected.capacityUnits} · βR {selected.betaRandomness} · βU {selected.betaUncertainty} · HCLPF {selected.highConfidenceLowProbabilityOfFailureCapacity ?? "—"} {selected.capacityUnits}</span></div>
+          <div className="splotselects">
+            <label className="splotselect">Fragility
+              <SelectInput value={selected.uuid} options={results.fragilityEvaluations.map((evaluation) => ({ value: evaluation.uuid, label: evaluation.name }))} onChange={setSelectedFragilityRef} />
+            </label>
+          </div>
+        </div>
+        <div className="sfragilityfan"><DistributionFanChart points={chartPoints} xLabel={`Ground motion (${selected.capacityUnits})`} yLabel="Conditional failure probability" ariaLabel={`${selected.name} conditional failure distribution`} /></div>
+      </>}
+      <Table caption="Fragility evaluations" headers={["Fragility", "Analysis", "Capacity", "Variability", "Model transfer"]} minWidth={0} columnWidths={["24%", "17%", "18%", "17%", "24%"]} className="stable--wrapheads stable--technical">
+        {results.fragilityEvaluations.map((evaluation, index) => <tr className="postable__row--clickable" key={evaluation.uuid} onClick={() => setFragilityIndex(index)}>
+          <td className="stable__key"><strong>{equipmentName(evaluation.sscRef)}</strong><code>{evaluation.name}</code></td>
+          <td><strong>{displayLabel(evaluation.analysisCategory)}</strong><code>{displayLabel(evaluation.evaluationBasis)}</code></td>
+          <td><strong>Median {evaluation.medianCapacity} {evaluation.capacityUnits}</strong><code>HCLPF {evaluation.highConfidenceLowProbabilityOfFailureCapacity ?? "—"} {evaluation.capacityUnits}</code></td>
+          <td><strong>βR {evaluation.betaRandomness} · βU {evaluation.betaUncertainty}</strong><code>Composite β {evaluation.compositeBeta ?? "—"}</code></td>
+          <td>{mechanismName(evaluation.controllingMechanismRef)}<code>{evaluation.correlationGroupRefs.join(", ")}</code></td>
+        </tr>)}
+      </Table>
+    </Section>
+
+    <Section eyebrow="Model treatment" title="Correlation and uncertainty" description="Dependencies and reasonable alternatives used in quantification." tone="sfr">
+      {editable && <div className="sstep10actions">
+        <AddButton label="Add correlation" onClick={() => setCorrelationIndex(null)} />
+        <AddButton label="Add uncertainty" onClick={() => setUncertaintyIndex(null)} />
+        <AddButton label="Add sensitivity" onClick={() => setSensitivityIndex(null)} />
+      </div>}
+      <Table caption="Correlation groups" headers={["Group", "Members", "Dependence", "Implementation"]} minWidth={0} columnWidths={["23%", "18%", "25%", "34%"]} className="stable--wrapheads stable--technical">
+        {results.correlationGroups.map((group, index) => <tr className="postable__row--clickable" key={group.uuid} onClick={() => setCorrelationIndex(index)}>
+          <td className="stable__key"><strong>{group.name}</strong><code>{group.uuid}</code></td>
+          <td>{group.memberSscRefs.map(equipmentName).join(", ")}</td>
+          <td><strong>{displayLabel(group.correlationModel)}{group.correlationCoefficient === undefined ? "" : ` · ρ ${group.correlationCoefficient}`}</strong><code>{group.commonDemandBasis}</code></td>
+          <td>{group.modelingImplementation}<code>{group.justification}</code></td>
+        </tr>)}
+      </Table>
+      <Table caption="Fragility uncertainties" headers={["Uncertainty", "Affected models", "Capacity impact", "Treatment"]} minWidth={0} columnWidths={["24%", "17%", "17%", "42%"]} className="stable--wrapheads stable--technical">
+        {results.uncertainties.map((uncertainty, index) => <tr className="postable__row--clickable" key={uncertainty.uuid} onClick={() => setUncertaintyIndex(index)}>
+          <td className="stable__key"><strong>{uncertainty.name}</strong><code>{displayLabel(uncertainty.uncertaintyType)}</code></td>
+          <td><strong>{uncertainty.affectedFragilityRefs.length} fragilities</strong><code>{uncertainty.affectedSscRefs.length} SSCs</code></td>
+          <td>{uncertainty.estimatedCapacityImpact === undefined ? "Not estimated" : `${uncertainty.estimatedCapacityImpact.lowerFactor}–${uncertainty.estimatedCapacityImpact.upperFactor} × median`}<code>{uncertainty.importance === undefined ? "" : displayLabel(uncertainty.importance)}</code></td>
+          <td>{uncertainty.treatment}<code>{uncertainty.reasonableAlternatives.join(", ")}</code></td>
+        </tr>)}
+      </Table>
+      <Table caption="Sensitivity studies" headers={["Study", "Variation", "Result", "Decision"]} minWidth={0} columnWidths={["22%", "22%", "28%", "28%"]} className="stable--wrapheads stable--technical">
+        {results.sensitivityStudies.map((study, index) => <tr className="postable__row--clickable" key={study.uuid} onClick={() => setSensitivityIndex(index)}>
+          <td className="stable__key"><strong>{study.name ?? `Sensitivity ${index + 1}`}</strong><code>{study.description}</code></td>
+          <td>{study.variedParameters.map(displayParameter).join(", ")}<code>{parameterRangeText(study.parameterRanges)}</code></td>
+          <td>{study.results ?? "Not quantified"}</td>
+          <td>{study.insights ?? "No decision recorded"}</td>
+        </tr>)}
+      </Table>
+    </Section>
+
+    {basisOpen && <FragilityResultsBasisEditor onClose={() => setBasisOpen(false)} />}
+    {mechanismIndex !== undefined && <FailureMechanismEditor index={mechanismIndex} onClose={() => setMechanismIndex(undefined)} />}
+    {fragilityIndex !== undefined && <FragilityEvaluationEditor index={fragilityIndex} onClose={() => setFragilityIndex(undefined)} />}
+    {correlationIndex !== undefined && <CorrelationGroupEditor index={correlationIndex} onClose={() => setCorrelationIndex(undefined)} />}
+    {uncertaintyIndex !== undefined && <FragilityUncertaintyEditor index={uncertaintyIndex} onClose={() => setUncertaintyIndex(undefined)} />}
+    {sensitivityIndex !== undefined && <FragilitySensitivityEditor index={sensitivityIndex} onClose={() => setSensitivityIndex(undefined)} />}
   </>;
 }
 
@@ -3355,27 +4590,242 @@ function PlantModelScreen(): JSX.Element {
   const { mef, editable } = useUpdate();
   const initiators = mef.seismicPlantResponseAnalysis.initiatingEventIdentification;
   const model = mef.seismicPlantResponseAnalysis.plantResponseModel;
-  const all = [...initiators.directInitiators.map((item, collectionIndex) => ({ item, collectionIndex, collection: "directInitiators" as const })), ...initiators.secondaryHazardInitiators.map((item, collectionIndex) => ({ item, collectionIndex, collection: "secondaryHazardInitiators" as const }))];
+  const equipment = mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment.equipment;
+  const fragilities = mef.seismicFragilityAnalysis.results.fragilityEvaluations;
+  const all = [
+    ...initiators.directInitiators.map((item, collectionIndex) => ({
+      item,
+      collectionIndex,
+      collection: "directInitiators" as const,
+    })),
+    ...initiators.secondaryHazardInitiators.map((item, collectionIndex) => ({
+      item,
+      collectionIndex,
+      collection: "secondaryHazardInitiators" as const,
+    })),
+  ];
   const [initiatorBasisOpen, setInitiatorBasisOpen] = useState(false);
-  const [modelOpen, setModelOpen] = useState(false);
-  const [eventEditor, setEventEditor] = useState<CollectionEditorTarget | null>(null);
+  const [modelBasisOpen, setModelBasisOpen] = useState(false);
+  const [recordEditor, setRecordEditor] = useState<CollectionEditorTarget | null>(null);
+  const initiatorFields = [
+    "name", "origin", "description", "plantOperatingStateRefs",
+    "reactorUnitRefs", "radioactiveMaterialSourceRefs",
+    "directGroundMotionFailureRefs", "secondaryHazardRef",
+    "industryExperienceRefs", "internalEventsInitiatingEventRef",
+    "combinedEventComponents", "automaticOrManualTrip", "affectedSscRefs",
+    "eventSequenceRefs", "riskSignificant", "screeningOrSubsumingBasis",
+    "retained",
+  ];
+  const failureFields = [
+    "name", "sscRef", "seismicEquipmentListEntryRef",
+    "systemsFailureModeRef", "fragilityEvaluationRef", "systemsBasicEventRef",
+    "failureEffect", "correlationGroupRefs", "causalDependencyRefs",
+    "eventSequenceRefs", "modelImplementation",
+  ];
+  const thresholdFields = [
+    "name", "groundMotionParameterRef", "controlPointRef",
+    "thresholdCapacity", "capacityUnits", "hazardCurveRef",
+    "cumulativeSscCount", "correlationAndGroupingBasis",
+    "integratedAnnualFrequency", "screeningCriterion", "criterionLimit",
+    "satisfiesCriterion", "eventSequenceFamilyApplicability",
+    "finalModelConfirmation", "sensitivityStudyRefs",
+  ];
+  const chatterFields = [
+    "name", "deviceSscRef", "fragilityEvaluationRef", "affectedSscRefs",
+    "chatterEffect", "systemsLogicRefs", "riskSignificant",
+    "exclusionByDesignBasis",
+  ];
+  const logicFields = [
+    "name", "logicType", "reasonNeeded", "baseInternalEventsModelRef",
+    "modelRefs", "verificationAndValidation",
+  ];
+  const missionFields = [
+    "name", "eventSequenceRef", "successCriteriaRef",
+    "assumedMissionTimeHours", "sustainedAccessibilityImpact",
+    "emergencyResponseCapabilityImpact", "seismicEnvironmentDuration",
+    "missionTimeValid", "revisedMissionTimeHours",
+    "capabilityCategoryApplied", "basis",
+  ];
+  const findingFields = [
+    "name", "sourcePraElement", "sourcePeerReviewRef", "findingRef",
+    "relevanceToSeismicPra", "potentialAmplificationInSeismicModel",
+    "resolutionStatus", "resolution", "incorporatedModelRefs", "evidenceRefs",
+  ];
+  const hazardFields = [
+    "name", "hazardType", "hazardAnalysisRef", "initiatingEventRefs",
+    "sourceSscRefs", "affectedSscRefs", "fragilityRefs",
+    "plantResponseModelRefs", "integrationBasis",
+  ];
+  const multiUnitFields = [
+    "name", "applicable", "reactorUnitRefs", "sharedSscRefs",
+    "sharedHazardAndDependencyDescription", "concurrentInitiatingEventRefs",
+    "multiUnitEventSequenceRefs", "sharedHumanActionRefs",
+    "sharedRadioactiveSourceRefs", "modelImplementation", "exclusionBasis",
+  ];
+  function equipmentName(reference: string): string {
+    return equipment.find((item) => item.uuid === reference)?.name ?? reference;
+  }
+  function fragilityName(reference: string): string {
+    return fragilities.find((item) => item.uuid === reference)?.name ?? reference;
+  }
+  function openRecord(
+    title: string,
+    subtitle: string,
+    focus: EditorPath,
+    visibleRootFields: string[],
+    removeLabel: string,
+  ): void {
+    setRecordEditor({
+      title,
+      subtitle,
+      focus,
+      visibleRootFields,
+      inlinePrimitiveArrays: true,
+      removeLabel,
+    });
+  }
+  function createRecord(
+    title: string,
+    subtitle: string,
+    createAt: EditorPath,
+    visibleRootFields: string[],
+  ): void {
+    setRecordEditor({
+      title,
+      subtitle,
+      focus: [],
+      createAt,
+      visibleRootFields,
+      inlinePrimitiveArrays: true,
+    });
+  }
   return <>
-    <Section eyebrow="SPR · HLR-A" title="Seismic initiating events" description="Direct ground motion, retained secondary hazards, industry experience, risk significance, completeness, and multi-reactor effects." tone="spr" actions={editable ? <CategorizedAddButton label="Add initiating event" title="Add initiating event" options={[
-      { label: "Direct ground-motion event", description: "An initiating event caused directly by seismic ground motion.", title: "New direct initiating event", subtitle: "Ground-motion origin, screening, affected SSCs, sequences, and units", createAt: ["seismicPlantResponseAnalysis", "initiatingEventIdentification", "directInitiators"] },
-      { label: "Secondary-hazard event", description: "An initiating event caused by a retained secondary seismic hazard.", title: "New secondary-hazard initiating event", subtitle: "Secondary-hazard origin, screening, affected SSCs, sequences, and units", createAt: ["seismicPlantResponseAnalysis", "initiatingEventIdentification", "secondaryHazardInitiators"] },
-    ]} onChoose={setEventEditor} /> : undefined}>
-      <SectionEditorRow title="Initiating-event basis" description="Identification process, screening, operating states, experience, risk significance, and completeness." onClick={() => setInitiatorBasisOpen(true)} />
-      <Table headers={["Initiating event", "Origin and disposition", "Model coverage", ""]}>
-        {all.map(({ item, collection, collectionIndex }) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setEventEditor({ title: item.name, subtitle: displayLabel(item.origin), focus: ["seismicPlantResponseAnalysis", "initiatingEventIdentification", collection, collectionIndex], removeLabel: "Remove initiating event" })}><td><strong>{item.name}</strong><code>{item.description}</code></td><td><strong>{displayLabel(item.origin)}</strong><Tag tone={item.retained ? "warn" : "good"}>{item.retained ? "Retained" : "Screened"}</Tag></td><td>{item.affectedSscRefs.length} SSCs · {item.eventSequenceRefs.length} sequences · {item.reactorUnitRefs.length} units</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
+    <Section eyebrow="SPR · HLR-A" title="Initiating events" description="Direct and secondary events evaluated for the plant model." tone="spr" actions={editable ? <div className="sstep10actions">
+      <AddButton label="Add direct event" onClick={() => createRecord("New direct initiating event", "Ground-motion trigger, scope, affected SSCs, and model links", ["seismicPlantResponseAnalysis", "initiatingEventIdentification", "directInitiators"], initiatorFields)} />
+      <AddButton label="Add secondary event" onClick={() => createRecord("New secondary-hazard event", "Hazard trigger, screening basis, affected SSCs, and model links", ["seismicPlantResponseAnalysis", "initiatingEventIdentification", "secondaryHazardInitiators"], initiatorFields)} />
+    </div> : undefined}>
+      <SectionEditorRow title="Identification basis" description="Operating states, radioactive sources, experience, and retention method." onClick={() => setInitiatorBasisOpen(true)} />
+      {all.length === 0
+        ? <EmptyState title="No initiating events" detail="Identify direct ground-motion and secondary-hazard events for each in-scope state." />
+        : <Table caption="Initiating-event register" headers={["Initiating event", "Trigger", "Plant scope", "Model links", "Disposition", ""]} minWidth={0} columnWidths={["24%", "17%", "20%", "17%", "17%", "5%"]} className="stable--wrapheads stable--technical">
+          {all.map(({ item, collection, collectionIndex }) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => openRecord(item.name, displayLabel(item.origin), ["seismicPlantResponseAnalysis", "initiatingEventIdentification", collection, collectionIndex], initiatorFields, "Remove initiating event")}>
+            <td className="stable__key"><strong>{item.name}</strong><code>{item.uuid}</code></td>
+            <td><strong>{displayLabel(item.origin)}</strong><code>{item.secondaryHazardRef ?? item.directGroundMotionFailureRefs?.join(", ") ?? "Ground-motion review"}</code></td>
+            <td><strong>{item.plantOperatingStateRefs.join(", ")}</strong><code>{item.radioactiveMaterialSourceRefs.join(", ")} · {item.reactorUnitRefs.length} {item.reactorUnitRefs.length === 1 ? "unit" : "units"}</code></td>
+            <td><strong>{item.eventSequenceRefs.length} sequences</strong><code>{item.affectedSscRefs.length} affected SSCs</code></td>
+            <td><Tag tone={item.retained ? "warn" : "good"}>{item.retained ? "Retained" : "Screened"}</Tag><code>{item.riskSignificant ? "Risk-significant" : "Below retention criterion"}</code></td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
     </Section>
-    <Section eyebrow="SPR · HLR-B" title="Plant-response model" description="The internal-events base model is adapted for peer-review findings, seismic failures, thresholds, correlation, chatter, mission time, retained hazards, new logic, and multi-unit effects." tone="spr" actions={<EditButton label="Edit plant model" onClick={() => setModelOpen(true)} />}>
-      <div className="sreadouts"><Readout label="Induced failures" value={model.inducedFailures.length} /><Readout label="Fragility thresholds" value={model.fragilityThresholds.length} /><Readout label="Mission-time assessments" value={model.missionTimeAssessments.length} /><Readout label="Retained hazard models" value={model.retainedHazardModels.length} /></div>
-      <Narrative label="Completeness and consistency review" value={model.completenessAndConsistencyReview} />
+
+    <Section eyebrow="SPR · HLR-B" title="Seismic failure treatment" description="Failures, thresholds, and relay chatter used by the systems model." tone="spr" actions={editable ? <div className="sstep10actions">
+      <AddButton label="Add failure" onClick={() => createRecord("New seismic failure", "Failure mode, fragility, dependency, basic event, and sequence links", ["seismicPlantResponseAnalysis", "plantResponseModel", "inducedFailures"], failureFields)} />
+      <AddButton label="Add threshold" onClick={() => createRecord("New fragility threshold", "Motion capacity, cumulative scope, hazard integration, and confirmation", ["seismicPlantResponseAnalysis", "plantResponseModel", "fragilityThresholds"], thresholdFields)} />
+      <AddButton label="Add chatter model" onClick={() => createRecord("New contact-chatter model", "Device fragility, system effect, affected SSCs, and disposition", ["seismicPlantResponseAnalysis", "plantResponseModel", "contactChatterModels"], chatterFields)} />
+    </div> : undefined}>
+      {model.inducedFailures.length === 0
+        ? <EmptyState title="No modeled seismic failures" detail="Link active SEL failure modes and fragilities to systems basic events." />
+        : <Table caption="Modeled seismic failures" headers={["Basic event", "SSC failure", "Fragility", "Dependencies", "Sequences", ""]} minWidth={0} columnWidths={["17%", "24%", "20%", "19%", "15%", "5%"]} className="stable--wrapheads stable--technical">
+          {model.inducedFailures.map((failure, index) => <tr className="postable__row--clickable" key={failure.uuid} onClick={() => openRecord(failure.name, failure.systemsBasicEventRef, ["seismicPlantResponseAnalysis", "plantResponseModel", "inducedFailures", index], failureFields, "Remove modeled failure")}>
+            <td className="stable__key"><strong>{failure.systemsBasicEventRef}</strong><code>{failure.uuid}</code></td>
+            <td><strong>{equipmentName(failure.sscRef)}</strong><code>{failure.systemsFailureModeRef}</code></td>
+            <td><strong>{fragilityName(failure.fragilityEvaluationRef)}</strong><code>{failure.fragilityEvaluationRef}</code></td>
+            <td><strong>{failure.correlationGroupRefs.join(", ") || "Independent"}</strong><code>{failure.causalDependencyRefs.join(", ") || "No causal dependency"}</code></td>
+            <td>{failure.eventSequenceRefs.join(", ")}</td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
+      {model.fragilityThresholds.length > 0 && <Table caption="Fragility thresholds" headers={["Threshold", "Capacity", "Cumulative treatment", "Integrated frequency", "Decision", ""]} minWidth={0} columnWidths={["22%", "16%", "29%", "15%", "13%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.fragilityThresholds.map((threshold, index) => <tr className="postable__row--clickable" key={threshold.uuid} onClick={() => openRecord(threshold.name, `${threshold.screeningCriterion} plant-model threshold`, ["seismicPlantResponseAnalysis", "plantResponseModel", "fragilityThresholds", index], thresholdFields, "Remove threshold")}>
+          <td className="stable__key"><strong>{threshold.name}</strong><code>{threshold.groundMotionParameterRef}</code></td>
+          <td><strong>{threshold.thresholdCapacity} {threshold.capacityUnits}</strong><code>{threshold.controlPointRef}</code></td>
+          <td>{threshold.correlationAndGroupingBasis}<code>{threshold.cumulativeSscCount} SSCs</code></td>
+          <td><strong className="smono">{threshold.integratedAnnualFrequency.toExponential(2)}/yr</strong><code>Limit {threshold.criterionLimit.toExponential(1)}/yr</code></td>
+          <td><Tag tone={threshold.satisfiesCriterion ? "good" : "bad"}>{threshold.satisfiesCriterion ? "Pass" : "Retain"}</Tag><code>{threshold.screeningCriterion}</code></td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
+      {model.contactChatterModels.length > 0 && <Table caption="Contact chatter" headers={["Device", "Fragility", "System effect", "Affected logic", "Disposition", ""]} minWidth={0} columnWidths={["22%", "21%", "18%", "21%", "13%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.contactChatterModels.map((chatter, index) => <tr className="postable__row--clickable" key={chatter.uuid} onClick={() => openRecord(chatter.name, "Relay or similar-device chatter treatment", ["seismicPlantResponseAnalysis", "plantResponseModel", "contactChatterModels", index], chatterFields, "Remove chatter model")}>
+          <td className="stable__key"><strong>{equipmentName(chatter.deviceSscRef)}</strong><code>{chatter.deviceSscRef}</code></td>
+          <td><strong>{fragilityName(chatter.fragilityEvaluationRef)}</strong><code>{chatter.fragilityEvaluationRef}</code></td>
+          <td>{displayLabel(chatter.chatterEffect)}</td>
+          <td><strong>{chatter.systemsLogicRefs.join(", ")}</strong><code>{chatter.affectedSscRefs.length} affected SSCs</code></td>
+          <td><Tag tone={chatter.riskSignificant ? "warn" : "good"}>{chatter.riskSignificant ? "Modeled" : "Screened"}</Tag></td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
     </Section>
-    {initiatorBasisOpen && <MefEditor tone="spr" title="Initiating-event identification" subtitle="Systematic process, direct and secondary initiators, operating states, experience, risk significance, and completeness" focus={["seismicPlantResponseAnalysis", "initiatingEventIdentification"]} onClose={() => setInitiatorBasisOpen(false)} />}
-    {modelOpen && <MefEditor tone="spr" title="Plant-response model" subtitle="Base models, failures, dependencies, thresholds, chatter, mission time, retained hazards, logic, and multi-reactor treatment" focus={["seismicPlantResponseAnalysis", "plantResponseModel"]} onClose={() => setModelOpen(false)} />}
-    <CollectionEditor tone="spr" target={eventEditor} onClose={() => setEventEditor(null)} />
+
+    <Section eyebrow="Internal events → seismic model" title="Adapted plant logic" description="New logic and mission times added to the internal-events base." tone="spr" actions={editable ? <div className="sstep10actions">
+      <AddButton label="Add logic" onClick={() => createRecord("New seismic logic", "Reason, base model, model records, and verification", ["seismicPlantResponseAnalysis", "plantResponseModel", "newSeismicLogic"], logicFields)} />
+      <AddButton label="Add mission time" onClick={() => createRecord("New mission-time assessment", "Sequence, success criterion, duration, access, response, and basis", ["seismicPlantResponseAnalysis", "plantResponseModel", "missionTimeAssessments"], missionFields)} />
+    </div> : undefined}>
+      <SectionEditorRow title="Base-model basis" description="Source models, failures, unavailabilities, human errors, states, and sources." onClick={() => setModelBasisOpen(true)} />
+      {model.newSeismicLogic.length === 0
+        ? <EmptyState title="No seismic logic changes" detail="Record new event-sequence, systems, success-criteria, data, and human-action logic." />
+        : <Table caption="New seismic logic" headers={["Logic", "Type", "Base model", "Model records", "CC-II coverage", ""]} minWidth={0} columnWidths={["25%", "15%", "20%", "20%", "15%", "5%"]} className="stable--wrapheads stable--technical">
+          {model.newSeismicLogic.map((logic, index) => <tr className="postable__row--clickable" key={logic.uuid} onClick={() => openRecord(logic.name, displayLabel(logic.logicType), ["seismicPlantResponseAnalysis", "plantResponseModel", "newSeismicLogic", index], logicFields, "Remove seismic logic")}>
+            <td className="stable__key"><strong>{logic.name}</strong><code>{logic.uuid}</code></td>
+            <td>{displayLabel(logic.logicType)}</td>
+            <td>{logic.baseInternalEventsModelRef ?? "New seismic model"}</td>
+            <td><strong>{logic.modelRefs.length} linked records</strong><code>{logic.modelRefs.join(", ")}</code></td>
+            <td>{logic.requirementCompliance.map((item) => item.requirementGroup).join(", ")}</td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
+      {model.missionTimeAssessments.length > 0 && <Table caption="Mission-time assessments" headers={["Assessment", "Event sequence", "Success criterion", "Mission", "Decision", ""]} minWidth={0} columnWidths={["26%", "22%", "22%", "12%", "13%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.missionTimeAssessments.map((mission, index) => <tr className="postable__row--clickable" key={mission.uuid} onClick={() => openRecord(mission.name, "Seismic success-criteria mission time", ["seismicPlantResponseAnalysis", "plantResponseModel", "missionTimeAssessments", index], missionFields, "Remove mission-time assessment")}>
+          <td className="stable__key"><strong>{mission.name}</strong><code>{mission.uuid}</code></td>
+          <td>{mission.eventSequenceRef}</td>
+          <td>{mission.successCriteriaRef}</td>
+          <td><strong>{mission.assumedMissionTimeHours} hours</strong><code>{mission.capabilityCategoryApplied}</code></td>
+          <td><Tag tone={mission.missionTimeValid ? "good" : "bad"}>{mission.missionTimeValid ? "Valid" : "Revise"}</Tag></td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
+    </Section>
+
+    <Section eyebrow="Plant-model controls" title="Integration controls" description="Peer-review resolutions, retained hazards, and multi-unit effects." tone="spr" actions={editable ? <div className="sstep10actions">
+      <AddButton label="Add finding" onClick={() => createRecord("New peer-review resolution", "Source finding, seismic relevance, resolution, model links, and evidence", ["seismicPlantResponseAnalysis", "plantResponseModel", "peerReviewFindingResolutions"], findingFields)} />
+      <AddButton label="Add retained hazard" onClick={() => createRecord("New retained secondary-hazard model", "Hazard, initiating events, sources, fragilities, and model links", ["seismicPlantResponseAnalysis", "plantResponseModel", "retainedHazardModels"], hazardFields)} />
+      <AddButton label="Add multi-unit model" onClick={() => createRecord("New multi-reactor impact model", "Units, shared SSCs, events, sources, actions, and implementation", ["seismicPlantResponseAnalysis", "plantResponseModel", "multiReactorModels"], multiUnitFields)} />
+    </div> : undefined}>
+      {model.peerReviewFindingResolutions.length > 0 && <Table caption="Peer-review finding resolutions" headers={["Finding", "Source", "Seismic effect", "Disposition", "Model records", ""]} minWidth={0} columnWidths={["20%", "19%", "27%", "13%", "16%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.peerReviewFindingResolutions.map((finding, index) => <tr className="postable__row--clickable" key={finding.uuid} onClick={() => openRecord(finding.name, finding.findingRef, ["seismicPlantResponseAnalysis", "plantResponseModel", "peerReviewFindingResolutions", index], findingFields, "Remove finding resolution")}>
+          <td className="stable__key"><strong>{finding.name}</strong><code>{finding.findingRef}</code></td>
+          <td><strong>{finding.sourcePraElement}</strong><code>{finding.sourcePeerReviewRef}</code></td>
+          <td>{finding.potentialAmplificationInSeismicModel}</td>
+          <td><Tag tone={finding.resolutionStatus === "RESOLVED" ? "good" : finding.resolutionStatus === "OPEN" ? "bad" : "neutral"}>{displayLabel(finding.resolutionStatus)}</Tag></td>
+          <td><strong>{finding.incorporatedModelRefs.length} linked</strong><code>{finding.incorporatedModelRefs.join(", ")}</code></td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
+      {model.retainedHazardModels.length > 0 && <Table caption="Retained secondary hazards" headers={["Hazard", "Initiating events", "Affected SSCs", "Fragilities", "Plant model", ""]} minWidth={0} columnWidths={["23%", "18%", "18%", "18%", "18%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.retainedHazardModels.map((hazard, index) => <tr className="postable__row--clickable" key={hazard.uuid} onClick={() => openRecord(hazard.name, displayLabel(hazard.hazardType), ["seismicPlantResponseAnalysis", "plantResponseModel", "retainedHazardModels", index], hazardFields, "Remove retained hazard")}>
+          <td className="stable__key"><strong>{hazard.name}</strong><code>{hazard.hazardAnalysisRef}</code></td>
+          <td>{hazard.initiatingEventRefs.join(", ")}</td>
+          <td><strong>{hazard.affectedSscRefs.map(equipmentName).join(", ")}</strong><code>{hazard.sourceSscRefs.length} source SSCs</code></td>
+          <td>{hazard.fragilityRefs.map(fragilityName).join(", ")}</td>
+          <td>{hazard.plantResponseModelRefs.join(", ")}</td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
+      {model.multiReactorModels.length > 0 && <Table caption="Multi-unit and multi-source effects" headers={["Model", "Units and sources", "Shared SSCs", "Concurrent sequences", "Disposition", ""]} minWidth={0} columnWidths={["24%", "22%", "18%", "18%", "13%", "5%"]} className="stable--wrapheads stable--technical">
+        {model.multiReactorModels.map((multiUnit, index) => <tr className="postable__row--clickable" key={multiUnit.uuid} onClick={() => openRecord(multiUnit.name, multiUnit.applicable ? "Multi-reactor model" : "Applicability evaluation", ["seismicPlantResponseAnalysis", "plantResponseModel", "multiReactorModels", index], multiUnitFields, "Remove multi-unit model")}>
+          <td className="stable__key"><strong>{multiUnit.name}</strong><code>{multiUnit.uuid}</code></td>
+          <td><strong>{multiUnit.reactorUnitRefs.join(", ")}</strong><code>{multiUnit.sharedRadioactiveSourceRefs.join(", ")}</code></td>
+          <td>{multiUnit.sharedSscRefs.length === 0 ? "None" : multiUnit.sharedSscRefs.map(equipmentName).join(", ")}</td>
+          <td><strong>{multiUnit.concurrentInitiatingEventRefs.length} initiators</strong><code>{multiUnit.multiUnitEventSequenceRefs.join(", ") || "No multi-unit sequence"}</code></td>
+          <td><Tag tone={multiUnit.applicable ? "warn" : "neutral"}>{multiUnit.applicable ? "Modeled" : "Not applicable"}</Tag></td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
+      </Table>}
+    </Section>
+    {initiatorBasisOpen && <MefEditor tone="spr" title="Initiating-event basis" subtitle="Operating states, radioactive sources, experience, retention, and completeness" focus={["seismicPlantResponseAnalysis", "initiatingEventIdentification"]} visibleRootFields={["systematicProcess", "plantOperatingStateRefs", "industryExperienceSources", "multiReactorAndMultiSourceEvaluation", "completenessReview", "riskSignificanceEvaluationMethod", "retainedInitiatingEventRefs"]} inlinePrimitiveArrays onClose={() => setInitiatorBasisOpen(false)} />}
+    {modelBasisOpen && <MefEditor tone="spr" title="Plant-model basis" subtitle="Base models, non-seismic events, states, sources, modifications, and review" focus={["seismicPlantResponseAnalysis", "plantResponseModel"]} visibleRootFields={["baseInternalEventsModelRefs", "baseNonSeismicHazardModelRefs", "eventSequenceRefs", "systemsLogicModelRefs", "nonSeismicFailureRefs", "unavailabilityRefs", "humanErrorRefs", "plantOperatingStateRefs", "radioactiveMaterialSourceRefs", "modificationsFromBaseModel", "completenessAndConsistencyReview"]} inlinePrimitiveArrays onClose={() => setModelBasisOpen(false)} />}
+    <CollectionEditor tone="spr" target={recordEditor} onClose={() => setRecordEditor(null)} />
   </>;
 }
 
@@ -3384,101 +4834,290 @@ function HumanReliabilityScreen(): JSX.Element {
   const hra = mef.seismicPlantResponseAnalysis.humanReliabilityModel;
   const [basisOpen, setBasisOpen] = useState(false);
   const [actionEditor, setActionEditor] = useState<CollectionEditorTarget | null>(null);
+  const actionFields = [
+    "name", "humanFailureEventRef", "sourceInternalEventsHfeRef",
+    "recoveryAction", "eventSequenceRefs", "controlRoomOrExControlRoom",
+    "availableTime", "requiredTime", "timeUnits", "humanErrorProbability",
+    "probabilityDistribution", "dependencyRefs", "seismicSpecificChallenges",
+    "feasibilityBasis", "humanReliabilityAnalysisRef",
+  ];
+  function openAction(index: number): void {
+    const action = hra.humanActions[index]!;
+    setActionEditor({
+      title: action.name,
+      subtitle: action.humanFailureEventRef,
+      focus: [
+        "seismicPlantResponseAnalysis",
+        "humanReliabilityModel",
+        "humanActions",
+        index,
+      ],
+      visibleRootFields: actionFields,
+      inlinePrimitiveArrays: true,
+      inlineObjectFields: [
+        "seismicSpecificChallenges",
+        "probabilityDistribution",
+      ],
+      removeLabel: "Remove human action",
+    });
+  }
+  function createAction(): void {
+    setActionEditor({
+      title: "New seismic human action",
+      subtitle: "HFE scope, seismic conditions, feasibility, HEP, and dependence",
+      focus: [],
+      createAt: [
+        "seismicPlantResponseAnalysis",
+        "humanReliabilityModel",
+        "humanActions",
+      ],
+      visibleRootFields: actionFields,
+      inlinePrimitiveArrays: true,
+      inlineObjectFields: [
+        "seismicSpecificChallenges",
+        "probabilityDistribution",
+      ],
+    });
+  }
+  function firstSentence(value: string): string {
+    return value.split(/(?<=[.!?])\s/u)[0] ?? value;
+  }
+  function distributionLabel(
+    action: typeof hra.humanActions[number],
+  ): string {
+    const distribution = action.probabilityDistribution;
+    if (distribution === undefined) return "Point estimate";
+    if (distribution.type === "lognormal") {
+      return `Lognormal, EF ${distribution.errorFactor}`;
+    }
+    return displayLabel(distribution.type);
+  }
   return <>
-    <Section eyebrow="SPR · HLR-D" title="Seismic human reliability" description="Relevant actions are evaluated for seismic performance-shaping factors, timing, feasibility, dependency, recovery, requirement compliance, and quantification." tone="spr" actions={editable ? <AddButton label="Add human action" onClick={() => setActionEditor({ title: "New seismic human action", subtitle: "Location, timing, feasibility, dependency, HEP, recovery, and requirement compliance", focus: [], createAt: ["seismicPlantResponseAnalysis", "humanReliabilityModel", "humanActions"] })} /> : undefined}>
-      <SectionEditorRow title="Human-reliability basis" description="Seismic challenges, timing, feasibility, dependency, recovery, and requirement compliance." onClick={() => setBasisOpen(true)} />
-      <Table headers={["Human action", "Location", "Timing", "HEP", "Sequences", ""]}>
-        {hra.humanActions.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setActionEditor({ title: item.name, subtitle: displayLabel(item.controlRoomOrExControlRoom), focus: ["seismicPlantResponseAnalysis", "humanReliabilityModel", "humanActions", index], removeLabel: "Remove human action" })}><td><strong>{item.name}</strong><code>{item.humanFailureEventRef}</code></td><td>{displayLabel(item.controlRoomOrExControlRoom)}</td><td><strong>{item.availableTime} {item.timeUnits} available</strong><code>{item.requiredTime} {item.timeUnits} required</code></td><td><Tag tone={item.humanErrorProbability <= .05 ? "good" : "warn"}>{item.humanErrorProbability}</Tag></td><td>{item.eventSequenceRefs.length}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
-      <Narrative label="Seismic influence integration" value={hra.seismicInfluenceIntegration} />
+    <Section eyebrow="SPR · HLR-D1 to D3" title="Credited human actions" description="Internal-events HFEs adapted for seismic sequences." tone="spr" actions={editable ? <AddButton label="Add human action" onClick={createAction} /> : undefined}>
+      <SectionEditorRow title="Analysis basis" description="Response identification, HFE definition, recovery credit, and HEP method." onClick={() => setBasisOpen(true)} />
+      {hra.humanActions.length === 0
+        ? <EmptyState title="No seismic human actions" detail="Identify the internal-events HFEs and recovery actions that remain relevant to seismic sequences." />
+        : <Table caption="HFE scope" headers={["Seismic HFE", "Internal-events source", "Location", "Event sequences", "Credit", ""]} minWidth={0} columnWidths={["28%", "18%", "16%", "20%", "13%", "5%"]} className="stable--wrapheads stable--technical">
+          {hra.humanActions.map((action, index) => <tr className="postable__row--clickable" key={action.uuid} onClick={() => openAction(index)}>
+            <td className="stable__key"><strong>{action.name}</strong><code>{action.humanFailureEventRef}</code></td>
+            <td>{action.sourceInternalEventsHfeRef ?? "New seismic HFE"}</td>
+            <td>{displayLabel(action.controlRoomOrExControlRoom)}</td>
+            <td>{action.eventSequenceRefs.join(", ")}</td>
+            <td><Tag tone={action.recoveryAction ? "warn" : "neutral"}>{action.recoveryAction ? "Recovery" : "Response"}</Tag></td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
     </Section>
-    {basisOpen && <MefEditor tone="spr" title="Human-reliability model" subtitle="Action register, seismic challenges, timing, feasibility, dependency, probability, recovery, and requirement compliance" focus={["seismicPlantResponseAnalysis", "humanReliabilityModel"]} onClose={() => setBasisOpen(false)} />}
+
+    <Section eyebrow="SPR · HLR-D2 to D4" title="Seismic feasibility" description="Timing, access, hazards, and recovery conditions." tone="spr">
+      {hra.humanActions.length === 0
+        ? <EmptyState title="No feasibility evaluations" detail="Add a seismic human action to evaluate its timing and execution conditions." />
+        : <Table caption="Action feasibility" headers={["Human action", "Available", "Required", "Margin", "Seismic conditions", ""]} minWidth={0} columnWidths={["24%", "11%", "11%", "11%", "38%", "5%"]} className="stable--wrapheads stable--technical">
+          {hra.humanActions.map((action, index) => {
+            const margin = action.availableTime - action.requiredTime;
+            const feasible = margin > 0 && action.feasibilityBasis.trim().length > 0;
+            return <tr className="postable__row--clickable" key={action.uuid} onClick={() => openAction(index)}>
+              <td className="stable__key"><strong>{action.name}</strong><code>{action.humanFailureEventRef}</code></td>
+              <td>{action.availableTime} {action.timeUnits}</td>
+              <td>{action.requiredTime} {action.timeUnits}</td>
+              <td><Tag tone={feasible ? "good" : "bad"}>{feasible ? `${margin} ${action.timeUnits}` : "Not feasible"}</Tag></td>
+              <td><strong>{firstSentence(action.seismicSpecificChallenges.physicalHazards)}</strong><code>{firstSentence(action.seismicSpecificChallenges.timingAndAccessibility)}</code></td>
+              <td className="srowopen"><POSIcon.ArrowR /></td>
+            </tr>;
+          })}
+        </Table>}
+    </Section>
+
+    <Section eyebrow="SPR · HLR-D5" title="HEP and dependence" description="Seismic HEPs, uncertainty, and within-sequence dependencies." tone="spr">
+      {hra.humanActions.length === 0
+        ? <EmptyState title="No seismic HEPs" detail="Quantify each credited seismic human action and its dependencies." />
+        : <Table caption="Seismic HEPs" headers={["HFE", "HEP", "Uncertainty", "Dependencies", "HRA record", ""]} minWidth={0} columnWidths={["25%", "11%", "18%", "23%", "18%", "5%"]} className="stable--wrapheads stable--technical">
+          {hra.humanActions.map((action, index) => <tr className="postable__row--clickable" key={action.uuid} onClick={() => openAction(index)}>
+            <td className="stable__key"><strong>{action.name}</strong><code>{action.humanFailureEventRef}</code></td>
+            <td><Tag tone={action.humanErrorProbability <= 0.05 ? "good" : "warn"}>{action.humanErrorProbability.toExponential(2)}</Tag></td>
+            <td>{distributionLabel(action)}</td>
+            <td>{action.dependencyRefs.length === 0 ? "Independent in modeled sequence" : action.dependencyRefs.join(", ")}</td>
+            <td>{action.humanReliabilityAnalysisRef}</td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
+    </Section>
+
+    {basisOpen && <MefEditor tone="spr" title="Seismic HRA basis" subtitle="Response identification, HFE definition, recovery, quantification, and seismic influence" focus={["seismicPlantResponseAnalysis", "humanReliabilityModel"]} visibleRootFields={["relevantInternalEventsHfeRefs", "responseActionRequirementCompliance", "hfeDefinitionRequirementCompliance", "recoveryRequirementCompliance", "quantificationRequirementCompliance", "seismicInfluenceIntegration"]} inlinePrimitiveArrays onClose={() => setBasisOpen(false)} />}
     <CollectionEditor tone="spr" target={actionEditor} onClose={() => setActionEditor(null)} />
   </>;
 }
 
 function QuantificationIntegrationScreen(): JSX.Element {
-  const { mef, editable, update } = useUpdate();
+  const { mef, editable } = useUpdate();
   const quant = mef.seismicPlantResponseAnalysis.quantification;
-  const integration = mef.integration;
-  const diagnostics = useMemo(() => validateSeismicPra(mef), [mef]);
-  const blockerCount = diagnostics.filter((item) => item.severity === "ERROR").length;
-  const warningCount = diagnostics.filter((item) => item.severity === "WARNING").length;
-  const [quantOpen, setQuantOpen] = useState(false);
-  const [integrationOpen, setIntegrationOpen] = useState(false);
-  const [uncertaintyFocus, setUncertaintyFocus] = useState<EditorPath | null>(null);
+  const [basisOpen, setBasisOpen] = useState(false);
   const [collectionEditor, setCollectionEditor] = useState<CollectionEditorTarget | null>(null);
+  const primaryDiscretization = quant.hazardDiscretizations[0];
+  const familyName = (reference: string): string =>
+    quant.eventSequenceFamilyQuantifications.find((family) =>
+      family.eventSequenceFamilyRef === reference)?.name ?? reference;
+  const firstSentence = (value: string): string =>
+    value.split(/(?<=[.!?])\s/u)[0] ?? value;
+  const uncertaintyBounds = (
+    family: typeof quant.eventSequenceFamilyQuantifications[number],
+  ): string => {
+    const distribution = family.frequencyDistribution;
+    if (
+      distribution?.type !== "lognormal"
+      || distribution.median <= 0
+      || distribution.errorFactor <= 0
+    ) return "Not calculated";
+    return `${(distribution.median / distribution.errorFactor).toExponential(2)} to ${(distribution.median * distribution.errorFactor).toExponential(2)}`;
+  };
+  const studiesByUncertainty = new Map(
+    quant.sensitivityStudies.flatMap((study) =>
+      study.modelUncertaintyId === undefined
+        ? []
+        : [[study.modelUncertaintyId, study] as const]),
+  );
+  const esqGroups = ["ESQ-A", "ESQ-B", "ESQ-C", "ESQ-D"].map((group) => {
+    const records = quant.esqRequirementCompliance.filter((record) =>
+      record.requirement.startsWith(group));
+    return {
+      group,
+      records,
+      complete: records.length > 0 && records.every((record) =>
+        record.status === "MET" || record.status === "NOT_APPLICABLE"),
+    };
+  });
+  function openFamily(index: number): void {
+    const family = quant.eventSequenceFamilyQuantifications[index]!;
+    setCollectionEditor({
+      title: family.name,
+      subtitle: "Family frequency, uncertainty distribution, bin contributions, and trace links",
+      focus: [
+        "seismicPlantResponseAnalysis",
+        "quantification",
+        "eventSequenceFamilyQuantifications",
+        index,
+      ],
+      visibleRootFields: [
+        "name",
+        "eventSequenceFamilyRef",
+        "initiatingEventRefs",
+        "eventSequenceRefs",
+        "releaseCategoryRef",
+        "sourceTermRef",
+        "hazardDiscretizationRef",
+        "meanHazardUsed",
+        "meanFragilitiesUsed",
+        "pointEstimateFrequency",
+        "meanFrequency",
+        "frequencyUnit",
+        "frequencyDistribution",
+        "hazardBinContributions",
+        "uncertaintyContributions",
+        "truncationAndScreeningTreatment",
+        "quantificationMethod",
+      ],
+      inlinePrimitiveArrays: true,
+      inlineObjectFields: ["frequencyDistribution"],
+      removeLabel: "Remove family result",
+    });
+  }
   return <>
-    <Section eyebrow="SPR · HLR-E" title="Integrated seismic quantification" description="Converged hazard discretization, rare-event treatment, mean results, uncertainty propagation, contributors, quality checks, and sensitivity studies." tone="spr" actions={editable ? <AddButton label="Add family result" onClick={() => setCollectionEditor({ title: "New family quantification", subtitle: "Family frequency, hazard-bin contributions, uncertainty, contributors, and quality", focus: [], createAt: ["seismicPlantResponseAnalysis", "quantification", "eventSequenceFamilyQuantifications"] })} /> : undefined}>
-      <SectionEditorRow title="Quantification basis" description="Hazard discretization, rare-event treatment, uncertainty propagation, convergence, sensitivity, and quality." onClick={() => setQuantOpen(true)} />
-      <Table headers={["Event-sequence family", "Frequency", "Hazard bins", "Uncertainty sources", ""]}>
-        {quant.eventSequenceFamilyQuantifications.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: "Event-sequence family quantification", focus: ["seismicPlantResponseAnalysis", "quantification", "eventSequenceFamilyQuantifications", index], removeLabel: "Remove family result" })}><td><strong>{item.name}</strong><code>{item.eventSequenceFamilyRef}</code></td><td><strong className="smono">Mean {item.meanFrequency?.toExponential(3) ?? "—"}</strong><code>Point estimate {item.pointEstimateFrequency.toExponential(3)}</code></td><td>{item.hazardBinContributions.length}</td><td>{item.uncertaintyContributions.length}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
+    <Section eyebrow="SPR · HLR-E1, E4, E5" title="Event-sequence-family results" description="Mean frequencies and propagated uncertainty per plant-year." tone="spr" actions={editable ? <AddButton label="Add family result" onClick={() => setCollectionEditor({ title: "New family result", subtitle: "Frequency, uncertainty, hazard-bin contributions, and trace links", focus: [], createAt: ["seismicPlantResponseAnalysis", "quantification", "eventSequenceFamilyQuantifications"], inlinePrimitiveArrays: true, inlineObjectFields: ["frequencyDistribution"] })} /> : undefined}>
+      <SectionEditorRow title="Quantification method" description="Integrated solution, uncertainty propagation, ESQ checks, and quality controls." onClick={() => setBasisOpen(true)} />
+      {quant.eventSequenceFamilyQuantifications.length === 0
+        ? <EmptyState title="No quantified families" detail="Integrate hazard, fragility, systems, and HRA results for each seismic event-sequence family." />
+        : <Table caption="Seismic family frequencies" headers={["Event-sequence family", "Point estimate", "Mean frequency", "5th to 95th percentile", "Release category", ""]} minWidth={0} columnWidths={["28%", "14%", "14%", "19%", "20%", "5%"]} className="stable--wrapheads stable--technical">
+          {quant.eventSequenceFamilyQuantifications.map((family, index) => <tr className="postable__row--clickable" key={family.uuid} onClick={() => openFamily(index)}>
+            <td className="stable__key"><strong>{family.name}</strong><code>{family.eventSequenceFamilyRef}</code></td>
+            <td className="smono">{family.pointEstimateFrequency.toExponential(3)}</td>
+            <td><strong className="smono">{family.meanFrequency?.toExponential(3) ?? "Not calculated"}</strong></td>
+            <td className="smono">{uncertaintyBounds(family)}</td>
+            <td>{family.releaseCategoryRef ?? "No release category"}<code>{family.sourceTermRef ?? "No source term"}</code></td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
     </Section>
-    <Section eyebrow="SHA ⇄ SFR ⇄ SPR" title="Subelement integration and coverage" description="Producer-consumer records, selected references, coverage counts, multidisciplinary checks, integrated uncertainties, and sensitivities make consistency explicit." tone="integration" actions={editable ? <CategorizedAddButton label="Add integration entry" title="Add integration entry" options={[
-      { label: "Subelement interface", description: "A producer-consumer transfer between SHA, SFR, and SPR.", title: "New subelement interface", subtitle: "Producer, consumer, payload, transfer basis, consistency, and evidence", createAt: ["integration", "interfaces"] },
-      { label: "Consistency check", description: "A multidisciplinary check across selected references and subelements.", title: "New consistency check", subtitle: "Compared references, method, result, evidence, and open items", createAt: ["integration", "consistencyChecks"] },
-    ]} onChoose={setCollectionEditor} /> : undefined}>
-      <SectionEditorRow title="Integration basis and coverage" description="Selected references, coverage, unresolved interfaces, multidisciplinary review, and requirement mapping." onClick={() => setIntegrationOpen(true)} />
-      <div className="sflow"><div><Tag tone="sha">SHA</Tag><strong>Hazard</strong><span>Curves · spectra · intervals · secondary hazards</span></div><b>→</b><div><Tag tone="sfr">SFR</Tag><strong>Fragility</strong><span>SEL scope · response · capacity · correlation</span></div><b>→</b><div><Tag tone="spr">SPR</Tag><strong>Plant response</strong><span>Initiators · logic · HRA · family frequencies</span></div></div>
-      <Table headers={["Interface or check", "Flow or scope", "Status", "Evidence", ""]}>
-        {integration.interfaces.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: `${item.producer} → ${item.consumer}`, focus: ["integration", "interfaces", index], removeLabel: "Remove interface" })}><td><strong>{item.name}</strong></td><td><strong>{item.producer} → {item.consumer}</strong><code>{displayLabel(item.payloadType)}</code></td><td><Tag tone={item.consistent ? "good" : "bad"}>{item.consistent ? "Consistent" : "Open"}</Tag></td><td>{item.transferBasis}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-        {integration.consistencyChecks.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => setCollectionEditor({ title: item.name, subtitle: displayLabel(item.checkType), focus: ["integration", "consistencyChecks", index], removeLabel: "Remove consistency check" })}><td><strong>{item.name}</strong><code>{item.method}</code></td><td><strong>{item.subelements.join(" · ")}</strong><code>{displayLabel(item.checkType)}</code></td><td><Tag tone={item.result === "PASS" ? "good" : "warn"}>{displayLabel(item.result)}</Tag></td><td>{item.evidence}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>
-    </Section>
-    <Section eyebrow="Integrated interpretation" title="Uncertainty, sensitivity, and risk insights" description="Uncertainties are entered once at their source, then linked here to affected subelements, family results, sensitivity studies, combined effects, and closure actions." tone="integration" actions={editable ? <CategorizedAddButton label="Add analysis entry" title="Add uncertainty or sensitivity entry" options={[
-      { label: "Integrated uncertainty", description: "A source uncertainty propagated across one or more subelements.", title: "New integrated uncertainty", subtitle: "Source, affected subelements, importance, propagation, sensitivities, and closure", createAt: ["integratedUncertainties"] },
-      { label: "Sensitivity study", description: "A study of important assumptions, parameters, or model alternatives.", title: "New integrated sensitivity study", subtitle: "Varied parameters, ranges, results, insights, and uncertainty linkage", createAt: ["integratedSensitivityStudies"] },
-    ]} onChoose={setCollectionEditor} /> : undefined}>
-      <SectionEditorRow title="Uncertainty and risk-insight basis" description="Source linkage, combined effects, model uncertainty, assumptions, risk insights, and closure actions." onClick={() => setUncertaintyFocus([])} />
-      {mef.integratedUncertainties.length === 0 ? <EmptyState title="No integrated uncertainties" detail="Link the important SHA, SFR, and SPR uncertainty sources and document their combined treatment." /> : <Table caption="Integrated uncertainties" headers={["Uncertainty", "Source and scope", "Importance", "Treatment", ""]}>
-        {mef.integratedUncertainties.map((uncertainty, index) => <tr className="postable__row--clickable" key={uncertainty.uuid} onClick={() => setCollectionEditor({ title: uncertainty.name, subtitle: `${uncertainty.sourceSubelement} uncertainty`, focus: ["integratedUncertainties", index], removeLabel: "Remove uncertainty" })}><td><strong>{uncertainty.name}</strong><code>{uncertainty.sourceUncertaintyRef}</code></td><td><strong>{uncertainty.sourceSubelement}</strong><code>{uncertainty.affectedSubelements.join(" · ")}</code></td><td><Tag tone={uncertainty.importance === "HIGH" ? "warn" : "neutral"}>{displayLabel(uncertainty.importance)}</Tag></td><td>{uncertainty.propagationOrSensitivityTreatment}</td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
+    <Section eyebrow="SPR · HLR-E2, E3" title="Numerical integration" description="Hazard bins, convergence, and rare-event corrections." tone="spr" actions={editable ? <AddButton label="Add rare-event check" onClick={() => setCollectionEditor({ title: "New rare-event check", subtitle: "Approximation, overestimation mechanism, correction, and impact", focus: [], createAt: ["seismicPlantResponseAnalysis", "quantification", "rareEventApproximationAssessments"], inlinePrimitiveArrays: true })} /> : undefined}>
+      {primaryDiscretization === undefined
+        ? <EmptyState title="No integration mesh" detail="Define the hazard discretization and demonstrate convergence of the seismic risk results." />
+        : <>
+          <Table caption="Convergence" headers={["Integration mesh", "Production bins", "Confirmation bins", "Final change", "Criterion", "Result", ""]} minWidth={0} columnWidths={["27%", "13%", "15%", "13%", "13%", "14%", "5%"]} className="stable--wrapheads stable--technical">
+            <tr className="postable__row--clickable" onClick={() => setCollectionEditor({ title: primaryDiscretization.name, subtitle: "Hazard bins, numerical method, refinement results, and convergence basis", focus: ["seismicPlantResponseAnalysis", "quantification", "hazardDiscretizations", 0], inlinePrimitiveArrays: true })}>
+              <td className="stable__key"><strong>{primaryDiscretization.name}</strong><code>{primaryDiscretization.convergenceMetric}</code></td>
+              <td>{primaryDiscretization.bins.length}</td>
+              <td>{primaryDiscretization.convergenceStudies.at(-1)?.binCount ?? "Not run"}</td>
+              <td>{((primaryDiscretization.convergenceStudies.at(-1)?.relativeChange ?? 0) * 100).toFixed(1)}%</td>
+              <td>{(primaryDiscretization.convergenceTolerance * 100).toFixed(1)}%</td>
+              <td><Tag tone={primaryDiscretization.converged ? "good" : "bad"}>{primaryDiscretization.converged ? "Converged" : "Open"}</Tag></td>
+              <td className="srowopen"><POSIcon.ArrowR /></td>
+            </tr>
+          </Table>
+          <Table caption="Hazard-bin integration" headers={["Bin", "Motion range", "Representative motion", "Annual frequency", "Aggregate contribution", ""]} minWidth={0} columnWidths={["16%", "22%", "20%", "18%", "19%", "5%"]} className="stable--wrapheads stable--technical">
+            {primaryDiscretization.bins.map((bin, index) => <tr className="postable__row--clickable" key={bin.uuid} onClick={() => setCollectionEditor({ title: bin.name, subtitle: "Ground-motion interval and linked quantification records", focus: ["seismicPlantResponseAnalysis", "quantification", "hazardDiscretizations", 0, "bins", index], inlinePrimitiveArrays: true })}>
+              <td className="stable__key"><strong>{bin.name}</strong><code>{bin.uuid}</code></td>
+              <td>{bin.lowerGroundMotion} to {bin.upperGroundMotion} {bin.groundMotionUnits}</td>
+              <td>{bin.representativeGroundMotion} {bin.groundMotionUnits}</td>
+              <td className="smono">{bin.annualFrequency.toExponential(3)}</td>
+              <td>{bin.contributionToRiskMetric === undefined ? "Not calculated" : `${(bin.contributionToRiskMetric * 100).toFixed(1)}%`}</td>
+              <td className="srowopen"><POSIcon.ArrowR /></td>
+            </tr>)}
+          </Table>
+        </>}
+      {quant.rareEventApproximationAssessments.length > 0 && <Table caption="Rare-event corrections" headers={["Affected result", "Approximation issue", "Uncorrected", "Corrected", "Impact", ""]} minWidth={0} columnWidths={["22%", "28%", "13%", "13%", "19%", "5%"]} className="stable--wrapheads stable--technical">
+        {quant.rareEventApproximationAssessments.map((assessment, index) => <tr className="postable__row--clickable" key={assessment.uuid} onClick={() => setCollectionEditor({ title: assessment.name, subtitle: "Rare-event approximation, correction method, and impact", focus: ["seismicPlantResponseAnalysis", "quantification", "rareEventApproximationAssessments", index], inlinePrimitiveArrays: true, removeLabel: "Remove rare-event check" })}>
+          <td className="stable__key"><strong>{assessment.name}</strong><code>{assessment.affectedModelRef}</code></td>
+          <td>{firstSentence(assessment.overestimationMechanism)}</td>
+          <td className="smono">{assessment.uncorrectedResult?.toExponential(3) ?? "Not recorded"}</td>
+          <td className="smono">{assessment.correctedResult?.toExponential(3) ?? "Not recorded"}</td>
+          <td>{assessment.impactAssessment}</td>
+          <td className="srowopen"><POSIcon.ArrowR /></td>
+        </tr>)}
       </Table>}
-      {mef.integratedSensitivityStudies.length === 0 ? <EmptyState title="No integrated sensitivity studies" detail="Add studies that test important assumptions, parameters, and model alternatives." /> : <Table caption="Sensitivity studies" headers={["Sensitivity study", "Varied parameters", "Result and insight", ""]}>
-        {mef.integratedSensitivityStudies.map((study, index) => <tr className="postable__row--clickable" key={study.uuid} onClick={() => setCollectionEditor({ title: study.name ?? `Sensitivity study ${index + 1}`, subtitle: "Integrated sensitivity study", focus: ["integratedSensitivityStudies", index], removeLabel: "Remove sensitivity study" })}><td><strong>{study.name ?? `Sensitivity study ${index + 1}`}</strong><code>{study.description}</code></td><td>{study.variedParameters.map(displayParameter).join(" · ")}</td><td><strong>{study.results ?? "Not recorded"}</strong><code>{study.insights ?? "Not recorded"}</code></td><td className="srowopen"><POSIcon.ArrowR /></td></tr>)}
-      </Table>}
-      <Narrative label="Integrated risk insights" value={mef.documentation.integratedRiskInsights} />
     </Section>
-    <Section eyebrow="Automated controls" title="Completeness and consistency diagnostics" description="These checks combine schema validity, range and reference integrity, model coverage, interface closure, convergence, documentation, and conformance disposition." tone="integration">
-      <div className="svalidation__summary"><Tag tone={blockerCount > 0 ? "bad" : "good"}>{blockerCount} blocker{blockerCount === 1 ? "" : "s"}</Tag><Tag tone={warningCount > 0 ? "warn" : "good"}>{warningCount} warning{warningCount === 1 ? "" : "s"}</Tag><span>Diagnostics update from the canonical MEF after every saved edit.</span></div>
-      <DiagnosticTable diagnostics={diagnostics} />
+    <Section eyebrow="SPR · HLR-E5 to E8" title="Uncertainty and sensitivity" description="Model alternatives and their effect on the integrated results." tone="spr" actions={editable ? <CategorizedAddButton label="Add analysis" title="Add uncertainty analysis" options={[
+      { label: "Model uncertainty", description: "An assumption and reasonable alternative in the plant-response model.", title: "New model uncertainty", subtitle: "Source, assumptions, alternatives, treatment, and affected families", createAt: ["seismicPlantResponseAnalysis", "quantification", "modelUncertainties"] },
+      { label: "Sensitivity study", description: "An integrated test of an important parameter or model alternative.", title: "New sensitivity study", subtitle: "Varied parameters, range, result, impact, and insight", createAt: ["seismicPlantResponseAnalysis", "quantification", "sensitivityStudies"] },
+    ]} onChoose={setCollectionEditor} /> : undefined}>
+      {quant.modelUncertainties.length === 0
+        ? <EmptyState title="No model alternatives" detail="Identify plant-response uncertainties, assumptions, alternatives, and their integrated treatment." />
+        : <Table caption="Integrated uncertainty evaluations" headers={["Uncertainty", "Reasonable alternatives", "Treatment", "Sensitivity result", "Risk insight", ""]} minWidth={0} columnWidths={["20%", "19%", "20%", "18%", "18%", "5%"]} className="stable--wrapheads stable--technical">
+          {quant.modelUncertainties.map((uncertainty, index) => {
+            const study = studiesByUncertainty.get(uncertainty.uuid);
+            return <tr className="postable__row--clickable" key={uncertainty.uuid} onClick={() => setCollectionEditor({ title: uncertainty.name, subtitle: "Model uncertainty, assumptions, alternatives, and integrated treatment", focus: ["seismicPlantResponseAnalysis", "quantification", "modelUncertainties", index], inlinePrimitiveArrays: true, removeLabel: "Remove uncertainty" })}>
+              <td className="stable__key"><strong>{uncertainty.name}</strong><code>{displayLabel(uncertainty.sourceArea)} · {displayLabel(uncertainty.uncertaintyType)}</code></td>
+              <td>{uncertainty.reasonableAlternatives.join(", ")}</td>
+              <td><Tag tone={uncertainty.propagated ? "good" : "neutral"}>{uncertainty.propagated ? "Propagated" : "Sensitivity"}</Tag><code>{firstSentence(uncertainty.treatment)}</code></td>
+              <td>{study?.results ?? "No linked result"}</td>
+              <td>{study?.insights ?? "No linked insight"}</td>
+              <td className="srowopen"><POSIcon.ArrowR /></td>
+            </tr>;
+          })}
+        </Table>}
     </Section>
-    {quantOpen && <MefEditor tone="spr" title="Plant-response quantification" subtitle="Discretization, rare-event approximation, ESQ compliance, family results, uncertainty, contributors, sensitivity, and quality" focus={["seismicPlantResponseAnalysis", "quantification"]} onClose={() => setQuantOpen(false)} />}
-    {integrationOpen && <MefEditor tone="integration" title="Seismic PRA integration" subtitle="All interfaces, consistency checks, selected references, coverage, unresolved items, integrated uncertainty, and sensitivity" focus={["integration"]} onClose={() => setIntegrationOpen(false)} />}
-    <CollectionEditor tone={collectionEditor?.focus[0] === "seismicPlantResponseAnalysis" || collectionEditor?.createAt?.[0] === "seismicPlantResponseAnalysis" ? "spr" : "integration"} target={collectionEditor} onClose={() => setCollectionEditor(null)} />
-    {uncertaintyFocus !== null && <StructuredEditorDrawer eyebrow="Integrated Seismic PRA" title={uncertaintyFocus[0] === "integratedUncertainties" ? "Integrated uncertainty register" : uncertaintyFocus[0] === "integratedSensitivityStudies" ? "Integrated sensitivity studies" : "Seismic PRA uncertainty package"} subtitle="Source uncertainty, assumptions, reasonable alternatives, combined effects, propagation, sensitivity, and closure actions" schema={UncertaintyPackageSchema} value={{
-      integratedUncertainties: mef.integratedUncertainties,
-      integratedSensitivityStudies: mef.integratedSensitivityStudies,
-      modelUncertainty: mef.modelUncertainty,
-      preOperationalAssumptions: mef.preOperationalAssumptions,
-      seismicHazardAnalysis: {
-        uncertainties: mef.seismicHazardAnalysis.uncertainties,
-        modelUncertainty: mef.seismicHazardAnalysis.modelUncertainty,
-        preOperationalAssumptions: mef.seismicHazardAnalysis.preOperationalAssumptions,
-      },
-      seismicFragilityAnalysis: {
-        modelUncertainty: mef.seismicFragilityAnalysis.modelUncertainty,
-        preOperationalAssumptions: mef.seismicFragilityAnalysis.preOperationalAssumptions,
-      },
-      seismicPlantResponseAnalysis: {
-        modelUncertainty: mef.seismicPlantResponseAnalysis.modelUncertainty,
-        preOperationalAssumptions: mef.seismicPlantResponseAnalysis.preOperationalAssumptions,
-      },
-    }} editable={editable} initialFocus={uncertaintyFocus} onClose={() => setUncertaintyFocus(null)} onApply={(value) => {
-      const current = structuredClone(mef);
-      current.integratedUncertainties = value.integratedUncertainties;
-      current.integratedSensitivityStudies = value.integratedSensitivityStudies;
-      current.modelUncertainty = value.modelUncertainty;
-      current.preOperationalAssumptions = value.preOperationalAssumptions;
-      current.seismicHazardAnalysis.uncertainties = value.seismicHazardAnalysis.uncertainties;
-      current.seismicHazardAnalysis.modelUncertainty = value.seismicHazardAnalysis.modelUncertainty;
-      current.seismicHazardAnalysis.preOperationalAssumptions = value.seismicHazardAnalysis.preOperationalAssumptions;
-      current.seismicFragilityAnalysis.modelUncertainty = value.seismicFragilityAnalysis.modelUncertainty;
-      current.seismicFragilityAnalysis.preOperationalAssumptions = value.seismicFragilityAnalysis.preOperationalAssumptions;
-      current.seismicPlantResponseAnalysis.modelUncertainty = value.seismicPlantResponseAnalysis.modelUncertainty;
-      current.seismicPlantResponseAnalysis.preOperationalAssumptions = value.seismicPlantResponseAnalysis.preOperationalAssumptions;
-      update((draft) => { Object.assign(draft, current); });
-    }} />}
+    <Section eyebrow="SPR · HLR-E4, E8" title="Review and risk contributors" description="Required quantification checks and the contributors that drive the results." tone="spr" actions={editable ? <AddButton label="Add contributor" onClick={() => setCollectionEditor({ title: "New risk contributor", subtitle: "Contributor type, affected families, importance, context, and risk insight", focus: [], createAt: ["seismicPlantResponseAnalysis", "quantification", "riskSignificantContributors"], inlinePrimitiveArrays: true })} /> : undefined}>
+      <Table caption="Referenced ESQ checks" headers={["Requirement group", "Applicable checks", "Not applicable", "Status"]} minWidth={0} columnWidths={["28%", "24%", "24%", "24%"]} className="stable--wrapheads stable--technical">
+        {esqGroups.map(({ group, records, complete }) => <tr key={group}>
+          <td className="stable__key"><strong>{group}</strong></td>
+          <td>{records.filter((record) => record.applicable).length}</td>
+          <td>{records.filter((record) => !record.applicable).length}</td>
+          <td><Tag tone={complete ? "good" : "bad"}>{complete ? "Complete" : "Open"}</Tag></td>
+        </tr>)}
+      </Table>
+      {quant.riskSignificantContributors.length === 0
+        ? <EmptyState title="No risk contributors" detail="Review the results and identify the contributors that drive each risk-significant family." />
+        : <Table caption="Risk-significant contributors" headers={["Contributor", "Type", "Affected families", "Contribution", "Risk insight", ""]} minWidth={0} columnWidths={["23%", "12%", "22%", "14%", "24%", "5%"]} className="stable--wrapheads stable--technical">
+          {quant.riskSignificantContributors.map((contributor, index) => <tr className="postable__row--clickable" key={contributor.uuid} onClick={() => setCollectionEditor({ title: contributor.name, subtitle: "Contributor scope, importance, context, and risk insight", focus: ["seismicPlantResponseAnalysis", "quantification", "riskSignificantContributors", index], inlinePrimitiveArrays: true, removeLabel: "Remove contributor" })}>
+            <td className="stable__key"><strong>{contributor.name}</strong><code>{contributor.contributorRef}</code></td>
+            <td>{displayLabel(contributor.contributorType)}</td>
+            <td>{contributor.affectedEventSequenceFamilyRefs.map(familyName).join(", ")}</td>
+            <td>{contributor.contributionValue === undefined ? "Qualitative" : `${(contributor.contributionValue * 100).toFixed(1)}%`}<code>{displayLabel(contributor.importance)}</code></td>
+            <td>{contributor.riskInsight}</td>
+            <td className="srowopen"><POSIcon.ArrowR /></td>
+          </tr>)}
+        </Table>}
+    </Section>
+    {basisOpen && <MefEditor tone="spr" title="Quantification method" subtitle="Integrated solution, parameter uncertainty, ESQ dispositions, combined alternatives, and quality controls" focus={["seismicPlantResponseAnalysis", "quantification"]} visibleRootFields={["resultType", "integratedHazardFragilitySystemsMethod", "parameterUncertaintyPropagationMethod", "esqRequirementCompliance", "combinedAssumptionEvaluation", "outputQualityChecks"]} inlinePrimitiveArrays onClose={() => setBasisOpen(false)} />}
+    <CollectionEditor tone="spr" target={collectionEditor} onClose={() => setCollectionEditor(null)} />
   </>;
 }
 

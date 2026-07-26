@@ -3,10 +3,15 @@ import { type SRReference } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { createBlankSeismicPra } from "../../seismic-pra-workbooks/blank-seismic-pra";
+import { populateFragilityResults } from "./seismic-pra-fragility-results-seed";
 import { populateHazardResults } from "./seismic-pra-hazard-results-seed";
+import { populateSeismicHumanReliability } from "./seismic-pra-human-reliability-seed";
+import { populatePlantResponseModel } from "./seismic-pra-plant-response-seed";
+import { populateQuantification } from "./seismic-pra-quantification-seed";
 import { populateSelAndResponse } from "./seismic-pra-sel-response-seed";
 import { populateSecondaryHazards } from "./seismic-pra-secondary-hazards-seed";
 import { populateSiteResponseAnalysis } from "./seismic-pra-site-response-seed";
+import { populateThresholdsAndInvestigations } from "./seismic-pra-threshold-investigations-seed";
 
 type ReactorKind = "sfr" | "htgr";
 type GroundMotionParameter = SeismicPRA["seismicHazardAnalysis"]["analysisBasis"]["groundMotionParameters"][number];
@@ -19,8 +24,6 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const reactor = isSfr ? "Generic SFR" : "Generic HTGR";
   const site = isSfr ? "Pioneer Mesa Site" : "Cedar Basin Site";
   const building = isSfr ? "Reactor and steam-generator building" : "Reactor building and helium service area";
-  const primarySsc = isSfr ? "Primary sodium pump P-1" : "Helium circulator HC-1";
-  const secondarySsc = isSfr ? "Decay heat removal air cooler AC-1" : "Reactor cavity cooling panel RCCS-1";
   const mef = createBlankSeismicPra(isSfr ? "S Workbook 2" : "S Workbook 1", "example.preparer");
 
   mef.uuid = `SEISMIC-PRA-${kind.toUpperCase()}`;
@@ -1289,195 +1292,6 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   sfr.seismicResponseAnalysis.medianCentered = true;
   sfr.seismicResponseAnalysis.approximationBiasAssessment = "Scaling and numerical approximations introduce less than five-percent median bias across the HROI.";
   sfr.seismicResponseAnalysis.implementsSrs = srs("SFR-B1", "SFR-B2", "SFR-B3", "SFR-B4", "SFR-B5", "SFR-B6");
-  sfr.thresholdProgram.inherentlyRuggedBases = [{
-    uuid: "RUGGED-BASIS-1",
-    name: "Inherently rugged passive-component basis",
-    referenceGroundMotionParameter: "GMP-SA-1HZ",
-    genericRuggedComponentTypes: ["Welded process piping below 50 mm", "structural steel platforms"],
-    guidanceReferences: ["EPRI seismic experience database", "project ruggedness procedure"],
-    plantSpecificAdditions: [],
-    excludedComponentTypes: ["Active relays", "unanchored equipment"],
-    capacityBeyondRiskSignificantRangeBasis: "Experience capacities exceed the terminal risk-significant hazard interval with margin.",
-    hazardIndependentBasis: "The classification derives from demonstrated capacity, not the local hazard level.",
-    implementsSrs: srs("SFR-C1"),
-  }];
-  sfr.thresholdProgram.thresholdMethods = [{
-    uuid: "THRESHOLD-1",
-    name: "Cumulative fragility threshold",
-    plantResponseThresholdRef: "SPR-THRESHOLD-1",
-    groundMotionParameterRef: "GMP-SA-1HZ",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    thresholdCapacity: 1.8,
-    capacityUnits: "g",
-    cumulativeSscCountBasis: 12,
-    correlationTreatment: "Perfectly correlated groups counted once and independent groups accumulated probabilistically.",
-    screeningCapacitySources: ["qualification records", "experience data", "plant-specific calculations"],
-    caveatsAndInclusionRules: ["Anchorage and supports included", "all credible failure modes below threshold included"],
-    comparisonMethod: "Integrate the aggregate conditional failure probability over the mean hazard curve.",
-    satisfiesScr2: true,
-    implementsSrs: srs("SFR-C2"),
-  }];
-  sfr.thresholdProgram.screenedSscRefs = [];
-  sfr.thresholdProgram.screeningConfirmationMethod = "Walkdown and document review confirm applicability of every ruggedness and threshold disposition.";
-  sfr.thresholdProgram.anchorageAndSupportIncluded = true;
-  sfr.thresholdProgram.implementsSrs = srs("SFR-C1", "SFR-C2");
-  sfr.plantInvestigations = [{
-    uuid: "INVESTIGATION-1",
-    name: isSfr ? "SFR seismic design walkdown" : "HTGR seismic design walkdown",
-    investigationType: "COMPUTERIZED_WALKDOWN",
-    conditionBasis: "AS_INTENDED_TO_OPERATE",
-    date: "2026-04-16",
-    scope: "All risk-significant SEL items, anchorage, load paths, spatial interactions, flood/fire sources, and operator access routes.",
-    procedures: "Project seismic walkdown procedure based on established nuclear seismic margin practice and adapted for pre-operational design review.",
-    team: [{
-      uuid: "WALKDOWN-ENGINEER-1",
-      name: "Lead seismic capability engineer",
-      organization: "OpenPRA Reference Program",
-      role: "Team lead",
-      seismicPerformanceExperience: "Twenty years of nuclear seismic capability evaluation",
-      walkdownExperience: "Seismic walkdowns at six nuclear sites",
-      systemsOrOperationsExperience: "Supported system-engineering interviews for the reference design",
-      qualifications: ["Civil/structural PE", "seismic walkdown lead"],
-    }],
-    designDocumentRefs: ["GENERAL-ARRANGEMENT-2026", "ANCHORAGE-SCHEDULE-2026"],
-    sscRefsReviewed: ["SEL-PRIMARY", "SEL-SECONDARY"],
-    anchorageAndLoadPathReview: "Anchorage, support, and structural load paths were traced to foundations and modeled response locations.",
-    observations: ["Adequate separation from adjacent equipment", "maintenance clearances preserved"],
-    findings: [{
-      uuid: "FINDING-1",
-      name: "Flexible service-line interaction",
-      sscRef: "SEL-PRIMARY",
-      findingType: "INTERACTION",
-      description: "A service line could impose nozzle load at high differential displacement.",
-      location: building,
-      credible: true,
-      potentiallyRiskSignificant: true,
-      affectedFunctionOrAction: `Operation of ${primarySsc}`,
-      affectedFailureModeRefs: ["FAILURE-MODE-PRIMARY"],
-      resolutionOrFragilityTreatment: "Interaction load included in the controlling functional fragility.",
-      evidenceRefs: ["INTERACTION-CALC-01"],
-      implementsSrs: srs("SFR-D5", "SFR-D6"),
-    }],
-    fragilityThresholdConfirmations: [
-      { sscRef: "SEL-PRIMARY", anchorageConfirmed: true, supportConfirmed: true, thresholdSatisfied: false, basis: "Retained for explicit fragility." },
-      { sscRef: "SEL-SECONDARY", anchorageConfirmed: true, supportConfirmed: true, thresholdSatisfied: false, basis: "Retained for explicit fragility and secondary-hazard dependency." },
-    ],
-    conclusions: "The SEL is complete for the modeled design; identified interactions are represented in fragility and plant response.",
-    limitations: ["Physical as-built walkdown remains a pre-operational closure item."],
-    implementsSrs: srs("SFR-D1", "SFR-D2", "SFR-D4", "SFR-D5", "SFR-D6", "SFR-D7", "SFR-D8"),
-  }];
-  sfr.results.failureMechanisms = [
-    {
-      uuid: "MECHANISM-PRIMARY",
-      name: `${primarySsc} functional failure`,
-      sscRef: "SEL-PRIMARY",
-      systemsFailureModeRef: "FAILURE-MODE-PRIMARY",
-      mechanismType: "FUNCTIONAL_FAILURE",
-      failureModeType: "FUNCTIONAL",
-      description: "Loss of credited function from combined inertial, anchorage, and service-line demands.",
-      demandParameter: "Floor spectral acceleration",
-      demandUnits: "g",
-      demandResultRefs: ["RESPONSE-PRIMARY-LOCATION"],
-      capacityParameter: "Component functional acceleration capacity",
-      capacityUnits: "g",
-      capacityDataRefs: ["QUALIFICATION-PRIMARY", "INTERACTION-CALC-01"],
-      anchorageAndSupportLoadPath: "Equipment frame through qualified anchors to the structural floor model.",
-      interactionRefs: ["FINDING-1"],
-      conservativeBounding: false,
-      realisticForRiskSignificantSsc: true,
-      controlling: true,
-      selectionBasis: "Lowest realistic capacity among credible functional, anchorage, and interaction mechanisms.",
-      implementsSrs: srs("SFR-E1", "SFR-E2", "SFR-E3"),
-    },
-    {
-      uuid: "MECHANISM-SECONDARY",
-      name: `${secondarySsc} structural/soil interaction failure`,
-      sscRef: "SEL-SECONDARY",
-      systemsFailureModeRef: "FAILURE-MODE-SECONDARY",
-      mechanismType: isSfr ? "DIFFERENTIAL_SETTLEMENT" : "ANCHORAGE_FAILURE",
-      failureModeType: isSfr ? "SOIL_FAILURE" : "ANCHORAGE",
-      description: `Loss of credited function of ${secondarySsc}.`,
-      demandParameter: isSfr ? "Differential settlement" : "Floor spectral acceleration",
-      demandUnits: isSfr ? "cm" : "g",
-      demandResultRefs: ["RESPONSE-PRIMARY-LOCATION", "LIQUEFACTION-HAZARD-RESULTS"],
-      capacityParameter: isSfr ? "Allowable differential settlement" : "Anchorage acceleration capacity",
-      capacityUnits: isSfr ? "cm" : "g",
-      capacityDataRefs: ["CAPACITY-SECONDARY"],
-      anchorageAndSupportLoadPath: "Equipment supports and foundations reviewed through the complete load path.",
-      interactionRefs: ["SECONDARY-LIQUEFACTION"],
-      conservativeBounding: false,
-      realisticForRiskSignificantSsc: true,
-      controlling: true,
-      selectionBasis: "Retained secondary-hazard mechanism controls the lower-tail capacity.",
-      implementsSrs: srs("SFR-E1", "SFR-E5"),
-    },
-  ];
-  sfr.results.fragilityEvaluations = [
-    { ref: "PRIMARY", ssc: "SEL-PRIMARY", mechanism: "MECHANISM-PRIMARY", failure: "FAILURE-MODE-PRIMARY", median: isSfr ? 1.18 : 1.32, betaR: 0.28, betaU: 0.34, hclpf: isSfr ? 0.43 : 0.49 },
-    { ref: "SECONDARY", ssc: "SEL-SECONDARY", mechanism: "MECHANISM-SECONDARY", failure: "FAILURE-MODE-SECONDARY", median: isSfr ? 0.92 : 1.08, betaR: 0.31, betaU: 0.38, hclpf: isSfr ? 0.31 : 0.38 },
-  ].map((item) => ({
-    uuid: `FRAGILITY-${item.ref}`,
-    name: `${item.ssc} controlling fragility`,
-    sscRef: item.ssc,
-    systemsFailureModeRef: item.failure,
-    mechanismRefs: [item.mechanism],
-    controllingMechanismRef: item.mechanism,
-    analysisCategory: "GENERAL_SSC" as const,
-    evaluationBasis: "PLANT_SPECIFIC_CALCULATION" as const,
-    plantSpecific: true,
-    riskSignificance: ImportanceLevel.HIGH,
-    groundMotionParameterRef: "GMP-SA-1HZ",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    medianCapacity: item.median,
-    capacityUnits: "g",
-    betaRandomness: item.betaR,
-    betaUncertainty: item.betaU,
-    compositeBeta: Math.sqrt(item.betaR ** 2 + item.betaU ** 2),
-    highConfidenceLowProbabilityOfFailureCapacity: item.hclpf,
-    meanFragilityCurve: [0.1, 0.2, 0.4, 0.8, 1.2, 1.6, 2.4].map((groundMotion) => ({
-      groundMotion,
-      conditionalFailureProbability: Math.min(0.999, Math.max(0.0001, 1 / (1 + Math.exp(-7 * (groundMotion / item.median - 1))))),
-    })),
-    demandToCapacityMethod: "Lognormal separation-of-variables fragility with explicit median demand and capacity uncertainty.",
-    responseResultRefs: ["RESPONSE-PRIMARY-LOCATION"],
-    capacityDataRefs: [`CAPACITY-${item.ref}`],
-    correlationGroupRefs: ["CORR-COLOCATED-EQUIPMENT"],
-    thresholdMethodRef: "THRESHOLD-1",
-    thresholdSatisfied: false,
-    maskingEvaluation: "No higher-capacity mechanism masks the controlling failure mode.",
-    sensitivityStudyRefs: ["SENS-FRAGILITY-BETA"],
-    assumptions: ["As-intended anchorage configuration"],
-    limitations: ["Confirm final vendor qualification record"],
-    implementsSrs: srs("SFR-E1", "SFR-E2", "SFR-E3", "SFR-E4", "SFR-E5", "SFR-E6", "SFR-E7"),
-  }));
-  sfr.results.correlationGroups = [{
-    uuid: "CORR-COLOCATED-EQUIPMENT",
-    name: "Co-located equipment demand correlation",
-    memberSscRefs: ["SEL-PRIMARY", "SEL-SECONDARY"],
-    correlationModel: "PARTIAL",
-    correlationCoefficient: 0.45,
-    commonDemandBasis: "Common structural response and input-motion variability.",
-    constructionSimilarity: "Different component designs.",
-    installationSimilarity: "Common building but distinct anchorage systems.",
-    locationAndOrientationSimilarity: "Nearby elevations with different orientations.",
-    capacitySimilarity: "Capacity variables treated independently except shared installation uncertainty.",
-    modelingImplementation: "Gaussian-copula sampling of demand and selected capacity terms.",
-    justification: "Response simulations and physical differences support partial rather than perfect correlation.",
-    sensitivityStudyRefs: ["SENS-CORRELATION"],
-    implementsSrs: srs("SFR-E6", "SPR-B5"),
-  }];
-  sfr.results.sensitivityStudies = [{
-    uuid: "SENS-FRAGILITY-BETA",
-    name: "Fragility uncertainty sensitivity",
-    description: "Vary composite fragility uncertainty around the evaluated values.",
-    variedParameters: ["betaR", "betaU"],
-    parameterRanges: { betaR: [0.2, 0.4], betaU: [0.25, 0.5] },
-    results: "Total seismic frequency changes by -18 to +27 percent; contributor ranking is unchanged.",
-    insights: "The secondary SSC remains the dominant fragility contributor.",
-    implementsSrs: srs("SFR-E3", "SFR-E6"),
-  }];
-  sfr.results.systemsModelTransferBasis = "Every evaluation is transferred by SEL item, failure mode, ground-motion parameter, control point, and correlation group.";
-  sfr.results.implementsSrs = srs("SFR-E1", "SFR-E2", "SFR-E3", "SFR-E4", "SFR-E5", "SFR-E6", "SFR-E7");
   sfr.documentation.processDescription = "Reference-earthquake structural response, threshold screening, investigations, mechanism evaluation, and lognormal fragility development are integrated with systems modeling.";
   sfr.documentation.inputsDescription = "SHA spectra and intervals, structural and geotechnical models, qualification data, system failure modes, and walkdown evidence.";
   sfr.documentation.seismicResponseAnalysis = "Median-centered 3-D response and SSI simulations propagate aleatory and epistemic response variability.";
@@ -1509,281 +1323,27 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   const spr = mef.seismicPlantResponseAnalysis;
   spr.uuid = `SPR-${kind.toUpperCase()}`;
   spr.praScope = `Identify direct and secondary seismic initiators, adapt the internal-events model, quantify seismic event-sequence families, and identify ${reactor} risk insights.`;
-  const directInitiator = {
-    uuid: "INITIATOR-DIRECT-GROUND-MOTION",
-    name: "Seismic ground-motion initiating event",
-    origin: "DIRECT_GROUND_MOTION" as const,
-    description: "Ground motion causes plant trip and challenges credited safety functions.",
-    plantOperatingStateRefs: ["POS-POWER"],
-    reactorUnitRefs: [isSfr ? "UNIT-1" : "MODULES-1-4"],
-    radioactiveMaterialSourceRefs: ["SOURCE-REACTOR"],
-    directGroundMotionFailureRefs: ["FAILURE-MODE-PRIMARY", "FAILURE-MODE-SECONDARY"],
-    industryExperienceRefs: ["SEISMIC-EXPERIENCE-DATABASE"],
-    automaticOrManualTrip: true,
-    affectedSscRefs: ["SEL-PRIMARY", "SEL-SECONDARY"],
-    eventSequenceRefs: ["ES-SEISMIC-SUCCESS", "ES-SEISMIC-DAMAGE"],
-    riskSignificant: true,
-    retained: true,
-    implementsSrs: srs("SPR-A1", "SPR-A2", "SPR-A3"),
-  };
-  spr.initiatingEventIdentification = {
-    systematicProcess: "Review SHA ground motion and retained secondary hazards, SEL failure effects, system logic, operating states, radioactive sources, and earthquake experience.",
-    plantOperatingStateRefs: ["POS-POWER", "POS-SHUTDOWN"],
-    directInitiators: [directInitiator],
-    secondaryHazardInitiators: [{
-      ...directInitiator,
-      uuid: "INITIATOR-LIQUEFACTION",
-      name: "Seismic liquefaction-induced support challenge",
-      origin: "SECONDARY_HAZARD",
-      description: `Retained settlement hazard challenges ${secondarySsc}.`,
-      secondaryHazardRef: "SECONDARY-LIQUEFACTION",
-      directGroundMotionFailureRefs: undefined,
-      eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
-      implementsSrs: srs("SPR-A1", "SPR-A4"),
-    }],
-    industryExperienceSources: ["EPRI seismic experience database", "NRC earthquake operating experience"],
-    multiReactorAndMultiSourceEvaluation: isSfr ? "Single-unit effects are modeled; spent-fuel source dependencies are retained." : "Concurrent module trip and shared RCCS/support dependencies are modeled across four modules.",
-    completenessReview: "Initiators reconcile to all SHA retained hazards and SEL failure effects; screened mechanisms have documented bases.",
-    riskSignificanceEvaluationMethod: "Preliminary quantification and bounding conditional consequence review.",
-    retainedInitiatingEventRefs: ["INITIATOR-DIRECT-GROUND-MOTION", "INITIATOR-LIQUEFACTION"],
-    implementsSrs: srs("SPR-A1", "SPR-A2", "SPR-A3", "SPR-A4"),
-  };
   const equipment = populateSelAndResponse(mef, kind, building);
-  spr.plantResponseModel.baseInternalEventsModelRefs = ["ES-REFERENCE-MODEL", "SY-REFERENCE-MODEL", "SC-REFERENCE-BASIS"];
-  spr.plantResponseModel.baseNonSeismicHazardModelRefs = ["INTERNAL-FLOOD-REFERENCE", "INTERNAL-FIRE-REFERENCE"];
-  spr.plantResponseModel.eventSequenceRefs = ["ES-SEISMIC-SUCCESS", "ES-SEISMIC-DAMAGE"];
-  spr.plantResponseModel.systemsLogicModelRefs = ["SY-SEISMIC-MODEL"];
-  spr.plantResponseModel.inducedFailures = equipment
-    .filter((item) => item.disposition === "ACTIVE")
-    .map((item, index) => ({
-    uuid: `INDUCED-FAILURE-${index + 1}`,
-    name: item.failureModes[0]!.name,
-    sscRef: item.uuid,
-    seismicEquipmentListEntryRef: item.uuid,
-    systemsFailureModeRef: item.failureModes[0]!.uuid,
-    fragilityEvaluationRef: item.fragilityAnalysisRef!,
-    systemsBasicEventRef: item.failureModes[0]!.systemModelBasicEventRefs[0]!,
-    failureEffect: item.failureModes[0]!.consequenceDescription,
-    correlationGroupRefs: item.correlationGroupRefs,
-    causalDependencyRefs: [],
-    eventSequenceRefs: item.failureModes[0]!.eventSequenceRefs ?? [],
-    modelImplementation: "Hazard-bin-dependent basic-event probability obtained from the linked mean fragility curve.",
-      implementsSrs: srs("SPR-B3", "SPR-B5", "SPR-B6"),
-    }));
-  spr.plantResponseModel.plantOperatingStateRefs = ["POS-POWER", "POS-SHUTDOWN"];
-  spr.plantResponseModel.radioactiveMaterialSourceRefs = ["SOURCE-REACTOR", "SOURCE-SPENT-FUEL"];
-  spr.plantResponseModel.fragilityThresholds = [{
-    uuid: "SPR-THRESHOLD-1",
-    name: "Aggregate high-capacity SSC threshold",
-    groundMotionParameterRef: "GMP-SA-1HZ",
-    controlPointRef: "CONTROL-POINT-FOUNDATION",
-    thresholdCapacity: 1.8,
-    capacityUnits: "g",
-    hazardCurveRef: "HAZARD-CURVE-MEAN-1HZ",
-    cumulativeSscCount: 12,
-    correlationAndGroupingBasis: "Independent and correlated capacity groups are integrated without double counting.",
-    integratedAnnualFrequency: 7.5e-9,
-    screeningCriterion: "SCR-2",
-    criterionLimit: 1e-7,
-    satisfiesCriterion: true,
-    eventSequenceFamilyApplicability: ["ESF-SEISMIC-DAMAGE"],
-    finalModelConfirmation: "Final quantification confirms the screened aggregate remains below the criterion.",
-    sensitivityStudyRefs: ["SENS-THRESHOLD"],
-    implementsSrs: srs("SPR-B7", "SPR-B8"),
-  }];
-  spr.plantResponseModel.missionTimeAssessments = [{
-    uuid: "MISSION-TIME-1",
-    name: "Seismic decay-heat-removal mission time",
-    eventSequenceRef: "ES-SEISMIC-DAMAGE",
-    successCriteriaRef: "SC-DECAY-HEAT-REMOVAL",
-    assumedMissionTimeHours: 72,
-    sustainedAccessibilityImpact: "Local access limitations are included in ex-control-room action timing.",
-    emergencyResponseCapabilityImpact: "On-site response is assumed available after the first eight hours with degraded access.",
-    seismicEnvironmentDuration: "Strong motion is brief; aftershocks and debris constraints are considered for the full mission.",
-    missionTimeValid: true,
-    capabilityCategoryApplied: "CC-II",
-    basis: "Thermal-hydraulic success criteria and seismic recovery/access evaluations support the modeled duration.",
-    implementsSrs: srs("SPR-B9"),
-  }];
-  spr.plantResponseModel.multiReactorModels = [{
-    uuid: "MULTI-REACTOR-1",
-    name: "Concurrent reactor/module seismic response",
-    applicable: !isSfr,
-    reactorUnitRefs: [isSfr ? "UNIT-1" : "MODULE-1", ...(isSfr ? [] : ["MODULE-2", "MODULE-3", "MODULE-4"])],
-    sharedSscRefs: isSfr ? [] : ["SEL-SECONDARY"],
-    sharedHazardAndDependencyDescription: isSfr ? "Single reactor unit; source-area dependencies are evaluated separately." : "Common ground motion trips all modules and shared support dependencies are explicitly modeled.",
-    concurrentInitiatingEventRefs: ["INITIATOR-DIRECT-GROUND-MOTION"],
-    multiUnitEventSequenceRefs: isSfr ? [] : ["ES-MULTIMODULE-SEISMIC"],
-    sharedHumanActionRefs: ["HFE-SEISMIC-LOCAL-ACTION"],
-    sharedRadioactiveSourceRefs: ["SOURCE-SPENT-FUEL"],
-    modelImplementation: isSfr ? "Not applicable to a single reactor unit." : "Shared basic events, conditional module states, and common human actions preserve dependencies.",
-    exclusionBasis: isSfr ? "Reference SFR scope contains one reactor unit." : undefined,
-    implementsSrs: srs("SPR-B13"),
-  }];
-  spr.plantResponseModel.modificationsFromBaseModel = ["Added hazard-bin initiating events", "replaced seismic-sensitive component probabilities with fragility links", "added retained secondary-hazard sequences", "updated mission times and human actions"];
-  spr.plantResponseModel.completenessAndConsistencyReview = "The modified model preserves relevant internal-events logic, addresses peer-review findings, and reconciles every SEL, fragility, initiator, event sequence, and correlation.";
-  spr.plantResponseModel.implementsSrs = srs("SPR-B1", "SPR-B2", "SPR-B3", "SPR-B4", "SPR-B5", "SPR-B6", "SPR-B7", "SPR-B8", "SPR-B9", "SPR-B10", "SPR-B11", "SPR-B12", "SPR-B13");
-  spr.humanReliabilityModel.relevantInternalEventsHfeRefs = ["HFE-IE-LOCAL-ACTION"];
-  spr.humanReliabilityModel.humanActions = [{
-    uuid: "HFE-SEISMIC-LOCAL-ACTION",
-    name: isSfr ? "Align alternate decay-heat removal path" : "Confirm passive RCCS alignment locally",
-    humanFailureEventRef: "HFE-SEISMIC-LOCAL-ACTION",
-    recoveryAction: false,
-    sourceInternalEventsHfeRef: "HFE-IE-LOCAL-ACTION",
-    eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
-    controlRoomOrExControlRoom: "EX_CONTROL_ROOM",
-    seismicSpecificChallenges: {
-      trainingAndProcedures: "Seismic-specific cues and decision points are incorporated in procedures and training.",
-      workloadAndStress: "Concurrent alarms, trip response, and aftershock concerns increase stress and workload.",
-      mitigationImpact: "Automatic protection reduces immediate manual demand but local confirmation remains credited.",
-      timingAndAccessibility: "Debris and lighting degradation are included in travel and execution time.",
-      physicalHazards: "Falling-object zones and potential sodium/helium service hazards are routed around.",
-      jobAidsAndTraining: "Portable lighting, local labels, and simulator/tabletop training are credited.",
-    },
-    availableTime: 90,
-    requiredTime: 35,
-    timeUnits: "minutes",
-    humanErrorProbability: 0.045,
-    dependencyRefs: [],
-    feasibilityBasis: "Walkdown route review, timing trials, protective equipment, communication, and environmental conditions support feasibility.",
-    humanReliabilityAnalysisRef: "HRA-SEISMIC-2026",
-    implementsSrs: srs("SPR-C1", "SPR-C2", "SPR-C3", "SPR-C4", "SPR-C5", "SPR-C6"),
-  }];
-  spr.humanReliabilityModel.responseActionRequirementCompliance = "Seismic response actions follow HLR-HR-D capability requirements with environment-specific performance shaping factors.";
-  spr.humanReliabilityModel.hfeDefinitionRequirementCompliance = "Actions are defined at decision points that produce distinct plant-response outcomes.";
-  spr.humanReliabilityModel.recoveryRequirementCompliance = "No unsupported recovery credit is included; candidate recovery actions are sensitivity cases.";
-  spr.humanReliabilityModel.quantificationRequirementCompliance = "CC-II quantification uses seismic-specific timing, stress, accessibility, dependency, and uncertainty.";
-  spr.humanReliabilityModel.seismicInfluenceIntegration = "Ground-motion damage states determine access, cues, timing, and dependency conditions.";
-  spr.humanReliabilityModel.implementsSrs = srs("SPR-C1", "SPR-C2", "SPR-C3", "SPR-C4", "SPR-C5", "SPR-C6");
-  spr.quantification.hazardDiscretizations = [{
-    uuid: "DISCRETIZATION-1",
-    name: "Mean hazard discretization",
-    hazardCurveRefs: ["HAZARD-CURVE-MEAN-1HZ"],
-    bins: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((interval) => ({
-      uuid: `SPR-${interval.uuid}`,
-      name: interval.name,
-      hazardCurveRef: interval.sourceHazardCurveRef,
-      lowerGroundMotion: interval.lowerGroundMotion,
-      upperGroundMotion: interval.upperGroundMotion,
-      representativeGroundMotion: interval.representativeGroundMotion,
-      groundMotionUnits: interval.groundMotionUnits,
-      annualFrequency: interval.annualFrequency,
-      conditionalFrequencyMethod: interval.frequencyCalculationMethod,
-      fragilityEvaluationRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"],
-      eventSequenceFamilyRefs: ["ESF-SEISMIC-DAMAGE"],
-    })),
-    numericalMethod: "Difference-of-exceedance bin frequencies with representative motion selected by fragility-weighted quadrature.",
-    convergenceMetric: "Total event-sequence-family frequency",
-    convergenceTolerance: 0.02,
-    convergenceStudies: [{ binCount: 4, metricValue: isSfr ? 3.2e-5 : 2.4e-5, relativeChange: 0.018 }, { binCount: 8, metricValue: isSfr ? 3.17e-5 : 2.37e-5, relativeChange: 0.009 }],
-    converged: true,
-    basis: "Refinement changes total and contributor rankings below the project tolerance.",
-    implementsSrs: srs("SPR-E1", "SPR-E2"),
-  }];
-  spr.quantification.esqRequirementCompliance = [
-    { requirement: "HLR-ESQ-A", applicable: true, status: "MET", satisfiedByRefs: ["DISCRETIZATION-1"], evidence: "Initiator frequencies are derived consistently from mean hazard intervals." },
-    { requirement: "HLR-ESQ-B", applicable: true, status: "MET", satisfiedByRefs: ["ESF-QUANT-1"], evidence: "Sequence-family quantification preserves system and human dependencies." },
-  ];
-  spr.quantification.eventSequenceFamilyQuantifications = [{
-    uuid: "ESF-QUANT-1",
-    name: "Seismic challenge event-sequence family",
-    eventSequenceFamilyRef: "ESF-SEISMIC-DAMAGE",
-    initiatingEventRefs: ["INITIATOR-DIRECT-GROUND-MOTION", "INITIATOR-LIQUEFACTION"],
-    eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
-    releaseCategoryRef: "RC-SEISMIC-RELEASE",
-    sourceTermRef: "MS-SEISMIC-SOURCE-TERM",
-    hazardDiscretizationRef: "DISCRETIZATION-1",
-    meanHazardUsed: true,
-    meanFragilitiesUsed: true,
-    pointEstimateFrequency: isSfr ? 3.2e-5 : 2.4e-5,
-    meanFrequency: isSfr ? 3.5e-5 : 2.6e-5,
-    frequencyUnit: "PER_PLANT_YEAR",
-    hazardBinContributions: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((interval, index) => ({
-      binRef: `SPR-${interval.uuid}`,
-      frequencyContribution: (
-        isSfr
-          ? [4e-7, 1.1e-6, 3.4e-6, 8.3e-6, 1.02e-5, 6.7e-6, 2.1e-6, 3e-7]
-          : [3e-7, 8e-7, 2.5e-6, 6.2e-6, 7.8e-6, 5.1e-6, 1.6e-6, 2e-7]
-      )[index]!,
-    })),
-    uncertaintyContributions: [
-      { sourceType: "HAZARD", sourceRef: "GM-LT-1", contributionDescription: "Ground-motion model median and sigma." },
-      { sourceType: "FRAGILITY", sourceRef: "FRAGILITY-SECONDARY", contributionDescription: "Secondary SSC capacity and beta uncertainty." },
-      { sourceType: "SYSTEMS", sourceRef: "SY-SEISMIC-MODEL", contributionDescription: "Common-cause and human-action dependencies." },
-    ],
-    truncationAndScreeningTreatment: "The hazard extends beyond fragility saturation; screened high-capacity SSCs satisfy the cumulative threshold criterion.",
-    quantificationMethod: "Hazard-bin integration of mean fragilities and conditional event-sequence logic, with parameter uncertainty sampled jointly.",
-    implementsSrs: srs("SPR-E2", "SPR-E3", "SPR-E4"),
-  }];
-  spr.quantification.resultType = "MEANS_WITH_PROPAGATED_PARAMETER_UNCERTAINTY";
-  spr.quantification.integratedHazardFragilitySystemsMethod = "Evaluate fragility conditional failure probabilities at each hazard bin, solve dependent systems/event-sequence logic, multiply by bin frequency, and sum over bins.";
-  spr.quantification.parameterUncertaintyPropagationMethod = "Latin-hypercube sampling of hazard branches, fragility parameters, correlation, data, and HRA distributions.";
-  spr.quantification.combinedAssumptionEvaluation = "Combined pre-operational and modeling assumptions were sampled or bounded together; no cliff-edge interaction was identified.";
-  spr.quantification.sensitivityStudies = [{
-    uuid: "SENS-CORRELATION",
-    name: "Fragility correlation sensitivity",
-    description: "Evaluate independent, partial, and perfect correlation alternatives for co-located equipment.",
-    variedParameters: ["correlationCoefficient"],
-    parameterRanges: { correlationCoefficient: [0, 1] },
-    results: "Mean seismic family frequency varies by -12 to +21 percent.",
-    insights: "The same secondary heat-removal SSC remains dominant.",
-    implementsSrs: srs("SPR-E5", "SPR-E6"),
-  }];
-  spr.quantification.riskSignificantContributors = [{
-    uuid: "CONTRIBUTOR-SECONDARY-SSC",
-    name: `${secondarySsc} seismic fragility`,
-    contributorType: "SSC",
-    contributorRef: "SEL-SECONDARY",
-    affectedEventSequenceFamilyRefs: ["ESF-SEISMIC-DAMAGE"],
-    contributionValue: isSfr ? 0.46 : 0.39,
-    contributionMetric: "Fractional contribution to mean seismic event-sequence-family frequency",
-    importance: ImportanceLevel.HIGH,
-    designOperationMaintenanceContext: "Final anchorage/foundation details and inspection access directly affect the evaluated capacity.",
-    riskInsight: `Preserve margin and configuration control for ${secondarySsc}; it is the leading seismic contributor.`,
-    implementsSrs: srs("SPR-E6", "SPR-E8"),
-  }];
-  spr.quantification.outputQualityChecks = ["Bin contributions sum to total", "mean exceeds neither bounding sensitivity", "importance rankings reproduced independently", "SHA/SFR identifiers resolve"];
-  spr.quantification.implementsSrs = srs("SPR-E1", "SPR-E2", "SPR-E3", "SPR-E4", "SPR-E5", "SPR-E6", "SPR-E7", "SPR-E8");
+  populateThresholdsAndInvestigations(mef, kind, building);
+  populateFragilityResults(mef, kind);
+  populatePlantResponseModel(mef, kind);
+  populateSeismicHumanReliability(mef, kind);
+  populateQuantification(mef, kind);
   spr.documentation.processDescription = "SHA inputs and SFR fragilities are integrated with seismic initiators, SEL development, adapted systems/event-sequence logic, HRA, and hazard-bin quantification.";
   spr.documentation.inputsDescription = "Controlled hazard intervals, spectra, fragility curves, SEL, internal-events models, success criteria, HRA, and retained secondary hazards.";
   spr.documentation.seismicEquipmentListDevelopment = "The SEL is reconciled to initiators, system logic, fragility scope, investigations, and retained secondary hazards.";
   spr.documentation.baseModelModifications = "Seismic initiators, conditional component failure, correlation, contact/interaction effects, mission times, and seismic-specific actions are added to the internal-events base.";
   spr.documentation.seismicHumanReliabilityInfluences = "Seismic cues, stress, workload, access, physical hazards, timing, training, and dependency are represented.";
-  spr.documentation.quantificationMethods = "Mean hazard and fragility are integrated by converged hazard bins with joint parameter uncertainty and rare-event checks.";
-  spr.documentation.eventSequenceFamilyResults = `${reactor} seismic challenge family mean frequency is ${isSfr ? "3.5E-5" : "2.6E-5"} per plant-year.`;
-  spr.documentation.sensitivityStudyResults = "Fragility uncertainty and correlation change magnitude but not the leading risk insight.";
-  spr.documentation.riskSignificantContributors = `${secondarySsc}, intermediate hazard bins, and the ex-control-room action are leading contributors.`;
-  spr.documentation.modelUncertaintiesAndAlternatives = "Hazard, fragility, system dependency, HRA, and discretization alternatives are propagated or sensitivity tested.";
-  spr.documentation.quantificationLimitations = ["Confirm final as-built configuration and complete the physical walkdown before operational use."];
-  spr.documentation.dataModelAndCalculationRefs = ["SHA-RESULTS-2026.H5", "SFR-RESPONSE-RESULTS.H5", "SY-SEISMIC-MODEL", "SPR-QUANT-2026"];
-  spr.documentation.traceability = [
-    {
-      initiatingEventRef: "INITIATOR-DIRECT-GROUND-MOTION",
-      eventSequenceRefs: ["ES-SEISMIC-SUCCESS", "ES-SEISMIC-DAMAGE"],
-      equipmentRefs: ["SEL-PRIMARY", "SEL-SECONDARY"],
-      fragilityRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"],
-      hazardRefs: ["HAZARD-CURVE-MEAN-1HZ", "UHS-1E-4-H", "DISCRETIZATION-1"],
-      quantificationRef: "ESF-QUANT-1",
-    },
-    {
-      initiatingEventRef: "INITIATOR-LIQUEFACTION",
-      eventSequenceRefs: ["ES-SEISMIC-DAMAGE"],
-      equipmentRefs: ["SEL-SECONDARY"],
-      fragilityRefs: ["FRAGILITY-SECONDARY"],
-      hazardRefs: ["SECONDARY-LIQUEFACTION"],
-      quantificationRef: "ESF-QUANT-1",
-    },
-  ];
   spr.documentation.implementsSrs = srs("SPR-F1", "SPR-F2", "SPR-F3", "SPR-F4", "SPR-F5");
 
   mef.integration.interfaces = [
     { uuid: "IF-SHA-SFR", name: "Hazard-to-fragility interface", producer: "SHA", consumer: "SFR", payloadType: "RESPONSE_SPECTRUM", producerRefs: ["UHS-1E-4-H", "GMP-SA-1HZ", "CONTROL-POINT-FOUNDATION"], consumerRefs: ["REFERENCE-EQ-1", "STRUCTURAL-MODEL-1"], transferBasis: "Controlled spectra, motion definitions, control point, damping, and hazard range.", consistencyChecks: ["Parameter identifier resolves", "units and direction agree", "HROI lies within SHA range"], consistent: true, openItems: [], implementsSrs: srs("SHA-G1", "SFR-B1") },
-    { uuid: "IF-SFR-SPR", name: "Fragility-to-plant-response interface", producer: "SFR", consumer: "SPR", payloadType: "FRAGILITY", producerRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY", "CORR-COLOCATED-EQUIPMENT"], consumerRefs: ["INDUCED-FAILURE-1", "INDUCED-FAILURE-2", "ESF-QUANT-1"], transferBasis: "SEL item and failure-mode identifiers link mean fragilities and correlation to systems basic events.", consistencyChecks: ["Every active SEL failure mode has one controlling fragility", "correlation groups resolve"], consistent: true, openItems: [], implementsSrs: srs("SFR-E1", "SPR-B3") },
-    { uuid: "IF-SHA-SPR", name: "Hazard-to-plant-response interface", producer: "SHA", consumer: "SPR", payloadType: "HAZARD_INTERVAL", producerRefs: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((item) => item.uuid), consumerRefs: ["DISCRETIZATION-1"], transferBasis: "Non-overlapping interval frequencies and representative motion values are transferred from the mean hazard curve.", consistencyChecks: ["Frequencies reconcile", "range reaches fragility saturation", "bin refinement converges"], consistent: true, openItems: [], implementsSrs: srs("SHA-F3", "SPR-E1") },
+    { uuid: "IF-SFR-SPR", name: "Fragility-to-plant-response interface", producer: "SFR", consumer: "SPR", payloadType: "FRAGILITY", producerRefs: [...sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid), ...sfr.results.correlationGroups.map((group) => group.uuid)], consumerRefs: ["INDUCED-FAILURE-1", "INDUCED-FAILURE-2", ...spr.quantification.eventSequenceFamilyQuantifications.map((family) => family.uuid)], transferBasis: "SEL item and failure-mode identifiers link mean fragilities and correlation to systems basic events.", consistencyChecks: ["Every active SEL failure mode has one controlling fragility", "correlation groups resolve"], consistent: true, openItems: [], implementsSrs: srs("SFR-E1", "SPR-B3") },
+    { uuid: "IF-SHA-SPR", name: "Hazard-to-plant-response interface", producer: "SHA", consumer: "SPR", payloadType: "HAZARD_INTERVAL", producerRefs: sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((item) => item.uuid), consumerRefs: spr.quantification.hazardDiscretizations.map((item) => item.uuid), transferBasis: "Non-overlapping interval frequencies and representative motion values are transferred from the mean hazard curve.", consistencyChecks: ["Frequencies reconcile", "range reaches fragility saturation", "bin refinement converges"], consistent: true, openItems: [], implementsSrs: srs("SHA-F3", "SPR-E1") },
   ];
   mef.integration.consistencyChecks = [
-    { uuid: "CHECK-GMP", name: "Ground-motion parameter consistency", checkType: "GROUND_MOTION_PARAMETER", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["GMP-SA-1HZ", "REFERENCE-EQ-1", "DISCRETIZATION-1"], method: "Compare identifier, definition, direction, units, frequency, damping, and use range.", result: "PASS", evidence: "All three subelements use geometric-mean horizontal SA at 1 Hz in g at the foundation control point.", openItems: [], implementsSrs: srs("SHA-A4", "SFR-B1", "SPR-E1") },
-    { uuid: "CHECK-SEL", name: "Seismic equipment list coverage", checkType: "SEISMIC_EQUIPMENT_LIST", subelements: ["SFR", "SPR"], comparedRefs: ["SEL-2026", "FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"], method: "Resolve every active equipment failure mode through fragility and plant-response basic event.", result: "PASS", evidence: "Two active example SEL items have controlling fragilities and induced-failure models; thresholded scope is separately confirmed.", openItems: [], implementsSrs: srs("SFR-A1", "SPR-B1") },
+    { uuid: "CHECK-GMP", name: "Ground-motion parameter consistency", checkType: "GROUND_MOTION_PARAMETER", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["GMP-SA-1HZ", "REFERENCE-EQ-1", spr.quantification.hazardDiscretizations[0]?.uuid ?? "DISCRETIZATION-1"], method: "Compare identifier, definition, direction, units, frequency, damping, and use range.", result: "PASS", evidence: "All three subelements use geometric-mean horizontal SA at 1 Hz in g at the foundation control point.", openItems: [], implementsSrs: srs("SHA-A4", "SFR-B1", "SPR-E1") },
+    { uuid: "CHECK-SEL", name: "Seismic equipment list coverage", checkType: "SEISMIC_EQUIPMENT_LIST", subelements: ["SFR", "SPR"], comparedRefs: ["SEL-2026", ...sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid)], method: "Resolve every active equipment failure mode through fragility and plant-response basic event.", result: "PASS", evidence: "Two active example SEL items have controlling fragilities and induced-failure models; threshold confirmations and specialized source evaluations remain separately traceable.", openItems: [], implementsSrs: srs("SFR-A1", "SPR-B1") },
     { uuid: "CHECK-SECONDARY", name: "Secondary-hazard consistency", checkType: "SECONDARY_HAZARD", subelements: ["SHA", "SFR", "SPR"], comparedRefs: ["SECONDARY-LIQUEFACTION", "MECHANISM-SECONDARY", "INITIATOR-LIQUEFACTION"], method: "Trace retained hazard through affected SSC, mechanism, fragility, initiating event, and sequence quantification.", result: "PASS", evidence: "The liquefaction mechanism is retained and fully traced through all three subelements.", openItems: [], implementsSrs: srs("SHA-I2", "SFR-E5", "SPR-A4") },
   ];
   mef.integration.coverage = {
@@ -1802,8 +1362,10 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
   mef.integration.responseSpectrumRefs = ["UHS-1E-4-H"];
   mef.integration.hazardIntervalRefs = sha.hazardQuantification.seismicPraInputs.hazardIntervals.map((item) => item.uuid);
   mef.integration.seismicEquipmentListRef = "SEL-2026";
-  mef.integration.fragilityResultRefs = ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"];
-  mef.integration.eventSequenceFamilyQuantificationRefs = ["ESF-QUANT-1"];
+  mef.integration.fragilityResultRefs =
+    sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid);
+  mef.integration.eventSequenceFamilyQuantificationRefs =
+    spr.quantification.eventSequenceFamilyQuantifications.map((family) => family.uuid);
   mef.integration.eventSequenceQuantificationRefs = ["ESQ-REFERENCE-MODEL"];
   mef.integration.riskIntegrationRefs = ["RI-SEISMIC-CONTRIBUTION"];
   mef.integration.integrationMethod = "Configuration-controlled identifiers, explicit producer/consumer records, automated coverage checks, and multidisciplinary review maintain SHA/SFR/SPR consistency.";
@@ -1815,13 +1377,14 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     sourceSubelement: "SHA",
     sourceUncertaintyRef: "GM-LT-1",
     affectedSubelements: ["SHA", "SFR", "SPR"],
-    affectedEventSequenceFamilyRefs: ["ESF-SEISMIC-DAMAGE"],
+    affectedEventSequenceFamilyRefs:
+      spr.quantification.eventSequenceFamilyQuantifications.map((family) => family.eventSequenceFamilyRef),
     uncertaintyType: "MODEL",
     dependencyAndCorrelationTreatment: "Common ground-motion branches are sampled consistently with response and fragility parameters; no double counting of ergodic site variability.",
     propagationOrSensitivityTreatment: "Propagated in the integrated uncertainty calculation and challenged with correlation sensitivities.",
     combinedEffect: "Sets the upper tail of seismic event-sequence-family frequency but does not change leading SSC ranking.",
     importance: ImportanceLevel.HIGH,
-    sensitivityStudyRefs: ["SENS-FRAGILITY-BETA", "SENS-CORRELATION"],
+    sensitivityStudyRefs: ["SENS-FRAGILITY-BETA", "SENS-SPR-FRAGILITY-CORRELATION"],
     closureOrRefinementActions: ["Confirm final site profile and vendor capacity data"],
     implementsSrs: srs("SHA-F2", "SFR-E3", "SPR-E5"),
   }];
@@ -1859,9 +1422,9 @@ export function createSeismicPraExample(kind: ReactorKind): SeismicPRA {
     {
       requirement: "SFR-E1",
       subelement: "SFR",
-      dataRefs: ["SEL-2026", "QUALIFICATION-PRIMARY", "CAPACITY-SECONDARY"],
-      modelRefs: ["STRUCTURAL-MODEL-1", "MECHANISM-PRIMARY", "MECHANISM-SECONDARY"],
-      resultRefs: ["FRAGILITY-PRIMARY", "FRAGILITY-SECONDARY"],
+      dataRefs: ["SEL-2026", ...Array.from(new Set(sfr.results.fragilityEvaluations.flatMap((evaluation) => evaluation.capacityDataRefs)))],
+      modelRefs: sfr.results.failureMechanisms.map((mechanism) => mechanism.uuid),
+      resultRefs: sfr.results.fragilityEvaluations.map((evaluation) => evaluation.uuid),
       documentationRefs: ["EVIDENCE-SFR-CALCS", "SFR-REPORT-2026"],
     },
     {

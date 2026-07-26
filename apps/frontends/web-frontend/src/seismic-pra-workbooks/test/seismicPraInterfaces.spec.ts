@@ -118,8 +118,8 @@ describe("seismicPraInterfaceLanes", () => {
     expect(row(sfr, "SY").name).toContain("auxiliary cooling");
     expect(row(htgr, "RI").name).toContain("RCCS");
     expect(row(sfr, "RI").name).toContain("air cooler");
-    expect(row(htgr, "ESQ").values[1]).toBe("2.60E-5 /plant-yr");
-    expect(row(sfr, "ESQ").values[1]).toBe("3.50E-5 /plant-yr");
+    expect(row(htgr, "ESQ").values[1]).toBe("7.80E-6 /plant-yr");
+    expect(row(sfr, "ESQ").values[1]).toBe("1.08E-5 /plant-yr");
   });
 
   it("shows truthful empty upstream lanes without suppressing available Seismic outputs", () => {

@@ -20,6 +20,8 @@ interface StructuredEditorDrawerProps<S extends z.ZodType> {
   createAt?: EditorPath;
   hiddenRootFields?: string[];
   visibleRootFields?: RootFieldSelection;
+  inlinePrimitiveArrays?: boolean;
+  inlineObjectFields?: string[];
   onClose: () => void;
   onApply: (value: z.output<S>) => void;
   onRemove?: () => void;
@@ -273,6 +275,9 @@ function needsTextarea(key: string): boolean {
 function PrimitiveControl({ schema: inputSchema, fieldKey, value, editable, onChange }: { schema: z.ZodType; fieldKey: string; value: JsonValue; editable: boolean; onChange: (value: JsonValue) => void }): JSX.Element {
   const schema = unwrap(inputSchema);
   const id = `seismic-editor-${fieldKey.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`;
+  if (schema instanceof z.ZodLiteral) {
+    return <code className="sstructured__id">{humanize(String(value))}</code>;
+  }
   if (schema instanceof z.ZodBoolean) {
     return <label className="sstructured__check" htmlFor={id}><input id={id} type="checkbox" checked={value === true} disabled={!editable} onChange={(event) => onChange(event.target.checked)} /><span>{value === true ? "Yes" : "No"}</span></label>;
   }
@@ -291,6 +296,23 @@ function PrimitiveControl({ schema: inputSchema, fieldKey, value, editable, onCh
 function isPrimitiveSchema(inputSchema: z.ZodType): boolean {
   const schema = unwrap(inputSchema);
   return schema instanceof z.ZodString || schema instanceof z.ZodNumber || schema instanceof z.ZodBoolean || schema instanceof z.ZodEnum || schema instanceof z.ZodLiteral;
+}
+
+function objectSchemaForValue(
+  inputSchema: z.ZodType,
+  value: JsonValue,
+): z.ZodObject | undefined {
+  const schema = unwrap(inputSchema);
+  if (schema instanceof z.ZodObject) return schema;
+  const options = schema instanceof z.ZodDiscriminatedUnion
+    ? schema.options
+    : schema instanceof z.ZodUnion
+      ? schema.options
+      : [];
+  return options
+    .map((option) => unwrap(option as z.ZodType))
+    .find((option): option is z.ZodObject =>
+      option instanceof z.ZodObject && option.safeParse(value).success);
 }
 
 function recordLabel(value: JsonValue, index: number): string {
@@ -338,7 +360,7 @@ function inferredSchema(value: JsonValue): z.ZodType {
   return z.string();
 }
 
-function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle, schema, value, editable, initialFocus = [], createAt, hiddenRootFields = [], visibleRootFields, onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
+function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle, schema, value, editable, initialFocus = [], createAt, hiddenRootFields = [], visibleRootFields, inlinePrimitiveArrays = false, inlineObjectFields = [], onClose, onApply, onRemove, removeLabel = "Remove record" }: StructuredEditorDrawerProps<S>): JSX.Element {
   const [initialState] = useState(() => initialEditorState(schema, value, initialFocus, createAt));
   const [draft, setDraft] = useState<JsonValue>(initialState.draft);
   const [focus, setFocus] = useState<EditorPath>(initialState.focus);
@@ -423,9 +445,30 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     const primitiveEntries = standardEntries.filter(([, childSchema]) => isPrimitiveSchema(childSchema as z.ZodType));
     const conciseEntries = primitiveEntries.filter(([key, childSchema]) => !(unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key)));
     const narrativeEntries = primitiveEntries.filter(([key, childSchema]) => unwrap(childSchema as z.ZodType) instanceof z.ZodString && needsTextarea(key));
-    const nestedEntries = standardEntries.filter(([, childSchema]) => {
+    const inlineArrayEntries = inlinePrimitiveArrays
+      ? standardEntries.filter(([, childSchema]) => {
+          const unwrapped = unwrap(childSchema as z.ZodType);
+          return unwrapped instanceof z.ZodArray
+            && isPrimitiveSchema(unwrapped.element as z.ZodType);
+        })
+      : [];
+    const inlineArrayKeys = new Set(inlineArrayEntries.map(([key]) => key));
+    const inlineObjectEntries = standardEntries.filter(([key, childSchema]) => {
+      const objectSchema = objectSchemaForValue(
+        childSchema as z.ZodType,
+        objectValue[key] ?? defaultFor(childSchema as z.ZodType, key),
+      );
+      return inlineObjectFields.includes(key)
+        && objectSchema !== undefined
+        && Object.values(objectSchema.shape).every((fieldSchema) =>
+          isPrimitiveSchema(fieldSchema as z.ZodType));
+    });
+    const inlineObjectKeys = new Set(inlineObjectEntries.map(([key]) => key));
+    const nestedEntries = standardEntries.filter(([key, childSchema]) => {
       const unwrapped = unwrap(childSchema as z.ZodType);
-      return !isPrimitiveSchema(unwrapped);
+      return !isPrimitiveSchema(unwrapped)
+        && !inlineArrayKeys.has(key)
+        && !inlineObjectKeys.has(key);
     });
     const selectedRange = isObject(objectValue.selectedRange) ? objectValue.selectedRange : { minimum: 0, maximum: 0 };
     const frequencyRange = isObject(objectValue.selectedFrequencyRangeHz) ? objectValue.selectedFrequencyRangeHz : { lower: 0, upper: 0 };
@@ -469,6 +512,51 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
         {(conciseEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Technical basis</h3>}
         <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
+      {inlineArrayEntries.length > 0 && <div className="sstructured__section">
+        <h3 className="sstructured__section-title">References and lists</h3>
+        <div className="sstructured__inline-arrays">{inlineArrayEntries.map(([key, childSchema]) => {
+          const arraySchema = unwrap(childSchema as z.ZodType) as z.ZodArray;
+          const arrayValue = Array.isArray(objectValue[key]) ? objectValue[key] : [];
+          return <div className="sstructured__inline-array" key={key}>
+            <div className="sstructured__inline-array-head">
+              <span className="posfield__label">{fieldLabel(key)}</span>
+              {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateCurrent({ ...objectValue, [key]: [...arrayValue, defaultFor(arraySchema.element as z.ZodType)] })}><POSIcon.Plus /> Add</button>}
+            </div>
+            {arrayValue.length === 0
+              ? <p className="sstructured__empty">No entries have been added.</p>
+              : <div className="sstructured__primitive-list">{arrayValue.map((item, index) => <div className="sstructured__primitive-row" key={index}>
+                <PrimitiveControl schema={arraySchema.element as z.ZodType} fieldKey={`${key}-${index}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: arrayValue.map((entry, entryIndex) => entryIndex === index ? next : entry) })} />
+                {editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${fieldLabel(key)} item`} onClick={() => updateCurrent({ ...objectValue, [key]: arrayValue.filter((_, entryIndex) => entryIndex !== index) })}><POSIcon.Close /></button>}
+              </div>)}</div>}
+          </div>;
+        })}</div>
+      </div>}
+      {inlineObjectEntries.map(([key, childSchema]) => {
+        const childObjectSchema = objectSchemaForValue(
+          childSchema as z.ZodType,
+          objectValue[key] ?? defaultFor(childSchema as z.ZodType, key),
+        )!;
+        const childValue = isObject(objectValue[key])
+          ? objectValue[key]
+          : defaultFor(childObjectSchema, key) as JsonObject;
+        return <div className="sstructured__section" key={key}>
+          <h3 className="sstructured__section-title">{fieldLabel(key)}</h3>
+          <div className="sstructured__fields">{Object.entries(childObjectSchema.shape).map(([childKey, grandchildSchema]) =>
+            <div className="sstructured__field sstructured__field--wide" key={childKey}>
+              <label className="posfield__label" htmlFor={`seismic-editor-${key}-${childKey}`}>{fieldLabel(childKey)}</label>
+              <PrimitiveControl
+                schema={grandchildSchema as z.ZodType}
+                fieldKey={`${key}-${childKey}`}
+                value={childValue[childKey] ?? defaultFor(grandchildSchema as z.ZodType, childKey)}
+                editable={editable}
+                onChange={(next) => updateCurrent({
+                  ...objectValue,
+                  [key]: { ...childValue, [childKey]: next },
+                })}
+              />
+            </div>)}</div>
+        </div>;
+      })}
       {nestedEntries.length > 0 && <div className="sstructured__navlist">{nestedEntries.map(([key, childSchema]) => {
         const childValue = objectValue[key] ?? defaultFor(childSchema as z.ZodType, key);
         return <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{fieldLabel(key)}</strong><small>{navigationMeta(childValue)}</small></span><POSIcon.ArrowR /></button>;

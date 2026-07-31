@@ -2,7 +2,7 @@ import { createSeismicPraExample } from "../../../../../backends/web-backend/src
 import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
 import { seismicConformanceItems } from "../seismicPraConformance";
 
-describe("Seismic PRA Step 13 quantification", () => {
+describe("Seismic PRA Step 11 quantification", () => {
   it.each(["htgr", "sfr"] as const)(
     "populates a realistic, linked %s quantification package",
     (variant) => {
@@ -25,6 +25,7 @@ describe("Seismic PRA Step 13 quantification", () => {
       expect(quant.eventSequenceFamilyQuantifications).toHaveLength(7);
       expect(quant.modelUncertainties).toHaveLength(8);
       expect(quant.sensitivityStudies).toHaveLength(8);
+      expect(quant.significantCutsets).toHaveLength(12);
       expect(quant.riskSignificantContributors).toHaveLength(13);
       expect(quant.outputQualityChecks).toHaveLength(12);
       expect(spr.preOperationalAssumptions).toHaveLength(5);
@@ -79,6 +80,18 @@ describe("Seismic PRA Step 13 quantification", () => {
         && study.results.length > 30
         && study.insights !== undefined
         && study.insights.length > 40)).toBe(true);
+      expect(quant.significantCutsets.every((cutset) =>
+        familyIds.includes(
+          quant.eventSequenceFamilyQuantifications.find((family) =>
+            family.eventSequenceFamilyRef
+              === cutset.eventSequenceFamilyRef)?.uuid ?? "",
+        )
+        && cutset.basicEventRefs.length >= 2
+        && cutset.meanFrequency > 0
+        && cutset.contributionFraction > 0
+        && cutset.contributionFraction < 1
+        && cutset.reviewStatus === "VERIFIED"
+        && cutset.reviewBasis.length > 100)).toBe(true);
       expect(() => SeismicPRASchema.parse(mef)).not.toThrow();
     },
   );
@@ -102,9 +115,23 @@ describe("Seismic PRA Step 13 quantification", () => {
     expect(sfr.riskSignificantContributors.some((contributor) =>
       contributor.riskInsight.includes("sodium"))).toBe(true);
   });
+
+  it("loads workbooks saved before significant cutsets were persisted", () => {
+    const legacy = JSON.parse(JSON.stringify(
+      createSeismicPraExample("htgr"),
+    )) as ReturnType<typeof createSeismicPraExample>;
+    delete (legacy.seismicPlantResponseAnalysis.quantification as Partial<
+      typeof legacy.seismicPlantResponseAnalysis.quantification
+    >).significantCutsets;
+
+    expect(
+      SeismicPRASchema.parse(legacy)
+        .seismicPlantResponseAnalysis.quantification.significantCutsets,
+    ).toEqual([]);
+  });
 });
 
-describe("Seismic PRA Step 13 conformance", () => {
+describe("Seismic PRA Step 11 conformance", () => {
   it.each(["htgr", "sfr"] as const)(
     "reports complete HLR-SPR-E coverage for %s",
     (variant) => {

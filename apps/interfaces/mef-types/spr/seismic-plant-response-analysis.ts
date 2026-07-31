@@ -340,6 +340,20 @@ export interface SeismicRiskContributor extends Unique, Named {
   implementsSrs: SRReference[];
 }
 
+export interface SeismicSignificantCutset extends Unique, Named {
+  eventSequenceFamilyRef: string;
+  eventSequenceRef: string;
+  initiatingEventRef: string;
+  dominantHazardBinRef: string;
+  basicEventRefs: string[];
+  humanFailureEventRefs: string[];
+  meanFrequency: number;
+  contributionFraction: number;
+  reviewStatus: "VERIFIED" | "OPEN";
+  reviewBasis: string;
+  implementsSrs: SRReference[];
+}
+
 export interface PlantResponseUncertainty extends Unique, Named {
   sourceArea: "HAZARD_INTERFACE" | "FRAGILITY_INTERFACE" | "SYSTEMS_MODEL" | "HUMAN_RELIABILITY" | "QUANTIFICATION";
   uncertaintyType: "PARAMETER" | "MODEL";
@@ -366,6 +380,7 @@ export interface SeismicPlantResponseQuantification {
   modelUncertainties: PlantResponseUncertainty[];
   combinedAssumptionEvaluation: string;
   sensitivityStudies: SensitivityStudy[];
+  significantCutsets: SeismicSignificantCutset[];
   riskSignificantContributors: SeismicRiskContributor[];
   outputQualityChecks: string[];
   implementsSrs: SRReference[];

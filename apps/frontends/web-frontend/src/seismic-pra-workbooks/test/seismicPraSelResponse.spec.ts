@@ -3,7 +3,7 @@ import { SeismicPRASchema } from "interfaces-mef-types/zod/seismic/seismic-pra";
 import { seismicConformanceItems } from "../seismicPraConformance";
 import { structuralResponseFanSeries } from "../seismicPraHazardCharts";
 
-describe("Seismic PRA Step 08 equipment scope", () => {
+describe("Seismic PRA Step 04 equipment scope", () => {
   it.each(["htgr", "sfr"] as const)(
     "provides a multidisciplinary controlled SEL for %s",
     (variant) => {
@@ -71,7 +71,7 @@ describe("Seismic PRA Step 08 equipment scope", () => {
   });
 });
 
-describe("Seismic PRA Step 08 structural response", () => {
+describe("Seismic PRA Step 06 plant demand", () => {
   it.each(["htgr", "sfr"] as const)(
     "provides realistic three-direction response and stability evidence for %s",
     (variant) => {
@@ -92,9 +92,14 @@ describe("Seismic PRA Step 08 structural response", () => {
       expect(response.soilStructureInteractionAnalyses).toHaveLength(4);
       expect(response.probabilisticSimulations).toHaveLength(3);
       expect(response.scalingEvaluations).toHaveLength(8);
+      expect(mef.seismicHazardAnalysis.responseSpectraEvaluation
+        .foundationInputResponseSpectra).toHaveLength(3);
 
       for (const earthquake of response.referenceEarthquakes) {
         expect(earthquake.horizontalComponentRefs).toHaveLength(2);
+        expect(earthquake.horizontalComponentRefs.every((reference) =>
+          reference.startsWith("INPUT-SUITE-"))).toBe(true);
+        expect(earthquake.verticalComponentRef.startsWith("INPUT-SUITE-")).toBe(true);
         expect(earthquake.verticalComponentRef.length).toBeGreaterThan(0);
         expect(earthquake.hazardRangeOfInterest.lowerGroundMotion)
           .toBeLessThan(earthquake.hazardRangeOfInterest.upperGroundMotion);
@@ -126,6 +131,13 @@ describe("Seismic PRA Step 08 structural response", () => {
         expect(simulation.convergenceResults.length).toBeGreaterThanOrEqual(5);
         expect(simulation.convergenceResults.at(-1)?.metricValue).toBeLessThan(0.02);
       }
+
+      const applicableEquipment =
+        mef.seismicPlantResponseAnalysis.seismicEquipmentListDevelopment
+          .equipment.filter((item) => item.disposition !== "REMOVED_FROM_MODEL");
+      expect(applicableEquipment.every((item) =>
+        response.responseResults.some((result) =>
+          result.applicableSscRefs.includes(item.uuid)))).toBe(true);
     },
   );
 
@@ -178,7 +190,7 @@ describe("Seismic PRA Step 08 structural response", () => {
   });
 
   it.each(["htgr", "sfr"] as const)(
-    "reports Step 08 supporting requirements ready for %s",
+    "reports the Step 04 and Step 06 supporting requirements ready for %s",
     (variant) => {
       const statuses = Object.fromEntries(
         seismicConformanceItems(createSeismicPraExample(variant))

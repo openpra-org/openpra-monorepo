@@ -61,6 +61,7 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
   const sha = mef.seismicHazardAnalysis;
   const sfr = mef.seismicFragilityAnalysis;
   const spr = mef.seismicPlantResponseAnalysis;
+  const ri = mef.riskIntegrationBaseline;
   const site = mef.metadata.plantIdentity;
   const dispositioned = mef.conformanceMatrix.filter((row) => row.status === "MET" || row.status === "NOT_APPLICABLE").length;
 
@@ -68,7 +69,7 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
     new Paragraph({ children: [new TextRun({ text: mef.name, bold: true, size: 48, color: "352943" })], spacing: { after: 80 } }),
     new Paragraph({ children: [new TextRun({ text: "Integrated Seismic Probabilistic Risk Assessment", size: 28, color: "62566E" })], spacing: { after: 160 } }),
     para(`Plant: ${site?.name ?? "Not specified"}. Site: ${site?.siteName ?? "Not specified"}. Reactor type: ${site?.reactorType ?? "Not specified"}.`),
-    para(`Plant stage: ${mef.plantStage.replace(/_/g, " ")}. Capability category: ${mef.capabilityCategory ?? "Not specified"}. Model version: ${mef.version}.`),
+    para(`Plant stage: ${mef.plantStage.replace(/_/g, " ")}. Model version: ${mef.version}. Capability categories are documented for individual supporting requirements in the conformance matrix.`),
     para(final ? "Status: controlled final report." : "Status: draft report; verify open items and signatures before controlled use."),
     para(`Conformance disposition: ${dispositioned} of ${mef.conformanceMatrix.length} supporting requirements.`),
   );
@@ -183,7 +184,68 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
     mef.integratedUncertainties.map((uncertainty) => [uncertainty.name, uncertainty.sourceSubelement, uncertainty.uncertaintyType, uncertainty.affectedSubelements.join(" / "), uncertainty.importance, uncertainty.propagationOrSensitivityTreatment]),
   ));
 
-  out.push(heading("7. Documentation and Peer Review", HeadingLevel.HEADING_1));
+  out.push(heading("7. Risk Integration and Controlled Baseline", HeadingLevel.HEADING_1));
+  out.push(dataTable(
+    ["Seismic result", "Model", "POSs", "Units", "Material sources", "Initiators", "Release-family mean", "Status"],
+    [[
+      ri.result.name,
+      ri.result.modelVersion,
+      ri.result.plantOperatingStateRefs.join("; "),
+      ri.result.unitRefs.join("; "),
+      ri.result.radioactiveMaterialSourceRefs.join("; "),
+      ri.result.initiatingEventRefs.join("; "),
+      `${scientific(ri.result.aggregateReleaseFamilyMeanFrequency)} per plant-year`,
+      ri.result.status.replace(/_/g, " "),
+    ]],
+  ));
+  out.push(para(ri.result.overlapTreatment), para(ri.result.crossHazardIntegrationBasis));
+  out.push(heading("7.1 Risk-Informed Actions", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Decision", "Type", "Action", "Owner", "Due phase", "Disposition", "Affected SSCs", "Reanalysis"],
+    ri.decisions.map((decision) => [
+      decision.name,
+      decision.decisionType.replace(/_/g, " "),
+      decision.action,
+      decision.owner,
+      decision.duePhase,
+      decision.disposition.replace(/_/g, " "),
+      decision.affectedSscRefs.join("; "),
+      decision.reanalysisRequired ? "Required" : "Not required",
+    ]),
+  ));
+  out.push(heading("7.2 Risk Traceability", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Trace path", "Evidence", "Hazard", "SSC / mechanism / fragility", "Plant model", "Release outcome", "Decision", "Status"],
+    ri.traceabilityPaths.map((path) => [
+      path.name,
+      path.evidenceRefs.join("; "),
+      path.hazardRefs.join("; "),
+      [...path.sscRefs, ...path.failureMechanismRefs, ...path.fragilityRefs].join("; "),
+      [...path.responseRefs, ...path.plantModelRefs, ...path.humanActionRefs].join("; "),
+      `${path.eventSequenceFamilyRef} / ${path.releaseCategoryRef}`,
+      path.decisionRefs.join("; "),
+      path.status,
+    ]),
+  ));
+  out.push(heading("7.3 Controlled Baseline", HeadingLevel.HEADING_2));
+  out.push(dataTable(
+    ["Baseline", "Model", "Configuration record", "Final run", "RI handoff", "Peer review", "Approval", "Release"],
+    [[
+      ri.baseline.name,
+      ri.baseline.modelVersion,
+      ri.baseline.configurationControlRecordId,
+      ri.baseline.quantificationRunRef,
+      ri.baseline.riskIntegrationHandoffRef,
+      `${ri.baseline.peerReviewStatus.replace(/_/g, " ")} / ${ri.baseline.peerReviewRef}`,
+      ri.baseline.approvalStatus.replace(/_/g, " "),
+      ri.baseline.releaseStatus.replace(/_/g, " "),
+    ]],
+  ));
+  for (const limitation of ri.baseline.scopeLimitations) {
+    out.push(bullet(limitation));
+  }
+
+  out.push(heading("8. Documentation and Peer Review", HeadingLevel.HEADING_1));
   out.push(para(mef.documentation.peerReviewBasis.methodologyReviewScope), para(mef.documentation.peerReviewBasis.seismicHazardCoverage), para(mef.documentation.peerReviewBasis.seismicCapabilityCoverage), para(mef.documentation.peerReviewBasis.seismicPraCoverage));
   if ((mef.exampleDocuments ?? []).length > 0) {
     out.push(dataTable(
@@ -191,18 +253,18 @@ function buildChildren(mef: SeismicPRA, final: boolean): ReportBlock[] {
       (mef.exampleDocuments ?? []).map((document) => [document.name, document.kind, document.sizeLabel, document.extracted, String(document.linked)]),
     ));
   }
-  out.push(heading("7.1 Integrated Traceability", HeadingLevel.HEADING_2));
+  out.push(heading("8.1 Supporting-Requirement Traceability", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Requirement", "Subelement", "Data", "Models", "Results", "Documentation"],
     mef.documentation.traceabilityMatrix.map((link) => [link.requirement, link.subelement, link.dataRefs.join("; "), link.modelRefs.join("; "), link.resultRefs.join("; "), link.documentationRefs.join("; ")]),
   ));
 
-  out.push(heading("8. Supporting-Requirement Conformance", HeadingLevel.HEADING_1));
+  out.push(heading("9. Supporting-Requirement Conformance", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["SR", "Subelement", "HLR", "Category", "Status", "Evidence"],
     mef.conformanceMatrix.map((row) => [row.sr, row.sr.split("-")[0] ?? "", row.hlr, row.capabilityCategory, row.status.replace(/_/g, " "), row.evidence]),
   ));
-  out.push(heading("9. Automated Validation Record", HeadingLevel.HEADING_1));
+  out.push(heading("10. Automated Validation Record", HeadingLevel.HEADING_1));
   out.push(dataTable(
     ["Code", "Severity", "Area", "Finding", "Affected records"],
     validateSeismicPra(mef).map((diagnostic) => [diagnostic.code, diagnostic.severity, diagnostic.area, diagnostic.message, diagnostic.recordRefs.join("; ")]),

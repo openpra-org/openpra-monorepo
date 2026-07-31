@@ -70,9 +70,24 @@ describe("Seismic PRA linked inputs", () => {
     expect(links.daParameters[0].basicEvent).toBe("BE-01");
   });
 
-  it("recognizes only loaded Seismic PRA example UUIDs", () => {
+  it("recognizes loaded examples and cloned example baselines", () => {
     expect(seismicPraVariant({ uuid: "SEISMIC-PRA-HTGR" })).toBe("htgr");
     expect(seismicPraVariant({ uuid: "SEISMIC-PRA-SFR" })).toBe("sfr");
+    expect(seismicPraVariant({
+      uuid: "cloned-workbook",
+      baselinePra: {
+        modelName: "MHTGR PRA model basis",
+        modelReference: "DOE-HTGR-86-011",
+        sourceEvidenceRef: "",
+        revision: "3",
+        freezeDate: "1987-01-01",
+        freezeStatus: "REFERENCE_ONLY",
+        modelBoundary: "",
+        nonSeismicHazardModelRefs: [],
+        recordTreatments: [],
+        unresolvedInterfaces: [],
+      },
+    })).toBe("htgr");
     expect(seismicPraVariant({ uuid: "blank-workbook" })).toBeNull();
   });
 });

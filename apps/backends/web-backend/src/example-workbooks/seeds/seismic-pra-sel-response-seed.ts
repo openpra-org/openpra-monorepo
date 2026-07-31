@@ -1018,6 +1018,17 @@ function buildEquipment(
       : `FAILURE-MODE-${prefix}-${template.id}`;
     responseGroups.get(template.responseModel)!.push(uuid);
     const active = template.disposition === "ACTIVE";
+    const parentSscRef = template.id === "REACTOR-BUILDING"
+      ? undefined
+      : template.id === "RTS-RELAY"
+        ? `SEL-${prefix}-RTS-CABINET`
+        : template.responseModel === "RB"
+          ? `SEL-${prefix}-REACTOR-BUILDING`
+          : template.responseModel === "CONTROL"
+            ? "STRUCTURE-CONTROL-AND-ELECTRICAL-BUILDING"
+            : template.responseModel === "DHR"
+              ? `STRUCTURE-${prefix}-DECAY-HEAT-REMOVAL`
+              : `STRUCTURE-${prefix}-SUPPORT-SERVICES`;
     return {
       uuid,
       name: template.name,
@@ -1025,6 +1036,7 @@ function buildEquipment(
       componentRef: template.sscType === "COMPONENT" ? `COMPONENT-${prefix}-${template.id}` : undefined,
       systemRef: template.systemRef,
       structureRef: template.structureRef,
+      parentSscRef,
       reactorUnitRefs: [kind === "sfr" ? "UNIT-1" : "MODULES-1-4"],
       radioactiveMaterialSourceRefs: ["SOURCE-REACTOR"],
       building: template.building,
@@ -1202,18 +1214,18 @@ function populateSelAndResponse(
         || entry.disposition === "INHERENTLY_RUGGED")
       .map((entry) => entry.uuid),
     failureModeIdentificationProcess: "Trace every direct and secondary seismic initiator through the internal-events systems model, seismic event sequences, passive structures, relays, cabinets, flood and fire sources, support systems, and spatial interactions. Define the lost credited state and system basic event for each retained SSC.",
-    systemsFragilityAnalystCoordination: "Systems, operations, structural, geotechnical, fragility, and fire/flood specialists reconcile SEL identifiers, credited functions, response locations, failure definitions, correlation groups, and screening dispositions at each controlled revision.",
+    systemsFragilityAnalystCoordination: "Systems, operations, structural, geotechnical, and fire/flood specialists reconcile identifiers, functions, locations, mounting, parent relationships, failure definitions, plant-model consequences, and preliminary correlation groups before demand and fragility work begins.",
     completenessChecks: [
-      "Every seismic systems basic event resolves to an SEL failure mode",
-      "Every active SEL failure mode resolves to a controlling fragility",
+      "Every baseline systems basic event retained for seismic resolves to an SEL failure mode",
       "Structures, relays, cabinets, passive SSCs, flood sources, and fire sources are included",
-      "Every retained secondary hazard resolves to inducing or affected SEL items",
-      "Each SEL item resolves to a structural-response location or a documented ruggedness basis",
+      "Every secondary-hazard candidate resolves to inducing or affected SEL items",
+      "Every SEL item records its plant identifier, location, mounting, and parent structure or cabinet",
+      "Every failure mode states the credited function, failure definition, consequence, and basic-event mapping",
       "Correlation groups use common demand, construction, installation, location, and orientation evidence",
-      "Removed or screened items retain a technical disposition basis",
-      "Revision review reconciles systems, fragility, investigation, and quantification changes",
+      "Removed or preliminarily screened items retain a technical basis",
+      "Revision review reconciles systems-model and SEL changes",
     ],
-    revisionBasis: "Revision 4 incorporates the CC-II systems model, secondary-hazard results, design-document investigation, qualification review, structural-response locations, and fragility-threshold dispositions current through 2026-06-12.",
+    revisionBasis: "Revision 1 assembles the initial SEL from the controlled systems model, seismic-only structures and passive SSCs, relay and cabinet scope, internal fire and flood sources, secondary-hazard candidates, and preliminary failure-consequence mapping current through 2026-05-01.",
     implementsSrs: srs("SPR-C1", "SPR-C2", "SPR-C3", "SPR-C4", "SPR-C5", "SPR-C6", "SFR-A1", "SFR-A2"),
   };
 
@@ -1230,6 +1242,7 @@ function populateSelAndResponse(
     : [0.36, 0.65, 1.04];
   const annualFrequencies = [1e-4, 1e-5, 1e-6];
   const spectra = ["UHS-1E-4-H", "UHS-1E-5-H", "UHS-1E-6-H"];
+  const inputSuites = ["INPUT-SUITE-1E-4", "INPUT-SUITE-1E-5", "INPUT-SUITE-1E-6"];
   const names = [
     "Risk-central reference earthquake",
     "Upper-tail response earthquake",
@@ -1246,10 +1259,10 @@ function populateSelAndResponse(
       groundMotionLevel: referenceLevels[index]!,
       groundMotionUnits: "g",
       horizontalComponentRefs: [
-        `${spectra[index]}-X`,
-        `${spectra[index]}-Y`,
+        `${inputSuites[index]}-H1`,
+        `${inputSuites[index]}-H2`,
       ],
-      verticalComponentRef: `VERTICAL-SPECTRUM-${index + 1}`,
+      verticalComponentRef: `${inputSuites[index]}-V`,
       hazardRangeOfInterest: {
         lowerGroundMotion: index === 0 ? 0.08 : index === 1 ? 0.28 : 0.62,
         upperGroundMotion: index === 0 ? 0.9 : index === 1 ? 1.45 : 2.2,

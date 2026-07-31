@@ -3,9 +3,14 @@ import { createContext, type JSX, type ReactNode, useContext, useMemo } from "re
 
 type SeismicPraVariant = "htgr" | "sfr";
 
-function seismicPraVariant(mef: Pick<SeismicPRA, "uuid">): SeismicPraVariant | null {
+function seismicPraVariant(
+  mef: Pick<SeismicPRA, "uuid"> & Partial<Pick<SeismicPRA, "baselinePra">>,
+): SeismicPraVariant | null {
   if (mef.uuid === "SEISMIC-PRA-HTGR") return "htgr";
   if (mef.uuid === "SEISMIC-PRA-SFR") return "sfr";
+  const baselineReference = mef.baselinePra?.modelReference.toUpperCase() ?? "";
+  if (baselineReference.includes("DOE-HTGR-86-011")) return "htgr";
+  if (baselineReference.includes("PRA-SFR-BASELINE-2026.1")) return "sfr";
   return null;
 }
 

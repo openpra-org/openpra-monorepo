@@ -388,6 +388,22 @@ export const SeismicRiskContributorSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const SeismicSignificantCutsetSchema = z.object({
+  uuid: z.string(),
+  name: z.string(),
+  eventSequenceFamilyRef: z.string(),
+  eventSequenceRef: z.string(),
+  initiatingEventRef: z.string(),
+  dominantHazardBinRef: z.string(),
+  basicEventRefs: z.array(z.string()),
+  humanFailureEventRefs: z.array(z.string()),
+  meanFrequency: z.number(),
+  contributionFraction: z.number(),
+  reviewStatus: z.enum(["VERIFIED", "OPEN"]),
+  reviewBasis: z.string(),
+  implementsSrs: z.array(SRReferenceSchema),
+});
+
 export const PlantResponseUncertaintySchema = z.object({
   uuid: z.string(),
   name: z.string(),
@@ -416,6 +432,7 @@ export const SeismicPlantResponseQuantificationSchema = z.object({
   modelUncertainties: z.array(PlantResponseUncertaintySchema),
   combinedAssumptionEvaluation: z.string(),
   sensitivityStudies: z.array(SensitivityStudySchema),
+  significantCutsets: z.array(SeismicSignificantCutsetSchema).default([]),
   riskSignificantContributors: z.array(SeismicRiskContributorSchema),
   outputQualityChecks: z.array(z.string()),
   implementsSrs: z.array(SRReferenceSchema),

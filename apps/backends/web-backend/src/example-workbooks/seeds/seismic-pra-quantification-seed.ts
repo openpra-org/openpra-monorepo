@@ -977,6 +977,90 @@ export function populateQuantification(
         ? 1
         : 0);
 
+  const seismicBasicEvents = inducedFailures
+    .map((failure) => ({
+      ref: failure.systemsBasicEventRef,
+      name: failure.name,
+    }))
+    .filter((event, index, records) =>
+      event.ref.trim().length > 0
+      && records.findIndex((candidate) => candidate.ref === event.ref) === index);
+  const supportingBasicEventNames: Record<string, string> = {
+    "BE-RANDOM-DHR-TRAIN-A": "Random failure of decay-heat-removal train A",
+    "BE-RANDOM-DHR-TRAIN-B": "Random failure of decay-heat-removal train B",
+    "BE-RANDOM-DC-DIV-A": "Random failure of DC division A",
+    "BE-RANDOM-DC-DIV-B": "Random failure of DC division B",
+    "BE-COMMON-CAUSE-PROTECTION":
+      "Common-cause failure of reactor protection",
+    "BE-OFFSITE-POWER-NONRECOVERY": "Failure to recover offsite power",
+    "UA-DHR-TRAIN-A-MAINT":
+      "Decay-heat-removal train A unavailable for maintenance",
+    "UA-DC-DIV-B-TEST": "DC division B unavailable for testing",
+    "UA-SPENT-FUEL-HANDLING":
+      "Spent-fuel handling system unavailable during transfer",
+    "UA-FIRE-SUPPRESSION-TRAIN":
+      "Fire-suppression train unavailable for maintenance",
+    "UA-FLOOD-ISOLATION-VALVE":
+      "Flood-isolation valve unavailable for testing",
+  };
+  const supportingBasicEvents = [
+    ...spr.plantResponseModel.nonSeismicFailureRefs,
+    ...spr.plantResponseModel.unavailabilityRefs,
+  ].map((ref) => ({
+    ref,
+    name: supportingBasicEventNames[ref] ?? ref,
+  }));
+  const basicEvents = [...seismicBasicEvents, ...supportingBasicEvents];
+  const humanActions = spr.humanReliabilityModel.humanActions;
+  const cutsetSpecs = [
+    { familyId: "ESF-QUANT-DAMAGE", binIndex: 4, basicIndexes: [0, 1], hfeIndex: 1, fraction: 0.18 },
+    { familyId: "ESF-QUANT-DAMAGE", binIndex: 5, basicIndexes: [2, 3], hfeIndex: 2, fraction: 0.14 },
+    { familyId: "ESF-QUANT-DAMAGE", binIndex: 4, basicIndexes: [4, 5], hfeIndex: undefined, fraction: 0.11 },
+    { familyId: "ESF-QUANT-COMBINED", binIndex: 5, basicIndexes: [1, 6], hfeIndex: 0, fraction: 0.21 },
+    { familyId: "ESF-QUANT-COMBINED", binIndex: 6, basicIndexes: [3, 7], hfeIndex: 4, fraction: 0.16 },
+    { familyId: "ESF-QUANT-COMBINED", binIndex: 5, basicIndexes: [5, 8], hfeIndex: undefined, fraction: 0.10 },
+    { familyId: "ESF-QUANT-SHUTDOWN", binIndex: 4, basicIndexes: [2, 9], hfeIndex: 3, fraction: 0.24 },
+    { familyId: "ESF-QUANT-SHUTDOWN", binIndex: 5, basicIndexes: [4, 10], hfeIndex: 7, fraction: 0.15 },
+    { familyId: "ESF-QUANT-SPENT-FUEL", binIndex: 4, basicIndexes: [6, 11], hfeIndex: 5, fraction: 0.22 },
+    { familyId: "ESF-QUANT-SPENT-FUEL", binIndex: 5, basicIndexes: [7, 12], hfeIndex: undefined, fraction: 0.13 },
+    { familyId: "ESF-QUANT-LIQUEFACTION", binIndex: 6, basicIndexes: [1, 4], hfeIndex: 6, fraction: 0.31 },
+    { familyId: "ESF-QUANT-EXTERNAL-FLOOD", binIndex: 6, basicIndexes: [3, 8], hfeIndex: 8, fraction: 0.36 },
+  ] as const;
+  quant.significantCutsets = cutsetSpecs.map((spec, index) => {
+    const family = quant.eventSequenceFamilyQuantifications.find(
+      (candidate) => candidate.uuid === spec.familyId,
+    )!;
+    const selectedBasicEvents = spec.basicIndexes.map((basicIndex) =>
+      basicEvents[basicIndex % basicEvents.length]!);
+    const action = spec.hfeIndex === undefined
+      ? undefined
+      : humanActions[spec.hfeIndex % humanActions.length];
+    const cutsetExpression = action === undefined
+      ? `${selectedBasicEvents[0]!.name} and ${selectedBasicEvents[1]!.name.toLowerCase()}`
+      : `${selectedBasicEvents[0]!.name} with ${action.name.toLowerCase()}`;
+    return {
+      uuid: `CUTSET-SPR-${String(index + 1).padStart(2, "0")}`,
+      name: `CS-${String(index + 1).padStart(2, "0")} · ${cutsetExpression}`,
+      eventSequenceFamilyRef: family.eventSequenceFamilyRef,
+      eventSequenceRef: family.eventSequenceRefs[0]!,
+      initiatingEventRef: family.initiatingEventRefs[0]!,
+      dominantHazardBinRef:
+        `SPR-${intervals[spec.binIndex]?.uuid ?? intervals.at(-1)!.uuid}`,
+      basicEventRefs: selectedBasicEvents.map((event) => event.ref),
+      humanFailureEventRefs: action === undefined
+        ? []
+        : [action.humanFailureEventRef],
+      meanFrequency: rounded(
+        (family.meanFrequency ?? family.pointEstimateFrequency) * spec.fraction,
+      ),
+      contributionFraction: spec.fraction,
+      reviewStatus: "VERIFIED" as const,
+      reviewBasis:
+        `Independent cutset review confirmed the ${family.name} sequence logic, shared-event treatment, flag settings, recovery rules, dominant hazard interval, and physical meaning of the linked equipment and human-action failures.`,
+      implementsSrs: srs("SPR-E4", "ESQ-D1", "ESQ-D3", "ESQ-D6"),
+    };
+  });
+
   quant.outputQualityChecks = [
     "Every SHA hazard interval resolves to exactly one SPR bin with identical bounds, representative motion, units, and annual frequency.",
     "Every active induced-failure basic event resolves to a stored SFR fragility and correlation group.",
@@ -987,7 +1071,7 @@ export function populateQuantification(
     "Mean hazard and mean fragilities are used, with parameter uncertainty propagated for hazard, fragility, systems, and HRA inputs.",
     "State-of-knowledge correlation is preserved by sampling common epistemic variables once per realization.",
     "Cutset truncation refinement changes each family mean by less than 0.5%.",
-    "Risk-significant and sampled non-risk-significant cutsets have independent logic and physical-meaning reviews.",
+    `${quant.significantCutsets.length} significant cutsets and a sample of non-risk-significant cutsets have independent logic and physical-meaning reviews.`,
     "Flag settings, mutual-exclusion rules, module formation, and recovery rules reproduce the controlled solution.",
     "Pre-operational assumptions and unresolved model alternatives map to sensitivity studies and closure actions.",
   ];

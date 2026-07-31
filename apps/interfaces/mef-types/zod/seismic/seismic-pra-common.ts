@@ -55,6 +55,7 @@ export const SeismicEquipmentListEntrySchema = z.object({
   componentRef: z.string().optional(),
   systemRef: z.string().optional(),
   structureRef: z.string().optional(),
+  parentSscRef: z.string().optional(),
   reactorUnitRefs: z.array(z.string()),
   radioactiveMaterialSourceRefs: z.array(z.string()).optional(),
   building: z.string(),

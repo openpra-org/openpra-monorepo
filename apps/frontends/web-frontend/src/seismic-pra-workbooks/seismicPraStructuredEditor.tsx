@@ -49,6 +49,9 @@ function humanize(value: string): string {
   return label
     .replace(/\bsshac\b/gi, "SSHAC")
     .replace(/\bpra\b/gi, "PRA")
+    .replace(/\bsha\b/gi, "SHA")
+    .replace(/\bsfr\b/gi, "SFR")
+    .replace(/\bspr\b/gi, "SPR")
     .replace(/\bsscs?\b/gi, (match) => match.toLowerCase().endsWith("s") ? "SSCs" : "SSC")
     .replace(/\bsrs\b/gi, "SRs")
     .replace(/\bhlr\b/gi, "HLR")
@@ -120,6 +123,51 @@ const FIELD_LABELS: Record<string, string> = {
   lowerBoundMagnitudeBasis: "Why smaller earthquakes cannot damage SSCs",
   epsilonLimit: "Epsilon limit",
   epsilonLimitBasis: "Why the epsilon limit captures aleatory variability",
+  technicalArea: "Technical area",
+  driverRefs: "Risk-driver references",
+  affectedRecordRefs: "Affected records",
+  refinementActionRefs: "Refinement actions",
+  quantificationIterationRef: "Requantification run",
+  aggregateReleaseFamilyMeanFrequency: "Release-family mean frequency",
+  previousAggregateReleaseFamilyMeanFrequency: "Previous release-family mean frequency",
+  relativeChange: "Aggregate change",
+  maximumFamilyRelativeChange: "Maximum family change",
+  topContributorRefs: "Leading contributors",
+  contributorRankingStable: "Contributor ranking is stable",
+  newRiskSignificantContributorRefs: "New risk-significant contributors",
+  maximumAggregateFrequencyChange: "Maximum aggregate change",
+  maximumFamilyFrequencyChange: "Maximum family change",
+  maximumContributorRankShift: "Maximum contributor rank shift",
+  requiredStableIterations: "Required stable iterations",
+  requireNoNewRiskSignificantContributors: "Require no new risk-significant contributors",
+  radioactiveMaterialSourceRefs: "Radioactive-material sources",
+  internalEventsRiskRef: "Internal-events risk result",
+  otherHazardRiskRefs: "Other hazard risk results",
+  overlapTreatment: "Overlapping-outcome treatment",
+  crossHazardIntegrationBasis: "Cross-hazard integration basis",
+  riskIntegrationResultRef: "Risk Integration result",
+  dominantContributorRefs: "Dominant contributors",
+  decisionType: "Decision type",
+  affectedSscRefs: "Affected SSCs",
+  duePhase: "Due phase",
+  verificationRefs: "Verification records",
+  reanalysisRequired: "Reanalysis is required after a change",
+  failureMechanismRefs: "Failure mechanisms",
+  humanActionRefs: "Human actions",
+  decisionRefs: "Decision records",
+  configurationControlRecordId: "Configuration-control record",
+  quantificationRunRef: "Final quantification run",
+  riskIntegrationHandoffRef: "Risk Integration handoff",
+  controlledDocumentRefs: "Controlled documents",
+  peerReviewRef: "Peer-review record",
+  peerReviewStatus: "Peer-review status",
+  openFindingRefs: "Open findings",
+  approvalStatus: "Approval status",
+  approvedBy: "Approved by",
+  approvalDate: "Approval date",
+  releaseStatus: "Baseline status",
+  releaseDate: "Release date",
+  scopeLimitations: "Application limitations",
 };
 
 function fieldLabel(key: string): string {
@@ -272,9 +320,13 @@ function needsTextarea(key: string): boolean {
   return /(description|basis|method|review|treatment|justification|limitation|approach|impact|insight|result|scope|process|evidence|summary|conclusion|documentation|uncertainty|assumption|responsibilit|qualification|implementation|validity|sufficiency|coverage|interpretation)/i.test(key);
 }
 
+function editorFieldId(fieldKey: string): string {
+  return `seismic-editor-${fieldKey.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`;
+}
+
 function PrimitiveControl({ schema: inputSchema, fieldKey, value, editable, onChange }: { schema: z.ZodType; fieldKey: string; value: JsonValue; editable: boolean; onChange: (value: JsonValue) => void }): JSX.Element {
   const schema = unwrap(inputSchema);
-  const id = `seismic-editor-${fieldKey.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`;
+  const id = editorFieldId(fieldKey);
   if (schema instanceof z.ZodLiteral) {
     return <code className="sstructured__id">{humanize(String(value))}</code>;
   }
@@ -483,7 +535,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     return <>
       {conciseEntries.length > 0 && <div className="sstructured__section">
         {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Details</h3>}
-        <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
+        <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {isGroundMotionParameter && (showGroundMotionRange || showFrequencyRange) && <div className="sstructured__section">
         <h3 className="sstructured__section-title">Ranges</h3>
@@ -510,7 +562,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
       </div>}
       {narrativeEntries.length > 0 && <div className="sstructured__section">
         {(conciseEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Technical basis</h3>}
-        <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={`seismic-editor-${key}`}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
+        <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {inlineArrayEntries.length > 0 && <div className="sstructured__section">
         <h3 className="sstructured__section-title">References and lists</h3>
@@ -543,7 +595,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
           <h3 className="sstructured__section-title">{fieldLabel(key)}</h3>
           <div className="sstructured__fields">{Object.entries(childObjectSchema.shape).map(([childKey, grandchildSchema]) =>
             <div className="sstructured__field sstructured__field--wide" key={childKey}>
-              <label className="posfield__label" htmlFor={`seismic-editor-${key}-${childKey}`}>{fieldLabel(childKey)}</label>
+              <label className="posfield__label" htmlFor={editorFieldId(`${key}-${childKey}`)}>{fieldLabel(childKey)}</label>
               <PrimitiveControl
                 schema={grandchildSchema as z.ZodType}
                 fieldKey={`${key}-${childKey}`}
@@ -595,7 +647,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
       const entries = Object.entries(dynamicValue);
       return <div className="sstructured__collection">
         {editable && <div className="sstructured__collection-actions"><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => { let key = "newField"; let suffix = 1; while (key in dynamicValue) { key = `newField${suffix}`; suffix += 1; } updateCurrent({ ...dynamicValue, [key]: "" }); }}><POSIcon.Plus /> Add field</button></div>}
-        {entries.length === 0 ? <p className="sstructured__empty">No fields have been added.</p> : <div className="sstructured__fields">{entries.map(([key, item]) => isObject(item) || Array.isArray(item) ? <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button> : <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={`seismic-editor-dynamic-${key}`}>{humanize(key)}</label><div className="sstructured__primitive-row"><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${key}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...dynamicValue, [key]: next })} />{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${key}`} onClick={() => { const next = { ...dynamicValue }; delete next[key]; updateCurrent(next); }}><POSIcon.Close /></button>}</div></div>)}</div>}
+        {entries.length === 0 ? <p className="sstructured__empty">No fields have been added.</p> : <div className="sstructured__fields">{entries.map(([key, item]) => isObject(item) || Array.isArray(item) ? <button type="button" className="sstructured__navrow" key={key} onClick={() => setFocus([...focus, key])}><span><strong>{humanize(key)}</strong><small>{recordMeta(item)}</small></span><POSIcon.ArrowR /></button> : <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={editorFieldId(`dynamic-${key}`)}>{humanize(key)}</label><div className="sstructured__primitive-row"><PrimitiveControl schema={inferredSchema(item)} fieldKey={`dynamic-${key}`} value={item} editable={editable} onChange={(next) => updateCurrent({ ...dynamicValue, [key]: next })} />{editable && <button type="button" className="posdrawer__close" aria-label={`Remove ${key}`} onClick={() => { const next = { ...dynamicValue }; delete next[key]; updateCurrent(next); }}><POSIcon.Close /></button>}</div></div>)}</div>}
       </div>;
     }
     return <PrimitiveControl schema={inferredSchema(dynamicValue)} fieldKey={String(focus[focus.length - 1] ?? "value")} value={dynamicValue} editable={editable} onChange={updateCurrent} />;

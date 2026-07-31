@@ -479,7 +479,7 @@ export function populateSeismicHumanReliability(
   hra.quantificationRequirementCompliance =
     "HEPs use a consistent detailed assessment of cognition and execution informed by realistic sequence timing, measured or walked-through action time, indication availability, seismic workload, stress, environment, accessibility, staffing, tools, training, human-machine interface, and within-sequence dependence under HLR-HR-G.";
   hra.seismicInfluenceIntegration =
-    "Ground-motion damage states determine cue availability, alarm burden, lighting, access routes, physical hazards, staffing, communications, task interruption, and dependency. The resulting HEP distributions are used by the same event sequences and uncertainty propagation as the seismic plant model.";
+    "Ground-motion damage states determine cue availability, alarm burden, lighting, access routes, physical hazards, staffing, communications, task interruption, and dependency. Each central HEP distribution is applied only in the event-sequence and damage-state combinations where the documented feasibility conditions remain available. If a damage state removes a required cue, route, tool, crew, supporting SSC, or safe execution condition, the action receives no success credit in that state rather than extrapolating the central HEP. These conditional HEPs use the same event sequences and uncertainty propagation as the seismic plant model.";
   hra.implementsSrs = srs("SPR-D1", "SPR-D2", "SPR-D3", "SPR-D4", "SPR-D5");
 
   const model = mef.seismicPlantResponseAnalysis.plantResponseModel;

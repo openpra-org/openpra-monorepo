@@ -43,6 +43,7 @@ export interface SeismicEquipmentListEntry extends Unique, Named {
   componentRef?: string;
   systemRef?: string;
   structureRef?: string;
+  parentSscRef?: string;
   reactorUnitRefs: string[];
   radioactiveMaterialSourceRefs?: string[];
   building: string;

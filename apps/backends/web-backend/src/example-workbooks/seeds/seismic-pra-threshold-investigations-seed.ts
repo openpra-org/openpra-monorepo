@@ -239,7 +239,7 @@ export function populateThresholdsAndInvestigations(
         "Plant-specific qualification records",
         "Seismic experience and generic test data",
         "Anchorage and support calculations",
-        "Floor-response spectra from Step 08",
+        "Floor-response spectra from Step 06",
       ],
       caveatsAndInclusionRules: [
         "Functional qualification, internal assemblies, anchorage, supports, and connected services must all satisfy the threshold.",
@@ -528,7 +528,7 @@ export function populateThresholdsAndInvestigations(
       ],
       findings: integrationFindings,
       fragilityThresholdConfirmations: [],
-      conclusions: "The intended design supports the Step 08 SEL and response mapping. Risk-significant exceptions remain explicit findings and are transferred to fragility or plant-response treatment.",
+      conclusions: "The intended design supports the final SEL and Step 06 demand mapping. Risk-significant exceptions remain explicit findings and are transferred to fragility or plant-response treatment.",
       limitations: [
         "Final as-built dimensions, anchor installation, support gaps, and housekeeping conditions require field confirmation before operation.",
       ],
@@ -650,7 +650,7 @@ export function populateThresholdsAndInvestigations(
       conditionBasis: "AS_INTENDED_TO_OPERATE",
       date: "2026-05-19",
       scope: `${interactionScope.length} potential interaction sources plus credited equipment, access routes, temporary loads, and post-earthquake action locations.`,
-      procedures: "Apply the seismic interaction checklist to falling, impact, differential displacement, spray, fire, clearance, temporary-load, and access-route conditions using the controlled design model and planned operating configuration.",
+      procedures: "Apply the seismic interaction checklist to falling, impact, differential displacement, spray, fire, clearance, temporary-load, and access-route conditions using the controlled design model and planned operating configuration. Trace required operator actions from protected travel routes to local or remote controls, communications, emergency lighting, and credited indications.",
       team: [standardTeam[0]!, standardTeam[1]!, standardTeam[2]!, standardTeam[3]!],
       designDocumentRefs: [
         `${prefix}-INTERACTION-REGISTER-REV3`,
@@ -662,7 +662,8 @@ export function populateThresholdsAndInvestigations(
       observations: [
         "Heavy loads are controlled in verified parked configurations.",
         "Cross-division raceway and piping transitions receive focused closure checks.",
-        "Operator travel and local action stations remain accessible after design-basis displacement.",
+        "Protected operator travel routes and local action stations remain accessible after design-basis displacement.",
+        "Required local and remote controls, radio communications, emergency lighting, and credited indications remain available along the post-earthquake action path.",
       ],
       findings: [],
       fragilityThresholdConfirmations: confirmations(interactionScope),

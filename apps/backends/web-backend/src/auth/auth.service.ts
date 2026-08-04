@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, ConflictException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import { Model } from "mongoose";
@@ -22,6 +22,7 @@ import { TwoFactorService } from "./twoFactor.service";
 import { OAuthService } from "./oauth.service";
 import { SessionsService } from "../sessions/sessions.service";
 import { OrgsService } from "../orgs/orgs.service";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const TFA_CHALLENGE_TTL = "5m";
@@ -51,6 +52,7 @@ export class AuthService {
     private readonly oauthService: OAuthService,
     private readonly sessionsService: SessionsService,
     private readonly orgsService: OrgsService,
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   async checkAvailability(username?: string, email?: string): Promise<{ usernameAvailable?: boolean; emailAvailable?: boolean }> {
@@ -88,6 +90,11 @@ export class AuthService {
       passwordHash,
       roles: ["member-role"],
     });
+    try {
+      await this.analytics?.recordAccountCreated(created, payload.campaignToken, payload.visitorId);
+    } catch (error) {
+      console.error("Could not record account analytics", error);
+    }
     return {
       id: String(created._id),
       username: created.username,
@@ -139,7 +146,7 @@ export class AuthService {
     return { token };
   }
 
-  async oauthStart(provider: string, intent: string, token?: string): Promise<string> {
+  async oauthStart(provider: string, intent: string, token?: string, campaignToken?: string, visitorId?: string): Promise<string> {
     if (!this.oauthService.isConfigured(provider)) {
       throw new UnauthorizedException("Provider not available");
     }
@@ -153,14 +160,14 @@ export class AuthService {
     }
     const verifier = this.oauthService.createCodeVerifier();
     const state = await this.jwtService.signAsync(
-      { oauth: true, provider, intent: normalizedIntent, uid, verifier },
+      { oauth: true, provider, intent: normalizedIntent, uid, verifier, campaignToken, visitorId },
       { expiresIn: OAUTH_STATE_TTL },
     );
     return this.oauthService.buildAuthorizationUrl(provider, state, this.oauthService.codeChallenge(verifier));
   }
 
   async oauthCallback(provider: string, code: string, state: string, ctx: RequestContext): Promise<OAuthResult> {
-    let claims: { oauth?: boolean; provider?: string; intent?: OAuthIntent; uid?: string | null; verifier?: string };
+    let claims: { oauth?: boolean; provider?: string; intent?: OAuthIntent; uid?: string | null; verifier?: string; campaignToken?: string; visitorId?: string };
     try {
       claims = await this.jwtService.verifyAsync(state);
     } catch {
@@ -203,6 +210,11 @@ export class AuthService {
         connectedAccounts: [{ provider, providerUserId: profile.providerUserId, displayName: profile.displayName }],
         roles: ["member-role"],
       });
+      try {
+        await this.analytics?.recordAccountCreated(created, claims.campaignToken, claims.visitorId);
+      } catch (error) {
+        console.error("Could not record OAuth account analytics", error);
+      }
       return { kind: "token", token: await this.signToken(created, ctx) };
     }
 

@@ -106,6 +106,16 @@ function TopBar(): JSX.Element {
               >
                 <SettingsIcon /> Settings
               </button>
+              {user?.roles.includes("admin-role") === true && (
+                <button
+                  type="button"
+                  className="wp__menu-item"
+                  role="menuitem"
+                  onClick={() => { setMenuOpen(false); navigate("/admin"); }}
+                >
+                  <SettingsIcon /> Admin dashboard
+                </button>
+              )}
               <div className="wp__menu-divider" />
               <button type="button" className="wp__menu-item" role="menuitem" onClick={handleSignOut}>
                 <LogoutIcon /> Sign out

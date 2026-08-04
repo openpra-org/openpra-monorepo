@@ -85,9 +85,13 @@ async function logout(): Promise<void> {
   }
 }
 
-function oauthStartUrl(provider: string, intent: "login" | "signup" | "link", token?: string): string {
+function oauthStartUrl(provider: string, intent: "login" | "signup" | "link", token?: string, campaign?: { token: string; visitorId: string } | null): string {
   const params = new URLSearchParams({ intent });
   if (token !== undefined && token.length > 0) params.set("token", token);
+  if (campaign !== undefined && campaign !== null) {
+    params.set("campaign", campaign.token);
+    params.set("visitor", campaign.visitorId);
+  }
   return `${AUTH_BASE}/oauth/${provider}/start?${params.toString()}`;
 }
 

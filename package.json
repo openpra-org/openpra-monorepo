@@ -111,7 +111,9 @@
     "build:all": "pnpm nx run-many -t build --all",
     "test:all": "pnpm nx run-many -t test --all",
     "lint:all": "pnpm nx run-many -t lint --all",
-    "graph": "pnpm nx graph"
+    "graph": "pnpm nx graph",
+    "admin:grant": "node apps/backends/web-backend/scripts/admin-role.mjs grant",
+    "admin:revoke": "node apps/backends/web-backend/scripts/admin-role.mjs revoke"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

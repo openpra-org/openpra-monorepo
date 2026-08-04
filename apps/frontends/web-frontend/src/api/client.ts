@@ -39,6 +39,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 
 async function patchJson<T>(path: string, body: unknown): Promise<T> {
   const response = await request("PATCH", path, body);
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 

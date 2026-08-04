@@ -107,6 +107,7 @@ services:
       TFA_ENC_KEY: "${TFA_ENC_KEY?Variable not set}"
       TFA_ISSUER: "OpenPRA"
       TFA_TIME_URL: "https://www.google.com/generate_204"
+      ADMIN_BOOTSTRAP_EMAILS: "${ADMIN_BOOTSTRAP_EMAILS:-}"
       MINIO_ENDPOINT: "minio"
       MINIO_PORT: "9000"
       MINIO_USE_SSL: "false"
@@ -164,4 +165,3 @@ services:
         - "traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend"
         - "traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80"
         - "traefik.http.middlewares.${APP_NAME}-https-redirect.redirectscheme.scheme=https"
-

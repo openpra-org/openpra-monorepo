@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -22,6 +22,7 @@ import { User, type UserDocument } from "../users/user.schema";
 import { Team, type TeamDocument } from "../teams/team.schema";
 import { Project, type ProjectDocument } from "./project.schema";
 import { EventBus } from "../events/event-bus";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -122,6 +123,7 @@ export class ProjectsService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Team.name) private readonly teamModel: Model<TeamDocument>,
     private readonly eventBus: EventBus,
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   async createProject(payload: CreateProjectRequest, acting: ActingUser): Promise<ProjectDto> {
@@ -141,6 +143,16 @@ export class ProjectsService {
       state: "active",
       pageLayout: payload.pageLayout ?? "modern",
     });
+    try {
+      await this.analytics?.recordProjectCreated({
+        userId: String(owner._id),
+        username: owner.username,
+        projectId: String(created._id),
+        projectType: payload.mode,
+      });
+    } catch (error) {
+      console.error("Could not record project analytics", error);
+    }
     return toDto(created, acting.username, await this.buildMaps([created], acting.username));
   }
 

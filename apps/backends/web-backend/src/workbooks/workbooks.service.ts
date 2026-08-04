@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, isValidObjectId } from "mongoose";
 import {
@@ -12,6 +12,7 @@ import { ProjectsService } from "../projects/projects.service";
 import { Workbook, type WorkbookDocument } from "./workbook.schema";
 import { WorkbookElementRegistry, type WorkbookExampleVariant } from "./workbook-element-registry";
 import { WorkbookRolesService } from "./workbook-roles.service";
+import { AnalyticsService } from "../analytics/analytics.service";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(" ").filter(Boolean);
@@ -77,6 +78,7 @@ export class WorkbooksService {
     private readonly projectsService: ProjectsService,
     private readonly elementRegistry: WorkbookElementRegistry,
     private readonly rolesService: WorkbookRolesService,
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   async listWorkbooks(projectId: string, elementCode: string, acting: ActingUser): Promise<WorkbookListResponse> {
@@ -89,7 +91,7 @@ export class WorkbooksService {
   }
 
   async createWorkbook(projectId: string, payload: CreateWorkbookRequest, acting: ActingUser): Promise<WorkbookDto> {
-    const { role } = await this.projectsService.resolveAccess(projectId, acting);
+    const { role, doc: project } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot create workbooks in this project");
     const owner = await this.userModel.findOne({ username: acting.username }).lean();
     if (!owner) throw new NotFoundException("Acting user not found");
@@ -106,6 +108,18 @@ export class WorkbooksService {
     if (adapter !== undefined) {
       await adapter.createBlank(String(created._id), projectId, payload.name, owner.username);
       await this.rolesService.createInitialPreparer(String(created._id), owner.username);
+    }
+    try {
+      await this.analytics?.recordWorkbookCreated({
+        userId: String(owner._id),
+        username: owner.username,
+        projectId,
+        workbookId: String(created._id),
+        technicalElement: payload.elementCode,
+        projectType: project.mode,
+      });
+    } catch (error) {
+      console.error("Could not record workbook analytics", error);
     }
     return toDto(created);
   }

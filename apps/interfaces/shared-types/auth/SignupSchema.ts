@@ -6,6 +6,8 @@ const SignupRequestSchema = z.object({
   organization: z.string(),
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  campaignToken: z.string().max(100).optional(),
+  visitorId: z.string().max(100).optional(),
 });
 
 type SignupRequest = z.infer<typeof SignupRequestSchema>;

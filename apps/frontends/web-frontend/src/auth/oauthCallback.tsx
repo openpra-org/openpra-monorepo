@@ -4,6 +4,7 @@ import { setToken } from "./authStorage";
 import { useAuth, getRoles } from "./AuthContext";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
+import { clearCampaignAttribution } from "../analytics/analytics";
 import logo from "../assets/Triplet.png";
 import "./css/loginForm.css";
 import "./css/authPage.css";
@@ -50,6 +51,7 @@ function OAuthCallbackPage(): JSX.Element {
       setToken(token);
       adoptSession();
       UpdateRole(role, getRoles());
+      clearCampaignAttribution();
       window.history.replaceState(null, "", window.location.pathname);
       setDestination("home");
     } else if (linked !== null) {

@@ -88,9 +88,11 @@ export class AuthController {
     @Res() res: Response,
     @Query("intent") intent?: string,
     @Query("token") token?: string,
+    @Query("campaign") campaignToken?: string,
+    @Query("visitor") visitorId?: string,
   ): Promise<void> {
     try {
-      const url = await this.authService.oauthStart(provider, intent ?? "login", token);
+      const url = await this.authService.oauthStart(provider, intent ?? "login", token, campaignToken, visitorId);
       res.redirect(url);
     } catch {
       res.redirect(`${this.frontendBase()}/oauth/callback#error=provider_unavailable&provider=${encodeURIComponent(provider)}`);

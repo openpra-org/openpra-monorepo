@@ -9,6 +9,7 @@ import { useToast } from "../toast/toastProvider";
 import { getRoles, useAuth } from "./AuthContext";
 import logo from "../assets/Triplet.png";
 import "./css/signUpForm.css";
+import { clearCampaignAttribution, getCampaignAttribution } from "../analytics/analytics";
 
 const defaultSignup: SignupRequest = {
   fullName: "",
@@ -91,7 +92,11 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
 
   function validateSignup(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    const result = SignupRequestSchema.safeParse(signup);
+    const attribution = getCampaignAttribution();
+    const result = SignupRequestSchema.safeParse({
+      ...signup,
+      ...(attribution === null ? {} : { campaignToken: attribution.token, visitorId: attribution.visitorId }),
+    });
     if (!result.success) {
       const errs: SignupFieldErrors = {};
       for (const issue of result.error.issues) {
@@ -106,6 +111,7 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
     signUp(result.data)
       .then(() => login({ identifier: username, password }))
       .then(() => {
+        clearCampaignAttribution();
         UpdateRole(role, getRoles());
         setRedirectToHomepage(true);
       })
@@ -210,7 +216,7 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         <button
           type="button"
           className="signup-form__oauth-btn"
-          onClick={() => { window.location.href = oauthStartUrl("google", "signup"); }}
+          onClick={() => { window.location.href = oauthStartUrl("google", "signup", undefined, getCampaignAttribution()); }}
         >
           <GoogleIcon />
           Sign up with Google
@@ -218,7 +224,7 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
         <button
           type="button"
           className="signup-form__oauth-btn"
-          onClick={() => { window.location.href = oauthStartUrl("github", "signup"); }}
+          onClick={() => { window.location.href = oauthStartUrl("github", "signup", undefined, getCampaignAttribution()); }}
         >
           <GitHubIcon />
           Sign up with GitHub

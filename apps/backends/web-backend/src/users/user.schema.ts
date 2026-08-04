@@ -32,6 +32,23 @@ export class User {
   @Prop({ type: [String], default: ["member-role"] })
   roles!: string[];
 
+  @Prop({
+    type: {
+      campaignId: { type: String, default: null },
+      campaignName: { type: String, default: null },
+      visitorId: { type: String, default: "" },
+      attributedAt: { type: Date, default: null },
+      _id: false,
+    },
+    default: null,
+  })
+  signupAttribution!: {
+    campaignId: string;
+    campaignName: string;
+    visitorId: string;
+    attributedAt: Date;
+  } | null;
+
   @Prop({ type: String, default: null })
   resetTokenHash!: string | null;
 

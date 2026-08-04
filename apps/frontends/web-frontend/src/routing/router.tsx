@@ -40,6 +40,9 @@ import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
 import { UserProfilePage } from "../users/userProfilePage";
 import { applyAppearance, loadStoredAppearance } from "../settings/useAppearancePrefs";
+import { AnalyticsTracker } from "../analytics/analyticsTracker";
+import { CampaignLandingPage } from "../analytics/campaignLandingPage";
+import { AdminPage } from "../admin/adminPage";
 
 function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   const { user } = useAuth();
@@ -47,7 +50,18 @@ function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   return children;
 }
 
+function AdminRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!user.roles.includes("admin-role")) return <Navigate to="/" replace />;
+  return children;
+}
+
 const routes: RouteObject[] = [
+  {
+    path: "/r/:token",
+    element: <CampaignLandingPage />,
+  },
   {
     path: "/reset-password",
     element: <ResetPasswordPage />,
@@ -261,6 +275,14 @@ const routes: RouteObject[] = [
     ),
   },
   {
+    path: "/admin",
+    element: (
+      <AdminRoute>
+        <AdminPage />
+      </AdminRoute>
+    ),
+  },
+  {
     path: "/seismic-pra-workbooks/example",
     element: (
       <ProtectedRoute>
@@ -329,6 +351,7 @@ function App(): ReactElement {
     <ToastProvider>
       <AuthProvider>
         <RoleContext.Provider value={role}>
+          <AnalyticsTracker />
           <RouterProvider router={router} />
           <ToastContainer />
         </RoleContext.Provider>

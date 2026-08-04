@@ -24,6 +24,7 @@ import { MsWorkbooksModule } from "./ms-workbooks/ms-workbooks.module";
 import { RcWorkbooksModule } from "./rc-workbooks/rc-workbooks.module";
 import { RiWorkbooksModule } from "./ri-workbooks/ri-workbooks.module";
 import { SeismicPraWorkbooksModule } from "./seismic-pra-workbooks/seismic-pra-workbooks.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { SeismicPraWorkbooksModule } from "./seismic-pra-workbooks/seismic-pra-w
     }),
     EventsModule,
     SessionsModule,
+    AnalyticsModule,
     AuthModule,
     UsersModule,
     OrgsModule,

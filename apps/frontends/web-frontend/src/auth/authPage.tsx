@@ -6,7 +6,7 @@ import "./css/authPage.css";
 type AuthView = "login" | "signup";
 
 function AuthPage(): JSX.Element {
-  const [view, setView] = useState<AuthView>("login");
+  const [view, setView] = useState<AuthView>(() => new URLSearchParams(window.location.search).get("signup") === "1" ? "signup" : "login");
   return (
     <div className="auth-page">
       <div className="auth-page__bg" />

@@ -1,0 +1,41 @@
+.campaign-landing {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  position: relative;
+  background: radial-gradient(circle at 15% 15%, #e8f7f1 0, transparent 34%), linear-gradient(145deg, #f7faf9, #eef3f8);
+  color: #19332c;
+  font-family: inherit;
+}
+
+.campaign-landing__glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  right: -180px;
+  bottom: -220px;
+  background: rgba(43, 142, 111, 0.14);
+  filter: blur(10px);
+}
+
+.campaign-landing__card {
+  width: min(440px, calc(100vw - 40px));
+  box-sizing: border-box;
+  padding: 48px;
+  border: 1px solid rgba(28, 82, 66, 0.12);
+  border-radius: 28px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 30px 90px rgba(27, 67, 56, 0.14);
+  backdrop-filter: blur(20px);
+}
+
+.campaign-landing__card img { width: 54px; height: 54px; object-fit: contain; margin-bottom: 20px; }
+.campaign-landing__card h1 { margin: 0; font-size: 28px; letter-spacing: -0.03em; }
+.campaign-landing__card p { color: #657a74; line-height: 1.6; margin: 12px 0 0; }
+.campaign-landing__card button { margin-top: 24px; border: 0; border-radius: 12px; padding: 12px 20px; background: #23795f; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+.campaign-landing__spinner { width: 34px; height: 34px; margin: 0 auto 24px; border: 3px solid #d8e9e3; border-top-color: #287e64; border-radius: 50%; animation: campaign-spin 0.9s linear infinite; }
+@keyframes campaign-spin { to { transform: rotate(360deg); } }
+

@@ -85,12 +85,12 @@ const groups = order.map((kind) => ({
               <div style="display:flex;gap:1rem;justify-content:space-between;align-items:start">
                 <div>
                   <h3 style="font-size:1.2rem">{m.name}</h3>
-                  <p style="color:var(--slate-600);font-size:.9rem;margin:.15rem 0 0">{m.long}</p>
+                  <p style="color:var(--fg-muted);font-size:.9rem;margin:.15rem 0 0">{m.long}</p>
                 </div>
                 <span class={`tag ${cls[m.provenance]}`}>{label[m.provenance]}</span>
               </div>
               <p style="margin:.9rem 0">{m.blurb}</p>
-              <p class="mono" style="color:var(--slate-500);font-size:.8rem;margin:0 0 .9rem">{m.scope}</p>
+              <p class="mono" style="color:var(--fg-subtle);font-size:.8rem;margin:0 0 .9rem">{m.scope}</p>
               <a href={m.href}>{m.provenance === 'generated' ? 'Open the app' : 'Repository'} →</a>
             </div>
           ))}

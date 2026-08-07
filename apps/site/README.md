@@ -58,7 +58,7 @@ the brand guidelines' minimum-size rule. Don't swap it for the full mark.
 `.github/workflows/cd-apps.yml` builds the site on pushes to `revamp`, publishes
 the nginx image to `registry.openpra.org/openpra-apps-site`, and deploys the
 `openpra-site` stack through the `gaia1` self-hosted runner. Traefik serves it at
-`site-app.openpra.org` with TLS from the existing `cloudflare` resolver. The
+`openpra.org` with TLS from the existing `cloudflare` resolver. The
 Astro site setting and `CNAME` marker use the same hostname.
 
 The current application is at `revamp-dev.openpra.org`, current documentation

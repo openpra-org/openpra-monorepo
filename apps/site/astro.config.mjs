@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
-  site: 'https://site-app.openpra.org',
+  site: 'https://openpra.org',
   devToolbar: { enabled: false },
   build: { format: 'directory' },
   compressHTML: true,

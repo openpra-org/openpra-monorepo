@@ -4,7 +4,7 @@ CI/CD for the `apps/` web application and public site. It mirrors the `packages/
 pipeline (`docker/cd-stack.yml` + `.github/workflows/cd-monorepo.yml`) but targets
 the `gaia1` self-hosted runner. The web application deploys each branch to
 `https://<branch-slug>-dev.openpra.org`; the site deploys to
-`https://site-app.openpra.org`.
+`https://openpra.org`.
 
 ## Pipeline
 
@@ -30,8 +30,8 @@ Triggers: `workflow_dispatch` and `push` to `revamp`. Add branches under
 - **mongodb** — internal only, `mongodb_data` volume.
 - **minio** — exposed at `minio-<host>` (browser loads avatars/covers directly
   from `MINIO_PUBLIC_URL`), `minio_data` volume.
-- **site** — nginx serving the Astro static output at
-  `https://site-app.openpra.org` through the separate `openpra-site` stack.
+- **site** — nginx serving the Astro static output at `https://openpra.org`
+  through the separate `openpra-site` stack.
 
 TLS is issued by the existing `traefik-public` Traefik via the `cloudflare`
 cert resolver; the stack attaches to the external `traefik-public` network.
@@ -57,9 +57,9 @@ issuer/time URL, ports) is set inline in `cd-stack.yml`.
 ## One-time external setup
 
 - **DNS**: `<branch-slug>-dev.openpra.org`,
-  `minio-<branch-slug>-dev.openpra.org`, and `site-app.openpra.org` must resolve
-  to the Traefik ingress (a wildcard `*.openpra.org` record on the swarm covers
-  these).
+  `minio-<branch-slug>-dev.openpra.org`, and `openpra.org` must resolve to the
+  Traefik ingress. The wildcard record covers the subdomains; the apex needs its
+  own DNS record.
 - **OAuth redirect URIs**: add the deployed callbacks to each provider console,
   or OAuth login fails:
   - Google: `https://<host>/api/auth/oauth/google/callback`

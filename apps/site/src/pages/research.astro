@@ -1,0 +1,93 @@
+---
+import Base from '../layouts/Base.astro';
+import pubs from '../data/publications.json';
+
+const count = pubs.groups
+  .filter((g) => g.id !== 'foundations')
+  .reduce((n, g) => n + g.items.length, 0);
+---
+<Base title="Research" path="/research/"
+      description="The peer-reviewed work behind OpenPRA: the platform, its quantification engines, model exchange, model generation, and the methods underneath the technical elements.">
+  <section class="section" style="padding-bottom:clamp(2rem,4vw,3rem)">
+    <div class="wrap">
+      <span class="eyebrow">Research</span>
+      <h1 style="max-width:18ch">The work behind the platform</h1>
+      <p class="lede" style="margin-top:1.1rem">
+        OpenPRA came out of published research and keeps going that way. If a
+        claim on this site matters, there should be something here you can cite —
+        including the papers that say where the tooling still falls short.
+      </p>
+      <nav aria-label="Sections" style="margin-top:1.75rem">
+        <ul style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.5rem">
+          {pubs.groups.map((g) => (
+            <li><a class="btn btn--ghost" style="font-size:.85rem;padding:.4rem .8rem"
+                   href={`#${g.id}`}>{g.title}</a></li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  </section>
+
+  {pubs.groups.map((g, i) => (
+    <section class={`section ${i % 2 === 1 ? 'section--sunken' : ''}`}
+             id={g.id} style="padding-top:clamp(2.5rem,5vw,3.5rem)">
+      <div class="wrap">
+        <span class="eyebrow">{g.title}</span>
+        {g.blurb && <p class="lede" style="margin:0 0 1.75rem">{g.blurb}</p>}
+        <table>
+          <thead>
+            <tr>
+              <th style="width:4.5rem">Year</th>
+              <th>Publication</th>
+              <th style="width:14rem">Venue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {g.items.map((p) => (
+              <tr>
+                <td class="mono">{p.year}</td>
+                <td>
+                  <p style="margin:0 0 .2rem;color:var(--slate-600);font-size:.88rem">{p.authors}</p>
+                  {p.href
+                    ? <a href={p.href} style="font-weight:500">{p.title}</a>
+                    : <span style="font-weight:500">{p.title}</span>}
+                  {p.note && <p class="note" style="margin:.35rem 0 0">{p.note}</p>}
+                </td>
+                <td class="mono">{p.venue}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  ))}
+
+  <section class="section">
+    <div class="wrap grid grid--2">
+      <div>
+        <span class="eyebrow">Citing OpenPRA</span>
+        <h2 style="font-size:1.6rem">How to cite</h2>
+        <p style="margin-top:.9rem">
+          Cite the 2023 IMECE paper for the platform, and the archived release
+          DOI for the specific version you ran. If you used one of the example
+          models, say which and state its provenance — for the generated models,
+          the method is published and should be cited too.
+        </p>
+        <a href="/models/">Model provenance →</a>
+      </div>
+      <div>
+        <span class="eyebrow">Teaching</span>
+        <h2 style="font-size:1.6rem">Used in the classroom</h2>
+        <p style="margin-top:.9rem">
+          The platform is free and needs nothing installed, which makes it usable
+          in a course where site licences are not an option. It has been used as
+          a live example in graduate teaching and at summer schools.
+        </p>
+        <p class="note">
+          {count} publications listed, excluding the two foundational papers.
+          Proprietary vendor deliverables are not listed here.
+        </p>
+      </div>
+    </div>
+  </section>
+</Base>

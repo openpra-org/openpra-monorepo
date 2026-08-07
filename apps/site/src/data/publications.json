@@ -1,0 +1,349 @@
+{
+  "note": "EDIT ME before launch \u2014 (1) the NEUP final report needs an OSTI or Zenodo link; (2) Grimmeisen 2022 is listed as IMECE 2019 in the source bibliography but carries an IMECE2022 DOI, confirm the year; (3) PSA 2023, PSAM 16 and two ARS 2024 entries have no DOI on file; (4) superseded preprints of the Aras diagnostics framework and the OpenMHA Part I/II drafts are intentionally omitted.",
+  "groups": [
+    {
+      "id": "foundations",
+      "title": "Foundations",
+      "blurb": "Not OpenPRA output. These are the papers the definition on the front page comes from, and the specification this schema descends from.",
+      "items": [
+        {
+          "year": "1981",
+          "venue": "Risk Analysis 1(1)",
+          "authors": "Kaplan, S., Garrick, B. J.",
+          "title": "On the Quantitative Definition of Risk",
+          "href": "https://doi.org/10.1111/j.1539-6924.1981.tb01350.x",
+          "note": "The set-of-triplets definition, and the s(N+1) treatment of completeness."
+        },
+        {
+          "year": "1997",
+          "venue": "Risk Analysis 17(4)",
+          "authors": "Kaplan, S.",
+          "title": "The Words of Risk Analysis",
+          "href": "https://doi.org/10.1111/j.1539-6924.1997.tb00881.x",
+          "note": "Where the completeness subscript and the probability-of-frequency format are set out."
+        },
+        {
+          "year": "2007\u20132017",
+          "venue": "The Open-PSA Initiative",
+          "authors": "Becker, G., \u010cepin, M., Contini, S., Ducamp, F., Epstein, S., Herrero Santos, R., Hibti, M., Kampramanis, I., Kl\u00fcgel, J., Mel\u00e9ndez Asensio, E., Perez Mulas, A., Nusbaumer, O., Quatrain, R., Rauzy, A., Rauzy, P., Reinhart, M., S\u00f6rman, J.",
+          "title": "The Open-PSA Model Exchange Format, version 2.0",
+          "href": "https://open-psa.github.io/mef/",
+          "note": "The format OpenPRA's schema descends from, and the source of the problem statement on the Schema page. Steven \"Woody\" Epstein (1948\u20132019) was one of the founders of the Open-PSA Initiative."
+        }
+      ]
+    },
+    {
+      "id": "platform",
+      "title": "The platform",
+      "blurb": "Cite the 2023 IMECE paper for OpenPRA itself. The NEUP final report is the programme of record.",
+      "items": [
+        {
+          "year": "2025",
+          "venue": "DOE-NEUP 21-24004, final technical report",
+          "authors": "Earthperson, A., Rasheeq, H. H., Aras, E. M., Farag, A., Shumilov, K., Wood, S. T., Boyce, J. T., Diaconeasa, M. A.",
+          "title": "An Open Source, Parallel, and Distributed Web-Based Probabilistic Risk Assessment Platform to Support Real Time Nuclear Power Plant Risk-Informed Operational Decisions",
+          "href": null,
+          "note": "North Carolina State University. TODO: add the OSTI or Zenodo link."
+        },
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Rasheeq, H. H., Earthperson, A., Aras, E. M., Diaconeasa, M. A.",
+          "title": "Design and Implementation of a Distributed Queueing System for OpenPRA",
+          "href": "https://doi.org/10.13182/PSA2025-46914",
+          "note": null
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Aras, E. M., Earthperson, A., Rasheeq, H. H., Salem Farag, A., Wood, S., Boyce, J., Diaconeasa, M. A.",
+          "title": "Introducing OpenPRA's Quantification Engine: Exploring Capabilities, Recognizing Limitations, and Charting the Path to Enhancement",
+          "href": "https://doi.org/10.13182/T130-43362",
+          "note": null
+        },
+        {
+          "year": "2023",
+          "venue": "ASME IMECE 2023",
+          "authors": "Earthperson, A., Aras, E. M., Farag, A. S., Diaconeasa, M. A.",
+          "title": "Introducing OpenPRA: A Web-based Framework for Collaborative Probabilistic Risk Assessment",
+          "href": "https://doi.org/10.1115/IMECE2023-111708",
+          "note": "The canonical citation for the platform."
+        }
+      ]
+    },
+    {
+      "id": "quantification",
+      "title": "Quantification engines and performance",
+      "blurb": "Where the claim that the engines solve the model rather than truncate it is tested, benchmarked, and where it falls short.",
+      "items": [
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Earthperson, A., Rasheeq, H. H., Aras, E. M., Shumilov, K., Boyce, J. T., Wood, S. T., Diaconeasa, M. A.",
+          "title": "Probability Estimation using Monte Carlo Simulation of Boolean Logic on Hardware-Accelerated Platforms",
+          "href": "https://doi.org/10.13182/PSA2025-46419",
+          "note": "Canopy."
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Salem Farag, A., Wood, S., Earthperson, A., Aras, E. M., Boyce, J., Diaconeasa, M. A.",
+          "title": "Evaluating PRA Tools for Accurate and Efficient Quantifications: A Follow-Up Benchmarking Study Including FTREX",
+          "href": "https://doi.org/10.13182/T130-43377",
+          "note": null
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Earthperson, A., Aras, E. M., Salem Farag, A., Diaconeasa, M. A.",
+          "title": "Towards a Deep-Learning based Heuristic for Optimal Variable Ordering in Binary Decision Diagrams to Support Fault Tree Analysis",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Aras, E. M., Wood, S., Boyce, J., Salem Farag, A., Diaconeasa, M. A.",
+          "title": "Enhancing the SAPHIRE Solve Engine: Initial Progress and Efforts",
+          "href": "https://doi.org/10.13182/T130-43361",
+          "note": "Work on SAPHIRE with INL, adjacent to OpenPRA rather than part of it."
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Wood, S., Boyce, J., Aras, E. M., Salem Farag, A., Diaconeasa, M. A.",
+          "title": "Advancing SAPHIRE: Transitioning from Legacy to State-of-Art Excellence",
+          "href": "https://doi.org/10.13182/T130-43357",
+          "note": null
+        },
+        {
+          "year": "2023",
+          "venue": "PSA 2023",
+          "authors": "Aras, E. M., Farag, A. S., Earthperson, A., Diaconeasa, M. A.",
+          "title": "Methodology and Demonstration for Performance Analysis of a Probabilistic Risk Assessment Quantification Engine: SCRAM",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2023",
+          "venue": "PSA 2023",
+          "authors": "Aras, E. M., Farag, A. S., Earthperson, A., Diaconeasa, M. A.",
+          "title": "Method of Developing a SCRAM Parallel Engine for Efficient Quantification of Probabilistic Risk Assessment Models",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2023",
+          "venue": "PSA 2023",
+          "authors": "Farag, A. S., Aras, E. M., Earthperson, A., Wood, S. T., Boyce, J., Diaconeasa, M. A.",
+          "title": "Preliminary Benchmarking of SAPHSOLVE, XFTA, and SCRAM using Synthetically Generated Fault Trees with Common Cause Failures",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2022",
+          "venue": "ASME IMECE 2022",
+          "authors": "Farag, A., Aras, E. M., Earthperson, A., Diaconeasa, M. A.",
+          "title": "Benchmark Study of XFTA and SCRAM Fault Tree Solvers Using Synthetically Generated Fault Tree Models",
+          "href": "https://doi.org/10.1115/IMECE2022-95783",
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "interoperability",
+      "title": "Interoperability, exchange, and configuration control",
+      "blurb": "Models should leave as easily as they arrive, and a model's history should be readable. These are the papers behind pracciolini and the SAPHIRE round trip.",
+      "items": [
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Aras, E. M., Earthperson, A., Rasheeq, H. H., Wood, S. T., Boyce, J. T., Diaconeasa, M. A.",
+          "title": "Facilitating PRA Model Accessibility: Model Converter Utility from SAPHIRE to Open-PSA",
+          "href": "https://doi.org/10.13182/PSA2025-46508",
+          "note": "pracciolini."
+        },
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Hamza, M., Liao, H., Nigh, D., Diaconeasa, M. A.",
+          "title": "Git Application for Configuration Control Programs of Advanced Nuclear Power Plants",
+          "href": "https://doi.org/10.13182/PSA2025-46998",
+          "note": null
+        },
+        {
+          "year": "2023",
+          "venue": "PSA 2023",
+          "authors": "Hamza, M., Tezbasaran, A., Aras, E. M., Farag, A. S., Diaconeasa, M. A.",
+          "title": "Model Exchange Methodology Between Probabilistic Risk Assessment Tools: SAPHIRE and CAFTA Case Study",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2022",
+          "venue": "PSAM 16",
+          "authors": "Hamza, M., Tezbasaran, A., Diaconeasa, M. A.",
+          "title": "Methodology and Demonstration of Git-Based Configuration Control in Probabilistic Risk Assessment",
+          "href": null,
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "generation",
+      "title": "Model generation",
+      "blurb": "How the example models on this site were built, and the method behind the AI-generated ones. Read this before relying on a generated model for anything.",
+      "items": [
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Rasheeq, H. H., Aras, E. M., Earthperson, A., Diaconeasa, M. A.",
+          "title": "Automated OpenPSA Model Generation from Reliability Diagrams Using Agentic Retrieval-Augmented Generation: A Case Study on MHTGR",
+          "href": "https://doi.org/10.13182/PSA2025-46512",
+          "note": "The published method behind the generated MHTGR workbook."
+        },
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Aras, E. M., Earthperson, A., Rasheeq, H. H., Wood, S. T., Boyce, J. T., Diaconeasa, M. A.",
+          "title": "Synthetical Model Generator for Probabilistic Risk Assessment Tools: Enhancing Testing, Verifying and Learning",
+          "href": "https://doi.org/10.13182/PSA2025-46509",
+          "note": null
+        },
+        {
+          "year": "2022",
+          "venue": "ASME IMECE",
+          "authors": "Grimmeisen, P., Morozov, A., Diaconeasa, M. A.",
+          "title": "Automated Generation of Hybrid Probabilistic Risk Models From SysML v2 Models of Software-Defined Manufacturing Systems",
+          "href": "https://doi.org/10.1115/IMECE2022-95433",
+          "note": "The basis for the MBSE model-generation claim. TODO: confirm year."
+        },
+        {
+          "year": "2021",
+          "venue": "ASME IMECE 2021",
+          "authors": "Grimmeisen, P., Karimov, A., Diaconeasa, M. A., Morozov, A.",
+          "title": "Demonstration of a Limited Scope Probabilistic Risk Assessment for Autonomous Warehouse Robots With OpenPRA",
+          "href": "https://doi.org/10.1115/IMECE2021-69998",
+          "note": "The earliest published use of OpenPRA, and by an outside group \u2014 paired with the SysML v2 generation work below."
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "title": "Methods and the case for the tooling",
+      "blurb": "Why a new format and a new tool were worth building, and the method work behind individual technical elements.",
+      "items": [
+        {
+          "year": "2025",
+          "venue": "Nuclear Technology",
+          "authors": "Aras, E. M., Earthperson, A., Diaconeasa, M. A.",
+          "title": "A Systematic Diagnostics and Enhancement Framework for Advancing Probabilistic Risk Assessment Tools",
+          "href": "https://doi.org/10.1080/00295450.2025.2511510",
+          "note": "The peer-reviewed basis for the problems listed on the Schema page."
+        },
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Farag, A. S., Alzahrani, Y. A., Chandran, P., Whitley, A. C., Diaconeasa, M. A.",
+          "title": "Risk-Informed Emergency Planning Zone for Sodium Cooled Reactors: EBR-II Case Study",
+          "href": "https://doi.org/10.13182/PSA2025-46503",
+          "note": "Context for the EBR-II reference model."
+        },
+        {
+          "year": "2025",
+          "venue": "PSA 2025",
+          "authors": "Pandit, P., Earthperson, A., Mustafa, R., Diaconeasa, M. A.",
+          "title": "Determining Risk Significant Digital I&C Failure Modes in the Probabilistic Risk Assessment of a Nuclear Power Plant",
+          "href": "https://doi.org/10.13182/PSA2025-46915",
+          "note": null
+        },
+        {
+          "year": "2024",
+          "venue": "Reliability Engineering & System Safety 242",
+          "authors": "Hamza, M., Joslin, N., Lawson, G., McSweeney, L., Liao, H., Vivanco, A., Diaconeasa, M. A.",
+          "title": "Identifying and quantifying a complete set of full-power initiating events during early design stages of high-temperature gas-cooled reactors",
+          "href": "https://doi.org/10.1016/j.ress.2023.109688",
+          "note": "Behind the IE element."
+        },
+        {
+          "year": "2023",
+          "venue": "Progress in Nuclear Energy 161",
+          "authors": "Hamza, M., Diaconeasa, M. A.",
+          "title": "Investigating the applicability of human reliability analysis methods during early design stages of non-light-water nuclear power plants",
+          "href": "https://doi.org/10.1016/j.pnucene.2023.104716",
+          "note": "Behind the HR element."
+        },
+        {
+          "year": "2023",
+          "venue": "PSA 2023",
+          "authors": "Earthperson, A., Pandit, P., Diaconeasa, M. A.",
+          "title": "Introducing Multiple Control Paths in the Dual Error Propagation Graph for Stochastic Failure Analysis of Digital Instrumentation and Control Systems",
+          "href": null,
+          "note": null
+        },
+        {
+          "year": "2022",
+          "venue": "Progress in Nuclear Energy 146",
+          "authors": "Hamza, M., Diaconeasa, M. A.",
+          "title": "A framework to implement human reliability analysis during early design stages of advanced reactors",
+          "href": "https://doi.org/10.1016/j.pnucene.2022.104171",
+          "note": null
+        },
+        {
+          "year": "2021",
+          "venue": "Eng 2",
+          "authors": "Aras, E. M., Diaconeasa, M. A.",
+          "title": "A Critical Look at the Need for Performing Multi-Hazard Probabilistic Risk Assessment for Nuclear Power Plants",
+          "href": "https://doi.org/10.3390/eng2040028",
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "related",
+      "title": "Related open-source work",
+      "blurb": "Not OpenPRA, but the same group and the same posture: methods published, code in the open.",
+      "items": [
+        {
+          "year": "2026",
+          "venue": "Progress in Nuclear Energy 191",
+          "authors": "Batikh, A. S., Alzahrani, Y. A., Diaconeasa, M. A.",
+          "title": "Towards area-dependent, scenario-based multi-hazard models: Part A \u2014 Introduction to the OpenMHA methodology",
+          "href": "https://doi.org/10.1016/j.pnucene.2025.106053",
+          "note": null
+        },
+        {
+          "year": "2026",
+          "venue": "Progress in Nuclear Energy 192",
+          "authors": "Batikh, A. S., Alzahrani, Y. A., Diaconeasa, M. A.",
+          "title": "Towards area-dependent, scenario-based multi-hazard models: Part B \u2014 Case studies",
+          "href": "https://doi.org/10.1016/j.pnucene.2025.106115",
+          "note": null
+        },
+        {
+          "year": "2024",
+          "venue": "ANS Advanced Reactor Safety",
+          "authors": "Batikh, A., Diaconeasa, M. A.",
+          "title": "OpenMHA: Open-Source Code for Creating Multi-Hazards Logic and Area PRA Models Considering Aging of SSCs",
+          "href": "https://doi.org/10.13182/T130-43381",
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "talks",
+      "title": "Talks and demonstrations",
+      "blurb": null,
+      "items": [
+        {
+          "year": "2026",
+          "venue": "NRC AI Workshop, Rockville",
+          "authors": "Rasheeq, H. H., Diaconeasa, M. A.",
+          "title": "OpenPRA.org: An Open-Source Platform with Schema Ontology and AI-Generated Example Models for Probabilistic Risk Assessment",
+          "href": null,
+          "note": "Presentation with a live platform demonstration, 15 September 2026."
+        }
+      ]
+    }
+  ]
+}

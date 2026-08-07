@@ -1,0 +1,41 @@
+{
+  "note": "EDIT ME \u2014 confirm against the monorepo README. packages/engine currently holds praxis and scram; canopy is a separate repository.",
+  "packages": [
+    {
+      "name": "praxis",
+      "blurb": "PRA eXecution and Insight System. The default solver \u2014 Rust, PDAG-based, with optional CUDA acceleration. Reads the OpenPRA MEF directly and exposes itself to the platform through NAPI-RS bindings."
+    },
+    {
+      "name": "scram",
+      "blurb": "The original quantification engine, still maintained and still the reference the newer solvers are checked against."
+    },
+    {
+      "name": "canopy",
+      "blurb": "Monte Carlo quantification of Boolean logic on hardware-accelerated platforms, developed in its own repository."
+    },
+    {
+      "name": "shared-types",
+      "blurb": "Pure TypeScript definitions. The single source of truth for every domain type and DTO."
+    },
+    {
+      "name": "mef-schema",
+      "blurb": "The OpenPRA MEF, generated as JSON Schema from shared-types."
+    },
+    {
+      "name": "frontend-web-editor",
+      "blurb": "React and TypeScript workbooks \u2014 the interface analysts actually use."
+    },
+    {
+      "name": "raptor",
+      "blurb": "RabbitMQ job broker that scales quantification across workers."
+    },
+    {
+      "name": "model-generator",
+      "blurb": "Synthetic and design-derived model construction."
+    },
+    {
+      "name": "pracciolini",
+      "blurb": "Format translation, including a SAPHIRE round trip through PRAXIS."
+    }
+  ]
+}

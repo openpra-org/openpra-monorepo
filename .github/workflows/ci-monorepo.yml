@@ -39,7 +39,7 @@ jobs:
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
       - name: Build
-        run: npx -y pnpm@10.19.0 nx run-many -t build --projects=backends-web-backend,frontends-web-frontend,praetor
+        run: npx -y pnpm@10.19.0 nx run-many -t build --projects=backends-web-backend,frontends-web-frontend,praetor,site
 
       - name: Wait for MongoDB
         run: |
@@ -59,7 +59,7 @@ jobs:
         run: npx -y pnpm@10.19.0 nx run-many -t lint --projects=backends-web-backend,frontends-web-frontend,interfaces-mef-types,interfaces-shared-types
 
       - name: Type-check
-        run: npx -y pnpm@10.19.0 nx run-many -t typecheck --projects=backends-web-backend,frontends-web-frontend,praetor,interfaces-mef-types,interfaces-shared-types
+        run: npx -y pnpm@10.19.0 nx run-many -t typecheck --projects=backends-web-backend,frontends-web-frontend,praetor,interfaces-mef-types,interfaces-shared-types,site
 
   rust-praxis:
     runs-on: ubuntu-latest

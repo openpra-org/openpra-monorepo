@@ -1,0 +1,144 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="About" path="/about/"
+      description="OpenPRA ORG Inc. is a 501(c)(3) non-profit building open-source probabilistic risk assessment tools and methods.">
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">About</span>
+      <h1 style="max-width:19ch">An instrument, not an authority</h1>
+      <p class="lede" style="margin-top:1.1rem">
+        OpenPRA ORG Inc. is a 501(c)(3) non-profit. It builds open-source tools
+        and methods for probabilistic risk assessment, and gives them away.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="wrap grid grid--2">
+      <div>
+        <h2 style="font-size:1.6rem">What we are trying to do</h2>
+        <p style="margin-top:.9rem">
+          Bring researchers, practitioners, vendors, and regulators into one
+          non-competitive space where models, data, and methods can actually be
+          inspected. Not because openness is virtuous, but because a risk model
+          nobody outside the organisation can read has never really been
+          reviewed.
+        </p>
+        <h2 style="font-size:1.6rem;margin-top:2rem">What we are not</h2>
+        <p style="margin-top:.9rem">
+          We do not certify anything, endorse any design, or issue findings. The
+          platform quantifies what you give it and shows its working. The
+          judgement stays with the analyst and the regulator.
+        </p>
+      </div>
+      <div>
+        <h2 style="font-size:1.6rem">How we work</h2>
+        <ul style="margin-top:.9rem">
+          <li><strong>Transparency and openness.</strong> Data, software, and methods in public, including what does not work yet.</li>
+          <li><strong>Collaboration and inclusivity.</strong> A non-competitive space for researchers, industry, and regulators, wherever they are.</li>
+          <li><strong>Accessibility.</strong> Everything free and open source. No paid tier.</li>
+          <li><strong>Quality and rigour.</strong> Peer review, benchmarks against reference solutions, and stated scope.</li>
+          <li><strong>Portability.</strong> Models leave as easily as they arrive.</li>
+        </ul>
+        <h2 style="font-size:1.6rem;margin-top:2rem">Origins</h2>
+        <p style="margin-top:.9rem">
+          The work grew out of the Probabilistic Risk Assessment Group in the
+          Department of Nuclear Engineering at NC State University, and was
+          introduced formally at ASME IMECE in 2023. OpenPRA ORG Inc. is a
+          separate organisation from any university or company that contributes
+          to it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken" style="padding-bottom:0">
+    <div class="wrap" style="padding-bottom:clamp(3.5rem,8vw,6.5rem)">
+      <span class="eyebrow">What we do</span>
+      <h2>Three lines of work</h2>
+      <div class="grid grid--3" style="margin-top:1.75rem">
+        <div class="card">
+          <h3>Software</h3>
+          <p style="margin-top:.5rem">
+            Free, open-source PRA software and libraries: a unified analytical
+            environment for hybrid models, scalable quantification, and web
+            interfaces that let engineers compute and see risk insights without
+            installing anything.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Standardisation</h3>
+          <p style="margin-top:.5rem">
+            Standard data models and formats so different tools interoperate — a
+            universal, software-independent representation for PRA models,
+            including automatic generation of models from systems engineering
+            descriptions (MBSE).
+          </p>
+        </div>
+        <div class="card">
+          <h3>Education and community</h3>
+          <p style="margin-top:.5rem">
+            Training and outreach for the next generation of practitioners:
+            webinars, collaborative forums, classroom use, and worked examples
+            anyone can open.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Get involved</span>
+      <h2>Ways in</h2>
+      <div class="grid grid--3" style="margin-top:1.75rem">
+        <div class="card">
+          <h3>Write code</h3>
+          <p style="margin-top:.5rem">TypeScript, C++, or Python. The contribution guide is in the monorepo.</p>
+          <a href="https://github.com/openpra-org/openpra-monorepo/blob/main/CONTRIBUTING.md">Contributing guide →</a>
+        </div>
+        <div class="card">
+          <h3>Build models</h3>
+          <p style="margin-top:.5rem">Reference models, benchmarks, and worked examples are as valuable as code — and rarer.</p>
+          <a href="/models/">Existing models →</a>
+        </div>
+        <div class="card">
+          <h3>Review and document</h3>
+          <p style="margin-top:.5rem">Read a schema definition against a standard and tell us where it falls short.</p>
+          <a href="mailto:info@openpra.org">info@openpra.org →</a>
+        </div>
+      </div>
+      <p class="note" style="margin-top:2rem">
+        Not a coder? Writing a tutorial, building a worked example, or editing
+        the documentation is as useful as a pull request.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section--sunken" id="contact">
+    <div class="wrap grid grid--2">
+      <div>
+        <span class="eyebrow">Supporters</span>
+        <h2 style="font-size:1.6rem">Thank you</h2>
+        <p style="margin-top:.9rem">
+          We are grateful to the academic, industry, and government partners who
+          support this work, to our funders, and to the wider PRA community for
+          the contributions and criticism that shape it.
+        </p>
+      </div>
+      <div>
+        <span class="eyebrow">Contact</span>
+        <h2 style="font-size:1.6rem">Get in touch</h2>
+        <p style="margin-top:.9rem">
+          <a href="mailto:info@openpra.org">info@openpra.org</a><br />
+          <a href="https://github.com/openpra-org">github.com/openpra-org</a>
+        </p>
+        <p class="note">
+          OpenPRA ORG Inc. is recognised as a public charity under section
+          170(b)(1)(A)(vi).
+        </p>
+      </div>
+    </div>
+  </section>
+</Base>

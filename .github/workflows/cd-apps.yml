@@ -1,4 +1,4 @@
-name: "CD: Deploy Web App (apps/)"
+name: "CD: Deploy Web App + Site (apps/)"
 
 on:
   workflow_dispatch:
@@ -40,6 +40,7 @@ jobs:
         run: |
           npx -y pnpm@10.19.0 nx build backends-web-backend --configuration=production
           npx -y pnpm@10.19.0 nx build frontends-web-frontend --configuration=production
+          npx -y pnpm@10.19.0 nx build site
 
       - name: Prepare tags
         id: prep
@@ -95,6 +96,13 @@ jobs:
           cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
           cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
 
+      - name: Prepare site build context
+        run: |
+          mkdir -p docker-context/site/html
+          cp -r apps/site/dist/. docker-context/site/html/
+          cp deploy/site/nginx.conf docker-context/site/nginx.conf
+          cp deploy/site/Dockerfile docker-context/site/Dockerfile
+
       - name: Log in to self-hosted registry
         uses: docker/login-action@v3
         with:
@@ -139,6 +147,18 @@ jobs:
             ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.prep.outputs.branch_slug }}
 
+      - name: Build and push site image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/site
+          file: docker-context/site/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.prep.outputs.branch_slug }}
+
   deploy:
     needs: build-and-push
     runs-on: gaia1
@@ -154,6 +174,7 @@ jobs:
           echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "host_url=${BRANCH_SLUG}-dev.openpra.org" >> "$GITHUB_OUTPUT"
+          echo "site_host_url=site-app.openpra.org" >> "$GITHUB_OUTPUT"
 
       - name: Log in to self-hosted registry
         uses: docker/login-action@v3
@@ -236,6 +257,18 @@ jobs:
             "openpra-apps-${{ steps.vars.outputs.branch_slug }}"
           echo "Deployed openpra-apps-${{ steps.vars.outputs.branch_slug }} to https://${{ steps.vars.outputs.host_url }}"
 
+      - name: Deploy site to Docker Swarm
+        env:
+          IMAGE_SITE: ${{ env.REGISTRY }}/openpra-apps-site:${{ steps.vars.outputs.short_sha }}
+          SITE_HOST_URL: ${{ steps.vars.outputs.site_host_url }}
+        run: |
+          docker stack deploy \
+            --with-registry-auth \
+            --resolve-image never \
+            --compose-file deploy/site/cd-stack.yml \
+            openpra-site
+          echo "Deployed openpra-site to https://${SITE_HOST_URL}"
+
       - name: Roll base-image services onto the loaded images
         run: |
           SLUG="${{ steps.vars.outputs.branch_slug }}"
@@ -246,3 +279,4 @@ jobs:
         run: |
           sleep 30
           docker service ls --filter "label=com.docker.stack.namespace=openpra-apps-${{ steps.vars.outputs.branch_slug }}"
+          docker service ls --filter "label=com.docker.stack.namespace=openpra-site"

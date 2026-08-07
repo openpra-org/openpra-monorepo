@@ -1,0 +1,134 @@
+---
+import Base from '../layouts/Base.astro';
+import Triplet from '../components/Triplet.astro';
+import elements from '../data/elements.json';
+
+const quantities = [
+  { key: 's', name: 'scenario', q: 'What can go wrong?',
+    body: 'Kaplan and Garrick define s as the identification or description of a scenario. Operating states, initiators, event sequences, success criteria, and system logic — built in a workbook and stored as schema, not as a file nobody else can open.',
+    codes: ['POS', 'IE', 'ES', 'SC', 'SY'] },
+  { key: 'p', name: 'probability', q: 'How likely is it that that will happen?',
+    body: 'p is the probability of that scenario — and probability here is a measure of a state of knowledge, distinct from frequency, which is what a repeated experiment would yield. The model carries both, and the uncertainty with them, and PRAXIS solves it.',
+    codes: ['HR', 'DA', 'ESQ'] },
+  { key: 'x', name: 'consequence', q: 'If it does happen, what are the consequences?',
+    body: 'x is the consequence or evaluation measure of that scenario — the measure of damage. Mechanistic source term, offsite dose and health effects, and integration to plant risk — all built, which means the platform produces the metrics the standard actually uses rather than a surrogate.',
+    codes: ['MS', 'RC', 'RI'] },
+];
+const all = [...elements.core, ...elements.hazards];
+---
+<Base path="/">
+  <section class="section" style="padding-bottom:clamp(2.5rem,5vw,4rem)">
+    <div class="wrap">
+      <span class="eyebrow reveal reveal--1">Open-source probabilistic risk assessment</span>
+      <div class="reveal reveal--2" style="margin:1.5rem 0 2.25rem">
+        <Triplet max="640px" />
+      </div>
+      <h1 class="reveal reveal--3" style="max-width:19ch">Risk, in the open.</h1>
+      <p class="lede reveal reveal--3" style="margin-top:1.1rem">
+        Risk is a set of triplets: what can go wrong, how likely it is, and what
+        the consequences are if it does. OpenPRA is where you build that set —
+        schema, engines, workbooks, and reference models, all readable by anyone.
+      </p>
+      <div class="btn-row reveal reveal--3">
+        <a class="btn" href="https://revamp-dev.openpra.org">Open the app</a>
+        <a class="btn btn--ghost" href="/platform/">See what it covers</a>
+        <a class="btn btn--ghost" href="https://github.com/openpra-org">Read the source</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken">
+    <div class="wrap">
+      <div class="grid grid--3">
+        {quantities.map((q) => (
+          <div class={`quantity quantity--${q.key}`}>
+            <p class="quantity__key">{q.key} — {q.name}</p>
+            <h2 style="font-size:1.35rem;margin-bottom:.5rem">{q.q}</h2>
+            <p style="margin-bottom:.9rem">{q.body}</p>
+            <p class="mono" style="color:var(--slate-500);margin:0">{q.codes.join(' · ')}</p>
+          </div>
+        ))}
+      </div>
+      <p class="note" style="margin-top:2rem">
+        Those three hues carry through the platform, the documentation, and every
+        chart on this site. A probability is never orange; a consequence is never
+        teal.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Coverage</span>
+      <h2>The technical elements of the standard</h2>
+      <p class="lede" style="margin-bottom:2.25rem">
+        ANSI/ASME/ANS RA-S-1.4-2021 defines eighteen technical elements, from
+        operating states through to risk integration. It is an integrated
+        standard: there is no split into levels, because that split does not
+        apply to every advanced reactor design. OpenPRA implements the elements
+        that apply across all hazard groups, plus seismic — initiating events
+        through to integrated risk, in one schema, so the model stays one object
+        rather than a folder of exports.
+      </p>
+      <div class="grid grid--4">
+        {all.map((e) => (
+          <div class="card">
+            <span class="card__code">{e.code}</span>
+            <h3>{e.name}</h3>
+            <p class="tag" style="margin-top:.6rem;display:inline-block">{e.status}</p>
+          </div>
+        ))}
+      </div>
+      <div class="btn-row">
+        <a class="btn btn--ghost" href="/platform/">What each element does</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken">
+    <div class="wrap grid grid--2">
+      <div>
+        <span class="eyebrow">Models</span>
+        <h2>Worked models, with their provenance stated</h2>
+        <p style="margin-top:1rem">
+          The platform ships example models you can open and quantify. Some were
+          generated from published design detail and have not been reviewed;
+          others were built by hand and checked. Each one says which it is, on
+          the card, before you open it.
+        </p>
+        <div class="btn-row">
+          <a class="btn btn--ghost" href="/models/">Browse the models</a>
+        </div>
+      </div>
+      <div>
+        <span class="eyebrow">Schema</span>
+        <h2>One format, and it is documented</h2>
+        <p style="margin-top:1rem">
+          The OpenPRA MEF is defined in TypeScript and published as JSON Schema.
+          Models move between tools without a bespoke converter, and a reviewer
+          can read the definition rather than infer it from a file.
+        </p>
+        <div class="btn-row">
+          <a class="btn btn--ghost" href="/schema/">Read about the schema</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap" style="text-align:center">
+      <span class="eyebrow eyebrow--muted">Free, and it stays that way</span>
+      <h2 style="max-width:22ch;margin-inline:auto">
+        OpenPRA ORG Inc. is a 501(c)(3) non-profit
+      </h2>
+      <p class="lede" style="margin:1rem auto 0">
+        Everything is open source. There is no paid tier, no enterprise edition,
+        and no plan for one.
+      </p>
+      <div class="btn-row" style="justify-content:center">
+        <a class="btn" href="https://github.com/openpra-org/openpra-monorepo/blob/main/CONTRIBUTING.md">Contribute</a>
+        <a class="btn btn--ghost" href="/about/">About the organisation</a>
+      </div>
+    </div>
+  </section>
+</Base>

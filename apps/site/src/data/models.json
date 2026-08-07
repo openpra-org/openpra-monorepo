@@ -1,0 +1,85 @@
+{
+  "note": "EDIT ME \u2014 the three generic models carry real repository links from the old site; confirm their verification status and set provenance accordingly. Remaining links are placeholders.",
+  "models": [
+    {
+      "name": "Generic MHTGR",
+      "long": "Generic Modular High Temperature Gas Cooled Reactor",
+      "provenance": "reference",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "A published generic reactor model, released in its own repository. Check the repository for its current scope and verification status.",
+      "href": "https://github.com/openpra-org/generic-mhtgr-model"
+    },
+    {
+      "name": "G-SCFR",
+      "long": "Generic Sodium Cooled Fast Reactor",
+      "provenance": "reference",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "A published generic reactor model, released in its own repository. Check the repository for its current scope and verification status.",
+      "href": "https://github.com/openpra-org/generic-scfr-model"
+    },
+    {
+      "name": "Generic PWR",
+      "long": "Generic Pressurized Water Reactor",
+      "provenance": "reference",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "A published generic reactor model, released in its own repository. Check the repository for its current scope and verification status.",
+      "href": "https://github.com/openpra-org/generic-pwr-model"
+    },
+    {
+      "name": "MHTGR",
+      "long": "Modular High Temperature Gas Reactor",
+      "provenance": "generated",
+      "scope": "Internal events, through event sequence quantification; seismic example",
+      "blurb": "Built from published MHTGR design detail by the model generator. Useful for exercising the platform and for teaching. It has not been reviewed against a reference solution.",
+      "href": "https://revamp-dev.openpra.org"
+    },
+    {
+      "name": "EBR-II",
+      "long": "Experimental Breeder Reactor II",
+      "provenance": "generated",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "Built from published EBR-II design detail by the model generator. Same caveat: unreviewed, and not a substitute for a plant model.",
+      "href": "https://revamp-dev.openpra.org"
+    },
+    {
+      "name": "MHTGR (SAPHIRE)",
+      "long": "Ground-up MHTGR model",
+      "provenance": "verified",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "Constructed by hand in SAPHIRE and checked against its own quantification. Not yet migrated into the new stack.",
+      "href": "https://github.com/openpra-org"
+    },
+    {
+      "name": "EBR-II (SAPHIRE)",
+      "long": "Ground-up EBR-II model",
+      "provenance": "verified",
+      "scope": "Internal events, through event sequence quantification",
+      "blurb": "Constructed by hand in SAPHIRE and checked against its own quantification. Not yet migrated into the new stack.",
+      "href": "https://github.com/openpra-org"
+    },
+    {
+      "name": "NUREG-1150",
+      "long": "Severe Accident Risks study models",
+      "provenance": "planned",
+      "scope": "Internal events through radiological release",
+      "blurb": "Held as SAPHIRE models. Migration into the OpenPRA MEF is planned but not done.",
+      "href": "https://github.com/openpra-org"
+    },
+    {
+      "name": "SOARCA",
+      "long": "State-of-the-Art Reactor Consequence Analyses",
+      "provenance": "planned",
+      "scope": "Sequences through offsite radiological consequence",
+      "blurb": "Held as SAPHIRE models. Migration into the OpenPRA MEF is planned but not done.",
+      "href": "https://github.com/openpra-org"
+    },
+    {
+      "name": "Level 3 PRA Project",
+      "long": "Offsite radiological consequence reference model",
+      "provenance": "planned",
+      "scope": "Offsite radiological consequence",
+      "blurb": "Held as a SAPHIRE model pending radiological consequence support in the new stack.",
+      "href": "https://github.com/openpra-org"
+    }
+  ]
+}

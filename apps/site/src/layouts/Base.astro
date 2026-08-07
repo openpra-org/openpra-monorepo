@@ -1,0 +1,45 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+const {
+  title,
+  description = 'OpenPRA is an open-source platform for probabilistic risk assessment: schema, engines, workbooks, and reference models, all in the open.',
+  path = '/',
+} = Astro.props;
+const full = title ? `${title} — OpenPRA` : 'OpenPRA — Risk, in the open.';
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/plex-sans-400.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/stix-text-400.woff2" />
+    <meta property="og:title" content={full} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og/openpra-og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <Nav path={path} />
+    <main id="main"><slot /></main>
+    <Footer />
+    <script>
+      const nav = document.querySelector('.nav');
+      const toggle = document.querySelector('.nav__toggle');
+      toggle?.addEventListener('click', () => {
+        const open = nav.classList.toggle('nav--open');
+        toggle.setAttribute('aria-expanded', String(open));
+      });
+    </script>
+  </body>
+</html>

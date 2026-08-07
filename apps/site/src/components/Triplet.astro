@@ -1,0 +1,14 @@
+---
+import fs from 'node:fs';
+const { max = '620px', label = true } = Astro.props;
+const svg = fs.readFileSync('public/brand/triplet.svg', 'utf8');
+---
+<figure class="triplet" style={`margin:0;max-width:${max}`}>
+  <Fragment set:html={svg} />
+  {label && (
+    <figcaption class="note" style="margin-top:.9rem">
+      The set of triplets — Kaplan &amp; Garrick, 1981. The completeness
+      subscript c is Kaplan's later refinement, 1997.
+    </figcaption>
+  )}
+</figure>

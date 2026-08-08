@@ -16,7 +16,28 @@
         "baseHref": "/",
         "main": "apps/frontends/web-frontend/src/main.tsx",
         "tsConfig": "apps/frontends/web-frontend/tsconfig.app.json",
-        "assets": [],
+        "assets": [
+          {
+            "glob": "favicon.svg",
+            "input": "apps/frontends/web-frontend/src/assets/favicon",
+            "output": "/"
+          },
+          {
+            "glob": "favicon.ico",
+            "input": "apps/frontends/web-frontend/src/assets/favicon",
+            "output": "/"
+          },
+          {
+            "glob": "apple-touch-icon.png",
+            "input": "apps/frontends/web-frontend/src/assets/favicon",
+            "output": "/"
+          },
+          {
+            "glob": "android-chrome-*.png",
+            "input": "apps/frontends/web-frontend/src/assets/favicon",
+            "output": "/"
+          }
+        ],
         "styles": ["apps/frontends/web-frontend/src/styles.css"],
         "scripts": [],
         "webpackConfig": "apps/frontends/web-frontend/webpack.config.js"

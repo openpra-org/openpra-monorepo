@@ -11,6 +11,7 @@ import { ScDocumentsService } from "./sc-documents.service";
 import { createBlankSc } from "./blank-sc";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface ScWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class ScWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<ScWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<ScWorkbookResponse> {
     const doc = await this.scWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SC workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this SC workbook");
-    const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(mef));
+    const parsed = SuccessCriteriaDevelopmentSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid SC workbook payload: ${parsed.error.message}`);
     }

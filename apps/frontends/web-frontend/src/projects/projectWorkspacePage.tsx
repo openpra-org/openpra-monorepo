@@ -120,6 +120,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/internal-flood-pra-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "F") {
+      navigate(`/internal-fire-pra-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { seismicPraVariant, type SeismicPraLinkedInputs, type SeismicPraVariant } from "./seismicPraWorkbookContext";
@@ -178,7 +179,7 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
 }
 
 const getSeismicPraWorkbook = (workbookId: string): Promise<SeismicPraWorkbookResponse> => fetchJson(`/api/seismic-pra-workbooks/${workbookId}`);
-const patchSeismicPraWorkbook = (workbookId: string, mef: SeismicPRA): Promise<SeismicPraWorkbookResponse> => patchJson(`/api/seismic-pra-workbooks/${workbookId}`, { mef });
+const patchSeismicPraWorkbook = (workbookId: string, current: SeismicPRA, mef: SeismicPRA): Promise<SeismicPraWorkbookResponse> => patchJson(`/api/seismic-pra-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 const getSeismicPraExamples = (): Promise<SeismicPraExampleOption[]> => fetchJson("/api/example-workbooks/seismic-pra-examples");
 const loadSeismicPraExample = (workbookId: string, exampleId?: string): Promise<SeismicPraWorkbookResponse> => postJson(`/api/seismic-pra-workbooks/${workbookId}/load-example`, exampleId === undefined ? {} : { example: exampleId });
 const unloadSeismicPraExample = (workbookId: string): Promise<SeismicPraWorkbookResponse> => postJson(`/api/seismic-pra-workbooks/${workbookId}/unload-example`, {});

@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 
@@ -17,8 +18,8 @@ async function getRiWorkbook(workbookId: string): Promise<RiWorkbookResponse> {
   return fetchJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}`);
 }
 
-async function patchRiWorkbook(workbookId: string, mef: RiskIntegration): Promise<RiWorkbookResponse> {
-  return patchJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}`, { mef });
+async function patchRiWorkbook(workbookId: string, current: RiskIntegration, mef: RiskIntegration): Promise<RiWorkbookResponse> {
+  return patchJson<RiWorkbookResponse>(`/api/ri-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface RiExampleOption {

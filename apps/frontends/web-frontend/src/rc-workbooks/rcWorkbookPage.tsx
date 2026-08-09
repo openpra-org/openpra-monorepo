@@ -110,11 +110,11 @@ function RcWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useRcMefPatch(id ?? "", data?.rc ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useRcMefPatch(id ?? "", data?.rc ?? null, handleSaveOk, handleSaveErr);
   const mutateRc = useCallback((mutator: (rc: RadiologicalConsequenceAnalysis) => RadiologicalConsequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, rc: mutator(prev.rc) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<RcWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { RCIcon } from "./rcIcons";
 import { listRcDocuments, uploadRcDocument, deleteRcDocument, getRcDocumentDownload, type RcDocumentEntry } from "./rcWorkbookApi";
@@ -64,7 +65,7 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
         {canEdit && workbookId !== undefined && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <RCIcon.Plus /> {busy ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={onUpload} disabled={busy} />
+            <WorkbookInput type="file" hidden onChange={onUpload} disabled={busy} />
           </label>
         )}
       </div>

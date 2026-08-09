@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type RiskIntegration, type ConsequenceMeasure, type RiskMetric, type CompiledRiskInput, type RiskContributor, type ModelUncertaintySource, type ScreenedItemLedgerEntry, type RiskUncertaintyAnalysis, type RiskIntegrationMethod } from "interfaces-mef-types/ri/risk-integration";
 import { DistributionType, type ParameterDistribution } from "interfaces-mef-types/core/events";
@@ -1321,8 +1322,8 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
                   return (
                     <div key={param} className="posrow" style={{ gap: 6, alignItems: "center" }}>
                       <span className="possubtle" style={{ flex: 1, fontSize: 12 }}>{param}</span>
-                      <input className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[0]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 0, v); }} />
-                      <input className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[1]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 1, v); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[0]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 0, v); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[1]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 1, v); }} />
                     </div>
                   );
                 })}

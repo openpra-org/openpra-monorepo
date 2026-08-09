@@ -13,6 +13,7 @@ import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { createBlankSeismicPra } from "./blank-seismic-pra";
 import { SeismicPraDocumentsService } from "./seismic-pra-documents.service";
 import { SeismicPraWorkbook, type SeismicPraWorkbookDocument } from "./seismic-pra-workbook.schema";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface SeismicPraWorkbookResponse {
   workbookId: string;
@@ -99,11 +100,11 @@ export class SeismicPraWorkbooksService {
     return toResponse(doc, await this.loadMyRoles(workbookId, acting.username));
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<SeismicPraWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<SeismicPraWorkbookResponse> {
     const doc = await this.findOrInitialize(workbookId, acting);
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Seismic PRA workbook");
-    const parsed = SeismicPRASchema.safeParse(stripNulls(mef));
+    const parsed = SeismicPRASchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) throw new ForbiddenException(`Invalid Seismic PRA workbook payload: ${parsed.error.message}`);
     doc.mef = synchronizeSeismicPraDerivedRegisters(parsed.data);
     await doc.save();

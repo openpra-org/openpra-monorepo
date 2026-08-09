@@ -1,15 +1,17 @@
 import { type InternalFloodPRA } from "interfaces-mef-types/internal-flood/internal-flood-pra";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { patchInternalFloodPraWorkbook } from "./internalFloodPraWorkbookApi";
 
 type Mutator = (mef: InternalFloodPRA) => InternalFloodPRA;
-export function useInternalFloodPraMefPatch(workbookId: string, current: InternalFloodPRA | null, onSuccess: (mef: InternalFloodPRA) => void, onError: (message: string) => void): { patchDebounced: (mutator: Mutator) => void } {
-  const timer = useRef<number | null>(null); const pending = useRef<InternalFloodPRA | null>(null);
-  const patchDebounced = useCallback((mutator: Mutator): void => {
+export function useInternalFloodPraMefPatch(workbookId: string, current: InternalFloodPRA | null, onSuccess: (mef: InternalFloodPRA) => void, onError: (message: string) => void): { patch: (mutator: Mutator) => Promise<void> } {
+  const patch = useCallback(async (mutator: Mutator): Promise<void> => {
     if (current === null) return;
-    pending.current = mutator(pending.current ?? current);
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => { const draft = pending.current; pending.current = null; if (draft === null) return; patchInternalFloodPraWorkbook(workbookId, draft).then((response) => onSuccess(response.mef)).catch((error: unknown) => onError((error as { message?: string }).message ?? "Save failed")); }, 500);
+    try {
+      const response = await patchInternalFloodPraWorkbook(workbookId, current, mutator(current));
+      onSuccess(response.mef);
+    } catch (error: unknown) {
+      onError((error as { message?: string }).message ?? "Save failed");
+    }
   }, [current, onError, onSuccess, workbookId]);
-  return { patchDebounced };
+  return { patch };
 }

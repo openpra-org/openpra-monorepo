@@ -1,20 +1,21 @@
 import { type JSX, type ReactNode, useId, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 
 export function Field({ label, hint, children, wide = false }: { label: string; hint?: string; children: ReactNode; wide?: boolean }): JSX.Element {
   return <label className={`flfield${wide ? " flfield--wide" : ""}`}><span className="flfield__label">{label}</span>{children}{hint !== undefined && <span className="flfield__hint">{hint}</span>}</label>;
 }
 
 export function TextInput({ value, onChange, disabled, placeholder }: { value: string; onChange: (value: string) => void; disabled?: boolean; placeholder?: string }): JSX.Element {
-  return <input className="flinput" value={value} disabled={disabled} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
+  return <WorkbookInput className="flinput" value={value} disabled={disabled} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
 }
 
 export function NumberInput({ value, onChange, disabled }: { value: number; onChange: (value: number) => void; disabled?: boolean }): JSX.Element {
-  return <input className="flinput flinput--number" type="number" step="any" value={Number.isFinite(value) ? value : 0} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />;
+  return <WorkbookInput className="flinput flinput--number" type="number" step="any" value={Number.isFinite(value) ? value : 0} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />;
 }
 
 export function TextArea({ value, onChange, disabled, rows = 4, placeholder }: { value: string; onChange: (value: string) => void; disabled?: boolean; rows?: number; placeholder?: string }): JSX.Element {
-  return <textarea className="fltextarea" value={value} disabled={disabled} rows={rows} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
+  return <WorkbookTextarea className="fltextarea" value={value} disabled={disabled} rows={rows} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
 }
 
 export function SelectInput({ value, onChange, options, disabled }: { value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>; disabled?: boolean }): JSX.Element {

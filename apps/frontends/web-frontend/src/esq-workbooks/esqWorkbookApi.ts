@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EsqLinkedInputs } from "./esqWorkbookContext";
@@ -47,8 +48,8 @@ async function getEsqWorkbook(workbookId: string): Promise<EsqWorkbookResponse> 
   return fetchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`);
 }
 
-async function patchEsqWorkbook(workbookId: string, mef: EventSequenceQuantification): Promise<EsqWorkbookResponse> {
-  return patchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`, { mef });
+async function patchEsqWorkbook(workbookId: string, current: EventSequenceQuantification, mef: EventSequenceQuantification): Promise<EsqWorkbookResponse> {
+  return patchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface EsqExampleOption {

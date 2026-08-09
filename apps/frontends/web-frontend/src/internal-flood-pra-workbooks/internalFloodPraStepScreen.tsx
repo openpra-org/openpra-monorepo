@@ -640,19 +640,6 @@ function RiskIntegration(): JSX.Element {
   </div>;
 }
 
-function WorkflowStep({ stepId }: { stepId: "draft" | "review" | "approval" }): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
-  const editor = useEditor();
-  const definition = stepId === "draft"
-    ? [{ path: ["workflow", "reportSections"] as EditorPath, title: "Report sections", description: "Controlled narratives, tables, figures, appendices, and supporting references.", records: mef.workflow.reportSections }, { path: ["workflow", "draftQualityChecks"] as EditorPath, title: "Draft quality checks", description: "Requirement, traceability, calculation, terminology, figure, table, and reference checks.", records: mef.workflow.draftQualityChecks }]
-    : stepId === "review"
-      ? [{ path: ["workflow", "reviewAssignments"] as EditorPath, title: "Review plan and roster", description: "Scope, disciplines, assignments, qualifications, independence, and methods.", records: mef.workflow.reviewAssignments }, { path: ["workflow", "reviewFindings"] as EditorPath, title: "Findings and resolutions", description: "Finding significance, affected records and SRs, resolution, verification, and closure.", records: mef.workflow.reviewFindings }]
-      : [{ path: ["workflow", "approvalReadiness"] as EditorPath, title: "Approval readiness", description: "Required signatures, finding closure, baseline checks, and release conditions.", records: mef.workflow.approvalReadiness }, { path: ["workflow", "approvalSignatures"] as EditorPath, title: "Approval signatures", description: "Approver, discipline, decision, evidence, qualification, date, and conditions.", records: mef.workflow.approvalSignatures }];
-  return <div className="flstep">{definition.map((section) => <Section key={section.title} title={section.title} description={section.description} actions={editable ? <AddButton label={`Add ${section.title.toLowerCase().replace(/s$/, "")}`} onClick={() => editor.setTarget(collectionTarget(section.path, section.title.toLowerCase().replace(/s$/, ""), section.description))} /> : undefined}>
-    <TechnicalTable records={section.records} caption={section.title} empty={`No ${section.title.toLowerCase()}`} onEdit={(index) => editor.setTarget(collectionTarget(section.path, section.title.toLowerCase().replace(/s$/, ""), section.description, index))} columns={[{ header: "Discipline", render: (item) => item.discipline }, { header: "Assignee", render: (item) => item.assignee }, { header: "Result", render: (item) => <span className={`fltag ${item.result === "PASS" ? "fltag--good" : "fltag--warn"}`}>{item.result}</span> }, { header: "Verification", render: (item) => <EmptyOrList values={item.verificationRefs} /> }]} />
-  </Section>)}<Editor target={editor.target} onClose={() => editor.setTarget(null)} /></div>;
-}
-
 export function InternalFloodPraStepScreen({ stepId }: { stepId: string }): JSX.Element {
   const screen = useMemo(() => stepId, [stepId]);
   switch (screen) {
@@ -669,9 +656,6 @@ export function InternalFloodPraStepScreen({ stepId }: { stepId: string }): JSX.
     case "quantification": return <Quantification />;
     case "risk-interpretation": return <RiskInterpretation />;
     case "risk-integration": return <RiskIntegration />;
-    case "draft": return <WorkflowStep stepId="draft" />;
-    case "review": return <WorkflowStep stepId="review" />;
-    case "approval": return <WorkflowStep stepId="approval" />;
     default: return <div className="flnotice flnotice--danger">Internal Flood step not found.</div>;
   }
 }

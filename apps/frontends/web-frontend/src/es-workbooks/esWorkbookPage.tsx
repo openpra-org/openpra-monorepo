@@ -125,11 +125,11 @@ function EsWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useEsMefPatch(id ?? "", data?.es ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useEsMefPatch(id ?? "", data?.es ?? null, handleSaveOk, handleSaveErr);
   const mutateEs = useCallback((mutator: (es: EventSequenceAnalysis) => EventSequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, es: mutator(prev.es) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const refreshLinks = useCallback(async (): Promise<void> => {
     if (id === undefined) return;

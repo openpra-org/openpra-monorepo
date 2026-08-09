@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
 
@@ -17,8 +18,8 @@ async function getRcWorkbook(workbookId: string): Promise<RcWorkbookResponse> {
   return fetchJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}`);
 }
 
-async function patchRcWorkbook(workbookId: string, mef: RadiologicalConsequenceAnalysis): Promise<RcWorkbookResponse> {
-  return patchJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}`, { mef });
+async function patchRcWorkbook(workbookId: string, current: RadiologicalConsequenceAnalysis, mef: RadiologicalConsequenceAnalysis): Promise<RcWorkbookResponse> {
+  return patchJson<RcWorkbookResponse>(`/api/rc-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface RcExampleOption {

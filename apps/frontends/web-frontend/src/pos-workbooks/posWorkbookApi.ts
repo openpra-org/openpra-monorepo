@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 
@@ -60,8 +61,8 @@ async function getPosWorkbook(workbookId: string): Promise<PosWorkbookResponse> 
   return fetchJson<PosWorkbookResponse>(`/api/pos-workbooks/${workbookId}`);
 }
 
-async function patchPosWorkbook(workbookId: string, mef: PlantOperatingStatesAnalysis): Promise<PosWorkbookResponse> {
-  return patchJson<PosWorkbookResponse>(`/api/pos-workbooks/${workbookId}`, { mef });
+async function patchPosWorkbook(workbookId: string, current: PlantOperatingStatesAnalysis, mef: PlantOperatingStatesAnalysis): Promise<PosWorkbookResponse> {
+  return patchJson<PosWorkbookResponse>(`/api/pos-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 async function getPosRoles(workbookId: string): Promise<PosRolesResponse> {

@@ -174,11 +174,11 @@ function ScWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useScMefPatch(id ?? "", data?.sc ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useScMefPatch(id ?? "", data?.sc ?? null, handleSaveOk, handleSaveErr);
   const mutateSc = useCallback((mutator: (sc: SuccessCriteriaDevelopment) => SuccessCriteriaDevelopment): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sc: mutator(prev.sc) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<ScWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

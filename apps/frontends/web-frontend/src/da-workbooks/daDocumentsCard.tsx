@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { DAIcon } from "./daIcons";
 import { listDaDocuments, uploadDaDocument, deleteDaDocument, getDaDocumentDownload, type DaDocumentEntry } from "./daWorkbookApi";
@@ -59,7 +60,7 @@ function DaDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
         {canEdit && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <DAIcon.Plus /> {busy ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={onUpload} disabled={busy} />
+            <WorkbookInput type="file" hidden onChange={onUpload} disabled={busy} />
           </label>
         )}
       </div>

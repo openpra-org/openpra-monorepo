@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { type PlantStage } from "interfaces-mef-types/core/pra-common";
 import { RCIcon } from "./rcIcons";
@@ -175,7 +176,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {metrics.map((m, i) => (
                 <div key={i} className="posrow" style={{ gap: 6 }}>
-                  <input className="posfield__input" style={{ flex: 1 }} value={m} disabled={!editable} onChange={(e) => updateMetrics(metrics.map((y, j) => (j === i ? e.target.value : y)))} />
+                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={m} disabled={!editable} onChange={(e) => updateMetrics(metrics.map((y, j) => (j === i ? e.target.value : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => updateMetrics([...metrics.slice(0, i), ...metrics.slice(i + 1)])}>Remove</button>}
                 </div>
               ))}
@@ -184,7 +185,7 @@ function RcInterfaces({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => vo
           </div>
           <div className="posfield" style={{ marginTop: 16 }}>
             <label className="posfield__label">Metric selection basis</label>
-            <textarea className="posfield__textarea" rows={2} value={rc.scope.metricSelectionApplicationBasis ?? ""} disabled={!editable}
+            <WorkbookTextarea className="posfield__textarea" rows={2} value={rc.scope.metricSelectionApplicationBasis ?? ""} disabled={!editable}
               onChange={(e) => mutateRc((draft) => ({ ...draft, scope: { ...draft.scope, metricSelectionApplicationBasis: e.target.value } }))} />
           </div>
           <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", margin: "16px 0 8px" }}>Consequence table delivered to Risk Integration</div>
@@ -286,7 +287,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
         <p className="poscard__sub">Describe what this radiological-consequence analysis covers, and declare aspect by aspect the degree to which each downstream sub-element is evaluated.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           placeholder="State the in-scope release categories, the consequence metrics, and explicit exclusions."
           rows={4}
@@ -302,7 +303,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
           {SCOPING_ASPECTS.map((s) => (
             <div key={s.se} className="posfield">
               <label className="posfield__label"><RCIcon.Layers /> {s.aspect} <span className="rcse rcse--primary" style={{ marginLeft: 6 }}>{s.se}</span></label>
-              <textarea className="posfield__textarea" rows={2} value={rc.scope[s.degreeKey]} disabled={!editable} onChange={(e) => updateDegree(s.degreeKey, e.target.value)} />
+              <WorkbookTextarea className="posfield__textarea" rows={2} value={rc.scope[s.degreeKey]} disabled={!editable} onChange={(e) => updateDegree(s.degreeKey, e.target.value)} />
             </div>
           ))}
         </div>
@@ -372,7 +373,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="rc-stage" value={val} checked={stage === val} disabled={!editable} onChange={() => onStageChange(val)} />
+                <WorkbookInput type="radio" name="rc-stage" value={val} checked={stage === val} disabled={!editable} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12.5 }}>{body}</div>
@@ -515,7 +516,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
         </div>
         <div className="posfield" style={{ marginTop: 12 }}>
           <label className="posfield__label">Shelter-in-place credit justification</label>
-          <textarea className="posfield__textarea" rows={2} value={pa.shelterInPlaceCredit?.justification ?? ""} disabled={!editable}
+          <WorkbookTextarea className="posfield__textarea" rows={2} value={pa.shelterInPlaceCredit?.justification ?? ""} disabled={!editable}
             onChange={(e) => mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, shelterInPlaceCredit: { credited: draft.protectiveActionParameters.shelterInPlaceCredit?.credited ?? true, justification: e.target.value } } }))} />
         </div>
       </div>
@@ -568,7 +569,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
         {speedFlags !== undefined && (
           <div className="posfield" style={{ marginTop: 12 }}>
             <label className="posfield__label">Evacuation speed basis</label>
-            <textarea className="posfield__textarea" rows={2} value={speedFlags.basis} disabled={!editable}
+            <WorkbookTextarea className="posfield__textarea" rows={2} value={speedFlags.basis} disabled={!editable}
               onChange={(e) => mutateRc((draft) => ({ ...draft, protectiveActionParameters: { ...draft.protectiveActionParameters, evacuationSpeed: { ...speedFlags, basis: e.target.value } } }))} />
           </div>
         )}
@@ -635,7 +636,7 @@ function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => v
         <p className="poscard__sub">A representative single year, or a multi-year evaluation to select the representative year.</p>
         <div className="posfield">
           <label className="posfield__label">Period-selection description</label>
-          <textarea className="posfield__textarea" rows={2} value={met.periodSelection.periodDescription} disabled={!editable}
+          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.periodSelection.periodDescription} disabled={!editable}
             onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, periodSelection: { ...draft.meteorologicalData.periodSelection, periodDescription: e.target.value } } }))} />
         </div>
       </div>
@@ -657,7 +658,7 @@ function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => v
         </div>
         <div className="posfield" style={{ marginTop: 12 }}>
           <label className="posfield__label">Stability classification method</label>
-          <textarea className="posfield__textarea" rows={2} value={met.stabilityClassificationMethod.description} disabled={!editable}
+          <WorkbookTextarea className="posfield__textarea" rows={2} value={met.stabilityClassificationMethod.description} disabled={!editable}
             onChange={(e) => mutateRc((draft) => ({ ...draft, meteorologicalData: { ...draft.meteorologicalData, stabilityClassificationMethod: { ...draft.meteorologicalData.stabilityClassificationMethod, description: e.target.value } } }))} />
         </div>
       </div>

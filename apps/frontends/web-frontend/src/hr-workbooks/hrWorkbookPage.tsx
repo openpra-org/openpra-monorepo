@@ -126,11 +126,11 @@ function HrWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useHrMefPatch(id ?? "", data?.hr ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useHrMefPatch(id ?? "", data?.hr ?? null, handleSaveOk, handleSaveErr);
   const mutateHr = useCallback((mutator: (hr: HumanReliabilityAnalysis) => HumanReliabilityAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, hr: mutator(prev.hr) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<HrWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

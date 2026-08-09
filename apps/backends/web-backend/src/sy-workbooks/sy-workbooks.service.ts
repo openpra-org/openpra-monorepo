@@ -11,6 +11,7 @@ import { SyDocumentsService } from "./sy-documents.service";
 import { createBlankSy } from "./blank-sy";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface SyWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class SyWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<SyWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<SyWorkbookResponse> {
     const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SY workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this SY workbook");
-    const parsed = SystemsAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = SystemsAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid SY workbook payload: ${parsed.error.message}`);
     }

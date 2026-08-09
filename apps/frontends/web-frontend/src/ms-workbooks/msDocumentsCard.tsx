@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { MSIcon } from "./msIcons";
 import { listMsDocuments, uploadMsDocument, deleteMsDocument, getMsDocumentDownload, type MsDocumentEntry } from "./msWorkbookApi";
@@ -64,7 +65,7 @@ function MsDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
         {canEdit && workbookId !== undefined && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <MSIcon.Plus /> {busy ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={onUpload} disabled={busy} />
+            <WorkbookInput type="file" hidden onChange={onUpload} disabled={busy} />
           </label>
         )}
       </div>

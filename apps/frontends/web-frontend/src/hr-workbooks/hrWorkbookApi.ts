@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import { type HrLinkedInputs } from "./hrWorkbookContext";
@@ -45,8 +46,8 @@ async function getHrWorkbook(workbookId: string): Promise<HrWorkbookResponse> {
   return fetchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`);
 }
 
-async function patchHrWorkbook(workbookId: string, mef: HumanReliabilityAnalysis): Promise<HrWorkbookResponse> {
-  return patchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`, { mef });
+async function patchHrWorkbook(workbookId: string, current: HumanReliabilityAnalysis, mef: HumanReliabilityAnalysis): Promise<HrWorkbookResponse> {
+  return patchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface HrExampleOption {

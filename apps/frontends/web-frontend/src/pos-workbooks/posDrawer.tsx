@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState } from "react";
 import { POSIcon } from "./posIcons";
 import { Badge } from "./posShared";
@@ -80,7 +81,7 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={name} placeholder="e.g. Refuelling outage" onChange={(ev2) => onName(ev2.target.value)} />
+              <WorkbookInput className="posfield__input" value={name} placeholder="e.g. Refuelling outage" onChange={(ev2) => onName(ev2.target.value)} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Type</label>
@@ -90,11 +91,11 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Description</label>
-              <textarea className="posfield__textarea" value={description} placeholder="State what happens during this evolution." onChange={(ev2) => onDescription(ev2.target.value)} />
+              <WorkbookTextarea className="posfield__textarea" value={description} placeholder="State what happens during this evolution." onChange={(ev2) => onDescription(ev2.target.value)} />
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Source document</label>
-              <input className="posfield__input" value={source} placeholder="Cite the design or procedure document." onChange={(ev2) => onSource(ev2.target.value)} />
+              <WorkbookInput className="posfield__input" value={source} placeholder="Cite the design or procedure document." onChange={(ev2) => onSource(ev2.target.value)} />
             </div>
           </div>
         </div>
@@ -206,7 +207,7 @@ function blankBarrier(): RadionuclideTransportBarrier {
 function NumberField({ value, onCommit }: { value: number; onCommit: (n: number) => void }): JSX.Element {
   const [text, setText] = useState(String(value));
   return (
-    <input
+    <WorkbookInput
       className="posfield__input"
       value={text}
       style={{ width: "100%" }}
@@ -238,7 +239,7 @@ function RangeRow({ label, value, onChange }: { label: string; value: ParameterR
           <div className="possubtle" style={cap}>Typical</div>
         </div>
         <div style={{ width: 90 }}>
-          <input className="posfield__input" value={value.units ?? ""} style={{ width: "100%" }} onChange={(e) => onChange({ ...value, units: e.target.value })} />
+          <WorkbookInput className="posfield__input" value={value.units ?? ""} style={{ width: "100%" }} onChange={(e) => onChange({ ...value, units: e.target.value })} />
           <div className="possubtle" style={cap}>Units</div>
         </div>
       </div>
@@ -290,7 +291,7 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={draft.name} placeholder="e.g. Hot standby" onChange={(e) => update({ ...draft, name: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={draft.name} placeholder="e.g. Hot standby" onChange={(e) => update({ ...draft, name: e.target.value })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Evolution</label>
@@ -307,7 +308,7 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Description</label>
-              <textarea className="posfield__textarea" value={draft.description} placeholder="Describe the plant configuration in this state." onChange={(e) => update({ ...draft, description: e.target.value })} />
+              <WorkbookTextarea className="posfield__textarea" value={draft.description} placeholder="Describe the plant configuration in this state." onChange={(e) => update({ ...draft, description: e.target.value })} />
             </div>
           </div>
         </div>
@@ -321,7 +322,7 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
             <RangeRow label="Decay heat" value={draft.rcsParameters.decayHeatLevel} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, decayHeatLevel: v } })} />
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">RCS configuration</label>
-              <textarea className="posfield__textarea" value={draft.rcsParameters.rcsConfigurationDescription} placeholder="Describe the coolant-system lineup." onChange={(e) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, rcsConfigurationDescription: e.target.value } })} />
+              <WorkbookTextarea className="posfield__textarea" value={draft.rcsParameters.rcsConfigurationDescription} placeholder="Describe the coolant-system lineup." onChange={(e) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, rcsConfigurationDescription: e.target.value } })} />
             </div>
           </div>
         </div>
@@ -331,15 +332,15 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Boundary configuration</label>
-              <input className="posfield__input" value={draft.rcbConfiguration} placeholder="e.g. Reactor vessel closed. Containment intact." onChange={(e) => update({ ...draft, rcbConfiguration: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={draft.rcbConfiguration} placeholder="e.g. Reactor vessel closed. Containment intact." onChange={(e) => update({ ...draft, rcbConfiguration: e.target.value })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Starting condition</label>
-              <input className="posfield__input" value={draft.timeBoundary.startingCondition} placeholder="What opens this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, startingCondition: e.target.value } })} />
+              <WorkbookInput className="posfield__input" value={draft.timeBoundary.startingCondition} placeholder="What opens this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, startingCondition: e.target.value } })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Ending condition</label>
-              <input className="posfield__input" value={draft.timeBoundary.endingCondition} placeholder="What closes this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, endingCondition: e.target.value } })} />
+              <WorkbookInput className="posfield__input" value={draft.timeBoundary.endingCondition} placeholder="What closes this state." onChange={(e) => update({ ...draft, timeBoundary: { ...draft.timeBoundary, endingCondition: e.target.value } })} />
             </div>
           </div>
         </div>
@@ -355,11 +356,11 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {draft.radioactiveMaterialSources.map((src) => (
                 <div key={src.uuid} className="posrow" style={{ gap: 8, alignItems: "center" }}>
-                  <input className="posfield__input" value={src.name} placeholder="Source name" style={{ flex: 2 }} onChange={(e) => onSourceChange(src.uuid, { name: e.target.value })} />
+                  <WorkbookInput className="posfield__input" value={src.name} placeholder="Source name" style={{ flex: 2 }} onChange={(e) => onSourceChange(src.uuid, { name: e.target.value })} />
                   <select className="posfield__input" value={src.location} style={{ flex: 1 }} onChange={(e) => onSourceChange(src.uuid, { location: e.target.value as SourceLocation })}>
                     {SOURCE_LOCATIONS.map((l) => <option key={l} value={l}>{l.split("_").join(" ").toLowerCase()}</option>)}
                   </select>
-                  <input className="posfield__input" value={src.status} placeholder="Status" style={{ flex: 1 }} onChange={(e) => onSourceChange(src.uuid, { status: e.target.value })} />
+                  <WorkbookInput className="posfield__input" value={src.status} placeholder="Status" style={{ flex: 1 }} onChange={(e) => onSourceChange(src.uuid, { status: e.target.value })} />
                   {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radioactiveMaterialSources: draft.radioactiveMaterialSources.filter((x) => x.uuid !== src.uuid) })}><POSIcon.Close /></button>}
                 </div>
               ))}
@@ -378,7 +379,7 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {draft.radionuclideTransportBarriers.map((b) => (
                 <div key={b.uuid} className="posrow" style={{ gap: 8, alignItems: "center" }}>
-                  <input className="posfield__input" value={b.name} placeholder="Barrier name" style={{ flex: 2 }} onChange={(e) => onBarrierChange(b.uuid, { name: e.target.value })} />
+                  <WorkbookInput className="posfield__input" value={b.name} placeholder="Barrier name" style={{ flex: 2 }} onChange={(e) => onBarrierChange(b.uuid, { name: e.target.value })} />
                   <select className="posfield__input" value={b.status ?? BarrierStatus.INTACT} style={{ flex: 1 }} onChange={(e) => onBarrierChange(b.uuid, { status: e.target.value as BarrierStatus })}>
                     {BARRIER_STATUSES.map((st) => <option key={st} value={st}>{st.toLowerCase()}</option>)}
                   </select>
@@ -470,7 +471,7 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={draft.name} placeholder="e.g. Shutdown / cooldown group" onChange={(e) => update({ ...draft, name: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={draft.name} placeholder="e.g. Shutdown / cooldown group" onChange={(e) => update({ ...draft, name: e.target.value })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Evolution type</label>
@@ -480,7 +481,7 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
             </div>
             <div className="posfield">
               <label className="posfield__label">Entry frequency (per year)</label>
-              <input className="posfield__input" value={freqText} placeholder="per year" onChange={(e) => onFreq(e.target.value)} />
+              <WorkbookInput className="posfield__input" value={freqText} placeholder="per year" onChange={(e) => onFreq(e.target.value)} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Summed duration (computed)</label>
@@ -497,7 +498,7 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {states.map((s) => (
               <label key={s.uuid} className="posrow" style={{ gap: 8, cursor: canEdit ? "pointer" : "default" }}>
-                <input type="checkbox" checked={draft.memberPosIds.includes(s.uuid)} disabled={!canEdit} onChange={() => toggleMember(s.uuid)} />
+                <WorkbookInput type="checkbox" checked={draft.memberPosIds.includes(s.uuid)} disabled={!canEdit} onChange={() => toggleMember(s.uuid)} />
                 <span style={{ fontSize: 13 }}>{stateLabel(s.name)}</span>
                 <span className="possubtle" style={{ marginLeft: "auto", fontSize: 13 }}>{formatDuration(s.durationHours)}</span>
               </label>
@@ -508,17 +509,17 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
 
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Similarity rationale</h3></div>
-          <textarea className="posfield__textarea" value={draft.similarityBasis} placeholder="Why these states are similar enough to group." style={{ minHeight: 110 }} onChange={(e) => update({ ...draft, similarityBasis: e.target.value })} />
+          <WorkbookTextarea className="posfield__textarea" value={draft.similarityBasis} placeholder="Why these states are similar enough to group." style={{ minHeight: 110 }} onChange={(e) => update({ ...draft, similarityBasis: e.target.value })} />
         </div>
 
         <div className="poscard">
           <div className="poscard__head"><h3 className="poscard__title">Bounding characteristic</h3></div>
-          <input className="posfield__input" value={draft.boundingCharacteristics[0] ?? ""} placeholder="e.g. Lowest helium temperature, the bounding state" onChange={(e) => onBounding(e.target.value)} />
+          <WorkbookInput className="posfield__input" value={draft.boundingCharacteristics[0] ?? ""} placeholder="e.g. Lowest helium temperature, the bounding state" onChange={(e) => onBounding(e.target.value)} />
         </div>
 
         <div className="poscard">
           <label className="posrow" style={{ gap: 10, cursor: canEdit ? "pointer" : "default" }}>
-            <input type="checkbox" checked={draft.doesNotMaskRiskSignificantContributors} disabled={!canEdit} onChange={(e) => update({ ...draft, doesNotMaskRiskSignificantContributors: e.target.checked })} />
+            <WorkbookInput type="checkbox" checked={draft.doesNotMaskRiskSignificantContributors} disabled={!canEdit} onChange={(e) => update({ ...draft, doesNotMaskRiskSignificantContributors: e.target.checked })} />
             <span style={{ fontSize: 13 }}>Grouping does not mask any risk-significant contributors</span>
           </label>
         </div>

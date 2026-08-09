@@ -108,11 +108,11 @@ function RiWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useRiMefPatch(id ?? "", data?.ri ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useRiMefPatch(id ?? "", data?.ri ?? null, handleSaveOk, handleSaveErr);
   const mutateRi = useCallback((mutator: (ri: RiskIntegration) => RiskIntegration): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ri: mutator(prev.ri) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<RiWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

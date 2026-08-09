@@ -129,7 +129,7 @@ function PosWorkbookPage(): JSX.Element {
     console.error("MEF patch failed:", message);
   }, []);
 
-  const { patch: mefPatch, patchDebounced: mefPatchDebounced } = useMefPatch(
+  const { patch: mefPatch } = useMefPatch(
     id ?? "",
     data?.pos ?? null,
     updatePos,
@@ -270,7 +270,7 @@ function PosWorkbookPage(): JSX.Element {
             : undefined,
         }}
         mefPatch={mefPatch}
-        mefPatchDebounced={mefPatchDebounced}
+        mefPatchDebounced={mefPatch}
         renderApprovalTable={() => (
           <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />
         )}

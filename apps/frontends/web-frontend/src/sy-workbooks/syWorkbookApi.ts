@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 
@@ -17,8 +18,8 @@ async function getSyWorkbook(workbookId: string): Promise<SyWorkbookResponse> {
   return fetchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`);
 }
 
-async function patchSyWorkbook(workbookId: string, mef: SystemsAnalysis): Promise<SyWorkbookResponse> {
-  return patchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`, { mef });
+async function patchSyWorkbook(workbookId: string, current: SystemsAnalysis, mef: SystemsAnalysis): Promise<SyWorkbookResponse> {
+  return patchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface SyExampleOption {

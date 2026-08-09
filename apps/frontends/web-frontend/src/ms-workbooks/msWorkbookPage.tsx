@@ -108,11 +108,11 @@ function MsWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useMsMefPatch(id ?? "", data?.ms ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useMsMefPatch(id ?? "", data?.ms ?? null, handleSaveOk, handleSaveErr);
   const mutateMs = useCallback((mutator: (ms: MechanisticSourceTermAnalysis) => MechanisticSourceTermAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ms: mutator(prev.ms) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<MsWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

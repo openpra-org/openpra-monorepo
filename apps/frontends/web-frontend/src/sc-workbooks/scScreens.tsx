@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, ReactNode, useMemo, useState } from "react";
 import { SCIcon } from "./scIcons";
 import { Badge, SCProvenanceChip, type BadgeKind } from "./scShared";
@@ -243,13 +244,13 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
                 <div className="poscard__head"><h3 className="poscard__title">Protection</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Parameter</label>
-                    {editable ? <input className="posfield__input" value={b.protectionParameters[0]?.parameter ?? ""} onChange={(e) => patchParam(0, { parameter: e.target.value })} /> : <div>{b.protectionParameters[0]?.parameter ?? "—"}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={b.protectionParameters[0]?.parameter ?? ""} onChange={(e) => patchParam(0, { parameter: e.target.value })} /> : <div>{b.protectionParameters[0]?.parameter ?? "—"}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Criterion</label>
-                    {editable ? <input className="posfield__input" value={b.protectionParameters[0]?.criterion ?? ""} onChange={(e) => patchParam(0, { criterion: e.target.value })} /> : <div>{b.protectionParameters[0]?.criterion ?? "—"}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={b.protectionParameters[0]?.criterion ?? ""} onChange={(e) => patchParam(0, { criterion: e.target.value })} /> : <div>{b.protectionParameters[0]?.criterion ?? "—"}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-                    {editable ? <input className="posfield__input posmono" value={b.protectionParameters[0]?.basis ?? ""} onChange={(e) => patchParam(0, { basis: e.target.value })} /> : <div className="posmono">{b.protectionParameters[0]?.basis ?? "—"}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={b.protectionParameters[0]?.basis ?? ""} onChange={(e) => patchParam(0, { basis: e.target.value })} /> : <div className="posmono">{b.protectionParameters[0]?.basis ?? "—"}</div>}
                   </div>
                 </div>
               </div>
@@ -265,11 +266,11 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
                       : <div>{b.effectivenessEvaluationMethod === "REALISTIC" ? "Realistic" : "Conservative"}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Capacity parameters (comma separated)</label>
-                    {editable ? <input className="posfield__input" value={b.capacityParameters.join(", ")} onChange={(e) => patchBarrier(b.uuid, { capacityParameters: csvList(e.target.value) })} /> : <div>{b.capacityParameters.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={b.capacityParameters.join(", ")} onChange={(e) => patchBarrier(b.uuid, { capacityParameters: csvList(e.target.value) })} /> : <div>{b.capacityParameters.join(", ")}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Uncertainty assessment</label>
                     {editable
-                      ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.uncertaintyAssessment ?? ""} onChange={(e) => patchBarrier(b.uuid, { uncertaintyAssessment: e.target.value.length === 0 ? undefined : e.target.value })} />
+                      ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.uncertaintyAssessment ?? ""} onChange={(e) => patchBarrier(b.uuid, { uncertaintyAssessment: e.target.value.length === 0 ? undefined : e.target.value })} />
                       : <div>{b.uncertaintyAssessment ?? "—"}</div>}
                   </div>
                 </div>
@@ -279,13 +280,13 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
                 {b.challengeLoads.length > 0 ? b.challengeLoads.map((load, i) => (
                   <div key={i} className="posfield-grid" style={{ marginBottom: 8 }}>
                     <div className="posfield"><label className="posfield__label">Sequence</label>
-                      {editable ? <input className="posfield__input posmono" value={load.eventSequenceReference ?? ""} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, eventSequenceReference: e.target.value.length === 0 ? undefined : e.target.value } : x)) })} /> : <div className="posmono">{load.eventSequenceReference ?? "—"}</div>}
+                      {editable ? <WorkbookInput className="posfield__input posmono" value={load.eventSequenceReference ?? ""} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, eventSequenceReference: e.target.value.length === 0 ? undefined : e.target.value } : x)) })} /> : <div className="posmono">{load.eventSequenceReference ?? "—"}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Attributes (comma separated)</label>
-                      {editable ? <input className="posfield__input" value={load.physicalAttributes.join(", ")} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, physicalAttributes: csvList(e.target.value) } : x)) })} /> : <div>{load.physicalAttributes.join(", ")}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={load.physicalAttributes.join(", ")} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, physicalAttributes: csvList(e.target.value) } : x)) })} /> : <div>{load.physicalAttributes.join(", ")}</div>}
                     </div>
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Load</label>
-                      {editable ? <input className="posfield__input" value={load.loadDescription} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, loadDescription: e.target.value } : x)) })} /> : <div>{load.loadDescription}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={load.loadDescription} onChange={(e) => patchBarrier(b.uuid, { challengeLoads: b.challengeLoads.map((x, j) => (j === i ? { ...x, loadDescription: e.target.value } : x)) })} /> : <div>{load.loadDescription}</div>}
                     </div>
                   </div>
                 )) : <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>No challenge loads recorded yet.</p>}
@@ -338,7 +339,7 @@ function ScScopeScreen({ ccId, setCcId, stage, setStage }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="sc-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <WorkbookInput type="radio" name="sc-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>
@@ -420,7 +421,7 @@ function EndStatesScreen(): JSX.Element {
               <div>
                 <div className="poscard__head"><h3 className="poscard__title">Definition</h3></div>
                 {editable
-                  ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.definition} onChange={(ev) => patchEnd(e.uuid, { definition: ev.target.value })} />
+                  ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.definition} onChange={(ev) => patchEnd(e.uuid, { definition: ev.target.value })} />
                   : <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6 }}>{e.definition}</p>}
               </div>
               <div>
@@ -430,15 +431,15 @@ function EndStatesScreen(): JSX.Element {
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.parameter.length > 0 ? row.parameter : "New parameter"}</div>
                     <div className="posfield-grid">
                     <div className="posfield"><label className="posfield__label">Parameter</label>
-                      {editable ? <input className="posfield__input" value={row.parameter} onChange={(ev) => patchParamRow(i, { parameter: ev.target.value })} /> : <div>{row.parameter}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.parameter} onChange={(ev) => patchParamRow(i, { parameter: ev.target.value })} /> : <div>{row.parameter}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Criterion</label>
-                      {editable ? <input className="posfield__input" value={row.criterion} onChange={(ev) => patchParamRow(i, { criterion: ev.target.value })} /> : <div>{row.criterion}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.criterion} onChange={(ev) => patchParamRow(i, { criterion: ev.target.value })} /> : <div>{row.criterion}</div>}
                     </div>
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
                       {editable ? (
                         <div className="posrow" style={{ gap: 6 }}>
-                          <input className="posfield__input posmono" style={{ flex: 1 }} value={row.basis} onChange={(ev) => patchParamRow(i, { basis: ev.target.value })} />
+                          <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={row.basis} onChange={(ev) => patchParamRow(i, { basis: ev.target.value })} />
                           <button type="button" className="posnav__btn posnav__btn--sm" title="Remove row" onClick={() => patchEnd(e.uuid, { determiningParameters: e.determiningParameters.filter((_, j) => j !== i) })}><SCIcon.Close /></button>
                         </div>
                       ) : <div className="posmono">{row.basis}</div>}
@@ -455,12 +456,12 @@ function EndStatesScreen(): JSX.Element {
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Margin justification</label>
                     {editable
-                      ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.marginJustification ?? ""} onChange={(ev) => patchEnd(e.uuid, { marginJustification: ev.target.value.length === 0 ? undefined : ev.target.value })} />
+                      ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.marginJustification ?? ""} onChange={(ev) => patchEnd(e.uuid, { marginJustification: ev.target.value.length === 0 ? undefined : ev.target.value })} />
                       : <div>{e.marginJustification ?? "—"}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Selection basis</label>
                     {editable
-                      ? <input className="posfield__input" value={e.realisticSelectionBasis ?? ""} onChange={(ev) => patchEnd(e.uuid, { realisticSelectionBasis: ev.target.value.length === 0 ? undefined : ev.target.value })} />
+                      ? <WorkbookInput className="posfield__input" value={e.realisticSelectionBasis ?? ""} onChange={(ev) => patchEnd(e.uuid, { realisticSelectionBasis: ev.target.value.length === 0 ? undefined : ev.target.value })} />
                       : <div>{e.realisticSelectionBasis ?? "—"}</div>}
                   </div>
                 </div>
@@ -787,10 +788,10 @@ function CriteriaScreen(): JSX.Element {
             </div>
             <div className="scdrawer__body">
               {editable
-                ? <div><div className="scsec">Criterion</div><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.criterion} onChange={(e) => patchGroup(g.key, { criterion: e.target.value })} /></div>
+                ? <div><div className="scsec">Criterion</div><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.criterion} onChange={(e) => patchGroup(g.key, { criterion: e.target.value })} /></div>
                 : <div><div className="scsec">Criterion</div><p className="scdrawer__text" style={{ fontWeight: 600 }}>{g.criterion}</p></div>}
               {editable
-                ? <div><div className="scsec">How it is met</div><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.detail} onChange={(e) => patchGroup(g.key, { detail: e.target.value })} /></div>
+                ? <div><div className="scsec">How it is met</div><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={g.detail} onChange={(e) => patchGroup(g.key, { detail: e.target.value })} /></div>
                 : g.detail.length > 0 && <div><div className="scsec">How it is met</div><p className="scdrawer__text">{g.detail}</p></div>}
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Safety function</label>
@@ -825,7 +826,7 @@ function CriteriaScreen(): JSX.Element {
                 </div>
                 <div className="posfield"><label className="posfield__label">Capability</label><div>{real ? "Realistic (CC-II)" : "Generic (CC-I)"}</div></div>
                 <div className="posfield"><label className="posfield__label">Analyses (comma separated)</label>
-                  {editable ? <input className="posfield__input posmono" value={g.analyses.join(", ")} onChange={(e) => patchGroup(g.key, { analyses: csvList(e.target.value) })} /> : <div className="posmono">{g.analyses.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={g.analyses.join(", ")} onChange={(e) => patchGroup(g.key, { analyses: csvList(e.target.value) })} /> : <div className="posmono">{g.analyses.join(", ")}</div>}
                 </div>
               </div>
               {systems.length > 0 && (
@@ -867,10 +868,10 @@ function CriteriaScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">System</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Name</label>
-                    {editable ? <input className="posfield__input" value={s.description} onChange={(e) => patchSys(s.uuid, { description: e.target.value })} /> : <div>{s.description}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={s.description} onChange={(e) => patchSys(s.uuid, { description: e.target.value })} /> : <div>{s.description}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">System id</label>
-                    {editable ? <input className="posfield__input posmono" value={s.systemId} onChange={(e) => patchSys(s.uuid, { systemId: e.target.value })} /> : <div className="posmono">{s.systemId}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={s.systemId} onChange={(e) => patchSys(s.uuid, { systemId: e.target.value })} /> : <div className="posmono">{s.systemId}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Serves overall criterion</label>
                     {editable ? (
@@ -888,15 +889,15 @@ function CriteriaScreen(): JSX.Element {
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.parameter.length > 0 ? row.parameter : "New capacity"}</div>
                     <div className="posfield-grid">
                     <div className="posfield"><label className="posfield__label">Parameter</label>
-                      {editable ? <input className="posfield__input" value={row.parameter} onChange={(e) => patchCap(i, { parameter: e.target.value })} /> : <div>{row.parameter}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.parameter} onChange={(e) => patchCap(i, { parameter: e.target.value })} /> : <div>{row.parameter}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Value</label>
-                      {editable ? <input className="posfield__input" value={row.value} onChange={(e) => patchCap(i, { value: e.target.value })} /> : <div>{row.value}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.value} onChange={(e) => patchCap(i, { value: e.target.value })} /> : <div>{row.value}</div>}
                     </div>
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
                       {editable ? (
                         <div className="posrow" style={{ gap: 6 }}>
-                          <input className="posfield__input posmono" style={{ flex: 1 }} value={row.basis} onChange={(e) => patchCap(i, { basis: e.target.value })} />
+                          <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={row.basis} onChange={(e) => patchCap(i, { basis: e.target.value })} />
                           <button type="button" className="posnav__btn posnav__btn--sm" title="Remove capacity" onClick={() => patchSys(s.uuid, { requiredCapacities: s.requiredCapacities.filter((_, j) => j !== i) })}><SCIcon.Close /></button>
                         </div>
                       ) : <div className="posmono">{row.basis}</div>}
@@ -914,12 +915,12 @@ function CriteriaScreen(): JSX.Element {
                 {(s.systemDependencies ?? []).map((d, i) => (
                   <div key={i} className="posfield-grid" style={{ marginBottom: 8 }}>
                     <div className="posfield"><label className="posfield__label">Support system</label>
-                      {editable ? <input className="posfield__input posmono" value={d.dependentSystemId} onChange={(e) => patchDep(i, { dependentSystemId: e.target.value })} /> : <div className="posmono">{d.dependentSystemId}</div>}
+                      {editable ? <WorkbookInput className="posfield__input posmono" value={d.dependentSystemId} onChange={(e) => patchDep(i, { dependentSystemId: e.target.value })} /> : <div className="posmono">{d.dependentSystemId}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">What it provides</label>
                       {editable ? (
                         <div className="posrow" style={{ gap: 6 }}>
-                          <input className="posfield__input" style={{ flex: 1 }} value={d.dependencyNature} onChange={(e) => patchDep(i, { dependencyNature: e.target.value })} />
+                          <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={d.dependencyNature} onChange={(e) => patchDep(i, { dependencyNature: e.target.value })} />
                           <button type="button" className="posnav__btn posnav__btn--sm" title="Remove dependency" onClick={() => patchSys(s.uuid, { systemDependencies: (s.systemDependencies ?? []).filter((_, j) => j !== i) })}><SCIcon.Close /></button>
                         </div>
                       ) : <div>{d.dependencyNature}</div>}
@@ -956,16 +957,16 @@ function CriteriaScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Resource</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-                    {editable ? <input className="posfield__input" value={r.name} onChange={(e) => patchShr(r.uuid, { name: e.target.value })} /> : <div>{r.name}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={r.name} onChange={(e) => patchShr(r.uuid, { name: e.target.value })} /> : <div>{r.name}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Shared by</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.description} onChange={(e) => patchShr(r.uuid, { description: e.target.value })} /> : <div>{r.description}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.description} onChange={(e) => patchShr(r.uuid, { description: e.target.value })} /> : <div>{r.description}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Systems</label>
-                    {editable ? <input className="posfield__input posmono" value={r.sharedBySystems.join(", ")} onChange={(e) => patchShr(r.uuid, { sharedBySystems: csvList(e.target.value) })} /> : <div className="posmono">{r.sharedBySystems.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={r.sharedBySystems.join(", ")} onChange={(e) => patchShr(r.uuid, { sharedBySystems: csvList(e.target.value) })} /> : <div className="posmono">{r.sharedBySystems.join(", ")}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Common initiators</label>
-                    {editable ? <input className="posfield__input posmono" value={r.commonInitiatingEventReferences.join(", ")} onChange={(e) => patchShr(r.uuid, { commonInitiatingEventReferences: csvList(e.target.value) })} /> : <div className="posmono">{r.commonInitiatingEventReferences.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={r.commonInitiatingEventReferences.join(", ")} onChange={(e) => patchShr(r.uuid, { commonInitiatingEventReferences: csvList(e.target.value) })} /> : <div className="posmono">{r.commonInitiatingEventReferences.join(", ")}</div>}
                   </div>
                 </div>
               </div>
@@ -973,10 +974,10 @@ function CriteriaScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Treatment</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Allocation</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.allocationStrategy} onChange={(e) => patchShr(r.uuid, { allocationStrategy: e.target.value })} /> : <div>{r.allocationStrategy}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.allocationStrategy} onChange={(e) => patchShr(r.uuid, { allocationStrategy: e.target.value })} /> : <div>{r.allocationStrategy}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Impact on the criteria</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.successCriteriaImpact} onChange={(e) => patchShr(r.uuid, { successCriteriaImpact: e.target.value })} /> : <div>{r.successCriteriaImpact}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.successCriteriaImpact} onChange={(e) => patchShr(r.uuid, { successCriteriaImpact: e.target.value })} /> : <div>{r.successCriteriaImpact}</div>}
                   </div>
                 </div>
               </div>
@@ -1101,17 +1102,17 @@ function MissionScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Sequence and time</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Sequence</label>
-                    {editable ? <input className="posfield__input posmono" value={m.eventSequenceReference} onChange={(e) => patchMt(m.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{m.eventSequenceReference}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={m.eventSequenceReference} onChange={(e) => patchMt(m.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{m.eventSequenceReference}</div>}
                     {seqInfo[m.eventSequenceReference] !== undefined && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>{`${seqInfo[m.eventSequenceReference].scenario} → ${seqInfo[m.eventSequenceReference].outcome}`}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Mission time (h)</label>
-                    {editable ? <input className="posfield__input posmono" value={String(m.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchMt(m.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{m.missionTimeHours} h</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={String(m.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchMt(m.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{m.missionTimeHours} h</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.basis} onChange={(e) => patchMt(m.uuid, { basis: e.target.value })} /> : <div>{m.basis}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.basis} onChange={(e) => patchMt(m.uuid, { basis: e.target.value })} /> : <div>{m.basis}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Analyses (comma separated)</label>
-                    {editable ? <input className="posfield__input posmono" value={m.analysisReferences.join(", ")} onChange={(e) => patchMt(m.uuid, { analysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{m.analysisReferences.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={m.analysisReferences.join(", ")} onChange={(e) => patchMt(m.uuid, { analysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{m.analysisReferences.join(", ")}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Risk significant</label>
                     {editable
@@ -1148,7 +1149,7 @@ function MissionScreen(): JSX.Element {
                   {!m.safeStableStateAchievedWithinMissionTime && (
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Treatment justification</label>
                       {editable
-                        ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.treatmentJustification ?? ""} onChange={(e) => patchMt(m.uuid, { treatmentJustification: e.target.value.length === 0 ? undefined : e.target.value })} />
+                        ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.treatmentJustification ?? ""} onChange={(e) => patchMt(m.uuid, { treatmentJustification: e.target.value.length === 0 ? undefined : e.target.value })} />
                         : <div>{m.treatmentJustification ?? "—"}</div>}
                     </div>
                   )}
@@ -1180,21 +1181,21 @@ function MissionScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Component and time</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield"><label className="posfield__label">Component</label>
-                    {editable ? <input className="posfield__input" value={c.componentId} onChange={(e) => patchCmt(c.uuid, { componentId: e.target.value })} /> : <div>{c.componentId}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={c.componentId} onChange={(e) => patchCmt(c.uuid, { componentId: e.target.value })} /> : <div>{c.componentId}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Component time (h)</label>
-                    {editable ? <input className="posfield__input posmono" value={String(c.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchCmt(c.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{c.missionTimeHours} h</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={String(c.missionTimeHours)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) patchCmt(c.uuid, { missionTimeHours: v }); }} /> : <div className="posmono">{c.missionTimeHours} h</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Sequence</label>
-                    {editable ? <input className="posfield__input posmono" value={c.eventSequenceReference} onChange={(e) => patchCmt(c.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{c.eventSequenceReference}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={c.eventSequenceReference} onChange={(e) => patchCmt(c.uuid, { eventSequenceReference: e.target.value })} /> : <div className="posmono">{c.eventSequenceReference}</div>}
                     {seqInfo[c.eventSequenceReference] !== undefined && <div className="possubtle" style={{ fontSize: 11.5, marginTop: 4 }}>{`${seqInfo[c.eventSequenceReference].scenario} → ${seqInfo[c.eventSequenceReference].outcome}`}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Analyses (comma separated)</label>
-                    {editable ? <input className="posfield__input posmono" value={c.analysisReferences.join(", ")} onChange={(e) => patchCmt(c.uuid, { analysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{c.analysisReferences.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={c.analysisReferences.join(", ")} onChange={(e) => patchCmt(c.uuid, { analysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{c.analysisReferences.join(", ")}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Shorter-time justification</label>
                     {editable
-                      ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.shorterMissionTimeJustification ?? ""} onChange={(e) => patchCmt(c.uuid, { shorterMissionTimeJustification: e.target.value.length === 0 ? undefined : e.target.value })} />
+                      ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.shorterMissionTimeJustification ?? ""} onChange={(e) => patchCmt(c.uuid, { shorterMissionTimeJustification: e.target.value.length === 0 ? undefined : e.target.value })} />
                       : <div>{c.shorterMissionTimeJustification ?? "—"}</div>}
                   </div>
                 </div>
@@ -1436,10 +1437,10 @@ function BasesScreen(): JSX.Element {
             <div className="scdrawer__body">
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Analysis id</label>
-                  {editable ? <input className="posfield__input posmono" value={a.analysisId} onChange={(e) => patchAnalysis(a.uuid, { analysisId: e.target.value })} /> : <div className="posmono">{a.analysisId}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={a.analysisId} onChange={(e) => patchAnalysis(a.uuid, { analysisId: e.target.value })} /> : <div className="posmono">{a.analysisId}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Name</label>
-                  {editable ? <input className="posfield__input" value={a.description} onChange={(e) => patchAnalysis(a.uuid, { description: e.target.value })} /> : <div>{a.description}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={a.description} onChange={(e) => patchAnalysis(a.uuid, { description: e.target.value })} /> : <div>{a.description}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Type</label>
                   {editable ? (
@@ -1449,10 +1450,10 @@ function BasesScreen(): JSX.Element {
                   ) : <div>{(SC_ANALYSIS_TYPES[a.analysisType] ?? SC_ANALYSIS_TYPES.OTHER).label}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Code or model</label>
-                  {editable ? <input className="posfield__input" value={a.computerCode ?? ""} onChange={(e) => patchAnalysis(a.uuid, { computerCode: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.computerCode ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={a.computerCode ?? ""} onChange={(e) => patchAnalysis(a.uuid, { computerCode: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.computerCode ?? "—"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Version</label>
-                  {editable ? <input className="posfield__input posmono" value={a.codeVersion ?? ""} onChange={(e) => patchAnalysis(a.uuid, { codeVersion: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{a.codeVersion ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={a.codeVersion ?? ""} onChange={(e) => patchAnalysis(a.uuid, { codeVersion: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{a.codeVersion ?? "—"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Method</label>
                   {editable ? (
@@ -1465,17 +1466,17 @@ function BasesScreen(): JSX.Element {
               </div>
               <div><div className="scsec">Applicability</div>
                 {editable
-                  ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.applicabilityToPlantConditions} onChange={(e) => patchAnalysis(a.uuid, { applicabilityToPlantConditions: e.target.value })} />
+                  ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.applicabilityToPlantConditions} onChange={(e) => patchAnalysis(a.uuid, { applicabilityToPlantConditions: e.target.value })} />
                   : <p className="scdrawer__text">{a.applicabilityToPlantConditions}</p>}
               </div>
               <div><div className="scsec">Verification and validation</div>
                 {editable
-                  ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.validationVerificationBasis ?? ""} onChange={(e) => patchAnalysis(a.uuid, { validationVerificationBasis: e.target.value.length === 0 ? undefined : e.target.value })} />
+                  ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.validationVerificationBasis ?? ""} onChange={(e) => patchAnalysis(a.uuid, { validationVerificationBasis: e.target.value.length === 0 ? undefined : e.target.value })} />
                   : a.validationVerificationBasis !== undefined && <p className="scdrawer__text">{a.validationVerificationBasis}</p>}
               </div>
               <div><div className="scsec">Limitations</div>
                 {editable
-                  ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={(a.limitations ?? []).join("\n")} onChange={(e) => patchAnalysis(a.uuid, { limitations: e.target.value.length === 0 ? undefined : e.target.value.split("\n") })} />
+                  ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={(a.limitations ?? []).join("\n")} onChange={(e) => patchAnalysis(a.uuid, { limitations: e.target.value.length === 0 ? undefined : e.target.value.split("\n") })} />
                   : (a.limitations ?? []).length > 0 ? <p className="scdrawer__text">{(a.limitations ?? []).join(" ")}</p> : <p className="possubtle" style={{ margin: 0, fontSize: 12.5 }}>None recorded.</p>}
                 {editable && <div className="possubtle" style={{ fontSize: 11, marginTop: 4 }}>One limitation per line.</div>}
               </div>
@@ -1485,13 +1486,13 @@ function BasesScreen(): JSX.Element {
                     <div key={i} className="posfield-grid" style={{ marginBottom: 8 }}>
                       <div className="posfield"><label className="posfield__label">Parameter</label>
                         {editable
-                          ? <input className="posfield__input" value={k} onChange={(e) => { const entries = Object.entries(a.keyParametersAndResults); entries[i] = [e.target.value, String(v)]; patchAnalysis(a.uuid, { keyParametersAndResults: Object.fromEntries(entries) }); }} />
+                          ? <WorkbookInput className="posfield__input" value={k} onChange={(e) => { const entries = Object.entries(a.keyParametersAndResults); entries[i] = [e.target.value, String(v)]; patchAnalysis(a.uuid, { keyParametersAndResults: Object.fromEntries(entries) }); }} />
                           : <div>{k}</div>}
                       </div>
                       <div className="posfield"><label className="posfield__label">Result</label>
                         {editable ? (
                           <div className="posrow" style={{ gap: 6 }}>
-                            <input className="posfield__input posmono" style={{ flex: 1 }} value={String(v)} onChange={(e) => { const entries = Object.entries(a.keyParametersAndResults); entries[i] = [k, e.target.value]; patchAnalysis(a.uuid, { keyParametersAndResults: Object.fromEntries(entries) }); }} />
+                            <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={String(v)} onChange={(e) => { const entries = Object.entries(a.keyParametersAndResults); entries[i] = [k, e.target.value]; patchAnalysis(a.uuid, { keyParametersAndResults: Object.fromEntries(entries) }); }} />
                             <button type="button" className="posnav__btn posnav__btn--sm" title="Remove result" onClick={() => { const entries = Object.entries(a.keyParametersAndResults).filter((_, j) => j !== i); patchAnalysis(a.uuid, { keyParametersAndResults: Object.fromEntries(entries) }); }}><SCIcon.Close /></button>
                           </div>
                         ) : <div className="posmono">{String(v)}</div>}
@@ -1516,10 +1517,10 @@ function BasesScreen(): JSX.Element {
                       </select>
                     </div>
                     <div className="posfield"><label className="posfield__label">Review method</label>
-                      <input className="posfield__input" value={a.reasonablenessReview?.method ?? ""} onChange={(e) => patchAnalysis(a.uuid, { reasonablenessReview: { performed: reasonable, method: e.target.value, conclusion: a.reasonablenessReview?.conclusion ?? "" } })} />
+                      <WorkbookInput className="posfield__input" value={a.reasonablenessReview?.method ?? ""} onChange={(e) => patchAnalysis(a.uuid, { reasonablenessReview: { performed: reasonable, method: e.target.value, conclusion: a.reasonablenessReview?.conclusion ?? "" } })} />
                     </div>
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Conclusion</label>
-                      <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.reasonablenessReview?.conclusion ?? ""} onChange={(e) => patchAnalysis(a.uuid, { reasonablenessReview: { performed: reasonable, method: a.reasonablenessReview?.method ?? "Independent reasonableness review", conclusion: e.target.value } })} />
+                      <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.reasonablenessReview?.conclusion ?? ""} onChange={(e) => patchAnalysis(a.uuid, { reasonablenessReview: { performed: reasonable, method: a.reasonablenessReview?.method ?? "Independent reasonableness review", conclusion: e.target.value } })} />
                     </div>
                   </div>
                 </div>
@@ -1527,7 +1528,7 @@ function BasesScreen(): JSX.Element {
               {(editable || a.supportedSuccessCriteria.length > 0) && (
                 <div><div className="scsec">Supports criteria</div>
                   {editable
-                    ? <input className="posfield__input posmono" value={a.supportedSuccessCriteria.join(", ")} onChange={(e) => patchAnalysis(a.uuid, { supportedSuccessCriteria: csvList(e.target.value) })} />
+                    ? <WorkbookInput className="posfield__input posmono" value={a.supportedSuccessCriteria.join(", ")} onChange={(e) => patchAnalysis(a.uuid, { supportedSuccessCriteria: csvList(e.target.value) })} />
                     : <div className="posrow posrow--wrap" style={{ gap: 6 }}>{a.supportedSuccessCriteria.map((s) => <span key={s} className="poschip">{s}</span>)}</div>}
                 </div>
               )}
@@ -1561,16 +1562,16 @@ function BasesScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Code</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-                    {editable ? <input className="posfield__input" value={c.name} onChange={(e) => patchCode(c.uuid, { name: e.target.value })} /> : <div>{c.name}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={c.name} onChange={(e) => patchCode(c.uuid, { name: e.target.value })} /> : <div>{c.name}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Version</label>
-                    {editable ? <input className="posfield__input posmono" value={c.codeVersion} onChange={(e) => patchCode(c.uuid, { codeVersion: e.target.value })} /> : <div className="posmono">{c.codeVersion}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={c.codeVersion} onChange={(e) => patchCode(c.uuid, { codeVersion: e.target.value })} /> : <div className="posmono">{c.codeVersion}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Code or model</label>
-                    {editable ? <input className="posfield__input" value={c.computerCode} onChange={(e) => patchCode(c.uuid, { computerCode: e.target.value })} /> : <div>{c.computerCode}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={c.computerCode} onChange={(e) => patchCode(c.uuid, { computerCode: e.target.value })} /> : <div>{c.computerCode}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Verification and validation</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.verificationDocumentation} onChange={(e) => patchCode(c.uuid, { verificationDocumentation: e.target.value })} /> : <div>{c.verificationDocumentation}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.verificationDocumentation} onChange={(e) => patchCode(c.uuid, { verificationDocumentation: e.target.value })} /> : <div>{c.verificationDocumentation}</div>}
                   </div>
                 </div>
               </div>
@@ -1581,15 +1582,15 @@ function BasesScreen(): JSX.Element {
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.phenomenonDescription.length > 0 ? row.phenomenonDescription : "New phenomenon"}</div>
                     <div className="posfield-grid">
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Phenomenon</label>
-                      {editable ? <input className="posfield__input" value={row.phenomenonDescription} onChange={(e) => patchPhen(i, { phenomenonDescription: e.target.value })} /> : <div>{row.phenomenonDescription}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.phenomenonDescription} onChange={(e) => patchPhen(i, { phenomenonDescription: e.target.value })} /> : <div>{row.phenomenonDescription}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Results</label>
-                      {editable ? <input className="posfield__input" value={row.validationResults} onChange={(e) => patchPhen(i, { validationResults: e.target.value })} /> : <div>{row.validationResults}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.validationResults} onChange={(e) => patchPhen(i, { validationResults: e.target.value })} /> : <div>{row.validationResults}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Reference</label>
                       {editable ? (
                         <div className="posrow" style={{ gap: 6 }}>
-                          <input className="posfield__input posmono" style={{ flex: 1 }} value={row.reference} onChange={(e) => patchPhen(i, { reference: e.target.value })} />
+                          <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={row.reference} onChange={(e) => patchPhen(i, { reference: e.target.value })} />
                           <button type="button" className="posnav__btn posnav__btn--sm" title="Remove phenomenon" onClick={() => patchCode(c.uuid, { phenomenaValidation: c.phenomenaValidation.filter((_, j) => j !== i) })}><SCIcon.Close /></button>
                         </div>
                       ) : <div className="posmono">{row.reference}</div>}
@@ -1605,11 +1606,11 @@ function BasesScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Limitations and gaps</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Limitations (one per line)</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.limitations.join("\n")} onChange={(e) => patchCode(c.uuid, { limitations: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{c.limitations.join(" ")}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.limitations.join("\n")} onChange={(e) => patchCode(c.uuid, { limitations: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{c.limitations.join(" ")}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Validation gap</label>
                     {editable
-                      ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.validationGap ?? ""} onChange={(e) => patchCode(c.uuid, { validationGap: e.target.value.length === 0 ? undefined : e.target.value })} />
+                      ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.validationGap ?? ""} onChange={(e) => patchCode(c.uuid, { validationGap: e.target.value.length === 0 ? undefined : e.target.value })} />
                       : <div>{c.validationGap ?? "—"}</div>}
                   </div>
                 </div>
@@ -1656,18 +1657,18 @@ function BasesScreen(): JSX.Element {
                     <div className="scdrawer__param-cap"><span className="scdrawer__param-num">{i + 1}</span>{row.loadDescription.length > 0 ? row.loadDescription : "New load"}</div>
                     <div className="posfield-grid">
                     <div className="posfield"><label className="posfield__label">Sequence</label>
-                      {editable ? <input className="posfield__input posmono" value={row.eventSequenceReference ?? ""} onChange={(e) => patchLoad(i, { eventSequenceReference: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{row.eventSequenceReference ?? "—"}</div>}
+                      {editable ? <WorkbookInput className="posfield__input posmono" value={row.eventSequenceReference ?? ""} onChange={(e) => patchLoad(i, { eventSequenceReference: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{row.eventSequenceReference ?? "—"}</div>}
                     </div>
                     <div className="posfield"><label className="posfield__label">Load</label>
                       {editable ? (
                         <div className="posrow" style={{ gap: 6 }}>
-                          <input className="posfield__input" style={{ flex: 1 }} value={row.loadDescription} onChange={(e) => patchLoad(i, { loadDescription: e.target.value })} />
+                          <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={row.loadDescription} onChange={(e) => patchLoad(i, { loadDescription: e.target.value })} />
                           <button type="button" className="posnav__btn posnav__btn--sm" title="Remove load" onClick={() => patchBar(b.uuid, { challengeLoads: b.challengeLoads.filter((_, j) => j !== i) })}><SCIcon.Close /></button>
                         </div>
                       ) : <div>{row.loadDescription}</div>}
                     </div>
                     <div className="posfield posfield-grid--span2"><label className="posfield__label">Physical attributes (comma separated)</label>
-                      {editable ? <input className="posfield__input" value={row.physicalAttributes.join(", ")} onChange={(e) => patchLoad(i, { physicalAttributes: csvList(e.target.value) })} /> : <div>{row.physicalAttributes.join(", ")}</div>}
+                      {editable ? <WorkbookInput className="posfield__input" value={row.physicalAttributes.join(", ")} onChange={(e) => patchLoad(i, { physicalAttributes: csvList(e.target.value) })} /> : <div>{row.physicalAttributes.join(", ")}</div>}
                     </div>
                     </div>
                   </div>
@@ -1680,11 +1681,11 @@ function BasesScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Capacity and uncertainty</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Capacity parameters (one per line)</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.capacityParameters.join("\n")} onChange={(e) => patchBar(b.uuid, { capacityParameters: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{b.capacityParameters.join(", ")}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.capacityParameters.join("\n")} onChange={(e) => patchBar(b.uuid, { capacityParameters: e.target.value.length === 0 ? [] : e.target.value.split("\n") })} /> : <div>{b.capacityParameters.join(", ")}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Uncertainty assessment</label>
                     {editable
-                      ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.uncertaintyAssessment ?? ""} onChange={(e) => patchBar(b.uuid, { uncertaintyAssessment: e.target.value.length === 0 ? undefined : e.target.value })} />
+                      ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.uncertaintyAssessment ?? ""} onChange={(e) => patchBar(b.uuid, { uncertaintyAssessment: e.target.value.length === 0 ? undefined : e.target.value })} />
                       : <div>{b.uncertaintyAssessment ?? "—"}</div>}
                   </div>
                 </div>
@@ -1710,13 +1711,13 @@ function BasesScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Judgment</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Topic</label>
-                    {editable ? <input className="posfield__input" value={e.topic} onChange={(ev) => patchEj(e.uuid, { topic: ev.target.value })} /> : <div>{e.topic}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={e.topic} onChange={(ev) => patchEj(e.uuid, { topic: ev.target.value })} /> : <div>{e.topic}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Why judgment is needed</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.justification} onChange={(ev) => patchEj(e.uuid, { justification: ev.target.value })} /> : <div>{e.justification}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.justification} onChange={(ev) => patchEj(e.uuid, { justification: ev.target.value })} /> : <div>{e.justification}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Outcome</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.outcome} onChange={(ev) => patchEj(e.uuid, { outcome: ev.target.value })} /> : <div>{e.outcome}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.outcome} onChange={(ev) => patchEj(e.uuid, { outcome: ev.target.value })} /> : <div>{e.outcome}</div>}
                   </div>
                 </div>
               </div>
@@ -1724,16 +1725,16 @@ function BasesScreen(): JSX.Element {
                 <div className="poscard__head"><h3 className="poscard__title">Process</h3></div>
                 <div className="posfield-grid">
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Process</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.processDescription} onChange={(ev) => patchEj(e.uuid, { processDescription: ev.target.value })} /> : <div>{e.processDescription}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.processDescription} onChange={(ev) => patchEj(e.uuid, { processDescription: ev.target.value })} /> : <div>{e.processDescription}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Documentation</label>
-                    {editable ? <input className="posfield__input posmono" value={e.processDocumentationReference} onChange={(ev) => patchEj(e.uuid, { processDocumentationReference: ev.target.value })} /> : <div className="posmono">{e.processDocumentationReference}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={e.processDocumentationReference} onChange={(ev) => patchEj(e.uuid, { processDocumentationReference: ev.target.value })} /> : <div className="posmono">{e.processDocumentationReference}</div>}
                   </div>
                   <div className="posfield"><label className="posfield__label">Panel members (comma separated)</label>
-                    {editable ? <input className="posfield__input" value={e.panelMembers.join(", ")} onChange={(ev) => patchEj(e.uuid, { panelMembers: csvList(ev.target.value) })} /> : <div>{e.panelMembers.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input" value={e.panelMembers.join(", ")} onChange={(ev) => patchEj(e.uuid, { panelMembers: csvList(ev.target.value) })} /> : <div>{e.panelMembers.join(", ")}</div>}
                   </div>
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Informs criteria (comma separated)</label>
-                    {editable ? <input className="posfield__input posmono" value={e.informedSuccessCriteria.join(", ")} onChange={(ev) => patchEj(e.uuid, { informedSuccessCriteria: csvList(ev.target.value) })} /> : <div className="posmono">{e.informedSuccessCriteria.join(", ")}</div>}
+                    {editable ? <WorkbookInput className="posfield__input posmono" value={e.informedSuccessCriteria.join(", ")} onChange={(ev) => patchEj(e.uuid, { informedSuccessCriteria: csvList(ev.target.value) })} /> : <div className="posmono">{e.informedSuccessCriteria.join(", ")}</div>}
                   </div>
                 </div>
               </div>
@@ -1838,7 +1839,7 @@ function PassiveScreen(): JSX.Element {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="scdrawer__cap">Passive safety function · SC-B5</div>
               {editable
-                ? <input className="posfield__input" style={{ fontSize: 16, fontWeight: 700 }} value={p.name} onChange={(e) => patchPsv(p.uuid, { name: e.target.value })} />
+                ? <WorkbookInput className="posfield__input" style={{ fontSize: 16, fontWeight: 700 }} value={p.name} onChange={(e) => patchPsv(p.uuid, { name: e.target.value })} />
                 : <h2 className="scdrawer__title">{p.name}</h2>}
             </div>
             <button type="button" className="scdrawer__close" onClick={() => setOpenPsvId(null)}><SCIcon.Close /></button>
@@ -1855,13 +1856,13 @@ function PassiveScreen(): JSX.Element {
                     : <div>{safetyFunctions[p.safetyFunctionId]?.name ?? p.safetyFunctionId}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Phenomena (comma separated)</label>
-                  {editable ? <input className="posfield__input" value={p.passivePhenomena.join(", ")} onChange={(e) => patchPsv(p.uuid, { passivePhenomena: csvList(e.target.value) })} /> : <div>{p.passivePhenomena.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={p.passivePhenomena.join(", ")} onChange={(e) => patchPsv(p.uuid, { passivePhenomena: csvList(e.target.value) })} /> : <div>{p.passivePhenomena.join(", ")}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Mechanistic model</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.mechanisticModelDescription} onChange={(e) => patchPsv(p.uuid, { mechanisticModelDescription: e.target.value })} /> : <div>{p.mechanisticModelDescription}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.mechanisticModelDescription} onChange={(e) => patchPsv(p.uuid, { mechanisticModelDescription: e.target.value })} /> : <div>{p.mechanisticModelDescription}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Empirical data (comma separated)</label>
-                  {editable ? <input className="posfield__input" value={p.empiricalDataReferences.join(", ")} onChange={(e) => patchPsv(p.uuid, { empiricalDataReferences: csvList(e.target.value) })} /> : <div>{p.empiricalDataReferences.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={p.empiricalDataReferences.join(", ")} onChange={(e) => patchPsv(p.uuid, { empiricalDataReferences: csvList(e.target.value) })} /> : <div>{p.empiricalDataReferences.join(", ")}</div>}
                 </div>
               </div>
             </div>
@@ -1869,21 +1870,21 @@ function PassiveScreen(): JSX.Element {
               <div className="poscard__head"><h3 className="poscard__title">Uncertainty</h3></div>
               <div className="posfield-grid">
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Model uncertainty</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.modelUncertaintyCharacterization} onChange={(e) => patchPsv(p.uuid, { modelUncertaintyCharacterization: e.target.value })} /> : <div>{p.modelUncertaintyCharacterization}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.modelUncertaintyCharacterization} onChange={(e) => patchPsv(p.uuid, { modelUncertaintyCharacterization: e.target.value })} /> : <div>{p.modelUncertaintyCharacterization}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Input uncertainty</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.inputDataUncertaintyCharacterization} onChange={(e) => patchPsv(p.uuid, { inputDataUncertaintyCharacterization: e.target.value })} /> : <div>{p.inputDataUncertaintyCharacterization}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.inputDataUncertaintyCharacterization} onChange={(e) => patchPsv(p.uuid, { inputDataUncertaintyCharacterization: e.target.value })} /> : <div>{p.inputDataUncertaintyCharacterization}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Functional reliability basis</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.passiveFunctionalReliabilityBasis} onChange={(e) => patchPsv(p.uuid, { passiveFunctionalReliabilityBasis: e.target.value })} /> : <div>{p.passiveFunctionalReliabilityBasis}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.passiveFunctionalReliabilityBasis} onChange={(e) => patchPsv(p.uuid, { passiveFunctionalReliabilityBasis: e.target.value })} /> : <div>{p.passiveFunctionalReliabilityBasis}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Open item</label>
                   {editable
-                    ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.openItem ?? ""} onChange={(e) => patchPsv(p.uuid, { openItem: e.target.value.length === 0 ? undefined : e.target.value })} />
+                    ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={p.openItem ?? ""} onChange={(e) => patchPsv(p.uuid, { openItem: e.target.value.length === 0 ? undefined : e.target.value })} />
                     : <div>{p.openItem ?? "—"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Analyses (comma separated)</label>
-                  {editable ? <input className="posfield__input posmono" value={p.engineeringAnalysisReferences.join(", ")} onChange={(e) => patchPsv(p.uuid, { engineeringAnalysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{p.engineeringAnalysisReferences.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={p.engineeringAnalysisReferences.join(", ")} onChange={(e) => patchPsv(p.uuid, { engineeringAnalysisReferences: csvList(e.target.value) })} /> : <div className="posmono">{p.engineeringAnalysisReferences.join(", ")}</div>}
                 </div>
               </div>
             </div>
@@ -2069,7 +2070,7 @@ function ConsistencyScreen(): JSX.Element {
                     </div>
                   ))}
                   <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-                    {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={adcNow.basis} onChange={(e) => patchAdc({ basis: e.target.value })} /> : <div>{adcNow.basis}</div>}
+                    {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={adcNow.basis} onChange={(e) => patchAdc({ basis: e.target.value })} /> : <div>{adcNow.basis}</div>}
                   </div>
                 </div>
               </div>
@@ -2102,10 +2103,10 @@ function ConsistencyScreen(): JSX.Element {
                     : <div>{rec.isConsistent ? "Yes" : "Open"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">References (comma separated)</label>
-                  {editable ? <input className="posfield__input" value={rec.references.join(", ")} onChange={(e) => patchVer(ver.uuid, key, { references: csvList(e.target.value) })} /> : <div>{rec.references.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={rec.references.join(", ")} onChange={(e) => patchVer(ver.uuid, key, { references: csvList(e.target.value) })} /> : <div>{rec.references.join(", ")}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rec.description} onChange={(e) => patchVer(ver.uuid, key, { description: e.target.value })} /> : <div>{rec.description}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rec.description} onChange={(e) => patchVer(ver.uuid, key, { description: e.target.value })} /> : <div>{rec.description}</div>}
                 </div>
               </div>
             </div>
@@ -2127,10 +2128,10 @@ function ConsistencyScreen(): JSX.Element {
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div className="posfield-grid">
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Source</label>
-                  {editable ? <input className="posfield__input" value={src.source} onChange={(e) => patchSource(openSourceIdx, { source: e.target.value })} /> : <div>{src.source}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={src.source} onChange={(e) => patchSource(openSourceIdx, { source: e.target.value })} /> : <div>{src.source}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Impact</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={src.impact} onChange={(e) => patchSource(openSourceIdx, { impact: e.target.value })} /> : <div>{src.impact}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={src.impact} onChange={(e) => patchSource(openSourceIdx, { impact: e.target.value })} /> : <div>{src.impact}</div>}
                 </div>
               </div>
               {editable && (
@@ -2157,7 +2158,7 @@ function ConsistencyScreen(): JSX.Element {
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div className="posfield-grid">
                 <div className="posfield"><label className="posfield__label">Area affected</label>
-                  {editable ? <input className="posfield__input" value={a.influenceOnDefinition} onChange={(e) => patchPa(a.uuid, { influenceOnDefinition: e.target.value })} /> : <div>{a.influenceOnDefinition}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={a.influenceOnDefinition} onChange={(e) => patchPa(a.uuid, { influenceOnDefinition: e.target.value })} /> : <div>{a.influenceOnDefinition}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Status</label>
                   {editable
@@ -2176,10 +2177,10 @@ function ConsistencyScreen(): JSX.Element {
                     : <div>{a.riskImpact}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patchPa(a.uuid, { description: e.target.value })} /> : <div>{a.description}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patchPa(a.uuid, { description: e.target.value })} /> : <div>{a.description}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Closure basis</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.closureBasis} onChange={(e) => patchPa(a.uuid, { closureBasis: e.target.value })} /> : <div>{a.closureBasis}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.closureBasis} onChange={(e) => patchPa(a.uuid, { closureBasis: e.target.value })} /> : <div>{a.closureBasis}</div>}
                 </div>
               </div>
               {editable && (
@@ -2206,19 +2207,19 @@ function ConsistencyScreen(): JSX.Element {
             <div className="scdrawer__body" style={{ paddingTop: 4 }}>
               <div className="posfield-grid">
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-                  {editable ? <input className="posfield__input" value={x.name ?? ""} onChange={(e) => patchSs(x.uuid, { name: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.name ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={x.name ?? ""} onChange={(e) => patchSs(x.uuid, { name: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.name ?? "—"}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.description} onChange={(e) => patchSs(x.uuid, { description: e.target.value })} /> : <div>{x.description}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.description} onChange={(e) => patchSs(x.uuid, { description: e.target.value })} /> : <div>{x.description}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Varied parameters (comma separated)</label>
-                  {editable ? <input className="posfield__input" value={x.variedParameters.join(", ")} onChange={(e) => patchSs(x.uuid, { variedParameters: csvList(e.target.value) })} /> : <div>{x.variedParameters.join(", ")}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={x.variedParameters.join(", ")} onChange={(e) => patchSs(x.uuid, { variedParameters: csvList(e.target.value) })} /> : <div>{x.variedParameters.join(", ")}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Results</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.results ?? ""} onChange={(e) => patchSs(x.uuid, { results: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.results ?? "—"}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.results ?? ""} onChange={(e) => patchSs(x.uuid, { results: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.results ?? "—"}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Insights</label>
-                  {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.insights ?? ""} onChange={(e) => patchSs(x.uuid, { insights: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.insights ?? "—"}</div>}
+                  {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={x.insights ?? ""} onChange={(e) => patchSs(x.uuid, { insights: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{x.insights ?? "—"}</div>}
                 </div>
               </div>
               {editable && (

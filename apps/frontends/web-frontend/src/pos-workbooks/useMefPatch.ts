@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plant-operating-state-analysis";
 import { patchPosWorkbook } from "./posWorkbookApi";
 
@@ -15,39 +15,18 @@ function useMefPatch(
   onSuccess: (next: PlantOperatingStatesAnalysis) => void,
   onError: (message: string) => void,
 ): MefPatcher {
-  const debounceTimer = useRef<number | null>(null);
-  const pendingDraft = useRef<PlantOperatingStatesAnalysis | null>(null);
-
   const patch = useCallback(async (mutator: Mutator): Promise<void> => {
     if (current === null) return;
-    if (debounceTimer.current !== null) {
-      window.clearTimeout(debounceTimer.current);
-      debounceTimer.current = null;
-    }
-    const base = pendingDraft.current ?? current;
-    pendingDraft.current = null;
-    const draft = mutator(base);
+    const draft = mutator(current);
     try {
-      const updated = await patchPosWorkbook(workbookId, draft);
+      const updated = await patchPosWorkbook(workbookId, current, draft);
       onSuccess(updated.mef);
     } catch (err: unknown) {
       onError((err as { message?: string }).message ?? "Save failed");
     }
   }, [workbookId, current, onSuccess, onError]);
 
-  const patchDebounced = useCallback((mutator: Mutator): void => {
-    if (current === null) return;
-    pendingDraft.current = mutator(pendingDraft.current ?? current);
-    if (debounceTimer.current !== null) window.clearTimeout(debounceTimer.current);
-    debounceTimer.current = window.setTimeout(() => {
-      const draft = pendingDraft.current;
-      pendingDraft.current = null;
-      if (draft === null) return;
-      patchPosWorkbook(workbookId, draft)
-        .then((res) => onSuccess(res.mef))
-        .catch((err: unknown) => onError((err as { message?: string }).message ?? "Save failed"));
-    }, 500);
-  }, [workbookId, current, onSuccess, onError]);
+  const patchDebounced = useCallback((mutator: Mutator): void => { void patch(mutator); }, [patch]);
 
   return { patch, patchDebounced };
 }

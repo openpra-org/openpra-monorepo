@@ -56,8 +56,8 @@ function SeismicPraWorkbookPage(): JSX.Element {
 
   const onSaveSuccess = useCallback((next: SeismicPRA): void => { setMef(next); setSaveError(null); }, []);
   const onSaveError = useCallback((message: string): void => setSaveError(message), []);
-  const { patchDebounced } = useSeismicPraMefPatch(id ?? "", mef, onSaveSuccess, onSaveError);
-  const mutate = useCallback((mutator: (current: SeismicPRA) => SeismicPRA): void => { setMef((current) => current === null ? current : mutator(current)); patchDebounced(mutator); }, [patchDebounced]);
+  const { patch } = useSeismicPraMefPatch(id ?? "", mef, onSaveSuccess, onSaveError);
+  const mutate = useCallback((mutator: (current: SeismicPRA) => SeismicPRA): void => { setMef((current) => current === null ? current : mutator(current)); void patch(mutator); }, [patch]);
   const availablePersonas = useMemo<SeismicPraPersona[]>(() => {
     const out: SeismicPraPersona[] = [];
     if (roles.includes("preparer") || roles.includes("co_preparer")) out.push("preparer");

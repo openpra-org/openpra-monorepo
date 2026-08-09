@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 
@@ -17,8 +18,8 @@ async function getMsWorkbook(workbookId: string): Promise<MsWorkbookResponse> {
   return fetchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`);
 }
 
-async function patchMsWorkbook(workbookId: string, mef: MechanisticSourceTermAnalysis): Promise<MsWorkbookResponse> {
-  return patchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`, { mef });
+async function patchMsWorkbook(workbookId: string, current: MechanisticSourceTermAnalysis, mef: MechanisticSourceTermAnalysis): Promise<MsWorkbookResponse> {
+  return patchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface MsExampleOption {

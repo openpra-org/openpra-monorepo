@@ -1,10 +1,8 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { EsWorkbooksService, type EsWorkbookResponse } from "./es-workbooks.service";
+import { parseWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 
-interface ReplaceMefBody {
-  mef: unknown;
-}
 
 @Controller("es-workbooks")
 @UseGuards(JwtAuthGuard)
@@ -21,10 +19,10 @@ export class EsWorkbooksController {
   @HttpCode(HttpStatus.OK)
   update(
     @Param("id") id: string,
-    @Body() body: ReplaceMefBody,
+    @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<EsWorkbookResponse> {
-    return this.esWorkbooksService.replaceMef(id, body.mef, { username: req.user!.username });
+    return this.esWorkbooksService.patchMef(id, parseWorkbookPatchBody(body), { username: req.user!.username });
   }
 
   @Post(":id/load-example")

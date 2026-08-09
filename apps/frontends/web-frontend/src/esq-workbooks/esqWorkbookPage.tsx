@@ -125,11 +125,11 @@ function EsqWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useEsqMefPatch(id ?? "", data?.esq ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useEsqMefPatch(id ?? "", data?.esq ?? null, handleSaveOk, handleSaveErr);
   const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<EsqWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

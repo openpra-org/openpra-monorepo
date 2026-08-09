@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 
@@ -18,8 +19,8 @@ async function getIeWorkbook(workbookId: string): Promise<IeWorkbookResponse> {
   return fetchJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}`);
 }
 
-async function patchIeWorkbook(workbookId: string, mef: InitiatingEventsAnalysis): Promise<IeWorkbookResponse> {
-  return patchJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}`, { mef });
+async function patchIeWorkbook(workbookId: string, current: InitiatingEventsAnalysis, mef: InitiatingEventsAnalysis): Promise<IeWorkbookResponse> {
+  return patchJson<IeWorkbookResponse>(`/api/ie-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface IeExampleOption {

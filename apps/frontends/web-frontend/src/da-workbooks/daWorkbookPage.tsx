@@ -126,11 +126,11 @@ function DaWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useDaMefPatch(id ?? "", data?.da ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useDaMefPatch(id ?? "", data?.da ?? null, handleSaveOk, handleSaveErr);
   const mutateDa = useCallback((mutator: (da: DataAnalysis) => DataAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, da: mutator(prev.da) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<DaWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

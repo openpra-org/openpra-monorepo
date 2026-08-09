@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type ReleasePhase, type SourceTermDefinition, TransportPhenomenonType } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -370,7 +371,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
           <MsProvenanceChip>MS-E1</MsProvenanceChip>
         </div>
         <p className="poscard__sub">The surrogate risk metric relates the source-term deliverable to the plant risk metric that Risk Integration pairs with the frequency.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           rows={3}
           placeholder="Describe how the large-release-frequency surrogate maps to a release category."
@@ -458,7 +459,7 @@ function MsTextField({ label, value, onChange, disabled }: { label: string; valu
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <input className="posfield__input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookInput className="posfield__input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -467,7 +468,7 @@ function MsAreaField({ label, value, onChange, disabled, rows = 3 }: { label: st
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <textarea className="posfield__textarea" rows={rows} style={{ resize: "vertical" }} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookTextarea className="posfield__textarea" rows={rows} style={{ resize: "vertical" }} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -476,7 +477,7 @@ function MsNumberField({ label, value, onChange, disabled }: { label: string; va
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <input className="posfield__input posmono" type="number" step="any" value={value} disabled={disabled} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onChange(v); }} />
+      <WorkbookInput className="posfield__input posmono" type="number" step="any" value={value} disabled={disabled} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onChange(v); }} />
     </div>
   );
 }
@@ -499,7 +500,7 @@ function MsStringList({ label, values, onChange, disabled }: { label: string; va
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {values.map((v, i) => (
           <div key={i} className="posrow" style={{ gap: 6 }}>
-            <input className="posfield__input" style={{ flex: 1 }} value={v} disabled={disabled} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
+            <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={v} disabled={disabled} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
             {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange([...values.slice(0, i), ...values.slice(i + 1)])}>Remove</button>}
           </div>
         ))}
@@ -599,11 +600,11 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
               <tbody>
                 {s.inventory.map((rn, i) => (
                   <tr key={i}>
-                    <td><input className="posfield__input posmono" value={rn.radionuclide} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, radionuclide: e.target.value } : y)))} /></td>
-                    <td><input className="posfield__input posmono" type="number" step="any" value={rn.quantity} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setInv(s.inventory.map((y, j) => (j === i ? { ...y, quantity: v } : y))); }} /></td>
-                    <td><input className="posfield__input" style={{ width: 64 }} value={rn.unit} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)))} /></td>
+                    <td><WorkbookInput className="posfield__input posmono" value={rn.radionuclide} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, radionuclide: e.target.value } : y)))} /></td>
+                    <td><WorkbookInput className="posfield__input posmono" type="number" step="any" value={rn.quantity} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setInv(s.inventory.map((y, j) => (j === i ? { ...y, quantity: v } : y))); }} /></td>
+                    <td><WorkbookInput className="posfield__input" style={{ width: 64 }} value={rn.unit} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, unit: e.target.value } : y)))} /></td>
                     <td><select className="posfield__select" value={String(rn.physicalForm ?? "OTHER")} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, physicalForm: e.target.value } : y)))}>{FORM_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
-                    <td><input className="posfield__input" value={rn.chemicalForm ?? ""} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, chemicalForm: e.target.value } : y)))} /></td>
+                    <td><WorkbookInput className="posfield__input" value={rn.chemicalForm ?? ""} disabled={dis} onChange={(e) => setInv(s.inventory.map((y, j) => (j === i ? { ...y, chemicalForm: e.target.value } : y)))} /></td>
                     {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setInv([...s.inventory.slice(0, i), ...s.inventory.slice(i + 1)])}>Remove</button></td>}
                   </tr>
                 ))}
@@ -657,7 +658,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
               {mechs.map((m, i) => (
                 <div key={i} className="posrow" style={{ gap: 6 }}>
                   <select className="posfield__select" style={{ flex: 1 }} value={m.mechanismType} disabled={dis} onChange={(e) => setMechs(mechs.map((y, j) => (j === i ? { ...y, mechanismType: e.target.value as TransportPhenomenonType } : y)))}>{PHENOM_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-                  <input className="posfield__input" style={{ flex: 2 }} value={m.description} disabled={dis} onChange={(e) => setMechs(mechs.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.description} disabled={dis} onChange={(e) => setMechs(mechs.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
                   <select className="posfield__select" style={{ width: 96 }} value={m.significance} disabled={dis} onChange={(e) => setMechs(mechs.map((y, j) => (j === i ? { ...y, significance: e.target.value as ImportanceLevel } : y)))}>{SIG_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setMechs([...mechs.slice(0, i), ...mechs.slice(i + 1)])}>Remove</button>}
                 </div>
@@ -730,10 +731,10 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {s.releasePhases.map((p, i) => (
                 <div key={p.uuid} className="posrow" style={{ gap: 6 }}>
-                  <input className="posfield__input" style={{ flex: 2 }} value={p.name} disabled={dis} onChange={(e) => setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
-                  <input className="posfield__input posmono" style={{ width: 70 }} type="number" step="any" value={p.startTime} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, startTime: v } : y))); }} />
-                  <input className="posfield__input posmono" style={{ width: 70 }} type="number" step="any" value={p.endTime} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, endTime: v } : y))); }} />
-                  <input className="posfield__input" style={{ width: 56 }} value={p.timeUnit ?? ""} disabled={dis} onChange={(e) => setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, timeUnit: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={p.name} disabled={dis} onChange={(e) => setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input posmono" style={{ width: 70 }} type="number" step="any" value={p.startTime} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, startTime: v } : y))); }} />
+                  <WorkbookInput className="posfield__input posmono" style={{ width: 70 }} type="number" step="any" value={p.endTime} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, endTime: v } : y))); }} />
+                  <WorkbookInput className="posfield__input" style={{ width: 56 }} value={p.timeUnit ?? ""} disabled={dis} onChange={(e) => setPhases(s.releasePhases.map((y, j) => (j === i ? { ...y, timeUnit: e.target.value } : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setPhases([...s.releasePhases.slice(0, i), ...s.releasePhases.slice(i + 1)])}>Remove</button>}
                 </div>
               ))}
@@ -747,12 +748,12 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
               <tbody>
                 {s.releaseForms.map((rf, i) => (
                   <tr key={i}>
-                    <td><input className="posfield__input posmono" style={{ width: 84 }} value={rf.radionuclide} disabled={dis} onChange={(e) => setForms(s.releaseForms.map((y, j) => (j === i ? { ...y, radionuclide: e.target.value } : y)))} /></td>
+                    <td><WorkbookInput className="posfield__input posmono" style={{ width: 84 }} value={rf.radionuclide} disabled={dis} onChange={(e) => setForms(s.releaseForms.map((y, j) => (j === i ? { ...y, radionuclide: e.target.value } : y)))} /></td>
                     {s.releasePhases.map((p) => (
-                      <td key={p.uuid}><input className="posfield__input posmono" style={{ width: 78 }} type="number" step="any" value={phaseQuantity(s, p.uuid, rf.radionuclide) ?? 0} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setQuantity(p.uuid, rf.radionuclide, v); }} /></td>
+                      <td key={p.uuid}><WorkbookInput className="posfield__input posmono" style={{ width: 78 }} type="number" step="any" value={phaseQuantity(s, p.uuid, rf.radionuclide) ?? 0} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setQuantity(p.uuid, rf.radionuclide, v); }} /></td>
                     ))}
                     <td><select className="posfield__select" value={String(rf.form)} disabled={dis} onChange={(e) => setForms(s.releaseForms.map((y, j) => (j === i ? { ...y, form: e.target.value } : y)))}>{FORM_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></td>
-                    <td><input className="posfield__input" value={rf.chemicalForm ?? ""} disabled={dis} onChange={(e) => setForms(s.releaseForms.map((y, j) => (j === i ? { ...y, chemicalForm: e.target.value } : y)))} /></td>
+                    <td><WorkbookInput className="posfield__input" value={rf.chemicalForm ?? ""} disabled={dis} onChange={(e) => setForms(s.releaseForms.map((y, j) => (j === i ? { ...y, chemicalForm: e.target.value } : y)))} /></td>
                     {editable && <td><button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setForms([...s.releaseForms.slice(0, i), ...s.releaseForms.slice(i + 1)])}>Remove</button></td>}
                   </tr>
                 ))}
@@ -791,7 +792,7 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
                     <select className="posfield__select" style={{ width: 110 }} value={p.included ? "yes" : "no"} disabled={dis} onChange={(e) => setChecklist(a.phenomenaChecklist.map((y, j) => (j === i ? { ...y, included: e.target.value === "yes" } : y)))}><option value="yes">Included</option><option value="no">Screened</option></select>
                     {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setChecklist([...a.phenomenaChecklist.slice(0, i), ...a.phenomenaChecklist.slice(i + 1)])}>Remove</button>}
                   </div>
-                  <input className="posfield__input" value={p.justification ?? ""} disabled={dis} onChange={(e) => setChecklist(a.phenomenaChecklist.map((y, j) => (j === i ? { ...y, justification: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" value={p.justification ?? ""} disabled={dis} onChange={(e) => setChecklist(a.phenomenaChecklist.map((y, j) => (j === i ? { ...y, justification: e.target.value } : y)))} />
                 </div>
               ))}
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setChecklist([...a.phenomenaChecklist, { phenomenonType: TransportPhenomenonType.OTHER, included: true, justification: "" }])}><MSIcon.Plus /> Add phenomenon</button>}
@@ -803,10 +804,10 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
               {designUnique.map((d, i) => (
                 <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div className="posrow" style={{ gap: 6 }}>
-                    <input className="posfield__input" style={{ flex: 1 }} value={d.name} disabled={dis} onChange={(e) => setDesign(designUnique.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
+                    <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={d.name} disabled={dis} onChange={(e) => setDesign(designUnique.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
                     {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDesign([...designUnique.slice(0, i), ...designUnique.slice(i + 1)])}>Remove</button>}
                   </div>
-                  <input className="posfield__input" placeholder="Note" value={d.note ?? ""} disabled={dis} onChange={(e) => setDesign(designUnique.map((y, j) => (j === i ? { ...y, note: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" placeholder="Note" value={d.note ?? ""} disabled={dis} onChange={(e) => setDesign(designUnique.map((y, j) => (j === i ? { ...y, note: e.target.value } : y)))} />
                 </div>
               ))}
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ alignSelf: "flex-start" }} onClick={() => setDesign([...designUnique, { name: "New phenomenon", note: "" }])}><MSIcon.Plus /> Add</button>}
@@ -856,10 +857,10 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(u.phenomenaDependencies ?? []).map((dep, i) => (
                 <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed var(--color-border)", paddingBottom: 8 }}>
-                  <input className="posfield__input" placeholder="Description" value={dep.description} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })} />
-                  <input className="posfield__input" placeholder="Dependent phenomena, comma separated" value={dep.dependentPhenomena.join(", ")} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, dependentPhenomena: e.target.value.split(",").map((x) => x.trim()).filter((x) => x.length > 0) } : y)) })} />
+                  <WorkbookInput className="posfield__input" placeholder="Description" value={dep.description} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, description: e.target.value } : y)) })} />
+                  <WorkbookInput className="posfield__input" placeholder="Dependent phenomena, comma separated" value={dep.dependentPhenomena.join(", ")} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, dependentPhenomena: e.target.value.split(",").map((x) => x.trim()).filter((x) => x.length > 0) } : y)) })} />
                   <div className="posrow" style={{ gap: 6 }}>
-                    <input className="posfield__input" style={{ flex: 1 }} placeholder="Treatment method" value={dep.treatmentMethod} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, treatmentMethod: e.target.value } : y)) })} />
+                    <WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Treatment method" value={dep.treatmentMethod} disabled={dis} onChange={(e) => patch({ phenomenaDependencies: (u.phenomenaDependencies ?? []).map((y, j) => (j === i ? { ...y, treatmentMethod: e.target.value } : y)) })} />
                     {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ phenomenaDependencies: [...(u.phenomenaDependencies ?? []).slice(0, i), ...(u.phenomenaDependencies ?? []).slice(i + 1)] })}>Remove</button>}
                   </div>
                 </div>
@@ -876,14 +877,14 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
                 return (
                   <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, borderBottom: "1px dashed var(--color-border)", paddingBottom: 8 }}>
                     <div className="posrow" style={{ gap: 6 }}>
-                      <input className="posfield__input" style={{ flex: 2 }} value={c.component} disabled={dis} onChange={(e) => setComps(comps.map((y, j) => (j === i ? { ...y, component: e.target.value } : y)))} />
+                      <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={c.component} disabled={dis} onChange={(e) => setComps(comps.map((y, j) => (j === i ? { ...y, component: e.target.value } : y)))} />
                       <select className="posfield__select" style={{ width: 120 }} value={c.valueType} disabled={dis} onChange={(e) => setComps(comps.map((y, j) => (j === i ? { ...y, valueType: e.target.value as typeof c.valueType } : y)))}>{VALUE_TYPE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                       {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setComps([...comps.slice(0, i), ...comps.slice(i + 1)])}>Remove</button>}
                     </div>
                     <div className="posrow" style={{ gap: 6 }}>
                       <select className="posfield__select" style={{ flex: 1 }} value={c.isRiskSignificantFamily ? "yes" : "no"} disabled={dis} onChange={(e) => setComps(comps.map((y, j) => (j === i ? { ...y, isRiskSignificantFamily: e.target.value === "yes" } : y)))}><option value="yes">Risk-significant</option><option value="no">Not significant</option></select>
-                      <input className="posfield__input posmono" style={{ width: 100 }} type="number" step="any" placeholder="median" value={median ?? ""} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setComps(comps.map((y, j) => (j === i ? { ...y, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: v, errorFactor: ef ?? 2 } } : y))); }} />
-                      <input className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" placeholder="EF" value={ef ?? ""} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setComps(comps.map((y, j) => (j === i ? { ...y, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: v } } : y))); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 100 }} type="number" step="any" placeholder="median" value={median ?? ""} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setComps(comps.map((y, j) => (j === i ? { ...y, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: v, errorFactor: ef ?? 2 } } : y))); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" placeholder="EF" value={ef ?? ""} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setComps(comps.map((y, j) => (j === i ? { ...y, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: median ?? 0, errorFactor: v } } : y))); }} />
                     </div>
                   </div>
                 );
@@ -896,8 +897,8 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {inputs.map((p, i) => (
                 <div key={i} className="posrow" style={{ gap: 6 }}>
-                  <input className="posfield__input" style={{ flex: 1 }} value={p.parameter} disabled={dis} onChange={(e) => setInputs(inputs.map((y, j) => (j === i ? { ...y, parameter: e.target.value } : y)))} />
-                  <input className="posfield__input" style={{ flex: 2 }} value={p.description} disabled={dis} onChange={(e) => setInputs(inputs.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={p.parameter} disabled={dis} onChange={(e) => setInputs(inputs.map((y, j) => (j === i ? { ...y, parameter: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={p.description} disabled={dis} onChange={(e) => setInputs(inputs.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setInputs([...inputs.slice(0, i), ...inputs.slice(i + 1)])}>Remove</button>}
                 </div>
               ))}
@@ -967,8 +968,8 @@ function DrawerContent({ context, onClose }: { context: MsDrawerContext; onClose
                   return (
                     <div key={param} className="posrow" style={{ gap: 6, alignItems: "center" }}>
                       <span className="possubtle" style={{ flex: 1, fontSize: 12 }}>{param}</span>
-                      <input className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[0]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 0, v); }} />
-                      <input className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[1]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 1, v); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[0]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 0, v); }} />
+                      <WorkbookInput className="posfield__input posmono" style={{ width: 90 }} type="number" step="any" value={range[1]} disabled={dis} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) setRange(param, 1, v); }} />
                     </div>
                   );
                 })}

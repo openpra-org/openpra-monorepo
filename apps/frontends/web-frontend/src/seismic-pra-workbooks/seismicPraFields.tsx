@@ -1,20 +1,21 @@
 import { type JSX, type ReactNode, useId, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 
 function Field({ label, hint, children, wide = false }: { label: string; hint?: string; children: ReactNode; wide?: boolean }): JSX.Element {
   return <label className={`sfield${wide ? " sfield--wide" : ""}`}><span className="sfield__label">{label}</span>{children}{hint !== undefined && <span className="sfield__hint">{hint}</span>}</label>;
 }
 
 function TextInput({ value, onChange, disabled, placeholder }: { value: string; onChange: (value: string) => void; disabled?: boolean; placeholder?: string }): JSX.Element {
-  return <input className="sinput" value={value} disabled={disabled} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
+  return <WorkbookInput className="sinput" value={value} disabled={disabled} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
 }
 
 function NumberInput({ value, onChange, disabled, step = "any" }: { value: number; onChange: (value: number) => void; disabled?: boolean; step?: string }): JSX.Element {
-  return <input className="sinput sinput--number" type="number" step={step} value={Number.isFinite(value) ? value : 0} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />;
+  return <WorkbookInput className="sinput sinput--number" type="number" step={step} value={Number.isFinite(value) ? value : 0} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} />;
 }
 
 function TextArea({ value, onChange, disabled, rows = 4, placeholder }: { value: string; onChange: (value: string) => void; disabled?: boolean; rows?: number; placeholder?: string }): JSX.Element {
-  return <textarea className="stextarea" value={value} disabled={disabled} rows={rows} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
+  return <WorkbookTextarea className="stextarea" value={value} disabled={disabled} rows={rows} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />;
 }
 
 function SelectInput({ value, onChange, options, disabled }: { value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; disabled?: boolean }): JSX.Element {

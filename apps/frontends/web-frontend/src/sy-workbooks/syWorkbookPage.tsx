@@ -155,11 +155,11 @@ function SyWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useSyMefPatch(id ?? "", data?.sy ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useSyMefPatch(id ?? "", data?.sy ?? null, handleSaveOk, handleSaveErr);
   const mutateSy = useCallback((mutator: (sy: SystemsAnalysis) => SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy: mutator(prev.sy) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const actions = useMemo<SyWorkbenchActions | undefined>(() => {
     if (id === undefined) return undefined;

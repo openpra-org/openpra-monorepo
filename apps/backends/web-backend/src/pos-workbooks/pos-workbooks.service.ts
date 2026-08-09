@@ -11,6 +11,7 @@ import { PosDocumentsService } from "./pos-documents.service";
 import { createBlankPos } from "./blank-pos";
 import { stripNulls } from "./mef-normalize";
 import { healMef } from "./mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface PosWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class PosWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<PosWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<PosWorkbookResponse> {
     const doc = await this.posWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("POS workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this POS workbook");
-    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = PlantOperatingStatesAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid POS workbook payload: ${parsed.error.message}`);
     }

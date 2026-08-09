@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { RCIcon } from "./rcIcons";
 import { RcProvenanceChip } from "./rcShared";
@@ -246,7 +247,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {he.earlyHealthEffects.map((e, i) => (
                   <div key={i} className="posrow" style={{ gap: 6 }}>
-                    <input className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setEarly(he.earlyHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
+                    <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setEarly(he.earlyHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
                     {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setEarly([...he.earlyHealthEffects.slice(0, i), ...he.earlyHealthEffects.slice(i + 1)])}>Remove</button>}
                   </div>
                 ))}
@@ -265,7 +266,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {he.latentHealthEffects.map((e, i) => (
                   <div key={i} className="posrow" style={{ gap: 6 }}>
-                    <input className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setLatent(he.latentHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
+                    <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={e} disabled={!editable} onChange={(ev) => setLatent(he.latentHealthEffects.map((y, j) => (j === i ? ev.target.value : y)))} />
                     {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setLatent([...he.latentHealthEffects.slice(0, i), ...he.latentHealthEffects.slice(i + 1)])}>Remove</button>}
                   </div>
                 ))}

@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
 import { type DaLinkedInputs } from "./daWorkbookContext";
@@ -32,8 +33,8 @@ async function getDaWorkbook(workbookId: string): Promise<DaWorkbookResponse> {
   return fetchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`);
 }
 
-async function patchDaWorkbook(workbookId: string, mef: DataAnalysis): Promise<DaWorkbookResponse> {
-  return patchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`, { mef });
+async function patchDaWorkbook(workbookId: string, current: DataAnalysis, mef: DataAnalysis): Promise<DaWorkbookResponse> {
+  return patchJson<DaWorkbookResponse>(`/api/da-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface DaExampleOption {

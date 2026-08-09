@@ -1,24 +1,20 @@
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { patchSeismicPraWorkbook } from "./seismicPraWorkbookApi";
 
 type Mutator = (mef: SeismicPRA) => SeismicPRA;
 
-function useSeismicPraMefPatch(workbookId: string, current: SeismicPRA | null, onSuccess: (mef: SeismicPRA) => void, onError: (message: string) => void): { patchDebounced: (mutator: Mutator) => void } {
-  const timer = useRef<number | null>(null);
-  const pending = useRef<SeismicPRA | null>(null);
-  const patchDebounced = useCallback((mutator: Mutator): void => {
+function useSeismicPraMefPatch(workbookId: string, current: SeismicPRA | null, onSuccess: (mef: SeismicPRA) => void, onError: (message: string) => void): { patch: (mutator: Mutator) => Promise<void> } {
+  const patch = useCallback(async (mutator: Mutator): Promise<void> => {
     if (current === null) return;
-    pending.current = mutator(pending.current ?? current);
-    if (timer.current !== null) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      const draft = pending.current;
-      pending.current = null;
-      if (draft === null) return;
-      patchSeismicPraWorkbook(workbookId, draft).then((res) => onSuccess(res.mef)).catch((err: unknown) => onError((err as { message?: string }).message ?? "Save failed"));
-    }, 500);
+    try {
+      const response = await patchSeismicPraWorkbook(workbookId, current, mutator(current));
+      onSuccess(response.mef);
+    } catch (error: unknown) {
+      onError((error as { message?: string }).message ?? "Save failed");
+    }
   }, [current, onError, onSuccess, workbookId]);
-  return { patchDebounced };
+  return { patch };
 }
 
 export { useSeismicPraMefPatch };

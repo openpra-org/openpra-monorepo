@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { HRIcon } from "./hrIcons";
 import { Badge, HRProvenanceChip, hepText } from "./hrShared";
@@ -143,7 +144,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: {
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="hr-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <WorkbookInput type="radio" name="hr-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

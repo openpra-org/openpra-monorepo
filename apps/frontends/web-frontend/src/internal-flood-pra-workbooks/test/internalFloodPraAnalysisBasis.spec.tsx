@@ -1,8 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { type JSX, useState } from "react";
 import { createInternalFloodPraExample } from "../../../../../backends/web-backend/src/example-workbooks/seeds/internal-flood-pra-seed-factory";
 import { InternalFloodPraStepScreen } from "../internalFloodPraStepScreen";
 import { InternalFloodPraWorkbookProvider } from "../internalFloodPraWorkbookContext";
+import { ApprovalScreen } from "../steps/approvalScreen";
+import { DraftScreen } from "../steps/draftScreen";
+import { ReviewScreen } from "../steps/reviewScreen";
 
 function renderStep(stepId = "analysis-basis"): HTMLElement {
   const result = render(
@@ -11,6 +15,11 @@ function renderStep(stepId = "analysis-basis"): HTMLElement {
     </InternalFloodPraWorkbookProvider>,
   );
   return result.container;
+}
+
+function StatefulReviewHarness(): JSX.Element {
+  const [mef, setMef] = useState(() => createInternalFloodPraExample("htgr"));
+  return <InternalFloodPraWorkbookProvider mef={mef} editable={false} mutate={(mutator) => setMef((current) => mutator(current))}><ReviewScreen persona="reviewer" /></InternalFloodPraWorkbookProvider>;
 }
 
 describe("Internal Flood PRA presentation", () => {
@@ -101,5 +110,37 @@ describe("Internal Flood PRA presentation", () => {
   it("does not show the stopping-basis field in risk interpretation", () => {
     renderStep("risk-interpretation");
     expect(screen.queryByText("Stopping basis")).not.toBeInTheDocument();
+  });
+
+  it("uses the POS draft structure without legacy workflow tables", () => {
+    const { container } = render(<InternalFloodPraWorkbookProvider mef={createInternalFloodPraExample("htgr")} editable mutate={jest.fn()}><DraftScreen /></InternalFloodPraWorkbookProvider>);
+    expect(screen.getByText("Generated preview · Word output")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Conformance check" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Hand-off to internal review" })).toBeInTheDocument();
+    expect(screen.getByText("Flood scenarios, consequences, and screening")).toBeInTheDocument();
+    expect(container.querySelector(".flworkflow-card")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Report sections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Draft quality checks" })).not.toBeInTheDocument();
+  });
+
+  it("uses the POS review structure and lets comment authors resolve findings", async () => {
+    render(<StatefulReviewHarness />);
+    expect(screen.getByText("In review")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "All review comments" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open (3)" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Mark resolved" }).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getAllByRole("button", { name: "Mark resolved" })[0]!);
+    expect(screen.getByRole("button", { name: "Open (2)" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Review plan and roster" })).not.toBeInTheDocument();
+  });
+
+  it("uses the POS approval structure and scopes the approver's comments", () => {
+    render(<InternalFloodPraWorkbookProvider mef={createInternalFloodPraExample("htgr")} editable={false} mutate={jest.fn()}><ApprovalScreen persona="approver" /></InternalFloodPraWorkbookProvider>);
+    expect(screen.getByRole("heading", { name: "Your comments" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All (1)" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What is being attested" })).toBeInTheDocument();
+    expect(screen.getByText("Configuration snapshot")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Approval readiness" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Approval signatures" })).not.toBeInTheDocument();
   });
 });

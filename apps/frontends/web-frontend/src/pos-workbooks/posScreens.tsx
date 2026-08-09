@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useRef, useState } from "react";
 import { type PosDocumentEntry } from "./posWorkbookApi";
 import { type PlantOperatingStatesAnalysis, type PlantEvolution, type PlantOperatingState, type PlantOperatingStateGroup, type ParameterRange, type ScreeningCriterion, type PosScreeningRecord, type PosSeparationRecord, type DemandTimeBasedRecord, type SubsumedPosRecord, type InterviewRecord, EvolutionType, OperatingMode } from "interfaces-mef-types/pos/plant-operating-state-analysis";
@@ -280,7 +281,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <div className="posfield-grid">
           <div className="posfield">
             <label className="posfield__label">Plant name</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. Generic HTGR"
               value={isReal ? pi.name : undefined}
@@ -290,7 +291,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </div>
           <div className="posfield">
             <label className="posfield__label">Vendor / designer</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. Vendor LLC"
               value={isReal ? pi.vendor : undefined}
@@ -300,7 +301,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </div>
           <div className="posfield">
             <label className="posfield__label">Reactor type</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. High-temperature gas-cooled reactor (prismatic)"
               value={isReal ? pi.reactorType : undefined}
@@ -310,7 +311,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </div>
           <div className="posfield">
             <label className="posfield__label">Thermal power</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. 350 MWth"
               value={isReal ? pi.thermalPower : undefined}
@@ -322,7 +323,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <div className="posfield-grid posfield-grid--3" style={{ marginTop: 16 }}>
           <div className="posfield">
             <label className="posfield__label">Primary coolant</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. Helium"
               value={isReal ? pi.primaryCoolant : undefined}
@@ -332,7 +333,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </div>
           <div className="posfield">
             <label className="posfield__label">Intermediate coolant</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. None (direct steam cycle)"
               value={isReal ? (pi.intermediateCoolant ?? "") : undefined}
@@ -342,7 +343,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </div>
           <div className="posfield">
             <label className="posfield__label">Power conversion working fluid</label>
-            <input
+            <WorkbookInput
               className="posfield__input"
               placeholder="e.g. Steam (Rankine cycle)"
               value={isReal ? (pi.powerConversionFluid ?? "") : undefined}
@@ -356,7 +357,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
         <p className="poscard__sub">Describe what the analysis covers and what it excludes.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           placeholder="Briefly state in-scope hazard groups, operating modes, and explicit exclusions."
           rows={4}
@@ -376,7 +377,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           <label className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === "pre_operational" ? "var(--color-primary)" : undefined }}>
             <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-              <input type="radio" name="stage" value="pre_operational" checked={stage === "pre_operational"} onChange={() => onStageChange("pre_operational")} />
+              <WorkbookInput type="radio" name="stage" value="pre_operational" checked={stage === "pre_operational"} onChange={() => onStageChange("pre_operational")} />
               <div>
                 <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>Pre-operational</div>
                 <div className="possubtle" style={{ fontSize: 12.5 }}>
@@ -387,7 +388,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
           </label>
           <label className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === "operational" ? "var(--color-primary)" : undefined }}>
             <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-              <input type="radio" name="stage" value="operational" checked={stage === "operational"} onChange={() => onStageChange("operational")} />
+              <WorkbookInput type="radio" name="stage" value="operational" checked={stage === "operational"} onChange={() => onStageChange("operational")} />
               <div>
                 <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>Operational</div>
                 <div className="possubtle" style={{ fontSize: 12.5 }}>
@@ -446,7 +447,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         <p className="poscard__sub">Which plant operating modes does this POS analysis cover?</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-            <input
+            <WorkbookInput
               type="checkbox"
               checked={pos.includesAtPowerOperations}
               onChange={(e) => onAtPowerChange(e.target.checked)}
@@ -458,7 +459,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
             </span>
           </label>
           <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-            <input
+            <WorkbookInput
               type="checkbox"
               checked={pos.includesLPSDOperations ?? false}
               onChange={(e) => onLpsdChange(e.target.checked)}
@@ -478,7 +479,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         </div>
         <p className="poscard__sub">Internal events are always in scope for a POS workbook. Check below if the PRA also covers hazards beyond internal events.</p>
         <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-          <input
+          <WorkbookInput
             type="checkbox"
             checked={pos.includesNonInternalHazardGroups}
             onChange={(e) => onHazardChange(e.target.checked)}
@@ -537,7 +538,7 @@ function ExampleDocName({ id, name, canEdit, mefPatchDebounced }: {
   }
   if (editing) {
     return (
-      <input
+      <WorkbookInput
         className="posdoc__name-input"
         value={text}
         aria-label="Document name"
@@ -568,7 +569,7 @@ function RealDocName({ documentId, name, canRename, onUpdateDocument }: { docume
   }
   if (editing) {
     return (
-      <input className="posdoc__name-input" value={text} aria-label="Document name" autoFocus onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }} />
+      <WorkbookInput className="posdoc__name-input" value={text} aria-label="Document name" autoFocus onChange={(e) => setText(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }} />
     );
   }
   return (
@@ -587,7 +588,7 @@ function RealDocNotes({ documentId, notes, canEdit, onUpdateDocument }: { docume
     void onUpdateDocument!(documentId, { notes: text });
   }
   return (
-    <input className="posfield__input" style={{ marginTop: 6, width: "100%" }} placeholder="What this document supports (summary)…" value={text} onChange={(e) => setText(e.target.value)} onBlur={save} />
+    <WorkbookInput className="posfield__input" style={{ marginTop: 6, width: "100%" }} placeholder="What this document supports (summary)…" value={text} onChange={(e) => setText(e.target.value)} onBlur={save} />
   );
 }
 
@@ -631,7 +632,7 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
         <h3 className="poscard__title">Uploaded documents</h3>
         {isReal ? (
           <>
-            <input ref={fileInputRef} type="file" hidden onChange={handleFileChange} />
+            <WorkbookInput ref={fileInputRef} type="file" hidden onChange={handleFileChange} />
             <button
               type="button"
               className="posnav__btn posnav__btn--sm posnav__btn--primary"
@@ -1024,7 +1025,7 @@ function InterviewEditor({ record, evolutions, canEdit, mefPatch, mefPatchDeboun
         </div>
         <div className="posfield">
           <label className="posfield__label">Date</label>
-          <input className="posfield__input" value={dateText} placeholder="e.g. Mar 12, 2026" disabled={!canEdit} onChange={(e) => { setDateText(e.target.value); saveDebounced({ date: e.target.value }); }} />
+          <WorkbookInput className="posfield__input" value={dateText} placeholder="e.g. Mar 12, 2026" disabled={!canEdit} onChange={(e) => { setDateText(e.target.value); saveDebounced({ date: e.target.value }); }} />
         </div>
         <div className="posfield">
           <label className="posfield__label">Evolution</label>
@@ -1035,15 +1036,15 @@ function InterviewEditor({ record, evolutions, canEdit, mefPatch, mefPatchDeboun
         </div>
         <div className="posfield">
           <label className="posfield__label">Personnel (comma separated)</label>
-          <input className="posfield__input" value={personnelText} placeholder="e.g. Lead Reactor Engineer, Senior I&C Designer" disabled={!canEdit} onChange={(e) => { setPersonnelText(e.target.value); saveDebounced({ personnelRoles: splitList(e.target.value) }); }} />
+          <WorkbookInput className="posfield__input" value={personnelText} placeholder="e.g. Lead Reactor Engineer, Senior I&C Designer" disabled={!canEdit} onChange={(e) => { setPersonnelText(e.target.value); saveDebounced({ personnelRoles: splitList(e.target.value) }); }} />
         </div>
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Findings</label>
-          <textarea className="posfield__textarea" value={findingsText} placeholder="What the session confirmed or surfaced." disabled={!canEdit} onChange={(e) => { setFindingsText(e.target.value); saveDebounced({ findings: e.target.value }); }} />
+          <WorkbookTextarea className="posfield__textarea" value={findingsText} placeholder="What the session confirmed or surfaced." disabled={!canEdit} onChange={(e) => { setFindingsText(e.target.value); saveDebounced({ findings: e.target.value }); }} />
         </div>
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Overlooked evolutions identified (comma separated)</label>
-          <input className="posfield__input" value={overlookedText} placeholder="Evolutions the session newly identified" disabled={!canEdit} onChange={(e) => { setOverlookedText(e.target.value); saveDebounced({ overlookedEvolutionsIdentified: splitList(e.target.value) }); }} />
+          <WorkbookInput className="posfield__input" value={overlookedText} placeholder="Evolutions the session newly identified" disabled={!canEdit} onChange={(e) => { setOverlookedText(e.target.value); saveDebounced({ overlookedEvolutionsIdentified: splitList(e.target.value) }); }} />
         </div>
       </div>
       {canEdit && (
@@ -1271,17 +1272,17 @@ function ScreeningEditorRow({ row, canEdit, mefPatch, mefPatchDebounced }: {
         {!row.retained && (
           <div className="posfield">
             <label className="posfield__label">Quantitative basis (optional)</label>
-            <input className="posfield__input" value={quantText} placeholder="Frequency or fraction" disabled={!canEdit} onChange={(e) => onQuant(e.target.value)} />
+            <WorkbookInput className="posfield__input" value={quantText} placeholder="Frequency or fraction" disabled={!canEdit} onChange={(e) => onQuant(e.target.value)} />
           </div>
         )}
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Justification</label>
-          <textarea className="posfield__textarea" value={justText} placeholder={row.retained ? "Why this state is retained for analysis…" : "Why screening out leaves downstream results unchanged…"} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />
+          <WorkbookTextarea className="posfield__textarea" value={justText} placeholder={row.retained ? "Why this state is retained for analysis…" : "Why screening out leaves downstream results unchanged…"} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />
         </div>
         {!row.retained && row.criterion === "ALTERNATE" && (
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label">Alternate-criterion justification</label>
-            <textarea className="posfield__textarea" value={altText} placeholder="Justify the alternate screening criterion…" disabled={!canEdit} onChange={(e) => onAltJust(e.target.value)} />
+            <WorkbookTextarea className="posfield__textarea" value={altText} placeholder="Justify the alternate screening criterion…" disabled={!canEdit} onChange={(e) => onAltJust(e.target.value)} />
           </div>
         )}
       </div>
@@ -1336,7 +1337,7 @@ function DemandTimeRow({ state, record, canEdit, mefPatch, mefPatchDebounced }: 
         </select>
       </td>
       <td>
-        {record !== undefined && <input className="posfield__input" placeholder="Short note" value={just} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />}
+        {record !== undefined && <WorkbookInput className="posfield__input" placeholder="Short note" value={just} disabled={!canEdit} onChange={(e) => onJust(e.target.value)} />}
       </td>
     </tr>
   );
@@ -1414,7 +1415,7 @@ function SeparationEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: 
           </div>
           <div className="posfield">
             <label className="posfield__label">Why they stay separate</label>
-            <input className="posfield__input" placeholder="Short reason" value={basis} onChange={(e) => setBasis(e.target.value)} />
+            <WorkbookInput className="posfield__input" placeholder="Short reason" value={basis} onChange={(e) => setBasis(e.target.value)} />
           </div>
           <div className="posbasis__actions">
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={picked.size < 2 || basis.trim().length === 0} onClick={add}>Add separation</button>
@@ -1492,7 +1493,7 @@ function SubsumptionEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?:
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Why it is covered</label>
-              <input className="posfield__input" placeholder="Short reason" value={just} onChange={(e) => setJust(e.target.value)} />
+              <WorkbookInput className="posfield__input" placeholder="Short reason" value={just} onChange={(e) => setJust(e.target.value)} />
             </div>
           </div>
           <div className="posbasis__actions">
@@ -1693,15 +1694,15 @@ function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
       <div className="posfield-grid">
         <div className="posfield">
           <label className="posfield__label">Mean duration (h/yr)</label>
-          <input className="posfield__input" value={durationText} disabled={!canEdit} onChange={(e) => onDuration(e.target.value)} />
+          <WorkbookInput className="posfield__input" value={durationText} disabled={!canEdit} onChange={(e) => onDuration(e.target.value)} />
         </div>
         <div className="posfield">
           <label className="posfield__label">Entry frequency (per year)</label>
-          <input className="posfield__input" value={freqText} disabled={!canEdit} onChange={(e) => onFreq(e.target.value)} />
+          <WorkbookInput className="posfield__input" value={freqText} disabled={!canEdit} onChange={(e) => onFreq(e.target.value)} />
         </div>
         <div className="posfield posfield-grid--span2">
           <label className="posfield__label">Basis</label>
-          <input className="posfield__input" value={basisText} placeholder="Cite the cycle-plan section or vendor letter…" disabled={!canEdit} onChange={(e) => onBasis(e.target.value)} />
+          <WorkbookInput className="posfield__input" value={basisText} placeholder="Cite the cycle-plan section or vendor letter…" disabled={!canEdit} onChange={(e) => onBasis(e.target.value)} />
         </div>
       </div>
     </div>
@@ -1727,10 +1728,10 @@ function CycleBasisField({ hours, canEdit, mefPatchDebounced }: { hours: number;
     if (v.trim().length === 0 || Number.isNaN(n) || n <= 0) return;
     mefPatchDebounced((d) => patchCycleHours(d, n));
   }
-  if (!canEdit) return <div className="posstat__value"><input className="posfield__input" value={formatNumber(hours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>;
+  if (!canEdit) return <div className="posstat__value"><WorkbookInput className="posfield__input" value={formatNumber(hours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>;
   return (
     <div className="posstat__value">
-      <input className="posfield__input" value={text} onChange={(e) => onChange(e.target.value)} style={{ width: 96 }} />
+      <WorkbookInput className="posfield__input" value={text} onChange={(e) => onChange(e.target.value)} style={{ width: 96 }} />
       <span className="posstat__unit">h/yr</span>
     </div>
   );
@@ -1765,7 +1766,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
         <div className="posstats">
           <div className="posstat">
             <div className="posstat__label">Sum of state durations</div>
-            <div className="posstat__value"><input className="posfield__input" value={formatNumber(recon.summedHours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
+            <div className="posstat__value"><WorkbookInput className="posfield__input" value={formatNumber(recon.summedHours)} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
           </div>
           <div className="posstat">
             <div className="posstat__label">Cycle basis</div>
@@ -1773,7 +1774,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
           </div>
           <div className={`posstat${recon.withinTolerance ? "" : " posstat--warn"}`}>
             <div className="posstat__label">Delta</div>
-            <div className="posstat__value"><input className="posfield__input" value={deltaLabel} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
+            <div className="posstat__value"><WorkbookInput className="posfield__input" value={deltaLabel} disabled style={{ width: 96 }} /><span className="posstat__unit">h/yr</span></div>
           </div>
         </div>
       </div>
@@ -1951,10 +1952,10 @@ function DecayHeatRow({ state, recorded, powerMw, operatingDays, method, canEdit
         <div className="postable__name">{stateLabel(state.name)}</div>
         <span className="postable__name-sub">{state.description}</span>
       </td>
-      <td><input className="posfield__input" value={timeText} placeholder="hours" style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onTime(e.target.value)} /></td>
+      <td><WorkbookInput className="posfield__input" value={timeText} placeholder="hours" style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onTime(e.target.value)} /></td>
       <td>
         <div className="posrow" style={{ gap: 6, alignItems: "center" }}>
-          <input className="posfield__input" value={mwText} style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
+          <WorkbookInput className="posfield__input" value={mwText} style={{ width: 104, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onMw(e.target.value)} />
           {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" disabled={!canCompute} onClick={compute}>Compute</button>}
         </div>
       </td>
@@ -1984,7 +1985,7 @@ function OperatingDaysField({ days, canEdit, mefPatchDebounced }: {
   return (
     <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 10 }}>
       <span className="possubtle">Full-power operating time before shutdown (days)</span>
-      <input className="posfield__input" value={text} placeholder="days" style={{ width: 130, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookInput className="posfield__input" value={text} placeholder="days" style={{ width: 130, fontFamily: DECAY_FONT }} disabled={!canEdit} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -2281,12 +2282,12 @@ function DecayHeatCurveCard({ curve, powerMw, stateMarkers, canEdit, mefPatch, m
 
 function CurveNameInput({ value, onCommit }: { value: string; onCommit: (v: string) => void }): JSX.Element {
   const [text, setText] = useState(value);
-  return <input className="posfield__input" style={{ fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
+  return <WorkbookInput className="posfield__input" style={{ fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
 }
 
 function CurveNumberInput({ value, width, onCommit }: { value: number; width: number; onCommit: (v: string) => void }): JSX.Element {
   const [text, setText] = useState(String(value));
-  return <input className="posfield__input" style={{ width, fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
+  return <WorkbookInput className="posfield__input" style={{ width, fontFamily: DECAY_FONT }} value={text} onChange={(e) => { setText(e.target.value); onCommit(e.target.value); }} />;
 }
 
 function DraftScreen({

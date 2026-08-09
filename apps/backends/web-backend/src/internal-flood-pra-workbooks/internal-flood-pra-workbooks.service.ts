@@ -12,6 +12,7 @@ import { WorkbookSignoff, type WorkbookSignoffDocument } from "../workbooks/work
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { createBlankInternalFloodPra } from "./blank-internal-flood-pra";
 import { InternalFloodPraWorkbook, type InternalFloodPraWorkbookDocument } from "./internal-flood-pra-workbook.schema";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface InternalFloodPraWorkbookResponse { workbookId: string; projectId: string; ownerUsername: string; mef: unknown; myRoles: WorkbookRoleName[]; hasPreviousMef: boolean; updatedAt: string }
 interface ActingUser { username: string }
@@ -58,10 +59,10 @@ export class InternalFloodPraWorkbooksService {
   async findOne(workbookId: string, acting: ActingUser): Promise<InternalFloodPraWorkbookResponse> {
     const doc = await this.findOrInitialize(workbookId, acting); await this.projectsService.resolveAccess(doc.projectId, acting); return toResponse(doc, await this.loadMyRoles(workbookId, acting.username));
   }
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<InternalFloodPraWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<InternalFloodPraWorkbookResponse> {
     const doc = await this.findOrInitialize(workbookId, acting); const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this Internal Flood PRA workbook");
-    const parsed = InternalFloodPRASchema.safeParse(stripNulls(mef));
+    const parsed = InternalFloodPRASchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) throw new ForbiddenException(`Invalid Internal Flood PRA workbook payload: ${parsed.error.message}`);
     doc.mef = synchronizeInternalFloodPraDerivedRegisters(parsed.data); await doc.save(); return toResponse(doc, await this.loadMyRoles(workbookId, acting.username));
   }

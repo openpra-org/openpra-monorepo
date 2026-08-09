@@ -11,6 +11,7 @@ import { RcDocumentsService } from "./rc-documents.service";
 import { createBlankRc } from "./blank-rc";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface RcWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class RcWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<RcWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<RcWorkbookResponse> {
     const doc = await this.rcWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RC workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this RC workbook");
-    const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = RadiologicalConsequenceAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid RC workbook payload: ${parsed.error.message}`);
     }

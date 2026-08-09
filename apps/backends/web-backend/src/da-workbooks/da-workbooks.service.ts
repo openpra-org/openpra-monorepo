@@ -11,6 +11,7 @@ import { DaDocumentsService } from "./da-documents.service";
 import { createBlankDa } from "./blank-da";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface DaWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class DaWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<DaWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<DaWorkbookResponse> {
     const doc = await this.daWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("DA workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this DA workbook");
-    const parsed = DataAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = DataAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid DA workbook payload: ${parsed.error.message}`);
     }

@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 
@@ -19,8 +20,8 @@ async function getEsWorkbook(workbookId: string): Promise<EsWorkbookResponse> {
   return fetchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`);
 }
 
-async function patchEsWorkbook(workbookId: string, mef: EventSequenceAnalysis): Promise<EsWorkbookResponse> {
-  return patchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`, { mef });
+async function patchEsWorkbook(workbookId: string, current: EventSequenceAnalysis, mef: EventSequenceAnalysis): Promise<EsWorkbookResponse> {
+  return patchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface EsExampleOption {

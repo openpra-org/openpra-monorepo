@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { ESQIcon } from "./esqIcons";
 import { listEsqDocuments, uploadEsqDocument, deleteEsqDocument, getEsqDocumentDownload, type EsqDocumentEntry } from "./esqWorkbookApi";
@@ -59,7 +60,7 @@ function EsqDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit
         {canEdit && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <ESQIcon.Plus /> {busy ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={onUpload} disabled={busy} />
+            <WorkbookInput type="file" hidden onChange={onUpload} disabled={busy} />
           </label>
         )}
       </div>

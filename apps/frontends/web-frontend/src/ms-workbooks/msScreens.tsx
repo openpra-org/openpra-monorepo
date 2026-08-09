@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { MSIcon } from "./msIcons";
 import { Badge, MsProvenanceChip, valText, fracText, pctText } from "./msShared";
@@ -116,7 +117,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
         <p className="poscard__sub">Describe what this mechanistic source-term analysis covers and what it excludes.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           placeholder="State the in-scope release categories, sources of radioactive material, and explicit exclusions."
           rows={4}
@@ -159,7 +160,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: editable ? "pointer" : "default", opacity: !editable && stage !== val ? 0.6 : 1, borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="ms-stage" value={val} checked={stage === val} disabled={!editable} onChange={() => onStageChange(val)} />
+                <WorkbookInput type="radio" name="ms-stage" value={val} checked={stage === val} disabled={!editable} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

@@ -11,6 +11,7 @@ import { EsqDocumentsService } from "./esq-documents.service";
 import { createBlankEsq } from "./blank-esq";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface EsqWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class EsqWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<EsqWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<EsqWorkbookResponse> {
     const doc = await this.esqWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ESQ workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this ESQ workbook");
-    const parsed = EventSequenceQuantificationSchema.safeParse(stripNulls(mef));
+    const parsed = EventSequenceQuantificationSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid ESQ workbook payload: ${parsed.error.message}`);
     }

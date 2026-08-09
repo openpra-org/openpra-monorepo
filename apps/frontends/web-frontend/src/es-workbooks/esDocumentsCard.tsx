@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { ESIcon } from "./esIcons";
 import { listEsDocuments, uploadEsDocument, deleteEsDocument, getEsDocumentDownload, type EsDocumentEntry } from "./esWorkbookApi";
@@ -68,7 +69,7 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
         {canUpload && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <ESIcon.Plus /> {busy ? "Uploading…" : "Upload"}
-            <input type="file" hidden onChange={onUpload} disabled={busy} />
+            <WorkbookInput type="file" hidden onChange={onUpload} disabled={busy} />
           </label>
         )}
       </div>

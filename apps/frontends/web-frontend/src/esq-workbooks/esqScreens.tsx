@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { ESQIcon } from "./esqIcons";
 import { Badge, EsqProvenanceChip, valText, pctText } from "./esqShared";
@@ -122,7 +123,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
         <p className="poscard__sub">Describe what this event-sequence quantification covers and what it excludes.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           placeholder="State the in-scope sources, initiating-event groups, hazard groups, operating states, and explicit exclusions."
           rows={4}
@@ -165,7 +166,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
           ] as [Stage, string, string][]).map(([val, title, body]) => (
             <label key={val} className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined }}>
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="esq-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
+                <WorkbookInput type="radio" name="esq-stage" value={val} checked={stage === val} onChange={() => onStageChange(val)} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 3 }}>{body}</div>

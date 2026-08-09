@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { RIIcon } from "./riIcons";
 
@@ -18,7 +19,7 @@ function RiTextField({ label, value, onChange, disabled, placeholder }: { label:
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <input className="posfield__input" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookInput className="posfield__input" value={value} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -27,7 +28,7 @@ function RiAreaField({ label, value, onChange, disabled, rows = 3 }: { label: st
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <textarea className="posfield__textarea" rows={rows} style={{ resize: "vertical" }} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <WorkbookTextarea className="posfield__textarea" rows={rows} style={{ resize: "vertical" }} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -36,7 +37,7 @@ function RiNumberField({ label, value, onChange, disabled }: { label: string; va
   return (
     <div className="posfield">
       <label className="posfield__label">{label}</label>
-      <input className="posfield__input posmono" type="number" step="any" value={value} disabled={disabled} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onChange(v); }} />
+      <WorkbookInput className="posfield__input posmono" type="number" step="any" value={value} disabled={disabled} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) onChange(v); }} />
     </div>
   );
 }
@@ -59,7 +60,7 @@ function RiStringList({ label, values, onChange, disabled, placeholder }: { labe
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {values.map((v, i) => (
           <div key={i} className="posrow" style={{ gap: 6 }}>
-            <input className="posfield__input" style={{ flex: 1 }} value={v} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
+            <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={v} placeholder={placeholder} disabled={disabled} onChange={(e) => onChange(values.map((y, j) => (j === i ? e.target.value : y)))} />
             {!disabled && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => onChange([...values.slice(0, i), ...values.slice(i + 1)])}>Remove</button>}
           </div>
         ))}

@@ -1,3 +1,4 @@
+import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useMemo, useState, useEffect } from "react";
 import {
   InitiatingEventCategory,
@@ -340,14 +341,14 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
           <div className="iefield">
             <label className="iefield__label" htmlFor="ie-scope-units">Units at site</label>
             {siteConfig === "single"
-              ? <input id="ie-scope-units" className="iefield__input iefield__input--locked" value="1" readOnly />
-              : <input id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={numberOfModules} disabled={!editable} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n >= 2) setModules(Math.min(6, Math.round(n))); }} />}
+              ? <WorkbookInput id="ie-scope-units" className="iefield__input iefield__input--locked" value="1" readOnly />
+              : <WorkbookInput id="ie-scope-units" className="iefield__input" type="number" min="2" max="6" value={numberOfModules} disabled={!editable} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n >= 2) setModules(Math.min(6, Math.round(n))); }} />}
           </div>
 
           {/* Multi-unit IE-A16 */}
           <div className="iefield">
             <label className="iefield__label">Multi-unit initiating events (IE-A16)</label>
-            <input className="iefield__input iefield__input--locked" value={multiUnitText} readOnly />
+            <WorkbookInput className="iefield__input iefield__input--locked" value={multiUnitText} readOnly />
           </div>
 
         </div>
@@ -441,7 +442,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
               style={{ flex: 1, minWidth: 260, cursor: "pointer", borderColor: stage === val ? "var(--color-primary)" : undefined, boxShadow: stage === val ? "0 0 0 3px var(--color-primary-focus)" : undefined }}
             >
               <div className="posrow" style={{ alignItems: "flex-start", gap: 12 }}>
-                <input type="radio" name="ie-plant-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
+                <WorkbookInput type="radio" name="ie-plant-stage" value={val} checked={stage === val} onChange={() => setStage(val)} />
                 <div>
                   <div style={{ fontWeight: 700, color: "var(--color-text)", fontSize: 14, marginBottom: 4 }}>{title}</div>
                   <div className="possubtle" style={{ fontSize: 12.5, lineHeight: 1.5 }}>{body}</div>
@@ -569,7 +570,7 @@ function MethodsScreen(): JSX.Element {
             </button>
             <div className="ftspace__titlewrap">
               {editingTitle ? (
-                <input
+                <WorkbookInput
                   className="ftspace__title-input"
                   value={treeTitle}
                   onChange={(e) => setTreeTitleOverride(e.target.value)}
@@ -1097,20 +1098,19 @@ function FreqInput({ value, onChange }: { value: number; onChange: (v: number) =
     if (!focused) setText(value > 0 ? String(value) : "");
   }, [value, focused]);
   return (
-    <input
+    <WorkbookInput
       className="iefreq__input"
       type="text"
       inputMode="decimal"
       value={text}
       placeholder="e.g. 3e-2"
       onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => {
-        const t = e.target.value;
-        setText(t);
-        const n = Number(t);
-        if (t.trim() !== "" && isFinite(n) && n >= 0) onChange(n);
+      onBlur={() => {
+        setFocused(false);
+        const next = Number(text);
+        if (text.trim() !== "" && isFinite(next) && next >= 0 && next !== value) onChange(next);
       }}
+      onChange={(e) => setText(e.target.value)}
     />
   );
 }

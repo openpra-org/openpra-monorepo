@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type EventSequenceFamilyQuantification, type QuantificationMethods, type ComputerCodeRecord, type ConvergenceAnalysis, type FlagEventSetting, type MutuallyExclusiveEventRule, type CircularLogicResolution, type ModuleUsageRecord, type SystemSuccessTreatment, type DependencyTreatment, type MultiHfeCutsetIdentification, type LinkingTransferRecord, type PhenomenaDependencyAssessment, type PhenomenaModelLogic, type EquipmentSurvivabilityAssessment, type RadionuclideBarrierQuantification, type RiskSignificantContributor, type ModelUncertaintySourceAssessment } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { DistributionType } from "interfaces-mef-types/core/events";
@@ -597,28 +598,28 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Name</label><input className="posfield__input" value={f.name} disabled={!editable} onChange={(e) => patchFamily({ name: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={f.name} disabled={!editable} onChange={(e) => patchFamily({ name: e.target.value })} /></div>
           <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Sequence family</label>{(links?.esFamilies ?? []).length > 0 ? <select className="posfield__select" value={f.eventSequenceFamilyRef} disabled={!editable} onChange={(e) => patchFamily({ eventSequenceFamilyRef: e.target.value })}><option value="">—</option>{(links?.esFamilies ?? []).map((x) => <option key={x.id} value={x.id}>{x.id} · {x.name}</option>)}</select> : <input className="posfield__input posmono" value={f.eventSequenceFamilyRef} disabled={!editable} onChange={(e) => patchFamily({ eventSequenceFamilyRef: e.target.value })} />}</div>
+            <div className="posfield"><label className="posfield__label">Sequence family</label>{(links?.esFamilies ?? []).length > 0 ? <select className="posfield__select" value={f.eventSequenceFamilyRef} disabled={!editable} onChange={(e) => patchFamily({ eventSequenceFamilyRef: e.target.value })}><option value="">—</option>{(links?.esFamilies ?? []).map((x) => <option key={x.id} value={x.id}>{x.id} · {x.name}</option>)}</select> : <WorkbookInput className="posfield__input posmono" value={f.eventSequenceFamilyRef} disabled={!editable} onChange={(e) => patchFamily({ eventSequenceFamilyRef: e.target.value })} />}</div>
             <div className="posfield"><label className="posfield__label">Quantification basis</label><select className="posfield__select" value={f.quantificationBasis} disabled={!editable} onChange={(e) => patchFamily({ quantificationBasis: e.target.value as EventSequenceFamilyQuantification["quantificationBasis"] })}>{Object.entries(QUANT_BASIS_LABELS).map(([id, x]) => <option key={id} value={id}>{x.label}</option>)}</select></div>
-            <div className="posfield"><label className="posfield__label">Mean frequency (/yr)</label><input className="posfield__input" type="number" step="any" value={familyMeanFrequency(f)} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchFamily({ meanFrequency: v }); }} /></div>
-            <div className="posfield"><label className="posfield__label">Median (/yr)</label><input className="posfield__input" type="number" step="any" value={dist?.median ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchDist(v, undefined); }} /></div>
-            <div className="posfield"><label className="posfield__label">Error factor</label><input className="posfield__input" type="number" step="any" value={dist?.errorFactor ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchDist(undefined, v); }} /></div>
+            <div className="posfield"><label className="posfield__label">Mean frequency (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={familyMeanFrequency(f)} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchFamily({ meanFrequency: v }); }} /></div>
+            <div className="posfield"><label className="posfield__label">Median (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={dist?.median ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchDist(v, undefined); }} /></div>
+            <div className="posfield"><label className="posfield__label">Error factor</label><WorkbookInput className="posfield__input" type="number" step="any" value={dist?.errorFactor ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchDist(undefined, v); }} /></div>
             <div className="posfield"><label className="posfield__label">Dependencies in grouping</label><select className="posfield__select" value={f.dependenciesConsideredInGrouping ? "yes" : "no"} disabled={!editable} onChange={(e) => patchFamily({ dependenciesConsideredInGrouping: e.target.value === "yes" })}><option value="yes">Considered</option><option value="no">Not considered</option></select></div>
-            <div className="posfield"><label className="posfield__label">P05 (/yr)</label><input className="posfield__input" type="number" step="any" value={f.percentile05 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile05", e.target.value)} /></div>
-            <div className="posfield"><label className="posfield__label">P50 (/yr)</label><input className="posfield__input" type="number" step="any" value={f.percentile50 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile50", e.target.value)} /></div>
-            <div className="posfield"><label className="posfield__label">P95 (/yr)</label><input className="posfield__input" type="number" step="any" value={f.percentile95 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile95", e.target.value)} /></div>
+            <div className="posfield"><label className="posfield__label">P05 (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={f.percentile05 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile05", e.target.value)} /></div>
+            <div className="posfield"><label className="posfield__label">P50 (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={f.percentile50 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile50", e.target.value)} /></div>
+            <div className="posfield"><label className="posfield__label">P95 (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={f.percentile95 ?? ""} disabled={!editable} onChange={(e) => patchPercentile("percentile95", e.target.value)} /></div>
           </div>
-          <div className="posfield"><label className="posfield__label">How it is quantified</label><textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={f.representativeSequenceSelectionBasis ?? ""} disabled={!editable} onChange={(e) => patchFamily({ representativeSequenceSelectionBasis: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Cross-state grouping</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossPosGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossPosGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Cross-source grouping</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossSourceGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossSourceGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">How it is quantified</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={f.representativeSequenceSelectionBasis ?? ""} disabled={!editable} onChange={(e) => patchFamily({ representativeSequenceSelectionBasis: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Cross-state grouping</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossPosGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossPosGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Cross-source grouping</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossSourceGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossSourceGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
             <div className="essec">Contribution breakdown</div>
             {contribs.map((c, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input" style={{ flex: 2 }} value={c.contributorRef} disabled={!editable} onChange={(e) => patchContrib(i, { contributorRef: e.target.value })} />
+                <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={c.contributorRef} disabled={!editable} onChange={(e) => patchContrib(i, { contributorRef: e.target.value })} />
                 <select className="posfield__select" style={{ flex: 1 }} value={c.contributorType} disabled={!editable} onChange={(e) => patchContrib(i, { contributorType: e.target.value })}>{Object.entries(CONTRIBUTOR_TYPE_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
-                <input className="posfield__input" type="number" step="any" style={{ width: 90 }} value={c.fractionalContribution} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchContrib(i, { fractionalContribution: v }); }} />
+                <WorkbookInput className="posfield__input" type="number" step="any" style={{ width: 90 }} value={c.fractionalContribution} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchContrib(i, { fractionalContribution: v }); }} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchFamily({ contributionBreakdown: contribs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -628,7 +629,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="essec">Significant uncertainty sources</div>
             {sources.map((u, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input" style={{ flex: 1 }} value={u} disabled={!editable} onChange={(e) => patchFamily({ significantUncertaintySources: sources.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={u} disabled={!editable} onChange={(e) => patchFamily({ significantUncertaintySources: sources.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchFamily({ significantUncertaintySources: sources.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -668,17 +669,17 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         </div>
         <div className="posdrawer__body">
           <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Name</label><input className="posfield__input" value={c.name} disabled={!editable} onChange={(e) => patchCode({ name: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Version</label><input className="posfield__input posmono" value={c.version} disabled={!editable} onChange={(e) => patchCode({ version: e.target.value })} /></div>
+            <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={c.name} disabled={!editable} onChange={(e) => patchCode({ name: e.target.value })} /></div>
+            <div className="posfield"><label className="posfield__label">Version</label><WorkbookInput className="posfield__input posmono" value={c.version} disabled={!editable} onChange={(e) => patchCode({ version: e.target.value })} /></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Verification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.verificationDocumentation} disabled={!editable} onChange={(e) => patchCode({ verificationDocumentation: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Validation</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.validationDocumentation} disabled={!editable} onChange={(e) => patchCode({ validationDocumentation: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Benchmark comparison</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.benchmarkComparison ?? ""} disabled={!editable} onChange={(e) => patchCode({ benchmarkComparison: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Verification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.verificationDocumentation} disabled={!editable} onChange={(e) => patchCode({ verificationDocumentation: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Validation</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.validationDocumentation} disabled={!editable} onChange={(e) => patchCode({ validationDocumentation: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Benchmark comparison</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.benchmarkComparison ?? ""} disabled={!editable} onChange={(e) => patchCode({ benchmarkComparison: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
             <div className="essec">Features</div>
             {feats.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificFeatures: feats.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificFeatures: feats.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchCode({ methodSpecificFeatures: feats.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -688,7 +689,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="essec">Method-specific limitations</div>
             {limits.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificLimitations: limits.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificLimitations: limits.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchCode({ methodSpecificLimitations: limits.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -734,7 +735,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__body">
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Truncation method</label><select className="posfield__select" value={t.truncationMethod} disabled={!editable} onChange={(e) => patchTrunc({ truncationMethod: e.target.value as ConvergenceAnalysis["truncationMethod"] })}>{Object.entries(TRUNCATION_METHOD_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
-            <div className="posfield"><label className="posfield__label">Final truncation value (/yr)</label><input className="posfield__input" type="number" step="any" value={t.finalTruncationValue} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchTrunc({ finalTruncationValue: v }); }} /></div>
+            <div className="posfield"><label className="posfield__label">Final truncation value (/yr)</label><WorkbookInput className="posfield__input" type="number" step="any" value={t.finalTruncationValue} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchTrunc({ finalTruncationValue: v }); }} /></div>
             <div className="posfield"><label className="posfield__label">Demonstrated family</label><select className="posfield__select" value={t.demonstratedFamilyRef ?? ""} disabled={!editable} onChange={(e) => patchTrunc({ demonstratedFamilyRef: e.target.value === "" ? undefined : e.target.value })}><option value="">—</option>{esq.familyQuantifications.map((fq) => <option key={fq.uuid} value={fq.uuid}>{fq.uuid} · {fq.name}</option>)}</select></div>
             <div className="posfield"><label className="posfield__label">Dependencies preserved</label><select className="posfield__select" value={t.dependenciesPreservedAtTruncation ? "yes" : "no"} disabled={!editable} onChange={(e) => patchTrunc({ dependenciesPreservedAtTruncation: e.target.value === "yes" })}><option value="yes">Confirmed</option><option value="no">Not confirmed</option></select></div>
             <div className="posfield"><label className="posfield__label">Merged cutsets re-confirmed</label><select className="posfield__select" value={t.mergedCutsetTruncationConfirmed === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patchTrunc({ mergedCutsetTruncationConfirmed: e.target.value === "yes" })}><option value="yes">Confirmed</option><option value="no">Not confirmed</option></select></div>
@@ -747,17 +748,17 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             </div>
             {rows.map((r, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input posmono" type="number" step="any" style={{ flex: 1 }} value={r.cutoff} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) applyRows(rows.map((y, j) => (j === i ? { ...y, cutoff: v } : y))); }} />
-                <input className="posfield__input posmono" type="number" step="any" style={{ flex: 1 }} value={r.freq} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) applyRows(rows.map((y, j) => (j === i ? { ...y, freq: v } : y))); }} />
+                <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ flex: 1 }} value={r.cutoff} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) applyRows(rows.map((y, j) => (j === i ? { ...y, cutoff: v } : y))); }} />
+                <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ flex: 1 }} value={r.freq} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) applyRows(rows.map((y, j) => (j === i ? { ...y, freq: v } : y))); }} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => applyRows(rows.filter((_, j) => j !== i))}><ESQIcon.Close /></button>}
               </div>
             ))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => applyRows([...rows, { cutoff: rows.length > 0 ? rows[rows.length - 1].cutoff / 10 : 1e-9, freq: rows.length > 0 ? rows[rows.length - 1].freq : 0 }])}><ESQIcon.Plus /> Add cutoff</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Basis for selection</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.basisForSelection} disabled={!editable} onChange={(e) => patchTrunc({ basisForSelection: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Convergence demonstration</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.convergenceDemonstration} disabled={!editable} onChange={(e) => patchTrunc({ convergenceDemonstration: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Merged-cutset confirmation basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.mergedCutsetConfirmationBasis ?? ""} disabled={!editable} onChange={(e) => patchTrunc({ mergedCutsetConfirmationBasis: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Truncation sensitivity</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.truncationSensitivity ?? ""} disabled={!editable} onChange={(e) => patchTrunc({ truncationSensitivity: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Basis for selection</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.basisForSelection} disabled={!editable} onChange={(e) => patchTrunc({ basisForSelection: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Convergence demonstration</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.convergenceDemonstration} disabled={!editable} onChange={(e) => patchTrunc({ convergenceDemonstration: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Merged-cutset confirmation basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.mergedCutsetConfirmationBasis ?? ""} disabled={!editable} onChange={(e) => patchTrunc({ mergedCutsetConfirmationBasis: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Truncation sensitivity</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.truncationSensitivity ?? ""} disabled={!editable} onChange={(e) => patchTrunc({ truncationSensitivity: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {t.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}
           </div>
@@ -787,10 +788,10 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Cutset solution method</label><select className="posfield__select" value={qm.cutsetSolutionMethod ?? ""} disabled={!editable} onChange={(e) => { const method = e.target.value === "" ? undefined : (e.target.value as QuantificationMethods["cutsetSolutionMethod"]); patchQm(method === "RARE_EVENT" ? { cutsetSolutionMethod: method } : { cutsetSolutionMethod: method, rareEventJustification: undefined }); }}><option value="">—</option><option value="MCUB">Minimal cutset upper bound</option><option value="EXACT">Exact solution</option><option value="RARE_EVENT">Rare-event approximation</option></select></div>
           </div>
           {qm.cutsetSolutionMethod === "RARE_EVENT" && (
-            <div className="posfield"><label className="posfield__label">Rare-event justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.rareEventJustification ?? ""} disabled={!editable} onChange={(e) => patchQm({ rareEventJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+            <div className="posfield"><label className="posfield__label">Rare-event justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.rareEventJustification ?? ""} disabled={!editable} onChange={(e) => patchQm({ rareEventJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           )}
-          <div className="posfield"><label className="posfield__label">Method discrimination</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.methodDiscriminationJustification} disabled={!editable} onChange={(e) => patchQm({ methodDiscriminationJustification: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Post-initiator HFE handling</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.postInitiatorHfeHandling ?? ""} disabled={!editable} onChange={(e) => patchQm({ postInitiatorHfeHandling: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Method discrimination</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.methodDiscriminationJustification} disabled={!editable} onChange={(e) => patchQm({ methodDiscriminationJustification: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Post-initiator HFE handling</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={qm.postInitiatorHfeHandling ?? ""} disabled={!editable} onChange={(e) => patchQm({ postInitiatorHfeHandling: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {qm.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}
           </div>
@@ -817,10 +818,10 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Name</label><input className="posfield__input" value={f.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Purpose</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.purpose} disabled={!editable} onChange={(e) => patch({ purpose: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Effect</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.effect} disabled={!editable} onChange={(e) => patch({ effect: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={f.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Purpose</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.purpose} disabled={!editable} onChange={(e) => patch({ purpose: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Effect</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.effect} disabled={!editable} onChange={(e) => patch({ effect: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">State</label><select className="posfield__select" value={f.state ? "true" : "false"} disabled={!editable} onChange={(e) => patch({ state: e.target.value === "true" })}><option value="true">True</option><option value="false">False</option></select></div>
             <div className="posfield"><label className="posfield__label">Set before cutset generation</label><select className="posfield__select" value={f.setPriorToCutsetGeneration ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ setPriorToCutsetGeneration: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
@@ -861,8 +862,8 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Description</label><input className="posfield__input" value={m.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Description</label><WorkbookInput className="posfield__input" value={m.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Treatment</label><select className="posfield__select" value={m.treatment} disabled={!editable} onChange={(e) => patch({ treatment: e.target.value as MutuallyExclusiveEventRule["treatment"] })}>{Object.entries(MUTEX_TREATMENT_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
             <div className="posfield"><label className="posfield__label">Identified in results</label><select className="posfield__select" value={m.identifiedInResults ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ identifiedInResults: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
@@ -871,13 +872,13 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="essec">Events that cannot coexist</div>
             {evs.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ eventIds: evs.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ eventIds: evs.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ eventIds: evs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ eventIds: [...evs, ""] })}><ESQIcon.Plus /> Add event</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Retention justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.retentionJustification ?? ""} disabled={!editable} onChange={(e) => patch({ retentionJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Retention justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.retentionJustification ?? ""} disabled={!editable} onChange={(e) => patch({ retentionJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{m.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove rule</button>}
         </div>
@@ -903,16 +904,16 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Description</label><input className="posfield__input" value={c.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Detection method</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.detectionMethod} disabled={!editable} onChange={(e) => patch({ detectionMethod: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Description</label><WorkbookInput className="posfield__input" value={c.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Detection method</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.detectionMethod} disabled={!editable} onChange={(e) => patch({ detectionMethod: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Resolution method</label><select className="posfield__select" value={c.resolutionMethod} disabled={!editable} onChange={(e) => patch({ resolutionMethod: e.target.value as CircularLogicResolution["resolutionMethod"] })}>{Object.entries(CIRCULAR_METHOD_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
-          <div className="posfield"><label className="posfield__label">Resolution description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.resolutionDescription} disabled={!editable} onChange={(e) => patch({ resolutionDescription: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Neutrality justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.neutralityJustification} disabled={!editable} onChange={(e) => patch({ neutralityJustification: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Resolution description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.resolutionDescription} disabled={!editable} onChange={(e) => patch({ resolutionDescription: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Neutrality justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.neutralityJustification} disabled={!editable} onChange={(e) => patch({ neutralityJustification: e.target.value })} /></div>
           <div>
             <div className="essec">Systems in the loop</div>
             {els.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ involvedElementIds: els.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ involvedElementIds: els.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ involvedElementIds: els.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -943,7 +944,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         </div>
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Module type</label><select className="posfield__select" value={m.moduleType} disabled={!editable} onChange={(e) => patch({ moduleType: e.target.value as ModuleUsageRecord["moduleType"] })}>{Object.entries(MODULE_TYPE_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
-          <div className="posfield"><label className="posfield__label">Process description</label><textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={m.processDescription} disabled={!editable} onChange={(e) => patch({ processDescription: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Process description</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={m.processDescription} disabled={!editable} onChange={(e) => patch({ processDescription: e.target.value })} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Shared events identified</label><select className="posfield__select" value={m.sharedEventsIdentified ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ sharedEventsIdentified: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
             <div className="posfield"><label className="posfield__label">Independence verified</label><select className="posfield__select" value={m.trueIndependenceVerified ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ trueIndependenceVerified: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
@@ -970,13 +971,13 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Treatment method</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.treatmentMethod} disabled={!editable} onChange={(e) => patch({ treatmentMethod: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Impact on results</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.impactOnResults} disabled={!editable} onChange={(e) => patch({ impactOnResults: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Treatment method</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.treatmentMethod} disabled={!editable} onChange={(e) => patch({ treatmentMethod: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Impact on results</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.impactOnResults} disabled={!editable} onChange={(e) => patch({ impactOnResults: e.target.value })} /></div>
           <div>
             <div className="essec">Systems with success modeled</div>
             {systems.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ systemsWithSuccessModeled: systems.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ systemsWithSuccessModeled: systems.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ systemsWithSuccessModeled: systems.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -986,7 +987,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="essec">Modeling examples</div>
             {examples.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ modelingExamples: examples.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ modelingExamples: examples.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ modelingExamples: examples.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -1013,13 +1014,13 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           {rows.map((r, i) => (
             <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
               <label className="posfield__label">{DEPENDENCY_TYPE_LABELS[r.type] ?? r.type}</label>
-              <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.treatmentDescription} disabled={!editable} onChange={(e) => patch({ dependenciesByType: rows.map((y, j) => (j === i ? { ...y, treatmentDescription: e.target.value } : y)) })} />
-              <input className="posfield__input" style={{ marginTop: 6 }} value={(r.examples ?? [])[0] ?? ""} disabled={!editable} placeholder="Example" onChange={(e) => patch({ dependenciesByType: rows.map((y, j) => (j === i ? { ...y, examples: e.target.value === "" ? [] : [e.target.value] } : y)) })} />
+              <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.treatmentDescription} disabled={!editable} onChange={(e) => patch({ dependenciesByType: rows.map((y, j) => (j === i ? { ...y, treatmentDescription: e.target.value } : y)) })} />
+              <WorkbookInput className="posfield__input" style={{ marginTop: 6 }} value={(r.examples ?? [])[0] ?? ""} disabled={!editable} placeholder="Example" onChange={(e) => patch({ dependenciesByType: rows.map((y, j) => (j === i ? { ...y, examples: e.target.value === "" ? [] : [e.target.value] } : y)) })} />
             </div>
           ))}
-          <div className="posfield"><label className="posfield__label">Post-initiator HFE dependency method</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.postInitiatorHfeDependencyMethod} disabled={!editable} onChange={(e) => patch({ postInitiatorHfeDependencyMethod: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Post-initiator HFE dependency basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.postInitiatorHfeDependencyBasis} disabled={!editable} onChange={(e) => patch({ postInitiatorHfeDependencyBasis: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Recovery dependency treatment</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.recoveryDependencyTreatment} disabled={!editable} onChange={(e) => patch({ recoveryDependencyTreatment: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Post-initiator HFE dependency method</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.postInitiatorHfeDependencyMethod} disabled={!editable} onChange={(e) => patch({ postInitiatorHfeDependencyMethod: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Post-initiator HFE dependency basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.postInitiatorHfeDependencyBasis} disabled={!editable} onChange={(e) => patch({ postInitiatorHfeDependencyBasis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Recovery dependency treatment</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.recoveryDependencyTreatment} disabled={!editable} onChange={(e) => patch({ recoveryDependencyTreatment: e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{d.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
         </div>
       </>
@@ -1041,22 +1042,22 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Cutset description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.cutsetDescription} disabled={!editable} onChange={(e) => patch({ cutsetDescription: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Cutset description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.cutsetDescription} disabled={!editable} onChange={(e) => patch({ cutsetDescription: e.target.value })} /></div>
           <div>
             <div className="essec">Human failure events</div>
             {refs.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-                <input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ hfeRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />
+                <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ hfeRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ hfeRefs: refs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ hfeRefs: [...refs, ""] })}><ESQIcon.Plus /> Add HFE</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Potential risk impact</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.potentialRiskImpact} disabled={!editable} onChange={(e) => patch({ potentialRiskImpact: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Potential risk impact</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.potentialRiskImpact} disabled={!editable} onChange={(e) => patch({ potentialRiskImpact: e.target.value })} /></div>
           {app !== undefined && (
             <div className="posfield-grid">
-              <div className="posfield"><label className="posfield__label">HR dependency assessment</label><input className="posfield__input posmono" value={app.hrDependencyAssessmentRef} disabled={!editable} onChange={(e) => patchApp({ hrDependencyAssessmentRef: e.target.value })} /></div>
-              <div className="posfield"><label className="posfield__label">Applied joint HEP</label><input className="posfield__input" type="number" step="any" value={app.appliedJointHep ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchApp({ appliedJointHep: v }); }} /></div>
+              <div className="posfield"><label className="posfield__label">HR dependency assessment</label><WorkbookInput className="posfield__input posmono" value={app.hrDependencyAssessmentRef} disabled={!editable} onChange={(e) => patchApp({ hrDependencyAssessmentRef: e.target.value })} /></div>
+              <div className="posfield"><label className="posfield__label">Applied joint HEP</label><WorkbookInput className="posfield__input" type="number" step="any" value={app.appliedJointHep ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchApp({ appliedJointHep: v }); }} /></div>
             </div>
           )}
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{m.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
@@ -1080,21 +1081,21 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         </div>
         <div className="posdrawer__body">
           <div className="posfield-grid">
-            <div className="posfield"><label className="posfield__label">Source tree</label><input className="posfield__input" value={t.sourceTreeDescription} disabled={!editable} onChange={(e) => patch({ sourceTreeDescription: e.target.value })} /></div>
-            <div className="posfield"><label className="posfield__label">Target tree</label><input className="posfield__input" value={t.targetTreeDescription} disabled={!editable} onChange={(e) => patch({ targetTreeDescription: e.target.value })} /></div>
+            <div className="posfield"><label className="posfield__label">Source tree</label><WorkbookInput className="posfield__input" value={t.sourceTreeDescription} disabled={!editable} onChange={(e) => patch({ sourceTreeDescription: e.target.value })} /></div>
+            <div className="posfield"><label className="posfield__label">Target tree</label><WorkbookInput className="posfield__input" value={t.targetTreeDescription} disabled={!editable} onChange={(e) => patch({ targetTreeDescription: e.target.value })} /></div>
             <div className="posfield"><label className="posfield__label">Frequency transferred</label><select className="posfield__select" value={t.frequencyTransferred ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ frequencyTransferred: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
           </div>
           <div>
             <div className="essec">Failed equipment carried</div>
-            {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ failedEquipmentTransferred: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ failedEquipmentTransferred: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ failedEquipmentTransferred: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ failedEquipmentTransferred: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ failedEquipmentTransferred: [...eqp, ""] })}><ESQIcon.Plus /> Add equipment</button>}
           </div>
           <div>
             <div className="essec">Flag settings carried</div>
-            {flg.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ flagSettingsTransferred: flg.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ flagSettingsTransferred: flg.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {flg.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ flagSettingsTransferred: flg.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ flagSettingsTransferred: flg.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ flagSettingsTransferred: [...flg, ""] })}><ESQIcon.Plus /> Add flag</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Other characteristics carried</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={oc[0] ?? ""} disabled={!editable} onChange={(e) => patch({ otherCharacteristicsTransferred: e.target.value === "" ? [] : [e.target.value] })} /></div>
+          <div className="posfield"><label className="posfield__label">Other characteristics carried</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={oc[0] ?? ""} disabled={!editable} onChange={(e) => patch({ otherCharacteristicsTransferred: e.target.value === "" ? [] : [e.target.value] })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{t.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove transfer</button>}
         </div>
@@ -1115,16 +1116,16 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Phenomenon</label><input className="posfield__input" value={ph.phenomenon} disabled={!editable} onChange={(e) => patch({ phenomenon: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Phenomenon</label><WorkbookInput className="posfield__input" value={ph.phenomenon} disabled={!editable} onChange={(e) => patch({ phenomenon: e.target.value })} /></div>
           <div>
             <div className="essec">Affected systems and components</div>
-            {sscs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ affectedSscRefs: sscs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ affectedSscRefs: sscs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {sscs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ affectedSscRefs: sscs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ affectedSscRefs: sscs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ affectedSscRefs: [...sscs, ""] })}><ESQIcon.Plus /> Add reference</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Dependency assessment</label><textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={ph.dependencyAssessment} disabled={!editable} onChange={(e) => patch({ dependencyAssessment: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Dependency assessment</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={ph.dependencyAssessment} disabled={!editable} onChange={(e) => patch({ dependencyAssessment: e.target.value })} /></div>
           <div>
             <div className="essec">Independence justifications</div>
-            {inds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ independenceJustifications: inds.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ independenceJustifications: inds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {inds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ independenceJustifications: inds.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ independenceJustifications: inds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ independenceJustifications: [...inds, ""] })}><ESQIcon.Plus /> Add justification</button>}
           </div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{ph.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
@@ -1145,14 +1146,14 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.description} disabled={!editable} onChange={(e) => patch({ description: e.target.value })} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Logic included</label><select className="posfield__select" value={pl.logicIncluded ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ logicIncluded: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
             <div className="posfield"><label className="posfield__label">Scrubbing effects</label><select className="posfield__select" value={pl.scrubbingEffectsIncluded === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ scrubbingEffectsIncluded: e.target.value === "yes" })}><option value="yes">Included</option><option value="no">Not included</option></select></div>
             <div className="posfield"><label className="posfield__label">Beneficial failures</label><select className="posfield__select" value={pl.beneficialFailuresIncluded === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ beneficialFailuresIncluded: e.target.value === "yes" })}><option value="yes">Included</option><option value="no">Not included</option></select></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Scrubbing justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.scrubbingJustification ?? ""} disabled={!editable} onChange={(e) => patch({ scrubbingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Beneficial-failure justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.beneficialFailureJustification ?? ""} disabled={!editable} onChange={(e) => patch({ beneficialFailureJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Scrubbing justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.scrubbingJustification ?? ""} disabled={!editable} onChange={(e) => patch({ scrubbingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Beneficial-failure justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={pl.beneficialFailureJustification ?? ""} disabled={!editable} onChange={(e) => patch({ beneficialFailureJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{pl.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
         </div>
       </>
@@ -1174,24 +1175,24 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__body">
           <div>
             <div className="essec">Equipment</div>
-            {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ equipmentRefs: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ equipmentRefs: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ equipmentRefs: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ equipmentRefs: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ equipmentRefs: [...eqp, ""] })}><ESQIcon.Plus /> Add equipment</button>}
           </div>
           <div>
             <div className="essec">Environmental conditions</div>
-            {conds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} placeholder="Type" value={x.type} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, type: e.target.value } : y)) })} /><input className="posfield__input" style={{ flex: 2 }} placeholder="Severity" value={x.severity} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, severity: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ environmentalConditions: conds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {conds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Type" value={x.type} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, type: e.target.value } : y)) })} /><WorkbookInput className="posfield__input" style={{ flex: 2 }} placeholder="Severity" value={x.severity} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, severity: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ environmentalConditions: conds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ environmentalConditions: [...conds, { type: "", severity: "" }] })}><ESQIcon.Plus /> Add condition</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Survivability criteria</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={v.survivabilityCriteria} disabled={!editable} onChange={(e) => patch({ survivabilityCriteria: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Survivability criteria</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={v.survivabilityCriteria} disabled={!editable} onChange={(e) => patch({ survivabilityCriteria: e.target.value })} /></div>
           <div>
             <div className="essec">Results</div>
-            {res.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><span className={`esqstate esqstate--${x.survives ? "on" : "off"}`}><span className="esqstate__dot" />{x.survives ? "Survives" : "Fails"}</span><input className="posfield__input" style={{ flex: 1 }} placeholder="Basis" value={x.basis} disabled={!editable} onChange={(e) => patch({ assessmentResults: res.map((y, j) => (j === i ? { ...y, basis: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ assessmentResults: res.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {res.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><span className={`esqstate esqstate--${x.survives ? "on" : "off"}`}><span className="esqstate__dot" />{x.survives ? "Survives" : "Fails"}</span><WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Basis" value={x.basis} disabled={!editable} onChange={(e) => patch({ assessmentResults: res.map((y, j) => (j === i ? { ...y, basis: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ assessmentResults: res.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ assessmentResults: [...res, { equipmentRef: eqp[0] ?? "", survives: true, basis: "" }] })}><ESQIcon.Plus /> Add result</button>}
           </div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Credit taken</label><select className="posfield__select" value={v.creditTaken ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ creditTaken: e.target.value === "yes" })}><option value="yes">Credited at CC-II</option><option value="no">Not credited</option></select></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Credit justification</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={v.creditJustification ?? ""} disabled={!editable} onChange={(e) => patch({ creditJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Credit justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={v.creditJustification ?? ""} disabled={!editable} onChange={(e) => patch({ creditJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{v.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove assessment</button>}
         </div>
@@ -1215,8 +1216,8 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Source element</label><select className="posfield__select" value={u.sourceElementCode} disabled={!editable} onChange={(e) => patch({ sourceElementCode: e.target.value as ModelUncertaintySourceAssessment["sourceElementCode"] })}>{["POS", "IE", "ES", "SC", "SY", "HR", "DA", "ESQ"].map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="posfield"><label className="posfield__label">Evaluation</label><select className="posfield__select" value={u.evaluationType} disabled={!editable} onChange={(e) => patch({ evaluationType: e.target.value as ModelUncertaintySourceAssessment["evaluationType"] })}><option value="QUALITATIVE">Qualitative</option><option value="QUANTITATIVE">Quantitative</option></select></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Uncertainty source</label><input className="posfield__input" value={u.uncertaintySource} disabled={!editable} onChange={(e) => patch({ uncertaintySource: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Effect on family frequencies</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={u.effectOnFamilyFrequencies} disabled={!editable} onChange={(e) => patch({ effectOnFamilyFrequencies: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Uncertainty source</label><WorkbookInput className="posfield__input" value={u.uncertaintySource} disabled={!editable} onChange={(e) => patch({ uncertaintySource: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Effect on family frequencies</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={u.effectOnFamilyFrequencies} disabled={!editable} onChange={(e) => patch({ effectOnFamilyFrequencies: e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{u.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove source</button>}
         </div>
@@ -1237,15 +1238,15 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         </div>
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Considered</label><select className="posfield__select" value={c.isConsidered ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ isConsidered: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
-          <div className="posfield"><label className="posfield__label">Handling description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.handlingDescription ?? ""} disabled={!editable} onChange={(e) => patch({ handlingDescription: e.target.value === "" ? undefined : e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Impact assessment</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.impactAssessment ?? ""} disabled={!editable} onChange={(e) => patch({ impactAssessment: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Handling description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.handlingDescription ?? ""} disabled={!editable} onChange={(e) => patch({ handlingDescription: e.target.value === "" ? undefined : e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Impact assessment</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.impactAssessment ?? ""} disabled={!editable} onChange={(e) => patch({ impactAssessment: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
             <div className="essec">Correlated parameter groups</div>
             {groups.map((g, i) => (
               <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
                 <label className="posfield__label">Group {String(i + 1)} (comma-separated)</label>
                 <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
-                  <input className="posfield__input posmono" style={{ flex: 1 }} value={g.join(", ")} disabled={!editable} onChange={(e) => patch({ correlatedParameterGroups: groups.map((y, j) => (j === i ? e.target.value.split(",").map((z) => z.trim()).filter((z) => z !== "") : y)) })} />
+                  <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={g.join(", ")} disabled={!editable} onChange={(e) => patch({ correlatedParameterGroups: groups.map((y, j) => (j === i ? e.target.value.split(",").map((z) => z.trim()).filter((z) => z !== "") : y)) })} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ correlatedParameterGroups: groups.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
                 </div>
               </div>
@@ -1271,18 +1272,18 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Entity</label><input className="posfield__input" value={c.entityRef} disabled={!editable} onChange={(e) => patch({ entityRef: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Entity</label><WorkbookInput className="posfield__input" value={c.entityRef} disabled={!editable} onChange={(e) => patch({ entityRef: e.target.value })} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Type</label><select className="posfield__select" value={c.contributorType} disabled={!editable} onChange={(e) => patch({ contributorType: e.target.value as RiskSignificantContributor["contributorType"] })}>{CONTRIBUTOR_TYPE_ENTRIES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></div>
-            <div className="posfield"><label className="posfield__label">Contribution (fraction)</label><input className="posfield__input" type="number" step="any" value={c.fractionalContribution ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patch({ fractionalContribution: v }); }} /></div>
+            <div className="posfield"><label className="posfield__label">Contribution (fraction)</label><WorkbookInput className="posfield__input" type="number" step="any" value={c.fractionalContribution ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patch({ fractionalContribution: v }); }} /></div>
           </div>
           <div>
             <div className="essec">Applicable families</div>
             {fams.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><select className="posfield__select" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ applicableFamilyRefs: fams.map((y, j) => (j === i ? e.target.value : y)) })}><option value="">·—</option>{esq.familyQuantifications.map((fq) => <option key={fq.uuid} value={fq.uuid}>{fq.uuid} · {fq.name}</option>)}</select>{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ applicableFamilyRefs: fams.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ applicableFamilyRefs: [...fams, ""] })}><ESQIcon.Plus /> Add family</button>}
           </div>
-          <div className="posfield"><label className="posfield__label">Risk-significance criteria basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.riskSignificanceCriteriaBasis} disabled={!editable} onChange={(e) => patch({ riskSignificanceCriteriaBasis: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Risk-significance criteria basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.riskSignificanceCriteriaBasis} disabled={!editable} onChange={(e) => patch({ riskSignificanceCriteriaBasis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{c.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove contributor</button>}
         </div>
@@ -1310,9 +1311,9 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="essec">Importance measures</div>
           {measures.map((m, i) => (
             <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
-              <input className="posfield__input" style={{ flex: 2 }} value={m.entityRef} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
-              <input className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Fussell-Vesely" value={m.fussellVesely ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, fussellVesely: v } : y))); }} />
-              <input className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Risk achievement worth" value={m.riskAchievementWorth ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, riskAchievementWorth: v } : y))); }} />
+              <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.entityRef} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
+              <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Fussell-Vesely" value={m.fussellVesely ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, fussellVesely: v } : y))); }} />
+              <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 84 }} title="Risk achievement worth" value={m.riskAchievementWorth ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patchMeasures(measures.map((y, j) => (j === i ? { ...y, riskAchievementWorth: v } : y))); }} />
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patchMeasures(measures.filter((_, j) => j !== i))}><ESQIcon.Close /></button>}
             </div>
           ))}
@@ -1322,9 +1323,9 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
               <div className="essec">Unexpected results reconciled</div>
               {unexpected.map((u, i) => (
                 <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
-                  <input className="posfield__input" placeholder="Entity" value={u.entityRef} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
-                  <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical", marginTop: 6 }} placeholder="Description" value={u.description} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
-                  <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical", marginTop: 6 }} placeholder="Reconciliation" value={u.reconciliation} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, reconciliation: e.target.value } : y)))} />
+                  <WorkbookInput className="posfield__input" placeholder="Entity" value={u.entityRef} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
+                  <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical", marginTop: 6 }} placeholder="Description" value={u.description} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, description: e.target.value } : y)))} />
+                  <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical", marginTop: 6 }} placeholder="Reconciliation" value={u.reconciliation} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, reconciliation: e.target.value } : y)))} />
                   {editable && <button type="button" className="posnav__btn posnav__btn--sm" style={{ marginTop: 6 }} onClick={() => patchUnexpected(unexpected.filter((_, j) => j !== i))}><ESQIcon.Close /> Remove</button>}
                 </div>
               ))}
@@ -1357,8 +1358,8 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Sample description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rec.sampleDescription} disabled={!editable} onChange={(e) => patchField("sampleDescription", e.target.value)} /></div>
-          <div className="posfield"><label className="posfield__label">Findings</label><textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={rec.findings} disabled={!editable} onChange={(e) => patchField("findings", e.target.value)} /></div>
+          <div className="posfield"><label className="posfield__label">Sample description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rec.sampleDescription} disabled={!editable} onChange={(e) => patchField("sampleDescription", e.target.value)} /></div>
+          <div className="posfield"><label className="posfield__label">Findings</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={rec.findings} disabled={!editable} onChange={(e) => patchField("findings", e.target.value)} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{rec.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove sample</button>}
         </div>
@@ -1378,12 +1379,12 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Cumulative impact assessment</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={audit.cumulativeImpactAssessment} disabled={!editable} onChange={(e) => patch({ cumulativeImpactAssessment: e.target.value })} /></div>
-          <div className="posfield"><label className="posfield__label">Basis</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={audit.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Cumulative impact assessment</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={audit.cumulativeImpactAssessment} disabled={!editable} onChange={(e) => patch({ cumulativeImpactAssessment: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={audit.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Affects risk-significant contributors</label><select className="posfield__select" value={audit.affectsRiskSignificantContributors ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ affectsRiskSignificantContributors: e.target.value === "yes" })}><option value="no">No</option><option value="yes">Yes</option></select></div>
           <div>
             <div className="essec">Screened initiating events</div>
-            {refs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ screenedInitiatingEventRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ screenedInitiatingEventRefs: refs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {refs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ screenedInitiatingEventRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ screenedInitiatingEventRefs: refs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ screenedInitiatingEventRefs: [...refs, ""] })}><ESQIcon.Plus /> Add event</button>}
           </div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{audit.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
@@ -1406,11 +1407,11 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          {con !== undefined && <div className="posfield"><label className="posfield__label">Modeling consistency (D2)</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={con.modelingFindings ?? ""} disabled={!editable} onChange={(e) => patchCon({ modelingFindings: e.target.value })} /></div>}
-          {con !== undefined && <div className="posfield"><label className="posfield__label">Operational consistency (D2)</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={con.operationalFindings ?? ""} disabled={!editable} onChange={(e) => patchCon({ operationalFindings: e.target.value })} /></div>}
-          {rul !== undefined && <div className="posfield"><label className="posfield__label">Rule-logic review (D3)</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rul.findings ?? ""} disabled={!editable} onChange={(e) => patchRul({ findings: e.target.value })} /></div>}
-          {sim !== undefined && <div className="posfield"><label className="posfield__label">Similar-plant key difference (D4)</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={sim.keyDifferences[0] ?? ""} disabled={!editable} onChange={(e) => patchSim({ keyDifferences: [e.target.value, ...sim.keyDifferences.slice(1)] })} /></div>}
-          {sim !== undefined && <div className="posfield"><label className="posfield__label">Cause of the difference</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={(sim.differenceCauses ?? [])[0] ?? ""} disabled={!editable} onChange={(e) => patchSim({ differenceCauses: [e.target.value, ...(sim.differenceCauses ?? []).slice(1)] })} /></div>}
+          {con !== undefined && <div className="posfield"><label className="posfield__label">Modeling consistency (D2)</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={con.modelingFindings ?? ""} disabled={!editable} onChange={(e) => patchCon({ modelingFindings: e.target.value })} /></div>}
+          {con !== undefined && <div className="posfield"><label className="posfield__label">Operational consistency (D2)</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={con.operationalFindings ?? ""} disabled={!editable} onChange={(e) => patchCon({ operationalFindings: e.target.value })} /></div>}
+          {rul !== undefined && <div className="posfield"><label className="posfield__label">Rule-logic review (D3)</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rul.findings ?? ""} disabled={!editable} onChange={(e) => patchRul({ findings: e.target.value })} /></div>}
+          {sim !== undefined && <div className="posfield"><label className="posfield__label">Similar-plant key difference (D4)</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={sim.keyDifferences[0] ?? ""} disabled={!editable} onChange={(e) => patchSim({ keyDifferences: [e.target.value, ...sim.keyDifferences.slice(1)] })} /></div>}
+          {sim !== undefined && <div className="posfield"><label className="posfield__label">Cause of the difference</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={(sim.differenceCauses ?? [])[0] ?? ""} disabled={!editable} onChange={(e) => patchSim({ differenceCauses: [e.target.value, ...(sim.differenceCauses ?? []).slice(1)] })} /></div>}
         </div>
       </>
     );
@@ -1429,10 +1430,10 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield"><label className="posfield__label">Name</label><input className="posfield__input" value={b.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
+          <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={b.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
           <div>
             <div className="essec">Applicable sources</div>
-            {srcs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ applicableSourceRefs: srcs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ applicableSourceRefs: srcs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {srcs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ applicableSourceRefs: srcs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ applicableSourceRefs: srcs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ applicableSourceRefs: [...srcs, ""] })}><ESQIcon.Plus /> Add source</button>}
           </div>
           <div>
@@ -1440,8 +1441,8 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             {modes.map((m, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <select className="posfield__select" style={{ width: 120 }} value={m.failureType} disabled={!editable} onChange={(e) => patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, failureType: e.target.value as typeof m.failureType } : y)) })}><option value="GROSS">Gross</option><option value="LOCALIZED_DEGRADED">Localized</option></select>
-                <input className="posfield__input" style={{ flex: 1 }} placeholder="Mode" value={m.failureMode} disabled={!editable} onChange={(e) => patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, failureMode: e.target.value } : y)) })} />
-                <input className="posfield__input posmono" type="number" step="any" style={{ width: 96 }} value={m.probability ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, probability: v } : y)) }); }} />
+                <WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Mode" value={m.failureMode} disabled={!editable} onChange={(e) => patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, failureMode: e.target.value } : y)) })} />
+                <WorkbookInput className="posfield__input posmono" type="number" step="any" style={{ width: 96 }} value={m.probability ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, probability: v } : y)) }); }} />
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ failureModes: modes.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}
               </div>
             ))}
@@ -1449,7 +1450,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           </div>
           <div>
             <div className="essec">Challenging phenomena</div>
-            {phen.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><input className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ challengingPhenomena: phen.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ challengingPhenomena: phen.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
+            {phen.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ challengingPhenomena: phen.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ challengingPhenomena: phen.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ challengingPhenomena: [...phen, ""] })}><ESQIcon.Plus /> Add phenomenon</button>}
           </div>
           <div className="posfield-grid">
@@ -1457,7 +1458,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Capacity basis</label><select className="posfield__select" value={b.capacityEvaluation.basis} disabled={!editable} onChange={(e) => patch({ capacityEvaluation: { ...b.capacityEvaluation, basis: e.target.value as typeof b.capacityEvaluation.basis } })}><option value="CONSERVATIVE">Conservative</option><option value="REALISTIC">Realistic</option></select></div>
             <div className="posfield"><label className="posfield__label">In-service aging</label><select className="posfield__select" value={b.capacityEvaluation.inServiceAgingIncluded === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ capacityEvaluation: { ...b.capacityEvaluation, inServiceAgingIncluded: e.target.value === "yes" } })}><option value="no">Not included</option><option value="yes">Included</option></select></div>
           </div>
-          <div className="posfield"><label className="posfield__label">Capacity description</label><textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.capacityEvaluation.description} disabled={!editable} onChange={(e) => patch({ capacityEvaluation: { ...b.capacityEvaluation, description: e.target.value } })} /></div>
+          <div className="posfield"><label className="posfield__label">Capacity description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={b.capacityEvaluation.description} disabled={!editable} onChange={(e) => patch({ capacityEvaluation: { ...b.capacityEvaluation, description: e.target.value } })} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>{b.implementsSrs.map((x) => <span key={x.sr} className="poschip poschip--method">{x.sr}</span>)}</div>
           {editable && <button type="button" className="posnav__btn" style={{ alignSelf: "flex-start" }} onClick={remove}>Remove barrier</button>}
         </div>

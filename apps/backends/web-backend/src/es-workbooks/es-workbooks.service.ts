@@ -11,6 +11,7 @@ import { EsDocumentsService } from "./es-documents.service";
 import { createBlankEs } from "./blank-es";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface EsWorkbookResponse {
   workbookId: string;
@@ -65,12 +66,12 @@ export class EsWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<EsWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<EsWorkbookResponse> {
     const doc = await this.esWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("ES workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this ES workbook");
-    const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid ES workbook payload: ${parsed.error.message}`);
     }

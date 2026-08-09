@@ -1,3 +1,4 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
 
@@ -17,8 +18,8 @@ async function getScWorkbook(workbookId: string): Promise<ScWorkbookResponse> {
   return fetchJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}`);
 }
 
-async function patchScWorkbook(workbookId: string, mef: SuccessCriteriaDevelopment): Promise<ScWorkbookResponse> {
-  return patchJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}`, { mef });
+async function patchScWorkbook(workbookId: string, current: SuccessCriteriaDevelopment, mef: SuccessCriteriaDevelopment): Promise<ScWorkbookResponse> {
+  return patchJson<ScWorkbookResponse>(`/api/sc-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
 }
 
 interface ScExampleOption {

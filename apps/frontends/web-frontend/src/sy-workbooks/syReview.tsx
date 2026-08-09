@@ -1,3 +1,4 @@
+import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, ReactNode, useMemo, useState } from "react";
 import { SYIcon } from "./syIcons";
 import { Badge } from "./syShared";
@@ -272,7 +273,7 @@ function ReviewerCommentDock({ open, onToggle, onClose, comments, onToggleResolv
           </div>
           <div className="posrevdock__composer">
             <div className="posrevdock__composer-eyebrow">Add comment</div>
-            <textarea className="posfield__textarea" placeholder="Anchor a finding, observation, or recommendation…" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} />
+            <WorkbookTextarea className="posfield__textarea" placeholder="Anchor a finding, observation, or recommendation…" value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} />
             <div className="posrevdock__composer-foot">
               <select className="posfield__select" value={draftSeverity} onChange={(e) => setDraftSeverity(e.target.value as "MAJOR" | "MINOR" | "OBSERVATION")} style={{ maxWidth: 140 }}>
                 <option value="MAJOR">Major</option><option value="MINOR">Minor</option><option value="OBSERVATION">Observation</option>

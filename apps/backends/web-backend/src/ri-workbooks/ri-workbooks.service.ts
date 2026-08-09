@@ -11,6 +11,7 @@ import { RiDocumentsService } from "./ri-documents.service";
 import { createBlankRi } from "./blank-ri";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface RiWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class RiWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<RiWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<RiWorkbookResponse> {
     const doc = await this.riWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("RI workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this RI workbook");
-    const parsed = RiskIntegrationSchema.safeParse(stripNulls(mef));
+    const parsed = RiskIntegrationSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid RI workbook payload: ${parsed.error.message}`);
     }

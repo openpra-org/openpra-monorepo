@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { RIIcon } from "./riIcons";
@@ -124,7 +125,7 @@ function ConvergeScreen(): JSX.Element {
       <div className="poscard">
         <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
         <p className="poscard__sub">Describe what this risk integration covers and what it excludes.</p>
-        <textarea
+        <WorkbookTextarea
           className="posfield__textarea"
           placeholder="State the in-scope consequence measures, hazard groups, and explicit exclusions."
           rows={4}
@@ -143,15 +144,15 @@ function ConvergeScreen(): JSX.Element {
         <div className="posfield-grid">
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label">Hazard groups</label>
-            <input className="posfield__input" value={scope.hazardGroups.join(", ")} placeholder="e.g. Internal events, Seismic" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, hazardGroups: toList(e.target.value) }))} />
+            <WorkbookInput className="posfield__input" value={scope.hazardGroups.join(", ")} placeholder="e.g. Internal events, Seismic" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, hazardGroups: toList(e.target.value) }))} />
           </div>
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label">Plant operating states</label>
-            <input className="posfield__input" value={scope.plantOperatingStateRefs.join(", ")} placeholder="e.g. POS-01, POS-02" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, plantOperatingStateRefs: toList(e.target.value) }))} />
+            <WorkbookInput className="posfield__input" value={scope.plantOperatingStateRefs.join(", ")} placeholder="e.g. POS-01, POS-02" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, plantOperatingStateRefs: toList(e.target.value) }))} />
           </div>
           <div className="posfield posfield-grid--span2">
             <label className="posfield__label">Radioactive material sources</label>
-            <input className="posfield__input" value={scope.radioactiveMaterialSources.join(", ")} placeholder="e.g. In-core metallic driver fuel" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, radioactiveMaterialSources: toList(e.target.value) }))} />
+            <WorkbookInput className="posfield__input" value={scope.radioactiveMaterialSources.join(", ")} placeholder="e.g. In-core metallic driver fuel" disabled={dis} onChange={(e) => patchScope((s) => ({ ...s, radioactiveMaterialSources: toList(e.target.value) }))} />
           </div>
         </div>
       </div>

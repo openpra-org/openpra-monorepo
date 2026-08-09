@@ -11,6 +11,7 @@ import { HrDocumentsService } from "./hr-documents.service";
 import { createBlankHr } from "./blank-hr";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface HrWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class HrWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<HrWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<HrWorkbookResponse> {
     const doc = await this.hrWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("HR workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this HR workbook");
-    const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid HR workbook payload: ${parsed.error.message}`);
     }

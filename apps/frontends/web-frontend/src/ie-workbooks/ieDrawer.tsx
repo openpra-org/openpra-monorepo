@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useLayoutEffect, useRef, type CSSProperties } from "react";
 import {
   InitiatingEventCategory,
@@ -31,7 +32,7 @@ function AutoTextarea({ value, onChange, placeholder, style }: { value: string; 
     };
   }, [value]);
   return (
-    <textarea
+    <WorkbookTextarea
       ref={ref}
       className="posfield__textarea"
       style={{ overflow: "hidden", resize: "none", ...style }}
@@ -84,7 +85,7 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={initiator.name} placeholder="e.g. Loss of main helium circulator" onChange={(e) => patch({ name: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={initiator.name} placeholder="e.g. Loss of main helium circulator" onChange={(e) => patch({ name: e.target.value })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Challenge category</label>
@@ -100,11 +101,11 @@ function InitiatorEditor({ initiator, states, editable, mutateIe, onClose }: {
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Subcategory</label>
-              <input className="posfield__input" value={initiator.subcategory ?? ""} placeholder="Optional finer classification." onChange={(e) => patch({ subcategory: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={initiator.subcategory ?? ""} placeholder="Optional finer classification." onChange={(e) => patch({ subcategory: e.target.value })} />
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Challenged safety functions (comma-separated)</label>
-              <input className="posfield__input" value={initiator.challengedSafetyFunctions.join(", ")} placeholder="e.g. Remove core heat, Control reactivity" onChange={(e) => patch({ challengedSafetyFunctions: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
+              <WorkbookInput className="posfield__input" value={initiator.challengedSafetyFunctions.join(", ")} placeholder="e.g. Remove core heat, Control reactivity" onChange={(e) => patch({ challengedSafetyFunctions: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
             </div>
           </div>
         </div>
@@ -181,7 +182,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={group.name} placeholder="e.g. Pressurized loss of forced cooling" onChange={(e) => patch({ name: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={group.name} placeholder="e.g. Pressurized loss of forced cooling" onChange={(e) => patch({ name: e.target.value })} />
             </div>
           </div>
         </div>
@@ -194,7 +195,7 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {initiators.map((i) => (
                 <label key={i.uuid} className="posrow" style={{ gap: 8, alignItems: "flex-start", cursor: editable ? "pointer" : "default" }}>
-                  <input type="checkbox" checked={group.memberInitiatorIds.includes(i.uuid)} disabled={!editable} onChange={() => toggleMember(i.uuid)} style={{ marginTop: 2 }} />
+                  <WorkbookInput type="checkbox" checked={group.memberInitiatorIds.includes(i.uuid)} disabled={!editable} onChange={() => toggleMember(i.uuid)} style={{ marginTop: 2 }} />
                   <span className="posmono possubtle" style={{ marginTop: 1 }}>{i.uuid}</span>
                   <span style={{ fontSize: 13 }}>{i.name}</span>
                 </label>
@@ -224,24 +225,24 @@ function GroupEditor({ group, initiators, editable, mutateIe, onClose }: {
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Similar mitigation requirements (comma-separated)</label>
-              <input className="posfield__input" value={group.similarMitigationRequirements.join(", ")} placeholder="e.g. Reactor trip, Passive RCCS cooldown" onChange={(e) => patch({ similarMitigationRequirements: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
+              <WorkbookInput className="posfield__input" value={group.similarMitigationRequirements.join(", ")} placeholder="e.g. Reactor trip, Passive RCCS cooldown" onChange={(e) => patch({ similarMitigationRequirements: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Challenged safety functions (comma-separated)</label>
-              <input className="posfield__input" value={group.challengedSafetyFunctions.join(", ")} placeholder="e.g. Remove core heat" onChange={(e) => patch({ challengedSafetyFunctions: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
+              <WorkbookInput className="posfield__input" value={group.challengedSafetyFunctions.join(", ")} placeholder="e.g. Remove core heat" onChange={(e) => patch({ challengedSafetyFunctions: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
             </div>
           </div>
         </div>
 
         <div className="poscard">
           <label className="posrow" style={{ gap: 10, cursor: editable ? "pointer" : "default" }}>
-            <input type="checkbox" checked={group.comparableImpactAcrossMembers} disabled={!editable} onChange={(e) => patch({ comparableImpactAcrossMembers: e.target.checked })} />
+            <WorkbookInput type="checkbox" checked={group.comparableImpactAcrossMembers} disabled={!editable} onChange={(e) => patch({ comparableImpactAcrossMembers: e.target.checked })} />
             <span style={{ fontSize: 13 }}>Comparable impact across members</span>
           </label>
         </div>
         <div className="poscard">
           <label className="posrow" style={{ gap: 10, cursor: editable ? "pointer" : "default" }}>
-            <input type="checkbox" checked={group.groupingDoesNotMaskRiskSignificantSequences} disabled={!editable} onChange={(e) => patch({ groupingDoesNotMaskRiskSignificantSequences: e.target.checked })} />
+            <WorkbookInput type="checkbox" checked={group.groupingDoesNotMaskRiskSignificantSequences} disabled={!editable} onChange={(e) => patch({ groupingDoesNotMaskRiskSignificantSequences: e.target.checked })} />
             <span style={{ fontSize: 13 }}>Grouping does not mask any risk-significant sequence</span>
           </label>
         </div>
@@ -298,7 +299,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Name</label>
-              <input className="posfield__input" value={hazard.name} placeholder="e.g. Seismic" onChange={(e) => patch({ name: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={hazard.name} placeholder="e.g. Seismic" onChange={(e) => patch({ name: e.target.value })} />
             </div>
             <div className="posfield">
               <label className="posfield__label">Type</label>
@@ -309,7 +310,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
             </div>
             <div className="posfield">
               <label className="posfield__label">Subcategory</label>
-              <input className="posfield__input" value={hazard.subcategory} placeholder="Optional" onChange={(e) => patch({ subcategory: e.target.value })} />
+              <WorkbookInput className="posfield__input" value={hazard.subcategory} placeholder="Optional" onChange={(e) => patch({ subcategory: e.target.value })} />
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Description</label>
@@ -333,7 +334,7 @@ function HazardEditor({ hazard, editable, mutateIe, onClose }: {
             </div>
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Induced initiators (IE ids, comma-separated)</label>
-              <input className="posfield__input" value={hazard.inducedInitiatorIds.join(", ")} placeholder="IE-10, IE-23" onChange={(e) => patch({ inducedInitiatorIds: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
+              <WorkbookInput className="posfield__input" value={hazard.inducedInitiatorIds.join(", ")} placeholder="IE-10, IE-23" onChange={(e) => patch({ inducedInitiatorIds: e.target.value.split(",").map((s) => s.trim()).filter((s) => s.length > 0) })} />
             </div>
           </div>
         </div>

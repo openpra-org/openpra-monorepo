@@ -1,3 +1,4 @@
+import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { HRIcon } from "./hrIcons";
 import { Badge, HRProvenanceChip, hepText, type BadgeKind } from "./hrShared";
@@ -731,7 +732,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <input className="posfield__input" value={a.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{a.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={a.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{a.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Type</label>
               {editable
@@ -750,23 +751,23 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{a.affectsMultipleTrainsOrDiverseSystems ? "Yes" : "No"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{a.description}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{a.description}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Affected systems (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{csv(a.affectedSystems)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{csv(a.affectedSystems)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Affected components (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.affectedComponents ?? [])} onChange={(e) => patch({ affectedComponents: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.affectedComponents ?? []) || "\u2014"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.affectedComponents ?? [])} onChange={(e) => patch({ affectedComponents: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.affectedComponents ?? []) || "\u2014"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Operating states (comma separated)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(a.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(a.applicablePlantOperatingStates)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(a.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(a.applicablePlantOperatingStates)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Identification sources</label>
               {editable
                 ? <div className="posrow posrow--wrap" style={{ gap: 12 }}>
                     {sourceKeys.map((src) => (
                       <label key={src} className="posrow" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
-                        <input type="checkbox" checked={a.identificationSources.includes(src)} onChange={() => patch({ identificationSources: a.identificationSources.includes(src) ? a.identificationSources.filter((x) => x !== src) : [...a.identificationSources, src] })} />
+                        <WorkbookInput type="checkbox" checked={a.identificationSources.includes(src)} onChange={() => patch({ identificationSources: a.identificationSources.includes(src) ? a.identificationSources.filter((x) => x !== src) : [...a.identificationSources, src] })} />
                         <span style={{ fontSize: 12.5 }}>{ACTIVITY_SOURCES[src]}</span>
                       </label>
                     ))}
@@ -775,11 +776,11 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
             {a.affectsMultipleTrainsOrDiverseSystems && (
               <div className="posfield posfield-grid--span2"><label className="posfield__label">Multi-train mechanism (HR-A5)</label>
-                {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.multiTrainMechanism ?? ""} onChange={(e) => patch({ multiTrainMechanism: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.multiTrainMechanism ?? "\u2014"}</div>}
+                {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.multiTrainMechanism ?? ""} onChange={(e) => patch({ multiTrainMechanism: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.multiTrainMechanism ?? "\u2014"}</div>}
               </div>
             )}
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Pre-operational identification (HR-A10)</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.preOperationalIdentificationProcess ?? ""} onChange={(e) => patch({ preOperationalIdentificationProcess: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.preOperationalIdentificationProcess ?? "\u2014"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.preOperationalIdentificationProcess ?? ""} onChange={(e) => patch({ preOperationalIdentificationProcess: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{a.preOperationalIdentificationProcess ?? "\u2014"}</div>}
             </div>
           </div>
           {editable && (
@@ -813,7 +814,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Support system</label>
-              {editable ? <input className="posfield__input" value={c.systemReference} onChange={(e) => patch({ systemReference: e.target.value })} /> : <div>{c.systemReference}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={c.systemReference} onChange={(e) => patch({ systemReference: e.target.value })} /> : <div>{c.systemReference}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Initiating event it contributes to</label>
               {editable
@@ -822,7 +823,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                         <option value="">Not linked</option>
                         {links.ieInitiators.map((i) => <option key={i.id} value={i.id}>{`${i.id} \u00b7 ${i.name}`}</option>)}
                       </select>
-                    : <input className="posfield__input posmono" value={c.faultTreeReference ?? ""} onChange={(e) => patch({ faultTreeReference: e.target.value.length === 0 ? undefined : e.target.value })} />)
+                    : <WorkbookInput className="posfield__input posmono" value={c.faultTreeReference ?? ""} onChange={(e) => patch({ faultTreeReference: e.target.value.length === 0 ? undefined : e.target.value })} />)
                 : <div className="posmono">{c.faultTreeReference ?? "\u2014"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Included in the initiator fault tree</label>
@@ -835,7 +836,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
             {!c.included && (
               <div className="posfield posfield-grid--span2"><label className="posfield__label">Exclusion basis</label>
-                {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.exclusionBasis ?? ""} onChange={(e) => patch({ exclusionBasis: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{c.exclusionBasis ?? "\u2014"}</div>}
+                {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.exclusionBasis ?? ""} onChange={(e) => patch({ exclusionBasis: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{c.exclusionBasis ?? "\u2014"}</div>}
               </div>
             )}
           </div>
@@ -885,11 +886,11 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{s.screenedOut ? "Screened out" : "Carried"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={s.justification} onChange={(e) => patch({ justification: e.target.value })} /> : <div>{s.justification}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={s.justification} onChange={(e) => patch({ justification: e.target.value })} /> : <div>{s.justification}</div>}
             </div>
             {s.screenedOut && (
               <div className="posfield posfield-grid--span2"><label className="posfield__label">Multi-state administrative detection justification (HR-B2)</label>
-                {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.multiStateAdministrativeDetectionJustification ?? ""} onChange={(e) => patch({ multiStateAdministrativeDetectionJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.multiStateAdministrativeDetectionJustification ?? "—"}</div>}
+                {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.multiStateAdministrativeDetectionJustification ?? ""} onChange={(e) => patch({ multiStateAdministrativeDetectionJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.multiStateAdministrativeDetectionJustification ?? "—"}</div>}
               </div>
             )}
           </div>
@@ -939,7 +940,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <input className="posfield__input" value={h.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{h.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={h.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{h.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Impact level</label>
               {editable
@@ -960,19 +961,19 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{detail?.sourceActivityId !== undefined && detail.sourceActivityId.length > 0 ? `${detail.sourceActivityId} · ${srcName}` : "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">How it is handled</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{h.description}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{h.description}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Affected systems (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(h.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{h.affectedSystems.map(sysLabel).join(", ")}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(h.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{h.affectedSystems.map(sysLabel).join(", ")}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Affected components (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(h.affectedComponents ?? [])} onChange={(e) => patch({ affectedComponents: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(h.affectedComponents ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(h.affectedComponents ?? [])} onChange={(e) => patch({ affectedComponents: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(h.affectedComponents ?? []) || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Operating states (comma separated)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(h.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div>{h.applicablePlantOperatingStates.map(posName).join(", ")}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div>{h.applicablePlantOperatingStates.map(posName).join(", ")}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Time to detection (hours)</label>
-              {editable ? <input className="posfield__input posmono" type="number" value={detail?.averageTimeToDetectionHours ?? ""} onChange={(e) => patchDetail({ averageTimeToDetectionHours: num(e.target.value) })} /> : <div className="posmono">{detail?.averageTimeToDetectionHours ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={detail?.averageTimeToDetectionHours ?? ""} onChange={(e) => patchDetail({ averageTimeToDetectionHours: num(e.target.value) })} /> : <div className="posmono">{detail?.averageTimeToDetectionHours ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Miscalibration mode</label>
               {editable
@@ -983,10 +984,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{detail?.miscalibrationImpactIncluded === true ? "Yes" : "No"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Detection basis</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={detail?.detectionBasis ?? ""} onChange={(e) => patchDetail({ detectionBasis: e.target.value })} /> : <div>{detail?.detectionBasis ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={detail?.detectionBasis ?? ""} onChange={(e) => patchDetail({ detectionBasis: e.target.value })} /> : <div>{detail?.detectionBasis ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Unavailability modes (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(detail?.unavailabilityModes ?? [])} onChange={(e) => patchDetail({ unavailabilityModes: parseCsv(e.target.value) })} /> : <div>{csv(detail?.unavailabilityModes ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(detail?.unavailabilityModes ?? [])} onChange={(e) => patchDetail({ unavailabilityModes: parseCsv(e.target.value) })} /> : <div>{csv(detail?.unavailabilityModes ?? []) || "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1034,16 +1035,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{REVIEW_SCOPES[r.reviewScope]}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Date</label>
-              {editable ? <input className="posfield__input" type="date" value={r.date ?? ""} onChange={(e) => patch({ date: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.date ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" type="date" value={r.date ?? ""} onChange={(e) => patch({ date: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.date ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Sources reviewed (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(r.sourcesReviewed)} onChange={(e) => patch({ sourcesReviewed: parseCsv(e.target.value) })} /> : <div>{csv(r.sourcesReviewed)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(r.sourcesReviewed)} onChange={(e) => patch({ sourcesReviewed: parseCsv(e.target.value) })} /> : <div>{csv(r.sourcesReviewed)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Findings</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={r.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{r.findings}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={r.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{r.findings}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Identified events (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(r.identifiedHfeIds)} onChange={(e) => patch({ identifiedHfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(r.identifiedHfeIds)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(r.identifiedHfeIds)} onChange={(e) => patch({ identifiedHfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(r.identifiedHfeIds)}</div>}
             </div>
           </div>
           {editable && (
@@ -1088,16 +1089,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{c.method}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Date</label>
-              {editable ? <input className="posfield__input" type="date" value={c.date} onChange={(e) => patch({ date: e.target.value })} /> : <div>{c.date}</div>}
+              {editable ? <WorkbookInput className="posfield__input" type="date" value={c.date} onChange={(e) => patch({ date: e.target.value })} /> : <div>{c.date}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Personnel roles (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(c.personnelRoles)} onChange={(e) => patch({ personnelRoles: parseCsv(e.target.value) })} /> : <div>{csv(c.personnelRoles)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(c.personnelRoles)} onChange={(e) => patch({ personnelRoles: parseCsv(e.target.value) })} /> : <div>{csv(c.personnelRoles)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Confirmed events (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(c.hfeIds)} onChange={(e) => patch({ hfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(c.hfeIds)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(c.hfeIds)} onChange={(e) => patch({ hfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(c.hfeIds)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Findings</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={c.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{c.findings}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={c.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{c.findings}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Interpretation consistent</label>
               {editable
@@ -1156,7 +1157,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <input className="posfield__input" value={h.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{h.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={h.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{h.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Response type</label>
               {editable
@@ -1181,31 +1182,31 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{IMPACT_LEVELS[h.impactLevel]}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Required response</label>
-              {editable ? <input className="posfield__input" value={rd?.requiredResponse ?? ""} onChange={(e) => patchDetail({ requiredResponse: e.target.value })} /> : <div>{rd?.requiredResponse ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={rd?.requiredResponse ?? ""} onChange={(e) => patchDetail({ requiredResponse: e.target.value })} /> : <div>{rd?.requiredResponse ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Cue description</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rd?.cueDescription ?? ""} onChange={(e) => patchDetail({ cueDescription: e.target.value })} /> : <div>{rd?.cueDescription ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={rd?.cueDescription ?? ""} onChange={(e) => patchDetail({ cueDescription: e.target.value })} /> : <div>{rd?.cueDescription ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">How it is handled</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{h.description}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{h.description}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Affected systems (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(h.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{csv(h.affectedSystems)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(h.affectedSystems)} onChange={(e) => patch({ affectedSystems: parseCsv(e.target.value) })} /> : <div>{csv(h.affectedSystems)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Operating states (comma separated)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(h.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicablePlantOperatingStates)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.applicablePlantOperatingStates)} onChange={(e) => patch({ applicablePlantOperatingStates: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicablePlantOperatingStates)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Event sequences (comma separated)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(h.applicableEventSequences ?? [])} onChange={(e) => patch({ applicableEventSequences: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicableEventSequences ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.applicableEventSequences ?? [])} onChange={(e) => patch({ applicableEventSequences: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(h.applicableEventSequences ?? []) || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Success criteria (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(rd?.successCriteriaIds ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(rd?.successCriteriaIds ?? [])} onChange={(e) => patchDetail({ successCriteriaIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(rd?.successCriteriaIds ?? []) || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Procedure references (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(rd?.procedureReferences ?? [])} onChange={(e) => patchDetail({ procedureReferences: parseCsv(e.target.value) })} /> : <div>{csv(rd?.procedureReferences ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(rd?.procedureReferences ?? [])} onChange={(e) => patchDetail({ procedureReferences: parseCsv(e.target.value) })} /> : <div>{csv(rd?.procedureReferences ?? []) || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Grouped responses (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(h.groupedResponses ?? [])} onChange={(e) => patch({ groupedResponses: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div className="posmono">{csv(h.groupedResponses ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(h.groupedResponses ?? [])} onChange={(e) => patch({ groupedResponses: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div className="posmono">{csv(h.groupedResponses ?? []) || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Cross-state grouping basis</label>
               {editable
@@ -1217,7 +1218,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{h.crossPosGroupingBasis ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Grouping justification</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.groupingJustification ?? ""} onChange={(e) => patch({ groupingJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{h.groupingJustification ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={h.groupingJustification ?? ""} onChange={(e) => patch({ groupingJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{h.groupingJustification ?? "—"}</div>}
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
@@ -1225,19 +1226,19 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             {cts.map((ct, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Event sequence</label>
-                  {editable ? <input className="posfield__input posmono" value={ct.eventSequenceId} onChange={(e) => setCt(i, { eventSequenceId: e.target.value })} /> : <div className="posmono">{ct.eventSequenceId}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={ct.eventSequenceId} onChange={(e) => setCt(i, { eventSequenceId: e.target.value })} /> : <div className="posmono">{ct.eventSequenceId}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Operating state</label>
-                  {editable ? <input className="posfield__input posmono" value={ct.plantOperatingStateId ?? ""} onChange={(e) => setCt(i, { plantOperatingStateId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{ct.plantOperatingStateId ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" value={ct.plantOperatingStateId ?? ""} onChange={(e) => setCt(i, { plantOperatingStateId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{ct.plantOperatingStateId ?? "—"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Cue time (min)</label>
-                  {editable ? <input className="posfield__input posmono" type="number" value={ct.cueTimeMinutes ?? ""} onChange={(e) => setCt(i, { cueTimeMinutes: num(e.target.value) })} /> : <div className="posmono">{ct.cueTimeMinutes ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={ct.cueTimeMinutes ?? ""} onChange={(e) => setCt(i, { cueTimeMinutes: num(e.target.value) })} /> : <div className="posmono">{ct.cueTimeMinutes ?? "—"}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Window (min)</label>
-                  {editable ? <input className="posfield__input posmono" type="number" value={ct.timeWindowMinutes ?? ""} onChange={(e) => setCt(i, { timeWindowMinutes: num(e.target.value) })} /> : <div className="posmono">{ct.timeWindowMinutes ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={ct.timeWindowMinutes ?? ""} onChange={(e) => setCt(i, { timeWindowMinutes: num(e.target.value) })} /> : <div className="posmono">{ct.timeWindowMinutes ?? "—"}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-                  {editable ? <input className="posfield__input" value={ct.basis ?? ""} onChange={(e) => setCt(i, { basis: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{ct.basis ?? "—"}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={ct.basis ?? ""} onChange={(e) => setCt(i, { basis: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{ct.basis ?? "—"}</div>}
                 </div>
                 {editable && (
                   <div className="posfield posfield-grid--span2">
@@ -1288,7 +1289,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Methodology</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={q.methodology} onChange={(e) => patch({ methodology: e.target.value })} /> : <div>{q.methodology}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={q.methodology} onChange={(e) => patch({ methodology: e.target.value })} /> : <div>{q.methodology}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Assessment type</label>
               {editable
@@ -1307,16 +1308,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{q.isRiskSignificant ? "Yes" : "No"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Point estimate HEP</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Mean HEP</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Plant or design-specific factors (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(q.plantSpecificInformationUsed ?? [])} onChange={(e) => patch({ plantSpecificInformationUsed: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(q.plantSpecificInformationUsed ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(q.plantSpecificInformationUsed ?? [])} onChange={(e) => patch({ plantSpecificInformationUsed: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(q.plantSpecificInformationUsed ?? []) || "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Uncertainty characterization</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={unc.method} onChange={(e) => patch({ uncertaintyCharacterization: { riskSignificant: unc.riskSignificant, method: e.target.value, probabilisticRepresentationProvided: unc.probabilisticRepresentationProvided } })} /> : <div>{unc.method || "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={unc.method} onChange={(e) => patch({ uncertaintyCharacterization: { riskSignificant: unc.riskSignificant, method: e.target.value, probabilisticRepresentationProvided: unc.probabilisticRepresentationProvided } })} /> : <div>{unc.method || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Probabilistic representation provided</label>
               {editable
@@ -1377,7 +1378,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{(r.creditBases ?? [])[0] ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Maximum credit (residual factor)</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={r.maximumCreditSpecified} onChange={(e) => patch({ maximumCreditSpecified: num(e.target.value) })} /> : <div className="posmono">{r.maximumCreditSpecified}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={r.maximumCreditSpecified} onChange={(e) => patch({ maximumCreditSpecified: num(e.target.value) })} /> : <div className="posmono">{r.maximumCreditSpecified}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Methodology consistent</label>
               {editable
@@ -1441,10 +1442,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{DEPENDENCE_LEVELS[d.dependenceLevel]}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Coupled events (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(d.hfeIds)} onChange={(e) => patch({ hfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(d.hfeIds)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(d.hfeIds)} onChange={(e) => patch({ hfeIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(d.hfeIds)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Joint HEP</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={d.jointHep} onChange={(e) => patch({ jointHep: num(e.target.value) })} /> : <div className="posmono">{hepText(d.jointHep)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={d.jointHep} onChange={(e) => patch({ jointHep: num(e.target.value) })} /> : <div className="posmono">{hepText(d.jointHep)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Below the floor</label>
               {editable
@@ -1455,16 +1456,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{d.belowFloor === true ? "Yes" : "No"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Common elements (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(d.commonElements)} onChange={(e) => patch({ commonElements: parseCsv(e.target.value) })} /> : <div>{csv(d.commonElements)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(d.commonElements)} onChange={(e) => patch({ commonElements: parseCsv(e.target.value) })} /> : <div>{csv(d.commonElements)}</div>}
             </div>
             {d.scope === "WITHIN_SEQUENCE" && (
               <div className="posfield posfield-grid--span2"><label className="posfield__label">Event sequence</label>
-                {editable ? <input className="posfield__input posmono" value={d.eventSequenceId ?? ""} onChange={(e) => patch({ eventSequenceId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{d.eventSequenceId ?? "—"}</div>}
+                {editable ? <WorkbookInput className="posfield__input posmono" value={d.eventSequenceId ?? ""} onChange={(e) => patch({ eventSequenceId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{d.eventSequenceId ?? "—"}</div>}
               </div>
             )}
             {d.belowFloor === true && (
               <div className="posfield posfield-grid--span2"><label className="posfield__label">Floor applied / justification</label>
-                {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.floorAppliedOrJustification ?? ""} onChange={(e) => patch({ floorAppliedOrJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{d.floorAppliedOrJustification ?? "—"}</div>}
+                {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={d.floorAppliedOrJustification ?? ""} onChange={(e) => patch({ floorAppliedOrJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{d.floorAppliedOrJustification ?? "—"}</div>}
               </div>
             )}
           </div>
@@ -1508,7 +1509,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Methodology</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={q.methodology} onChange={(e) => patch({ methodology: e.target.value })} /> : <div>{q.methodology}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={q.methodology} onChange={(e) => patch({ methodology: e.target.value })} /> : <div>{q.methodology}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Assessment type</label>
               {editable
@@ -1527,16 +1528,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{q.isRiskSignificant ? "Yes" : "No"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Point estimate HEP</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.pointEstimateHep ?? ""} onChange={(e) => patch({ pointEstimateHep: num(e.target.value) })} /> : <div className="posmono">{q.pointEstimateHep !== undefined ? hepText(q.pointEstimateHep) : "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Mean HEP</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.meanHep ?? ""} onChange={(e) => patch({ meanHep: num(e.target.value) })} /> : <div className="posmono">{q.meanHep !== undefined ? hepText(q.meanHep) : "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Cognition contribution</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.cognitionContribution ?? ""} onChange={(e) => patch({ cognitionContribution: num(e.target.value) })} /> : <div className="posmono">{q.cognitionContribution !== undefined ? hepText(q.cognitionContribution) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.cognitionContribution ?? ""} onChange={(e) => patch({ cognitionContribution: num(e.target.value) })} /> : <div className="posmono">{q.cognitionContribution !== undefined ? hepText(q.cognitionContribution) : "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Execution contribution</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={q.executionContribution ?? ""} onChange={(e) => patch({ executionContribution: num(e.target.value) })} /> : <div className="posmono">{q.executionContribution !== undefined ? hepText(q.executionContribution) : "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={q.executionContribution ?? ""} onChange={(e) => patch({ executionContribution: num(e.target.value) })} /> : <div className="posmono">{q.executionContribution !== undefined ? hepText(q.executionContribution) : "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Indications treatment</label>
               {editable
@@ -1547,7 +1548,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{q.indicationsTreatment ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Time available (min)</label>
-              {editable ? <input className="posfield__input posmono" type="number" value={q.timeAvailableMinutes ?? ""} onChange={(e) => patch({ timeAvailableMinutes: num(e.target.value) })} /> : <div className="posmono">{q.timeAvailableMinutes ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={q.timeAvailableMinutes ?? ""} onChange={(e) => patch({ timeAvailableMinutes: num(e.target.value) })} /> : <div className="posmono">{q.timeAvailableMinutes ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Time available basis</label>
               {editable
@@ -1558,10 +1559,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{q.timeAvailableBasis ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Cue arrival (min)</label>
-              {editable ? <input className="posfield__input posmono" type="number" value={q.cueArrivalTimeMinutes ?? ""} onChange={(e) => patch({ cueArrivalTimeMinutes: num(e.target.value) })} /> : <div className="posmono">{q.cueArrivalTimeMinutes ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={q.cueArrivalTimeMinutes ?? ""} onChange={(e) => patch({ cueArrivalTimeMinutes: num(e.target.value) })} /> : <div className="posmono">{q.cueArrivalTimeMinutes ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Time required (min)</label>
-              {editable ? <input className="posfield__input posmono" type="number" value={q.timeRequiredMinutes ?? ""} onChange={(e) => patch({ timeRequiredMinutes: num(e.target.value) })} /> : <div className="posmono">{q.timeRequiredMinutes ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" value={q.timeRequiredMinutes ?? ""} onChange={(e) => patch({ timeRequiredMinutes: num(e.target.value) })} /> : <div className="posmono">{q.timeRequiredMinutes ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Time required basis</label>
               {editable
@@ -1573,7 +1574,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{q.timeRequiredBasis ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Uncertainty characterization</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={unc.method} onChange={(e) => patch({ uncertaintyCharacterization: { riskSignificant: unc.riskSignificant, method: e.target.value, probabilisticRepresentationProvided: unc.probabilisticRepresentationProvided } })} /> : <div>{unc.method || "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={unc.method} onChange={(e) => patch({ uncertaintyCharacterization: { riskSignificant: unc.riskSignificant, method: e.target.value, probabilisticRepresentationProvided: unc.probabilisticRepresentationProvided } })} /> : <div>{unc.method || "—"}</div>}
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
@@ -1581,7 +1582,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             {psfs.map((p, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Factor</label>
-                  {editable ? <input className="posfield__input" value={p.factor} onChange={(e) => setPsf(i, { factor: e.target.value })} /> : <div>{p.factor}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={p.factor} onChange={(e) => setPsf(i, { factor: e.target.value })} /> : <div>{p.factor}</div>}
                 </div>
                 <div className="posfield"><label className="posfield__label">Impact on HEP</label>
                   {editable
@@ -1593,7 +1594,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                     : <div>{p.impactOnHep}</div>}
                 </div>
                 <div className="posfield posfield-grid--span2"><label className="posfield__label">Evaluation</label>
-                  {editable ? <input className="posfield__input" value={p.evaluation} onChange={(e) => setPsf(i, { evaluation: e.target.value })} /> : <div>{p.evaluation}</div>}
+                  {editable ? <WorkbookInput className="posfield__input" value={p.evaluation} onChange={(e) => setPsf(i, { evaluation: e.target.value })} /> : <div>{p.evaluation}</div>}
                 </div>
                 {editable && (
                   <div className="posfield posfield-grid--span2">
@@ -1610,7 +1611,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
           </div>
           <div className="posfield-grid" style={{ marginTop: 14 }}>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Plant or design-specific factors (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(q.plantSpecificInformationUsed ?? [])} onChange={(e) => patch({ plantSpecificInformationUsed: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(q.plantSpecificInformationUsed ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(q.plantSpecificInformationUsed ?? [])} onChange={(e) => patch({ plantSpecificInformationUsed: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(q.plantSpecificInformationUsed ?? []) || "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1639,10 +1640,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Minimum joint probability</label>
-              {editable ? <input className="posfield__input posmono" type="number" step="any" value={f.minimumJointProbability} onChange={(e) => patch({ minimumJointProbability: num(e.target.value) })} /> : <div className="posmono">{hepText(f.minimumJointProbability)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={f.minimumJointProbability} onChange={(e) => patch({ minimumJointProbability: num(e.target.value) })} /> : <div className="posmono">{hepText(f.minimumJointProbability)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Justification</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={f.justification} onChange={(e) => patch({ justification: e.target.value })} /> : <div>{f.justification}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={f.justification} onChange={(e) => patch({ justification: e.target.value })} /> : <div>{f.justification}</div>}
             </div>
           </div>
         </div>
@@ -1689,10 +1690,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{c.basis}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Reviewed events (comma separated ids)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(c.hfeIdsReviewed)} onChange={(e) => patch({ hfeIdsReviewed: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(c.hfeIdsReviewed)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(c.hfeIdsReviewed)} onChange={(e) => patch({ hfeIdsReviewed: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(c.hfeIdsReviewed)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Findings</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={c.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{c.findings}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={c.findings} onChange={(e) => patch({ findings: e.target.value })} /> : <div>{c.findings}</div>}
             </div>
           </div>
           {editable && (
@@ -1735,19 +1736,19 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === e.hfeId)?.name ?? e.hfeId}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Unsafe action</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.unsafeAction} onChange={(ev) => patch({ unsafeAction: ev.target.value })} /> : <div>{e.unsafeAction}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.unsafeAction} onChange={(ev) => patch({ unsafeAction: ev.target.value })} /> : <div>{e.unsafeAction}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Plant conditions (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(e.plantConditions)} onChange={(ev) => patch({ plantConditions: parseCsv(ev.target.value) })} /> : <div>{csv(e.plantConditions)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(e.plantConditions)} onChange={(ev) => patch({ plantConditions: parseCsv(ev.target.value) })} /> : <div>{csv(e.plantConditions)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Performance shaping factors (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(e.performanceShapingFactors)} onChange={(ev) => patch({ performanceShapingFactors: parseCsv(ev.target.value) })} /> : <div>{csv(e.performanceShapingFactors)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(e.performanceShapingFactors)} onChange={(ev) => patch({ performanceShapingFactors: parseCsv(ev.target.value) })} /> : <div>{csv(e.performanceShapingFactors)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Vulnerability</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.vulnerability} onChange={(ev) => patch({ vulnerability: ev.target.value })} /> : <div>{e.vulnerability}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={e.vulnerability} onChange={(ev) => patch({ vulnerability: ev.target.value })} /> : <div>{e.vulnerability}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Search method</label>
-              {editable ? <input className="posfield__input" value={e.searchMethod ?? ""} onChange={(ev) => patch({ searchMethod: ev.target.value.length === 0 ? undefined : ev.target.value })} /> : <div>{e.searchMethod ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={e.searchMethod ?? ""} onChange={(ev) => patch({ searchMethod: ev.target.value.length === 0 ? undefined : ev.target.value })} /> : <div>{e.searchMethod ?? "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1791,10 +1792,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <input className="posfield__input" value={r.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{r.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={r.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{r.name}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Restored function</label>
-              {editable ? <input className="posfield__input" value={r.restoredFunction} onChange={(e) => patch({ restoredFunction: e.target.value })} /> : <div>{r.restoredFunction}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={r.restoredFunction} onChange={(e) => patch({ restoredFunction: e.target.value })} /> : <div>{r.restoredFunction}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Applied at level</label>
               {editable
@@ -1813,13 +1814,13 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{hr.humanFailureEvents.find((h) => h.uuid === r.hfeId)?.name ?? r.hfeId}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Recovery quantification id</label>
-              {editable ? <input className="posfield__input posmono" value={r.hepQuantificationId} onChange={(e) => patch({ hepQuantificationId: e.target.value })} /> : <div className="posmono">{r.hepQuantificationId}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={r.hepQuantificationId} onChange={(e) => patch({ hepQuantificationId: e.target.value })} /> : <div className="posmono">{r.hepQuantificationId}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Dependence assessment id</label>
-              {editable ? <input className="posfield__input posmono" value={r.dependencyAssessmentId ?? ""} onChange={(e) => patch({ dependencyAssessmentId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{r.dependencyAssessmentId ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={r.dependencyAssessmentId ?? ""} onChange={(e) => patch({ dependencyAssessmentId: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{r.dependencyAssessmentId ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Applied to sequences (comma separated)</label>
-              {editable ? <input className="posfield__input posmono" value={csv(r.appliedToSequenceIds ?? [])} onChange={(e) => patch({ appliedToSequenceIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(r.appliedToSequenceIds ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" value={csv(r.appliedToSequenceIds ?? [])} onChange={(e) => patch({ appliedToSequenceIds: parseCsv(e.target.value) })} /> : <div className="posmono">{csv(r.appliedToSequenceIds ?? []) || "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Procedure or guidance</label>{bool(r.feasibility.procedureOrGuidanceAvailable, (v) => patchFeas({ procedureOrGuidanceAvailable: v }))}</div>
             <div className="posfield"><label className="posfield__label">Training included</label>{bool(r.feasibility.trainingIncluded, (v) => patchFeas({ trainingIncluded: v }))}</div>
@@ -1829,10 +1830,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Accessibility confirmed</label>{bool(r.feasibility.accessibilityConfirmed, (v) => patchFeas({ accessibilityConfirmed: v }))}</div>
             <div className="posfield"><label className="posfield__label">Equipment available</label>{bool(r.feasibility.equipmentAvailable, (v) => patchFeas({ equipmentAvailable: v }))}</div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Omission justification</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.feasibility.omissionJustification ?? ""} onChange={(e) => patchFeas({ omissionJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.feasibility.omissionJustification ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.feasibility.omissionJustification ?? ""} onChange={(e) => patchFeas({ omissionJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.feasibility.omissionJustification ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Pre-operational feasibility justification (HR-H3)</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.preOperationalFeasibilityJustification ?? ""} onChange={(e) => patch({ preOperationalFeasibilityJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.preOperationalFeasibilityJustification ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={r.preOperationalFeasibilityJustification ?? ""} onChange={(e) => patch({ preOperationalFeasibilityJustification: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{r.preOperationalFeasibilityJustification ?? "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1869,13 +1870,13 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Source</label>
-              {editable ? <input className="posfield__input" value={u.source} onChange={(e) => patch({ source: e.target.value })} /> : <div>{u.source}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={u.source} onChange={(e) => patch({ source: e.target.value })} /> : <div>{u.source}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Impact</label>
-              {editable ? <textarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={u.impact} onChange={(e) => patch({ impact: e.target.value })} /> : <div>{u.impact}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={u.impact} onChange={(e) => patch({ impact: e.target.value })} /> : <div>{u.impact}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Applicable elements (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(u.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(u.applicableElements ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(u.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(u.applicableElements ?? []) || "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1912,13 +1913,13 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Assumption</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.assumption} onChange={(e) => patch({ assumption: e.target.value })} /> : <div>{a.assumption}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.assumption} onChange={(e) => patch({ assumption: e.target.value })} /> : <div>{a.assumption}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Basis</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.basis} onChange={(e) => patch({ basis: e.target.value })} /> : <div>{a.basis}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.basis} onChange={(e) => patch({ basis: e.target.value })} /> : <div>{a.basis}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Applicable elements (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.applicableElements ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.applicableElements ?? []) || "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1955,13 +1956,13 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Alternative</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.alternative} onChange={(e) => patch({ alternative: e.target.value })} /> : <div>{a.alternative}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.alternative} onChange={(e) => patch({ alternative: e.target.value })} /> : <div>{a.alternative}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Reason not selected</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.reasonNotSelected} onChange={(e) => patch({ reasonNotSelected: e.target.value })} /> : <div>{a.reasonNotSelected}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.reasonNotSelected} onChange={(e) => patch({ reasonNotSelected: e.target.value })} /> : <div>{a.reasonNotSelected}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Applicable elements (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.applicableElements ?? []) || "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.applicableElements ?? [])} onChange={(e) => patch({ applicableElements: parseCsv(e.target.value).length > 0 ? parseCsv(e.target.value) : undefined })} /> : <div>{csv(a.applicableElements ?? []) || "—"}</div>}
             </div>
           </div>
           {editable && (
@@ -1997,10 +1998,10 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Influence on the analysis</label>
-              {editable ? <input className="posfield__input" value={a.influenceOnDefinition} onChange={(e) => patch({ influenceOnDefinition: e.target.value })} /> : <div>{a.influenceOnDefinition}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={a.influenceOnDefinition} onChange={(e) => patch({ influenceOnDefinition: e.target.value })} /> : <div>{a.influenceOnDefinition}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{a.description}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{a.description}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Status</label>
               {editable
@@ -2021,16 +2022,16 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
                 : <div>{a.riskImpact}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Closure basis</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.closureBasis} onChange={(e) => patch({ closureBasis: e.target.value })} /> : <div>{a.closureBasis}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={a.closureBasis} onChange={(e) => patch({ closureBasis: e.target.value })} /> : <div>{a.closureBasis}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Planned closure actions (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.plannedClosureActions)} onChange={(e) => patch({ plannedClosureActions: parseCsv(e.target.value) })} /> : <div>{csv(a.plannedClosureActions)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.plannedClosureActions)} onChange={(e) => patch({ plannedClosureActions: parseCsv(e.target.value) })} /> : <div>{csv(a.plannedClosureActions)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Limitations (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.limitations)} onChange={(e) => patch({ limitations: parseCsv(e.target.value) })} /> : <div>{csv(a.limitations)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.limitations)} onChange={(e) => patch({ limitations: parseCsv(e.target.value) })} /> : <div>{csv(a.limitations)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Affected elements (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(a.affectedElementIds)} onChange={(e) => patch({ affectedElementIds: parseCsv(e.target.value) })} /> : <div>{csv(a.affectedElementIds)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(a.affectedElementIds)} onChange={(e) => patch({ affectedElementIds: parseCsv(e.target.value) })} /> : <div>{csv(a.affectedElementIds)}</div>}
             </div>
           </div>
           {editable && (
@@ -2066,19 +2067,19 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <input className="posfield__input" value={s.name ?? ""} onChange={(e) => patch({ name: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.name ?? "—"}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={s.name ?? ""} onChange={(e) => patch({ name: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.name ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Description</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{s.description}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.description} onChange={(e) => patch({ description: e.target.value })} /> : <div>{s.description}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Varied parameters (comma separated)</label>
-              {editable ? <input className="posfield__input" value={csv(s.variedParameters)} onChange={(e) => patch({ variedParameters: parseCsv(e.target.value) })} /> : <div>{csv(s.variedParameters)}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={csv(s.variedParameters)} onChange={(e) => patch({ variedParameters: parseCsv(e.target.value) })} /> : <div>{csv(s.variedParameters)}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Results</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.results ?? ""} onChange={(e) => patch({ results: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.results ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.results ?? ""} onChange={(e) => patch({ results: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.results ?? "—"}</div>}
             </div>
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Insights</label>
-              {editable ? <textarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.insights ?? ""} onChange={(e) => patch({ insights: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.insights ?? "—"}</div>}
+              {editable ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={s.insights ?? ""} onChange={(e) => patch({ insights: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div>{s.insights ?? "—"}</div>}
             </div>
           </div>
           {editable && (

@@ -1,0 +1,24 @@
+.firew {
+  --fl-integrated:#9a3f20;
+  --fl-integrated-soft:#f9eee9;
+  --fl-pp:#80551e;
+  --fl-pp-soft:#f6efe4;
+  --fl-so:#a94b24;
+  --fl-so-soft:#faeee8;
+  --fl-sn:#b66c20;
+  --fl-sn-soft:#fbf2e5;
+  --fl-ev:#a33b32;
+  --fl-ev-soft:#f9ecea;
+  --fl-pr:#6f4b3e;
+  --fl-pr-soft:#f2eeec;
+  --fl-hr:#865574;
+  --fl-hr-soft:#f5eef3;
+  --fl-esq:#4f6a78;
+  --fl-esq-soft:#edf2f4;
+}
+.firew .flsubbadge--fpp{background:#f6efe4;color:#80551e}.firew .flsubbadge--fes{background:#faeee8;color:#a94b24}.firew .flsubbadge--fcs{background:#f7ede7;color:#8d4a2d}.firew .flsubbadge--fqls{background:#fbf2e5;color:#9b641e}.firew .flsubbadge--fprm{background:#f2eeec;color:#6f4b3e}.firew .flsubbadge--fss{background:#f9ecea;color:#a33b32}.firew .flsubbadge--fign{background:#fff0df;color:#a85c13}.firew .flsubbadge--fcf{background:#f2edf7;color:#6f4b88}.firew .flsubbadge--fhr{background:#f5eef3;color:#865574}.firew .flsubbadge--fesq{background:#edf2f4;color:#4f6a78}
+.firew .fltable tbody tr:hover{background:color-mix(in srgb,var(--fl-integrated-soft) 58%,transparent)}
+.firew .posdock__gauge-fill{stroke:var(--fl-integrated)}
+.firew .posrail__bar-fill{background:var(--fl-integrated)}
+.firew .posrail__step--active{border-left-color:var(--fl-integrated)}
+@media (max-width:1100px){.firew .poshd__save-pill{display:none}}

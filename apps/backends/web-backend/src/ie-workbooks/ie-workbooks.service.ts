@@ -11,6 +11,7 @@ import { IeDocumentsService } from "./ie-documents.service";
 import { createBlankIe } from "./blank-ie";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface IeWorkbookResponse {
   workbookId: string;
@@ -63,12 +64,12 @@ export class IeWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<IeWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<IeWorkbookResponse> {
     const doc = await this.ieWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("IE workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this IE workbook");
-    const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = InitiatingEventsAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid IE workbook payload: ${parsed.error.message}`);
     }

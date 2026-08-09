@@ -123,11 +123,11 @@ function IeWorkbookPage(): JSX.Element {
 
   const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patchDebounced } = useIeMefPatch(id ?? "", data?.ie ?? null, handleSaveOk, handleSaveErr);
+  const { patch } = useIeMefPatch(id ?? "", data?.ie ?? null, handleSaveOk, handleSaveErr);
   const mutateIe = useCallback((mutator: (ie: InitiatingEventsAnalysis) => InitiatingEventsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, ie: mutator(prev.ie) }));
-    patchDebounced(mutator);
-  }, [patchDebounced]);
+    void patch(mutator);
+  }, [patch]);
 
   const refreshPosLink = useCallback(async (): Promise<void> => {
     if (id === undefined) return;

@@ -11,6 +11,7 @@ import { MsDocumentsService } from "./ms-documents.service";
 import { createBlankMs } from "./blank-ms";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
+import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
 
 export interface MsWorkbookResponse {
   workbookId: string;
@@ -61,12 +62,12 @@ export class MsWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async replaceMef(workbookId: string, mef: unknown, acting: ActingUser): Promise<MsWorkbookResponse> {
+  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<MsWorkbookResponse> {
     const doc = await this.msWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("MS workbook not found");
     const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
     if (role === "viewer") throw new ForbiddenException("You cannot edit this MS workbook");
-    const parsed = MechanisticSourceTermAnalysisSchema.safeParse(stripNulls(mef));
+    const parsed = MechanisticSourceTermAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid MS workbook payload: ${parsed.error.message}`);
     }

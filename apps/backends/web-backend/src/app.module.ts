@@ -24,6 +24,7 @@ import { MsWorkbooksModule } from "./ms-workbooks/ms-workbooks.module";
 import { RcWorkbooksModule } from "./rc-workbooks/rc-workbooks.module";
 import { RiWorkbooksModule } from "./ri-workbooks/ri-workbooks.module";
 import { SeismicPraWorkbooksModule } from "./seismic-pra-workbooks/seismic-pra-workbooks.module";
+import { InternalFloodPraWorkbooksModule } from "./internal-flood-pra-workbooks/internal-flood-pra-workbooks.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
@@ -58,6 +59,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     RcWorkbooksModule,
     RiWorkbooksModule,
     SeismicPraWorkbooksModule,
+    InternalFloodPraWorkbooksModule,
   ],
 })
 export class AppModule {}

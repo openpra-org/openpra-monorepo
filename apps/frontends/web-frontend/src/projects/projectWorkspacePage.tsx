@@ -116,6 +116,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/seismic-pra-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "FL") {
+      navigate(`/internal-flood-pra-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

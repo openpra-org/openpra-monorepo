@@ -17,6 +17,7 @@ import {
   type RcExampleBundle,
   type RiExampleBundle,
   type SeismicPraExampleBundle,
+  type InternalFloodPraExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -166,6 +167,18 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getSeismicPraBundle(@Query("example") example?: string): Promise<SeismicPraExampleBundle> {
     return this.exampleWorkbooksService.getSeismicPraBundle(example);
+  }
+
+  @Get("internal-flood-pra-examples")
+  @HttpCode(HttpStatus.OK)
+  getInternalFloodPraExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getInternalFloodPraExamples();
+  }
+
+  @Get("internal-flood-pra-bundle")
+  @HttpCode(HttpStatus.OK)
+  getInternalFloodPraBundle(@Query("example") example?: string): Promise<InternalFloodPraExampleBundle> {
+    return this.exampleWorkbooksService.getInternalFloodPraBundle(example);
   }
 
   @Get(":slug")

@@ -42,6 +42,7 @@ const ELEMENT_ROUTES: ReadonlyArray<[RegExp, string]> = [
   [/^\/rc-workbooks\/([^/]+)/, "RC"],
   [/^\/ri-workbooks\/([^/]+)/, "RI"],
   [/^\/seismic-pra-workbooks\/([^/]+)/, "S"],
+  [/^\/internal-flood-pra-workbooks\/([^/]+)/, "FL"],
 ];
 
 let buffer: UsageEvent[] = [];

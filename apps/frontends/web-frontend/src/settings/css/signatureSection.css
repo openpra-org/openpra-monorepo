@@ -41,7 +41,7 @@
   color: var(--color-error) !important;
 }
 .sigsec__clear-btn:hover {
-  background: rgba(186, 26, 26, 0.06) !important;
+  background: rgb(179 38 30 / 0.06) !important;
 }
 
 .sigsec__empty {

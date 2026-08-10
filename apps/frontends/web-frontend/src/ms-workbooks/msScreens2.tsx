@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type ReleasePhase, type SourceTermDefinition, TransportPhenomenonType } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
@@ -94,7 +95,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Source terms</h3>
+          <WorkbookSectionHeading workbook="MS" title="Source terms" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C1 · C3 · C4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSourceTerm}><MSIcon.Plus /> Add source term</button>}
@@ -144,7 +145,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
       {headline !== undefined && headline.releaseForms.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Quantitative source-term table</h3>
+            <WorkbookSectionHeading workbook="MS" title="Quantitative source-term table" level={3} />
             <MsProvenanceChip>MS-E2</MsProvenanceChip>
           </div>
           <p className="poscard__sub">The documentation deliverable is the table itself, here for {categoryName(headline.releaseCategoryReference)}, by species, phase, form and chemical form.</p>
@@ -157,7 +158,7 @@ function SourceTermScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Source-term models</h3>
+          <WorkbookSectionHeading workbook="MS" title="Source-term models" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C5</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModel}><MSIcon.Plus /> Add model</button>}
@@ -233,7 +234,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Uncertainty analyses</h3>
+          <WorkbookSectionHeading workbook="MS" title="Uncertainty analyses" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-D2 · D4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAnalysis}><MSIcon.Plus /> Add analysis</button>}
@@ -307,7 +308,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Model-uncertainty sources</h3>
+          <WorkbookSectionHeading workbook="MS" title="Model-uncertainty sources" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-C6 · D3</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModelUncertainty}><MSIcon.Plus /> Add source</button>}
@@ -330,7 +331,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Open items register</h3>
+          <WorkbookSectionHeading workbook="MS" title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-D3 · E4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSensitivity}><MSIcon.Plus /> Add sensitivity</button>}
@@ -367,7 +368,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Surrogate risk metric</h3>
+          <WorkbookSectionHeading workbook="MS" title="Surrogate risk metric" level={3} />
           <MsProvenanceChip>MS-E1</MsProvenanceChip>
         </div>
         <p className="poscard__sub">The surrogate risk metric relates the source-term deliverable to the plant risk metric that Risk Integration pairs with the frequency.</p>
@@ -415,7 +416,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="MS" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -424,7 +425,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="MS" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 6 and moves to <strong>Internal Technical Review</strong>.</>
@@ -447,8 +448,7 @@ function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; 
     <div className="posdrawer__head">
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <h2 className="posdrawer__title">{title}</h2>
-        {sub !== undefined && <p className="posdrawer__sub">{sub}</p>}
+        <WorkbookSectionHeading workbook="MS" title={title} cueKey={cap} description={sub} level={2} className="posdrawer__title" />
       </div>
       <button type="button" className="posdrawer__close" onClick={onClose}><MSIcon.Close /></button>
     </div>
@@ -517,7 +517,7 @@ function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }): 
 function SrChips({ srs }: { srs: { sr: string }[] }): JSX.Element {
   return (
     <div>
-      <div className="essec">Standard requirements</div>
+      <WorkbookCueLabel workbook="MS" title="Standard requirements" className="essec" />
       <div className="posdrawer__srs">{srs.map((s) => <span key={s.sr} className="poschip posmono">{s.sr}</span>)}</div>
     </div>
   );

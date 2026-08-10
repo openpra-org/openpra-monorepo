@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useState } from "react";
 import { ESIcon } from "./esIcons";
 import { getAvailablePosWorkbooks, type AvailablePosWorkbook } from "./esWorkbookApi";
@@ -35,7 +36,7 @@ function EsPosLinkModal({ workbookId, currentLinkedId, onClose, onConfirm }: {
         <header className="eslink__head">
           <div>
             <div className="eslink__eyebrow"><ESIcon.Link /> Import upstream data</div>
-            <h2 className="eslink__title">Link a POS workbook</h2>
+            <WorkbookSectionHeading workbook="ES" title="Link a POS workbook" level={2} className="eslink__title" />
           </div>
           <button type="button" className="eslink__close" onClick={onClose} disabled={busy} aria-label="Close"><ESIcon.Close /></button>
         </header>

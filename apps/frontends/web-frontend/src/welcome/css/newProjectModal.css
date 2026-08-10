@@ -42,7 +42,7 @@
 }
 
 .modal__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text);

@@ -5,6 +5,23 @@
   min-width: 0;
 }
 
+.workbook-cue-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workbook-cue-label .workbook-help__button {
+  width: 19px;
+  height: 19px;
+}
+
+.workbook-cue-label .workbook-help__button svg {
+  width: 15px;
+  height: 15px;
+}
+
 .workbook-section-heading .posgen__readout-h {
   margin: 0;
 }

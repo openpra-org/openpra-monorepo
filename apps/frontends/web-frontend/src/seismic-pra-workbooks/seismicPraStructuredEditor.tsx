@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { type JSX, useMemo, useState } from "react";
 import { z } from "zod";
 import { POSIcon } from "../pos-workbooks/posIcons";
@@ -534,11 +535,11 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
     const shownUsageOptions = usageOptions.filter(([key]) => entries.some(([entryKey]) => entryKey === key));
     return <>
       {conciseEntries.length > 0 && <div className="sstructured__section">
-        {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Details</h3>}
+        {(narrativeEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading workbook="SEISMIC" title="Details" className="sstructured__section-title" />}
         <div className="sstructured__fields">{conciseEntries.map(([key, childSchema]) => <div className="sstructured__field" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {isGroundMotionParameter && (showGroundMotionRange || showFrequencyRange) && <div className="sstructured__section">
-        <h3 className="sstructured__section-title">Ranges</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Ranges" className="sstructured__section-title" />
         <div className="sstructured__fields">
           {showGroundMotionRange && <div className="sstructured__field">
             <span className="posfield__label">Ground-motion range</span>
@@ -557,15 +558,15 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
         </div>
       </div>}
       {isGroundMotionParameter && shownUsageOptions.length > 0 && <div className="sstructured__section">
-        <h3 className="sstructured__section-title">Used by</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Used by" className="sstructured__section-title" />
         <div className="sstructured__check-group">{shownUsageOptions.map(([key, label]) => <label key={key}><input type="checkbox" checked={objectValue[key] === true} disabled={!editable} onChange={(event) => updateCurrent({ ...objectValue, [key]: event.target.checked })} /><span>{label}</span></label>)}</div>
       </div>}
       {narrativeEntries.length > 0 && <div className="sstructured__section">
-        {(conciseEntries.length > 0 || nestedEntries.length > 0) && <h3 className="sstructured__section-title">Technical basis</h3>}
+        {(conciseEntries.length > 0 || nestedEntries.length > 0) && <WorkbookSectionHeading workbook="SEISMIC" title="Technical basis" className="sstructured__section-title" />}
         <div className="sstructured__fields">{narrativeEntries.map(([key, childSchema]) => <div className="sstructured__field sstructured__field--wide" key={key}><label className="posfield__label" htmlFor={editorFieldId(key)}>{fieldLabel(key)}</label><PrimitiveControl schema={childSchema as z.ZodType} fieldKey={key} value={objectValue[key] ?? defaultFor(childSchema as z.ZodType, key)} editable={editable} onChange={(next) => updateCurrent({ ...objectValue, [key]: next })} /></div>)}</div>
       </div>}
       {inlineArrayEntries.length > 0 && <div className="sstructured__section">
-        <h3 className="sstructured__section-title">References and lists</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="References and lists" className="sstructured__section-title" />
         <div className="sstructured__inline-arrays">{inlineArrayEntries.map(([key, childSchema]) => {
           const arraySchema = unwrap(childSchema as z.ZodType) as z.ZodArray;
           const arrayValue = Array.isArray(objectValue[key]) ? objectValue[key] : [];
@@ -592,7 +593,7 @@ function StructuredEditorDrawer<S extends z.ZodType>({ eyebrow, title, subtitle,
           ? objectValue[key]
           : defaultFor(childObjectSchema, key) as JsonObject;
         return <div className="sstructured__section" key={key}>
-          <h3 className="sstructured__section-title">{fieldLabel(key)}</h3>
+          <WorkbookSectionHeading workbook="SEISMIC" title={fieldLabel(key)} cueKey="Structured record details" className="sstructured__section-title" />
           <div className="sstructured__fields">{Object.entries(childObjectSchema.shape).map(([childKey, grandchildSchema]) =>
             <div className="sstructured__field sstructured__field--wide" key={childKey}>
               <label className="posfield__label" htmlFor={editorFieldId(`${key}-${childKey}`)}>{fieldLabel(childKey)}</label>

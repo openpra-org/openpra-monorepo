@@ -166,15 +166,16 @@ describe("Seismic PRA Step 12 risk interpretation", () => {
 
   it("keeps section explanations behind question marks and technical details beside entry names", async () => {
     const mef = renderRiskInterpretation();
-    const sectionHelp =
-      "A refinement is a specific technical change made because an important contributor or uncertainty can be represented more realistically. Every change must identify its driver, affected records, evidence, requantification run, result, and decision.";
     const action = mef.riskInterpretation.refinementActions[0]!;
 
-    expect(screen.queryByText(sectionHelp)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {
       name: "About Model refinements",
     }));
-    expect(screen.getByText(sectionHelp)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "A refinement is a specific technical change",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
 
     expect(screen.queryByText(action.refinement, { exact: false }))
       .not.toBeInTheDocument();

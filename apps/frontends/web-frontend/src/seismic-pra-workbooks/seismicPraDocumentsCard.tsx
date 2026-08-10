@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { type ChangeEvent, type JSX, useEffect, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { useSeismicPraWorkbook } from "./seismicPraWorkbookContext";
@@ -95,7 +96,7 @@ function SeismicPraDocumentsCard({ workbookId, canEdit }: { workbookId?: string;
 
   return <div className="poscard">
     <div className="poscard__head">
-      <h3 className="poscard__title">Supporting Documents</h3>
+      <WorkbookSectionHeading workbook="SEISMIC" title="Supporting Documents" />
       {canChange && workbookId !== undefined && <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
         <POSIcon.Plus /> {busy ? "Uploading…" : "Upload"}
         <input type="file" hidden disabled={busy} onChange={upload} />

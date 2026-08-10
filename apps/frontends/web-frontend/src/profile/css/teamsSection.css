@@ -23,12 +23,12 @@
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #a16cd1 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
   color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -47,7 +47,7 @@
 }
 
 .pf__team-name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
@@ -82,19 +82,16 @@
 }
 
 .pf__role-chip--lead {
-  background: rgba(46, 125, 79, 0.12);
+  background: rgb(18 197 185 / 0.12);
   color: var(--color-success);
 }
 
 .pf__role-chip--invited {
-  background: rgba(184, 106, 0, 0.12);
+  background: rgb(222 106 43 / 0.12);
   color: var(--color-warning);
 }
 
-[data-theme="dark"] .pf__role-chip--invited {
-  background: rgba(224, 161, 77, 0.18);
-  color: var(--color-warning);
-}
+
 
 .pf__team-org {
   color: var(--color-text-muted);
@@ -132,7 +129,7 @@
 .pf__team-leave:hover {
   border-color: var(--color-error);
   color: var(--color-error);
-  background: rgba(186, 26, 26, 0.05);
+  background: rgb(179 38 30 / 0.05);
 }
 
 .pf__team-open {
@@ -183,7 +180,7 @@
 }
 
 .pf__teams-empty h3 {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text);

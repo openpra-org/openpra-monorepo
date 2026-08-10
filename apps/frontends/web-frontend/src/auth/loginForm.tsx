@@ -7,7 +7,7 @@ import { GoogleIcon, GitHubIcon } from "../welcome/icons";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useAuth, getRoles } from "./AuthContext";
-import logo from "../assets/Triplet.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import "./css/loginForm.css";
 
 interface LoginFieldErrors {
@@ -94,7 +94,7 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
       <div>
         <div className="login-form__header">
           <div className="login-form__logo-wrap">
-            <img src={logo} alt="OpenPRA" className="login-form__logo-img" />
+            <OpenPraBrand variant="header" surface="light" className="login-form__logo-img" />
           </div>
           <h1 className="login-form__title">Two-step verification</h1>
           <p className="login-form__subtitle">Enter the code from your authenticator app</p>
@@ -138,7 +138,7 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
     <div>
       <div className="login-form__header">
         <div className="login-form__logo-wrap">
-          <img src={logo} alt="OpenPRA" className="login-form__logo-img" />
+          <OpenPraBrand variant="header" surface="light" className="login-form__logo-img" />
         </div>
         <h1 className="login-form__title">Welcome back</h1>
         <p className="login-form__subtitle">Sign in to continue your analysis</p>

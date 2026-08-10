@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { RCIcon } from "./rcIcons";
@@ -56,7 +57,7 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The dispersion model</h3>
+          <WorkbookSectionHeading workbook="RC" title="The dispersion model" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCAD-A1 · A2 · A3</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
@@ -73,7 +74,7 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The credit fence</h3>
+          <WorkbookSectionHeading workbook="RC" title="The credit fence" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCAD-C1 · C2 · C3</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dispersion", id: "dispersion" })}><RCIcon.Settings /> Edit</button>}
@@ -106,7 +107,7 @@ function DispersionScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The deposition matrix</h3>
+          <WorkbookSectionHeading workbook="RC" title="The deposition matrix" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCAD-E1 to E7</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "deposition", id: "deposition" })}><RCIcon.Settings /> Edit</button>}
@@ -160,7 +161,7 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Exposure pathways</h3>
+          <WorkbookSectionHeading workbook="RC" title="Exposure pathways" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCDO-A1</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPathway}><RCIcon.Plus /> Add pathway</button>}
@@ -187,7 +188,7 @@ function DosimetryScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Dose treatment</h3>
+          <WorkbookSectionHeading workbook="RC" title="Dose treatment" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCDO-A4 · A7 · A8 · B1</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dosetreatment", id: "dose" })}><RCIcon.Settings /> Edit</button>}
@@ -231,7 +232,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Health effects</h3>
+          <WorkbookSectionHeading workbook="RC" title="Health effects" level={3} />
           <RcProvenanceChip>RCHE-A1</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The early effects and the latent effects to evaluate are identified, since they need different parameters.</p>
@@ -239,7 +240,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
           <div className="rche__col">
             <div className="rche__col-head">
               <div>
-                <div className="rche__col-title">Early effects</div>
+                <WorkbookCueLabel workbook="RC" title="Early effects" className="rche__col-title" />
                 <div className="rche__col-when">Hours to weeks, from a high acute dose</div>
               </div>
             </div>
@@ -258,7 +259,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
           <div className="rche__col rche__col--latent">
             <div className="rche__col-head">
               <div>
-                <div className="rche__col-title">Latent effects</div>
+                <WorkbookCueLabel workbook="RC" title="Latent effects" className="rche__col-title" />
                 <div className="rche__col-when">Years to decades, from any dose</div>
               </div>
             </div>
@@ -279,7 +280,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Effect parameters</h3>
+          <WorkbookSectionHeading workbook="RC" title="Effect parameters" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCHE-A2 · A3</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "healthparams", id: "he" })}><RCIcon.Settings /> Edit</button>}
@@ -298,7 +299,7 @@ function HealthEffectsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-factor sources</h3>
+          <WorkbookSectionHeading workbook="RC" title="Risk-factor sources" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCHE-B1</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRiskFactor}><RCIcon.Plus /> Add source</button>}
@@ -337,7 +338,7 @@ function EconomicsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Cost categories</h3>
+          <WorkbookSectionHeading workbook="RC" title="Cost categories" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCEC-A1</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><RCIcon.Plus /> Add category</button>}
@@ -362,7 +363,7 @@ function EconomicsScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Economic data</h3>
+          <WorkbookSectionHeading workbook="RC" title="Economic data" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCEC-B1 to B7</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addParam}><RCIcon.Plus /> Add parameter</button>}

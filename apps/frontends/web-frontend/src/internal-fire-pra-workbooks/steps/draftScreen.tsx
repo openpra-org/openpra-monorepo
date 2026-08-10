@@ -42,7 +42,7 @@ export function DraftScreen({ actions }: { actions?: InternalFireWorkflowActions
     </div>
     <div className="posgen__side">
       <div className="posgen__readout">
-        <WorkbookSectionHeading title="Conformance check" description="Summarize whether the workbook satisfies the applicable Internal Fire supporting requirements for the selected plant stage and capability-category target." className="posgen__readout-h" />
+        <WorkbookSectionHeading workbook="FIRE" title="Conformance check" description="Summarize whether the workbook satisfies the applicable Internal Fire supporting requirements for the selected plant stage and capability-category target." className="posgen__readout-h" />
         <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{mef.capabilityCategory}</span></div>
         <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{mef.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational"}</span></div>
         <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{score.met} / {score.applicable}</span></div>
@@ -50,7 +50,7 @@ export function DraftScreen({ actions }: { actions?: InternalFireWorkflowActions
         {score.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{score.blocked}</span></div>}
       </div>
       <div className="posgen__readout">
-        <WorkbookSectionHeading title={canSubmit ? "Hand-off to internal review" : "Read-only draft preview"} description={canSubmit ? "Generate the report and submit a controlled workbook snapshot for internal technical review. The analysis steps become read only while review is active." : "Inspect the report-ready workbook contents without changing or submitting the controlled analysis."} className="posgen__readout-h" />
+        <WorkbookSectionHeading workbook="FIRE" title={canSubmit ? "Hand-off to internal review" : "Read-only draft preview"} description={canSubmit ? "Generate the report and submit a controlled workbook snapshot for internal technical review. The analysis steps become read only while review is active." : "Inspect the report-ready workbook contents without changing or submitting the controlled analysis."} className="posgen__readout-h" />
         {canSubmit ? <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>{ready ? <>Producing the draft locks Steps 1–15 and advances the workbook to <strong>Internal Technical Review</strong>.</> : <>{blockers.length} blocking item{blockers.length === 1 ? "" : "s"} remain. A working report may be downloaded, but submission stays locked until the blockers are resolved.</>}</p> : <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>Only the preparer or a co-preparer can submit the draft for internal review.</p>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {canSubmit && <button type="button" className="posnav__btn posnav__btn--primary" disabled={!ready || busy} onClick={submit}>{ready ? <POSIcon.Send /> : <POSIcon.Lock />} {busy ? "Submitting…" : "Submit draft to internal review"}</button>}

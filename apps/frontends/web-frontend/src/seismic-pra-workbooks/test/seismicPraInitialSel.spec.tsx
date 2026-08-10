@@ -43,11 +43,12 @@ describe("Seismic PRA Step 04 initial SEL", () => {
 
   it("keeps the initial-SEL explanation behind the help control", async () => {
     renderInitialSel();
-    const explanation = "This is the first controlled list of SSCs that may matter to seismic risk. It begins with the baseline systems model, then adds structures, passive components, relays, cabinets, fire and flood sources, secondary-hazard SSCs, and operator-support equipment.";
-
-    expect(screen.queryByText(explanation)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "About Initial seismic equipment list" }));
-    expect(screen.getByText(explanation)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "first controlled list of SSCs that may matter to seismic risk",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
   });
 
   it("opens one flat SSC editor without downstream fragility-result fields", async () => {

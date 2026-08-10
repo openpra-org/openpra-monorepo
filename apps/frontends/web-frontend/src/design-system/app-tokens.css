@@ -1,0 +1,138 @@
+:root,
+[data-theme="light"],
+[data-theme="dark"] {
+  color-scheme: light;
+
+  /* Typography */
+  --font-display: var(--op-font-display);
+  --font-notation: var(--op-font-notation);
+  --font-ui: var(--op-font-ui);
+  --font-data: var(--op-font-data);
+  --font-body: var(--font-ui);
+  --font-mono: var(--font-data);
+
+  --type-display-1: 3.5rem;
+  --type-display-2: 2.5rem;
+  --type-h1: 2rem;
+  --type-h2: 1.5rem;
+  --type-h3: 1.25rem;
+  --type-body: 1.0625rem;
+  --type-small: 0.9375rem;
+  --type-caption: 0.8125rem;
+  --type-data: 0.9375rem;
+
+  /* The application canvas is intentionally invariant across every theme. */
+  --color-canvas: var(--op-slate-0);
+  --color-bg-from: var(--op-slate-0);
+  --color-bg-to: var(--op-slate-0);
+  --color-surface: var(--op-slate-0);
+  --color-surface-raised: var(--op-slate-0);
+  --color-surface-low: var(--op-mist);
+  --color-surface-muted: var(--op-slate-50);
+
+  --color-text: var(--op-ink);
+  --color-text-muted: var(--op-slate-600);
+  --color-text-subtle: var(--op-slate-500);
+  --color-text-inverse: var(--op-slate-0);
+
+  /* Separate action fills from text/link colours. */
+  --color-primary: var(--op-violet-600);
+  --color-primary-fill: var(--op-violet-500);
+  --color-primary-hover: var(--op-violet-700);
+  --color-primary-tint: var(--op-violet-50);
+  --color-primary-soft: rgb(143 78 199 / 10%);
+  --color-primary-focus: rgb(143 78 199 / 22%);
+
+  --color-border: var(--op-line);
+  --color-border-strong: var(--op-slate-300);
+  --color-success: var(--op-teal-700);
+  --color-warning: var(--op-ember-700);
+  --color-error: #B3261E;
+  --color-note: var(--op-violet-700);
+  --color-danger: var(--color-error);
+
+  --color-success-soft: rgb(18 197 185 / 12%);
+  --color-warning-soft: rgb(222 106 43 / 12%);
+  --color-error-soft: rgb(179 38 30 / 10%);
+  --color-note-soft: rgb(143 78 199 / 10%);
+  --color-success-border: rgb(11 126 119 / 32%);
+  --color-warning-border: rgb(159 72 25 / 32%);
+  --color-error-border: rgb(179 38 30 / 28%);
+  --color-danger-bg: var(--color-error-soft);
+  --color-warning-bg: var(--color-warning-soft);
+
+  --color-scenario: var(--op-violet-500);
+  --color-scenario-text: var(--op-violet-700);
+  --color-probability: var(--op-teal-500);
+  --color-probability-text: var(--op-teal-700);
+  --color-consequence: var(--op-ember-500);
+  --color-consequence-text: var(--op-ember-700);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgb(27 18 38 / 5%), 0 8px 24px rgb(27 18 38 / 6%);
+  --shadow-card-hover: 0 2px 4px rgb(27 18 38 / 6%), 0 12px 32px rgb(27 18 38 / 10%);
+  --shadow-overlay: 0 24px 64px rgb(27 18 38 / 22%);
+
+  --control-height-sm: 2rem;
+  --control-height-md: 2.5rem;
+  --control-height-lg: 3rem;
+  --focus-ring: 0 0 0 3px var(--color-primary-focus);
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+
+  --topbar-bg: rgb(255 255 255 / 92%);
+  --modal-backdrop: rgb(27 18 38 / 46%);
+  --logo-filter: none;
+
+  /* Theme-aware chrome can be dark without changing the white canvas. */
+  --chrome-surface: var(--op-slate-0);
+  --chrome-surface-low: var(--op-mist);
+  --chrome-text: var(--op-ink);
+  --chrome-text-muted: var(--op-slate-600);
+  --chrome-border: var(--op-line);
+  --chrome-accent: var(--op-violet-600);
+}
+
+[data-theme="dark"] {
+  --chrome-surface: var(--op-ink-tile);
+  --chrome-surface-low: var(--op-violet-950);
+  --chrome-text: #F2ECF7;
+  --chrome-text-muted: var(--op-slate-400);
+  --chrome-border: #2E2440;
+  --chrome-accent: var(--op-violet-300);
+  --topbar-bg: rgb(21 14 30 / 96%);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] {
+    --chrome-surface: var(--op-ink-tile);
+    --chrome-surface-low: var(--op-violet-950);
+    --chrome-text: #F2ECF7;
+    --chrome-text-muted: var(--op-slate-400);
+    --chrome-border: #2E2440;
+    --chrome-accent: var(--op-violet-300);
+    --topbar-bg: rgb(21 14 30 / 96%);
+  }
+}
+
+html[data-high-contrast="true"] {
+  --color-text-muted: var(--color-text);
+  --color-text-subtle: var(--color-text);
+  --color-border: var(--color-text);
+  --color-border-strong: var(--color-text);
+  --color-primary-focus: rgb(118 57 170 / 42%);
+}

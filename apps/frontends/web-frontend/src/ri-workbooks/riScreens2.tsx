@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type RiskIntegration, type ConsequenceMeasure, type RiskMetric, type CompiledRiskInput, type RiskContributor, type ModelUncertaintySource, type ScreenedItemLedgerEntry, type RiskUncertaintyAnalysis, type RiskIntegrationMethod } from "interfaces-mef-types/ri/risk-integration";
@@ -116,7 +117,7 @@ function AggregateScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Aggregation honesty</h3>
+          <WorkbookSectionHeading workbook="RI" title="Aggregation honesty" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-B3</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "aggregation", id: "aggregation" })}><RIIcon.Settings /> Edit review</button>}
@@ -151,7 +152,7 @@ function AggregateScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Multi-reactor and multi-source terms</h3>
+          <WorkbookSectionHeading workbook="RI" title="Multi-reactor and multi-source terms" level={3} />
           <RiProvenanceChip>RI-B4</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The multi-reactor and multi-source release contributions are recorded, even where the single-unit scope keeps them from driving. Select a row to edit it.</p>
@@ -177,7 +178,7 @@ function AggregateScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Anti-masking review</h3>
+          <WorkbookSectionHeading workbook="RI" title="Anti-masking review" level={3} />
           <RiProvenanceChip>RI-B5</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The within-family variations are justified as not risk-significant, so a worst member never hides behind a benign representative. Select a row to edit it.</p>
@@ -203,7 +204,7 @@ function AggregateScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-significant contributors</h3>
+          <WorkbookSectionHeading workbook="RI" title="Risk-significant contributors" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-B6</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "contribbasis", id: "contribbasis" })}><RIIcon.Settings /> Edit basis</button>}
@@ -334,7 +335,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Master uncertainty register</h3>
+          <WorkbookSectionHeading workbook="RI" title="Master uncertainty register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1 · C3</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSource}><RIIcon.Plus /> Add source</button>}
@@ -368,7 +369,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Screened-items ledger</h3>
+          <WorkbookSectionHeading workbook="RI" title="Screened-items ledger" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C1</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScreened}><RIIcon.Plus /> Add item</button>}
@@ -398,7 +399,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Grouping-uncertainty review</h3>
+          <WorkbookSectionHeading workbook="RI" title="Grouping-uncertainty review" level={3} />
           <RiProvenanceChip>RI-C2</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The grouping uncertainty is reviewed so it does not make a family artificially risk-significant, in either direction. Select the row to edit it.</p>
@@ -420,7 +421,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Propagation fork</h3>
+          <WorkbookSectionHeading workbook="RI" title="Propagation fork" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-C4</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAnalysis}><RIIcon.Plus /> Add analysis</button>}
@@ -480,7 +481,7 @@ function UncertaintyScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sensitivity studies</h3>
+          <WorkbookSectionHeading workbook="RI" title="Sensitivity studies" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-D2</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addStudy}><RIIcon.Plus /> Add study</button>}
@@ -590,7 +591,7 @@ function FeedbackScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Feedback dispatch</h3>
+          <WorkbookSectionHeading workbook="RI" title="Feedback dispatch" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-D1</RiProvenanceChip>
             {editable && nextCode !== undefined && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addElement}><RIIcon.Plus /> Add element</button>}
@@ -621,7 +622,7 @@ function FeedbackScreen({ openDrawer }: { openDrawer: (ctx: RiDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Documentation readiness</h3>
+          <WorkbookSectionHeading workbook="RI" title="Documentation readiness" level={3} />
           <RiProvenanceChip>RI-D1 · D2</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The documentation records the criteria, the results, the design-feature insights and the traceability to the contributors.</p>
@@ -675,7 +676,7 @@ function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="RI" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -684,7 +685,7 @@ function DraftScreen({ cc, scores, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="RI" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 6 and moves to <strong>Internal Technical Review</strong>.</>
@@ -832,7 +833,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           </div>
 
           <div>
-            <div className="essec">{isAbsolute ? "Absolute thresholds (per plant-year)" : "Relative thresholds (fraction of the total)"}</div>
+            <WorkbookCueLabel workbook="RI" title={isAbsolute ? "Absolute thresholds (per plant-year)" : "Relative thresholds (fraction of the total)"} cueKey="Risk-significance thresholds" className="essec" />
             <div className="posfield-grid">
               {THRESHOLD_LEVELS.map((lv) => (
                 <RiNumberField key={lv.key} label={lv.label} value={levels?.[lv.key] ?? 0} onChange={(v) => setLevel(lv.key, v)} disabled={dis} />
@@ -925,7 +926,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           )}
 
           <div>
-            <div className="essec">Acceptance criteria</div>
+            <WorkbookCueLabel workbook="RI" title="Acceptance criteria" className="essec" />
             <div className="posfield-grid">
               <RiNumberField label="Limit" value={m.acceptanceCriteria?.limit ?? 0} onChange={(v) => patchAccept({ limit: v })} disabled={dis} />
               <RiSelectField label="Compliance status" value={m.acceptanceCriteria?.complianceStatus ?? "COMPLIANT"} options={COMPLIANCE_OPTIONS} onChange={(v) => patchAccept({ complianceStatus: toCompliance(v) })} disabled={dis} />
@@ -936,7 +937,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           </div>
 
           <div>
-            <div className="essec">Uncertainty</div>
+            <WorkbookCueLabel workbook="RI" title="Uncertainty" className="essec" />
             <div className="posfield-grid">
               <RiNumberField label="Median" value={dist?.median ?? 0} onChange={(v) => patchDist(v, undefined)} disabled={dis} />
               <RiNumberField label="Error factor" value={dist?.errorFactor ?? 0} onChange={(v) => patchDist(undefined, v)} disabled={dis} />
@@ -1260,7 +1261,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           <RiAreaField label="Risk-significance basis" value={u.sokcAndPhenomenaTreatment.riskSignificanceBasis ?? ""} onChange={(v) => patchSokc({ riskSignificanceBasis: v })} disabled={dis} rows={2} />
           <RiStringList label="Key uncertainty sources" values={u.keyUncertaintySourceRefs ?? []} onChange={(v) => patch({ keyUncertaintySourceRefs: v })} disabled={dis} placeholder="e.g. MU-ESQ" />
           <div>
-            <div className="essec">Prioritization</div>
+            <WorkbookCueLabel workbook="RI" title="Prioritization" className="essec" />
             {(u.prioritization ?? []).map((row, i) => (
               <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                 <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1361,7 +1362,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           <div className="posdrawer__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchEsq({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
-              <div className="essec">Family feedback</div>
+              <WorkbookCueLabel workbook="RI" title="Family feedback" className="essec" />
               {families.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                   <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1376,7 +1377,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchEsq({ familyFeedback: [...families, { familyRef: ri.compiledRiskInputs[0]?.eventSequenceFamilyRef ?? "", riskSignificance: ImportanceLevel.MEDIUM, recommendations: [] }] })}><RIIcon.Plus /> Add family entry</button>}
             </div>
             <div>
-              <div className="essec">Contributor feedback</div>
+              <WorkbookCueLabel workbook="RI" title="Contributor feedback" className="essec" />
               {contributors.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                   <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1410,7 +1411,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           <div className="posdrawer__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchMs({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
-              <div className="essec">Release-category feedback</div>
+              <WorkbookCueLabel workbook="RI" title="Release-category feedback" className="essec" />
               {categories.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                   <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1425,7 +1426,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchMs({ releaseCategoryFeedback: [...categories, { releaseCategoryRef: ri.scopeDefinition.releaseCategoryRefs?.[0] ?? "", riskSignificance: ImportanceLevel.MEDIUM, recommendations: [] }] })}><RIIcon.Plus /> Add category entry</button>}
             </div>
             <div>
-              <div className="essec">Source-term feedback</div>
+              <WorkbookCueLabel workbook="RI" title="Source-term feedback" className="essec" />
               {sourceTerms.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                   <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1457,7 +1458,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           <div className="posdrawer__body">
             <RiAreaField label="General feedback" value={fb.generalFeedback ?? ""} onChange={(v) => patchRc({ generalFeedback: v })} disabled={dis} rows={2} />
             <div>
-              <div className="essec">Metric feedback</div>
+              <WorkbookCueLabel workbook="RI" title="Metric feedback" className="essec" />
               {metrics.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
                   <span className="rinum" style={{ marginTop: 6 }}>{i + 1}</span>
@@ -1594,7 +1595,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           </div>
 
           <div>
-            <div className="essec">Frequency, from quantification</div>
+            <WorkbookCueLabel workbook="RI" title="Frequency, from quantification" className="essec" />
             <div className="posfield-grid">
               <RiNumberField label="Mean frequency" value={f.frequency} onChange={(v) => patch({ frequency: v })} disabled={dis} />
               <RiTextField label="Frequency unit" value={f.frequencyUnit ?? ""} onChange={(v) => patch({ frequencyUnit: v })} disabled={dis} placeholder="per plant-year" />
@@ -1610,7 +1611,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           </div>
 
           <div>
-            <div className="essec">Consequences, from the consequence analysis</div>
+            <WorkbookCueLabel workbook="RI" title="Consequences, from the consequence analysis" className="essec" />
             {measures.length === 0 ? (
               <p className="posmuted" style={{ margin: 0 }}>No consequence measures defined yet.</p>
             ) : (
@@ -1641,7 +1642,7 @@ function DrawerContent({ context, onClose }: { context: RiDrawerContext; onClose
           </div>
 
           <div>
-            <div className="essec">Consistency</div>
+            <WorkbookCueLabel workbook="RI" title="Consistency" className="essec" />
             <div className="posfield-grid">
               <RiSelectField label="Consistent with the event-sequence analysis" value={f.consistentWithEventSequenceAnalysis === true ? "yes" : "no"} options={CONFIRMED_OPTIONS} onChange={(v) => patch({ consistentWithEventSequenceAnalysis: v === "yes" })} disabled={dis} />
               <RiSelectField label="Consistent with the source term" value={f.consistentWithMechanisticSourceTerm === true ? "yes" : "no"} options={CONFIRMED_OPTIONS} onChange={(v) => patch({ consistentWithMechanisticSourceTerm: v === "yes" })} disabled={dis} />

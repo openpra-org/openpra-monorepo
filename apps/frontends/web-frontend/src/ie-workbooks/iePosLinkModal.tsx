@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useState } from "react";
 import { IEIcon } from "./ieIcons";
 import { getAvailablePosWorkbooks, type AvailablePosWorkbook } from "./ieWorkbookApi";
@@ -35,7 +36,7 @@ function IePosLinkModal({ workbookId, currentLinkedId, onClose, onConfirm }: {
         <header className="ieimport__head">
           <div>
             <div className="ieimport__eyebrow"><IEIcon.Link /> Import upstream data</div>
-            <h2 className="ieimport__title">Import from a POS workbook</h2>
+            <WorkbookSectionHeading workbook="IE" title="Import from a POS workbook" level={2} className="ieimport__title" />
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose} disabled={busy} aria-label="Close"><IEIcon.Close /></button>
         </header>

@@ -1,5 +1,6 @@
 import { type JSX, type ReactNode, useId, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
+import { composeWorkbookCue, type WorkbookCueCode } from "./workbookCueContent";
 import "./css/workbookSectionHeading.css";
 
 function WorkbookHelpButton({ label, children }: { label: string; children: ReactNode }): JSX.Element {
@@ -32,14 +33,22 @@ function WorkbookHelpButton({ label, children }: { label: string; children: Reac
 function WorkbookSectionHeading({
   title,
   description,
+  workbook,
+  cueKey,
   level = 3,
   className = "poscard__title",
 }: {
-  title: string;
-  description: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  workbook?: WorkbookCueCode;
+  cueKey?: string;
   level?: 1 | 2 | 3;
   className?: string;
 }): JSX.Element {
+  const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this section");
+  const cue = workbook === undefined
+    ? description
+    : composeWorkbookCue(workbook, resolvedTitle, description);
   const heading = level === 1
     ? <h1 className={className}>{title}</h1>
     : level === 2
@@ -49,9 +58,32 @@ function WorkbookSectionHeading({
   return (
     <div className="workbook-section-heading">
       {heading}
-      <WorkbookHelpButton label={`About ${title}`}>{description}</WorkbookHelpButton>
+      {cue !== undefined && <WorkbookHelpButton label={`About ${resolvedTitle}`}>{cue}</WorkbookHelpButton>}
     </div>
   );
 }
 
-export { WorkbookHelpButton, WorkbookSectionHeading };
+function WorkbookCueLabel({
+  title,
+  workbook,
+  cueKey,
+  description,
+  className,
+}: {
+  title: ReactNode;
+  workbook: WorkbookCueCode;
+  cueKey?: string;
+  description?: ReactNode;
+  className: string;
+}): JSX.Element {
+  const resolvedTitle = cueKey ?? (typeof title === "string" ? title : "this subsection");
+  const cue = composeWorkbookCue(workbook, resolvedTitle, description);
+  return (
+    <div className={`${className} workbook-cue-label`}>
+      <span>{title}</span>
+      <WorkbookHelpButton label={`About ${resolvedTitle}`}>{cue}</WorkbookHelpButton>
+    </div>
+  );
+}
+
+export { WorkbookCueLabel, WorkbookHelpButton, WorkbookSectionHeading };

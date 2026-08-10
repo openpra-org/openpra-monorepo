@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { type RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
@@ -117,13 +118,13 @@ function ConvergeScreen(): JSX.Element {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Risk Integration totals the two pipelines and hands the reporting floor back down. Select an element to see the data exchanged.</p>
         <RiInterfaces />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this risk integration covers and what it excludes.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -137,7 +138,7 @@ function ConvergeScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Integration scope</h3>
+          <WorkbookSectionHeading workbook="RI" title="Integration scope" level={3} />
           <RiProvenanceChip>RI-B1 · B4</RiProvenanceChip>
         </div>
         <p className="poscard__sub">What the integration covers. The consequence measures are set with the significance criteria, and the families, release categories and source terms are compiled from the elements above.</p>
@@ -159,7 +160,7 @@ function ConvergeScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="RI" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">This sets how detailed the risk integration must be.</p>
@@ -184,7 +185,7 @@ function ConvergeScreen(): JSX.Element {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
         <div className="riopt">
           {PLANT_STAGES.map((s) => (
@@ -276,7 +277,7 @@ function CriteriaScreen({ appType, setAppType, openDrawer }: {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consequence measures</h3>
+          <WorkbookSectionHeading workbook="RI" title="Consequence measures" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-A1</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "measures", id: "measures" })}><RIIcon.Settings /> Edit</button>}
@@ -302,7 +303,7 @@ function CriteriaScreen({ appType, setAppType, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Application fork</h3>
+          <WorkbookSectionHeading workbook="RI" title="Application fork" level={3} />
           <RiProvenanceChip>RI-A2 · A3</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The criteria depend on the application, and only one branch applies, the relative criteria of A2 or the absolute criteria of A3.</p>
@@ -327,7 +328,7 @@ function CriteriaScreen({ appType, setAppType, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-significance criteria</h3>
+          <WorkbookSectionHeading workbook="RI" title="Risk-significance criteria" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-A2 · A3</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCriteria}><RIIcon.Plus /> Add criteria</button>}
@@ -365,7 +366,7 @@ function CriteriaScreen({ appType, setAppType, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Reporting floors</h3>
+          <WorkbookSectionHeading workbook="RI" title="Reporting floors" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-A4 · A5</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "floors", id: "floors" })}><RIIcon.Settings /> Edit</button>}
@@ -703,7 +704,7 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Calculation approach</h3>
+          <WorkbookSectionHeading workbook="RI" title="Calculation approach" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <Badge kind="progress">{results.calculationLevel === "MEAN" ? "Mean" : "Point estimate"}</Badge>
             <RiProvenanceChip>RI-B2</RiProvenanceChip>
@@ -733,7 +734,7 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Methods and codes</h3>
+          <WorkbookSectionHeading workbook="RI" title="Methods and codes" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-B7</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMethod}><RIIcon.Plus /> Add method</button>}
@@ -763,7 +764,7 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Frequency-consequence plot</h3>
+          <WorkbookSectionHeading workbook="RI" title="Frequency-consequence plot" level={3} />
           <RiProvenanceChip>RI-B2</RiProvenanceChip>
         </div>
         <p className="poscard__sub">Every family plots its consequence against its frequency, and the target is the diagonal the families are judged against. Select a family to edit it.</p>
@@ -803,7 +804,7 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Exceedance-frequency curve</h3>
+          <WorkbookSectionHeading workbook="RI" title="Exceedance-frequency curve" level={3} />
           <RiProvenanceChip>RI-B2</RiProvenanceChip>
         </div>
         <p className="poscard__sub">The curve is built from the compiled families, giving the frequency of exceeding each level of {plotMeasure.length > 0 ? plotMeasure.toLowerCase() : "the consequence measure"}.</p>
@@ -831,7 +832,7 @@ function IntegrateScreen({ ccId, openDrawer }: { ccId: string; openDrawer: (ctx:
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Integrated risk</h3>
+          <WorkbookSectionHeading workbook="RI" title="Integrated risk" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RiProvenanceChip>RI-B2</RiProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMetric}><RIIcon.Plus /> Add metric</button>}

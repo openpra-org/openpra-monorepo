@@ -175,17 +175,18 @@ describe("Seismic PRA Step 09 plant-response model", () => {
 
   it("keeps explanations behind question-mark controls", async () => {
     const mef = renderPlantResponseModel();
-    const sectionHelp =
-      "An initiating event is the first modeled event in a sequence. Direct events begin with earthquake shaking. Secondary events begin with something the shaking causes, such as ground deformation, flooding, fire, or a concurrent challenge to another radioactive-material source.";
     const initiator =
       mef.seismicPlantResponseAnalysis.initiatingEventIdentification
         .directInitiators[0]!;
 
-    expect(screen.queryByText(sectionHelp)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {
       name: "About Seismic initiating events",
     }));
-    expect(screen.getByText(sectionHelp)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "An initiating event is the first modeled event in a sequence",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
 
     expect(screen.queryByText(initiator.description)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {

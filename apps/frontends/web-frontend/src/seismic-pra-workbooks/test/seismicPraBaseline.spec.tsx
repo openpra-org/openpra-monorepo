@@ -52,11 +52,12 @@ describe("Seismic PRA Step 03 baseline PRA and seismic changes", () => {
 
   it("keeps explanations behind help controls", async () => {
     renderBaseline();
-    const explanation = "This is the exact PRA model used as the starting point. Freezing its version prevents later model changes from silently changing the Seismic PRA. A report marked reference only helps define the model, but an executable model and reproducible run package are still needed.";
-
-    expect(screen.queryByText(explanation)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "About Baseline PRA version" }));
-    expect(screen.getByText(explanation)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "This is the exact PRA model used as the starting point",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
   });
 
   it("shows the unavailable-input message without a decorative symbol", () => {

@@ -29,7 +29,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: rgba(121, 57, 177, 0.1);
+  background: rgb(143 78 199 / 0.1);
   color: var(--color-primary);
   font-size: 11px;
   font-weight: 700;
@@ -58,15 +58,15 @@
   height: 32px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: rgba(121, 57, 177, 0.1);
+  background: rgb(143 78 199 / 0.1);
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
 }
 
 .posroster__avatar--approver {
-  background: rgba(184, 106, 0, 0.14);
-  color: #b86a00;
+  background: rgb(222 106 43 / 0.14);
+  color: var(--color-warning);
 }
 
 .posroster__person-main {

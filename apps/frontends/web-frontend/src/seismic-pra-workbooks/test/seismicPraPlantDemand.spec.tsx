@@ -70,11 +70,12 @@ describe("Seismic PRA Step 06 plant seismic demand", () => {
 
   it("keeps beginner guidance behind the question-mark control", async () => {
     renderPlantDemand();
-    const explanation = "This section shows how hard the earthquake shakes each plant location. The center curve is the median demand; the surrounding band shows plausible lower and upper demand after response uncertainty is included.";
-
-    expect(screen.queryByText(explanation)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "About Plant response demands" }));
-    expect(screen.getByText(explanation)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "shows how hard the earthquake shakes each plant location",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
   });
 
   it("keeps add actions with their records and removes generic basis controls", () => {

@@ -36,6 +36,16 @@
             "glob": "android-chrome-*.png",
             "input": "apps/frontends/web-frontend/src/assets/favicon",
             "output": "/"
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/frontends/web-frontend/src/assets/brand",
+            "output": "/assets/brand"
+          },
+          {
+            "glob": "fonts.css",
+            "input": "apps/frontends/web-frontend/src/design-system",
+            "output": "/assets/brand"
           }
         ],
         "styles": ["apps/frontends/web-frontend/src/styles.css"],
@@ -47,7 +57,8 @@
           "extractLicenses": false,
           "optimization": false,
           "sourceMap": true,
-          "vendorChunk": true
+          "vendorChunk": true,
+          "skipTypeChecking": true
         },
         "production": {
           "optimization": true,

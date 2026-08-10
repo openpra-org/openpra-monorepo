@@ -1,4 +1,4 @@
-/* exampleWorkbookModal.css — shared Load/Unload example confirmation modal.
+/* exampleWorkbookModal.css â€” shared Load/Unload example confirmation modal.
    Used identically by every technical element workbook (POS, IE, ES, SC, SY,
    HRA, DA, ESQ, MS, RC, RI) so the disclaimer can never drift per element.
    Only the example name in the body copy changes between elements. */
@@ -82,21 +82,19 @@
   margin-top: 14px;
   padding: 10px 12px;
   background: var(--color-warning-bg, rgba(196, 122, 24, 0.08));
-  border-left: 3px solid var(--color-warning, #c47a18);
+  border-left: 3px solid var(--color-warning);
   border-radius: 6px;
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--color-text);
 }
-[data-theme="dark"] .exmodal__disclaimer {
-  background: rgba(224, 161, 77, 0.12);
-}
+
 
 .exmodal__error {
   margin: 12px 0 0;
   padding: 8px 12px;
-  background: var(--color-danger-bg, #fde7e9);
-  color: var(--color-danger, #b3261e);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   border-radius: 6px;
   font-size: 13px;
 }

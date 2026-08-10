@@ -100,18 +100,20 @@ describe("Seismic PRA Step 08 SSC screening and fragility development", () => {
 
   it("keeps section help behind a question mark and entry detail beside its name", async () => {
     const mef = renderFragilityDevelopment();
-    const sectionHelp = "A fragility curve converts earthquake motion into a probability of failure. The median capacity locates the curve, beta-R represents randomness, beta-U represents uncertainty in the median, and HCLPF shows the conservative lower-tail capacity.";
     const mechanism = mef.seismicFragilityAnalysis.results
       .failureMechanisms[0]!;
     const mechanismEquipment = mef.seismicPlantResponseAnalysis
       .seismicEquipmentListDevelopment.equipment.find((item) =>
         item.uuid === mechanism.sscRef)?.name ?? mechanism.sscRef;
 
-    expect(screen.queryByText(sectionHelp)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {
       name: "About Fragility evaluations",
     }));
-    expect(screen.getByText(sectionHelp)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "A fragility curve converts earthquake motion into a probability of failure",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
 
     expect(screen.queryByText(mechanism.description, { exact: false }))
       .not.toBeInTheDocument();

@@ -162,7 +162,7 @@
   background: var(--color-surface);
 }
 .iee-cell--mono {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11.5px;
 }
 
@@ -204,7 +204,7 @@
 }
 .iee-grid__del:hover {
   color: var(--color-error);
-  background: rgba(186, 26, 26, 0.08);
+  background: rgb(179 38 30 / 0.08);
 }
 
 .iee__footbar {

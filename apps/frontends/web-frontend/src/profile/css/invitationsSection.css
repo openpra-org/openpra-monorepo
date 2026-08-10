@@ -3,9 +3,7 @@
   background: linear-gradient(180deg, var(--color-primary-tint) 0%, var(--color-surface) 80%);
 }
 
-[data-theme="dark"] .pf__invitations {
-  background: linear-gradient(180deg, var(--color-primary-tint) 0%, var(--color-surface) 90%);
-}
+
 
 .pf__inv-icon {
   display: inline-flex;
@@ -50,7 +48,7 @@
 }
 
 .pf__inv-name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);

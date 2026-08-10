@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import logo from "../assets/OpenPRA.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import { registerCampaignOpen } from "./analytics";
 import "./campaignLandingPage.css";
 
@@ -22,9 +22,8 @@ function CampaignLandingPage(): JSX.Element {
 
   return (
     <main className="campaign-landing">
-      <div className="campaign-landing__glow" />
       <section className="campaign-landing__card">
-        <img src={logo} alt="OpenPRA" />
+        <OpenPraBrand variant="tagline" surface="light" className="campaign-landing__brand" />
         {error === null ? (
           <>
             <div className="campaign-landing__spinner" aria-hidden="true" />
@@ -44,4 +43,3 @@ function CampaignLandingPage(): JSX.Element {
 }
 
 export { CampaignLandingPage };
-

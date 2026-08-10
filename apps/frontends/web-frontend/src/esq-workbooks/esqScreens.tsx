@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { ESQIcon } from "./esqIcons";
@@ -81,7 +82,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Select an element to see the data exchanged.</p>
         <div className="poshandoff__grid">
           {ifaceLanes.map((lane) => (
@@ -121,7 +122,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this event-sequence quantification covers and what it excludes.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -135,7 +136,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">A point estimate from point-estimate inputs, or the mean with the correlation between shared estimates accounted for.</p>
@@ -157,7 +158,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="ESQ" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">ESQ has the lightest pre-operational fork in the standard, since computation works the same on a paper plant and a real one.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -193,7 +194,7 @@ function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Event sequence families</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Event sequence families" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <span className="possubtle">ESQ-A1, A4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFamily}><ESQIcon.Plus /> Add family</button>}
@@ -268,7 +269,7 @@ function SolveScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Quantification codes</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Quantification codes" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B1</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><ESQIcon.Plus /> Add code</button>}
@@ -297,7 +298,7 @@ function SolveScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Truncation convergence</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Truncation convergence" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B2 · ESQ-B3</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "truncation", id: "truncation" })}>Edit study</button>}
@@ -330,7 +331,7 @@ function SolveScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Solution and approximation</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Solution and approximation" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B4</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "solution", id: "solution" })}>Edit method</button>}
@@ -392,7 +393,7 @@ function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">House-event flags</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="House-event flags" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B9</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFlag}><ESQIcon.Plus /> Add flag</button>}
@@ -420,7 +421,7 @@ function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Mutually exclusive events</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Mutually exclusive events" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B7 · ESQ-B8</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMutex}><ESQIcon.Plus /> Add rule</button>}
@@ -447,7 +448,7 @@ function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Circular logic</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Circular logic" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B5</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCircular}><ESQIcon.Plus /> Add resolution</button>}
@@ -474,7 +475,7 @@ function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Success paths kept</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Success paths kept" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B6</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "success", id: "success" })}>Edit</button>}
@@ -491,7 +492,7 @@ function LogicScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Modules</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Modules" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-B10</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addModule}><ESQIcon.Plus /> Add module</button>}

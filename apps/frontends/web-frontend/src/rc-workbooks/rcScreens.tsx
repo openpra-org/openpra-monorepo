@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { type PlantStage } from "interfaces-mef-types/core/pra-common";
@@ -279,13 +280,13 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Interfaces" level={3} /></div>
         <p className="poscard__sub">What flows into Radiological Consequence and what it feeds. Select an element to see the data exchanged.</p>
         <RcInterfaces openDrawer={openDrawer} />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this radiological-consequence analysis covers, and declare aspect by aspect the degree to which each downstream sub-element is evaluated.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -311,7 +312,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="RC" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Simplified modules with a collapsed population, or resolved population with the physics modules switched on and the uncertainty propagated.</p>
@@ -334,7 +335,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Site fork</h3>
+          <WorkbookSectionHeading workbook="RC" title="Site fork" level={3} />
           <RcProvenanceChip>RCRE-A1</RcProvenanceChip>
         </div>
         <p className="poscard__sub">An identified site, or a justified bounding site.</p>
@@ -364,7 +365,7 @@ function HandoffScreen({ ccId, setCcId, site, setSite, openDrawer }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="RC" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -429,7 +430,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Protective actions</h3>
+          <WorkbookSectionHeading workbook="RC" title="Protective actions" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCPA-A1</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAction}><RCIcon.Plus /> Add action</button>}
@@ -456,7 +457,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Incident phases</h3>
+          <WorkbookSectionHeading workbook="RC" title="Incident phases" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCPA-A2</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSourceDoc}><RCIcon.Plus /> Add document</button>}
@@ -496,7 +497,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Cohort modeling</h3>
+          <WorkbookSectionHeading workbook="RC" title="Cohort modeling" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCPA-A4 · A5</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCohort}><RCIcon.Plus /> Add cohort</button>}
@@ -523,7 +524,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Protection parameters</h3>
+          <WorkbookSectionHeading workbook="RC" title="Protection parameters" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCPA-A12</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addProtParam}><RCIcon.Plus /> Add parameter</button>}
@@ -550,7 +551,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Evacuation delay chain</h3>
+          <WorkbookSectionHeading workbook="RC" title="Evacuation delay chain" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCPA-A9 · A10</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEvacDelay}><RCIcon.Plus /> Add link</button>}
@@ -577,7 +578,7 @@ function ProtectiveScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Site data</h3>
+          <WorkbookSectionHeading workbook="RC" title="Site data" level={3} />
           <RcProvenanceChip>RCPA-B1 · B2 · B3</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The population, the land use and the building data are assumed and justified for the bounding site, or sourced for the identified site. Select a row to edit it.</p>
@@ -610,7 +611,7 @@ function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Meteorological data quality</h3>
+          <WorkbookSectionHeading workbook="RC" title="Meteorological data quality" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCME-A1 to A4</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metdata", id: "met" })}><RCIcon.Settings /> Edit</button>}
@@ -630,7 +631,7 @@ function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Period selection</h3>
+          <WorkbookSectionHeading workbook="RC" title="Period selection" level={3} />
           <RcProvenanceChip>RCME-A2</RcProvenanceChip>
         </div>
         <p className="poscard__sub">A representative single year, or a multi-year evaluation to select the representative year.</p>
@@ -643,7 +644,7 @@ function WeatherScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Extracted parameters</h3>
+          <WorkbookSectionHeading workbook="RC" title="Extracted parameters" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCME-A5 to A7</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "metparams", id: "met" })}><RCIcon.Settings /> Edit</button>}

@@ -141,13 +141,11 @@ describe("Seismic PRA Step 11 annual risk", () => {
 
   it("uses question marks for sections and exclamation marks for entries", async () => {
     const mef = renderAnnualRisk();
-    const help =
-      "The hazard curve is divided into non-overlapping ground-motion intervals. For each interval, the calculation multiplies its annual frequency by the conditional probability of the modeled outcome, then adds the interval results: annual family frequency = sum of interval frequency x conditional outcome probability.";
     const family =
       mef.seismicPlantResponseAnalysis.quantification
         .eventSequenceFamilyQuantifications[0]!;
 
-    expect(screen.queryByText(help)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     const sectionHelp = screen.getByRole("button", {
       name: "About Hazard integration",
     });
@@ -156,7 +154,10 @@ describe("Seismic PRA Step 11 annual risk", () => {
       'path[d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"]',
     )).toBeInTheDocument();
     await userEvent.click(sectionHelp);
-    expect(screen.getByText(help)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "The hazard curve is divided into non-overlapping ground-motion intervals",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
 
     expect(screen.queryByText(family.quantificationMethod, { exact: false }))
       .not.toBeInTheDocument();

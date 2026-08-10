@@ -22,7 +22,7 @@
   height: 40px;
   border-radius: 10px;
   color: #ffffff;
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 17px;
   font-weight: 700;
   flex-shrink: 0;
@@ -44,7 +44,7 @@
 }
 
 .st__provider-name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
@@ -124,7 +124,7 @@
 }
 
 .st__sessions-all:hover {
-  background: rgba(186, 26, 26, 0.05);
+  background: rgb(179 38 30 / 0.05);
   border-color: var(--color-error);
   color: var(--color-error);
 }

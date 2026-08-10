@@ -126,13 +126,14 @@ describe("Seismic PRA Step 07 plant configuration and final SEL", () => {
 
   it("keeps beginner guidance behind question-mark controls", async () => {
     renderPlantConfiguration();
-    const explanation = "This is the final checklist for each seismic equipment list item. An item is ready when its configuration and load path were reviewed, Step 06 assigned its earthquake demand, and its credible failure modes are defined.";
-
-    expect(screen.queryByText(explanation)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {
       name: "About Final SEL confirmations",
     }));
-    expect(screen.getByText(explanation)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "final checklist for each seismic equipment list item",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
   });
 
   it("shows operator routes, controls, communications, lighting, and indications", () => {

@@ -26,10 +26,7 @@
   box-shadow: 0 0 0 3px var(--color-primary-focus);
 }
 
-[data-theme="dark"] .newproj {
-  background: linear-gradient(160deg, #221a30 0%, #2e2240 100%);
-  border-color: #463956;
-}
+
 
 .newproj__icon {
   width: 52px;
@@ -40,7 +37,7 @@
   background: var(--color-primary);
   color: #ffffff;
   border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(121, 57, 177, 0.3);
+  box-shadow: 0 6px 18px rgb(143 78 199 / 0.3);
   margin-bottom: 14px;
 }
 
@@ -50,7 +47,7 @@
 }
 
 .newproj__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text);

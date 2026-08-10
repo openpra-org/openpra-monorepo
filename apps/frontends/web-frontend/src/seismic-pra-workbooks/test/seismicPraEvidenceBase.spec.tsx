@@ -79,15 +79,20 @@ describe("Seismic PRA Step 02 qualified evidence base", () => {
   it("keeps plain-language purpose and workflow guidance behind help controls", async () => {
     renderEvidenceBase();
 
-    const sourceHelp = "Use this section to register the existing records that the Seismic PRA will rely on before its calculations begin. Record where each item came from, its revision, owner, applicable subanalyses, and qualification status. Results created later in this workbook do not belong here.";
-    const gapHelp = "Use this section to see which source records are provisional, incomplete, or still need confirmation. Resolve these gaps before relying on the affected information in a final risk result.";
-    expect(screen.queryByText(sourceHelp)).not.toBeInTheDocument();
-    expect(screen.queryByText(gapHelp)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "About Source evidence" }));
-    expect(screen.getByText(sourceHelp)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "register the existing records that the Seismic PRA will rely on",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
     await userEvent.click(screen.getByRole("button", { name: "About Open evidence gaps" }));
-    expect(screen.getByText(gapHelp)).toBeInTheDocument();
+    const notes = screen.getAllByRole("note");
+    const gapNote = notes[notes.length - 1];
+    expect(gapNote).toHaveTextContent(
+      "source records are provisional, incomplete, or still need confirmation",
+    );
+    expect(gapNote).toHaveTextContent("For example");
   });
 
   it("puts the add action beside source evidence and opens one flat editor", async () => {

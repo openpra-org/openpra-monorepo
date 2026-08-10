@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { ESIcon } from "./esIcons";
@@ -65,7 +66,7 @@ function EsDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Supporting documents</h3>
+        <WorkbookSectionHeading workbook="ES" title="Supporting documents" level={3} />
         {canUpload && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <ESIcon.Plus /> {busy ? "Uploading…" : "Upload"}

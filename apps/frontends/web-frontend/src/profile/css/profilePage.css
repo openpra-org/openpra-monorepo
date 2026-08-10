@@ -48,7 +48,7 @@
 }
 
 .pf__section-title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--color-text);
@@ -119,17 +119,12 @@
 }
 
 .btn--danger:hover:not(:disabled) {
-  background: #9a1414;
-}
-
-[data-theme="dark"] .btn--danger {
   background: var(--color-error);
-  color: #1f1828;
 }
 
-[data-theme="dark"] .btn--danger:hover:not(:disabled) {
-  background: #ff8a8a;
-}
+
+
+
 
 .modal--sm {
   max-width: 460px;

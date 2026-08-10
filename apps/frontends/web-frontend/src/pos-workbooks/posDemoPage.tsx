@@ -44,6 +44,7 @@ import { InternalReviewScreen, ReviewerCommentDock } from "./posReview";
 import { Drawer } from "./posDrawer";
 import { generatePosReport } from "./posDocx";
 import { PosWorkbookProvider, type PosWorkbookData } from "./posWorkbookContext";
+import { PosHelpButton, PosSectionHeading } from "./posHelp";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import "../workbooks/css/workbookWorkspace.css";
@@ -53,6 +54,13 @@ interface StepHeader {
   title: string;
   sub?: string;
 }
+
+const CONFORMANCE_SECTION_HELP: Record<string, string> = {
+  "Operating-state definition (HLR-POS-A)": "Checks whether the plant evolutions and mutually exclusive operating states are complete, technically defined, supported by evidence, and suitable for all in-scope PRA hazard groups.",
+  "Screening & grouping (HLR-POS-B)": "Checks whether every removed or grouped state has a documented, conservative basis that preserves differences and risk-significant contributors.",
+  "Frequencies & duration (HLR-POS-C)": "Checks the state durations, entry frequencies, time-after-shutdown values, group roll-ups, and decay-heat characterization used by downstream PRA calculations.",
+  "Documentation (HLR-POS-D)": "Checks whether inputs, methods, results, assumptions, limitations, and supporting-requirement traceability are preserved in the controlled POS record.",
+};
 
 function headersFor(stepId: string, isApprover: boolean): StepHeader {
   switch (stepId) {
@@ -318,7 +326,12 @@ function ConformanceDock({
     <aside className={`posw__dock${mobileOpen ? " posw__dock--mobile-open" : ""}`} aria-label="Conformance checklist">
       <div className="posdock__head">
         <div className="posdock__title-row">
-          <h2 className="posdock__title">Conformance</h2>
+          <PosSectionHeading
+            title="Conformance"
+            description="Track each applicable POS supporting requirement against the selected capability-category target and plant stage, including ready, attention, blocked, and not-applicable results."
+            level={2}
+            className="posdock__title"
+          />
           <button type="button" className="posdock__close" onClick={onClose} aria-label="Hide checklist"><POSIcon.Close /></button>
         </div>
 
@@ -353,7 +366,12 @@ function ConformanceDock({
         {sections.map(([sectionName, sectionItems]) => (
           <div key={sectionName}>
             <div className="posdock__section-head">
-              {sectionName}
+              <span className="posdock__section-label">
+                {sectionName}
+                <PosHelpButton label={`About ${sectionName}`}>
+                  {CONFORMANCE_SECTION_HELP[sectionName] ?? "This group collects related POS supporting requirements for conformance review."}
+                </PosHelpButton>
+              </span>
               <span className="posdock__section-head-count">
                 {sectionItems.filter((it) => it.status === "ok").length} / {sectionItems.length}
               </span>
@@ -681,8 +699,13 @@ function PosWorkbench({ data, persona, setPersona, showPersonaPicker, availableP
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <h1 className="posmain__title">{h.title}</h1>
-              {h.sub !== undefined && <p className="posmain__sub">{h.sub}</p>}
+              <PosSectionHeading
+                title={h.title}
+                description={h.sub ?? "This step records the technical basis needed at this point in the POS workflow."}
+                level={1}
+                className="posmain__title"
+                main
+              />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

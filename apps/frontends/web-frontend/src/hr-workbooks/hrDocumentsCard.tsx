@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { HRIcon } from "./hrIcons";
@@ -56,7 +57,7 @@ function HrDocumentsCard({ workbookId, canEdit }: { workbookId: string; canEdit:
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Supporting documents</h3>
+        <WorkbookSectionHeading workbook="HR" title="Supporting documents" level={3} />
         {canEdit && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <HRIcon.Plus /> {busy ? "Uploading…" : "Upload"}

@@ -44,12 +44,10 @@
 
 .st__nav-link--danger.st__nav-link--active {
   color: var(--color-error);
-  background: rgba(186, 26, 26, 0.08);
+  background: rgb(179 38 30 / 0.08);
 }
 
-[data-theme="dark"] .st__nav-link--danger.st__nav-link--active {
-  background: rgba(255, 107, 107, 0.1);
-}
+
 
 @media (max-width: 920px) {
   .st__nav {

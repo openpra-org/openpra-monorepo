@@ -1,5 +1,6 @@
 import { type JSX, type ReactNode, useId, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
+import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 
 function Field({ label, hint, children, wide = false }: { label: string; hint?: string; children: ReactNode; wide?: boolean }): JSX.Element {
@@ -33,7 +34,7 @@ function InfoButton({ children, label = "More information", kind = "help" }: { c
 
 function Section({ title, description, actions, children, tone = "default" }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode; children: ReactNode; tone?: "default" | "sha" | "sfr" | "spr" | "integration" }): JSX.Element {
   return <section className={`ssection ssection--${tone}`}>
-    <div className="ssection__head"><div className="ssection__heading"><h2 className="ssection__title">{title}</h2>{description !== undefined && <InfoButton label={`About ${title}`}>{description}</InfoButton>}</div>{actions !== undefined && <div className="ssection__actions">{actions}</div>}</div>
+    <div className="ssection__head"><div className="ssection__heading"><h2 className="ssection__title">{title}</h2>{description !== undefined && <InfoButton label={`About ${title}`}>{composeWorkbookCue("SEISMIC", title, description)}</InfoButton>}</div>{actions !== undefined && <div className="ssection__actions">{actions}</div>}</div>
     <div className="ssection__body">{children}</div>
   </section>;
 }
@@ -50,7 +51,7 @@ function Drawer({ eyebrow, title, subtitle, plainHeader = false, onClose, childr
   return <div className="posdrawer-backdrop sdrawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
     <aside className={`posdrawer sdrawer${plainHeader ? " sdrawer--plain" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
       <div className="posdrawer__head">
-        <div>{eyebrow !== undefined && <div className="posdrawer__cap">{eyebrow}</div>}<div className="sdrawer__heading"><h2 className="posdrawer__title">{title}</h2>{subtitle !== undefined && <InfoButton label={`About ${title}`}>{subtitle}</InfoButton>}</div></div>
+        <div>{eyebrow !== undefined && <div className="posdrawer__cap">{eyebrow}</div>}<div className="sdrawer__heading"><h2 className="posdrawer__title">{title}</h2>{subtitle !== undefined && <InfoButton label={`About ${title}`}>{composeWorkbookCue("SEISMIC", title, subtitle)}</InfoButton>}</div></div>
         <button type="button" className="posdrawer__close" onClick={onClose} aria-label="Close editor"><POSIcon.Close /></button>
       </div>
       <div className="posdrawer__body sdrawer__body">{children}</div>

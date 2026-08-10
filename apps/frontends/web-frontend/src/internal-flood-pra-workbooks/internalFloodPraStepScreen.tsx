@@ -1,3 +1,5 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import {
   type InternalFloodAnalysisRecord,
   type InternalFloodPRA,
@@ -203,13 +205,13 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: { on
 
   return <Drawer title="PRA scope and application" subtitle="Use this editor to record why the analysis is being performed, which plant and operating conditions it covers, and which risk results it must produce." onClose={onClose} footer={<><button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>{editable && <button type="button" className="posnav__btn posnav__btn--primary" onClick={save}>Save changes</button>}</>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">PRA application</h3>
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="PRA application" className="sinlineeditor__title" />
         <Field label="Intended application"><TextInput value={draft.applicationName} onChange={(value) => setDraft((current) => ({ ...current, applicationName: value }))} /></Field>
         <Field label="Purpose"><TextArea rows={3} value={draft.purpose} onChange={(value) => setDraft((current) => ({ ...current, purpose: value }))} /></Field>
         <Field label="Decision supported"><TextArea rows={3} value={draft.decisionContext} onChange={(value) => setDraft((current) => ({ ...current, decisionContext: value }))} /></Field>
         <Field label="Risk measures and endpoints"><TextArea rows={4} value={draft.supportedRiskMetrics} onChange={(value) => setDraft((current) => ({ ...current, supportedRiskMetrics: value }))} /></Field>
       </div>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">Reference plant and site</h3><div className="flfieldgrid">
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="Reference plant and site" className="sinlineeditor__title" /><div className="flfieldgrid">
         <Field label="Plant name"><TextInput value={draft.plantName} onChange={(value) => setDraft((current) => ({ ...current, plantName: value }))} /></Field>
         <Field label="Site"><TextInput value={draft.siteName} onChange={(value) => setDraft((current) => ({ ...current, siteName: value }))} /></Field>
         <Field label="Vendor or designer"><TextInput value={draft.vendor} onChange={(value) => setDraft((current) => ({ ...current, vendor: value }))} /></Field>
@@ -217,11 +219,11 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: { on
         <Field label="Thermal power"><TextInput value={draft.thermalPower} onChange={(value) => setDraft((current) => ({ ...current, thermalPower: value }))} /></Field>
         <Field label="Modules or units"><NumberInput value={draft.numberOfModules} onChange={(value) => setDraft((current) => ({ ...current, numberOfModules: value }))} /></Field>
       </div></div>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">PRA boundary</h3>
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="PRA boundary" className="sinlineeditor__title" />
         <Field label="Integrated PRA scope"><TextArea rows={4} value={draft.praScope} onChange={(value) => setDraft((current) => ({ ...current, praScope: value }))} /></Field>
         <Field label="Plant stage"><SelectInput value={draft.plantStage} options={[{ value: "PRE_OPERATIONAL", label: "Pre-operational" }, { value: "OPERATIONAL", label: "Operational" }]} onChange={(value) => setDraft((current) => ({ ...current, plantStage: value as InternalFloodPRA["plantStage"] }))} /></Field>
       </div>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">Imported baseline scope</h3>
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="Imported baseline scope" className="sinlineeditor__title" />
         <Field label="Operating states"><TextArea rows={3} value={operatingStates} disabled onChange={() => undefined} /></Field>
         <Field label="Radioactive-material sources"><TextArea rows={3} value={materialSources} disabled onChange={() => undefined} /></Field>
       </div>
@@ -264,12 +266,12 @@ function TechnicalInterfaceEditor({ selection, onClose }: { selection: Interface
   }
   return <Drawer title="Technical-element transfer record" subtitle={`${sourceInterface.technicalElementCode} ${direction === "INPUT" ? "to" : "from"} Internal Flood PRA · ${sourceInterface.technicalElementName}`} onClose={onClose} footer={<><button type="button" className="flbtn" onClick={onClose}>Cancel</button><span className="fldrawer__footer-spacer" /><button type="button" className="flbtn flbtn--primary" onClick={save}>Save changes</button></>}>
     <div className="sinlineeditor__body">
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">Technical-element handoff</h3><div className="sinlineeditor__grid">
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="Technical-element handoff" className="sinlineeditor__title" /><div className="sinlineeditor__grid">
         <Field label="Technical element"><TextInput value={`${sourceInterface.technicalElementCode} · ${sourceInterface.technicalElementName}`} disabled onChange={() => undefined} /></Field>
         <Field label="Direction"><SelectInput value={direction} options={[{ value: "INPUT", label: "Input to Internal Flood PRA" }, { value: "OUTPUT", label: "Output from Internal Flood PRA" }]} onChange={(value) => setDirection(value as typeof direction)} /></Field>
         <Field label="Interface role" wide><TextArea rows={3} value={role} onChange={setRole} /></Field>
       </div></div>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">Transferred record</h3><div className="sinlineeditor__grid">
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="Transferred record" className="sinlineeditor__title" /><div className="sinlineeditor__grid">
         <Field label="Record name" wide><TextInput value={name} onChange={setName} /></Field>
         <Field label="Record reference"><TextInput value={recordRef} onChange={setRecordRef} /></Field>
         <Field label="Transfer status"><SelectInput value={status} options={["CONTROLLED", "WORKING", "OPEN"].map((value) => ({ value, label: value.charAt(0) + value.slice(1).toLowerCase() }))} onChange={(value) => setStatus(value as typeof status)} /></Field>
@@ -277,7 +279,7 @@ function TechnicalInterfaceEditor({ selection, onClose }: { selection: Interface
         <Field label="Destination records" wide><TextArea rows={4} value={destinationRefs} onChange={setDestinationRefs} /></Field>
         <Field label="Evidence references" wide><TextArea rows={3} value={evidenceRefs} onChange={setEvidenceRefs} /></Field>
       </div></div>
-      <div className="sinlineeditor__group"><h3 className="sinlineeditor__title">Transferred values</h3><div className="sinlineeditor__grid">{sourceInterface.columns.map((column, index) => <Field key={column} label={column} wide><TextArea rows={2} value={values[index] ?? ""} onChange={(value) => setValues((current) => sourceInterface.columns.map((_, candidate) => candidate === index ? value : current[candidate] ?? ""))} /></Field>)}</div></div>
+      <div className="sinlineeditor__group"><WorkbookSectionHeading workbook="FLOOD" title="Transferred values" className="sinlineeditor__title" /><div className="sinlineeditor__grid">{sourceInterface.columns.map((column, index) => <Field key={column} label={column} wide><TextArea rows={2} value={values[index] ?? ""} onChange={(value) => setValues((current) => sourceInterface.columns.map((_, candidate) => candidate === index ? value : current[candidate] ?? ""))} /></Field>)}</div></div>
     </div>
   </Drawer>;
 }
@@ -287,7 +289,7 @@ function InternalFloodInterfacesSection({ onEdit }: { onEdit: (interfaceIndex: n
   const [selected, setSelected] = useState<number | null>(null);
   const selectedInterface = selected === null ? undefined : mef.integration.interfaces[selected];
   return <div className="poscard">
-    <div className="poscard__head"><div className="ssection__heading"><h3 className="poscard__title">Interfaces</h3><InfoButton label="About Interfaces">Use this section to see what technical data Internal Flood PRA receives from other PRA technical elements and what controlled results it sends to Event Sequence Quantification and Risk Integration. Internal FL subelement traceability is managed elsewhere and is not shown as a technical-element interface. Select a tab to inspect the actual transferred records.</InfoButton></div></div>
+    <div className="poscard__head"><div className="ssection__heading"><h3 className="poscard__title">Interfaces</h3><InfoButton label="About Interfaces">{composeWorkbookCue("FLOOD", "Interfaces", "Shows the controlled inputs received from other PRA technical elements and the flood results supplied to Event Sequence Quantification and Risk Integration.")}</InfoButton></div></div>
     <div className="poshandoff__grid">{mef.integration.interfaces.map((item, index) => <button key={item.uuid} type="button" className={`poshandoff__tile${selected === index ? " poshandoff__tile--active" : ""}`} onClick={() => setSelected(selected === index ? null : index)}>
       <span className="poshandoff__tile-code">{item.direction === "INPUT" ? `${item.technicalElementCode} → FL` : `FL → ${item.technicalElementCode}`}</span><span className="poshandoff__tile-name">{item.technicalElementName}</span><span className="poshandoff__tile-role">{item.direction === "INPUT" ? "Receives" : "Provides"} · {item.role}</span>
     </button>)}</div>
@@ -323,9 +325,9 @@ function AnalysisBasis(): JSX.Element {
     </Section>
     <Section title="Internal-flood definition" description="Use this section to agree on the source parameters and physical flood-area references that every later source, propagation, scenario, response, and quantification calculation will use. These are common starting inputs, not calculated risk results.">
       <div className="smotionbasis">
-        <div className="smotionbasis__heading"><div className="smotionbasis__heading-title"><h3 className="smotionbasis__title">Flood-source parameters</h3><InfoButton label="About flood-source parameters">These rows define the fluid systems, source types, operating envelopes, connected inventories, and isolation boundaries used by later release and scenario calculations.</InfoButton></div>{editable && <AddButton label="Add flood source" onClick={() => editor.setTarget(collectionTarget(["sourcesIdentificationAndCharacterization", "sources"], "flood source", "Define a common source segment and its operating envelope."))} />}</div>
+        <div className="smotionbasis__heading"><div className="smotionbasis__heading-title"><h3 className="smotionbasis__title">Flood-source parameters</h3><InfoButton label="About flood-source parameters">{composeWorkbookCue("FLOOD", "Flood-source parameters", "Defines the fluid system, source type, inventory, operating envelope, and isolation boundary for each potential release.")}</InfoButton></div>{editable && <AddButton label="Add flood source" onClick={() => editor.setTarget(collectionTarget(["sourcesIdentificationAndCharacterization", "sources"], "flood source", "Define a common source segment and its operating envelope."))} />}</div>
         {sources.length === 0 ? <p className="sanalysisbasis__empty">No flood-source parameters defined.</p> : <div className="stablewrap"><table className="stable postable stable--technical"><thead><tr><th>Source</th><th>Type and fluid</th><th>System</th><th>Operating envelope</th><th>Inventory</th></tr></thead><tbody>{sources.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => editor.setTarget(collectionTarget(["sourcesIdentificationAndCharacterization", "sources"], "flood source", "Edit the common source segment and its operating envelope.", index))}><td className="stable__key"><strong>{item.name}</strong></td><td>{item.sourceType.replace(/_/g, " ")} · {item.fluid.replace(/_/g, " ")}</td><td>{item.systemRef}</td><td>{display(item.operatingPressureKpa, "kPa")} · {display(item.operatingTemperatureCelsius, "°C")}</td><td>{Number.isFinite(item.inventoryCubicMetres) ? display(item.inventoryCubicMetres, "m³") : "Connected source"}</td></tr>)}</tbody></table></div>}
-        <div className="smotionbasis__heading"><div className="smotionbasis__heading-title"><h3 className="smotionbasis__title">Flood-area reference locations</h3><InfoButton label="About flood-area reference locations">These rows identify the controlled spatial locations, elevations, and free volumes used to evaluate accumulation, propagation, drainage, SSC exposure, and multi-unit effects.</InfoButton></div>{editable && <AddButton label="Add flood area" onClick={() => editor.setTarget(collectionTarget(["plantPartitioning", "floodAreas"], "flood area", "Define a common spatial and hydraulic reference location."))} />}</div>
+        <div className="smotionbasis__heading"><div className="smotionbasis__heading-title"><h3 className="smotionbasis__title">Flood-area reference locations</h3><InfoButton label="About flood-area reference locations">{composeWorkbookCue("FLOOD", "Flood-area reference locations", "Defines the physical areas used to organize flood sources, propagation paths, exposed SSCs, and scenarios. Record each hydraulically distinct room or connected area.")}</InfoButton></div>{editable && <AddButton label="Add flood area" onClick={() => editor.setTarget(collectionTarget(["plantPartitioning", "floodAreas"], "flood area", "Define a common spatial and hydraulic reference location."))} />}</div>
         {areas.length === 0 ? <p className="sanalysisbasis__empty">No flood-area reference locations defined.</p> : <div className="stablewrap"><table className="stable postable stable--technical"><thead><tr><th>Flood area</th><th>Building</th><th>Rooms</th><th>Floor elevation</th><th>Free volume</th></tr></thead><tbody>{areas.map((item, index) => <tr className="postable__row--clickable" key={item.uuid} onClick={() => editor.setTarget(collectionTarget(["plantPartitioning", "floodAreas"], "flood area", "Edit the common spatial and hydraulic reference location.", index))}><td className="stable__key"><strong>{item.areaId} · {item.name}</strong></td><td>{item.building}</td><td>{item.rooms.join(" · ")}</td><td>{display(item.floorElevationMetres, "m")}</td><td>{display(item.netFreeVolumeCubicMetres, "m³")}</td></tr>)}</tbody></table></div>}
       </div>
     </Section>

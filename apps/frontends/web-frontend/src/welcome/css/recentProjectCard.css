@@ -30,7 +30,7 @@
 }
 
 .recent__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text);
@@ -61,7 +61,7 @@
 
 .progress__pct {
   font-size: 22px;
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-weight: 700;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
@@ -77,14 +77,12 @@
 
 .progress__fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary) 0%, #a16cd1 100%);
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
 
-[data-theme="dark"] .progress__fill {
-  background: linear-gradient(90deg, #8c5cc0 0%, #b388dd 100%);
-}
+
 
 .elements {
   display: flex;
@@ -132,7 +130,7 @@
 }
 
 .elements__legend-dot--not-started {
-  background: #cfc2d4;
+  background: var(--color-border-strong);
 }
 
 .elements__list {
@@ -181,11 +179,11 @@
 
 .element--in-progress .element__dot {
   background: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(121, 57, 177, 0.15);
+  box-shadow: 0 0 0 3px rgb(143 78 199 / 0.15);
 }
 
 .element--not-started .element__dot {
-  background: #cfc2d4;
+  background: var(--color-border-strong);
 }
 
 .element--na {
@@ -193,7 +191,7 @@
 }
 
 .element--na .element__dot {
-  background: #cfc2d4;
+  background: var(--color-border-strong);
   border: 1px dashed #a89bb0;
   box-sizing: border-box;
 }

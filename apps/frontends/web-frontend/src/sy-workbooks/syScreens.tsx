@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useMemo, useState } from "react";
 import { SYIcon } from "./syIcons";
@@ -264,7 +265,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
+          <WorkbookSectionHeading workbook="SY" title="Interfaces" level={3} />
           {links !== null ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
         </div>
         <p className="poscard__sub">Systems Analysis reads the system success criteria from SC and the operating states from POS, then hands its fault-tree models to ESQ, its basic events to DA, and its human failure events to HR. Select an element to see the data exchanged.</p>
@@ -307,7 +308,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="SY" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Screened models where justified, or detailed models for risk-significant systems.</p>
@@ -331,7 +332,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onAction }: {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">SY has the heaviest pre-operational fork, since it leans most on walkdowns and operating practice.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -370,7 +371,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">System</h3>
+          <WorkbookSectionHeading workbook="SY" title="System" level={3} />
           <span className="possubtle">{sy.systemDefinitions.length} systems · SY-A1, A7, A8</span>
         </div>
         <p className="poscard__sub">Select a system to see its boundary and logic model.</p>
@@ -383,7 +384,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">{sysDef.name}</h3>
+          <WorkbookSectionHeading workbook="SY" title={sysDef.name} cueKey="System definition" />
         </div>
         <div className="sysd">
           <div className="sysd__card">
@@ -406,7 +407,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
             </div>
           </div>
           <div className="sysd__card">
-            <div className="sysd__head"><span className="sysd__name">Model boundary</span><span className="sysd__cap">SY-A8</span></div>
+            <div className="sysd__head"><WorkbookCueLabel workbook="SY" title="Model boundary" className="sysd__name" /><span className="sysd__cap">SY-A8</span></div>
             <div className="sysd__body"><div className="syboundary__list">{sysDef.boundaries.map((b, i) => <span key={i} className="syboundary__tag">{b}</span>)}</div></div>
           </div>
           <div className="sysd__card">
@@ -418,7 +419,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
             </div>
           </div>
           <div className="sysd__card">
-            <div className="sysd__head"><span className="sysd__name">Operating states</span><span className="sysd__cap">POS</span></div>
+            <div className="sysd__head"><WorkbookCueLabel workbook="SY" title="Operating states" className="sysd__name" /><span className="sysd__cap">POS</span></div>
             <div className="sysd__body">
               {applicablePos.length > 0
                 ? <div className="syboundary__list">{applicablePos.map((pid) => <span key={pid} className="syboundary__tag">{pid}</span>)}</div>
@@ -434,7 +435,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
       {faultTree !== undefined ? (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Logic model · {shortOf(sysDef.uuid)}</h3>
+            <WorkbookSectionHeading workbook="SY" title={<>Logic model · {shortOf(sysDef.uuid)}</>} cueKey="Fault-tree logic model" />
             <SYProvenanceChip>SY-A7 · SY-A14</SYProvenanceChip>
           </div>
           <p className="poscard__sub">The fault tree is a common representation of the system logic model, and other representations could be used. Click a basic event to edit it.</p>
@@ -442,7 +443,7 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
         </div>
       ) : (
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Logic model · {shortOf(sysDef.uuid)}</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="SY" title={<>Logic model · {shortOf(sysDef.uuid)}</>} cueKey="Fault-tree logic model" /></div>
           <div className="eswarn"><span>Modeled at the system level, so no decomposed fault tree is built (SY-A9).</span></div>
         </div>
       )}
@@ -489,7 +490,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Exclusions and diversion paths</h3>
+          <WorkbookSectionHeading workbook="SY" title="Exclusions and diversion paths" level={3} />
           <span className="possubtle">SY-A16, A17, A18</span>
         </div>
         <p className="poscard__sub">The included failure modes are the fault trees in step 02. This table records what each model deliberately leaves out and which diversion paths it models. Click a row to edit it.</p>
@@ -509,7 +510,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Screening</h3>
+          <WorkbookSectionHeading workbook="SY" title="Screening" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-A20</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addScreening}><SYIcon.Plus /> Add component</button>}
@@ -543,7 +544,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Simultaneous unavailability</h3>
+          <WorkbookSectionHeading workbook="SY" title="Simultaneous unavailability" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">SY-A27</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUnavailability}><SYIcon.Plus /> Add record</button>}
@@ -566,7 +567,7 @@ function FailuresScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Human failure events placed in the models</h3>
+          <WorkbookSectionHeading workbook="SY" title="Human failure events placed in the models" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-A21 · SY-A23</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHfe}><SYIcon.Plus /> Add event</button>}
@@ -638,7 +639,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Within a system</h3>
+          <WorkbookSectionHeading workbook="SY" title="Within a system" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B1</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => addGroup("INTRASYSTEM")}><SYIcon.Plus /> Add group</button>}
@@ -650,7 +651,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Across systems</h3>
+          <WorkbookSectionHeading workbook="SY" title="Across systems" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B2</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => addGroup("INTERSYSTEM")}><SYIcon.Plus /> Add group</button>}
@@ -662,7 +663,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consistency with the models and Data Analysis</h3>
+          <WorkbookSectionHeading workbook="SY" title="Consistency with the models and Data Analysis" level={3} />
           <SYProvenanceChip>SY-B4</SYProvenanceChip>
         </div>
         <p className="poscard__sub">Each group probability derives from its parameters and must match the common cause event in the logic model.</p>

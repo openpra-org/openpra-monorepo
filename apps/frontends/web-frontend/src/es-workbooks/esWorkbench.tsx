@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ESIcon } from "./esIcons";
@@ -431,8 +432,7 @@ function EsWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <h1 className="posmain__title">{h.title}</h1>
-              {h.sub !== undefined && <p className="posmain__sub">{h.sub}</p>}
+              <WorkbookSectionHeading workbook="ES" title={h.title} description={h.sub} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

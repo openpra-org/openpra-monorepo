@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState, type ChangeEvent } from "react";
 import { RCIcon } from "./rcIcons";
@@ -61,7 +62,7 @@ function RcDocumentsCard({ workbookId, canEdit }: { workbookId?: string; canEdit
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Supporting documents</h3>
+        <WorkbookSectionHeading workbook="RC" title="Supporting documents" level={3} />
         {canEdit && workbookId !== undefined && (
           <label className="posnav__btn posnav__btn--sm posnav__btn--primary" style={{ cursor: busy ? "wait" : "pointer" }}>
             <RCIcon.Plus /> {busy ? "Uploading…" : "Upload"}

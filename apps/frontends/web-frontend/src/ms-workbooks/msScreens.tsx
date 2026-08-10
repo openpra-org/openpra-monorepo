@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { MSIcon } from "./msIcons";
@@ -109,13 +110,13 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Select an element to see the data exchanged.</p>
         <MsInterfaces />
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this mechanistic source-term analysis covers and what it excludes.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -129,7 +130,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="MS" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Applicable generic source terms with the uncertainty characterized, or plant-specific mechanistic calculations with the phenomena uncertainty propagated.</p>
@@ -151,7 +152,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="MS" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">MS has a light pre-operational fork, since the source-term physics is design-driven and the as-built gap enters only through the inputs.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -187,7 +188,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Release categories</h3>
+          <WorkbookSectionHeading workbook="MS" title="Release categories" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-A1 · A4 · A5</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCategory}><MSIcon.Plus /> Add category</button>}
@@ -249,7 +250,7 @@ function CategoriesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Category completeness</h3>
+          <WorkbookSectionHeading workbook="MS" title="Category completeness" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-A2</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "completeness", id: "completeness" })}>Edit</button>}
@@ -346,7 +347,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Source inventories</h3>
+          <WorkbookSectionHeading workbook="MS" title="Source inventories" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-B1</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInventory}><MSIcon.Plus /> Add inventory</button>}
@@ -395,7 +396,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The retention chain</h3>
+          <WorkbookSectionHeading workbook="MS" title="The retention chain" level={3} />
           <MsProvenanceChip>MS-B2 · MS-B4</MsProvenanceChip>
         </div>
         <p className="poscard__sub">The barriers from each source to the environment are identified per release category, and the fraction each one passes is set by its decontamination factor rather than assumed.</p>
@@ -413,7 +414,7 @@ function SourcesScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Barrier failure modes and transport</h3>
+          <WorkbookSectionHeading workbook="MS" title="Barrier failure modes and transport" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <MsProvenanceChip>MS-B3 · B4</MsProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><MSIcon.Plus /> Add barrier</button>}
@@ -473,7 +474,7 @@ function TransportScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =>
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Transport phenomena</h3>
+        <WorkbookSectionHeading workbook="MS" title="Transport phenomena" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <MsProvenanceChip>MS-B5 · C4</MsProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addAssessment}><MSIcon.Plus /> Add assessment</button>}
@@ -491,7 +492,7 @@ function TransportScreen({ openDrawer }: { openDrawer: (ctx: MsDrawerContext) =>
             <div key={assessment.uuid} style={{ borderTop: ai === 0 ? undefined : "1px solid var(--color-border)", paddingTop: ai === 0 ? 4 : 16, marginTop: ai === 0 ? 8 : 16 }}>
               <div className="posrow" style={{ justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
-                  <span style={{ fontFamily: "'Literata', Georgia, serif", fontWeight: 700, fontSize: 15, color: "var(--color-text)" }}>{categoryName(assessment.releaseCategoryReference)}</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15, color: "var(--color-text)" }}>{categoryName(assessment.releaseCategoryReference)}</span>
                   <span className="possubtle" style={{ fontSize: 12 }}>{checklist.length === 0 ? "Checklist not started" : `${String(included)} of ${String(checklist.length)} phenomena included`}</span>
                 </div>
                 {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "phenomena", id: assessment.uuid })}>Edit</button>}

@@ -18,7 +18,7 @@
 }
 
 .pf__keys-empty h3 {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text);

@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ESIcon } from "./esIcons";
@@ -349,7 +350,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
       <div className="posdrawer__body">
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Sequence path</h3>
+            <WorkbookSectionHeading workbook="ES" title="Sequence path" level={3} />
             {isOk ? <Badge kind="ok">Safe stable state</Badge> : <Badge kind="block">Release · {s.releaseCategoryId}</Badge>}
           </div>
           <div className="espath">
@@ -375,7 +376,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Outcome</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Outcome" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">End state</label><div className="posmono">{isOk ? "Safe stable state" : "Radionuclide release"}</div></div>
             <div className="posfield"><label className="posfield__label">Mean frequency</label><div className="posmono">{s.meanFrequency !== undefined ? `${fmtExp(s.meanFrequency)} /yr` : "—"}</div></div>
@@ -386,7 +387,7 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Dependencies in this tree</h3><Badge kind="progress">{relatedDeps.length}</Badge></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Dependencies in this tree" level={3} /><Badge kind="progress">{relatedDeps.length}</Badge></div>
           {relatedDeps.length > 0 ? (
             <div className="posrow posrow--wrap" style={{ gap: 6 }}>
               {relatedDeps.map((d) => <span key={d.id} className="poschip">{d.id} · {ES_DEPENDENCY_TYPES[d.type]?.label ?? d.type}</span>)}
@@ -452,13 +453,13 @@ function DependencyDrawerBody({ depId, deps, trees, onClose }: { depId: string; 
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Description</h3>{!editable && imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Description" level={3} />{!editable && imp.label !== "—" && <Badge kind={imp.kind}>{imp.label} importance</Badge>}</div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" style={{ minHeight: 64 }} placeholder="What links these two elements, and how is it modelled?" value={d.desc} onChange={(e) => patchDep({ description: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{d.desc}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Modelling</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Modelling" level={3} /></div>
           <div className="posfield-grid">
             {editable && (
               <>
@@ -566,7 +567,7 @@ function OperatorActionDrawerBody({ actionId, trees, onClose }: { actionId: stri
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Definition</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Definition" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">HFE reference</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={a.humanActionId} onChange={(e) => patch({ humanActionId: e.target.value })} /> : <div className="posmono">{a.humanActionId}</div>}
@@ -583,7 +584,7 @@ function OperatorActionDrawerBody({ actionId, trees, onClose }: { actionId: stri
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Window (minutes after the initiator)</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Window (minutes after the initiator)" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Window opens</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={a.windowStartMinutes} onChange={(e) => patch({ windowStartMinutes: Number(e.target.value) })} /> : <div className="posmono">{a.windowStartMinutes}</div>}
@@ -600,7 +601,7 @@ function OperatorActionDrawerBody({ actionId, trees, onClose }: { actionId: stri
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Feasibility</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Feasibility" level={3} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {FEASIBILITY_CRITERIA.map((c) => {
               const state = a.feasibility?.[c.id] ?? "OK";
@@ -623,7 +624,7 @@ function OperatorActionDrawerBody({ actionId, trees, onClose }: { actionId: stri
             )}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Applies to</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Applies to" level={3} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {(a.applicableInitiatingEvents ?? []).map((ie) => (
               <span key={ie} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -682,13 +683,13 @@ function PhenomenonDrawerBody({ phenId, onClose }: { phenId: string; onClose: ()
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Description</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Description" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="What happens, and which dependency link it drives" value={p.description} onChange={(e) => patch({ description: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{p.description}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Details</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Details" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Name</label>
               {editable ? <WorkbookInput className="posfield__input" value={p.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{p.name}</div>}
@@ -760,13 +761,13 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Mapping basis</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Mapping basis" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="Why these sequences share one source-term calculation" value={m.mappingBasis} onChange={(e) => patch({ mappingBasis: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{m.mappingBasis}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Characteristics</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Characteristics" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Common characteristics (comma separated)</label>
               {editable
@@ -790,7 +791,7 @@ function ReleaseCategoryDrawerBody({ mappingId, onClose }: { mappingId: string; 
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Member sequences</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Member sequences" level={3} /></div>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {m.eventSequenceIds.map((id) => (
               <span key={id} className="poschip poschip--primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -860,13 +861,13 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Representative plant response</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Representative plant response" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="How the plant responds in every member of this family" value={f.representativePlantResponse} onChange={(e) => patch({ representativePlantResponse: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{f.representativePlantResponse}</p>}
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Classification</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Classification" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">End state</label>
               {editable
@@ -906,7 +907,7 @@ function FamilyDrawerBody({ familyId, onClose }: { familyId: string; onClose: ()
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Member sequences</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Member sequences" level={3} /></div>
           <p className="poscard__sub">The highest-frequency member <span className="posmono">{representativeId ?? "—"}</span> is the representative sequence.</p>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {f.memberSequenceIds.map((id) => (
@@ -964,7 +965,7 @@ function ScreeningDrawerBody({ recordId, onClose }: { recordId: string; onClose:
       </div>
       <div className="posdrawer__body">
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Disposition</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Disposition" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Decision</label>
               {editable
@@ -986,7 +987,7 @@ function ScreeningDrawerBody({ recordId, onClose }: { recordId: string; onClose:
           </div>
         </div>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Justification</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Justification" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} placeholder="Why this sequence is kept, or the SCR basis for dropping it" value={r.justification} onChange={(e) => patch({ justification: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{r.justification}</p>}
@@ -1029,13 +1030,13 @@ function SafetyFnDrawerBody({ fnId, onClose }: { fnId: string; onClose: () => vo
       </div>
       <div className="posdrawer__body" style={{ paddingTop: 4 }}>
         <div>
-          <div className="poscard__head"><h3 className="poscard__title">What it must do</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="What it must do" level={3} /></div>
           {editable
             ? <WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} placeholder="What every scenario must satisfy to protect the barrier" value={sf.description} onChange={(e) => patch({ description: e.target.value })} />
             : <p style={{ margin: 0, fontSize: 13.5, color: "var(--color-text)", lineHeight: 1.6 }}>{sf.description.length > 0 ? sf.description : "—"}</p>}
         </div>
         <div>
-          <div className="poscard__head"><h3 className="poscard__title">Basis</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Basis" level={3} /></div>
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Success criteria reference</label>
               {editable
@@ -1152,7 +1153,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
+          <WorkbookSectionHeading workbook="ES" title="Interfaces" level={3} />
           {posLinked || ieLinked ? <Badge kind="ok">Linked</Badge> : <Badge kind="warn">Not linked</Badge>}
         </div>
         <p className="poscard__sub">Event Sequence Analysis reads the operating states from POS and the initiating events from IE, and hands its end states and release categories downstream. Select an element to see the data exchanged.</p>
@@ -1200,7 +1201,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sources &amp; radionuclide transport barriers</h3>
+          <WorkbookSectionHeading workbook="ES" title="Sources & radionuclide transport barriers" level={3} />
           <ESProvenanceChip>POS</ESProvenanceChip>
         </div>
         <p className="poscard__sub">Imported from the linked POS workbook. For each source, ES watches the barriers that decide whether a scenario ends in a release (ES-A2).</p>
@@ -1229,7 +1230,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Key reactor-specific safety functions</h3>
+          <WorkbookSectionHeading workbook="ES" title="Key reactor-specific safety functions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             {safetyFns.length > 0 && <Badge kind="progress">{safetyFns.length} functions</Badge>}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSafetyFn}><ESIcon.Plus /> Add function</button>}
@@ -1256,7 +1257,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="ES" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">This sets how detailed the plant-response work and the sequences must be.</p>
@@ -1267,7 +1268,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
               <button key={c.id} type="button" className="poscard" onClick={() => onCcChange(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "'Literata', serif", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
                   <span className="possubtle" style={{ fontSize: 12 }}>{c.tag}</span>
                 </div>
                 <div className="possubtle">{c.description}</div>
@@ -1278,7 +1279,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="ES" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">This sets which requirements apply and where the plant-response data comes from.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -1535,7 +1536,7 @@ function SequencesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Coverage</h3>
+          <WorkbookSectionHeading workbook="ES" title="Coverage" level={3} />
         </div>
         <p className="poscard__sub">ES lays out a sequence set for every operating-state and initiating-event pair, where a filled cell means a set exists that you can click to open. Empty cells are pairs that have not been laid out yet.</p>
         <div className="esmatrix-wrap">
@@ -1582,7 +1583,7 @@ function SequencesScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">{tree.name}</h3>
+          <WorkbookSectionHeading workbook="ES" title={tree.name} cueKey="Event tree" />
           <ESProvenanceChip kind="es">{tree.initiatingEventId}</ESProvenanceChip>
         </div>
         {tree.description !== undefined && <p className="poscard__sub">{tree.description}</p>}
@@ -1725,7 +1726,7 @@ function DependenciesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Dependencies across the event sequences</h3>
+          <WorkbookSectionHeading workbook="ES" title="Dependencies across the event sequences" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDependency}><ESIcon.Plus /> Add dependency</button>}
         </div>
         {deps.length === 0 ? (
@@ -1920,7 +1921,7 @@ function TimingScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Accident-progression timeline</h3>
+          <WorkbookSectionHeading workbook="ES" title="Accident-progression timeline" level={3} />
           <span className="possubtle">Mission time {tree.missionTime ?? "—"} {tree.missionTimeUnits ?? ""}</span>
         </div>
         <p className="poscard__sub">Every milestone comes from the dynamic-PRA run for the selected sequence set; the shaded band starts at the earliest cladding-damage time when no heat-removal path succeeds (ES-A6).</p>
@@ -1995,7 +1996,7 @@ function TimingScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Operator-action windows</h3>
+          <WorkbookSectionHeading workbook="ES" title="Operator-action windows" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addWindow}><ESIcon.Plus /> Add action</button>}
         </div>
         <p className="poscard__sub">An operator action is credited only when all five checks hold (time, environment, procedure, training, equipment) and the time required fits inside the window the physics leaves open (ES-A4).</p>
@@ -2038,7 +2039,7 @@ function TimingScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Phenomenological conditions</h3>
+          <WorkbookSectionHeading workbook="ES" title="Phenomenological conditions" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPhen}><ESIcon.Plus /> Add condition</button>}
         </div>
         <p className="poscard__sub">Thermal, radiation, and chemical conditions arising during a sequence are modelled as phenomenological dependencies, with their onset timing checked against the action windows above (ES-B3).</p>
@@ -2132,7 +2133,7 @@ function EndStatesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">End states</h3>
+          <WorkbookSectionHeading workbook="ES" title="End states" level={3} />
           <span className="possubtle">ES-A8 · ES-C1</span>
         </div>
         <p className="poscard__sub">Each sequence resolves to a safe stable state or a release category handed to Mechanistic Source Term (ES-A8, ES-C1).</p>
@@ -2196,7 +2197,7 @@ function EndStatesScreen(): JSX.Element {
       {hasContent && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Release-category mapping</h3>
+            <WorkbookSectionHeading workbook="ES" title="Release-category mapping" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <ESProvenanceChip kind="es">ES-C8 → MS</ESProvenanceChip>
               {editable && unusedRcIds.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMapping}><ESIcon.Plus /> Add category</button>}
@@ -2289,7 +2290,7 @@ function FamiliesScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sequence families</h3>
+          <WorkbookSectionHeading workbook="ES" title="Sequence families" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <ESProvenanceChip kind="es">ES-C8 → MS</ESProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFamily}><ESIcon.Plus /> Add family</button>}
@@ -2373,7 +2374,7 @@ function ScreeningScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Screening decisions</h3>
+          <WorkbookSectionHeading workbook="ES" title="Screening decisions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <ESProvenanceChip kind="es">ES-A7 · SCR-3</ESProvenanceChip>
             {editable && eligible.length > 0 && (
@@ -2432,7 +2433,7 @@ function QuantScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Preliminary point-estimate licensing basis events</h3>
+          <WorkbookSectionHeading workbook="ES" title="Preliminary point-estimate licensing basis events" level={3} />
           <ESProvenanceChip kind="es">ES → LBE · point estimate</ESProvenanceChip>
         </div>
         <p className="poscard__sub">Each sequence family is placed into a preliminary licensing-basis-event class by its point-estimate frequency, pending the full ESQ uncertainty quantification.</p>
@@ -2466,7 +2467,7 @@ function QuantScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Returned quantification</h3>
+          <WorkbookSectionHeading workbook="ES" title="Returned quantification" level={3} />
           <ESProvenanceChip kind="es">ESQ → ES · HLR-ESQ-B</ESProvenanceChip>
         </div>
         <div className="esqdom-list">
@@ -2580,7 +2581,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="ES" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -2589,7 +2590,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="ES" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>, so making the draft locks Steps 1-8 and moves the workbook to <strong>Internal Technical Review</strong>.</>

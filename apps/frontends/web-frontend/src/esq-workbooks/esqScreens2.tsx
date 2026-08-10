@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { type EventSequenceFamilyQuantification, type QuantificationMethods, type ComputerCodeRecord, type ConvergenceAnalysis, type FlagEventSetting, type MutuallyExclusiveEventRule, type CircularLogicResolution, type ModuleUsageRecord, type SystemSuccessTreatment, type DependencyTreatment, type MultiHfeCutsetIdentification, type LinkingTransferRecord, type PhenomenaDependencyAssessment, type PhenomenaModelLogic, type EquipmentSurvivabilityAssessment, type RadionuclideBarrierQuantification, type RiskSignificantContributor, type ModelUncertaintySourceAssessment } from "interfaces-mef-types/esq/event-sequence-quantification";
@@ -64,7 +65,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Dependency treatment</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Dependency treatment" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "dependency", id: "dependency" })}>Edit</button>}
@@ -88,7 +89,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Multiple human failure events in a cutset</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Multiple human failure events in a cutset" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C1 · ESQ-C2</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addMultiHfe}><ESQIcon.Plus /> Add cutset</button>}
@@ -119,7 +120,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Event-tree linking transfers</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Event-tree linking transfers" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C3</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addTransfer}><ESQIcon.Plus /> Add transfer</button>}
@@ -146,7 +147,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Phenomena dependencies</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Phenomena dependencies" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C4 · ESQ-C6</EsqProvenanceChip>
             <div className="posrow" style={{ gap: 6 }}>
@@ -179,7 +180,7 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Equipment survivability credit</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Equipment survivability credit" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-C8 · ESQ-C9</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSurv}><ESQIcon.Plus /> Add assessment</button>}
@@ -221,7 +222,7 @@ function BarriersScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) =>
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Radionuclide barriers</h3>
+        <WorkbookSectionHeading workbook="ESQ" title="Radionuclide barriers" level={3} />
         <div className="posrow" style={{ gap: 10 }}>
           <EsqProvenanceChip>ESQ-C10 to C15</EsqProvenanceChip>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBarrier}><ESQIcon.Plus /> Add barrier</button>}
@@ -287,7 +288,7 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-significant contributors</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Risk-significant contributors" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-D6</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addContributor}><ESQIcon.Plus /> Add contributor</button>}
@@ -315,7 +316,7 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Importance review</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Importance review" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-D7</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addImportance}><ESQIcon.Plus /> Add analysis</button>}
@@ -350,7 +351,7 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Cutset logic review</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Cutset logic review" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-D1 · ESQ-D5</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCutset}><ESQIcon.Plus /> Add sample</button>}
@@ -378,7 +379,7 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
       {audit !== undefined && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Screening audit</h3>
+            <WorkbookSectionHeading workbook="ESQ" title="Screening audit" level={3} />
             <div className="posrow" style={{ gap: 10 }}>
               <EsqProvenanceChip>ESQ-D8</EsqProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "screening", id: "screening" })}>Edit</button>}
@@ -394,7 +395,7 @@ function ResultsScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consistency and similar-plant comparison</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Consistency and similar-plant comparison" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-D2 · D3 · D4</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "consistency", id: "consistency" })}>Edit</button>}
@@ -435,7 +436,7 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">The uncertainty funnel</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="The uncertainty funnel" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-E1</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFunnel}><ESQIcon.Plus /> Add source</button>}
@@ -462,7 +463,7 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">State-of-knowledge correlation</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="State-of-knowledge correlation" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <EsqProvenanceChip>ESQ-E2 · ESQ-A5</EsqProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "sokc", id: "sokc" })}>Edit</button>}
@@ -480,7 +481,7 @@ function UncertScreen({ stage, openDrawer }: { stage: Stage; openDrawer: (ctx: E
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Open items register</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Open items register" level={3} />
           <span className="possubtle">ESQ-C16, C17, E1, E2, F5</span>
         </div>
         <p className="poscard__sub">The uncertainty sources, the pre-operational assumptions and the sensitivity studies feed the documentation.</p>
@@ -533,7 +534,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -542,7 +543,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="ESQ" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 8 and moves to <strong>Internal Technical Review</strong>.</>
@@ -614,7 +615,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="posfield"><label className="posfield__label">Cross-state grouping</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossPosGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossPosGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Cross-source grouping</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={f.crossSourceGroupingJustification ?? ""} disabled={!editable} onChange={(e) => patchFamily({ crossSourceGroupingJustification: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
-            <div className="essec">Contribution breakdown</div>
+            <WorkbookCueLabel workbook="ESQ" title="Contribution breakdown" className="essec" />
             {contribs.map((c, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={c.contributorRef} disabled={!editable} onChange={(e) => patchContrib(i, { contributorRef: e.target.value })} />
@@ -626,7 +627,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchFamily({ contributionBreakdown: [...contribs, { contributorRef: "", contributorType: "EQUIPMENT_FAILURE", fractionalContribution: 0 }] })}><ESQIcon.Plus /> Add contributor</button>}
           </div>
           <div>
-            <div className="essec">Significant uncertainty sources</div>
+            <WorkbookCueLabel workbook="ESQ" title="Significant uncertainty sources" className="essec" />
             {sources.map((u, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={u} disabled={!editable} onChange={(e) => patchFamily({ significantUncertaintySources: sources.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -676,7 +677,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="posfield"><label className="posfield__label">Validation</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.validationDocumentation} disabled={!editable} onChange={(e) => patchCode({ validationDocumentation: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Benchmark comparison</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.benchmarkComparison ?? ""} disabled={!editable} onChange={(e) => patchCode({ benchmarkComparison: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
-            <div className="essec">Features</div>
+            <WorkbookCueLabel workbook="ESQ" title="Features" className="essec" />
             {feats.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificFeatures: feats.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -686,7 +687,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchCode({ methodSpecificFeatures: [...feats, ""] })}><ESQIcon.Plus /> Add feature</button>}
           </div>
           <div>
-            <div className="essec">Method-specific limitations</div>
+            <WorkbookCueLabel workbook="ESQ" title="Method-specific limitations" className="essec" />
             {limits.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patchCode({ methodSpecificLimitations: limits.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -727,7 +728,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__head">
           <div>
             <div className="posdrawer__cap">Truncation convergence study</div>
-            <h2 className="posdrawer__title">Convergence demonstration</h2>
+            <WorkbookSectionHeading workbook="ESQ" title="Convergence demonstration" level={2} className="posdrawer__title" />
             <p className="posdrawer__sub">The change column is computed from the recorded frequencies</p>
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
@@ -741,7 +742,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Merged cutsets re-confirmed</label><select className="posfield__select" value={t.mergedCutsetTruncationConfirmed === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patchTrunc({ mergedCutsetTruncationConfirmed: e.target.value === "yes" })}><option value="yes">Confirmed</option><option value="no">Not confirmed</option></select></div>
           </div>
           <div>
-            <div className="essec">Progression</div>
+            <WorkbookCueLabel workbook="ESQ" title="Progression" className="essec" />
             <div className="posrow" style={{ gap: 8, marginBottom: 4 }}>
               <span className="posfield__label" style={{ flex: 1 }}>Cutoff (/yr)</span>
               <span className="posfield__label" style={{ flex: 1 }}>Tracked-family frequency (/yr)</span>
@@ -777,7 +778,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__head">
           <div>
             <div className="posdrawer__cap">Solution and approximation</div>
-            <h2 className="posdrawer__title">Quantification method</h2>
+            <WorkbookSectionHeading workbook="ESQ" title="Quantification method" level={2} className="posdrawer__title" />
             <p className="posdrawer__sub">{APPROACH_LABELS[qm.approach] ?? qm.approach}</p>
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
@@ -828,7 +829,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Temporary</label><select className="posfield__select" value={f.isTemporary ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ isTemporary: e.target.value === "yes" })}><option value="no">Permanent</option><option value="yes">Temporary</option></select></div>
           </div>
           <div>
-            <div className="essec">Applies to families</div>
+            <WorkbookCueLabel workbook="ESQ" title="Applies to families" className="essec" />
             {refs.map((r, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <select className="posfield__select" style={{ flex: 1 }} value={r} disabled={!editable} onChange={(e) => patch({ applicableFamilyRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })}><option value="">—</option>{esq.familyQuantifications.map((fq) => <option key={fq.uuid} value={fq.uuid}>{fq.uuid} · {fq.name}</option>)}</select>
@@ -869,7 +870,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Identified in results</label><select className="posfield__select" value={m.identifiedInResults ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ identifiedInResults: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
           </div>
           <div>
-            <div className="essec">Events that cannot coexist</div>
+            <WorkbookCueLabel workbook="ESQ" title="Events that cannot coexist" className="essec" />
             {evs.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ eventIds: evs.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -910,7 +911,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="posfield"><label className="posfield__label">Resolution description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.resolutionDescription} disabled={!editable} onChange={(e) => patch({ resolutionDescription: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Neutrality justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.neutralityJustification} disabled={!editable} onChange={(e) => patch({ neutralityJustification: e.target.value })} /></div>
           <div>
-            <div className="essec">Systems in the loop</div>
+            <WorkbookCueLabel workbook="ESQ" title="Systems in the loop" className="essec" />
             {els.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ involvedElementIds: els.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -967,14 +968,14 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Success paths kept</div><h2 className="posdrawer__title">System success treatment</h2></div>
+          <div><div className="posdrawer__cap">Success paths kept</div><WorkbookSectionHeading workbook="ESQ" title="System success treatment" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Treatment method</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.treatmentMethod} disabled={!editable} onChange={(e) => patch({ treatmentMethod: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Impact on results</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={t.impactOnResults} disabled={!editable} onChange={(e) => patch({ impactOnResults: e.target.value })} /></div>
           <div>
-            <div className="essec">Systems with success modeled</div>
+            <WorkbookCueLabel workbook="ESQ" title="Systems with success modeled" className="essec" />
             {systems.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ systemsWithSuccessModeled: systems.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -984,7 +985,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ systemsWithSuccessModeled: [...systems, ""] })}><ESQIcon.Plus /> Add system</button>}
           </div>
           <div>
-            <div className="essec">Modeling examples</div>
+            <WorkbookCueLabel workbook="ESQ" title="Modeling examples" className="essec" />
             {examples.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ modelingExamples: examples.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -1006,11 +1007,11 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Dependency treatment</div><h2 className="posdrawer__title">By type and method</h2></div>
+          <div><div className="posdrawer__cap">Dependency treatment</div><WorkbookSectionHeading workbook="ESQ" title="By type and method" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="essec">Dependencies by type</div>
+          <WorkbookCueLabel workbook="ESQ" title="Dependencies by type" className="essec" />
           {rows.map((r, i) => (
             <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
               <label className="posfield__label">{DEPENDENCY_TYPE_LABELS[r.type] ?? r.type}</label>
@@ -1038,13 +1039,13 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Multi-HFE cutset · {m.uuid}</div><h2 className="posdrawer__title">Joint dependency</h2></div>
+          <div><div className="posdrawer__cap">Multi-HFE cutset · {m.uuid}</div><WorkbookSectionHeading workbook="ESQ" title="Joint dependency" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Cutset description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={m.cutsetDescription} disabled={!editable} onChange={(e) => patch({ cutsetDescription: e.target.value })} /></div>
           <div>
-            <div className="essec">Human failure events</div>
+            <WorkbookCueLabel workbook="ESQ" title="Human failure events" className="essec" />
             {refs.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ hfeRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -1086,12 +1087,12 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Frequency transferred</label><select className="posfield__select" value={t.frequencyTransferred ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ frequencyTransferred: e.target.value === "yes" })}><option value="yes">Yes</option><option value="no">No</option></select></div>
           </div>
           <div>
-            <div className="essec">Failed equipment carried</div>
+            <WorkbookCueLabel workbook="ESQ" title="Failed equipment carried" className="essec" />
             {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ failedEquipmentTransferred: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ failedEquipmentTransferred: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ failedEquipmentTransferred: [...eqp, ""] })}><ESQIcon.Plus /> Add equipment</button>}
           </div>
           <div>
-            <div className="essec">Flag settings carried</div>
+            <WorkbookCueLabel workbook="ESQ" title="Flag settings carried" className="essec" />
             {flg.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ flagSettingsTransferred: flg.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ flagSettingsTransferred: flg.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ flagSettingsTransferred: [...flg, ""] })}><ESQIcon.Plus /> Add flag</button>}
           </div>
@@ -1118,13 +1119,13 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Phenomenon</label><WorkbookInput className="posfield__input" value={ph.phenomenon} disabled={!editable} onChange={(e) => patch({ phenomenon: e.target.value })} /></div>
           <div>
-            <div className="essec">Affected systems and components</div>
+            <WorkbookCueLabel workbook="ESQ" title="Affected systems and components" className="essec" />
             {sscs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ affectedSscRefs: sscs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ affectedSscRefs: sscs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ affectedSscRefs: [...sscs, ""] })}><ESQIcon.Plus /> Add reference</button>}
           </div>
           <div className="posfield"><label className="posfield__label">Dependency assessment</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={ph.dependencyAssessment} disabled={!editable} onChange={(e) => patch({ dependencyAssessment: e.target.value })} /></div>
           <div>
-            <div className="essec">Independence justifications</div>
+            <WorkbookCueLabel workbook="ESQ" title="Independence justifications" className="essec" />
             {inds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ independenceJustifications: inds.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ independenceJustifications: inds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ independenceJustifications: [...inds, ""] })}><ESQIcon.Plus /> Add justification</button>}
           </div>
@@ -1142,7 +1143,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Phenomena model logic</div><h2 className="posdrawer__title">Included effects</h2></div>
+          <div><div className="posdrawer__cap">Phenomena model logic</div><WorkbookSectionHeading workbook="ESQ" title="Included effects" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
@@ -1174,18 +1175,18 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         </div>
         <div className="posdrawer__body">
           <div>
-            <div className="essec">Equipment</div>
+            <WorkbookCueLabel workbook="ESQ" title="Equipment" className="essec" />
             {eqp.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ equipmentRefs: eqp.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ equipmentRefs: eqp.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ equipmentRefs: [...eqp, ""] })}><ESQIcon.Plus /> Add equipment</button>}
           </div>
           <div>
-            <div className="essec">Environmental conditions</div>
+            <WorkbookCueLabel workbook="ESQ" title="Environmental conditions" className="essec" />
             {conds.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Type" value={x.type} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, type: e.target.value } : y)) })} /><WorkbookInput className="posfield__input" style={{ flex: 2 }} placeholder="Severity" value={x.severity} disabled={!editable} onChange={(e) => patch({ environmentalConditions: conds.map((y, j) => (j === i ? { ...y, severity: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ environmentalConditions: conds.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ environmentalConditions: [...conds, { type: "", severity: "" }] })}><ESQIcon.Plus /> Add condition</button>}
           </div>
           <div className="posfield"><label className="posfield__label">Survivability criteria</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={v.survivabilityCriteria} disabled={!editable} onChange={(e) => patch({ survivabilityCriteria: e.target.value })} /></div>
           <div>
-            <div className="essec">Results</div>
+            <WorkbookCueLabel workbook="ESQ" title="Results" className="essec" />
             {res.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><span className={`esqstate esqstate--${x.survives ? "on" : "off"}`}><span className="esqstate__dot" />{x.survives ? "Survives" : "Fails"}</span><WorkbookInput className="posfield__input" style={{ flex: 1 }} placeholder="Basis" value={x.basis} disabled={!editable} onChange={(e) => patch({ assessmentResults: res.map((y, j) => (j === i ? { ...y, basis: e.target.value } : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ assessmentResults: res.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ assessmentResults: [...res, { equipmentRef: eqp[0] ?? "", survives: true, basis: "" }] })}><ESQIcon.Plus /> Add result</button>}
           </div>
@@ -1233,7 +1234,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">State-of-knowledge correlation</div><h2 className="posdrawer__title">Shared-estimate handling</h2></div>
+          <div><div className="posdrawer__cap">State-of-knowledge correlation</div><WorkbookSectionHeading workbook="ESQ" title="Shared-estimate handling" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
@@ -1241,7 +1242,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="posfield"><label className="posfield__label">Handling description</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.handlingDescription ?? ""} disabled={!editable} onChange={(e) => patch({ handlingDescription: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Impact assessment</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={c.impactAssessment ?? ""} disabled={!editable} onChange={(e) => patch({ impactAssessment: e.target.value === "" ? undefined : e.target.value })} /></div>
           <div>
-            <div className="essec">Correlated parameter groups</div>
+            <WorkbookCueLabel workbook="ESQ" title="Correlated parameter groups" className="essec" />
             {groups.map((g, i) => (
               <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
                 <label className="posfield__label">Group {String(i + 1)} (comma-separated)</label>
@@ -1278,7 +1279,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             <div className="posfield"><label className="posfield__label">Contribution (fraction)</label><WorkbookInput className="posfield__input" type="number" step="any" value={c.fractionalContribution ?? ""} disabled={!editable} onChange={(e) => { const v = Number(e.target.value); if (!Number.isNaN(v)) patch({ fractionalContribution: v }); }} /></div>
           </div>
           <div>
-            <div className="essec">Applicable families</div>
+            <WorkbookCueLabel workbook="ESQ" title="Applicable families" className="essec" />
             {fams.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><select className="posfield__select" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ applicableFamilyRefs: fams.map((y, j) => (j === i ? e.target.value : y)) })}><option value="">·—</option>{esq.familyQuantifications.map((fq) => <option key={fq.uuid} value={fq.uuid}>{fq.uuid} · {fq.name}</option>)}</select>{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ applicableFamilyRefs: fams.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ applicableFamilyRefs: [...fams, ""] })}><ESQIcon.Plus /> Add family</button>}
           </div>
@@ -1308,7 +1309,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="essec">Importance measures</div>
+          <WorkbookCueLabel workbook="ESQ" title="Importance measures" className="essec" />
           {measures.map((m, i) => (
             <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
               <WorkbookInput className="posfield__input" style={{ flex: 2 }} value={m.entityRef} disabled={!editable} onChange={(e) => patchMeasures(measures.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
@@ -1320,7 +1321,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchMeasures([...measures, { entityType: "BASIC_EVENT", entityRef: "", fussellVesely: 0, riskAchievementWorth: 1 }])}><ESQIcon.Plus /> Add measure</button>}
           {showReview && (
             <>
-              <div className="essec">Unexpected results reconciled</div>
+              <WorkbookCueLabel workbook="ESQ" title="Unexpected results reconciled" className="essec" />
               {unexpected.map((u, i) => (
                 <div key={i} className="posfield" style={{ borderTop: i > 0 ? "1px solid var(--color-border)" : undefined, paddingTop: i > 0 ? 12 : 0 }}>
                   <WorkbookInput className="posfield__input" placeholder="Entity" value={u.entityRef} disabled={!editable} onChange={(e) => patchUnexpected(unexpected.map((y, j) => (j === i ? { ...y, entityRef: e.target.value } : y)))} />
@@ -1375,7 +1376,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Screening audit</div><h2 className="posdrawer__title">Cumulative screened-event check</h2></div>
+          <div><div className="posdrawer__cap">Screening audit</div><WorkbookSectionHeading workbook="ESQ" title="Cumulative screened-event check" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
@@ -1383,7 +1384,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
           <div className="posfield"><label className="posfield__label">Basis</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={audit.basis} disabled={!editable} onChange={(e) => patch({ basis: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Affects risk-significant contributors</label><select className="posfield__select" value={audit.affectsRiskSignificantContributors ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ affectsRiskSignificantContributors: e.target.value === "yes" })}><option value="no">No</option><option value="yes">Yes</option></select></div>
           <div>
-            <div className="essec">Screened initiating events</div>
+            <WorkbookCueLabel workbook="ESQ" title="Screened initiating events" className="essec" />
             {refs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input posmono" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ screenedInitiatingEventRefs: refs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ screenedInitiatingEventRefs: refs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ screenedInitiatingEventRefs: [...refs, ""] })}><ESQIcon.Plus /> Add event</button>}
           </div>
@@ -1403,7 +1404,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
     return (
       <>
         <div className="posdrawer__head">
-          <div><div className="posdrawer__cap">Consistency reviews</div><h2 className="posdrawer__title">Against models, rules and a similar plant</h2></div>
+          <div><div className="posdrawer__cap">Consistency reviews</div><WorkbookSectionHeading workbook="ESQ" title="Against models, rules and a similar plant" level={2} className="posdrawer__title" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><ESQIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
@@ -1432,12 +1433,12 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
         <div className="posdrawer__body">
           <div className="posfield"><label className="posfield__label">Name</label><WorkbookInput className="posfield__input" value={b.name} disabled={!editable} onChange={(e) => patch({ name: e.target.value })} /></div>
           <div>
-            <div className="essec">Applicable sources</div>
+            <WorkbookCueLabel workbook="ESQ" title="Applicable sources" className="essec" />
             {srcs.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ applicableSourceRefs: srcs.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ applicableSourceRefs: srcs.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ applicableSourceRefs: [...srcs, ""] })}><ESQIcon.Plus /> Add source</button>}
           </div>
           <div>
-            <div className="essec">Failure modes</div>
+            <WorkbookCueLabel workbook="ESQ" title="Failure modes" className="essec" />
             {modes.map((m, i) => (
               <div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>
                 <select className="posfield__select" style={{ width: 120 }} value={m.failureType} disabled={!editable} onChange={(e) => patch({ failureModes: modes.map((y, j) => (j === i ? { ...y, failureType: e.target.value as typeof m.failureType } : y)) })}><option value="GROSS">Gross</option><option value="LOCALIZED_DEGRADED">Localized</option></select>
@@ -1449,7 +1450,7 @@ function DrawerContent({ context, onClose }: { context: EsqDrawerContext; onClos
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ failureModes: [...modes, { failureMode: "", failureType: "GROSS", mechanisms: [] }] })}><ESQIcon.Plus /> Add mode</button>}
           </div>
           <div>
-            <div className="essec">Challenging phenomena</div>
+            <WorkbookCueLabel workbook="ESQ" title="Challenging phenomena" className="essec" />
             {phen.map((x, i) => (<div key={i} className="posrow" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}><WorkbookInput className="posfield__input" style={{ flex: 1 }} value={x} disabled={!editable} onChange={(e) => patch({ challengingPhenomena: phen.map((y, j) => (j === i ? e.target.value : y)) })} />{editable && <button type="button" className="posnav__btn posnav__btn--sm" title="Remove" onClick={() => patch({ challengingPhenomena: phen.filter((_, j) => j !== i) })}><ESQIcon.Close /></button>}</div>))}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patch({ challengingPhenomena: [...phen, ""] })}><ESQIcon.Plus /> Add phenomenon</button>}
           </div>

@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { DAIcon } from "./daIcons";
@@ -61,7 +62,7 @@ function CountsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
       {fd !== undefined && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">What counts as a failure</h3>
+            <WorkbookSectionHeading workbook="DA" title="What counts as a failure" level={3} />
             <DaProvenanceChip>DA-C5 · DA-C6</DaProvenanceChip>
           </div>
           <div className="dafail" onClick={() => openDrawer({ kind: "failuredef", id: fd.uuid })}>
@@ -85,7 +86,7 @@ function CountsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Demand counting</h3>
+          <WorkbookSectionHeading workbook="DA" title="Demand counting" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-C7 · DA-C9</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDemand}><DAIcon.Plus /> Add group</button>}
@@ -111,7 +112,7 @@ function CountsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Exposure time</h3>
+          <WorkbookSectionHeading workbook="DA" title="Exposure time" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-C10 · DA-C11</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addExposure}><DAIcon.Plus /> Add group</button>}
@@ -135,7 +136,7 @@ function CountsScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Test credibility</h3>
+          <WorkbookSectionHeading workbook="DA" title="Test credibility" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-C12</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addTest}><DAIcon.Plus /> Add review</button>}
@@ -202,7 +203,7 @@ function UnavailScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Unavailability from maintenance and test</h3>
+          <WorkbookSectionHeading workbook="DA" title="Unavailability from maintenance and test" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-C13 · DA-C15</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUnavail}><DAIcon.Plus /> Add record</button>}
@@ -235,7 +236,7 @@ function UnavailScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
       {coincident.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Coincident maintenance</h3>
+            <WorkbookSectionHeading workbook="DA" title="Coincident maintenance" level={3} />
             <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
               <DaProvenanceChip>DA-C18</DaProvenanceChip>
               {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCoincident}><DAIcon.Plus /> Add record</button>}
@@ -262,7 +263,7 @@ function UnavailScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Repair, recovery and outage</h3>
+          <WorkbookSectionHeading workbook="DA" title="Repair, recovery and outage" level={3} />
           <DaProvenanceChip>DA-C20 · DA-C24</DaProvenanceChip>
         </div>
         <p className="poscard__sub">Repair time runs from finding the failure to restoration, and the outage data is the raw material behind the POS time fractions.</p>
@@ -308,7 +309,7 @@ function EstimateScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Estimates on the ladder</h3>
+          <WorkbookSectionHeading workbook="DA" title="Estimates on the ladder" level={3} />
           <DaProvenanceChip>DA-D1 · DA-D3</DaProvenanceChip>
         </div>
         <p className="poscard__sub">The available specific estimate at CC-I, or a realistic combined mean for the risk-significant events at CC-II.</p>
@@ -344,7 +345,7 @@ function EstimateScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Bayesian estimate</h3>
+          <WorkbookSectionHeading workbook="DA" title="Bayesian estimate" level={3} />
           <DaProvenanceChip>DA-D4 · DA-D5</DaProvenanceChip>
         </div>
         <p className="poscard__sub">When updating produces a parameter, the posterior is checked against the relative weight of the prior and the evidence.</p>
@@ -390,7 +391,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Common-cause parameters</h3>
+          <WorkbookSectionHeading workbook="DA" title="Common-cause parameters" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-D7 · DA-D8</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCcf}><DAIcon.Plus /> Add group</button>}
@@ -430,7 +431,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => void 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consistent exclusion</h3>
+          <WorkbookSectionHeading workbook="DA" title="Consistent exclusion" level={3} />
           <DaProvenanceChip>DA-D9</DaProvenanceChip>
         </div>
         <p className="poscard__sub">An event excluded from the independent database is excluded from the common-cause database too, or the ratio is distorted.</p>
@@ -470,7 +471,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Open items register</h3>
+          <WorkbookSectionHeading workbook="DA" title="Open items register" level={3} />
           <span className="possubtle">DA-A5, C9, D5, E2</span>
         </div>
         <p className="poscard__sub">The uncertainty sources, the pre-operational assumptions and the sensitivity studies feed the documentation.</p>
@@ -491,7 +492,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Data modification</h3>
+          <WorkbookSectionHeading workbook="DA" title="Data modification" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-D10</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDatamod}><DAIcon.Plus /> Add record</button>}
@@ -547,7 +548,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="DA" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -557,7 +558,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="DA" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 9 and moves to <strong>Internal Technical Review</strong>.</>
@@ -577,7 +578,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: { cc: Capa
 function ListEditor({ label, items, disabled, onApply }: { label: string; items: string[]; disabled: boolean; onApply: (next: string[]) => void }): JSX.Element {
   return (
     <div>
-      <div className="essec">{label}</div>
+      <WorkbookCueLabel workbook="DA" title={label} cueKey="Structured analysis subsection" className="essec" />
       {items.map((x, i) => (
         <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
           <WorkbookInput className="posfield__input" value={x} disabled={disabled} onChange={(e) => onApply(items.map((y, j) => (j === i ? e.target.value : y)))} />
@@ -654,7 +655,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
           <div className="posfield"><label className="posfield__label">Boundary scope</label><WorkbookInput className="posfield__input" value={b.boundaries[0] ?? ""} disabled={!editable} onChange={(e) => patchBoundary({ boundaries: [e.target.value, ...b.boundaries.slice(1)] })} /></div>
           <div className="posfield"><label className="posfield__label">Boundary basis</label><WorkbookTextarea className="posfield__textarea" rows={3} style={{ resize: "vertical" }} value={b.boundaryBasis} disabled={!editable} onChange={(e) => patchBoundary({ boundaryBasis: e.target.value })} /></div>
           <div>
-            <div className="essec">Included items</div>
+            <WorkbookCueLabel workbook="DA" title="Included items" className="essec" />
             {b.includedItems.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
                 <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchBoundary({ includedItems: b.includedItems.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -664,7 +665,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
             {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => patchBoundary({ includedItems: [...b.includedItems, ""] })}><DAIcon.Plus /> Add item</button>}
           </div>
           <div>
-            <div className="essec">Excluded items</div>
+            <WorkbookCueLabel workbook="DA" title="Excluded items" className="essec" />
             {(b.excludedItems ?? []).map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
                 <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchBoundary({ excludedItems: (b.excludedItems ?? []).map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -686,7 +687,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
     };
     const listEditor = (label: string, items: string[], apply: (next: string[]) => void): JSX.Element => (
       <div>
-        <div className="essec">{label}</div>
+        <WorkbookCueLabel workbook="DA" title={label} cueKey="Structured analysis subsection" className="essec" />
         {items.map((x, i) => (
           <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
             <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => apply(items.map((y, j) => (j === i ? e.target.value : y)))} />
@@ -717,7 +718,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
           {listEditor("Service conditions", g.serviceConditions, (next) => patchGrouping({ serviceConditions: next }))}
           {listEditor("Environmental conditions", g.environmentalConditions, (next) => patchGrouping({ environmentalConditions: next }))}
           <div>
-            <div className="essec">Outliers held out</div>
+            <WorkbookCueLabel workbook="DA" title="Outliers held out" className="essec" />
             {(g.excludedOutliers ?? []).map((oid, i) => {
               const o = (da.outlierComponents ?? []).find((x) => x.uuid === oid);
               return (
@@ -765,7 +766,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
           <div className="posfield"><label className="posfield__label">Exclusion justification</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={o.exclusionJustification} disabled={!editable} onChange={(e) => patchOutlier({ exclusionJustification: e.target.value })} /></div>
           <div className="posfield"><label className="posfield__label">Alternative handling</label><WorkbookTextarea className="posfield__textarea" rows={2} style={{ resize: "vertical" }} value={o.alternativeHandling} disabled={!editable} onChange={(e) => patchOutlier({ alternativeHandling: e.target.value })} /></div>
           <div>
-            <div className="essec">Differentiating characteristics</div>
+            <WorkbookCueLabel workbook="DA" title="Differentiating characteristics" className="essec" />
             {o.differentiatingCharacteristics.map((x, i) => (
               <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6 }}>
                 <WorkbookInput className="posfield__input" value={x} disabled={!editable} onChange={(e) => patchOutlier({ differentiatingCharacteristics: o.differentiatingCharacteristics.map((y, j) => (j === i ? e.target.value : y)) })} />
@@ -824,7 +825,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
         <div className="posdrawer__head">
           <div>
             <div className="posdrawer__cap">Failure definition · {fd.uuid}</div>
-            <h2 className="posdrawer__title">What counts as a failure</h2>
+            <WorkbookSectionHeading workbook="DA" title="What counts as a failure" level={2} className="posdrawer__title" />
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><DAIcon.Close /></button>
         </div>
@@ -944,7 +945,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Assigned to support system</label><WorkbookInput className="posfield__input posmono" value={u.assignedToSupportSystem ?? ""} disabled={!editable} onChange={(e) => patch({ assignedToSupportSystem: e.target.value === "" ? undefined : e.target.value })} /></div>
           </div>
           <div>
-            <div className="essec">Contributing activities</div>
+            <WorkbookCueLabel workbook="DA" title="Contributing activities" className="essec" />
             {u.contributingActivities.map((a, i) => (
               <div key={i} className="posrow" style={{ gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
                 <WorkbookInput className="posfield__input" style={{ flex: 2, minWidth: 140 }} value={a.activity} disabled={!editable} onChange={(e) => patch({ contributingActivities: u.contributingActivities.map((y, j) => (j === i ? { ...y, activity: e.target.value } : y)) })} />
@@ -1094,7 +1095,7 @@ function DrawerContent({ context, onClose }: { context: DaDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Risk significance</label><select className="posfield__select" value={c.isRiskSignificant === true ? "yes" : "no"} disabled={!editable} onChange={(e) => patch({ isRiskSignificant: e.target.value === "yes" })}><option value="no">Not risk-significant</option><option value="yes">Risk-significant</option></select></div>
           </div>
           <div>
-            <div className="essec">Model parameters</div>
+            <WorkbookCueLabel workbook="DA" title="Model parameters" className="essec" />
             {Object.entries(c.parameters).map(([k, v]) => (
               <div key={k} className="posrow" style={{ gap: 6, marginBottom: 6, alignItems: "center" }}>
                 <span className="poschip posmono" style={{ minWidth: 90, justifyContent: "center" }}>{k}</span>

@@ -1,24 +1,21 @@
-/* posWorkspace.css — POS Analysis workspace (frontend-only demo)
+/* posWorkspace.css â€” POS Analysis workspace (frontend-only demo)
    Layout: persistent top header, left rail of steps, main work area,
    right conformance dock. */
 
-/* ─── Workspace shell ────────────────────────────────────────────────── */
+/* â”€â”€â”€ Workspace shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw {
-  /* hardcoded — these conformance tokens live in projectWorkspace.css, which
+  /* hardcoded â€” these conformance tokens live in projectWorkspace.css, which
      is not relied on here so the /pos-demo route stays self-contained. */
-  --c-complete: #2e7d4f;
+  --c-complete: var(--color-success);
   --c-progress: var(--color-primary);
-  --c-review-inreview: #c47a18;
+  --c-review-inreview: var(--color-warning);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--color-bg-to);
   color: var(--color-text);
 }
-[data-theme="dark"] .posw {
-  --c-complete: #6dcf94;
-  --c-review-inreview: #e0a14d;
-}
+
 
 .posw__shell {
   flex: 1;
@@ -30,7 +27,7 @@
 .posw__shell--rail-closed { grid-template-columns: 0 1fr 340px; }
 .posw__shell--rail-closed.posw__shell--dock-closed { grid-template-columns: 0 1fr 0; }
 
-/* ─── Top header ────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Top header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .poshd {
   display: flex;
   align-items: center;
@@ -71,7 +68,7 @@
   max-width: 40vw;
 }
 .poshd__identity-title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
@@ -85,7 +82,7 @@
 .poshd__identity-meta {
   font-size: 11.5px;
   color: var(--color-text-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
@@ -143,7 +140,7 @@
   box-shadow: 0 1px 2px rgba(29,25,43,0.06);
 }
 
-/* ─── Left rail ─────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Left rail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw__rail {
   background: var(--color-bg-to);
   border-right: 1px solid var(--color-border);
@@ -163,7 +160,7 @@
   border-bottom: 1px solid var(--color-border);
 }
 .posrail__eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -176,7 +173,7 @@
   gap: 6px;
 }
 .posrail__progress-num {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text);
@@ -185,7 +182,7 @@
 .posrail__progress-total {
   font-size: 13px;
   color: var(--color-text-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
 }
 .posrail__bar {
   position: relative;
@@ -232,7 +229,7 @@
   border-left-color: var(--color-primary);
 }
 .posrail__step-num {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -270,7 +267,7 @@
   font-size: 11px;
   font-weight: 500;
   color: var(--color-text-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   margin-top: 2px;
   letter-spacing: 0.01em;
 }
@@ -312,7 +309,7 @@
 }
 .posrail__footer-btn svg { width: 14px; height: 14px; }
 
-/* ─── Main canvas ───────────────────────────────────────────────────── */
+/* â”€â”€â”€ Main canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posmain {
   min-width: 0;
   padding: 28px 36px 80px;
@@ -330,7 +327,7 @@
 }
 .posmain__title-block { min-width: 0; flex: 1 1 auto; }
 .posmain__eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -339,7 +336,7 @@
   margin-bottom: 6px;
 }
 .posmain__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.018em;
@@ -459,7 +456,7 @@
 .posnav__btn-label small { font-size: 10.5px; color: var(--color-text-subtle); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .posnav__btn--primary .posnav__btn-label small { color: rgba(255,255,255,0.7); }
 
-/* ─── Cards / panels reused across screens ──────────────────────────── */
+/* â”€â”€â”€ Cards / panels reused across screens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .poscard {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -478,7 +475,7 @@
   margin-bottom: 12px;
 }
 .poscard__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.005em;
@@ -502,7 +499,74 @@
   line-height: 1.5;
 }
 
-/* ─── Field grid (forms) ────────────────────────────────────────────── */
+/* Explanatory cues belong to POS workflow sections and subsections only. */
+.possectionheading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.possectionheading--main { margin-bottom: 8px; }
+.possectionheading--main .posmain__title { margin-bottom: 0; }
+.posgen__readout > .possectionheading { margin-bottom: 12px; }
+.possectionheading .posgen__readout-h { margin: 0; }
+.poshelp { position: relative; display: inline-flex; flex: 0 0 auto; }
+.poshelp__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+}
+.poshelp__button svg { width: 17px; height: 17px; }
+.poshelp__button:hover,
+.poshelp__button[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.poshelp__button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+.poshelp__popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(320px, calc(100vw - 48px));
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 12px 32px rgba(42, 24, 63, .16);
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+}
+.posdock__section-label,
+.poshandoff__selection-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.poshandoff__selection-head {
+  margin-bottom: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* â”€â”€â”€ Field grid (forms) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posfield {
   display: flex;
   flex-direction: column;
@@ -510,7 +574,7 @@
   min-width: 0;
 }
 .posfield__label {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text);
@@ -586,7 +650,7 @@
   color: var(--color-text-subtle);
 }
 
-/* ─── Conformance dock (right side) ──────────────────────────────────── */
+/* â”€â”€â”€ Conformance dock (right side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw__dock {
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
@@ -608,7 +672,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
 .posdock__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15.5px;
   font-weight: 700;
   margin: 0;
@@ -660,7 +724,7 @@
 }
 .posdock__profile-display .posdock__profile-change { margin-left: auto; }
 .posdock__profile-name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--color-text);
@@ -692,7 +756,7 @@
 }
 .posdock__gauge-circle svg { display: block; width: 100%; height: 100%; }
 .posdock__gauge-text {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 9px;
   font-weight: 700;
   fill: var(--color-text);
@@ -711,7 +775,7 @@
   font-size: 13.5px;
 }
 .posdock__gauge-detail {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11.5px;
   color: var(--color-text-subtle);
 }
@@ -727,7 +791,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -742,7 +806,7 @@
   border-radius: 999px;
   padding: 1px 8px;
   font-size: 10.5px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   letter-spacing: 0.02em;
 }
 
@@ -770,8 +834,8 @@
 .posdock__item--ok       .posdock__item-dot { background: var(--c-complete); }
 .posdock__item--warn     .posdock__item-dot { background: var(--color-warning); }
 .posdock__item--blocked  .posdock__item-dot {
-  background: #c44d4d;
-  box-shadow: 0 0 0 3px rgba(196, 77, 77, 0.15);
+  background: var(--color-error);
+  box-shadow: 0 0 0 3px rgb(179 38 30 / 0.15);
 }
 .posdock__item--na       .posdock__item-dot { background: var(--color-border-strong); opacity: 0.5; }
 .posdock__item-text {
@@ -787,7 +851,7 @@
   font-size: 11px;
   color: var(--color-text-subtle);
   margin-top: 2px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   letter-spacing: 0.01em;
 }
 
@@ -801,7 +865,7 @@
 .posdock__foot .posnav__btn { padding: 4px 8px; font-size: 11.5px; }
 .posdock__foot .posnav__btn svg { width: 13px; height: 13px; }
 
-/* ─── Tables ────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .postable {
   width: 100%;
   border-collapse: collapse;
@@ -816,7 +880,7 @@
 }
 .postable th {
   text-align: left;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -840,7 +904,7 @@
 .posbasis__form { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--color-border); }
 .posbasis__actions { display: flex; gap: 8px; }
 .postable td.mono, .postable th.mono {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 12px;
   letter-spacing: 0.02em;
 }
@@ -857,7 +921,7 @@
   font-size: 11.5px;
   color: var(--color-text-subtle);
   font-weight: 500;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   margin-top: 2px;
   letter-spacing: 0.02em;
 }
@@ -878,17 +942,17 @@
   border: 1px solid var(--color-border);
   white-space: nowrap;
 }
-.posbadge--ok        { background: rgba(46,125,79,0.12);  color: var(--c-complete);       border-color: rgba(46,125,79,0.3); }
+.posbadge--ok        { background: rgb(18 197 185 / 0.12);  color: var(--c-complete);       border-color: rgb(18 197 185 / 0.3); }
 .posbadge--draft     { background: var(--color-surface-low); color: var(--color-text-subtle); }
 .posbadge--progress  { background: var(--color-primary-soft); color: var(--color-primary); border-color: var(--color-primary-focus); }
 .posbadge--warn      { background: rgba(196,122,24,0.14); color: var(--c-review-inreview); border-color: rgba(196,122,24,0.3); }
-.posbadge--block     { background: rgba(196,77,77,0.14);  color: #b73b3b; border-color: rgba(196,77,77,0.3); }
+.posbadge--block     { background: rgb(179 38 30 / 0.14);  color: var(--color-error); border-color: rgb(179 38 30 / 0.3); }
 .posbadge--na        { opacity: 0.55; }
 .posbadge__dot {
   width: 5px; height: 5px; border-radius: 50%; background: currentColor;
 }
 
-/* ─── Uploads ───────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Uploads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posdoc-list {
   display: flex;
   flex-direction: column;
@@ -940,7 +1004,7 @@
 }
 .posdoc__name-edit:hover { background: var(--color-surface-low); color: var(--color-text); }
 .posdoc__name-edit svg { width: 13px; height: 13px; }
-.posdoc__meta { font-size: 11.5px; color: var(--color-text-subtle); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.posdoc__meta { font-size: 11.5px; color: var(--color-text-subtle); font-family: var(--font-data), ui-monospace, monospace; }
 .posdoc__extracted {
   font-size: 11.5px;
   color: var(--c-complete);
@@ -952,7 +1016,7 @@
 .posdoc__more:hover { color: var(--color-text); }
 .posdoc__more svg { width: 16px; height: 16px; }
 
-/* ─── Q&A interview style ───────────────────────────────────────────── */
+/* â”€â”€â”€ Q&A interview style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posqa {
   display: flex;
   flex-direction: column;
@@ -967,7 +1031,7 @@
 .posqa__q-num {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11px;
   font-weight: 700;
   width: 28px; height: 28px;
@@ -976,7 +1040,7 @@
   flex-shrink: 0;
 }
 .posqa__q-text {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15.5px;
   font-weight: 600;
   color: var(--color-text);
@@ -1012,7 +1076,7 @@
   font-size: 11.5px; color: var(--color-text-subtle);
 }
 
-/* ─── Generate / final screen ───────────────────────────────────────── */
+/* â”€â”€â”€ Generate / final screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posgen {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -1025,56 +1089,56 @@
   border-radius: 14px;
   box-shadow: 0 10px 32px rgba(29,25,43,0.08);
   padding: 56px 64px;
-  font-family: 'Literata', Georgia, serif;
-  color: #1d192b;
+  font-family: var(--font-display), Georgia, serif;
+  color: var(--color-text);
   min-height: 560px;
   position: relative;
 }
-[data-theme="dark"] .posgen__preview { background: #fbfaf9; }
+
 .posgen__preview-eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #7a7388;
+  color: var(--color-text-subtle);
   margin-bottom: 12px;
 }
 .posgen__preview h1 {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.018em;
   margin: 0 0 4px;
-  color: #1d192b;
+  color: var(--color-text);
 }
 .posgen__preview h2 {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 14px;
   font-weight: 600;
-  color: #4c4452;
+  color: var(--color-text-muted);
   margin: 0 0 28px;
 }
 .posgen__preview h3 {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #7a7388;
+  color: var(--color-text-subtle);
   margin: 24px 0 10px;
 }
 .posgen__preview h4 {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
-  color: #1d192b;
+  color: var(--color-text);
   margin: 16px 0 4px;
 }
 .posgen__preview p, .posgen__preview li {
   font-size: 13px;
   line-height: 1.55;
-  color: #1d192b;
+  color: var(--color-text);
 }
 .posgen__preview ul, .posgen__preview ol { margin: 6px 0; padding-left: 22px; }
 .posgen__preview-toc {
@@ -1091,9 +1155,9 @@
   text-overflow: ellipsis;
 }
 .posgen__preview-toc-row > span:nth-child(2) {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-data), monospace;
   font-size: 11.5px;
-  color: #7a7388;
+  color: var(--color-text-subtle);
 }
 .posgen__side { display: flex; flex-direction: column; gap: 14px; }
 
@@ -1104,7 +1168,7 @@
   padding: 18px;
 }
 .posgen__readout-h {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 12px;
@@ -1122,7 +1186,7 @@
 .posgen__bar:first-of-type { border-top: none; padding-top: 0; }
 .posgen__bar-label { color: var(--color-text-muted); font-weight: 600; }
 
-/* ─── Empty states ──────────────────────────────────────────────────── */
+/* â”€â”€â”€ Empty states â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posempty {
   text-align: center;
   padding: 32px 16px;
@@ -1132,7 +1196,7 @@
 }
 .posempty p { color: var(--color-text-muted); margin: 0 0 12px; font-size: 13.5px; }
 
-/* ─── Drawer (detail view for a POS / Evolution) ────────────────────── */
+/* â”€â”€â”€ Drawer (detail view for a POS / Evolution) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posdrawer-backdrop {
   position: fixed; inset: 0;
   background: rgba(29,25,43,0.32);
@@ -1162,7 +1226,7 @@
   z-index: 2;
 }
 .posdrawer__cap {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1171,7 +1235,7 @@
   margin-bottom: 4px;
 }
 .posdrawer__title {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -1205,23 +1269,23 @@
 }
 /* Uniform drawer typography: single sans family, consistent sizes */
 .posdrawer__body .poscard__title {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0;
 }
 .posdrawer__body .mono {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 13px;
 }
 
-/* ─── Toast ─────────────────────────────────────────────────────────── */
+/* â”€â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .postoast {
   position: fixed;
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1d192b;
+  background: var(--color-text);
   color: #fff;
   padding: 10px 18px;
   border-radius: 10px;
@@ -1236,15 +1300,15 @@
   to   { transform: translate(-50%, 0);    opacity: 1; }
 }
 
-/* ─── Misc utilities ────────────────────────────────────────────────── */
+/* â”€â”€â”€ Misc utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posrow { display: flex; align-items: center; gap: 10px; }
 .posrow--between { justify-content: space-between; }
 .posrow--wrap { flex-wrap: wrap; }
 .posmuted { color: var(--color-text-muted); }
 .possubtle { color: var(--color-text-subtle); font-size: 12.5px; }
-.posmono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.02em; }
+.posmono { font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.02em; }
 
-/* Stat tiles — a row of labelled figures */
+/* Stat tiles â€” a row of labelled figures */
 .posstats {
   display: flex;
   gap: 12px;
@@ -1267,7 +1331,7 @@
   margin-bottom: 6px;
 }
 .posstat__value {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 20px;
   font-weight: 600;
   line-height: 1.1;
@@ -1283,7 +1347,7 @@
 .posstat--warn { border-color: var(--color-warning); }
 .posstat--warn .posstat__value { color: var(--color-warning); }
 
-/* Downstream handoff — clickable grid of downstream technical elements */
+/* Downstream handoff â€” clickable grid of downstream technical elements */
 .poshandoff__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1304,7 +1368,7 @@
 .poshandoff__tile:hover { border-color: var(--color-border-strong); background: var(--color-surface); }
 .poshandoff__tile--active { border-color: var(--color-primary-focus); background: var(--color-primary-soft); }
 .poshandoff__tile-code {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1385,7 +1449,7 @@
   .poshd__save-pill { display: none; }
 }
 
-/* ─── Mobile (≤ 768) ─ off-canvas rail + dock, sticky bottom actions ── */
+/* â”€â”€â”€ Mobile (â‰¤ 768) â”€ off-canvas rail + dock, sticky bottom actions â”€â”€ */
 
 .posw__mobile-toggle { display: none; }
 
@@ -1598,7 +1662,7 @@
   /* Generic row helper wraps */
   .posrow { flex-wrap: wrap; }
 
-  /* Document Approval table → horizontal scroll with sticky Action column */
+  /* Document Approval table â†’ horizontal scroll with sticky Action column */
   .posapproval { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .posapproval__table { min-width: 560px; }
   .posapproval__table th:first-child,
@@ -1637,7 +1701,7 @@
     border-radius: 16px 16px 0 0;
   }
 
-  /* Capability category card grid → one column on phone */
+  /* Capability category card grid â†’ one column on phone */
 }
 
 @media (max-width: 480px) {
@@ -1669,7 +1733,7 @@
   }
 }
 
-/* ─── Persona color tokens (reviewer / approver) ─────────────────────── */
+/* â”€â”€â”€ Persona color tokens (reviewer / approver) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw {
   --color-external: #4f5b8b;
   --color-external-soft: rgba(79, 91, 139, 0.10);
@@ -1678,16 +1742,9 @@
   --color-approver-soft: rgba(63, 111, 74, 0.10);
   --color-approver-strong: rgba(63, 111, 74, 0.32);
 }
-[data-theme="dark"] .posw {
-  --color-external: #a8b3df;
-  --color-external-soft: rgba(168, 179, 223, 0.14);
-  --color-external-strong: rgba(168, 179, 223, 0.32);
-  --color-approver: #82c39a;
-  --color-approver-soft: rgba(130, 195, 154, 0.14);
-  --color-approver-strong: rgba(130, 195, 154, 0.32);
-}
 
-/* ─── Header workflow-state / persona pill ──────────────────────────── */
+
+/* â”€â”€â”€ Header workflow-state / persona pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .poshd__wfstate {
   display: inline-flex;
   align-items: center;
@@ -1706,7 +1763,7 @@
 .poshd__wfstate-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .poshd__wfstate--draft    { color: var(--color-text-subtle); }
 .poshd__wfstate--progress { background: var(--color-primary-soft); color: var(--color-primary); border-color: var(--color-primary-focus); }
-.poshd__wfstate--ok       { background: rgba(46,125,79,0.12); color: var(--c-complete); border-color: rgba(46,125,79,0.3); }
+.poshd__wfstate--ok       { background: rgb(18 197 185 / 0.12); color: var(--c-complete); border-color: rgb(18 197 185 / 0.3); }
 .poshd__wfstate--warn     { background: rgba(196,122,24,0.14); color: var(--c-review-inreview); border-color: rgba(196,122,24,0.3); }
 .poshd__wfstate--external { background: var(--color-external-soft); color: var(--color-external); border-color: var(--color-external-strong); }
 .poshd__wfstate--approver { background: var(--color-approver-soft); color: var(--color-approver); border-color: var(--color-approver-strong); }
@@ -1722,7 +1779,7 @@
   background: linear-gradient(90deg, var(--color-approver) 0%, var(--color-approver) 40%, var(--color-primary) 100%);
 }
 
-/* ─── Reviewer persona — external chrome treatment ───────────────────── */
+/* â”€â”€â”€ Reviewer persona â€” external chrome treatment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw--reviewer .poshd__crumb-current { color: var(--color-external); }
 .posw--reviewer .posrail__step--active {
   background: var(--color-external-soft);
@@ -1752,7 +1809,7 @@
   border-color: #3e4a78;
 }
 
-/* ─── Approver persona — forest tone ─────────────────────────────────── */
+/* â”€â”€â”€ Approver persona â€” forest tone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posw--approver .poshd__crumb-current { color: var(--color-approver); }
 .posw--approver .posrail__step--active {
   background: var(--color-approver-soft);
@@ -1780,7 +1837,7 @@
   border-color: #2f5938;
 }
 
-/* ─── Pre-operational assumption card + chip ─────────────────────────── */
+/* â”€â”€â”€ Pre-operational assumption card + chip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .poscard--preop {
   border-left: 3px solid var(--color-warning);
   padding-left: 13px;
@@ -1860,9 +1917,9 @@
 /* Method chip + NM link in dock */
 .poschip--method {
   background: rgba(217, 119, 87, 0.10);
-  color: #b65a37;
+  color: var(--color-consequence-text);
   border-color: rgba(217, 119, 87, 0.32);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 10.5px;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -1870,7 +1927,7 @@
 }
 .poschip--method:hover { background: rgba(217, 119, 87, 0.18); color: #8e3f1f; }
 .poschip--method svg { width: 11px; height: 11px; }
-[data-theme="dark"] .poschip--method { color: #e89472; }
+
 
 .posdock__item-link {
   display: inline-flex;
@@ -1879,10 +1936,10 @@
   margin-top: 4px;
   padding: 1px 6px 1px 5px;
   background: rgba(217, 119, 87, 0.10);
-  color: #b65a37;
+  color: var(--color-consequence-text);
   border: 1px solid rgba(217, 119, 87, 0.32);
   border-radius: 999px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -1890,7 +1947,7 @@
 }
 .posdock__item-link:hover { background: rgba(217, 119, 87, 0.18); }
 .posdock__item-link svg { width: 10px; height: 10px; }
-[data-theme="dark"] .posdock__item-link { color: #e89472; }
+
 
 /* Rail "step hidden" jump separator */
 .posrail__jump {
@@ -1898,7 +1955,7 @@
   margin: 6px 14px;
   padding: 8px 10px;
   font-size: 10.5px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   color: var(--color-text-subtle);
   border-top: 1px dashed var(--color-border);
   border-bottom: 1px dashed var(--color-border);
@@ -1913,7 +1970,7 @@
 }
 .posrail__step--locked .posrail__step-num svg { width: 14px; height: 14px; }
 
-/* ─── Step 11 — Reviewers strip + comments ──────────────────────────── */
+/* â”€â”€â”€ Step 11 â€” Reviewers strip + comments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .posreviewers {
   display: flex;
   flex-wrap: wrap;
@@ -1937,7 +1994,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.04em;
@@ -1952,7 +2009,7 @@
 .posreviewer__role {
   font-size: 11.5px;
   color: var(--color-text-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   margin-top: 2px;
   letter-spacing: 0.01em;
 }
@@ -1965,7 +2022,7 @@
 }
 .poscomments__group { display: flex; flex-direction: column; gap: 10px; }
 .poscomments__group-head {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1985,7 +2042,7 @@
   position: relative;
   align-items: start;
 }
-.poscomment--major.poscomment--open { border-left: 3px solid #c44d4d; padding-left: 14px; }
+.poscomment--major.poscomment--open { border-left: 3px solid var(--color-error); padding-left: 14px; }
 .poscomment--minor.poscomment--open { border-left: 3px solid var(--color-warning); padding-left: 14px; }
 .poscomment--resolved { background: var(--color-surface-low); opacity: 0.92; }
 .poscomment__avatar {
@@ -1996,7 +2053,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.04em;
@@ -2011,7 +2068,7 @@
   font-size: 12.5px;
 }
 .poscomment__author { font-weight: 700; color: var(--color-text); }
-.poscomment__role { color: var(--color-text-subtle); font-size: 11.5px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.poscomment__role { color: var(--color-text-subtle); font-size: 11.5px; font-family: var(--font-data), ui-monospace, monospace; }
 .poscomment__when { color: var(--color-text-subtle); font-size: 11.5px; }
 .poscomment__spacer { flex: 1; }
 .poscomment__target {
@@ -2028,7 +2085,7 @@
 .poscomment__resolution {
   margin-top: 10px;
   padding: 10px 12px;
-  background: rgba(46,125,79,0.08);
+  background: rgb(18 197 185 / 0.08);
   border-left: 3px solid var(--c-complete);
   border-radius: 4px;
   font-size: 12.5px;
@@ -2042,7 +2099,7 @@
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   color: var(--color-text-subtle);
   padding: 4px 10px;
   border-radius: 6px;
@@ -2052,9 +2109,9 @@
 .poscomment__lockhint svg { width: 12px; height: 12px; }
 .poscomment__lockhint--ok {
   color: var(--c-complete);
-  background: rgba(46,125,79,0.08);
+  background: rgb(18 197 185 / 0.08);
   border-style: solid;
-  border-color: rgba(46,125,79,0.25);
+  border-color: rgb(18 197 185 / 0.25);
 }
 
 /* Step 11 banner */
@@ -2078,7 +2135,7 @@
 }
 .posrevbanner__icon svg { width: 18px; height: 18px; }
 .posrevbanner__eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -2087,7 +2144,7 @@
   margin-bottom: 2px;
 }
 .posrevbanner__title {
-  font-family: 'Literata', serif;
+  font-family: var(--font-display), serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text);
@@ -2101,11 +2158,11 @@
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 700;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
 }
-.posrevbanner__count--ok   { background: rgba(46,125,79,0.12); color: var(--c-complete); }
+.posrevbanner__count--ok   { background: rgb(18 197 185 / 0.12); color: var(--c-complete); }
 .posrevbanner__count--warn { background: rgba(196,122,24,0.14); color: var(--c-review-inreview); }
-.posrevbanner--ready .posrevbanner__icon { background: rgba(46,125,79,0.12); color: var(--c-complete); }
+.posrevbanner--ready .posrevbanner__icon { background: rgb(18 197 185 / 0.12); color: var(--c-complete); }
 .posrevbanner--submitted .posrevbanner__icon { background: var(--color-approver-soft); color: var(--color-approver); }
 .posrevbanner--approved .posrevbanner__icon { background: var(--color-approver); color: #fff; }
 .posrevbanner--in_review .posrevbanner__icon { background: rgba(196,122,24,0.14); color: var(--c-review-inreview); }
@@ -2133,7 +2190,7 @@
 .posapprove__attest-row:first-child { border-top: none; padding-top: 4px; }
 .posapprove__attest-row:last-child  { padding-bottom: 4px; }
 .posapprove__attest-cap {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -2152,7 +2209,7 @@
   color: var(--color-primary);
   border: 1px solid var(--color-primary-focus);
   border-radius: 8px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -2171,14 +2228,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-weight: 800;
   font-size: 14px;
   flex-shrink: 0;
 }
 .posapprove__signer-main { min-width: 0; }
 .posapprove__signer-name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text);
@@ -2192,7 +2249,7 @@
   margin-top: 8px;
   font-size: 11.5px;
   color: var(--color-text-subtle);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   letter-spacing: 0.01em;
 }
 .posapprove__signer-qual svg { width: 12px; height: 12px; }
@@ -2206,11 +2263,11 @@
   font-size: 11px;
   color: var(--color-text-subtle);
   margin-top: 6px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   letter-spacing: 0.01em;
 }
 .posapprove__sigblock-sig {
-  font-family: 'Literata', serif;
+  font-family: var(--font-display), serif;
   font-style: italic;
   font-size: 22px;
   color: var(--color-approver);
@@ -2261,7 +2318,7 @@
 }
 .posapprove__handoff-card-icon svg { width: 18px; height: 18px; }
 .posapprove__handoff-card-eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -2269,7 +2326,7 @@
   color: var(--color-external);
 }
 .posapprove__handoff-card-title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 17px;
   font-weight: 700;
   color: var(--color-text);
@@ -2282,7 +2339,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding-top: 8px;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -2305,7 +2362,7 @@
   border: 1px solid var(--color-external-strong);
   background: var(--color-external);
   color: #fff;
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -2325,7 +2382,7 @@
   background: #fff;
   color: var(--color-external);
   font-size: 11.5px;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
 }
 .posrevdock-fab--open {
   background: var(--color-surface);
@@ -2359,7 +2416,7 @@
   background: var(--color-external-soft);
 }
 .posrevdock__eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -2367,10 +2424,10 @@
   color: var(--color-external);
   margin-bottom: 2px;
 }
-.posrevdock__title { font-family: 'Literata', serif; font-weight: 700; color: var(--color-text); }
+.posrevdock__title { font-family: var(--font-display), serif; font-weight: 700; color: var(--color-text); }
 .posrevdock__summary { display: flex; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
 .posrevdock__summary-chip {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 11px;
   padding: 4px 10px;
   border-radius: 999px;
@@ -2379,7 +2436,7 @@
   border: 1px solid var(--color-border);
 }
 .posrevdock__summary-chip--warn { background: rgba(196,122,24,0.14); color: var(--c-review-inreview); border-color: rgba(196,122,24,0.3); }
-.posrevdock__summary-chip--ok { background: rgba(46,125,79,0.10); color: var(--c-complete); border-color: rgba(46,125,79,0.25); }
+.posrevdock__summary-chip--ok { background: rgb(18 197 185 / 0.10); color: var(--c-complete); border-color: rgb(18 197 185 / 0.25); }
 
 .posrevdock__body {
   flex: 1;
@@ -2399,7 +2456,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--color-external-soft);
   color: var(--color-external);
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 10px;
   font-weight: 700;
 }
@@ -2417,7 +2474,7 @@
 .posrevdock__item-resolution {
   margin-top: 8px;
   padding: 6px 10px;
-  background: rgba(46,125,79,0.08);
+  background: rgb(18 197 185 / 0.08);
   border-left: 3px solid var(--c-complete);
   border-radius: 4px;
   font-size: 11.5px;
@@ -2430,7 +2487,7 @@
   background: var(--color-surface-low);
 }
 .posrevdock__composer-eyebrow {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.12em;

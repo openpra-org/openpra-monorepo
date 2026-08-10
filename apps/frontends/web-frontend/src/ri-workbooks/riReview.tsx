@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, ReactNode, useMemo, useState } from "react";
 import { RIIcon } from "./riIcons";
@@ -103,9 +104,7 @@ function InternalReviewScreen({
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">
-            {isApprovalStep ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments") : "All review comments"}
-          </h3>
+          <WorkbookSectionHeading workbook="RI" title={isApprovalStep ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments") : "All review comments"} cueKey="Review comments" />
           <div className="posrow" style={{ gap: 6 }}>
             <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
             <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({displayOpen})</button>
@@ -156,7 +155,7 @@ function InternalReviewScreen({
       {isPreparer && isReviewStep && ri.workflowState !== "INTERNAL_TECHNICAL_REVIEW" && ri.workflowState !== "INTERNAL_APPROVAL" && ri.workflowState !== "FINAL" && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Submit for Internal Approval</h3>
+            <WorkbookSectionHeading workbook="RI" title="Submit for Internal Approval" level={3} />
             {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
           </div>
           <p className="poscard__sub" style={{ marginBottom: 14 }}>
@@ -178,7 +177,7 @@ function InternalReviewScreen({
       {isApprovalStep && (
         <>
           <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">What is being attested</h3></div>
+            <div className="poscard__head"><WorkbookSectionHeading workbook="RI" title="What is being attested" level={3} /></div>
             <div className="posapprove__attest-with-sign">
               <div className="posapprove__attest-grid">
                 <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Capability target</span><span className="posapprove__attest-val"><strong>{cc.name}</strong> · {cc.tag}</span></div>

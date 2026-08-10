@@ -1,7 +1,7 @@
 import { JSX, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import logo from "../assets/OpenPRA.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import { BookIcon, CaretIcon, LogoutIcon, SettingsIcon, UserIcon } from "./icons";
 import { ThemePicker } from "./themePicker";
 import { useTheme } from "./useTheme";
@@ -57,8 +57,7 @@ function TopBar(): JSX.Element {
         onClick={() => { navigate("/"); }}
         aria-label="Go to welcome page"
       >
-        <img src={logo} alt="OpenPRA" className="wp__brand-logo" />
-        <span className="wp__brand-name">OpenPRA</span>
+        <OpenPraBrand variant="header" className="wp__brand-logo" />
       </button>
       <nav className="wp__topbar-nav" aria-label="Primary">
         <a

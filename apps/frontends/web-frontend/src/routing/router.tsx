@@ -47,6 +47,7 @@ import { applyAppearance, loadStoredAppearance } from "../settings/useAppearance
 import { AnalyticsTracker } from "../analytics/analyticsTracker";
 import { CampaignLandingPage } from "../analytics/campaignLandingPage";
 import { AdminPage } from "../admin/adminPage";
+import { initializeTheme } from "../welcome/useTheme";
 
 function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
   const { user } = useAuth();
@@ -381,6 +382,7 @@ const router = createBrowserRouter(routes, {
 function App(): ReactElement {
   const role = DefaultRole();
   useEffect(() => {
+    initializeTheme();
     applyAppearance(loadStoredAppearance());
   }, []);
   return (

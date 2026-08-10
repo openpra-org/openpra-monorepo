@@ -41,7 +41,7 @@
 }
 
 .pf__stat-value {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text);
@@ -53,7 +53,7 @@
 }
 
 .pf__stat-link {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-primary);

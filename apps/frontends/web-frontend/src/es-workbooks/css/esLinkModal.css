@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-data), monospace;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -44,7 +44,7 @@
 }
 .eslink__title {
   margin: 4px 0 0;
-  font-family: "Literata", serif;
+  font-family: var(--font-display), serif;
   font-size: 18px;
   color: var(--color-text);
 }
@@ -134,7 +134,7 @@
   padding: 8px 12px;
   border-radius: 8px;
   background: rgba(183, 59, 59, 0.1);
-  color: #b73b3b;
+  color: var(--color-error);
   font-size: 12.5px;
 }
 .eslink__foot {

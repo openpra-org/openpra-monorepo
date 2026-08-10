@@ -5,7 +5,7 @@ import { useAuth, getRoles } from "./AuthContext";
 import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { clearCampaignAttribution } from "../analytics/analytics";
-import logo from "../assets/Triplet.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import "./css/loginForm.css";
 import "./css/authPage.css";
 
@@ -84,7 +84,7 @@ function OAuthCallbackPage(): JSX.Element {
       <div className="auth-page__card">
         <div className="login-form__header">
           <div className="login-form__logo-wrap">
-            <img src={logo} alt="OpenPRA" className="login-form__logo-img" />
+            <OpenPraBrand variant="header" surface="light" className="login-form__logo-img" />
           </div>
 
           {token !== null || linked !== null ? (

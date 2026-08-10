@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { DAIcon } from "./daIcons";
@@ -95,7 +96,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Interfaces</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Interfaces" level={3} /></div>
         <p className="poscard__sub">Data Analysis reads the operating states, the sequence context and the basic events to estimate, then hands the frequencies, the distributions and the repair and schedule records to the consuming elements. Select an element to see the data exchanged.</p>
         <div className="poshandoff__grid">
           {ifaceLanes.map((lane) => (
@@ -137,7 +138,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="PRA scope" level={3} /></div>
         <p className="poscard__sub">Describe what this data analysis covers and what it excludes.</p>
         <WorkbookTextarea
           className="posfield__textarea"
@@ -151,7 +152,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="DA" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">The available estimate with uncertainty, or a realistic mean for the risk-significant basic events.</p>
@@ -173,7 +174,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="DA" title="Plant stage" level={3} /></div>
         <p className="poscard__sub">DA has the starkest pre-operational fork, since a paper plant has no records to count at all.</p>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
@@ -215,7 +216,7 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Parameters to estimate</h3>
+          <WorkbookSectionHeading workbook="DA" title="Parameters to estimate" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">DA-A1, A3, A4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addParam}><DAIcon.Plus /> Add parameter</button>}
@@ -243,7 +244,7 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Component boundaries</h3>
+          <WorkbookSectionHeading workbook="DA" title="Component boundaries" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-A2</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addBoundary}><DAIcon.Plus /> Add boundary</button>}
@@ -279,7 +280,7 @@ function DefineScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Probability model per event</h3>
+          <WorkbookSectionHeading workbook="DA" title="Probability model per event" level={3} />
           <DaProvenanceChip>DA-A3</DaProvenanceChip>
         </div>
         <p className="poscard__sub">A standby pump on demand and a running pump per hour are different objects, so each event gets the model that fits.</p>
@@ -324,7 +325,7 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Homogeneous populations</h3>
+          <WorkbookSectionHeading workbook="DA" title="Homogeneous populations" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">DA-B1</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}><DAIcon.Plus /> Add group</button>}
@@ -355,7 +356,7 @@ function GroupScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => voi
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Outliers held out</h3>
+          <WorkbookSectionHeading workbook="DA" title="Outliers held out" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <DaProvenanceChip>DA-B2</DaProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addOutlier}><DAIcon.Plus /> Add outlier</button>}
@@ -407,7 +408,7 @@ function GenericScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Generic and technology sources</h3>
+          <WorkbookSectionHeading workbook="DA" title="Generic and technology sources" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">DA-C1, C2</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSource}><DAIcon.Plus /> Add source</button>}
@@ -450,7 +451,7 @@ function GenericScreen({ openDrawer }: { openDrawer: (ctx: DaDrawerContext) => v
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Reuse across operating states</h3>
+          <WorkbookSectionHeading workbook="DA" title="Reuse across operating states" level={3} />
           <DaProvenanceChip>DA-C25</DaProvenanceChip>
         </div>
         <p className="poscard__sub">A generic estimate is reused for another operating state only after its applicability to that state is established.</p>

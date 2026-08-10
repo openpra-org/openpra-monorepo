@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useState } from "react";
 import { HRIcon } from "./hrIcons";
@@ -46,7 +47,7 @@ function RespIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext)
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Response identification reviews</h3>
+          <WorkbookSectionHeading workbook="HR" title="Response identification reviews" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{hr.responseIdentificationReviews.length} reviews · HR-E1, E3, E4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addReview}><HRIcon.Plus /> Add review</button>}
@@ -78,7 +79,7 @@ function RespIdentifyScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext)
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Confirmation ladder</h3>
+          <WorkbookSectionHeading workbook="HR" title="Confirmation ladder" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-E5 · HR-E7</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConfirmation}><HRIcon.Plus /> Add confirmation</button>}
@@ -124,7 +125,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Response human failure events</h3>
+          <WorkbookSectionHeading workbook="HR" title="Response human failure events" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <span className="possubtle">{respHfes.length} defined · HR-F1, F4</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPostHfe}><HRIcon.Plus /> Add event</button>}
@@ -159,7 +160,7 @@ function RespDefineScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Grouping across operating states</h3>
+          <WorkbookSectionHeading workbook="HR" title="Grouping across operating states" level={3} />
           <HRProvenanceChip>HR-F3</HRProvenanceChip>
         </div>
         <p className="poscard__sub">Group the same response across states only where the conditions are comparable. Click a group to edit it.</p>
@@ -258,7 +259,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
       {atHfes.length > 0 && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">At-initiator analysis</h3>
+            <WorkbookSectionHeading workbook="HR" title="At-initiator analysis" level={3} />
             <HRProvenanceChip>HR-F1 · supplied to IE</HRProvenanceChip>
           </div>
           <p className="poscard__sub">An operator error that itself causes the initiator is analyzed and quantified here, then supplied to the Initiating Events fault trees. Click a card to edit its quantification.</p>
@@ -283,7 +284,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Quantification</h3>
+          <WorkbookSectionHeading workbook="HR" title="Quantification" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G1 · HR-G3</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}><HRIcon.Plus /> Add quantification</button>}
@@ -327,7 +328,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Error forcing contexts</h3>
+          <WorkbookSectionHeading workbook="HR" title="Error forcing contexts" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>ATHEANA · qualitative search</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addEfc}><HRIcon.Plus /> Add context</button>}
@@ -361,7 +362,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard hrfloor">
         <div className="poscard__head">
-          <h3 className="poscard__title">Joint probability floor</h3>
+          <WorkbookSectionHeading workbook="HR" title="Joint probability floor" level={3} />
           <HRProvenanceChip>HR-G11</HRProvenanceChip>
         </div>
         <p className="poscard__sub">A minimum joint value prevents an unrealistically low product of single human error probabilities. Click to edit it.</p>
@@ -376,7 +377,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Within-sequence dependence</h3>
+          <WorkbookSectionHeading workbook="HR" title="Within-sequence dependence" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G12 · HR-G13</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addWithinDep}><HRIcon.Plus /> Add dependence</button>}
@@ -405,7 +406,7 @@ function RespQuantScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) =>
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Relative reasonableness</h3>
+          <WorkbookSectionHeading workbook="HR" title="Relative reasonableness" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G9 · HR-G10</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConsistency}><HRIcon.Plus /> Add review</button>}
@@ -442,7 +443,7 @@ function RecoveryScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Recovery actions</h3>
+        <WorkbookSectionHeading workbook="HR" title="Recovery actions" level={3} />
         <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
           <span className="possubtle">{(hr.recoveryActions ?? []).length} actions · HR-H1, H2</span>
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecovery}><HRIcon.Plus /> Add recovery</button>}
@@ -521,7 +522,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sources of model uncertainty</h3>
+          <WorkbookSectionHeading workbook="HR" title="Sources of model uncertainty" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUncertSource}><HRIcon.Plus /> Add source</button>}
@@ -543,7 +544,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Related assumptions</h3>
+          <WorkbookSectionHeading workbook="HR" title="Related assumptions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRelatedAssumption}><HRIcon.Plus /> Add assumption</button>}
@@ -565,7 +566,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Reasonable alternatives</h3>
+          <WorkbookSectionHeading workbook="HR" title="Reasonable alternatives" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addReasonableAlt}><HRIcon.Plus /> Add alternative</button>}
@@ -587,7 +588,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Pre-operational assumptions</h3>
+          <WorkbookSectionHeading workbook="HR" title="Pre-operational assumptions" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-A10</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addPreOpAssumption}><HRIcon.Plus /> Add assumption</button>}
@@ -610,7 +611,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: HrDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sensitivity studies</h3>
+          <WorkbookSectionHeading workbook="HR" title="Sensitivity studies" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <HRProvenanceChip>HR-G15</HRProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSensitivity}><HRIcon.Plus /> Add study</button>}
@@ -666,7 +667,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="HR" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -674,7 +675,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="HR" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 9 and moves to <strong>Internal Technical Review</strong>.</>
@@ -726,7 +727,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Routine activity · HR-A1, A3</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Routine activity · HR-A1, A3</>} cueKey="Routine activity" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -808,7 +809,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Operator contribution to a support-system initiator · HR-A7</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Operator contribution to a support-system initiator · HR-A7</>} cueKey="Operator contribution to a support-system initiator" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -865,7 +866,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Pre-initiator screening · HR-B1 · HR-B3</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator screening · HR-B1 · HR-B3</>} cueKey="Pre-initiator screening" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -934,7 +935,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Pre-initiator event · {h.uuid}</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Pre-initiator event · {h.uuid}</>} cueKey="Pre-initiator event" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1017,7 +1018,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Response identification review · HR-E1</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Response identification review · HR-E1</>} cueKey="Response identification review" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1074,7 +1075,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Confirmation · HR-E5 · HR-E7</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Confirmation · HR-E5 · HR-E7</>} cueKey="Confirmation" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1151,7 +1152,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Response event · {t?.label ?? h.hfeTiming}</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Response event · {t?.label ?? h.hfeTiming}</>} cueKey="Response event" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1222,7 +1223,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <div className="essec">Cue timing per operating state (HR-F4)</div>
+            <WorkbookCueLabel workbook="HR" title="Cue timing per operating state (HR-F4)" className="essec" />
             {cts.map((ct, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Event sequence</label>
@@ -1283,7 +1284,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Quantification · {hName}</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Quantification · {hName}</>} cueKey="Quantification" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1355,7 +1356,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Recovery credit · HR-D5 · HR-D6</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Recovery credit · HR-D5 · HR-D6</>} cueKey="Recovery credit" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1417,7 +1418,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Dependence · HR-D7 · HR-G12</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Dependence · HR-D7 · HR-G12</>} cueKey="Dependence" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1503,7 +1504,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Response quantification · {hName}</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Response quantification · {hName}</>} cueKey="Response quantification" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1578,7 +1579,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
             </div>
           </div>
           <div style={{ marginTop: 14 }}>
-            <div className="essec">Performance shaping factors (HR-G4)</div>
+            <WorkbookCueLabel workbook="HR" title="Performance shaping factors (HR-G4)" className="essec" />
             {psfs.map((p, i) => (
               <div key={i} className="posfield-grid" style={{ marginTop: 8 }}>
                 <div className="posfield"><label className="posfield__label">Factor</label>
@@ -1634,7 +1635,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Joint probability floor · HR-G11</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Joint probability floor · HR-G11</>} cueKey="Joint probability floor" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1668,7 +1669,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Relative reasonableness review · HR-G9 · HR-G10</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Relative reasonableness review · HR-G9 · HR-G10</>} cueKey="Relative reasonableness review" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1723,7 +1724,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Error forcing context · ATHEANA</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Error forcing context · ATHEANA</>} cueKey="Error forcing context" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1786,7 +1787,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Recovery action · HR-H1 · HR-H2</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Recovery action · HR-H1 · HR-H2</>} cueKey="Recovery action" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1864,7 +1865,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Model uncertainty source · HR-G15</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Model uncertainty source · HR-G15</>} cueKey="Model uncertainty source" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1907,7 +1908,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Related assumption · HR-G15</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Related assumption · HR-G15</>} cueKey="Related assumption" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1950,7 +1951,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Reasonable alternative · HR-G15</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Reasonable alternative · HR-G15</>} cueKey="Reasonable alternative" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -1992,7 +1993,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Pre-operational assumption · HR-A10</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Pre-operational assumption · HR-A10</>} cueKey="Pre-operational assumption" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>
@@ -2061,7 +2062,7 @@ function DrawerContent({ context, onClose }: { context: HrDrawerContext; onClose
     return (
       <>
         <div className="posdrawer__head" style={{ borderBottom: "none", paddingBottom: 4 }}>
-          <div><div className="posdrawer__cap">Sensitivity study · HR-G15</div></div>
+          <div><WorkbookCueLabel workbook="HR" title={<>Sensitivity study · HR-G15</>} cueKey="Sensitivity study" className="posdrawer__cap" /></div>
           <button type="button" className="posdrawer__close" onClick={onClose}><HRIcon.Close /></button>
         </div>
         <div className="posdrawer__body" style={{ paddingTop: 4 }}>

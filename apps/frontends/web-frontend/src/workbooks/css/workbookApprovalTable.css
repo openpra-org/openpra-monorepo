@@ -24,8 +24,8 @@
 .posapproval__error {
   margin: 0 0 12px;
   padding: 8px 12px;
-  background: var(--color-danger-bg, #fde7e9);
-  color: var(--color-danger, #b3261e);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   border-radius: 6px;
   font-size: 13px;
 }
@@ -60,13 +60,13 @@
 .posapproval__action {
   font-weight: 700;
 }
-.posapproval__action--preparer { color: #1d4ed8; }
+.posapproval__action--preparer { color: var(--color-primary); }
 .posapproval__action--co_preparer { color: #5b21b6; }
-.posapproval__action--reviewer { color: #92400e; }
-.posapproval__action--approver { color: #166534; }
+.posapproval__action--reviewer { color: var(--color-warning); }
+.posapproval__action--approver { color: var(--color-success); }
 
 .posapproval__signature {
-  font-family: "Caveat", cursive, var(--font-body);
+  font-family: var(--font-display), cursive, var(--font-body);
   font-size: 18px;
   color: var(--color-text);
 }
@@ -88,9 +88,7 @@
 .posapproval__row--signed {
   background: rgba(34, 197, 94, 0.04);
 }
-[data-theme="dark"] .posapproval__row--signed {
-  background: rgba(34, 197, 94, 0.08);
-}
+
 
 .posapproval__name {
   font-weight: 600;
@@ -140,7 +138,7 @@
 .posapproval__ack-confirmed {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-success, #2e7d4f);
+  color: var(--color-success);
   white-space: nowrap;
 }
 
@@ -157,14 +155,14 @@
 
 .posapproval__signhint {
   font-size: 12px;
-  color: var(--color-warning, #b86a00);
+  color: var(--color-warning);
   white-space: nowrap;
 }
 
 /* Prominent sign card (acting reviewer/approver/preparer) */
 .posapprove__signcard {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-focus, rgba(121, 57, 177, 0.12));
+  box-shadow: 0 0 0 3px var(--color-primary-focus, rgb(143 78 199 / 0.12));
 }
 
 .posapprove__ackrow {
@@ -187,7 +185,7 @@
   display: inline-block;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-success, #2e7d4f);
+  color: var(--color-success);
 }
 
 .posapprove__ack-undo {
@@ -207,7 +205,7 @@
   gap: 6px;
   margin: 0;
   font-size: 12.5px;
-  color: var(--color-warning, #b86a00);
+  color: var(--color-warning);
 }
 .posapprove__signhint svg { width: 14px; height: 14px; flex-shrink: 0; }
 
@@ -217,8 +215,8 @@
   gap: 8px;
   margin: 14px 0 0;
   padding: 10px 12px;
-  background: rgba(184, 106, 0, 0.08);
-  border-left: 3px solid #b86a00;
+  background: rgb(222 106 43 / 0.08);
+  border-left: 3px solid var(--color-warning);
   border-radius: 4px;
   font-size: 12.5px;
   color: var(--color-text);
@@ -228,7 +226,7 @@
   width: 15px;
   height: 15px;
   flex-shrink: 0;
-  color: #b86a00;
+  color: var(--color-warning);
 }
 
 .posapprove__attest-with-sign {

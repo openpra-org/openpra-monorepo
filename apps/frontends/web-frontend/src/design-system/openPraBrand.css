@@ -1,0 +1,92 @@
+.openpra-brand {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.openpra-brand__asset {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.openpra-brand--header {
+  width: 140px;
+}
+
+.openpra-brand--tagline {
+  width: min(220px, 70vw);
+}
+
+.openpra-brand--descriptor {
+  width: min(220px, 70vw);
+}
+
+.openpra-brand--reversed {
+  width: 140px;
+}
+
+.openpra-brand--stacked {
+  width: 104px;
+}
+
+.openpra-brand--mark,
+.openpra-brand--tile {
+  width: 40px;
+}
+
+.openpra-brand--small-tile {
+  width: 32px;
+}
+
+.openpra-brand--themed {
+  position: relative;
+}
+
+.openpra-brand--themed .openpra-brand__asset--dark {
+  display: none;
+}
+
+.openpra-brand--surface-dark.openpra-brand--themed .openpra-brand__asset--light {
+  display: none;
+}
+
+.openpra-brand--surface-dark.openpra-brand--themed .openpra-brand__asset--dark {
+  display: block;
+}
+
+[data-theme="dark"] .openpra-brand--themed .openpra-brand__asset--light {
+  display: none;
+}
+
+[data-theme="dark"] .openpra-brand--themed .openpra-brand__asset--dark {
+  display: block;
+}
+
+[data-theme="dark"] .openpra-brand--surface-light.openpra-brand--themed .openpra-brand__asset--light {
+  display: block;
+}
+
+[data-theme="dark"] .openpra-brand--surface-light.openpra-brand--themed .openpra-brand__asset--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="auto"] .openpra-brand--themed .openpra-brand__asset--light {
+    display: none;
+  }
+
+  [data-theme="auto"] .openpra-brand--themed .openpra-brand__asset--dark {
+    display: block;
+  }
+
+  [data-theme="auto"] .openpra-brand--surface-light.openpra-brand--themed .openpra-brand__asset--light {
+    display: block;
+  }
+
+  [data-theme="auto"] .openpra-brand--surface-light.openpra-brand--themed .openpra-brand__asset--dark {
+    display: none;
+  }
+}

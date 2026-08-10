@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useEffect, useState } from "react";
 import { ESIcon } from "./esIcons";
 import { getAvailableIeWorkbooks, type AvailableIeWorkbook } from "./esWorkbookApi";
@@ -35,7 +36,7 @@ function EsIeLinkModal({ workbookId, currentLinkedId, onClose, onConfirm }: {
         <header className="eslink__head">
           <div>
             <div className="eslink__eyebrow"><ESIcon.Link /> Import upstream data</div>
-            <h2 className="eslink__title">Link an IE workbook</h2>
+            <WorkbookSectionHeading workbook="ES" title="Link an IE workbook" level={2} className="eslink__title" />
           </div>
           <button type="button" className="eslink__close" onClick={onClose} disabled={busy} aria-label="Close"><ESIcon.Close /></button>
         </header>

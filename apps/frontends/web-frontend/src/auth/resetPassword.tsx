@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { type ResetPasswordRequest, ResetPasswordRequestSchema } from "interfaces-shared-types";
 import { resetPassword } from "./authApi";
-import logo from "../assets/Triplet.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import "./css/resetPassword.css";
 
 function ResetPasswordPage(): JSX.Element {
@@ -57,7 +57,7 @@ function ResetPasswordPage(): JSX.Element {
           <>
             <div className="reset-password__header">
               <div className="reset-password__logo-wrap">
-                <img src={logo} alt="OpenPRA" className="reset-password__logo-img" />
+                <OpenPraBrand variant="header" surface="light" className="reset-password__logo-img" />
               </div>
               <h1 className="reset-password__title">Set a new password</h1>
               <p className="reset-password__subtitle">Choose a strong password you haven&apos;t used before.</p>

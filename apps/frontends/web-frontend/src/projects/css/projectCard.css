@@ -44,7 +44,7 @@
 }
 
 .pcard__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 17px;
   font-weight: 700;
   color: var(--color-text);
@@ -89,7 +89,7 @@
 }
 
 .pcard__progress-pct {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text);
@@ -105,7 +105,7 @@
 
 .pcard__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary) 0%, #a16cd1 100%);
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
@@ -133,15 +133,12 @@
 }
 
 .chip--success {
-  background: rgba(46, 125, 79, 0.12);
+  background: rgb(18 197 185 / 0.12);
   color: var(--color-success);
-  border: 1px solid rgba(46, 125, 79, 0.25);
+  border: 1px solid rgb(18 197 185 / 0.25);
 }
 
-[data-theme="dark"] .chip--success {
-  background: rgba(109, 207, 148, 0.15);
-  border-color: rgba(109, 207, 148, 0.3);
-}
+
 
 .chip--muted {
   background: var(--color-surface-low);
@@ -164,9 +161,9 @@
 }
 
 .chip--role {
-  background: rgba(46, 125, 79, 0.08);
+  background: rgb(18 197 185 / 0.08);
   color: var(--color-success);
-  border: 1px solid rgba(46, 125, 79, 0.25);
+  border: 1px solid rgb(18 197 185 / 0.25);
 }
 
 .chip--role-view {

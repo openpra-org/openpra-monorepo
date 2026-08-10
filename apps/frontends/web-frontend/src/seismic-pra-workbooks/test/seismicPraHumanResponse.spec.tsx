@@ -137,16 +137,17 @@ describe("Seismic PRA Step 10 human response", () => {
 
   it("keeps section help behind a question mark and entry detail beside its name", async () => {
     const mef = renderHumanResponse();
-    const sectionHelp =
-      "Earthquake damage can change what operators see, how they diagnose the event, how much work and stress they face, whether communications and job aids remain available, and whether a field route is safe. This section confirms that those conditions were evaluated for every credited action.";
     const action =
       mef.seismicPlantResponseAnalysis.humanReliabilityModel.humanActions[0]!;
 
-    expect(screen.queryByText(sectionHelp)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {
       name: "About Seismic performance conditions",
     }));
-    expect(screen.getByText(sectionHelp)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "Earthquake damage can change what operators see",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
 
     expect(screen.queryByText(
       action.seismicSpecificChallenges.trainingAndProcedures,

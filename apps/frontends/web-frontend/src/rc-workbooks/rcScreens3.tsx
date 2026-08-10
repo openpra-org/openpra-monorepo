@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { DistributionType } from "interfaces-mef-types/core/events";
@@ -127,7 +128,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consequence codes</h3>
+          <WorkbookSectionHeading workbook="RC" title="Consequence codes" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-A1 · A2</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addCode}><RCIcon.Plus /> Add code</button>}
@@ -153,7 +154,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Consequence table</h3>
+          <WorkbookSectionHeading workbook="RC" title="Consequence table" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-A3</RcProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addFamily}><RCIcon.Plus /> Add family</button>}
@@ -200,7 +201,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Output review</h3>
+          <WorkbookSectionHeading workbook="RC" title="Output review" level={3} />
           <RcProvenanceChip>RCQ-B1 · B2</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The output files are scanned for error statements and silent zeros, then the results are confirmed against expectation.</p>
@@ -226,7 +227,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-significant contributors</h3>
+          <WorkbookSectionHeading workbook="RC" title="Risk-significant contributors" level={3} />
           <RcProvenanceChip>RCQ-B3</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The risk-significant contributors are identified per HLR-RI-B, the handshake from the consequence side.</p>
@@ -249,7 +250,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Uncertainty characterization</h3>
+          <WorkbookSectionHeading workbook="RC" title="Uncertainty characterization" level={3} />
           <RcProvenanceChip>RCQ-C1 · C2</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The model uncertainties from every sub-element funnel into the uncertainty distribution of each consequence metric, with the dependent phenomena sampled together.</p>
@@ -284,7 +285,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Quantification basis and limitations</h3>
+          <WorkbookSectionHeading workbook="RC" title="Quantification basis and limitations" level={3} />
           <RcProvenanceChip>RCQ-B3 · D3</RcProvenanceChip>
         </div>
         <p className="poscard__sub">The risk-significance criteria, the mapping from each consequence metric to the plant risk metric, and the quantification limitations.</p>
@@ -343,7 +344,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Open items register</h3>
+          <WorkbookSectionHeading workbook="RC" title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <span className="possubtle">{register.length} items · RCQ-C1, D2 and the bounding-site assumptions</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addUncertainty}><RCIcon.Plus /> Add uncertainty</button>}
@@ -369,7 +370,7 @@ function QuantifyScreen({ openDrawer }: { openDrawer: (ctx: RcDrawerContext) => 
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Risk-integration feedback</h3>
+          <WorkbookSectionHeading workbook="RC" title="Risk-integration feedback" level={3} />
           <div className="posrow" style={{ gap: 10 }}>
             <RcProvenanceChip>RCQ-B3 · RI-C1</RcProvenanceChip>
             {editable && rif !== undefined && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => openDrawer({ kind: "rifeedback", id: "rif" })}><RCIcon.Settings /> Edit</button>}
@@ -432,7 +433,7 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="RC" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Site basis</span><span style={{ fontWeight: 700 }}>{site === "actual_site" ? "Identified site" : "Bounding site"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -441,7 +442,7 @@ function DraftScreen({ cc, scores, site, onSubmitDraft, canSubmit }: {
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="RC" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All applicable items pass at <strong>{cc.name}</strong>. The draft locks Steps 1 to 8 and moves to <strong>Internal Technical Review</strong>.</>

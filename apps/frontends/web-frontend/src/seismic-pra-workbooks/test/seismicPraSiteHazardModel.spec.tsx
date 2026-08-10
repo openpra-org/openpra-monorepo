@@ -63,11 +63,12 @@ describe("Seismic PRA Step 05 site seismic-hazard model", () => {
 
   it("keeps the beginner explanation behind the question-mark control", async () => {
     renderSiteHazard();
-    const explanation = "This section identifies the faults and distributed seismic zones that can produce damaging motion at the site. Each source needs geometry, distance, magnitude recurrence, and uncertainty treatment.";
-
-    expect(screen.queryByText(explanation)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "About Seismic source model" }));
-    expect(screen.getByText(explanation)).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(
+      "identifies the faults and distributed seismic zones",
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("For example");
   });
 
   it("removes the PSHA-basis editor and keeps the flat catalog editor", async () => {

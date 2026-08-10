@@ -1,10 +1,19 @@
 .wp__topbar {
+  --color-text: var(--chrome-text);
+  --color-text-muted: var(--chrome-text-muted);
+  --color-text-subtle: var(--chrome-text-muted);
+  --color-border: var(--chrome-border);
+  --color-primary: var(--chrome-accent);
+  --color-primary-soft: color-mix(in srgb, var(--chrome-accent) 14%, transparent);
+  --color-surface: var(--chrome-surface);
+  --color-surface-low: var(--chrome-surface-low);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 32px;
-  border-bottom: 1px solid rgba(229, 217, 235, 0.6);
+  min-height: 64px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--chrome-border);
   background: var(--topbar-bg);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -16,7 +25,6 @@
 .wp__brand {
   display: flex;
   align-items: center;
-  gap: 12px;
 }
 
 .wp__brand--link {
@@ -35,17 +43,7 @@
 }
 
 .wp__brand-logo {
-  height: 36px;
-  width: 36px;
-  filter: var(--logo-filter);
-}
-
-.wp__brand-name {
-  font-family: 'Literata', Georgia, serif;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--color-text);
+  width: 142px;
 }
 
 .wp__topbar-nav {

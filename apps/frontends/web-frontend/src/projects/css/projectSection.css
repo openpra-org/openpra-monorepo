@@ -14,7 +14,7 @@
 }
 
 .ap__section-title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--color-text);
@@ -42,7 +42,7 @@
 }
 
 .ap__section-count {
-  font-family: 'Nunito Sans', sans-serif;
+  font-family: var(--font-ui), sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text-subtle);

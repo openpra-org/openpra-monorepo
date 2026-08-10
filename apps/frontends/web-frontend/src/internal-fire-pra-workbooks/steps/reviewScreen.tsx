@@ -98,7 +98,7 @@ export function ReviewComments({
 
   return <div className="poscard">
     <div className="poscard__head">
-      <WorkbookSectionHeading title={title} description={description} />
+      <WorkbookSectionHeading workbook="FIRE" title={title} description={description} />
       <div className="posrow" style={{ gap: 6 }}>
         <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({scoped.length})</button>
         <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({open})</button>
@@ -186,7 +186,7 @@ export function ReviewScreen({ persona, actions, renderRoster }: { persona: Inte
     <ReviewComments comments={comments} persona={persona} actions={actions} />
     {persona === "preparer" && <div className="poscard">
       <div className="poscard__head">
-        <WorkbookSectionHeading title="Submit for Internal Approval" description="Advance the reviewed workbook to the assigned approver only after every technical comment has been resolved." />
+        <WorkbookSectionHeading workbook="FIRE" title="Submit for Internal Approval" description="Advance the reviewed workbook to the assigned approver only after every technical comment has been resolved." />
         {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{open} open comment{open === 1 ? "" : "s"}</Badge>}
       </div>
       <div className="posrow" style={{ gap: 10, alignItems: "center" }}>

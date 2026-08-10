@@ -24,7 +24,7 @@
   gap: 6px;
 }
 .iefq__hero-val {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -229,7 +229,7 @@
   white-space: nowrap;
 }
 .iefq-card__mean {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
   font-size: 13px;
   font-weight: 800;
   color: var(--color-primary);
@@ -250,7 +250,7 @@
 }
 .iefq-card__del:hover {
   color: var(--color-error);
-  background: rgba(186, 26, 26, 0.08);
+  background: rgb(179 38 30 / 0.08);
 }
 
 /* Layout rows of fields */
@@ -314,7 +314,7 @@
   background: var(--color-surface);
 }
 .iefq-num {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-data), ui-monospace, monospace;
 }
 .iefq-select:hover,
 .iefq-num:hover {
@@ -425,7 +425,7 @@
   flex-shrink: 0;
 }
 .iefq-ftmodal__title {
-  font-family: 'Literata', serif;
+  font-family: var(--font-display), serif;
   font-weight: 700;
   font-size: 16px;
   color: var(--color-text);

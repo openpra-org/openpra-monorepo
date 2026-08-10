@@ -21,7 +21,7 @@ export function ApprovalScreen({ persona, actions, renderApprovalTable, renderSi
     <ReviewBanner />
     <ReviewComments comments={comments} persona={persona} actions={actions} approvalView title={persona === "preparer" ? "Comments by reviewers & approvers" : "Your comments"} description="Review the comment record that supports the approval decision, including each comment's resolution status and responsible role." />
     <div className="poscard">
-      <div className="poscard__head"><WorkbookSectionHeading title="What is being attested" description="Confirm the capability target, supporting-requirement status, resolved comment record, and controlled configuration snapshot covered by the approval signature." /></div>
+      <div className="poscard__head"><WorkbookSectionHeading workbook="FLOOD" title="What is being attested" description="Confirm the capability target, supporting-requirement status, resolved comment record, and controlled configuration snapshot covered by the approval signature." /></div>
       <div className="posapprove__attest-with-sign">
         <div className="posapprove__attest-grid">
           <div className="posapprove__attest-row"><span className="posapprove__attest-cap">Capability target</span><span className="posapprove__attest-val"><strong>{mef.capabilityCategory}</strong> · Internal Flood PRA</span></div>
@@ -34,7 +34,7 @@ export function ApprovalScreen({ persona, actions, renderApprovalTable, renderSi
     </div>
     {renderApprovalTable?.()}
     {approved && <div className="poscard posapprove__handoff">
-      <div className="poscard__head"><WorkbookSectionHeading title="After approval — external workflows" description="Release the approved, locked workbook to independent peer review or audit. External participants may inspect and comment, but cannot alter the approved analysis." /><Badge kind="draft">View + comment only</Badge></div>
+      <div className="poscard__head"><WorkbookSectionHeading workbook="FLOOD" title="After approval — external workflows" description="Release the approved, locked workbook to independent peer review or audit. External participants may inspect and comment, but cannot alter the approved analysis." /><Badge kind="draft">View + comment only</Badge></div>
       <div className="posapprove__handoff-grid">
         <button type="button" className="posapprove__handoff-card" onClick={() => setHandoff("Peer Review release selected")}><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Eye /></div><div><div className="posapprove__handoff-card-eyebrow">External · Internal Flood PRA</div><div className="posapprove__handoff-card-title">Peer Review</div></div></div><div className="posapprove__handoff-card-foot"><span>Release to peer review</span><POSIcon.ArrowR /></div></button>
         <button type="button" className="posapprove__handoff-card" onClick={() => setHandoff("Audit release selected")}><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Lock /></div><div><div className="posapprove__handoff-card-eyebrow">External · NQA-1 aligned</div><div className="posapprove__handoff-card-title">Audit</div></div></div><div className="posapprove__handoff-card-foot"><span>Release to audit</span><POSIcon.ArrowR /></div></button>

@@ -8,6 +8,8 @@ import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { type Mutator } from "./useMefPatch";
 import { POSIcon } from "./posIcons";
 import { Badge } from "./posShared";
+import { PosHelpButton, PosSectionHeading } from "./posHelp";
+import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import { PreopAssumptionCard } from "./posPreopCard";
 import {
   CAPABILITY_CATEGORIES,
@@ -234,9 +236,11 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
       )}
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
+          <PosSectionHeading
+            title="Interfaces"
+            description={<>POS has no upstream PRA technical input. It sends the {handoff.retainedCount} retained operating states, their timing, and radioactive-material-source information to the downstream technical elements shown here.</>}
+          />
         </div>
-        <p className="poscard__sub">POS has no upstream inputs. It feeds these downstream elements. Select one to see what it receives from the {handoff.retainedCount} retained states.</p>
         <div className="poshandoff__grid">
           {handoff.lanes.map((lane) => (
             <button
@@ -253,7 +257,12 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
         </div>
         {selectedLane !== undefined && (
           <div style={{ marginTop: 16 }}>
-            <div className="possubtle" style={{ fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>{selectedLane.element} receives</div>
+            <div className="poshandoff__selection-head">
+              <span>{selectedLane.element} receives</span>
+              <PosHelpButton label={`About ${selectedLane.element} interface`}>
+                {composeWorkbookCue("POS", "Interfaces", `Shows the retained POS technical records supplied to ${selectedLane.element} for its analysis.`)}
+              </PosHelpButton>
+            </div>
             {selectedLane.rows.length === 0 ? (
               <p className="posmuted" style={{ margin: 0 }}>No retained states to hand off yet.</p>
             ) : (
@@ -276,7 +285,10 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
       </div>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Plant identity</h3>
+          <PosSectionHeading
+            title="Plant identity"
+            description="Identify the plant and reactor design to which every operating-state definition in this workbook applies."
+          />
         </div>
         <div className="posfield-grid">
           <div className="posfield">
@@ -355,8 +367,12 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">PRA scope</h3></div>
-        <p className="poscard__sub">Describe what the analysis covers and what it excludes.</p>
+        <div className="poscard__head">
+          <PosSectionHeading
+            title="PRA scope"
+            description="State the units, radioactive-material sources, operating modes, hazard groups, and explicit exclusions covered by this POS analysis."
+          />
+        </div>
         <WorkbookTextarea
           className="posfield__textarea"
           placeholder="Briefly state in-scope hazard groups, operating modes, and explicit exclusions."
@@ -372,7 +388,10 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Plant stage</h3>
+          <PosSectionHeading
+            title="Plant stage"
+            description="Choose whether the state definitions are supported by design information for a pre-operational plant or by as-built, operating-history, interview, and walkdown evidence for an operating plant."
+          />
         </div>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           <label className="poscard poscard--ghost" style={{ flex: 1, minWidth: 280, cursor: "pointer", borderColor: stage === "pre_operational" ? "var(--color-primary)" : undefined }}>
@@ -402,7 +421,10 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <PosSectionHeading
+            title="Capability category"
+            description="Set the capability-category expectations used to assess the applicable POS supporting requirements. This selection does not assign one capability category to the entire PRA."
+          />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
@@ -424,7 +446,7 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
                 }}
               >
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "'Literata', serif", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>
                     {c.name}
                   </span>
                   <span className="possubtle" style={{ fontSize: 12 }}>{c.tag}</span>
@@ -442,9 +464,11 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Plant operations in scope</h3>
+          <PosSectionHeading
+            title="Plant operations in scope"
+            description="Choose whether the POS analysis must cover at-power operation, low-power and shutdown operation, or both."
+          />
         </div>
-        <p className="poscard__sub">Which plant operating modes does this POS analysis cover?</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
             <WorkbookInput
@@ -475,9 +499,11 @@ function SetupScreen({ ccId, setCcId, stage, setStage, onAction, mefPatch, mefPa
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Hazard groups in scope</h3>
+          <PosSectionHeading
+            title="Hazard groups in scope"
+            description="Identify whether these operating-state definitions must also support fire, flood, seismic, or other hazard analyses in addition to internal events."
+          />
         </div>
-        <p className="poscard__sub">Internal events are always in scope for a POS workbook. Check below if the PRA also covers hazards beyond internal events.</p>
         <label className="posrow" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
           <WorkbookInput
             type="checkbox"
@@ -629,7 +655,10 @@ function DocumentsScreen({ onAction, canEdit, mefPatchDebounced, realDocuments, 
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Uploaded documents</h3>
+        <PosSectionHeading
+          title="Uploaded documents"
+          description="Keep the controlled procedures, design information, operating data, interview records, and other evidence used to define and verify the operating states."
+        />
         {isReal ? (
           <>
             <WorkbookInput ref={fileInputRef} type="file" hidden onChange={handleFileChange} />
@@ -721,14 +750,14 @@ function EvolutionsScreen({ openDrawer, onAddEvolution }: ScreenProps): JSX.Elem
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Plant evolutions</h3>
+          <PosSectionHeading
+            title="Plant evolutions"
+            description="An evolution is a complete plant process or operating period, such as at-power operation, startup, shutdown, or refueling. The next step divides each evolution where the plant configuration or PRA response changes."
+          />
           <div className="posrow" style={{ gap: 8 }}>
             {onAddEvolution !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddEvolution}><POSIcon.Plus /> Add evolution</button>}
           </div>
         </div>
-        <p className="poscard__sub">
-          An evolution is a process the plant goes through (e.g., refuelling, at-power, etc.). Evolutions are sliced into operating states next.
-        </p>
         {evolutions.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No evolutions defined yet.</p>
         ) : (
@@ -842,7 +871,10 @@ function StatesScreen({ openDrawer, onAddState, canEdit, mefPatch }: ScreenProps
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Operating states</h3>
+          <PosSectionHeading
+            title="Operating states"
+            description="Divide each evolution into mutually exclusive periods in which plant configuration, available safety functions, success criteria, and event response are sufficiently uniform for PRA modeling."
+          />
           <div className="posrow" style={{ gap: 8 }}>
             {onAddState !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddState}><POSIcon.Plus /> Add state</button>}
           </div>
@@ -899,7 +931,10 @@ function StatesScreen({ openDrawer, onAddState, canEdit, mefPatch }: ScreenProps
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Validation</h3>
+          <PosSectionHeading
+            title="Validation"
+            description="Check that the states cover the complete plant cycle, do not overlap, have defined transitions, and can be reached through the modeled evolution paths."
+          />
           {states.length > 0 && (validationOk ? <Badge kind="ok">All checks pass</Badge> : <Badge kind="warn">Needs attention</Badge>)}
         </div>
         {states.length === 0 ? (
@@ -1012,7 +1047,7 @@ function InterviewEditor({ record, evolutions, canEdit, mefPatch, mefPatchDeboun
   }
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit session" : "Session (read-only)"}</h3></div>
+      <div className="poscard__head"><PosSectionHeading title={canEdit ? "Edit session" : "Session (read-only)"} description="Captures the operating-session timing and configuration used to define the plant evolution. For example, a 168-hour refuelling outage beginning after hot shutdown." /></div>
       <div className="posfield-grid">
         <div className="posfield">
           <label className="posfield__label">Method</label>
@@ -1087,12 +1122,12 @@ function InterviewsScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps)
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Interview &amp; walkdown log</h3>
+          <PosSectionHeading
+            title="Interview & walkdown log"
+            description="Record the engineering interviews and plant walkdowns used to confirm evolutions, configurations, transition paths, timing, and possible missing operating states. For a pre-operational plant, engineering interviews and design reviews provide the available evidence."
+          />
           {canEdit && mefPatch !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={addInterview}><POSIcon.Plus /> Add session</button>}
         </div>
-        <p className="poscard__sub">
-          For pre-operational plants, engineering interviews substitute for operations walkdowns.
-        </p>
         {interviews.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No interviews or walkdowns logged yet.</p>
         ) : (
@@ -1237,7 +1272,7 @@ function ScreeningEditorRow({ row, canEdit, mefPatch, mefPatchDebounced }: {
   }
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit screening decision" : "Screening decision (read-only)"}</h3></div>
+      <div className="poscard__head"><PosSectionHeading title={canEdit ? "Edit screening decision" : "Screening decision (read-only)"} description="Records whether a candidate evolution is retained, grouped, or excluded from POS development. For example, retain an unplanned hot-shutdown evolution because its equipment alignment differs from the planned outage." /></div>
       <div className="posfield-grid">
         <div className="posfield">
           <label className="posfield__label">Decision</label>
@@ -1350,8 +1385,12 @@ function DemandTimeEditor({ canEdit, mefPatch, mefPatchDebounced }: { canEdit: b
   const byId = new Map((pos.demandTimeBasedRecords ?? []).map((r) => [r.posId, r] as const));
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">Demand-based and time-based states</h3></div>
-      <p className="poscard__sub">Mark how each state is entered. This keeps short demand events apart from long time-based states.</p>
+      <div className="poscard__head">
+        <PosSectionHeading
+          title="Demand-based and time-based states"
+          description="Classify how each state is entered. A demand-based state occurs when a discrete action or event creates the condition; a time-based state persists for a measurable portion of the operating cycle."
+        />
+      </div>
       {retained.length === 0 ? <p className="posmuted" style={{ padding: "8px 0", margin: 0 }}>No retained states yet.</p> : (
         <table className="postable postable--mid">
           <thead><tr><th>State</th><th>Basis</th><th>Note</th></tr></thead>
@@ -1388,8 +1427,12 @@ function SeparationEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?: 
   }
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">States kept separate</h3></div>
-      <p className="poscard__sub">List states that are too different to group together. This keeps grouping from hiding the difference.</p>
+      <div className="poscard__head">
+        <PosSectionHeading
+          title="States kept separate"
+          description="Document pairs of states that cannot be grouped because their configuration, initiating-event response, success criteria, human actions, or risk contribution differs materially."
+        />
+      </div>
       {records.length > 0 && (
         <div className="posbasis__list">
           {records.map((rec, i) => (
@@ -1455,8 +1498,12 @@ function SubsumptionEditor({ canEdit, mefPatch }: { canEdit: boolean; mefPatch?:
   }
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">Subsumed states</h3></div>
-      <p className="poscard__sub">Link a screened-out state to the retained state that covers it.</p>
+      <div className="poscard__head">
+        <PosSectionHeading
+          title="Subsumed states"
+          description="For a screened-out state, identify the retained state whose plant response and risk treatment bound it so downstream models do not lose the screened condition."
+        />
+      </div>
       {records.length > 0 && (
         <div className="posbasis__list">
           {records.map((rec, i) => (
@@ -1529,7 +1576,12 @@ function ScreeningScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Screening decisions</h3></div>
+        <div className="poscard__head">
+          <PosSectionHeading
+            title="Screening decisions"
+            description="Carry every state forward by default. Screen a state only when an accepted criterion or a documented bounding state shows that removing it will not omit or hide a risk-significant contribution."
+          />
+        </div>
         {rows.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
         ) : (
@@ -1594,7 +1646,10 @@ function GroupingScreen({ openDrawer, onAddGroup }: ScreenProps): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Operating-state groups</h3>
+          <PosSectionHeading
+            title="Operating-state groups"
+            description="Combine retained states only when one representative or bounding state preserves the group’s initiating-event response, success criteria, human actions, and risk-significant contributors."
+          />
           <div className="posrow" style={{ gap: 8 }}>
             {onAddGroup !== undefined && <button type="button" className="posnav__btn posnav__btn--primary" onClick={onAddGroup}><POSIcon.Plus /> Add group</button>}
           </div>
@@ -1690,7 +1745,7 @@ function FrequencyEditor({ row, canEdit, mefPatchDebounced }: {
   }
   return (
     <div className="poscard">
-      <div className="poscard__head"><h3 className="poscard__title">{canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"}</h3></div>
+      <div className="poscard__head"><PosSectionHeading title={canEdit ? "Edit duration & frequency" : "Duration & frequency (read-only)"} description="Quantifies how often the state occurs and how long it persists for annualized risk calculations. For example, 2.0 entries per year with a mean duration of 168 hours." /></div>
       <div className="posfield-grid">
         <div className="posfield">
           <label className="posfield__label">Mean duration (h/yr)</label>
@@ -1757,12 +1812,14 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
       {rows.length > 0 && (
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Cycle-time reconciliation</h3>
+          <PosSectionHeading
+            title="Cycle-time reconciliation"
+            description="Compare the sum of all state durations with the defined plant operating-cycle duration. A balanced result shows that no period of the cycle is missing or counted twice."
+          />
           {recon.withinTolerance
             ? <Badge kind="ok">Balanced</Badge>
             : <Badge kind="warn">{shortfall ? "Shortfall" : "Excess"}</Badge>}
         </div>
-        <p className="poscard__sub">The state durations should account for the full operating cycle. Set the cycle basis to your plant's cycle length.</p>
         <div className="posstats">
           <div className="posstat">
             <div className="posstat__label">Sum of state durations</div>
@@ -1782,7 +1839,10 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Frequencies &amp; durations</h3>
+          <PosSectionHeading
+            title="Frequencies & durations"
+            description="For each state, record its mean annual duration and the mean annual frequency with which the plant enters it. These values weight initiating events and scenarios in downstream PRA calculations."
+          />
         </div>
         {rows.length === 0 ? (
           <p className="posmuted" style={{ padding: "12px 0", margin: 0 }}>No operating states defined yet.</p>
@@ -1850,8 +1910,12 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
 
       {rollups.length > 0 && (
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Group roll-up check</h3></div>
-        <p className="poscard__sub">A group's stored duration should match the sum of its member states. Entry frequency is the rate of entering the group, not the sum of member frequencies.</p>
+        <div className="poscard__head">
+          <PosSectionHeading
+            title="Group roll-up check"
+            description="Verify that each group’s stored duration equals the sum of its member-state durations. Group entry frequency is the rate of entering the group, so it is not generally the sum of member entry frequencies."
+          />
+        </div>
         <table className="postable postable--mid">
           <thead>
             <tr><th>Group</th><th>Members</th><th>Sum of member duration</th><th>Stored duration</th><th>Group entry frequency</th><th>Status</th></tr>
@@ -1876,7 +1940,7 @@ function FrequencyScreen({ canEdit, mefPatchDebounced }: ScreenProps): JSX.Eleme
   );
 }
 
-const DECAY_FONT = "'Nunito Sans', sans-serif";
+const DECAY_FONT = "IBM Plex Sans, sans-serif";
 
 function patchStateDecayHeat(pos: PlantOperatingStatesAnalysis, uuid: string, fields: { timeHours?: number; mw?: number; basis?: string }): PlantOperatingStatesAnalysis {
   const round = (n: number): number => Number(n.toFixed(3));
@@ -2035,14 +2099,16 @@ function DecayHeatScreen({ canEdit, mefPatch, mefPatchDebounced }: ScreenProps):
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Decay-heat characterisation</h3>
+          <PosSectionHeading
+            title="Decay-heat characterisation"
+            description="Assign the residual core heat for every low-power and shutdown state at its representative time after shutdown. Enter an evaluated value or calculate it from an accepted plant decay-heat method."
+          />
           {canEdit && mefPatch !== undefined && lpsd.length > 0 && (
             <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={!canComputeAll} onClick={computeAll}>
               <POSIcon.Sparkle /> Compute all with {method.label}
             </button>
           )}
         </div>
-        <p className="poscard__sub">Enter the decay heat for each state, or compute it from a correlation.</p>
         <OperatingDaysField days={operatingDays} canEdit={canEdit} mefPatchDebounced={mefPatchDebounced} />
         {methods.length > 1 && (
           <div className="posrow" style={{ gap: 8, alignItems: "center", marginBottom: 10 }}>
@@ -2166,19 +2232,19 @@ function DecayCurvePlot({ points, stateMarkers }: { points: { hours: number; fra
       {xTicks.map((v) => (
         <g key={`x${v}`}>
           <line x1={lx(v)} y1={T} x2={lx(v)} y2={H - B} stroke="var(--color-border)" strokeWidth="1" />
-          <text x={lx(v)} y={H - B + 16} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtHours(v)}</text>
+          <text x={lx(v)} y={H - B + 16} textAnchor="middle" fontSize="10" fontFamily="IBM Plex Sans, sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtHours(v)}</text>
         </g>
       ))}
       {yTicks.map((v) => (
         <g key={`y${v}`}>
           <line x1={L} y1={ly(v)} x2={W - R} y2={ly(v)} stroke="var(--color-border)" strokeWidth="1" />
-          <text x={L - 6} y={ly(v) + 3} textAnchor="end" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtFrac(v)}</text>
+          <text x={L - 6} y={ly(v) + 3} textAnchor="end" fontSize="10" fontFamily="IBM Plex Sans, sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">{fmtFrac(v)}</text>
         </g>
       ))}
       <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--color-border-strong)" strokeWidth="1" />
       <line x1={L} y1={T} x2={L} y2={H - B} stroke="var(--color-border-strong)" strokeWidth="1" />
-      <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">HOURS AFTER SHUTDOWN</text>
-      <text x={13} y={(T + H - B) / 2} textAnchor="middle" fontSize="10" fontFamily="'Nunito Sans', sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)" transform={`rotate(-90 13 ${(T + H - B) / 2})`}>FRACTION OF FULL POWER</text>
+      <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" fontSize="10" fontFamily="IBM Plex Sans, sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)">HOURS AFTER SHUTDOWN</text>
+      <text x={13} y={(T + H - B) / 2} textAnchor="middle" fontSize="10" fontFamily="IBM Plex Sans, sans-serif" fontWeight="700" letterSpacing="0.08em" fill="var(--color-text-subtle)" transform={`rotate(-90 13 ${(T + H - B) / 2})`}>FRACTION OF FULL POWER</text>
       {usable.length >= 2 && <path d={linePath} fill="none" stroke="var(--color-primary)" strokeWidth="2" />}
       {usable.map((pt, i) => (
         <circle key={`p${i}`} cx={lx(pt.hours)} cy={ly(pt.fractionOfPower)} r="3.5" fill="var(--color-primary)" />
@@ -2226,9 +2292,11 @@ function DecayHeatCurveCard({ curve, powerMw, stateMarkers, canEdit, mefPatch, m
   return (
     <div className="poscard">
       <div className="poscard__head">
-        <h3 className="poscard__title">Plant decay-heat curve</h3>
+        <PosSectionHeading
+          title="Plant decay-heat curve"
+          description="Define decay power as a fraction of full power versus time after shutdown. With at least two valid points, the workbook can interpolate the curve; rings show the operating states already characterized against it."
+        />
       </div>
-      <p className="poscard__sub">Decay power as a fraction of full power against time after shutdown. With two or more points the curve becomes a computation method above. Rings mark the characterised states.</p>
       <div className="posfield" style={{ maxWidth: 340, marginBottom: 14 }}>
         <label className="posfield__label">Curve name</label>
         {canEdit ? <CurveNameInput value={name} onCommit={onName} /> : <div>{name.length > 0 ? name : "—"}</div>}
@@ -2338,7 +2406,11 @@ function DraftScreen({
 
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <PosSectionHeading
+            title="Conformance check"
+            description="Summarize whether the workbook satisfies the applicable POS supporting requirements for the selected plant stage and capability-category targets."
+            className="posgen__readout-h"
+          />
           <div className="posgen__bar">
             <span className="posgen__bar-label">Capability category</span>
             <span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span>
@@ -2366,7 +2438,13 @@ function DraftScreen({
         </div>
 
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">{canSubmit ? "Hand-off to internal review" : "Read-only draft preview"}</h3>
+          <PosSectionHeading
+            title={canSubmit ? "Hand-off to internal review" : "Read-only draft preview"}
+            description={canSubmit
+              ? "Generate the report and submit a controlled workbook snapshot for internal technical review. The analysis steps become read only while the review is active."
+              : "Inspect the report-ready workbook contents without changing or submitting the controlled analysis."}
+            className="posgen__readout-h"
+          />
           {canSubmit ? (
             ready ? (
               <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>

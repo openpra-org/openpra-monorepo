@@ -27,10 +27,10 @@
 .ieimport__pick-list { display: flex; flex-direction: column; gap: 8px; }
 .ieimport__pick { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); cursor: pointer; text-align: left; }
 .ieimport__pick--active { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.ieimport__pick-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--color-border-strong, #cfc2d4); flex-shrink: 0; margin-top: 2px; }
+.ieimport__pick-radio { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--color-border-strong); flex-shrink: 0; margin-top: 2px; }
 .ieimport__pick-radio--on { border-color: var(--color-primary); background: radial-gradient(circle at center, var(--color-primary) 0 4px, transparent 5px); }
 .ieimport__pick-main { flex: 1; min-width: 0; }
 .ieimport__pick-name { font-weight: 700; font-size: 13.5px; }
 .ieimport__pick-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; }
-.ieimport__error { margin: 0 24px; padding: 8px 12px; background: rgba(186, 26, 26, 0.08); color: var(--color-error, #ba1a1a); border-radius: 6px; font-size: 13px; }
+.ieimport__error { margin: 0 24px; padding: 8px 12px; background: rgb(179 38 30 / 0.08); color: var(--color-error); border-radius: 6px; font-size: 13px; }
 .ieimport__foot { display: flex; align-items: center; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--color-border); }

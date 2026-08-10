@@ -7,7 +7,7 @@ import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useToast } from "../toast/toastProvider";
 import { getRoles, useAuth } from "./AuthContext";
-import logo from "../assets/Triplet.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import "./css/signUpForm.css";
 import { clearCampaignAttribution, getCampaignAttribution } from "../analytics/analytics";
 
@@ -130,7 +130,7 @@ function SignUpForm({ onSwitchToLogin }: { onSwitchToLogin?: () => void }): JSX.
     <div>
       <div className="signup-form__header">
         <div className="signup-form__logo-wrap">
-          <img src={logo} alt="OpenPRA" className="signup-form__logo-img" />
+          <OpenPraBrand variant="header" surface="light" className="signup-form__logo-img" />
         </div>
         <h1 className="signup-form__title">Create your account</h1>
         <p className="signup-form__subtitle">Sign up to start analyzing</p>

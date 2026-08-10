@@ -30,7 +30,7 @@
 }
 
 .sigmodal__title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text);
@@ -78,7 +78,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 22px;
   color: #d0d0d8;
   pointer-events: none;

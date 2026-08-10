@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput } from "../workbooks/commitOnDeactivateFields";
 import { Fragment, JSX, useMemo, useState, useEffect } from "react";
 import {
@@ -251,7 +252,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       {/* ── Interfaces ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Interfaces</h3>
+          <WorkbookSectionHeading workbook="IE" title="Interfaces" level={3} />
         </div>
         <p className="poscard__sub">What flows into the initiating-event analysis, and what it feeds. Select an element to see the data exchanged.</p>
         <div className="poshandoff__grid">
@@ -318,7 +319,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       {/* ── Scope card ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Scope of this Initiating Event Analysis</h3>
+          <WorkbookSectionHeading workbook="IE" title="Scope of this Initiating Event Analysis" level={3} />
           {linked ? <Badge kind="ok">Synced from POS</Badge> : <Badge kind="warn">Not linked to POS</Badge>}
         </div>
         <p className="poscard__sub">
@@ -366,7 +367,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       {/* ── Sources of radioactive material ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Sources of radioactive material</h3>
+          <WorkbookSectionHeading workbook="IE" title="Sources of radioactive material" level={3} />
           {!linked && (
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={onOpenLink}>
               <IEIcon.Download /> Import sources from POS
@@ -407,7 +408,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
       {/* ── Capability category ── */}
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability category</h3>
+          <WorkbookSectionHeading workbook="IE" title="Capability category" level={3} />
           <Badge kind="progress">{cc.tag}</Badge>
         </div>
         <p className="poscard__sub">Sets how rigorous the search, grouping, and quantification must be.</p>
@@ -418,7 +419,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
               <button key={c.id} type="button" className="poscard" onClick={() => setCcId(c.id)}
                 style={{ textAlign: "left", cursor: "pointer", borderColor: active ? "var(--color-primary)" : undefined, boxShadow: active ? "0 0 0 3px var(--color-primary-focus)" : undefined, padding: 14 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "'Literata', serif", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, color: "var(--color-text)" }}>{c.name}</span>
                   <span className="possubtle" style={{ fontSize: 12 }}>{c.tag}</span>
                 </div>
                 <div className="possubtle">{c.description}</div>
@@ -430,7 +431,7 @@ function ScopeScreen({ ccId, setCcId, stage, setStage, onOpenLink }: ScopeScreen
 
       {/* ── Plant stage ── */}
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Plant stage</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Plant stage" level={3} /></div>
         <div className="posrow posrow--wrap" style={{ gap: 12 }}>
           {([
             ["pre_operational", "Pre-operational", "Frequencies from generic, design-based, and similar-plant sources (IE-C2). No plant-specific operating history yet."],
@@ -525,7 +526,7 @@ function MethodsScreen(): JSX.Element {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Systematic search methods</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Systematic search methods" level={3} /></div>
         {methods.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No methods recorded yet.</p> : (
           <div className="iemethod-grid">
             {methods.map((m) => {
@@ -642,7 +643,7 @@ function IdentifyScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Challenge spectrum (IE-A5)</h3>
+          <WorkbookSectionHeading workbook="IE" title="Challenge spectrum (IE-A5)" level={3} />
           <span className="possubtle">Click a category to filter</span>
         </div>
         <p className="poscard__sub">Every challenge category must be considered (IE-A5).</p>
@@ -685,7 +686,7 @@ function IdentifyScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">{cat !== undefined ? cat.label : "All initiators"}<span className="possubtle" style={{ fontWeight: 400 }}> · {shown.length}</span></h3>
+          <WorkbookSectionHeading workbook="IE" title={<>{cat !== undefined ? cat.label : "All initiators"}<span className="possubtle" style={{ fontWeight: 400 }}> · {shown.length}</span></>} cueKey="Initiator catalogue" />
           <div className="ieident__head-actions">
             {activeCat !== null && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setActiveCat(null)}>Clear filter</button>}
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInitiator}>+ Add initiator</button>}
@@ -751,7 +752,7 @@ function CompletenessScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Completeness checks</h3>
+          <WorkbookSectionHeading workbook="IE" title="Completeness checks" level={3} />
         </div>
         <p className="poscard__sub">Audits that the forward search was exhaustive, each check mapped to an SR.</p>
         <div className="iecheck-list">
@@ -779,7 +780,7 @@ function CompletenessScreen(): JSX.Element {
       </div>
 
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">Coverage matrix: category × state</h3><span className="possubtle">A dot marks an initiator in that category and state</span></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Coverage matrix: category × state" level={3} /><span className="possubtle">A dot marks an initiator in that category and state</span></div>
         <div className="iecov">
           <table className="iecov__table">
             <thead>
@@ -833,7 +834,7 @@ function HazardsScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Hazard analyses</h3>
+          <WorkbookSectionHeading workbook="IE" title="Hazard analyses" level={3} />
           <div className="ieident__head-actions">
             <span className="possubtle">IE-A5(e/f) · IE-A6</span>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addHazard}>+ Add hazard</button>}
@@ -903,7 +904,7 @@ function GroupingScreen(): JSX.Element {
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Initiating-event groups</h3>
+          <WorkbookSectionHeading workbook="IE" title="Initiating-event groups" level={3} />
           {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addGroup}>+ Add group</button>}
         </div>
         {groups.length === 0 ? <p className="posmuted" style={{ margin: 0 }}>No groups defined yet.{editable ? " Use Add group to create one." : ""}</p> : (
@@ -990,7 +991,7 @@ function ScreeningScreen(): JSX.Element {
   return (
     <>
       <div className="poscard">
-        <div className="poscard__head"><h3 className="poscard__title">The screening gate</h3></div>
+        <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="The screening gate" level={3} /></div>
         <div className="iegate">
           <div className="iegate__stage"><div className="iegate__stage-num">1</div><div className="iegate__stage-body"><div className="iegate__stage-title">Barrier-integrity precondition (IE-C9a)</div><div className="iegate__stage-sub">Does the event avoid any failure or bypass of a radionuclide transport barrier?</div></div></div>
           <div className="iegate__arrow"><IEIcon.ArrowR /></div>
@@ -1002,7 +1003,7 @@ function ScreeningScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Screening decisions</h3>
+          <WorkbookSectionHeading workbook="IE" title="Screening decisions" level={3} />
           {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addRecord}>+ Add record</button>}
         </div>
         {records.length === 0 ? (
@@ -1215,7 +1216,7 @@ function FrequencyScreen(): JSX.Element {
     <>
       {records.length > 0 && (
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Annual frequencies</h3></div>
+          <div className="poscard__head"><WorkbookSectionHeading workbook="IE" title="Annual frequencies" level={3} /></div>
           <div className="iefreq">
             <div className="iefreq__axis">
               {ticks.map((t) => <span key={t} className="iefreq__tick" style={{ left: `${freqToPct(parseFloat(t))}%` }}>{fmtFreq(parseFloat(t))}</span>)}
@@ -1250,7 +1251,7 @@ function FrequencyScreen(): JSX.Element {
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Quantifications</h3>
+          <WorkbookSectionHeading workbook="IE" title="Quantifications" level={3} />
           {editable && availableTargets.length > 0 && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addQuant}>+ Add quantification</button>}
         </div>
         {records.length === 0 ? (
@@ -1397,7 +1398,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="IE" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -1405,7 +1406,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="IE" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1–9 and advances the workbook to <strong>Internal Technical Review</strong>.</>

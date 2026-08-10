@@ -87,7 +87,7 @@
 }
 
 .kebab__opt--danger:hover {
-  background: rgba(186, 26, 26, 0.08);
+  background: rgb(179 38 30 / 0.08);
   color: var(--color-error);
 }
 

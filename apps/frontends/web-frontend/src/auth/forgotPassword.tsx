@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { type ForgotPasswordRequest, ForgotPasswordRequestSchema } from "interfaces-shared-types";
 import { forgotPassword } from "./authApi";
-import logo from "../assets/Triplet.png";
+import { OpenPraBrand } from "../design-system/OpenPraBrand";
 import "./css/forgotPassword.css";
 
 interface ForgotPasswordProps {
@@ -53,7 +53,7 @@ function ForgotPassword({ onClose }: ForgotPasswordProps): JSX.Element {
           <>
             <div className="forgot-password__header">
               <div className="forgot-password__logo-wrap">
-                <img src={logo} alt="OpenPRA" className="forgot-password__logo-img" />
+                <OpenPraBrand variant="header" surface="light" className="forgot-password__logo-img" />
               </div>
               <h2 className="forgot-password__title">Reset your password</h2>
               <p className="forgot-password__subtitle">

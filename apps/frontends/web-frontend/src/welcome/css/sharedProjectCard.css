@@ -34,7 +34,7 @@
 }
 
 .shared__card-title {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 17px;
   font-weight: 700;
   margin: 0;

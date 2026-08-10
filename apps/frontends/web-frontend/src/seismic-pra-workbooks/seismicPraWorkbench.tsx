@@ -27,6 +27,7 @@ import {
   type WorkflowActions,
 } from "./seismicPraScreens";
 import { InfoButton } from "./seismicPraFields";
+import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/seismicPra.css";
 
@@ -211,7 +212,7 @@ function SeismicPraWorkbench({ persona, setPersona, availablePersonas = ["prepar
   return <div className={`posw sw${dockOpen ? "" : " sw--dock-closed"}`}>
     <Header persona={persona} setPersona={setPersona} availablePersonas={availablePersonas} showPersonaPicker={showPersonaPicker} onOpenRoles={onOpenRoles} onLoadExample={onLoadExample} onUnloadExample={onUnloadExample} headerMeta={headerMeta} onToggleRail={() => setRailOpen((value) => !value)} onToggleDock={() => setDockOpen((value) => !value)} exampleOptions={exampleOptions} selectedExample={selectedExample} onSelectExample={onSelectExample} />
     <Rail current={stepId} setCurrent={choose} mobileOpen={railOpen} persona={persona} />
-    <main className="posmain smain"><div className="smain__head"><div><div className="smain__title"><h1>{active.title}</h1><InfoButton label={`About ${active.title}`}>{active.subtitle}</InfoButton></div></div><div className="posmain__actions">{!dockOpen && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}><POSIcon.Eye /> Show conformance</button>}</div></div><div className="smain__body"><Screen id={stepId} actions={actions} renderApprovalTable={renderApprovalTable} renderSignCard={renderSignCard} renderRoster={renderRoster} /></div><nav className="smain__nav">{previous !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => choose(previous.id)}><POSIcon.ArrowL /> {previous.label}</button> : <span />}{next !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => choose(next.id)}>Next: {next.label} <POSIcon.ArrowR /></button> : <span />}</nav></main>
+    <main className="posmain smain"><div className="smain__head"><div><div className="smain__title"><h1>{active.title}</h1><InfoButton label={`About ${active.title}`}>{composeWorkbookCue("SEISMIC", active.title, active.subtitle)}</InfoButton></div></div><div className="posmain__actions">{!dockOpen && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDockOpen(true)}><POSIcon.Eye /> Show conformance</button>}</div></div><div className="smain__body"><Screen id={stepId} actions={actions} renderApprovalTable={renderApprovalTable} renderSignCard={renderSignCard} renderRoster={renderRoster} /></div><nav className="smain__nav">{previous !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => choose(previous.id)}><POSIcon.ArrowL /> {previous.label}</button> : <span />}{next !== undefined ? <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => choose(next.id)}>Next: {next.label} <POSIcon.ArrowR /></button> : <span />}</nav></main>
     {dockOpen && <ConformanceDock mobileOpen={dockOpen} onClose={() => setDockOpen(false)} />}
   </div>;
 }

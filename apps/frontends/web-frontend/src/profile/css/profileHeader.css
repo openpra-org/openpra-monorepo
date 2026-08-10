@@ -16,9 +16,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 20% 100%, #b388dd 0%, transparent 60%),
+    radial-gradient(ellipse at 20% 100%, var(--op-violet-300) 0%, transparent 60%),
     radial-gradient(ellipse at 80% 0%, #d97ec1 0%, transparent 55%),
-    linear-gradient(135deg, #7939b1 0%, #5a2a87 100%);
+    linear-gradient(135deg, var(--color-primary) 0%, var(--op-violet-700) 100%);
 }
 
 .pf__cover-img {
@@ -29,12 +29,7 @@
   object-fit: cover;
 }
 
-[data-theme="dark"] .pf__cover-art {
-  background:
-    radial-gradient(ellipse at 20% 100%, #5a2a87 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 0%, #7a3c9f 0%, transparent 55%),
-    linear-gradient(135deg, #2a1f3d 0%, #1a1228 100%);
-}
+
 
 .pf__header-body {
   display: grid;
@@ -58,12 +53,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 38px;
   font-weight: 700;
   letter-spacing: 0.01em;
   border: 4px solid var(--color-surface);
-  box-shadow: 0 4px 16px rgba(121, 57, 177, 0.25);
+  box-shadow: 0 4px 16px rgb(143 78 199 / 0.25);
 }
 
 .pf__avatar--img {
@@ -88,7 +83,7 @@
 }
 
 .pf__name {
-  font-family: 'Literata', Georgia, serif;
+  font-family: var(--font-display), Georgia, serif;
   font-size: 30px;
   font-weight: 700;
   color: var(--color-text);

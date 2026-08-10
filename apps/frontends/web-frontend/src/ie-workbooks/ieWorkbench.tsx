@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IEIcon } from "./ieIcons";
@@ -460,8 +461,7 @@ function IeWorkbench({
           <div className="posmain__head">
             <div className="posmain__title-block">
               <div className="posmain__eyebrow">{h.eyebrow}</div>
-              <h1 className="posmain__title">{h.title}</h1>
-              {h.sub !== undefined && <p className="posmain__sub">{h.sub}</p>}
+              <WorkbookSectionHeading workbook="IE" title={h.title} description={h.sub} level={1} className="posmain__title" />
             </div>
             <div className="posmain__actions">
               {!dockOpen && (

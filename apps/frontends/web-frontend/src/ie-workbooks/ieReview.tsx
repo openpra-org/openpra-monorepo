@@ -1,3 +1,4 @@
+import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useMemo, useState } from "react";
 import { IEIcon } from "./ieIcons";
@@ -104,11 +105,7 @@ function InternalReviewScreen({
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">
-            {isApprovalStep
-              ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments")
-              : "All review comments"}
-          </h3>
+          <WorkbookSectionHeading workbook="IE" title={isApprovalStep ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments") : "All review comments"} cueKey="Review comments" />
           <div className="posrow" style={{ gap: 6 }}>
             <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
             <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({displayOpen})</button>
@@ -161,7 +158,7 @@ function InternalReviewScreen({
       {isPreparer && isReviewStep && ie.workflowState !== "INTERNAL_TECHNICAL_REVIEW" && ie.workflowState !== "INTERNAL_APPROVAL" && ie.workflowState !== "FINAL" && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Submit for Internal Approval</h3>
+            <WorkbookSectionHeading workbook="IE" title="Submit for Internal Approval" level={3} />
             {allResolved ? <Badge kind="ok">All comments resolved</Badge> : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
           </div>
           <p className="poscard__sub" style={{ marginBottom: 14 }}>
@@ -184,7 +181,7 @@ function InternalReviewScreen({
         <>
           <div className="poscard">
             <div className="poscard__head">
-              <h3 className="poscard__title">What is being attested</h3>
+              <WorkbookSectionHeading workbook="IE" title="What is being attested" level={3} />
             </div>
             <div className="posapprove__attest-with-sign">
               <div className="posapprove__attest-grid">

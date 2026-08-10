@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { RCIcon } from "./rcIcons";
@@ -7,8 +8,7 @@ function DrawerHead({ cap, title, sub, onClose }: { cap: string; title: string; 
     <div className="posdrawer__head">
       <div>
         <div className="posdrawer__cap">{cap}</div>
-        <h2 className="posdrawer__title">{title}</h2>
-        {sub !== undefined && <p className="posdrawer__sub">{sub}</p>}
+        <WorkbookSectionHeading workbook="RC" title={title} cueKey={cap} description={sub} level={2} className="posdrawer__title" />
       </div>
       <button type="button" className="posdrawer__close" onClick={onClose}><RCIcon.Close /></button>
     </div>
@@ -77,7 +77,7 @@ function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }): 
 function SrChips({ srs }: { srs: { sr: string }[] }): JSX.Element {
   return (
     <div>
-      <div className="essec">Standard requirements</div>
+      <WorkbookCueLabel workbook="RC" title="Standard requirements" className="essec" />
       <div className="posdrawer__srs">{srs.map((s) => <span key={s.sr} className="poschip posmono">{s.sr}</span>)}</div>
     </div>
   );

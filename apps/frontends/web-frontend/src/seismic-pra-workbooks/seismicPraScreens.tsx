@@ -1,3 +1,5 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { composeWorkbookCue } from "../workbooks/workbookCueContent";
 import { SEISMIC_PRA_SR_CATALOG, type SeismicPRA, type SeismicPraApplication } from "interfaces-mef-types/seismic/seismic-pra";
 import { type PlantIdentity } from "interfaces-mef-types/technical-element";
 import { synchronizeSeismicPraDerivedRegisters, validateSeismicPra, type SeismicPraDiagnostic } from "interfaces-mef-types/seismic/seismic-pra-validation";
@@ -196,7 +198,7 @@ function CollectionEditor({ tone, target, onClose }: { tone: Tone; target: Colle
 
 function InterfaceFlowTable({ title, lane }: { title: string; lane: SeismicPraInterfaceLane }): JSX.Element {
   return <div className="sinterface__flow">
-    <div className="sinterface__flow-title">{title}</div>
+    <WorkbookCueLabel workbook="SEISMIC" title={title} cueKey="Interface transfer records" className="sinterface__flow-title" />
     {lane.rows.length === 0 ? <p className="posmuted sinterface__empty">{lane.empty}</p> : <div className="sinterface__table-wrap"><table className="postable postable--mid">
       <thead><tr>{lane.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
       <tbody>{lane.rows.map((row) => <tr key={row.id}><td><div className="postable__name">{row.name}</div></td>{row.values.map((value, index) => <td key={`${row.id}-${lane.columns[index + 1] ?? index}`}>{value}</td>)}</tr>)}</tbody>
@@ -211,7 +213,7 @@ function SeismicInterfacesSection(): JSX.Element {
   const selectedLane = lanes.find((lane) => lane.code === selectedElement);
   const selectedRole = selectedLane === undefined ? "" : `${selectedLane.role.charAt(0).toLowerCase()}${selectedLane.role.slice(1)}`;
   return <div className="poscard">
-    <div className="poscard__head"><div className="ssection__heading"><h3 className="poscard__title">Interfaces</h3><InfoButton label="About Interfaces">Use this section to see what technical data Seismic PRA receives from earlier technical elements and what results it sends to later ones. Select a tab to inspect the actual records being transferred.</InfoButton></div></div>
+    <div className="poscard__head"><div className="ssection__heading"><h3 className="poscard__title">Interfaces</h3><InfoButton label="About Interfaces">{composeWorkbookCue("SEISMIC", "Interfaces", "Shows the controlled inputs received from earlier PRA technical elements and the seismic results supplied to later analyses.")}</InfoButton></div></div>
     <div className="poshandoff__grid">
       {lanes.map((lane) => <button key={lane.code} type="button" className={`poshandoff__tile${selectedElement === lane.code ? " poshandoff__tile--active" : ""}`} onClick={() => setSelectedElement(selectedElement === lane.code ? null : lane.code)}>
         <span className="poshandoff__tile-code">{lane.code}</span>
@@ -316,7 +318,7 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: {
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">PRA application</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="PRA application" className="sinlineeditor__title" />
         <Field label="Intended application">
           <TextInput value={draft.applicationName} onChange={(value) => setDraft((current) => ({ ...current, applicationName: value }))} />
         </Field>
@@ -331,7 +333,7 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: {
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Reference plant and site</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Reference plant and site" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Plant name">
             <TextInput value={draft.plantName} onChange={(value) => setDraft((current) => ({ ...current, plantName: value }))} />
@@ -354,7 +356,7 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: {
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">PRA boundary</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="PRA boundary" className="sinlineeditor__title" />
         <Field label="Integrated PRA scope">
           <TextArea rows={4} value={draft.praScope} onChange={(value) => setDraft((current) => ({ ...current, praScope: value }))} />
         </Field>
@@ -363,7 +365,7 @@ function AnalysisScopeEditor({ onClose, operatingStates, materialSources }: {
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Imported POS scope</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Imported POS scope" className="sinlineeditor__title" />
         <Field label="Operating states">
           <TextArea rows={3} value={operatingStates} disabled onChange={() => undefined} />
         </Field>
@@ -428,7 +430,7 @@ function ScopeScreen(): JSX.Element {
         <div className="smotionbasis__heading">
           <div className="smotionbasis__heading-title">
             <h3 className="smotionbasis__title">Ground-motion parameters</h3>
-            <InfoButton label="About ground-motion parameters">These rows define how earthquake shaking will be measured in later calculations. Each row chooses a direction, frequency, damping value, unit, and calculation range. The analysts select these settings before running the hazard calculations; later steps calculate the actual hazard values.</InfoButton>
+            <InfoButton label="About ground-motion parameters">{composeWorkbookCue("SEISMIC", "Ground-motion parameters", "Defines the direction, frequency, damping, unit, and calculation range used to measure earthquake shaking.")}</InfoButton>
           </div>
           {editable && <AddButton label="Add ground-motion parameter" onClick={() => setParameterEditor({ title: "New ground-motion parameter", subtitle: "Ground-motion parameter used by seismic hazard, fragility, and plant-response calculations", focus: [], createAt: ["seismicHazardAnalysis", "analysisBasis", "groundMotionParameters"], visibleRootFields: groundMotionFields })} />}
         </div>
@@ -444,7 +446,7 @@ function ScopeScreen(): JSX.Element {
         <div className="smotionbasis__heading">
           <div className="smotionbasis__heading-title">
             <h3 className="smotionbasis__title">Seismic control points</h3>
-            <InfoButton label="About seismic control points">These rows name the exact physical locations where earthquake motion will be defined or compared. The analyst selects them from site coordinates and existing foundation and structural drawings. Later steps calculate how the motion changes between these locations.</InfoButton>
+            <InfoButton label="About seismic control points">{composeWorkbookCue("SEISMIC", "Seismic control points", "Identifies the physical locations where ground motion is defined, transferred, or compared using site and structural references.")}</InfoButton>
           </div>
           {editable && <AddButton label="Add seismic control point" onClick={() => setControlPointEditor({ title: "New seismic control point", subtitle: "Physical reference location at which input or transferred ground motion is defined", focus: [], createAt: ["seismicHazardAnalysis", "responseSpectraEvaluation", "controlPoints"], visibleRootFields: controlPointFields, inlinePrimitiveArrays: true })} />}
         </div>
@@ -509,7 +511,7 @@ function SiteAndPshaBasisEditor({ onClose }: { onClose: () => void }): JSX.Eleme
   </>}>
     <fieldset className="sinlineeditor sbasis-editor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Site basis</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Site basis" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Reference site" hint="Managed in Step 01.">
             <TextInput value={referenceSiteName} disabled onChange={() => undefined} />
@@ -545,7 +547,7 @@ function SiteAndPshaBasisEditor({ onClose }: { onClose: () => void }): JSX.Eleme
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">PSHA process</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="PSHA process" className="sinlineeditor__title" />
         <Field label="Defined process">
           <SelectInput value={process.processType} options={PSHA_PROCESS_OPTIONS} onChange={(value) => setDraft((current) => ({
             ...current,
@@ -585,7 +587,7 @@ function SiteAndPshaBasisEditor({ onClose }: { onClose: () => void }): JSX.Eleme
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Calculation limits</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Calculation limits" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Maximum ground motion">
             <NumberInput value={draft.calculationBounds.maximumGroundMotion} onChange={(value) => setDraft((current) => ({
@@ -687,7 +689,7 @@ function EarthquakeCatalogEditor({ onClose }: { onClose: () => void }): JSX.Elem
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Catalog coverage</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Catalog coverage" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Start date or age"><TextInput value={draft.catalogStartDateOrAge} onChange={(value) => setDraft((current) => ({ ...current, catalogStartDateOrAge: value }))} /></Field>
@@ -698,7 +700,7 @@ function EarthquakeCatalogEditor({ onClose }: { onClose: () => void }): JSX.Elem
         <Field label="Imported event records"><NumberInput value={draft.events.length} disabled onChange={() => undefined} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Catalog processing</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Catalog processing" className="sinlineeditor__title" />
         <Field label="Magnitude homogenization"><TextArea rows={3} value={draft.homogenizationMethod} onChange={(value) => setDraft((current) => ({ ...current, homogenizationMethod: value }))} /></Field>
         <Field label="Declustering"><TextArea rows={3} value={draft.declusteringMethod ?? ""} onChange={(value) => setDraft((current) => ({ ...current, declusteringMethod: value || undefined }))} /></Field>
         <Field label="Completeness"><TextArea rows={4} value={draft.completenessAssessment} onChange={(value) => setDraft((current) => ({ ...current, completenessAssessment: value }))} /></Field>
@@ -1122,7 +1124,7 @@ function EarthScienceCoverageEditor({ onClose }: { onClose: () => void }): JSX.E
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Study region</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Study region" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Region name">
             <TextInput value={draft.studyRegion.name} onChange={(value) => updateRegion({ name: value })} />
@@ -1145,7 +1147,7 @@ function EarthScienceCoverageEditor({ onClose }: { onClose: () => void }): JSX.E
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Data sufficiency</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Data sufficiency" className="sinlineeditor__title" />
         <Field label="Regional propagation">
           <TextArea rows={3} value={draft.studyRegion.regionalPropagationDataSufficiency} onChange={(value) => updateRegion({ regionalPropagationDataSufficiency: value })} />
         </Field>
@@ -1372,7 +1374,7 @@ function SeismicSourceEditor({ index, onClose }: { index: number | null; onClose
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Source</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Source" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Source type"><SelectInput value={draft.sourceType} options={["FAULT", "AREA", "BACKGROUND", "SUBDUCTION_INTERFACE", "SUBDUCTION_SLAB", "INDUCED", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, sourceType: value as SeismicSourceEntry["sourceType"] }))} /></Field>
@@ -1391,7 +1393,7 @@ function SeismicSourceEditor({ index, onClose }: { index: number | null; onClose
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Geometry</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Geometry" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Geometry type"><SelectInput value={draft.geometry.geometryType} options={["POINT", "LINE", "AREA", "PLANE", "VOLUME"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateGeometry({ geometryType: value as SeismicSourceEntry["geometry"]["geometryType"] })} /></Field>
           <Field label="Closest distance (km)"><OptionalNumberInput value={draft.geometry.closestDistanceToSiteKm} onChange={(value) => updateGeometry({ closestDistanceToSiteKm: value })} /></Field>
@@ -1409,7 +1411,7 @@ function SeismicSourceEditor({ index, onClose }: { index: number | null; onClose
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Magnitude and recurrence</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Magnitude and recurrence" className="sinlineeditor__title" />
         {draft.magnitudeFrequencyModels.map((model, modelIndex) => <div className="sinlineeditor__subgroup" key={model.uuid}>
           <FieldGrid>
             <Field label={`Model ${modelIndex + 1}`}><TextInput value={model.name} onChange={(value) => updateMagnitudeModel(modelIndex, { name: value })} /></Field>
@@ -1431,7 +1433,7 @@ function SeismicSourceEditor({ index, onClose }: { index: number | null; onClose
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Evidence and uncertainty</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Evidence and uncertainty" className="sinlineeditor__title" />
         <Field label="Source data references" hint="Separate references with commas."><TextArea rows={3} value={draft.sourceDataRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, sourceDataRefs: technicalList(value) }))} /></Field>
         <Field label="Paleoseismic event references" hint="Separate references with commas."><TextInput value={(draft.paleoseismicEventRefs ?? []).join(", ")} onChange={(value) => setDraft((current) => ({ ...current, paleoseismicEventRefs: technicalList(value) }))} /></Field>
         <Field label="Historical and instrumental event references" hint="Separate references with commas."><TextArea rows={3} value={(draft.historicalAndInstrumentalEventRefs ?? []).join(", ")} onChange={(value) => setDraft((current) => ({ ...current, historicalAndInstrumentalEventRefs: technicalList(value) }))} /></Field>
@@ -1532,7 +1534,7 @@ function GroundMotionModelEditor({ index, onClose }: { index: number | null; onC
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Model</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Model" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Model kind"><SelectInput value={draft.modelKind} options={["PUBLISHED_GMPE", "PROJECT_SPECIFIC_GMPE", "SIMULATION", "HYBRID"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, modelKind: value as GroundMotionModel["modelKind"] }))} /></Field>
@@ -1550,7 +1552,7 @@ function GroundMotionModelEditor({ index, onClose }: { index: number | null; onC
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Applicability range</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Applicability range" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Minimum magnitude"><NumberInput value={draft.magnitudeRange.minimum} onChange={(value) => setDraft((current) => ({ ...current, magnitudeRange: { ...current.magnitudeRange, minimum: value } }))} /></Field>
           <Field label="Maximum magnitude"><NumberInput value={draft.magnitudeRange.maximum} onChange={(value) => setDraft((current) => ({ ...current, magnitudeRange: { ...current.magnitudeRange, maximum: value } }))} /></Field>
@@ -1563,7 +1565,7 @@ function GroundMotionModelEditor({ index, onClose }: { index: number | null; onC
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Motion definition and variability</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Motion definition and variability" className="sinlineeditor__title" />
         <Field label="Horizontal component"><TextArea rows={3} value={draft.horizontalComponentDefinition} onChange={(value) => setDraft((current) => ({ ...current, horizontalComponentDefinition: value }))} /></Field>
         <Field label="Reference-horizon site term"><TextArea rows={3} value={draft.siteTermDefinition} onChange={(value) => setDraft((current) => ({ ...current, siteTermDefinition: value }))} /></Field>
         <Field label="Median model"><TextArea rows={3} value={draft.medianModelDescription} onChange={(value) => setDraft((current) => ({ ...current, medianModelDescription: value }))} /></Field>
@@ -1576,7 +1578,7 @@ function GroundMotionModelEditor({ index, onClose }: { index: number | null; onC
       </div>
 
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Selection evidence</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Selection evidence" className="sinlineeditor__title" />
         <Field label="Calibration data references" hint="Separate references with commas."><TextArea rows={3} value={draft.calibrationDataRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, calibrationDataRefs: technicalList(value) }))} /></Field>
         <Field label="Selection basis"><TextArea rows={4} value={draft.selectionBasis} onChange={(value) => setDraft((current) => ({ ...current, selectionBasis: value }))} /></Field>
       </div>
@@ -1618,7 +1620,7 @@ function SourceCharacterizationBasisEditor({ onClose }: { onClose: () => void })
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Source model</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Source model" className="sinlineeditor__title" />
         <Field label="Source model reference">
           <TextInput value={draft.sourceModelReference} onChange={(value) => setDraft((current) => ({ ...current, sourceModelReference: value }))} />
         </Field>
@@ -1633,7 +1635,7 @@ function SourceCharacterizationBasisEditor({ onClose }: { onClose: () => void })
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Logic tree</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Logic tree" className="sinlineeditor__title" />
         <Field label="End branches">
           <NumberInput value={draft.sourceLogicTree.totalEndBranchCount ?? 0} onChange={(value) => updateLogicTree({ totalEndBranchCount: value })} />
         </Field>
@@ -1648,7 +1650,7 @@ function SourceCharacterizationBasisEditor({ onClose }: { onClose: () => void })
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Existing model update</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Existing model update" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Model version">
             <TextInput value={assessment.modelVersion} onChange={(value) => updateAssessment({ modelVersion: value })} />
@@ -1735,7 +1737,7 @@ function GroundMotionBasisEditor({ onClose }: { onClose: () => void }): JSX.Elem
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Motion basis</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Motion basis" className="sinlineeditor__title" />
         <Field label="Governing mechanisms" hint="Separate entries with commas.">
           <TextArea rows={3} value={governingMechanisms} onChange={setGoverningMechanisms} />
         </Field>
@@ -1750,7 +1752,7 @@ function GroundMotionBasisEditor({ onClose }: { onClose: () => void }): JSX.Elem
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Reference horizon</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Reference horizon" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name">
             <TextInput value={horizon.name} onChange={(value) => updateHorizon({ name: value })} />
@@ -1788,7 +1790,7 @@ function GroundMotionBasisEditor({ onClose }: { onClose: () => void }): JSX.Elem
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Logic tree and update</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Logic tree and update" className="sinlineeditor__title" />
         <Field label="End branches">
           <NumberInput value={draft.groundMotionLogicTree.totalEndBranchCount ?? 0} onChange={(value) => updateLogicTree({ totalEndBranchCount: value })} />
         </Field>
@@ -2027,7 +2029,7 @@ function SiteConditionsEditor({ onClose }: { onClose: () => void }): JSX.Element
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Local conditions</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Local conditions" className="sinlineeditor__title" />
         <Field label="Topography"><TextArea rows={3} value={topography.topographicDescription} onChange={(value) => updateTopography({ topographicDescription: value })} /></Field>
         <Field label="Topography references" hint="Separate references with commas."><TextInput value={topography.topographicDataRefs.join(", ")} onChange={(value) => updateTopography({ topographicDataRefs: technicalList(value) })} /></Field>
         <Field label="Surficial deposits"><TextArea rows={3} value={topography.surficialDepositDescription} onChange={(value) => updateTopography({ surficialDepositDescription: value })} /></Field>
@@ -2038,7 +2040,7 @@ function SiteConditionsEditor({ onClose }: { onClose: () => void }): JSX.Element
         <Field label="Topographic-effects treatment"><TextArea rows={3} value={topography.topographicEffectsTreatment} onChange={(value) => updateTopography({ topographicEffectsTreatment: value })} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Hazard integration</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Hazard integration" className="sinlineeditor__title" />
         <label className="sbasis-editor__check"><input type="checkbox" checked={draft.localSiteResponseIncluded} onChange={(event) => setDraft((current) => ({ ...current, localSiteResponseIncluded: event.target.checked }))} /><span>Include local site response</span></label>
         <Field label="Approach justification"><TextArea rows={4} value={draft.approachJustification} onChange={(value) => setDraft((current) => ({ ...current, approachJustification: value }))} /></Field>
         <Field label="Incorporation into hazard"><TextArea rows={4} value={draft.incorporationIntoHazardMethod} onChange={(value) => setDraft((current) => ({ ...current, incorporationIntoHazardMethod: value }))} /></Field>
@@ -2078,7 +2080,7 @@ function SiteProfileEditor({ index, onClose }: { index: number | null; onClose: 
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Profile</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Profile" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
           <Field label="Type"><SelectInput value={draft.profileType} options={[
@@ -2098,7 +2100,7 @@ function SiteProfileEditor({ index, onClose }: { index: number | null; onClose: 
         <Field label="Source references" hint="Separate references with commas."><TextInput value={sources} onChange={setSources} /></Field>
       </div>
       {draft.layers.map((layer, layerIndex) => <div className="sinlineeditor__group" key={layer.uuid}>
-        <h3 className="sinlineeditor__title">Layer {layerIndex + 1}</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title={<>Layer {layerIndex + 1}</>} cueKey="Soil-profile layer" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={layer.name} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, name: value }))} /></Field>
           <Field label="Material"><TextInput value={layer.materialType} onChange={(value) => updateLayer(layerIndex, (current) => ({ ...current, materialType: value }))} /></Field>
@@ -2146,7 +2148,7 @@ function SiteResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Elem
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       {draft.methods.map((method, index) => <div className="sinlineeditor__group" key={method.uuid}>
-        <h3 className="sinlineeditor__title">Method {index + 1}</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title={<>Method {index + 1}</>} cueKey="Site-response method" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={method.name} onChange={(value) => updateMethod(index, { name: value })} /></Field>
           <Field label="Software"><TextInput value={method.softwareAndVersion ?? ""} onChange={(value) => updateMethod(index, { softwareAndVersion: value })} /></Field>
@@ -2159,7 +2161,7 @@ function SiteResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Elem
         <Field label="Verification and validation"><TextArea rows={3} value={method.verificationAndValidation} onChange={(value) => updateMethod(index, { verificationAndValidation: value })} /></Field>
       </div>)}
       {draft.inputMotions.map((input, index) => <div className="sinlineeditor__group" key={input.uuid}>
-        <h3 className="sinlineeditor__title">Input motion {index + 1}</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title={<>Input motion {index + 1}</>} cueKey="Input motion" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={input.name} onChange={(value) => updateInput(index, { name: value })} /></Field>
           <Field label="Type"><SelectInput value={input.inputType} options={["RESPONSE_SPECTRUM", "TIME_HISTORY", "FOURIER_AMPLITUDE_SPECTRUM", "RANDOM_VIBRATION"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => updateInput(index, { inputType: value as SiteInputMotion["inputType"] })} /></Field>
@@ -2170,7 +2172,7 @@ function SiteResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Elem
         <Field label="Selection and scaling"><TextArea rows={3} value={input.selectionAndScalingBasis} onChange={(value) => updateInput(index, { selectionAndScalingBasis: value })} /></Field>
       </div>)}
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Uncertainty sources</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Uncertainty sources" className="sinlineeditor__title" />
         {draft.uncertainties.map((uncertainty, index) => <div className="sinlineeditor__subgroup" key={uncertainty.uuid}>
           <FieldGrid>
             <Field label="Name"><TextInput value={uncertainty.name} onChange={(value) => updateUncertainty(index, { name: value })} /></Field>
@@ -2210,7 +2212,7 @@ function SiteResultEditor({ index, onClose }: { index: number | null; onClose: (
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Calculation</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Calculation" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Method"><SelectInput value={draft.methodRef} options={site.methods.map((method) => ({ value: method.uuid, label: method.name }))} onChange={(value) => setDraft((current) => ({ ...current, methodRef: value }))} /></Field>
@@ -2222,7 +2224,7 @@ function SiteResultEditor({ index, onClose }: { index: number | null; onClose: (
         <Field label="Uncertainty treatment"><TextArea rows={3} value={draft.uncertaintyTreatment} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyTreatment: value }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Amplification points</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Amplification points" className="sinlineeditor__title" />
         {draft.points.length === 0 ? <EmptyState title="No amplification points" detail="Add the input levels and frequencies calculated by this result." /> : <div className="sresponsepoints"><Table headers={["Input motion", "Frequency (Hz)", "Median", "Log sigma"]} minWidth={0}>
           {draft.points.map((point, pointIndex) => <tr key={`${point.inputGroundMotion}-${point.frequencyHz}-${pointIndex}`}>
             <td><NumberInput value={point.inputGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, points: current.points.map((candidate, indexValue) => indexValue === pointIndex ? { ...candidate, inputGroundMotion: value } : candidate) }))} /></td>
@@ -2393,7 +2395,7 @@ function HazardCurveFamilyEditor({ parameterRef, onClose }: { parameterRef: stri
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       {draft.map((curve, curveIndex) => <div className="sinlineeditor__group" key={curve.uuid}>
-        <h3 className="sinlineeditor__title">{curve.statistic === "MEAN" ? "Mean" : `${Math.round((curve.fractile ?? 0) * 100)}th fractile`}</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title={curve.statistic === "MEAN" ? "Mean" : `${Math.round((curve.fractile ?? 0) * 100)}th fractile`} cueKey="Hazard-curve statistic" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Control point"><TextInput value={curve.controlPointRef} onChange={(value) => setDraft((current) => current.map((item, index) => index === curveIndex ? { ...item, controlPointRef: value } : item))} /></Field>
           <Field label="Calculation run"><TextInput value={curve.calculationRunRef} onChange={(value) => setDraft((current) => current.map((item, index) => index === curveIndex ? { ...item, calculationRunRef: value } : item))} /></Field>
@@ -2471,7 +2473,7 @@ function DeaggregationEditor({ index, onClose }: { index: number; onClose: () =>
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Hazard level</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Hazard level" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Ground motion"><NumberInput value={draft.groundMotionLevel} onChange={(value) => setDraft((current) => ({ ...current, groundMotionLevel: value }))} /></Field>
           <Field label="Annual frequency"><NumberInput value={draft.annualFrequencyOfExceedance ?? 0} onChange={(value) => setDraft((current) => ({ ...current, annualFrequencyOfExceedance: value }))} /></Field>
@@ -2480,7 +2482,7 @@ function DeaggregationEditor({ index, onClose }: { index: number; onClose: () =>
         </FieldGrid>
       </div>
       {(["sourceContributions", "groundMotionModelContributions"] as const).map((collection) => <div className="sinlineeditor__group" key={collection}>
-        <h3 className="sinlineeditor__title">{collection === "sourceContributions" ? "Source contributions" : "Ground-motion model contributions"}</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title={collection === "sourceContributions" ? "Source contributions" : "Ground-motion model contributions"} cueKey="Hazard contributions" className="sinlineeditor__title" />
         <Table headers={["Contributor", "Fraction"]} minWidth={0}>
           {draft[collection].map((item, contributionIndex) => <tr key={`${collection}-${item.contributorRef}`}>
             <td><TextInput value={item.contributorName} onChange={(value) => updateContribution(collection, contributionIndex, { contributorName: value })} /></td>
@@ -2489,7 +2491,7 @@ function DeaggregationEditor({ index, onClose }: { index: number; onClose: () =>
         </Table>
       </div>)}
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Magnitude-distance bins</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Magnitude-distance bins" className="sinlineeditor__title" />
         <Table headers={["Magnitude", "Distance (km)", "Fraction"]} minWidth={0}>
           {draft.magnitudeDistanceBins.map((bin, binIndex) => <tr key={`${bin.magnitudeLower}-${bin.distanceLowerKm}-${binIndex}`}>
             <td>{bin.magnitudeLower} to {bin.magnitudeUpper}</td>
@@ -2537,7 +2539,7 @@ function ResponseSpectrumEditor({ direction, index, onClose }: { direction: "hor
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Spectrum</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Spectrum" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Annual frequency"><NumberInput value={draft.annualFrequencyOfExceedance ?? 0} onChange={(value) => setDraft((current) => ({ ...current, annualFrequencyOfExceedance: value }))} /></Field>
           <Field label="Damping ratio"><NumberInput value={draft.dampingRatio} onChange={(value) => setDraft((current) => ({ ...current, dampingRatio: value }))} /></Field>
@@ -2552,7 +2554,7 @@ function ResponseSpectrumEditor({ direction, index, onClose }: { direction: "hor
         </Table>
       </div>
       {horizontalBasis !== undefined && <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Site-specific horizontal shape</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Site-specific horizontal shape" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Mean magnitude"><NumberInput value={horizontalBasis.meanMagnitude} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, meanMagnitude: value })} /></Field>
           <Field label="Mean distance (km)"><NumberInput value={horizontalBasis.meanDistanceKm} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, meanDistanceKm: value })} /></Field>
@@ -2560,7 +2562,7 @@ function ResponseSpectrumEditor({ direction, index, onClose }: { direction: "hor
         <Field label="Evaluation basis"><TextArea rows={4} value={horizontalBasis.evaluationBasis} onChange={(value) => setHorizontalBasis((current) => current === undefined ? current : { ...current, evaluationBasis: value })} /></Field>
       </div>}
       {verticalBasis !== undefined && <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Vertical-motion method</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Vertical-motion method" className="sinlineeditor__title" />
         <Field label="Method"><TextArea rows={3} value={verticalBasis.methodDescription} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, methodDescription: value })} /></Field>
         <Field label="State of knowledge"><TextArea rows={4} value={verticalBasis.stateOfKnowledgeAssessment} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, stateOfKnowledgeAssessment: value })} /></Field>
         <Field label="Why it is appropriate"><TextArea rows={4} value={verticalBasis.appropriatenessJustification} onChange={(value) => setVerticalBasis((current) => current === undefined ? current : { ...current, appropriatenessJustification: value })} /></Field>
@@ -2596,7 +2598,7 @@ function HazardBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Uncertainty propagation</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Uncertainty propagation" className="sinlineeditor__title" />
         <div className="sinlineeditor__checks">
           <label><input type="checkbox" checked={draft.aleatoryUncertaintiesPropagated} onChange={(event) => setDraft((current) => ({ ...current, aleatoryUncertaintiesPropagated: event.target.checked }))} /> Aleatory uncertainty propagated</label>
           <label><input type="checkbox" checked={draft.epistemicUncertaintiesPropagated} onChange={(event) => setDraft((current) => ({ ...current, epistemicUncertaintiesPropagated: event.target.checked }))} /> Epistemic uncertainty propagated</label>
@@ -2604,7 +2606,7 @@ function HazardBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
         <Field label="Method"><TextArea rows={4} value={draft.uncertaintyPropagationMethod} onChange={(value) => setDraft((current) => ({ ...current, uncertaintyPropagationMethod: value }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">PRA transfer</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="PRA transfer" className="sinlineeditor__title" />
         <Field label="Transfer basis"><TextArea rows={4} value={draft.transferBasis} onChange={(value) => setDraft((current) => ({ ...current, transferBasis: value }))} /></Field>
         <Field label="Consistency checks" hint="One check per line."><TextArea rows={7} value={draft.consistencyChecks.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, consistencyChecks: technicalList(value) }))} /></Field>
       </div>
@@ -2633,7 +2635,7 @@ function HazardSensitivityEditor({ onClose }: { onClose: () => void }): JSX.Elem
         const findingIndex = findings.findIndex((finding) => finding.sensitivityStudyRefs.includes(study.uuid));
         const finding = findings[findingIndex];
         return <div className="sinlineeditor__group" key={study.uuid}>
-          <h3 className="sinlineeditor__title">{study.name ?? `Sensitivity ${index + 1}`}</h3>
+          <WorkbookSectionHeading workbook="SEISMIC" title={study.name ?? `Sensitivity ${index + 1}`} cueKey="Sensitivity study" className="sinlineeditor__title" />
           <FieldGrid>
             <Field label="Study"><TextInput value={study.name ?? ""} onChange={(value) => setStudies((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, name: value } : item))} /></Field>
             <Field label="Importance"><SelectInput value={finding?.importance ?? "LOW"} options={["LOW", "MEDIUM", "HIGH"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => findingIndex >= 0 && setFindings((current) => current.map((item, itemIndex) => itemIndex === findingIndex ? { ...item, importance: value as typeof item.importance } : item))} /></Field>
@@ -3075,12 +3077,12 @@ function SecondaryHazardBasisEditor({ onClose }: { onClose: () => void }): JSX.E
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Identification</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Identification" className="sinlineeditor__title" />
         <Field label="Identification method"><TextArea rows={4} value={draft.identificationMethod} onChange={(value) => setDraft((current) => ({ ...current, identificationMethod: value }))} /></Field>
         <Field label="Site and regional sources" hint="Separate references with commas."><TextArea rows={5} value={draft.siteAndRegionalHazardListSources.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, siteAndRegionalHazardListSources: technicalList(value) }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Screening and transfer</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Screening and transfer" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Screening criteria reference"><TextInput value={draft.screeningCriteriaReference} onChange={(value) => setDraft((current) => ({ ...current, screeningCriteriaReference: value }))} /></Field>
           <Field label="Seismic equipment list"><TextInput value={draft.seismicEquipmentListRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, seismicEquipmentListRef: value || undefined }))} /></Field>
@@ -3203,7 +3205,7 @@ function SecondaryHazardEditor({ index, onClose }: { index: number | null; onClo
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Hazard</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Hazard" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
           <Field label="Type"><SelectInput value={draft.hazardType} options={["FAULT_DISPLACEMENT", "LANDSLIDE", "SOIL_LIQUEFACTION", "SOIL_SETTLEMENT", "GROUND_FAILURE", "EARTHQUAKE_INDUCED_EXTERNAL_FLOODING", "TSUNAMI_OR_SEICHE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setHazardType(value as SecondaryHazard["hazardType"])} /></Field>
@@ -3218,7 +3220,7 @@ function SecondaryHazardEditor({ index, onClose }: { index: number | null; onClo
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Screening</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Screening" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Disposition"><SelectInput value={draft.screening.disposition} options={[{ value: "SCREENED_OUT", label: "Screened out" }, { value: "RETAINED", label: "Retained" }]} onChange={(value) => setDisposition(value as SecondaryHazard["screening"]["disposition"])} /></Field>
           <Field label="Criterion"><SelectInput value={draft.screening.criterion} options={["SCR-2", "SCR-3", "NOT_SCREENED"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, screening: { ...current.screening, criterion: value as SecondaryHazard["screening"]["criterion"] } }))} /></Field>
@@ -3232,7 +3234,7 @@ function SecondaryHazardEditor({ index, onClose }: { index: number | null; onClo
         </FieldGrid>
       </div>
       {retained !== undefined && <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Retained analysis</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Retained analysis" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Hazard parameter"><TextInput value={retained.hazardParameter} onChange={(value) => updateRetained({ hazardParameter: value, hazardCurves: retained.hazardCurves.map((item) => ({ ...item, hazardParameter: value })) })} /></Field>
           <Field label="Units"><TextInput value={retained.parameterUnits} onChange={(value) => updateRetained({ parameterUnits: value, hazardCurves: retained.hazardCurves.map((item) => ({ ...item, hazardParameterUnits: value })) })} /></Field>
@@ -3263,7 +3265,7 @@ function SecondaryHazardEditor({ index, onClose }: { index: number | null; onClo
         </div>)}
       </div>}
       {draft.externalFloodingInterface !== undefined && <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">External flooding interface</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="External flooding interface" className="sinlineeditor__title" />
         <Field label="Mechanism"><TextArea rows={3} value={draft.externalFloodingInterface.mechanismDescription} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, mechanismDescription: value } })} /></Field>
         <Field label="Interface basis"><TextArea rows={3} value={draft.externalFloodingInterface.interfaceBasis} onChange={(value) => setDraft((current) => current.externalFloodingInterface === undefined ? current : { ...current, externalFloodingInterface: { ...current.externalFloodingInterface, interfaceBasis: value } })} /></Field>
         {draft.externalFloodingInterface.interfaceRequirements.map((requirement, requirementIndex) => <div className="sinlineeditor__subgroup" key={requirement.requirementGroup}>
@@ -3760,7 +3762,7 @@ function SelBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Source models</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Source models" className="sinlineeditor__title" />
         <Field label="Internal-events systems model">
           <TextInput value={draft.internalEventsSystemsModelRef} onChange={(value) => setDraft((current) => ({ ...current, internalEventsSystemsModelRef: value }))} />
         </Field>
@@ -3785,7 +3787,7 @@ function SelBasisEditor({ onClose }: { onClose: () => void }): JSX.Element {
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Selection control</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Selection control" className="sinlineeditor__title" />
         <Field label="Failure-mode identification">
           <TextArea rows={4} value={draft.failureModeIdentificationProcess} onChange={(value) => setDraft((current) => ({ ...current, failureModeIdentificationProcess: value }))} />
         </Field>
@@ -3866,7 +3868,7 @@ function SelEntryEditor({ index, onClose }: { index: number | null; onClose: () 
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">SSC</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="SSC" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
           <Field label="Type"><SelectInput value={draft.sscType} options={["STRUCTURE", "SYSTEM", "COMPONENT", "RELAY", "PANEL", "CABINET", "FLOOD_SOURCE", "FIRE_SOURCE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, sscType: value as SelEntry["sscType"] }))} /></Field>
@@ -3891,7 +3893,7 @@ function SelEntryEditor({ index, onClose }: { index: number | null; onClose: () 
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Selected from</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Selected from" className="sinlineeditor__title" />
         <div className="sinlineeditor__choices">
           {SEL_INCLUSION_OPTIONS.map((source) => <label className={`sinlineeditor__choice${draft.inclusionSources.includes(source) ? " sinlineeditor__choice--active" : ""}`} key={source}>
             <input type="checkbox" checked={draft.inclusionSources.includes(source)} onChange={(event) => toggleInclusion(source, event.target.checked)} />
@@ -3901,7 +3903,7 @@ function SelEntryEditor({ index, onClose }: { index: number | null; onClose: () 
         <Field label="Source model references" hint="Separate references with commas."><TextArea rows={3} value={draft.sourceElementRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, sourceElementRefs: technicalList(value) }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Failure modes</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Failure modes" className="sinlineeditor__title" />
         {draft.failureModes.map((mode, modeIndex) => <div className="sinlineeditor__subgroup" key={mode.uuid}>
           <FieldGrid>
             <Field label={`Failure mode ${modeIndex + 1}`}><TextInput value={mode.name} onChange={(value) => changeFailureMode(modeIndex, { name: value })} /></Field>
@@ -3921,7 +3923,7 @@ function SelEntryEditor({ index, onClose }: { index: number | null; onClose: () 
         {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, failureModes: [...current.failureModes, newSelFailureMode()] }))}>Add failure mode</button>}
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Preliminary disposition</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Preliminary disposition" className="sinlineeditor__title" />
         <Field label="Disposition"><SelectInput value={draft.disposition} options={["ACTIVE", "INHERENTLY_RUGGED", "ABOVE_FRAGILITY_THRESHOLD", "REMOVED_FROM_MODEL"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, disposition: value as SelEntry["disposition"] }))} /></Field>
         <Field label="Correlation groups" hint="Separate references with commas."><TextInput value={draft.correlationGroupRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, correlationGroupRefs: technicalList(value) }))} /></Field>
         <Field label="Disposition basis"><TextArea rows={3} value={draft.dispositionBasis} onChange={(value) => setDraft((current) => ({ ...current, dispositionBasis: value }))} /></Field>
@@ -4138,7 +4140,7 @@ function ResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Element 
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Input motion</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Input motion" className="sinlineeditor__title" />
         <Field label="Hazard spectra" hint="Separate references with commas."><TextArea rows={3} value={draft.hazardSpectrumRefs.join(", ")} onChange={(value) => setDraft((current) => ({ ...current, hazardSpectrumRefs: technicalList(value) }))} /></Field>
         <label className="sbasis-editor__check"><input type="checkbox" checked={draft.threeOrthogonalDirectionsUsed} onChange={(event) => setDraft((current) => ({ ...current, threeOrthogonalDirectionsUsed: event.target.checked }))} /><span>Use three simultaneous orthogonal directions</span></label>
         <Field label="Ground-motion definition"><TextArea rows={3} value={draft.groundMotionParameterConsistency} onChange={(value) => setDraft((current) => ({ ...current, groundMotionParameterConsistency: value }))} /></Field>
@@ -4146,7 +4148,7 @@ function ResponseSetupEditor({ onClose }: { onClose: () => void }): JSX.Element 
         <Field label="Time-history development"><TextArea rows={4} value={draft.timeHistoryDevelopmentBasis} onChange={(value) => setDraft((current) => ({ ...current, timeHistoryDevelopmentBasis: value }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Response treatment</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Response treatment" className="sinlineeditor__title" />
         <label className="sbasis-editor__check"><input type="checkbox" checked={draft.medianCentered} onChange={(event) => setDraft((current) => ({ ...current, medianCentered: event.target.checked }))} /><span>Response analysis is median-centered</span></label>
         <Field label="Approximation and scaling check"><TextArea rows={4} value={draft.approximationBiasAssessment} onChange={(value) => setDraft((current) => ({ ...current, approximationBiasAssessment: value }))} /></Field>
       </div>
@@ -4182,7 +4184,7 @@ function ReferenceEarthquakeEditor({ index, onClose }: { index: number | null; o
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Reference motion</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Reference motion" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Hazard spectrum"><TextInput value={draft.hazardSpectrumRef} onChange={(value) => setDraft((current) => ({ ...current, hazardSpectrumRef: value }))} /></Field>
@@ -4201,7 +4203,7 @@ function ReferenceEarthquakeEditor({ index, onClose }: { index: number | null; o
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Applicable range</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Applicable range" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Lower motion"><NumberInput value={draft.hazardRangeOfInterest.lowerGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, hazardRangeOfInterest: { ...current.hazardRangeOfInterest, lowerGroundMotion: value } }))} /></Field>
           <Field label="Upper motion"><NumberInput value={draft.hazardRangeOfInterest.upperGroundMotion} onChange={(value) => setDraft((current) => ({ ...current, hazardRangeOfInterest: { ...current.hazardRangeOfInterest, upperGroundMotion: value } }))} /></Field>
@@ -4243,7 +4245,7 @@ function StructuralModelEditor({ index, onClose }: { index: number | null; onClo
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Model</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Model" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Structure reference"><TextInput value={draft.structureRef} onChange={(value) => setDraft((current) => ({ ...current, structureRef: value }))} /></Field>
@@ -4256,7 +4258,7 @@ function StructuralModelEditor({ index, onClose }: { index: number | null; onClo
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Three-dimensional representation</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Three-dimensional representation" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Stiffness"><TextArea rows={3} value={draft.stiffnessRepresentation} onChange={(value) => setDraft((current) => ({ ...current, stiffnessRepresentation: value }))} /></Field>
           <Field label="Mass"><TextArea rows={3} value={draft.massRepresentation} onChange={(value) => setDraft((current) => ({ ...current, massRepresentation: value }))} /></Field>
@@ -4274,7 +4276,7 @@ function StructuralModelEditor({ index, onClose }: { index: number | null; onClo
         <Field label="Nonlinear features" hint="One feature per line."><TextArea rows={4} value={draft.nonlinearFeatures.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, nonlinearFeatures: technicalList(value) }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Modal properties</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Modal properties" className="sinlineeditor__title" />
         <div className="sresponsepoints">
           <Table headers={["Mode", "Frequency (Hz)", "Damping", "Direction", "Mass participation"]} minWidth={620}>
             {draft.modalProperties.map((mode, modeIndex) => <tr key={`${mode.mode}-${modeIndex}`}>
@@ -4322,7 +4324,7 @@ function ResponseResultEditor({ index, onClose }: { index: number | null; onClos
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Response result</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Response result" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Structural model"><TextInput value={draft.responseModelRef} onChange={(value) => setDraft((current) => ({ ...current, responseModelRef: value }))} /></Field>
@@ -4344,7 +4346,7 @@ function ResponseResultEditor({ index, onClose }: { index: number | null; onClos
         <Field label="Output file"><TextInput value={draft.outputFileRef ?? ""} onChange={(value) => setDraft((current) => ({ ...current, outputFileRef: value || undefined }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Median spectrum</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Median spectrum" className="sinlineeditor__title" />
         <div className="sresponsepoints">
           <Table headers={["Frequency (Hz)", "Period (s)", `Median (${draft.units || "units"})`]} minWidth={520}>
             {(draft.spectrumPoints ?? []).map((point, pointIndex) => <tr key={`${point.frequencyHz}-${pointIndex}`}>
@@ -4388,7 +4390,7 @@ function SsiAnalysisEditor({ index, onClose }: { index: number | null; onClose: 
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">SSI treatment</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="SSI treatment" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <label className="sbasis-editor__check"><input type="checkbox" checked={draft.applicable} onChange={(event) => setDraft((current) => ({ ...current, applicable: event.target.checked }))} /><span>SSI is applicable</span></label>
         <Field label="Significance assessment"><TextArea rows={3} value={draft.significanceAssessment} onChange={(value) => setDraft((current) => ({ ...current, significanceAssessment: value }))} /></Field>
@@ -4440,7 +4442,7 @@ function SimulationEditor({ index, onClose }: { index: number | null; onClose: (
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Sampling</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Sampling" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Method"><SelectInput value={draft.method} options={["MONTE_CARLO", "LATIN_HYPERCUBE", "OTHER"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, method: value as SfrSimulation["method"] }))} /></Field>
@@ -4458,7 +4460,7 @@ function SimulationEditor({ index, onClose }: { index: number | null; onClose: (
         <Field label="Correlation treatment"><TextArea rows={4} value={draft.correlationTreatment} onChange={(value) => setDraft((current) => ({ ...current, correlationTreatment: value }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Convergence</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Convergence" className="sinlineeditor__title" />
         <Field label="Metric"><TextArea rows={3} value={draft.convergenceMetric} onChange={(value) => setDraft((current) => ({ ...current, convergenceMetric: value }))} /></Field>
         <Field label="Criterion"><TextArea rows={3} value={draft.convergenceCriterion} onChange={(value) => setDraft((current) => ({ ...current, convergenceCriterion: value }))} /></Field>
         <label className="sbasis-editor__check"><input type="checkbox" checked={draft.stableResponsesDemonstrated} onChange={(event) => setDraft((current) => ({ ...current, stableResponsesDemonstrated: event.target.checked }))} /><span>Stable response is demonstrated</span></label>
@@ -4909,7 +4911,7 @@ function ThresholdProgramEditor({ onClose }: { onClose: () => void }): JSX.Eleme
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Screening control</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Screening control" className="sinlineeditor__title" />
         <Field label="Screened SSC references" hint="One reference per line.">
           <TextArea rows={10} value={draft.screenedSscRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, screenedSscRefs: technicalList(value) }))} />
         </Field>
@@ -4953,7 +4955,7 @@ function RuggednessBasisEditor({ index, onClose }: { index: number | null; onClo
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Inherently rugged class</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Inherently rugged class" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
           <Field label="Ground-motion parameter"><TextInput value={draft.referenceGroundMotionParameter} onChange={(value) => setDraft((current) => ({ ...current, referenceGroundMotionParameter: value }))} /></Field>
@@ -4969,7 +4971,7 @@ function RuggednessBasisEditor({ index, onClose }: { index: number | null; onClo
         </Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Plant-specific additions</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Plant-specific additions" className="sinlineeditor__title" />
         {draft.plantSpecificAdditions.map((addition, additionIndex) => <div className="sinlineeditor__subgroup" key={`${addition.componentType}-${additionIndex}`}>
           <Field label="Component configuration"><TextInput value={addition.componentType} onChange={(value) => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.map((item, candidate) => candidate === additionIndex ? { ...item, componentType: value } : item) }))} /></Field>
           <Field label="Justification"><TextArea rows={3} value={addition.justification} onChange={(value) => setDraft((current) => ({ ...current, plantSpecificAdditions: current.plantSpecificAdditions.map((item, candidate) => candidate === additionIndex ? { ...item, justification: value } : item) }))} /></Field>
@@ -4979,7 +4981,7 @@ function RuggednessBasisEditor({ index, onClose }: { index: number | null; onClo
         {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, plantSpecificAdditions: [...current.plantSpecificAdditions, { componentType: "", justification: "", supportingRefs: [] }] }))}>Add plant-specific configuration</button>}
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Decision basis</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Decision basis" className="sinlineeditor__title" />
         <Field label="Capacity beyond the risk-significant range"><TextArea rows={5} value={draft.capacityBeyondRiskSignificantRangeBasis} onChange={(value) => setDraft((current) => ({ ...current, capacityBeyondRiskSignificantRangeBasis: value }))} /></Field>
         <Field label="Hazard-independent ruggedness basis"><TextArea rows={5} value={draft.hazardIndependentBasis} onChange={(value) => setDraft((current) => ({ ...current, hazardIndependentBasis: value }))} /></Field>
       </div>
@@ -5015,7 +5017,7 @@ function ThresholdMethodEditor({ index, onClose }: { index: number | null; onClo
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Threshold</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Threshold" className="sinlineeditor__title" />
         <Field label="Method name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Plant-response threshold reference"><TextInput value={draft.plantResponseThresholdRef} onChange={(value) => setDraft((current) => ({ ...current, plantResponseThresholdRef: value }))} /></Field>
@@ -5033,7 +5035,7 @@ function ThresholdMethodEditor({ index, onClose }: { index: number | null; onClo
         </label>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Technical method</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Technical method" className="sinlineeditor__title" />
         <Field label="Capacity evidence" hint="One source per line."><TextArea rows={5} value={draft.screeningCapacitySources.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, screeningCapacitySources: technicalList(value) }))} /></Field>
         <Field label="Inclusion rules and caveats" hint="One rule per line."><TextArea rows={5} value={draft.caveatsAndInclusionRules.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, caveatsAndInclusionRules: technicalList(value) }))} /></Field>
         <Field label="Correlation treatment"><TextArea rows={4} value={draft.correlationTreatment} onChange={(value) => setDraft((current) => ({ ...current, correlationTreatment: value }))} /></Field>
@@ -5079,7 +5081,7 @@ function InvestigationEditor({ index, onClose }: { index: number | null; onClose
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Investigation</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Investigation" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="Method"><SelectInput value={draft.investigationType} options={["WALKDOWN", "TABLETOP_REVIEW", "COMPUTERIZED_WALKDOWN", "DESIGN_DOCUMENT_REVIEW", "INTERVIEW"].map((value) => ({ value, label: displayLabel(value) }))} onChange={(value) => setDraft((current) => ({ ...current, investigationType: value as SfrInvestigation["investigationType"] }))} /></Field>
@@ -5093,7 +5095,7 @@ function InvestigationEditor({ index, onClose }: { index: number | null; onClose
         <Field label="Anchorage and support load-path review"><TextArea rows={5} value={draft.anchorageAndLoadPathReview} onChange={(value) => setDraft((current) => ({ ...current, anchorageAndLoadPathReview: value }))} /></Field>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Qualified team</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Qualified team" className="sinlineeditor__title" />
         {draft.team.map((member, memberIndex) => <div className="sinlineeditor__subgroup" key={member.uuid}>
           <FieldGrid>
             <Field label="Name"><TextInput value={member.name} onChange={(value) => changeTeamMember(memberIndex, { name: value })} /></Field>
@@ -5109,7 +5111,7 @@ function InvestigationEditor({ index, onClose }: { index: number | null; onClose
         {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, team: [...current.team, newTeamMember()] }))}>Add team member</button>}
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Threshold confirmations</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Threshold confirmations" className="sinlineeditor__title" />
         {draft.fragilityThresholdConfirmations.map((confirmation, confirmationIndex) => <div className="sinlineeditor__subgroup" key={`${confirmation.sscRef}-${confirmationIndex}`}>
           <Field label="SSC reference"><TextInput value={confirmation.sscRef} onChange={(value) => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: current.fragilityThresholdConfirmations.map((item, candidate) => candidate === confirmationIndex ? { ...item, sscRef: value } : item) }))} /></Field>
           <div className="sinlineeditor__choices">
@@ -5128,7 +5130,7 @@ function InvestigationEditor({ index, onClose }: { index: number | null; onClose
         {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setDraft((current) => ({ ...current, fragilityThresholdConfirmations: [...current.fragilityThresholdConfirmations, { sscRef: "", anchorageConfirmed: false, supportConfirmed: false, thresholdSatisfied: false, basis: "" }] }))}>Add confirmation</button>}
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Result</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Result" className="sinlineeditor__title" />
         <Field label="Observations" hint="One observation per line."><TextArea rows={6} value={draft.observations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, observations: technicalList(value) }))} /></Field>
         <Field label="Conclusion"><TextArea rows={5} value={draft.conclusions} onChange={(value) => setDraft((current) => ({ ...current, conclusions: value }))} /></Field>
         <Field label="Limitations or closure items" hint="One item per line."><TextArea rows={5} value={draft.limitations.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, limitations: technicalList(value) }))} /></Field>
@@ -5186,7 +5188,7 @@ function FindingEditor({
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Vulnerability</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Vulnerability" className="sinlineeditor__title" />
         {findingIndex === null && <Field label="Investigation">
           <SelectInput
             value={String(targetInvestigationIndex)}
@@ -5210,7 +5212,7 @@ function FindingEditor({
         </div>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">PRA treatment</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="PRA treatment" className="sinlineeditor__title" />
         <Field label="Affected function or operator action"><TextArea rows={4} value={draft.affectedFunctionOrAction} onChange={(value) => setDraft((current) => ({ ...current, affectedFunctionOrAction: value }))} /></Field>
         <Field label="Affected failure-mode references" hint="One reference per line."><TextArea rows={4} value={draft.affectedFailureModeRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, affectedFailureModeRefs: technicalList(value) }))} /></Field>
         <Field label="Resolution or fragility treatment"><TextArea rows={5} value={draft.resolutionOrFragilityTreatment} onChange={(value) => setDraft((current) => ({ ...current, resolutionOrFragilityTreatment: value }))} /></Field>
@@ -6220,7 +6222,7 @@ function FailureMechanismEditor(
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Failure mechanism</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Failure mechanism" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="SSC"><SelectInput value={draft.sscRef} options={equipment.map((item) => ({ value: item.uuid, label: `${item.name} | ${item.uuid}` }))} onChange={(value) => {
@@ -6254,7 +6256,7 @@ function FailureMechanismEditor(
         </div>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Demand and capacity</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Demand and capacity" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Demand parameter"><TextInput value={draft.demandParameter} onChange={(value) => setDraft((current) => ({ ...current, demandParameter: value }))} /></Field>
           <Field label="Demand units"><TextInput value={draft.demandUnits} onChange={(value) => setDraft((current) => ({ ...current, demandUnits: value }))} /></Field>
@@ -6317,7 +6319,7 @@ function FragilityEvaluationEditor(
   </>}>
     <fieldset className="sinlineeditor" disabled={!editable}>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Evaluation</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Evaluation" className="sinlineeditor__title" />
         <Field label="Name"><TextInput value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} /></Field>
         <FieldGrid>
           <Field label="SSC"><SelectInput value={draft.sscRef} options={equipment.map((item) => ({ value: item.uuid, label: `${item.name} | ${item.uuid}` }))} onChange={(value) => {
@@ -6344,7 +6346,7 @@ function FragilityEvaluationEditor(
         {!draft.plantSpecific && <Field label="Generic-data justification"><TextArea rows={6} value={draft.genericDataJustification ?? ""} onChange={(value) => setDraft((current) => ({ ...current, genericDataJustification: value || undefined }))} /></Field>}
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Capacity distribution</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Capacity distribution" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Median capacity"><NumberInput value={draft.medianCapacity} onChange={(value) => setDraft((current) => ({ ...current, medianCapacity: value }))} /></Field>
           <Field label="Units"><TextInput value={draft.capacityUnits} onChange={(value) => setDraft((current) => ({ ...current, capacityUnits: value }))} /></Field>
@@ -6369,7 +6371,7 @@ function FragilityEvaluationEditor(
         </FieldGrid>
       </div>
       <div className="sinlineeditor__group">
-        <h3 className="sinlineeditor__title">Model treatment</h3>
+        <WorkbookSectionHeading workbook="SEISMIC" title="Model treatment" className="sinlineeditor__title" />
         <FieldGrid>
           <Field label="Correlation groups" hint="One reference per line."><TextArea rows={5} value={draft.correlationGroupRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, correlationGroupRefs: technicalList(value) }))} /></Field>
           <Field label="Sensitivity studies" hint="One reference per line."><TextArea rows={5} value={draft.sensitivityStudyRefs.join("\n")} onChange={(value) => setDraft((current) => ({ ...current, sensitivityStudyRefs: technicalList(value) }))} /></Field>
@@ -11651,8 +11653,8 @@ function DraftScreen({ actions }: { actions?: WorkflowActions }): JSX.Element {
         <div className="posgen__preview-toc">{toc.map(([number, title], index) => <div key={number} className="posgen__preview-toc-row"><span style={{ paddingLeft: number.includes(".") ? 24 : 0 }}>{number} {title}</span><span>{index + 3}</span></div>)}</div>
       </div>
       <div className="posgen__side">
-        <div className="posgen__readout"><h3 className="posgen__readout-h">Conformance check</h3><div className="posgen__bar"><span className="posgen__bar-label">SR capability assignments</span><strong>{srCapabilitySummary(mef)}</strong></div><div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><strong>{mef.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational"}</strong></div><div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{score.met} / {score.applicable}</span></div>{score.warn > 0 && <div className="posgen__bar"><span className="posgen__bar-label">Needs attention</span><span className="posmono">{score.warn}</span></div>}{score.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label">Blocked</span><span className="posmono">{score.blocked}</span></div>}</div>
-        <div className="posgen__readout"><h3 className="posgen__readout-h">{actions?.submitForReview !== undefined ? "Hand-off to internal review" : "Read-only draft preview"}</h3><p className="sdraft__help">{ready ? "The controlled model is ready to be locked and advanced to Internal Technical Review." : `${blockers.length} validation blocker${blockers.length === 1 ? "" : "s"} remain. Draft files may still be generated, but review submission is gated.`}</p><div className="sdraft__actions">{actions?.submitForReview !== undefined && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED") && <button type="button" className="posnav__btn posnav__btn--primary" disabled={busy || !ready} onClick={() => { setBusy(true); actions.submitForReview?.().finally(() => setBusy(false)); }}><POSIcon.Send /> {busy ? "Submitting…" : "Submit draft to internal review"}</button>}<button type="button" className="posnav__btn" onClick={() => { void generateSeismicPraReport(mef, false); }}><POSIcon.Download /> Download draft (.docx)</button><button type="button" className="posnav__btn" onClick={downloadJson}><POSIcon.Download /> Download JSON</button></div></div>
+        <div className="posgen__readout"><WorkbookSectionHeading workbook="SEISMIC" title="Conformance check" className="posgen__readout-h" /><div className="posgen__bar"><span className="posgen__bar-label">SR capability assignments</span><strong>{srCapabilitySummary(mef)}</strong></div><div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><strong>{mef.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational"}</strong></div><div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{score.met} / {score.applicable}</span></div>{score.warn > 0 && <div className="posgen__bar"><span className="posgen__bar-label">Needs attention</span><span className="posmono">{score.warn}</span></div>}{score.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label">Blocked</span><span className="posmono">{score.blocked}</span></div>}</div>
+        <div className="posgen__readout"><WorkbookSectionHeading workbook="SEISMIC" title={actions?.submitForReview !== undefined ? "Hand-off to internal review" : "Read-only draft preview"} cueKey="Hand-off to internal review" className="posgen__readout-h" /><p className="sdraft__help">{ready ? "The controlled model is ready to be locked and advanced to Internal Technical Review." : `${blockers.length} validation blocker${blockers.length === 1 ? "" : "s"} remain. Draft files may still be generated, but review submission is gated.`}</p><div className="sdraft__actions">{actions?.submitForReview !== undefined && (mef.workflowState === "DRAFT" || mef.workflowState === "REVISION_REQUIRED") && <button type="button" className="posnav__btn posnav__btn--primary" disabled={busy || !ready} onClick={() => { setBusy(true); actions.submitForReview?.().finally(() => setBusy(false)); }}><POSIcon.Send /> {busy ? "Submitting…" : "Submit draft to internal review"}</button>}<button type="button" className="posnav__btn" onClick={() => { void generateSeismicPraReport(mef, false); }}><POSIcon.Download /> Download draft (.docx)</button><button type="button" className="posnav__btn" onClick={downloadJson}><POSIcon.Download /> Download JSON</button></div></div>
       </div>
     </div>
     <Section eyebrow="SHA-I · SFR-F · SPR-F" title="Controlled documentation and traceability" description="Complete each subelement package and the integrated narrative from the same model used by the technical steps; no report-only fields are maintained separately." tone="integration" actions={<EditButton label="Edit conformance" onClick={() => setDocumentationFocus(["conformanceMatrix"])} />}>
@@ -11685,9 +11687,9 @@ function ReviewScreen({ actions, renderRoster }: { actions?: WorkflowActions; re
   return <>
     <div className={`posrevbanner posrevbanner--${allResolved ? "ready" : "in_review"}`}><div className="posrevbanner__icon"><POSIcon.Lock /></div><div className="posrevbanner__main"><div className="posrevbanner__eyebrow">{allResolved ? "All comments resolved" : "In review"}</div><div className="posrevbanner__title">{allResolved ? "Ready for Internal Approval" : comments.length === 0 ? "No review comments have been posted" : `${openCount} of ${comments.length} comments still open`}</div></div><div className="posrevbanner__counts"><span className="posrevbanner__count posrevbanner__count--ok">{resolvedCount} resolved</span>{openCount > 0 && <span className="posrevbanner__count posrevbanner__count--warn">{openCount} open</span>}</div></div>
     {renderRoster?.()}
-    <div className="poscard"><div className="poscard__head"><h3 className="poscard__title">All review comments</h3><div className="posrow" style={{ gap: 6 }}><button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({comments.length})</button><button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({openCount})</button><button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({resolvedCount})</button></div></div><p className="poscard__sub">Comments across SHA, SFR, SPR, and their interfaces, newest first.</p><div className="poscomments">{shown.length === 0 ? <p className="posmuted">No comments in this view.</p> : shown.map((comment) => <div key={comment.uuid} className={`poscomment poscomment--${(comment.severity ?? "OBSERVATION").toLowerCase()} poscomment--${comment.resolved ? "resolved" : "open"}`}><div className="poscomment__avatar">{comment.authorId.slice(0, 2).toUpperCase()}</div><div className="poscomment__main"><div className="poscomment__head"><span className="poscomment__author">{comment.authorId}</span><span className="poscomment__when">· {new Date(comment.createdAt).toLocaleString()}</span><span className="poscomment__spacer" /><Tag tone={comment.severity === "MAJOR" ? "bad" : comment.severity === "MINOR" ? "warn" : "neutral"}>{comment.severity ?? "OBSERVATION"}</Tag><span className={`posbadge ${comment.resolved ? "posbadge--ok" : "posbadge--progress"}`}><span className="posbadge__dot" />{comment.resolved ? "Resolved" : "Open"}</span></div><div className="poscomment__target"><span className="possubtle">Anchored to</span> <span className="poschip">{comment.associatedSr ?? "Seismic PRA"}</span></div><p className="poscomment__body">{comment.text}</p><div className="poscomment__foot"><span className="poscomment__foot-spacer" />{actions?.toggleResolve !== undefined && <button type="button" className={`posnav__btn posnav__btn--sm${comment.resolved ? "" : " posnav__btn--primary"}`} onClick={() => void actions.toggleResolve?.(comment.uuid, !comment.resolved)}>{comment.resolved ? <><POSIcon.Close /> Reopen</> : <><POSIcon.Check /> Mark resolved</>}</button>}</div></div></div>)}</div></div>
-    {actions?.postComment !== undefined && <div className="poscard"><div className="poscard__head"><h3 className="poscard__title">Add review comment</h3></div><div className="sreviewform"><FieldGrid><Field label="Severity"><SelectInput value={severity} options={[{ value: "OBSERVATION", label: "Observation" }, { value: "MINOR", label: "Minor" }, { value: "MAJOR", label: "Major" }]} onChange={(value) => setSeverity(value as typeof severity)} /></Field><Field label="Supporting requirement"><SelectInput value={sr} options={[{ value: "", label: "Entire Seismic PRA" }, ...Object.keys(SEISMIC_PRA_SR_CATALOG).map((requirement) => ({ value: requirement, label: requirement }))]} onChange={setSr} /></Field></FieldGrid><Field label="Comment"><TextArea value={text} rows={5} onChange={setText} /></Field><button type="button" className="posnav__btn posnav__btn--primary" disabled={text.trim().length === 0} onClick={() => { void actions.postComment?.(text.trim(), severity, sr.trim() || undefined).then(() => { setText(""); setSr(""); }); }}><POSIcon.Send /> Post comment</button></div></div>}
-    {actions?.requestRevision !== undefined && <div className="poscard"><div className="poscard__head"><h3 className="poscard__title">Request revision</h3></div><p className="poscard__sub">Return the controlled workbook to its preparers with an integration-level reason.</p><div className="sreviewform"><Field label="Revision note"><TextArea value={revision} rows={5} onChange={setRevision} /></Field><button type="button" className="posnav__btn" disabled={revision.trim().length === 0} onClick={() => void actions.requestRevision?.(revision.trim()).then(() => setRevision(""))}>Request revision</button></div></div>}
+    <div className="poscard"><div className="poscard__head"><WorkbookSectionHeading workbook="SEISMIC" title="All review comments" /><div className="posrow" style={{ gap: 6 }}><button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({comments.length})</button><button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({openCount})</button><button type="button" className={`poschip${filter === "resolved" ? " poschip--primary" : ""}`} onClick={() => setFilter("resolved")}>Resolved ({resolvedCount})</button></div></div><p className="poscard__sub">Comments across SHA, SFR, SPR, and their interfaces, newest first.</p><div className="poscomments">{shown.length === 0 ? <p className="posmuted">No comments in this view.</p> : shown.map((comment) => <div key={comment.uuid} className={`poscomment poscomment--${(comment.severity ?? "OBSERVATION").toLowerCase()} poscomment--${comment.resolved ? "resolved" : "open"}`}><div className="poscomment__avatar">{comment.authorId.slice(0, 2).toUpperCase()}</div><div className="poscomment__main"><div className="poscomment__head"><span className="poscomment__author">{comment.authorId}</span><span className="poscomment__when">· {new Date(comment.createdAt).toLocaleString()}</span><span className="poscomment__spacer" /><Tag tone={comment.severity === "MAJOR" ? "bad" : comment.severity === "MINOR" ? "warn" : "neutral"}>{comment.severity ?? "OBSERVATION"}</Tag><span className={`posbadge ${comment.resolved ? "posbadge--ok" : "posbadge--progress"}`}><span className="posbadge__dot" />{comment.resolved ? "Resolved" : "Open"}</span></div><div className="poscomment__target"><span className="possubtle">Anchored to</span> <span className="poschip">{comment.associatedSr ?? "Seismic PRA"}</span></div><p className="poscomment__body">{comment.text}</p><div className="poscomment__foot"><span className="poscomment__foot-spacer" />{actions?.toggleResolve !== undefined && <button type="button" className={`posnav__btn posnav__btn--sm${comment.resolved ? "" : " posnav__btn--primary"}`} onClick={() => void actions.toggleResolve?.(comment.uuid, !comment.resolved)}>{comment.resolved ? <><POSIcon.Close /> Reopen</> : <><POSIcon.Check /> Mark resolved</>}</button>}</div></div></div>)}</div></div>
+    {actions?.postComment !== undefined && <div className="poscard"><div className="poscard__head"><WorkbookSectionHeading workbook="SEISMIC" title="Add review comment" /></div><div className="sreviewform"><FieldGrid><Field label="Severity"><SelectInput value={severity} options={[{ value: "OBSERVATION", label: "Observation" }, { value: "MINOR", label: "Minor" }, { value: "MAJOR", label: "Major" }]} onChange={(value) => setSeverity(value as typeof severity)} /></Field><Field label="Supporting requirement"><SelectInput value={sr} options={[{ value: "", label: "Entire Seismic PRA" }, ...Object.keys(SEISMIC_PRA_SR_CATALOG).map((requirement) => ({ value: requirement, label: requirement }))]} onChange={setSr} /></Field></FieldGrid><Field label="Comment"><TextArea value={text} rows={5} onChange={setText} /></Field><button type="button" className="posnav__btn posnav__btn--primary" disabled={text.trim().length === 0} onClick={() => { void actions.postComment?.(text.trim(), severity, sr.trim() || undefined).then(() => { setText(""); setSr(""); }); }}><POSIcon.Send /> Post comment</button></div></div>}
+    {actions?.requestRevision !== undefined && <div className="poscard"><div className="poscard__head"><WorkbookSectionHeading workbook="SEISMIC" title="Request revision" /></div><p className="poscard__sub">Return the controlled workbook to its preparers with an integration-level reason.</p><div className="sreviewform"><Field label="Revision note"><TextArea value={revision} rows={5} onChange={setRevision} /></Field><button type="button" className="posnav__btn" disabled={revision.trim().length === 0} onClick={() => void actions.requestRevision?.(revision.trim()).then(() => setRevision(""))}>Request revision</button></div></div>}
   </>;
 }
 
@@ -11700,9 +11702,9 @@ function ApprovalScreen({ renderApprovalTable, renderSignCard }: { renderApprova
   const approved = mef.workflowState === "FINAL";
   return <>
     <div className={`posrevbanner posrevbanner--${approved ? "approved" : "submitted"}`}><div className="posrevbanner__icon"><POSIcon.Lock /></div><div className="posrevbanner__main"><div className="posrevbanner__eyebrow">{approved ? "Approved" : "Internal approval"}</div><div className="posrevbanner__title">{approved ? "Workbook approved · locked from edits" : "Awaiting the assigned approver's signature"}</div></div><div className="posrevbanner__counts"><span className="posrevbanner__count posrevbanner__count--ok">{resolved} resolved</span></div></div>
-    <div className="poscard"><div className="poscard__head"><h3 className="poscard__title">What is being attested</h3></div><div className="posapprove__attest-with-sign"><div className="posapprove__attest-grid"><div className="posapprove__attest-row"><span className="posapprove__attest-cap">SR capability assignments</span><span className="posapprove__attest-val"><strong>{srCapabilitySummary(mef)}</strong></span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Items satisfied</span><span className="posapprove__attest-val posmono">{score.met} of {score.applicable}</span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Review comments</span><span className="posapprove__attest-val posmono">{resolved} of {comments.length} resolved</span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Configuration snapshot</span><span className="posapprove__attest-val">{mef.configurationControlRecordId ?? "Not linked"}</span></div></div>{renderSignCard !== undefined && <div className="posapprove__sign-col">{renderSignCard()}</div>}</div></div>
+    <div className="poscard"><div className="poscard__head"><WorkbookSectionHeading workbook="SEISMIC" title="What is being attested" /></div><div className="posapprove__attest-with-sign"><div className="posapprove__attest-grid"><div className="posapprove__attest-row"><span className="posapprove__attest-cap">SR capability assignments</span><span className="posapprove__attest-val"><strong>{srCapabilitySummary(mef)}</strong></span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Items satisfied</span><span className="posapprove__attest-val posmono">{score.met} of {score.applicable}</span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Review comments</span><span className="posapprove__attest-val posmono">{resolved} of {comments.length} resolved</span></div><div className="posapprove__attest-row"><span className="posapprove__attest-cap">Configuration snapshot</span><span className="posapprove__attest-val">{mef.configurationControlRecordId ?? "Not linked"}</span></div></div>{renderSignCard !== undefined && <div className="posapprove__sign-col">{renderSignCard()}</div>}</div></div>
     {renderApprovalTable?.()}
-    {approved && <div className="poscard posapprove__handoff"><div className="poscard__head"><h3 className="poscard__title">After approval · external workflows</h3><span className="posbadge">View + comment only</span></div><p className="poscard__sub">The approved Seismic PRA baseline can now be released to peer review and audit without reopening technical editing.</p><div className="posapprove__handoff-grid"><div className="posapprove__handoff-card"><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Eye /></div><div><div className="posapprove__handoff-card-eyebrow">External · Section 6</div><div className="posapprove__handoff-card-title">Peer Review</div></div></div></div><div className="posapprove__handoff-card"><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Lock /></div><div><div className="posapprove__handoff-card-eyebrow">External · NQA-1 aligned</div><div className="posapprove__handoff-card-title">Audit</div></div></div></div></div></div>}
+    {approved && <div className="poscard posapprove__handoff"><div className="poscard__head"><WorkbookSectionHeading workbook="SEISMIC" title="After approval · external workflows" /><span className="posbadge">View + comment only</span></div><p className="poscard__sub">The approved Seismic PRA baseline can now be released to peer review and audit without reopening technical editing.</p><div className="posapprove__handoff-grid"><div className="posapprove__handoff-card"><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Eye /></div><div><div className="posapprove__handoff-card-eyebrow">External · Section 6</div><div className="posapprove__handoff-card-title">Peer Review</div></div></div></div><div className="posapprove__handoff-card"><div className="posapprove__handoff-card-head"><div className="posapprove__handoff-card-icon"><POSIcon.Lock /></div><div><div className="posapprove__handoff-card-eyebrow">External · NQA-1 aligned</div><div className="posapprove__handoff-card-title">Audit</div></div></div></div></div></div>}
   </>;
 }
 

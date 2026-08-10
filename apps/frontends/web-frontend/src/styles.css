@@ -1,3 +1,8 @@
+@import "./design-system/openpra-brand-tokens.css";
+@import "./design-system/app-tokens.css";
+@import "./design-system/foundation.css";
+@import "./design-system/primitives.css";
+
 *,
 *::before,
 *::after {
@@ -12,7 +17,6 @@ html {
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Nunito Sans', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -43,12 +47,4 @@ button {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-html[data-high-contrast="true"] {
-  --color-text-muted: var(--color-text);
-  --color-text-subtle: var(--color-text);
-  --color-border: var(--color-text);
-  --color-border-strong: var(--color-text);
-  --color-primary-focus: var(--color-primary);
 }

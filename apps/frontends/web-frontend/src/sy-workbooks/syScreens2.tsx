@@ -1,3 +1,4 @@
+import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX } from "react";
 import { SYIcon } from "./syIcons";
@@ -117,7 +118,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Support dependency matrix</h3>
+          <WorkbookSectionHeading workbook="SY" title="Support dependency matrix" level={3} />
           <SYProvenanceChip>SY-B5 · SY-B6 · SY-B10</SYProvenanceChip>
         </div>
         <p className="poscard__sub">Each row depends on the marked support systems. Click a cell to cycle it between power, signal, cooling and none.</p>
@@ -163,7 +164,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Support success criteria</h3>
+          <WorkbookSectionHeading workbook="SY" title="Support success criteria" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B7 · SY-B9 · SY-B13</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSsc}><SYIcon.Plus /> Add criterion</button>}
@@ -192,7 +193,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Spatial and environmental couplings</h3>
+          <WorkbookSectionHeading workbook="SY" title="Spatial and environmental couplings" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B8 · SY-B14</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addSpc}><SYIcon.Plus /> Add coupling</button>}
@@ -220,7 +221,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Depletable inventories</h3>
+          <WorkbookSectionHeading workbook="SY" title="Depletable inventories" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B12</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addInv}><SYIcon.Plus /> Add inventory</button>}
@@ -271,7 +272,7 @@ function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Digital I&C and software</h3>
+          <WorkbookSectionHeading workbook="SY" title="Digital I&C and software" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-B11</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addDic}><SYIcon.Plus /> Add record</button>}
@@ -339,7 +340,7 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Plant-fidelity confirmation</h3>
+          <WorkbookSectionHeading workbook="SY" title="Plant-fidelity confirmation" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>{isOp ? "SY-A5" : "SY-A6"}</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addConfirm}><SYIcon.Plus /> Add record</button>}
@@ -365,7 +366,7 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Nomenclature</h3>
+          <WorkbookSectionHeading workbook="SY" title="Nomenclature" level={3} />
           <SYProvenanceChip>SY-A30</SYProvenanceChip>
         </div>
         <p className="poscard__sub">One designator per component failure mode across every system, counted live from the logic models.</p>
@@ -456,7 +457,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Capability representation</h3>
+          <WorkbookSectionHeading workbook="SY" title="Capability representation" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-A29</SYProvenanceChip>
             {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={addOc}><SYIcon.Plus /> Add consideration</button>}
@@ -485,7 +486,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Repair credit</h3>
+          <WorkbookSectionHeading workbook="SY" title="Repair credit" level={3} />
           <SYProvenanceChip>SY-A31</SYProvenanceChip>
         </div>
         <p className="poscard__sub">Repair of hardware faults is not credited unless data or analysis supports it. {totalCredited === 0 ? `No repair is credited for any of the ${totalEvents} basic events.` : `${totalCredited} of ${totalEvents} basic events credit repair.`}</p>
@@ -512,7 +513,7 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">Open items register</h3>
+          <WorkbookSectionHeading workbook="SY" title="Open items register" level={3} />
           <div className="posrow" style={{ gap: 8, alignItems: "center" }}>
             <SYProvenanceChip>SY-A32 · A33 · B16</SYProvenanceChip>
             {editable && (
@@ -576,7 +577,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
       </div>
       <div className="posgen__side">
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Conformance check</h3>
+          <WorkbookSectionHeading workbook="SY" title="Conformance check" level={3} className="posgen__readout-h" />
           <div className="posgen__bar"><span className="posgen__bar-label">Capability category</span><span style={{ fontWeight: 700 }}>{cc.name} · {cc.tag}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Plant stage</span><span style={{ fontWeight: 700 }}>{stage === "pre_operational" ? "Pre-operational" : "Operational"}</span></div>
           <div className="posgen__bar"><span className="posgen__bar-label">Items satisfied</span><span className="posmono">{scores.met} / {scores.applicable}</span></div>
@@ -584,7 +585,7 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
           {scores.blocked > 0 && <div className="posgen__bar"><span className="posgen__bar-label" style={{ color: "#b73b3b" }}>Blocked</span><span className="posmono">{scores.blocked}</span></div>}
         </div>
         <div className="posgen__readout">
-          <h3 className="posgen__readout-h">Hand-off to internal review</h3>
+          <WorkbookSectionHeading workbook="SY" title="Hand-off to internal review" level={3} className="posgen__readout-h" />
           <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
             {ready
               ? <>All items pass at <strong>{cc.name}</strong>. Producing the draft locks Steps 1 to 7 and advances the workbook to <strong>Internal Technical Review</strong>.</>
@@ -766,7 +767,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
         <div className="posdrawer__head">
           <div>
             <div className="posdrawer__cap">System · {shortOf(sysDef.uuid)}</div>
-            <h2 className="posdrawer__title">{sysDef.name}</h2>
+            <WorkbookSectionHeading workbook="SY" title={sysDef.name} cueKey="System model" description="Defines the credited safety functions, success criterion, model representation, and logic boundary for the selected system." level={2} className="posdrawer__title" />
             <p className="posdrawer__sub">{sfRefs.length > 0 ? `${sfRefs.join(", ")} · ` : ""}{logic?.modelRepresentation ?? "System-level"}</p>
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
@@ -786,7 +787,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic?.basicEvents.length ?? 0}</div></div>
           </div>
           <div>
-            <div className="essec">Model boundary</div>
+            <WorkbookCueLabel workbook="SY" title="Model boundary" className="essec" />
             <div className="posrow posrow--wrap" style={{ gap: 6 }}>{sysDef.boundaries.map((b, i) => <span key={i} className="poschip">{b}</span>)}</div>
           </div>
         </div>

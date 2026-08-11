@@ -99,15 +99,15 @@
       "code": "F",
       "name": "Internal fire PRA",
       "quantity": "s",
-      "status": "planned",
-      "blurb": "Not yet implemented."
+      "status": "in progress",
+      "blurb": "Implementation is in progress."
     },
     {
       "code": "FL",
       "name": "Internal flood PRA",
       "quantity": "s",
-      "status": "planned",
-      "blurb": "Not yet implemented."
+      "status": "in progress",
+      "blurb": "Implementation is in progress."
     },
     {
       "code": "W",

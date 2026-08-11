@@ -124,6 +124,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/internal-fire-pra-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "HS") {
+      navigate(`/hazards-screening-analysis-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

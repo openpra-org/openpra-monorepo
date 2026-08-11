@@ -19,6 +19,7 @@ import {
   type SeismicPraExampleBundle,
   type InternalFloodPraExampleBundle,
   type InternalFirePraExampleBundle,
+  type HazardsScreeningAnalysisExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -192,6 +193,18 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getInternalFirePraBundle(@Query("example") example?: string): Promise<InternalFirePraExampleBundle> {
     return this.exampleWorkbooksService.getInternalFirePraBundle(example);
+  }
+
+  @Get("hazards-screening-analysis-examples")
+  @HttpCode(HttpStatus.OK)
+  getHazardsScreeningAnalysisExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getHazardsScreeningAnalysisExamples();
+  }
+
+  @Get("hazards-screening-analysis-bundle")
+  @HttpCode(HttpStatus.OK)
+  getHazardsScreeningAnalysisBundle(@Query("example") example?: string): Promise<HazardsScreeningAnalysisExampleBundle> {
+    return this.exampleWorkbooksService.getHazardsScreeningAnalysisBundle(example);
   }
 
   @Get(":slug")

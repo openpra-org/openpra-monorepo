@@ -39,6 +39,8 @@ import { InternalFloodPraDemoPage } from "../internal-flood-pra-workbooks/intern
 import { InternalFloodPraWorkbookPage } from "../internal-flood-pra-workbooks/internalFloodPraWorkbookPage";
 import { InternalFirePraDemoPage } from "../internal-fire-pra-workbooks/internalFirePraDemoPage";
 import { InternalFirePraWorkbookPage } from "../internal-fire-pra-workbooks/internalFirePraWorkbookPage";
+import { HsaDemoPage } from "../hazards-screening-analysis-workbooks/hsaDemoPage";
+import { HsaWorkbookPage } from "../hazards-screening-analysis-workbooks/hsaWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -332,6 +334,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <InternalFirePraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hazards-screening-analysis-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <HsaDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hazards-screening-analysis-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <HsaWorkbookPage />
       </ProtectedRoute>
     ),
   },

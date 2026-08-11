@@ -2,7 +2,7 @@ import { createElement, Fragment, type ReactNode } from "react";
 
 type WorkbookCueCode =
   | "POS" | "IE" | "ES" | "SC" | "SY" | "HR" | "DA" | "ESQ" | "MS" | "RC" | "RI"
-  | "SEISMIC" | "FLOOD" | "FIRE";
+  | "SEISMIC" | "FLOOD" | "FIRE" | "HSA";
 
 interface CueRule {
   match: RegExp;
@@ -286,6 +286,27 @@ const PROFILES: Record<WorkbookCueCode, WorkbookCueProfile> = {
       { match: /human|operator/i, lead: "Defines fire-related operator actions, cues, timing, access, smoke, heat, and alternate-control constraints.", example: "operators transfer decay-heat removal to the remote shutdown panel within 25 minutes" },
       { match: /quantif|risk result/i, lead: "Integrates fire initiators, cable and equipment damage, human actions, suppression, and sequence logic to calculate fire risk.", example: "PAU RB-2A cabinet-fire sequence frequency of 5.7E-6 per reactor-year" },
       { match: /uncertainty|sensitivity/i, lead: "Represents uncertainty in ignition frequency, fire growth, damage thresholds, suppression, circuit response, and HRA.", example: "a sensitivity increasing peak heat-release rate from 702 to 1,000 kW" },
+    ],
+  },
+  HSA: {
+    label: "Hazards Screening Analysis",
+    fallbackExample: "aircraft crash screened at 6.4E-9 per plant-year after conservative impact, SSC-failure, sequence, and consequence treatment",
+    rules: [
+      { match: /scope|pra application|plant and site boundary/i, lead: "Defines the plant, site, operating states, radioactive-material sources, risk measures, and hazard-analysis boundary covered by HSA.", example: "six representative POS groups, reactor and spent-fuel sources, and a 16 km industrial and transportation review area" },
+      { match: /hazard-screening definition/i, lead: "Establishes the common site references and unscreened hazard basis used consistently by every later HSA decision.", example: "the current rail corridor, nearby chemical facilities, site drainage divide, and the full natural, human-induced, internal, and secondary hazard set" },
+      { match: /site and surroundings reference/i, lead: "Defines the physical, environmental, industrial, transportation, and plant-layout features used to test whether a hazard source and pathway can affect the plant.", example: "a Class I railroad 3.1 km southwest of the protected area carrying flammable and toxic commodities" },
+      { match: /evidence|site character|regional stud|design basis|change monitoring/i, lead: "Controls the plant, site, regional, design, licensing, and operating information used to identify and screen hazards.", example: "NOAA Atlas 14 precipitation, FEMA flood mapping, the site survey, and current county hazardous-material permits" },
+      { match: /hazard inventory|candidate hazard|routing/i, lead: "Records every applicable natural, human-induced, internal, secondary, and combined hazard and routes it to the responsible analysis.", example: "tornado retained for High Winds PRA while tsunami is screened as physically impossible at the inland site" },
+      { match: /secondary|combined|interaction/i, lead: "Evaluates consequential, correlated, common-cause, and coincident hazards before individual screening decisions are finalized.", example: "tornado wind, missiles, intense precipitation, lightning, and loss of offsite power treated as one correlated storm set" },
+      { match: /criterion|criteria/i, lead: "Defines the approved qualitative and quantitative screening rules, their applicability limits, required conservatism, and prohibited uses.", example: "SCR-1 requires mean event-sequence-family frequency below 1E-7 per plant-year after conservative plant-response treatment" },
+      { match: /qualitative screening/i, lead: "Applies site facts, design margin, physical-impossibility, distance, bounding-event, or SCR-3 criteria to each hazard.", example: "volcanic ash screened because no credible source and transport pathway exists within the conservative influence region" },
+      { match: /frequency|hazard character|data assessment/i, lead: "Develops conservative occurrence or exceedance frequency, associated loading, exposure, alternative estimates, and uncertainty for retained hazards.", example: "aircraft-impact frequency derived from current flight operations, crash rate, effective target area, and a fivefold upper uncertainty bound" },
+      { match: /plant response|vulnerable ssc|human action|peer review/i, lead: "Connects each retained hazard to vulnerable SSCs, failure modes, initiating events, event sequences, human actions, and relevant peer-review findings.", example: "extreme heat challenges the passive heat sink and increases the local recovery HEP from 0.03 to 0.17" },
+      { match: /quantitative screening|consequence|final disposition/i, lead: "Combines hazard frequency, SSC failure, sequence response, HRA, and consequence to determine whether the hazard screens or remains in detailed PRA scope.", example: "pipeline rupture retained because the conservative jet-fire sequence exceeds the SCR-1 frequency threshold" },
+      { match: /confirmation|investigation|walkdown|surroundings/i, lead: "Confirms that the hazard sources, pathways, protection features, and plant response used by HSA match the actual or intended plant and surroundings.", example: "a site reconnaissance verifies pipeline markers, rail distance, drainage divides, and the current industrial inventory" },
+      { match: /uncertainty|assumption|limitation/i, lead: "Records uncertainty, reasonable alternatives, sensitivities, interim conservative treatment, and closure actions that can change a hazard disposition.", example: "final drainage grades remain open, so the external-flood screen uses the higher design ponding elevation until the as-built survey closes the item" },
+      { match: /handoff|results integration/i, lead: "Transfers retained hazards, scenarios, risk results, boundaries, and overlap controls to the responsible PRA technical elements.", example: "seismic ground motion and earthquake-induced flood are transferred to Seismic PRA with one controlling origin tag" },
+      { match: /traceability|controlled baseline/i, lead: "Links evidence, site facts, hazards, criteria, models, dispositions, and accepted handoffs in the controlled HSA baseline.", example: "NOAA storm data to tornado candidate to combined-storm record to High Winds PRA acceptance" },
     ],
   },
 };

@@ -128,6 +128,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/hazards-screening-analysis-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "W") {
+      navigate(`/high-winds-pra-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

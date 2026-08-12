@@ -21,7 +21,7 @@
 .srail .posrail__list { flex: 1; min-height: 0; overflow-y: auto; }
 .srail .posrail__list > li { display: flex; flex: 1 0 auto; }
 .srail .posrail__step { grid-template-columns: 30px 1fr; min-height: 44px; padding: 7px 14px 7px 12px; }
-.srail .posrail__step-label { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.srail .posrail__step-label { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 5px; font-size: 13px; font-weight: 400; line-height: 1.25; }
 .srail .srail__step-name { min-width: 0; }
 .srail .posrail__step-label small { grid-column: 2; display: block; margin-top: 2px; }
 .srail .posrail__footer { flex-shrink: 0; margin-top: 0; background: var(--color-bg-to); }

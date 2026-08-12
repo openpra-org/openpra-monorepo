@@ -4,7 +4,7 @@ import elements from '../data/elements.json';
 import packages from '../data/packages.json';
 ---
 <Base title="Platform" path="/platform/"
-      description="What OpenPRA covers: every internal-events technical element, a complete seismic element, exact quantification, and the packages behind them.">
+      description="What OpenPRA covers: every internal-events technical element, implemented hazard PRA workbooks, exact quantification, and the packages behind them.">
   <section class="section">
     <div class="wrap">
       <span class="eyebrow">Platform</span>
@@ -50,11 +50,11 @@ import packages from '../data/packages.json';
   <section class="section">
     <div class="wrap">
       <span class="eyebrow">Hazard groups</span>
-      <h2>Seismic first, the rest to follow</h2>
+      <h2>Implemented hazard PRA workbooks</h2>
       <p class="lede" style="margin-top:1rem;margin-bottom:2rem">
-        Seismic hazard, fragility, and plant response share the schema with the
-        internal-events model rather than living in a parallel study. The other
-        hazard-group elements are defined in the standard and not yet built.
+        Hazards screening, seismic, internal fire, internal flood, and high winds
+        share the schema with the internal-events model rather than living in
+        parallel studies. External flooding and other hazards remain planned.
       </p>
       <div class="grid grid--3">
         {elements.hazards.map((e) => (

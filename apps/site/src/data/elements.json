@@ -99,22 +99,22 @@
       "code": "F",
       "name": "Internal fire PRA",
       "quantity": "s",
-      "status": "in progress",
-      "blurb": "Implementation is in progress."
+      "status": "implemented",
+      "blurb": "Fire-area partitioning, ignition frequencies, scenario development, circuit analysis, suppression, plant response, fire HRA, and quantified risk insights in one controlled workbook."
     },
     {
       "code": "FL",
       "name": "Internal flood PRA",
       "quantity": "s",
-      "status": "in progress",
-      "blurb": "Implementation is in progress."
+      "status": "implemented",
+      "blurb": "Flood areas, sources, propagation, scenarios, plant response, human reliability, quantification, and technical-element handoffs with complete worked examples."
     },
     {
       "code": "W",
       "name": "High winds PRA",
       "quantity": "s",
-      "status": "planned",
-      "blurb": "Not yet implemented."
+      "status": "implemented",
+      "blurb": "Straight-wind, tropical-cyclone, and tornado hazard analysis integrated with pressure, missile, interaction, rain, fragility, plant-response, HRA, and risk quantification."
     },
     {
       "code": "XF",

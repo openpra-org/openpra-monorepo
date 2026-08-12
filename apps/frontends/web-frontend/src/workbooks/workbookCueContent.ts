@@ -2,7 +2,7 @@ import { createElement, Fragment, type ReactNode } from "react";
 
 type WorkbookCueCode =
   | "POS" | "IE" | "ES" | "SC" | "SY" | "HR" | "DA" | "ESQ" | "MS" | "RC" | "RI"
-  | "SEISMIC" | "FLOOD" | "FIRE" | "HSA";
+  | "SEISMIC" | "FLOOD" | "FIRE" | "HSA" | "WIND";
 
 interface CueRule {
   match: RegExp;
@@ -307,6 +307,31 @@ const PROFILES: Record<WorkbookCueCode, WorkbookCueProfile> = {
       { match: /uncertainty|assumption|limitation/i, lead: "Records uncertainty, reasonable alternatives, sensitivities, interim conservative treatment, and closure actions that can change a hazard disposition.", example: "final drainage grades remain open, so the external-flood screen uses the higher design ponding elevation until the as-built survey closes the item" },
       { match: /handoff|results integration/i, lead: "Transfers retained hazards, scenarios, risk results, boundaries, and overlap controls to the responsible PRA technical elements.", example: "seismic ground motion and earthquake-induced flood are transferred to Seismic PRA with one controlling origin tag" },
       { match: /traceability|controlled baseline/i, lead: "Links evidence, site facts, hazards, criteria, models, dispositions, and accepted handoffs in the controlled HSA baseline.", example: "NOAA storm data to tornado candidate to combined-storm record to High Winds PRA acceptance" },
+    ],
+  },
+  WIND: {
+    label: "High Winds PRA",
+    fallbackExample: "a tornado interval centered at 165 mph evaluated for pressure, missile, atmospheric-pressure-change, and wind-driven-rain failures",
+    rules: [
+      { match: /scope|pra application|site basis|analysis basis/i, lead: "Defines the site, plant conditions, retained wind hazards, effects, risk measures, and applications covered by the High Winds PRA.", example: "straight wind, tropical cyclone, and tornado evaluated for every fueled POS at the reference site" },
+      { match: /interface|handoff/i, lead: "Controls the analysis inputs received from other technical elements and the High Winds results supplied to downstream PRA models.", example: "HSA supplies the retained tornado hazard while High Winds PRA supplies interval results to ESQ" },
+      { match: /screening|hazard candidate|combination/i, lead: "Identifies straight-wind, tropical-cyclone, tornado, and coexistent effects and records which require quantitative treatment.", example: "tornado retained with coincident intense precipitation and loss of offsite power" },
+      { match: /wind data|reference wind|station|qualification/i, lead: "Qualifies meteorological records and converts them to one controlled wind-speed definition for hazard and fragility calculations.", example: "3-second gust at 10 m in Exposure C after height, terrain, and instrument-history adjustments" },
+      { match: /straight.wind|extreme.value|pooling/i, lead: "Develops site straight-wind exceedance frequencies from representative records and justified extreme-value models.", example: "a regional GEV fit produces a 120 mph mean annual exceedance frequency of 2.1E-4" },
+      { match: /tropical|cyclone|track|wind field/i, lead: "Models tropical-cyclone occurrence, tracks, intensity, wind fields, inland decay, and the resulting site hazard.", example: "50 million simulated storm-years establish the 145 mph coastal-site exceedance frequency" },
+      { match: /tornado|climatology|damage wind|target definition/i, lead: "Models tornado occurrence, reporting bias, path geometry, damage-to-wind relationships, wind fields, and target exposure.", example: "an EF3-class path crossing the power-block target with rotational and translational velocity combined" },
+      { match: /hazard curve|hazard interval|logic tree|discret|convergence/i, lead: "Combines hazard-model alternatives into controlled curves and intervals and verifies binning and upper-tail convergence.", example: "130–150 mph assigned 3.4E-5 per year with a 140 mph representative speed" },
+      { match: /equipment list|hwel|failure mode|preliminary plant response/i, lead: "Identifies wind-relevant initiators, SSCs, supports, functions, and failure modes that must receive fragility and plant-response treatment.", example: "diesel-generator intake louver retained for pressure, missile, and rain-induced functional failure" },
+      { match: /investigation|missile survey|survey zone|missile source|population profile/i, lead: "Confirms plant configuration and inventories credible normal-operation and outage missile sources around vulnerable SSCs.", example: "roof pavers, parked trailers, and outage laydown steel catalogued within 300 m of the auxiliary building" },
+      { match: /fragility method|correlation|aggregation|ssc screening/i, lead: "Selects the SSC fragility method, screening disposition, correlation treatment, and aggregation basis for each retained failure mode.", example: "similar roof panels assigned partial capacity correlation before building-envelope fragilities are aggregated" },
+      { match: /pressure|apc|envelope|topography|shielding/i, lead: "Calculates wind-pressure and atmospheric-pressure-change demand and converts the governing capacities into SSC fragility curves.", example: "progressive cladding loss changes internal pressure and governs the switchgear-building median capacity" },
+      { match: /missile fragility|trajectory|impact|damage model|missile categor/i, lead: "Models missile release, flight, target hit, structural damage, multiple-missile effects, and simulation convergence.", example: "a 15 kg timber missile perforates a metal enclosure and fails the outdoor transformer" },
+      { match: /rain|entry path|structural interaction/i, lead: "Evaluates adjacent-structure interactions and wind-driven-rain entry paths that can disable credited SSCs.", example: "failed roof vent admits rain that wets both trains of 480 V switchgear in 22 minutes" },
+      { match: /plant response|initiating event|event sequence|success criter|mission time|multi.unit/i, lead: "Adapts initiating events, event sequences, success criteria, systems, data, mission times, and multi-unit effects to the wind context.", example: "tornado-induced LOOP with both emergency-diesel intakes blocked by debris" },
+      { match: /human|hep|hfe|performance context|recovery/i, lead: "Quantifies operator actions with wind warning, duration, debris, access, outdoor exposure, communications, and dependency conditions.", example: "local debris-removal recovery receives no credit while tornado winds make the route inaccessible" },
+      { match: /quantif|uncertainty result|risk contributor/i, lead: "Integrates hazard intervals, fragilities, plant response, and HRA to calculate event-sequence-family frequencies and uncertainty.", example: "the 150–175 mph tornado interval contributes 4.8E-7 per plant-year to release family RF-2" },
+      { match: /risk insight|refinement|traceability|controlled baseline|risk decision/i, lead: "Interprets dominant contributors, records refinements and decisions, and preserves evidence-to-result traceability in the controlled baseline.", example: "roof-paver missile control adopted after it ranks first in the tornado risk contribution" },
+      { match: /peer review|technical closure|readiness/i, lead: "Confirms conformance, documentation, interface closure, independent review coverage, and disposition of technical findings.", example: "WFR-E7 closed after adding a missile-trajectory sample-size convergence study" },
     ],
   },
 };

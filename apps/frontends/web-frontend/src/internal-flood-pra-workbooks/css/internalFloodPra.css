@@ -88,3 +88,4 @@
 .flmain__title-row > .flinfo { margin-top:3px; }
 .flmain__title .flinfo { letter-spacing:normal; text-transform:none; }
 .flmain__title .flinfo__popover { color:var(--color-text-muted); font:12.5px/1.45 var(--font-ui),sans-serif; letter-spacing:normal; text-transform:none; }
+.flrail .posrail__step-label { font-weight:400; }

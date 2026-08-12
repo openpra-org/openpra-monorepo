@@ -257,7 +257,7 @@
 }
 .posrail__step-label {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--color-text);
   line-height: 1.25;
 }

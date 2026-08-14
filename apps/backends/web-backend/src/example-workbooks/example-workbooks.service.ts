@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/com
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ExampleWorkbook, type ExampleWorkbookDocument } from "./example-workbook.schema";
-import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
+import { SEEDS, POS_EXAMPLES, IE_EXAMPLES, ES_EXAMPLES, SC_EXAMPLES, SY_EXAMPLES, HR_EXAMPLES, DA_EXAMPLES, ESQ_EXAMPLES, MS_EXAMPLES, RC_EXAMPLES, RI_EXAMPLES, SEISMIC_PRA_EXAMPLES, INTERNAL_FLOOD_PRA_EXAMPLES, INTERNAL_FIRE_PRA_EXAMPLES, HSA_EXAMPLES, HIGH_WINDS_PRA_EXAMPLES, EXTERNAL_FLOOD_PRA_EXAMPLES, OTHER_HAZARDS_PRA_EXAMPLES, CC_GENERIC_1_SLUG } from "./seeds";
 
 export interface ExampleWorkbookResponse {
   slug: string;
@@ -119,6 +119,12 @@ export interface HighWindsPraExampleBundle {
 
 export interface ExternalFloodPraExampleBundle {
   externalFloodPra: ExampleWorkbookResponse;
+  configurationControl: ExampleWorkbookResponse;
+  newlyDevelopedMethods: ExampleWorkbookResponse[];
+}
+
+export interface OtherHazardsPraExampleBundle {
+  otherHazardsPra: ExampleWorkbookResponse;
   configurationControl: ExampleWorkbookResponse;
   newlyDevelopedMethods: ExampleWorkbookResponse[];
 }
@@ -405,5 +411,17 @@ export class ExampleWorkbooksService implements OnModuleInit {
     const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
     const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
     return { externalFloodPra, configurationControl, newlyDevelopedMethods: nmDocs.map(toResponse) };
+  }
+
+  getOtherHazardsPraExamples(): IeExampleOption[] {
+    return OTHER_HAZARDS_PRA_EXAMPLES.map((entry) => ({ id: entry.id, label: entry.label }));
+  }
+
+  async getOtherHazardsPraBundle(exampleId?: string): Promise<OtherHazardsPraExampleBundle> {
+    const entry = OTHER_HAZARDS_PRA_EXAMPLES.find((item) => item.id === exampleId) ?? OTHER_HAZARDS_PRA_EXAMPLES[0];
+    const otherHazardsPra = await this.findBySlug(entry.slug);
+    const configurationControl = await this.findBySlug(CC_GENERIC_1_SLUG);
+    const nmDocs = await this.exampleModel.find({ kind: "NEWLY_DEVELOPED_METHOD" }).sort({ slug: 1 }).exec();
+    return { otherHazardsPra, configurationControl, newlyDevelopedMethods: nmDocs.map(toResponse) };
   }
 }

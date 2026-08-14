@@ -1,0 +1,43 @@
+.otherhazardsw {
+  --fl-integrated: #245f86;
+  --fl-integrated-soft: #eaf3f8;
+  --other-oha: #166b73;
+  --other-oha-soft: #e7f5f4;
+  --other-ofr: #8a5a16;
+  --other-ofr-soft: #faf1df;
+  --other-opr: #6c4f8c;
+  --other-opr-soft: #f2edf7;
+}
+.otherhazardsw .flsubbadge--oha {
+  background: var(--other-oha-soft);
+  color: var(--other-oha);
+}
+.otherhazardsw .flsubbadge--ofr {
+  background: var(--other-ofr-soft);
+  color: var(--other-ofr);
+}
+.otherhazardsw .flsubbadge--opr {
+  background: var(--other-opr-soft);
+  color: var(--other-opr);
+}
+.otherhazardsw .fltable tbody tr:hover {
+  background: color-mix(in srgb, var(--fl-integrated-soft) 58%, transparent);
+}
+.otherhazardsw .posdock__gauge-fill {
+  stroke: var(--fl-integrated);
+}
+.otherhazardsw .posrail__bar-fill {
+  background: var(--fl-integrated);
+}
+.otherhazardsw .posrail__step--active {
+  border-left-color: var(--fl-integrated);
+}
+.otherhazards-criteria-table th,
+.otherhazards-criteria-table td {
+  width: 20%;
+}
+@media (max-width: 1100px) {
+  .otherhazardsw .poshd__save-pill {
+    display: none;
+  }
+}

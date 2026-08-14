@@ -136,6 +136,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/external-flood-pra-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "O") {
+      navigate(`/other-hazards-pra-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

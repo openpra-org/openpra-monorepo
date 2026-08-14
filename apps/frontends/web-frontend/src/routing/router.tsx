@@ -45,6 +45,8 @@ import { HighWindsPraDemoPage } from "../high-winds-pra-workbooks/highWindsPraDe
 import { HighWindsPraWorkbookPage } from "../high-winds-pra-workbooks/highWindsPraWorkbookPage";
 import { ExternalFloodPraDemoPage } from "../external-flood-pra-workbooks/externalFloodPraDemoPage";
 import { ExternalFloodPraWorkbookPage } from "../external-flood-pra-workbooks/externalFloodPraWorkbookPage";
+import { OtherHazardsPraDemoPage } from "../other-hazards-pra-workbooks/otherHazardsPraDemoPage";
+import { OtherHazardsPraWorkbookPage } from "../other-hazards-pra-workbooks/otherHazardsPraWorkbookPage";
 import { ProfilePage } from "../profile/profilePage";
 import { SettingsPage } from "../settings/settingsPage";
 import { TeamPage } from "../teams/teamPage";
@@ -386,6 +388,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute>
         <ExternalFloodPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/other-hazards-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <OtherHazardsPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/other-hazards-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <OtherHazardsPraWorkbookPage />
       </ProtectedRoute>
     ),
   },

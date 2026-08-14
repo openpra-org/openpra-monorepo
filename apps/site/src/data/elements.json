@@ -127,8 +127,8 @@
       "code": "O",
       "name": "Other hazards PRA",
       "quantity": "s",
-      "status": "planned",
-      "blurb": "Not yet implemented."
+      "status": "implemented",
+      "blurb": "Other-hazard identification, screening, source and effect characterization, frequency analysis, fragility, plant response, human reliability, quantification, and risk integration with complete worked examples."
     }
   ]
 }

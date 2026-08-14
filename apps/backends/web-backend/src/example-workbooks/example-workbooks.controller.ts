@@ -22,6 +22,7 @@ import {
   type HazardsScreeningAnalysisExampleBundle,
   type HighWindsPraExampleBundle,
   type ExternalFloodPraExampleBundle,
+  type OtherHazardsPraExampleBundle,
 } from "./example-workbooks.service";
 
 @Controller("example-workbooks")
@@ -231,6 +232,18 @@ export class ExampleWorkbooksController {
   @HttpCode(HttpStatus.OK)
   getExternalFloodPraBundle(@Query("example") example?: string): Promise<ExternalFloodPraExampleBundle> {
     return this.exampleWorkbooksService.getExternalFloodPraBundle(example);
+  }
+
+  @Get("other-hazards-pra-examples")
+  @HttpCode(HttpStatus.OK)
+  getOtherHazardsPraExamples(): IeExampleOption[] {
+    return this.exampleWorkbooksService.getOtherHazardsPraExamples();
+  }
+
+  @Get("other-hazards-pra-bundle")
+  @HttpCode(HttpStatus.OK)
+  getOtherHazardsPraBundle(@Query("example") example?: string): Promise<OtherHazardsPraExampleBundle> {
+    return this.exampleWorkbooksService.getOtherHazardsPraBundle(example);
   }
 
   @Get(":slug")

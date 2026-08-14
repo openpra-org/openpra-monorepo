@@ -22,8 +22,8 @@ function providerLabel(provider: string): string {
 
 function errorMessage(error: string, provider: string): string {
   const label = providerLabel(provider);
-  if (error === "not_linked") return `You haven't signed up with ${label}. Sign up first using one of these connections.`;
   if (error === "email_exists") return `An account with that email already exists. Log in and connect ${label} from Settings.`;
+  if (error === "email_unverified") return `${label} did not provide a verified email address. Verify an email with ${label}, then try again.`;
   if (error === "provider_unavailable") return `${label} sign-in isn't available right now.`;
   if (error === "expired" || error === "invalid_state") return "That sign-in link expired. Please try again.";
   return "Sign-in failed. Please try again.";

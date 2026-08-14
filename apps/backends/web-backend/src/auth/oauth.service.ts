@@ -14,7 +14,8 @@ interface ProviderConfig {
 
 interface OAuthProfile {
   providerUserId: string;
-  email: string;
+  email: string | null;
+  emailVerified: boolean;
   displayName: string;
 }
 
@@ -110,30 +111,36 @@ export class OAuthService {
       headers: { authorization: `Bearer ${accessToken}`, "user-agent": USER_AGENT },
     });
     if (!response.ok) throw new Error("Userinfo request failed");
-    const info = (await response.json()) as { sub?: string; email?: string; name?: string };
-    if (!info.sub || !info.email) throw new Error("Incomplete provider profile");
-    return { providerUserId: info.sub, email: info.email.toLowerCase(), displayName: info.name ?? info.email };
+    const info = (await response.json()) as { sub?: string; email?: string; email_verified?: boolean; name?: string };
+    if (!info.sub) throw new Error("Incomplete provider profile");
+    const email = info.email?.toLowerCase() ?? null;
+    return {
+      providerUserId: info.sub,
+      email,
+      emailVerified: email !== null && info.email_verified === true,
+      displayName: info.name ?? info.email ?? "Google user",
+    };
   }
 
   private async fetchGithubProfile(config: ProviderConfig, accessToken: string): Promise<OAuthProfile> {
     const headers = { authorization: `Bearer ${accessToken}`, accept: "application/vnd.github+json", "user-agent": USER_AGENT };
     const response = await fetch(config.userInfoUrl, { headers });
     if (!response.ok) throw new Error("GitHub user request failed");
-    const info = (await response.json()) as { id?: number; login?: string; name?: string; email?: string | null };
+    const info = (await response.json()) as { id?: number; login?: string; name?: string };
     if (info.id === undefined || !info.login) throw new Error("Incomplete GitHub profile");
 
-    let email = info.email ?? null;
-    if (email === null) {
-      const emailResponse = await fetch(`${config.userInfoUrl}/emails`, { headers });
-      if (emailResponse.ok) {
-        const emails = (await emailResponse.json()) as { email: string; primary: boolean; verified: boolean }[];
-        const chosen = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
-        email = chosen?.email ?? null;
-      }
-    }
-    if (email === null) throw new Error("No verified GitHub email");
+    const emailResponse = await fetch(`${config.userInfoUrl}/emails`, { headers });
+    const emails = emailResponse.ok
+      ? (await emailResponse.json()) as { email: string; primary: boolean; verified: boolean }[]
+      : [];
+    const chosen = emails.find((email) => email.primary && email.verified) ?? emails.find((email) => email.verified) ?? null;
 
-    return { providerUserId: String(info.id), email: email.toLowerCase(), displayName: info.name ?? info.login };
+    return {
+      providerUserId: String(info.id),
+      email: chosen?.email.toLowerCase() ?? null,
+      emailVerified: chosen !== null,
+      displayName: info.name ?? info.login,
+    };
   }
 }
 

@@ -132,6 +132,10 @@ function ProjectWorkspacePage(): JSX.Element {
       navigate(`/high-winds-pra-workbooks/${workbook.id}`);
       return;
     }
+    if (workbook.elementCode === "XF") {
+      navigate(`/external-flood-pra-workbooks/${workbook.id}`);
+      return;
+    }
     flashInfo(`"${workbook.name}" — workflow coming soon`);
   }
 

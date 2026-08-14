@@ -292,7 +292,7 @@ describe("AuthService", () => {
   });
 
   describe("oauthCallback", () => {
-    const profile = { providerUserId: "sub-1", email: "person@example.com", displayName: "A Person" };
+    const profile = { providerUserId: "sub-1", email: "person@example.com", emailVerified: true, displayName: "A Person" };
 
     it("logs in when the provider account is already linked", async () => {
       jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
@@ -300,6 +300,15 @@ describe("AuthService", () => {
       userModelMock.findOne.mockResolvedValueOnce(makeUser({}));
 
       const out = await service.oauthCallback("google", "code", "state", ctx);
+      expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
+    });
+
+    it("does not require an email again when the provider identity is already linked", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "github", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue({ ...profile, email: null, emailVerified: false });
+      userModelMock.findOne.mockResolvedValueOnce(makeUser({}));
+
+      const out = await service.oauthCallback("github", "code", "state", ctx);
       expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
     });
 
@@ -316,7 +325,7 @@ describe("AuthService", () => {
 
     it("creates an account on signup when the provider account is new", async () => {
       jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "signup", verifier: "v" });
-      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-9", email: "new@example.com", displayName: "New Person" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-9", email: "new@example.com", emailVerified: true, displayName: "New Person" });
       userModelMock.findOne
         .mockResolvedValueOnce(null)
         .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
@@ -332,7 +341,7 @@ describe("AuthService", () => {
 
     it("rejects signup when the email already exists", async () => {
       jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "signup", verifier: "v" });
-      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-10", email: "taken@example.com", displayName: "X" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-10", email: "taken@example.com", emailVerified: true, displayName: "X" });
       userModelMock.findOne
         .mockResolvedValueOnce(null)
         .mockReturnValueOnce({ lean: () => Promise.resolve({ email: "taken@example.com" }) });
@@ -341,18 +350,70 @@ describe("AuthService", () => {
       expect(out).toEqual({ kind: "error", error: "email_exists" });
     });
 
-    it("returns not_linked on login when the provider account is unknown", async () => {
+    it("creates and signs in an account on login when the verified provider identity is new", async () => {
       jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
       oauthService.fetchIdentity.mockResolvedValue(profile);
-      userModelMock.findOne.mockResolvedValueOnce(null);
+      userModelMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) });
+      userModelMock.create.mockResolvedValue(makeUser({ _id: "new-id", username: "person", email: profile.email }));
 
       const out = await service.oauthCallback("google", "code", "state", ctx);
-      expect(out).toEqual({ kind: "error", error: "not_linked" });
+      expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
+      expect(userModelMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: "person@example.com",
+          passwordHash: null,
+          connectedAccounts: [{ provider: "google", providerUserId: "sub-1", displayName: "A Person" }],
+        }),
+      );
+    });
+
+    it("does not merge a new provider identity into an existing account with the same email", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue(profile);
+      userModelMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce({ lean: () => Promise.resolve({ email: profile.email }) });
+
+      const out = await service.oauthCallback("google", "code", "state", ctx);
+      expect(out).toEqual({ kind: "error", error: "email_exists" });
+      expect(userModelMock.create).not.toHaveBeenCalled();
+    });
+
+    it("returns a targeted error when the provider email is not verified", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue({ ...profile, emailVerified: false });
+
+      const out = await service.oauthCallback("google", "code", "state", ctx);
+      expect(out).toEqual({ kind: "error", error: "email_unverified" });
+      expect(userModelMock.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it("recovers when a simultaneous callback has already created the same provider account", async () => {
+      jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "login", verifier: "v" });
+      oauthService.fetchIdentity.mockResolvedValue(profile);
+      const concurrentlyCreated = makeUser({
+        _id: "concurrent-id",
+        email: profile.email,
+        connectedAccounts: [{ provider: "google", providerUserId: profile.providerUserId, displayName: profile.displayName }],
+      });
+      userModelMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
+        .mockReturnValueOnce({ lean: () => Promise.resolve(null) })
+        .mockResolvedValueOnce(concurrentlyCreated);
+      userModelMock.create.mockRejectedValue({ code: 11000 });
+
+      const out = await service.oauthCallback("google", "code", "state", ctx);
+      expect(out).toEqual({ kind: "token", token: "signed.jwt.token" });
+      expect(sessionsService.create).toHaveBeenCalledWith(expect.objectContaining({ userId: "concurrent-id" }));
     });
 
     it("links the provider to the current user on intent=link", async () => {
       jwtService.verifyAsync.mockResolvedValue({ oauth: true, provider: "google", intent: "link", uid: "u-1", verifier: "v" });
-      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-42", email: "ada@example.com", displayName: "Ada G" });
+      oauthService.fetchIdentity.mockResolvedValue({ providerUserId: "sub-42", email: "ada@example.com", emailVerified: true, displayName: "Ada G" });
       userModelMock.findOne.mockResolvedValueOnce(null);
       const linkUser = makeUser({ _id: "u-1", connectedAccounts: [] });
       userModelMock.findById.mockResolvedValue(linkUser);

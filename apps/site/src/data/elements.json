@@ -120,8 +120,8 @@
       "code": "XF",
       "name": "External flooding PRA",
       "quantity": "s",
-      "status": "planned",
-      "blurb": "Not yet implemented."
+      "status": "implemented",
+      "blurb": "External-flood screening, site flood modeling, hazard analysis, fragility, plant response, human reliability, quantification, and risk integration with complete worked examples."
     },
     {
       "code": "O",

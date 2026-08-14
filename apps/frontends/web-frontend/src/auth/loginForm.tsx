@@ -8,6 +8,7 @@ import { UpdateRole } from "../role/role";
 import { RoleContext } from "../role/roleProvider";
 import { useAuth, getRoles } from "./AuthContext";
 import { OpenPraBrand } from "../design-system/OpenPraBrand";
+import { getCampaignAttribution } from "../analytics/analytics";
 import "./css/loginForm.css";
 
 interface LoginFieldErrors {
@@ -191,7 +192,7 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
         <button
           type="button"
           className="login-form__oauth-btn"
-          onClick={() => { window.location.href = oauthStartUrl("google", "login"); }}
+          onClick={() => { window.location.href = oauthStartUrl("google", "login", undefined, getCampaignAttribution()); }}
         >
           <GoogleIcon />
           Continue with Google
@@ -199,7 +200,7 @@ function LoginForm({ onSwitchToSignup }: { onSwitchToSignup?: () => void }): JSX
         <button
           type="button"
           className="login-form__oauth-btn"
-          onClick={() => { window.location.href = oauthStartUrl("github", "login"); }}
+          onClick={() => { window.location.href = oauthStartUrl("github", "login", undefined, getCampaignAttribution()); }}
         >
           <GitHubIcon />
           Continue with GitHub

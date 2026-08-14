@@ -28,6 +28,7 @@ import { InternalFloodPraWorkbooksModule } from "./internal-flood-pra-workbooks/
 import { InternalFirePraWorkbooksModule } from "./internal-fire-pra-workbooks/internal-fire-pra-workbooks.module";
 import { HazardsScreeningAnalysisWorkbooksModule } from "./hazards-screening-analysis-workbooks/hazards-screening-analysis-workbooks.module";
 import { HighWindsPraWorkbooksModule } from "./high-winds-pra-workbooks/high-winds-pra-workbooks.module";
+import { ExternalFloodPraWorkbooksModule } from "./external-flood-pra-workbooks/external-flood-pra-workbooks.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
@@ -66,6 +67,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     InternalFirePraWorkbooksModule,
     HazardsScreeningAnalysisWorkbooksModule,
     HighWindsPraWorkbooksModule,
+    ExternalFloodPraWorkbooksModule,
   ],
 })
 export class AppModule {}

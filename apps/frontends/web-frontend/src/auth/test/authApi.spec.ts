@@ -1,4 +1,4 @@
-import { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword } from "../authApi";
+import { signIn, completeTwoFactor, signUp, forgotPassword, resetPassword, oauthStartUrl } from "../authApi";
 import { getToken } from "../authStorage";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -126,6 +126,14 @@ describe("authApi", () => {
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body).toEqual({ token: "raw-token", newPassword: "brand-new" });
       expect(res.detail).toMatch(/updated/i);
+    });
+  });
+
+  describe("oauthStartUrl", () => {
+    it("carries campaign attribution into a continue request", () => {
+      expect(oauthStartUrl("google", "login", undefined, { token: "campaign-1", visitorId: "visitor-1" })).toBe(
+        "/api/auth/oauth/google/start?intent=login&campaign=campaign-1&visitor=visitor-1",
+      );
     });
   });
 });

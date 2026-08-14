@@ -2,7 +2,7 @@ import { createElement, Fragment, type ReactNode } from "react";
 
 type WorkbookCueCode =
   | "POS" | "IE" | "ES" | "SC" | "SY" | "HR" | "DA" | "ESQ" | "MS" | "RC" | "RI"
-  | "SEISMIC" | "FLOOD" | "FIRE" | "HSA" | "WIND";
+  | "SEISMIC" | "FLOOD" | "FIRE" | "HSA" | "WIND" | "XF";
 
 interface CueRule {
   match: RegExp;
@@ -332,6 +332,31 @@ const PROFILES: Record<WorkbookCueCode, WorkbookCueProfile> = {
       { match: /quantif|uncertainty result|risk contributor/i, lead: "Integrates hazard intervals, fragilities, plant response, and HRA to calculate event-sequence-family frequencies and uncertainty.", example: "the 150–175 mph tornado interval contributes 4.8E-7 per plant-year to release family RF-2" },
       { match: /risk insight|refinement|traceability|controlled baseline|risk decision/i, lead: "Interprets dominant contributors, records refinements and decisions, and preserves evidence-to-result traceability in the controlled baseline.", example: "roof-paver missile control adopted after it ranks first in the tornado risk contribution" },
       { match: /peer review|technical closure|readiness/i, lead: "Confirms conformance, documentation, interface closure, independent review coverage, and disposition of technical findings.", example: "WFR-E7 closed after adding a missile-trajectory sample-size convergence study" },
+    ],
+  },
+  XF: {
+    label: "External Flood PRA",
+    fallbackExample: "a 1E-4 per-year local-intense-precipitation event producing 0.48 m of ponding at the electrical-annex north door",
+    rules: [
+      { match: /scope|pra application|site basis|analysis basis/i, lead: "Defines the site, plant conditions, flood mechanisms, effects, risk measures, and application boundary covered by External Flood PRA.", example: "all fueled POSs, four reactor modules, spent-fuel storage, shared supports, and protected access routes" },
+      { match: /interface|handoff/i, lead: "Controls inputs received from other PRA technical elements and the external-flood results supplied to downstream models.", example: "HSA supplies retained LIP and dam hazards while XF supplies interval sequence frequencies to ESQ" },
+      { match: /evidence|site flood data|datum|site parameter|qualification/i, lead: "Controls the surveys, hydrometeorological records, drawings, models, elevations, parameters, and checks that establish one consistent site-flood basis.", example: "2025 QL1 LiDAR and a 2026 survey tie the north door sill to NAVD88 within 0.04 m" },
+      { match: /screening|candidate|combination/i, lead: "Identifies every credible flood mechanism and shared source and records which are screened or retained for quantitative analysis.", example: "LIP, riverine, dam failure, and groundwater retained while tsunami is screened by physical disconnection" },
+      { match: /local precipitation|precipitation.frequency|catchment|surface flow|lip/i, lead: "Develops local rainfall, catchment, drainage, surface-routing, ponding, ingress, and location-specific hazard results.", example: "a 392 mm six-hour storm produces 0.48 m depth at the north electrical-annex door" },
+      { match: /river|watershed|discharge|stage|levee/i, lead: "Develops river discharge frequency and converts it into site water level, velocity, duration, debris, access, levee, ice, and sediment effects.", example: "Bulletin 17C discharge of 6,520 m³/s produces 0.12 m water above protected-island grade" },
+      { match: /dam|impoundment|breach/i, lead: "Evaluates relevant impoundments, credible failures, breach development, routing, warning, debris, erosion, and site demands.", example: "Lake Sterling seismic breach arrives in 3.7 hours with 1.12 m depth and 2.35 m/s velocity" },
+      { match: /surge|seiche|tsunami|coastal/i, lead: "Evaluates coastal and enclosed-water sources, tides, waves, runup, drawdown, arrival, and hydraulic connection to the plant.", example: "far-field tsunami screened because the site remains 122 m above the maximum connected runup" },
+      { match: /hazard curve|hazard interval|logic.tree|spatial|convergence/i, lead: "Integrates hazard alternatives into location-specific curves, spatial fields, quantification intervals, uncertainty, and numerical convergence.", example: "the 0.6–0.9 m LIP interval carries 5.5E-5 per year with one correlated site depth field" },
+      { match: /equipment list|xfel|preliminary/i, lead: "Identifies flood-induced initiators and the barriers, SSCs, supports, pathways, functions, and failure modes requiring detailed treatment.", example: "shared DC switchgear retained for submergence after door or cable-seal failure" },
+      { match: /investigation|walkdown|pathway|protection feature|drainage feature/i, lead: "Confirms actual or intended grades, openings, barriers, seals, drains, routes, exposed SSCs, procedures, and action feasibility.", example: "walkdown verifies a 0.418 m north-door sill and identifies two cable seals awaiting pressure testing" },
+      { match: /fragility|failure mode|structural load|seal|correlation/i, lead: "Converts water level, loads, leakage, debris, erosion, aging, and dependency into conditional protection and SSC failure probabilities.", example: "the north door has 2.35 m median head capacity with βR 0.18 and βU 0.24" },
+      { match: /scenario|propagation|timeline/i, lead: "Combines sources, paths, protection states, accumulation, drainage, affected SSCs, warning, failure timing, and action windows into plant-response scenarios.", example: "north-annex LIP reaches the cable trench in 2.4 hours if the door leaks and sump pumping is lost" },
+      { match: /plant response|initiating event|event sequence|success criter|mission time|multi.unit/i, lead: "Adapts initiators, sequences, success criteria, systems, data, recovery, mission time, and multi-unit logic to external-flood conditions.", example: "dam-break flooding produces correlated LOOP, UHS loss, access loss, and a 168-hour recovery mission" },
+      { match: /human|hep|hfe|performance context|recovery/i, lead: "Quantifies flood preparation, response, and recovery using warning, water, debris, access, lighting, staffing, communication, timing, and dependency.", example: "outfall isolation receives HEP 0.06 after an 18-minute timed talk-through with a 78-minute margin" },
+      { match: /quantif|uncertainty result|risk contributor/i, lead: "Integrates hazard intervals, fragilities, scenarios, plant response, and HRA into sequence-family frequencies, uncertainty, and contributor rankings.", example: "LIP north-annex ingress contributes 7.8E-7 per plant-year to the mean external-flood result" },
+      { match: /risk insight|refinement|sensitivity/i, lead: "Interprets dominant flood mechanisms and dependencies and tests alternatives that can change model conclusions or improvement priorities.", example: "loss of all drainage raises the LIP family frequency by a factor of 2.6" },
+      { match: /risk integration|risk decision|traceability|controlled baseline/i, lead: "Transfers results to total risk, controls storm and seismic overlap, records decisions, and preserves evidence-to-decision traceability.", example: "NOAA rainfall is traced through the north-annex scenario to a seal-test decision without double counting High Winds storm risk" },
+      { match: /peer review|technical closure|readiness|conformance/i, lead: "Confirms all XFHA, XFFR, and XFPR requirements, interfaces, documentation, independent review, findings, and release evidence are complete.", example: "109 of 109 supporting requirements mapped with two conservative pre-operational actions under control" },
     ],
   },
 };

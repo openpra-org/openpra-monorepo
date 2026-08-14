@@ -19,7 +19,7 @@ import type {
 import { User, type UserDocument } from "../users/user.schema";
 import { EmailService } from "./email.service";
 import { TwoFactorService } from "./twoFactor.service";
-import { OAuthService } from "./oauth.service";
+import { OAuthService, type OAuthProfile } from "./oauth.service";
 import { SessionsService } from "../sessions/sessions.service";
 import { OrgsService } from "../orgs/orgs.service";
 import { AnalyticsService } from "../analytics/analytics.service";
@@ -28,6 +28,7 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const TFA_CHALLENGE_TTL = "5m";
 const OAUTH_STATE_TTL = "10m";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const OAUTH_CREATE_ATTEMPTS = 3;
 
 interface RequestContext {
   userAgent: string;
@@ -196,29 +197,64 @@ export class AuthService {
       return { kind: "linked", provider: provider as OAuthProvider };
     }
 
-    if (claims.intent === "signup") {
-      const existingEmail = await this.userModel.findOne({ email: profile.email }).lean();
-      if (existingEmail) return { kind: "error", error: "email_exists" };
-      const username = await this.deriveUsername(profile.email, profile.displayName);
-      const created = await this.userModel.create({
-        username,
-        email: profile.email,
-        fullName: profile.displayName,
-        organization: "",
-        organizationId: null,
-        passwordHash: null,
-        connectedAccounts: [{ provider, providerUserId: profile.providerUserId, displayName: profile.displayName }],
-        roles: ["member-role"],
-      });
-      try {
-        await this.analytics?.recordAccountCreated(created, claims.campaignToken, claims.visitorId);
-      } catch (error) {
-        console.error("Could not record OAuth account analytics", error);
-      }
-      return { kind: "token", token: await this.signToken(created, ctx) };
+    if (claims.intent !== "login" && claims.intent !== "signup") {
+      return { kind: "error", error: "invalid_state" };
+    }
+    if (!profile.emailVerified || profile.email === null) {
+      return { kind: "error", error: "email_unverified" };
     }
 
-    return { kind: "error", error: "not_linked" };
+    return this.createOAuthUser(provider, { ...profile, email: profile.email }, claims.campaignToken, claims.visitorId, ctx);
+  }
+
+  private async createOAuthUser(
+    provider: string,
+    profile: OAuthProfile & { email: string },
+    campaignToken: string | undefined,
+    visitorId: string | undefined,
+    ctx: RequestContext,
+  ): Promise<OAuthResult> {
+    const existingEmail = await this.userModel.findOne({ email: profile.email }).lean();
+    if (existingEmail) return { kind: "error", error: "email_exists" };
+
+    for (let attempt = 0; attempt < OAUTH_CREATE_ATTEMPTS; attempt += 1) {
+      const username = await this.deriveUsername(profile.email, profile.displayName);
+      try {
+        const created = await this.userModel.create({
+          username,
+          email: profile.email,
+          fullName: profile.displayName,
+          organization: "",
+          organizationId: null,
+          passwordHash: null,
+          connectedAccounts: [{ provider, providerUserId: profile.providerUserId, displayName: profile.displayName }],
+          roles: ["member-role"],
+        });
+        try {
+          await this.analytics?.recordAccountCreated(created, campaignToken, visitorId);
+        } catch (error) {
+          console.error("Could not record OAuth account analytics", error);
+        }
+        return { kind: "token", token: await this.signToken(created, ctx) };
+      } catch (error) {
+        if (!this.isDuplicateKeyError(error)) throw error;
+
+        const linked = await this.userModel.findOne({
+          connectedAccounts: { $elemMatch: { provider, providerUserId: profile.providerUserId } },
+        });
+        if (linked) return this.issueForUser(linked, ctx);
+
+        const emailOwner = await this.userModel.findOne({ email: profile.email }).lean();
+        if (emailOwner) return { kind: "error", error: "email_exists" };
+        if (attempt === OAUTH_CREATE_ATTEMPTS - 1) throw error;
+      }
+    }
+
+    throw new Error("Could not create OAuth account");
+  }
+
+  private isDuplicateKeyError(error: unknown): error is { code: number } {
+    return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
   }
 
   private async issueForUser(user: UserDocument, ctx: RequestContext): Promise<OAuthResult> {

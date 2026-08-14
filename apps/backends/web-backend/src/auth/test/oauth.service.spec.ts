@@ -55,10 +55,25 @@ describe("OAuthService", () => {
     process.env["GOOGLE_CLIENT_SECRET"] = "secret";
     global.fetch = jest.fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "at" }) })
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ sub: "sub-1", email: "P@E.com", name: "P" }) }) as unknown as typeof fetch;
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ sub: "sub-1", email: "P@E.com", email_verified: true, name: "P" }) }) as unknown as typeof fetch;
 
     const profile = await service.fetchIdentity("google", "code", "verifier");
-    expect(profile).toEqual({ providerUserId: "sub-1", email: "p@e.com", displayName: "P" });
+    expect(profile).toEqual({ providerUserId: "sub-1", email: "p@e.com", emailVerified: true, displayName: "P" });
+  });
+
+  it("marks a google identity without a verified email", async () => {
+    process.env["GOOGLE_CLIENT_ID"] = "id";
+    process.env["GOOGLE_CLIENT_SECRET"] = "secret";
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "at" }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ sub: "sub-1", email: "p@e.com", email_verified: false }) }) as unknown as typeof fetch;
+
+    await expect(service.fetchIdentity("google", "code", "verifier")).resolves.toEqual({
+      providerUserId: "sub-1",
+      email: "p@e.com",
+      emailVerified: false,
+      displayName: "p@e.com",
+    });
   });
 
   it("throws when the token exchange fails", async () => {
@@ -86,27 +101,50 @@ describe("OAuthService", () => {
       expect(url).not.toContain("prompt=");
     });
 
-    it("maps the github profile from /user", async () => {
+    it("maps the github profile using its verified primary email", async () => {
       process.env["GITHUB_CLIENT_ID"] = "id";
       process.env["GITHUB_CLIENT_SECRET"] = "secret";
       global.fetch = jest.fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "gho_x" }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 4242, login: "octo", name: "Octo Cat", email: "Octo@Example.com" }) }) as unknown as typeof fetch;
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 4242, login: "octo", name: "Octo Cat" }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ email: "Octo@Example.com", primary: true, verified: true }]) }) as unknown as typeof fetch;
 
       const profile = await service.fetchIdentity("github", "code", "verifier");
-      expect(profile).toEqual({ providerUserId: "4242", email: "octo@example.com", displayName: "Octo Cat" });
+      expect(profile).toEqual({ providerUserId: "4242", email: "octo@example.com", emailVerified: true, displayName: "Octo Cat" });
     });
 
-    it("falls back to /user/emails when the github profile email is private", async () => {
+    it("falls back to another verified github email when the primary email is unverified", async () => {
       process.env["GITHUB_CLIENT_ID"] = "id";
       process.env["GITHUB_CLIENT_SECRET"] = "secret";
       global.fetch = jest.fn()
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "gho_x" }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 7, login: "ghuser", name: null, email: null }) })
-        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ email: "p@e.com", primary: true, verified: true }]) }) as unknown as typeof fetch;
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 7, login: "ghuser", name: null }) })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([
+            { email: "primary@example.com", primary: true, verified: false },
+            { email: "verified@example.com", primary: false, verified: true },
+          ]),
+        }) as unknown as typeof fetch;
 
       const profile = await service.fetchIdentity("github", "code", "verifier");
-      expect(profile).toEqual({ providerUserId: "7", email: "p@e.com", displayName: "ghuser" });
+      expect(profile).toEqual({ providerUserId: "7", email: "verified@example.com", emailVerified: true, displayName: "ghuser" });
+    });
+
+    it("marks a github identity without a verified email", async () => {
+      process.env["GITHUB_CLIENT_ID"] = "id";
+      process.env["GITHUB_CLIENT_SECRET"] = "secret";
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ access_token: "gho_x" }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ id: 7, login: "ghuser", name: null }) })
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([{ email: "p@e.com", primary: true, verified: false }]) }) as unknown as typeof fetch;
+
+      await expect(service.fetchIdentity("github", "code", "verifier")).resolves.toEqual({
+        providerUserId: "7",
+        email: null,
+        emailVerified: false,
+        displayName: "ghuser",
+      });
     });
   });
 });

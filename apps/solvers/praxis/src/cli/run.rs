@@ -227,6 +227,21 @@ pub fn run(cli: Args) -> Result<(), Box<dyn std::error::Error>> {
         })?
     };
 
+    if let Some(request_path) = cli.hcl_request.as_deref() {
+        let fault_tree = match parsed_input {
+            ParsedInput::FaultTree(fault_tree) => fault_tree,
+            ParsedInput::EventTreeModel(_) => {
+                return Err("HCL requests currently require a fault-tree input".into());
+            }
+        };
+        return crate::cli::hcl::run_hcl_request(
+            &cli,
+            fault_tree,
+            request_path,
+            verbose,
+        );
+    }
+
     if cli.widths_only {
         let fault_tree_model = match parsed_input {
             ParsedInput::EventTreeModel(_) => {

@@ -174,6 +174,13 @@ pub struct Args {
     #[arg(long = "output-format", value_enum, default_value_t = OutputFormat::Xml)]
     pub output_format: OutputFormat,
 
+    #[arg(
+        long = "hcl-request",
+        value_name = "JSON",
+        help = "Quantify the fault tree with a versioned HCL request and emit JSON"
+    )]
+    pub hcl_request: Option<PathBuf>,
+
     #[arg(long = "saphire-project", value_name = "PROJECT")]
     pub saphire_project: Option<String>,
 

@@ -1,6 +1,7 @@
 pub mod args;
 pub mod event_tree;
 pub mod fault_tree;
+pub mod hcl;
 pub mod load;
 pub mod metadata;
 pub mod optimize;

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smile version="1.0" id="synthetic_bn" numsamples="10000">
+  <nodes>
+    <cpt id="Extra0">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.558963 0.441037</probabilities>
+    </cpt>
+    <cpt id="I0">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0</parents>
+      <probabilities>0.972738 0.027262 0.772970 0.227030</probabilities>
+    </cpt>
+    <cpt id="I1">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0 I0</parents>
+      <probabilities>0.177297 0.822703 0.666841 0.333159 0.816899 0.183101 0.250401 0.749599</probabilities>
+    </cpt>
+    <cpt id="I2">
+      <state id="False" />
+      <state id="True" />
+      <parents>I0 I1 Extra0</parents>
+      <probabilities>0.602249 0.397751 0.777961 0.222039 0.720857 0.279143 0.092344 0.907656 0.822422 0.177578 0.986624 0.013376 0.912630 0.087370 0.413291 0.586709</probabilities>
+    </cpt>
+    <cpt id="I3">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0</parents>
+      <probabilities>0.155728 0.844272 0.204066 0.795934</probabilities>
+    </cpt>
+    <cpt id="I4">
+      <state id="False" />
+      <state id="True" />
+      <parents>I1 Extra0 I3 I2</parents>
+      <probabilities>0.699935 0.300065 0.667740 0.332260 0.472613 0.527387 0.611412 0.388588 0.086196 0.913804 0.371965 0.628035 0.367381 0.632619 0.512132 0.487868 0.416105 0.583895 0.760514 0.239486 0.602481 0.397519 0.910978 0.089022 0.866700 0.133300 0.712769 0.287231 0.538093 0.461907 0.780582 0.219418</probabilities>
+    </cpt>
+  </nodes>
+</smile>

@@ -6,6 +6,7 @@
 - Phase 1 status: complete — discrete Rust engine implemented
 - Phase 2 status: complete — C++ equivalence verification recorded
 - Phase 3 status: complete — PRAXIS HCL computational bridge implemented
+- Phase 4 status: complete — public API, canonical input, XDSL import, and CLI implemented
 - Benchmarking status: deferred to Phase 6
 - Legacy fixture or test migration: excluded
 - Bayesian-engine source of truth: `/Users/akrambatikh/Documents/projects/Libraries/BN C++/bncore`
@@ -490,10 +491,41 @@ Phase 3 completion record (2026-08-15):
 
 ### Phase 4 — PRAXIS API and model I/O
 
-- Add `HclModel`, `HclSettings`, and `quantify_hcl`.
-- Add canonical BN input and minimal required XDSL import.
-- Define an HCL request envelope.
-- Add CLI support without changing existing OpenPSA/PBF behavior.
+- [x] Add `HclModel`, `HclSettings`, and `quantify_hcl`.
+- [x] Add canonical BN input and minimal required XDSL import.
+- [x] Define an HCL request envelope.
+- [x] Add CLI support without changing existing OpenPSA/PBF behavior.
+
+Phase 4 completion record (2026-08-15):
+
+- Added a name-based public model boundary with `HclModel`, `HclSettings`,
+  `HclBindingSpec`, `HclEvidenceSpec`, `HclResult`, and `quantify_hcl`.
+- Added strict canonical discrete-BN input with named variables, ordered parents,
+  named states, scalar CPT validation, and conversion to `BayesianGraph`.
+- Added a minimal XDSL importer for discrete CPT nodes. It preserves declared
+  state and parent order, ignores GeNIe presentation extensions, and rejects
+  decision, utility, deterministic, continuous, or malformed inputs rather than
+  approximating them.
+- Added version 1 of the serializable HCL request envelope. It supports embedded
+  canonical data, embedded XDSL, or an XDSL file path; CLI-relative file paths
+  resolve against the request directory.
+- Added serializable HCL output with probability, selected BDD order, BDD size,
+  bridge-cache statistics, and junction-tree statistics.
+- Added the opt-in `--hcl-request <JSON>` CLI path. The positional fault-tree
+  input remains OpenPSA XML or PBF, HCL results are JSON, and commands without
+  the new option retain the existing execution path.
+- Added focused API, canonical-input, XDSL, request-validation, evidence, and
+  binary CLI tests.
+- Added an HCL numerical verification gate using a compact legacy model-input
+  fixture. Conditional Shannon traversal is compared with the old
+  Python-generated unified XDSL, a test-only Rust unified-BN conversion, and
+  direct state-space enumeration.
+- Added multi-state overlapping bindings, hard evidence, BDD-order invariance,
+  cache reuse, and cache-clear invariance checks. The method, corpus policy,
+  limitations, commands, and recorded probabilities are documented in
+  `apps/solvers/praxis/docs/HCL_VERIFICATION.md`.
+- The complete PRAXIS suite passes with 882 tests successful and two
+  pre-existing ignored tests.
 
 ### Phase 5 — OpenPRA/Praetor integration
 

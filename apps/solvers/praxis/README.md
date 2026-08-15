@@ -44,3 +44,22 @@ cargo clippy -- -D warnings
 # Check without building
 cargo check
 ```
+
+## Hybrid Causal Logic
+
+PRAXIS can quantify selected fault-tree basic events through a discrete
+TensorBayes network while leaving unbound events independent. HCL is opt-in and
+does not change the existing OpenPSA XML or PBF workflows:
+
+```bash
+cargo run -- fault-tree.xml --hcl-request hcl-request.json
+```
+
+The command emits a JSON result. Canonical BN JSON, embedded XDSL, and XDSL file
+sources are supported by request schema version 1. See
+[`src/hcl/REQUEST_SCHEMA.md`](src/hcl/REQUEST_SCHEMA.md) for the complete input
+contract.
+
+Numerical verification compares conditional Shannon traversal with a frozen
+legacy unified network, a test-only Rust unified-network conversion, and direct
+enumeration. See [`docs/HCL_VERIFICATION.md`](docs/HCL_VERIFICATION.md).

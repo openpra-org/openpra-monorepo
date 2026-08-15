@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<opsa-mef>
+  <define-fault-tree name="synthetic_ft">
+    <define-gate name="Top">
+      <gate name="G0"/>
+    </define-gate>
+    <define-gate name="G3">
+      <or>
+        <basic-event name="E2"/>
+        <basic-event name="E8"/>
+        <basic-event name="I2"/>
+        <basic-event name="I0"/>
+      </or>
+    </define-gate>
+    <define-gate name="G4">
+      <or>
+        <basic-event name="E7"/>
+        <basic-event name="E3"/>
+        <basic-event name="E9"/>
+        <basic-event name="I4"/>
+      </or>
+    </define-gate>
+    <define-gate name="G5">
+      <or>
+        <basic-event name="E0"/>
+        <basic-event name="E4"/>
+        <basic-event name="E1"/>
+        <basic-event name="E10"/>
+      </or>
+    </define-gate>
+    <define-gate name="G6">
+      <and>
+        <basic-event name="E5"/>
+        <basic-event name="I3"/>
+        <basic-event name="I1"/>
+        <basic-event name="E6"/>
+      </and>
+    </define-gate>
+    <define-gate name="G2">
+      <or>
+        <gate name="G3"/>
+        <gate name="G4"/>
+        <gate name="G5"/>
+        <gate name="G6"/>
+        <basic-event name="E11"/>
+      </or>
+    </define-gate>
+    <define-gate name="G1">
+      <or>
+        <gate name="G2"/>
+        <basic-event name="E0"/>
+        <basic-event name="E1"/>
+        <basic-event name="E2"/>
+        <basic-event name="E3"/>
+      </or>
+    </define-gate>
+    <define-gate name="G0">
+      <and>
+        <gate name="G1"/>
+        <basic-event name="E4"/>
+        <basic-event name="E5"/>
+        <basic-event name="E6"/>
+      </and>
+    </define-gate>
+  </define-fault-tree>
+
+  <model-data>
+    <define-basic-event name="I0">
+      <float value="0.0"/>
+    </define-basic-event>
+    <define-basic-event name="I1">
+      <float value="0.0"/>
+    </define-basic-event>
+    <define-basic-event name="I2">
+      <float value="0.0"/>
+    </define-basic-event>
+    <define-basic-event name="I3">
+      <float value="0.0"/>
+    </define-basic-event>
+    <define-basic-event name="I4">
+      <float value="0.0"/>
+    </define-basic-event>
+    <define-basic-event name="E0">
+      <float value="0.199954"/>
+    </define-basic-event>
+    <define-basic-event name="E1">
+      <float value="0.315697"/>
+    </define-basic-event>
+    <define-basic-event name="E2">
+      <float value="0.380862"/>
+    </define-basic-event>
+    <define-basic-event name="E3">
+      <float value="0.035704"/>
+    </define-basic-event>
+    <define-basic-event name="E4">
+      <float value="0.131075"/>
+    </define-basic-event>
+    <define-basic-event name="E5">
+      <float value="0.313229"/>
+    </define-basic-event>
+    <define-basic-event name="E6">
+      <float value="0.464950"/>
+    </define-basic-event>
+    <define-basic-event name="E7">
+      <float value="0.359832"/>
+    </define-basic-event>
+    <define-basic-event name="E8">
+      <float value="0.347983"/>
+    </define-basic-event>
+    <define-basic-event name="E9">
+      <float value="0.175970"/>
+    </define-basic-event>
+    <define-basic-event name="E10">
+      <float value="0.344088"/>
+    </define-basic-event>
+    <define-basic-event name="E11">
+      <float value="0.275815"/>
+    </define-basic-event>
+  </model-data>
+</opsa-mef>

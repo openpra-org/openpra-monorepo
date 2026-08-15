@@ -1,0 +1,16 @@
+intersection_map:
+  I0:
+    bn_id: I0
+    success: 'True'
+  I1:
+    bn_id: I1
+    success: 'True'
+  I2:
+    bn_id: I2
+    success: 'True'
+  I3:
+    bn_id: I3
+    success: 'True'
+  I4:
+    bn_id: I4
+    success: 'True'

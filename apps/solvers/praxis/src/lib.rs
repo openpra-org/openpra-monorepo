@@ -3,6 +3,7 @@ pub mod analysis;
 pub mod core;
 pub mod error;
 pub mod expression;
+pub mod hcl;
 pub mod io;
 pub mod mc;
 

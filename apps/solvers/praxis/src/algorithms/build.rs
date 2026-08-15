@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use tracing::info;
@@ -10,7 +10,7 @@ use crate::algorithms::simplify;
 use crate::algorithms::zbdd_engine::{ZbddEngine, ZbddRef};
 use crate::analysis::width::compute_dfs_metadata_pdag;
 use crate::core::fault_tree::FaultTree;
-use crate::Result;
+use crate::{PraxisError, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BuildOptions {
@@ -44,6 +44,26 @@ pub struct BddBuild {
 }
 
 pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild> {
+    build_bdd_internal(fault_tree, opts, None)
+}
+
+/// Builds a BDD with an exact caller-provided basic-event order.
+///
+/// The order must name every basic event exactly once. This entry point is used
+/// by HCL callers to align BDD traversal with Bayesian-network causal order.
+pub fn build_bdd_with_order(
+    fault_tree: &FaultTree,
+    opts: BuildOptions,
+    variable_order: &[String],
+) -> Result<BddBuild> {
+    build_bdd_internal(fault_tree, opts, Some(variable_order))
+}
+
+fn build_bdd_internal(
+    fault_tree: &FaultTree,
+    opts: BuildOptions,
+    variable_order: Option<&[String]>,
+) -> Result<BddBuild> {
     let started = Instant::now();
     let mut pdag = Pdag::from_fault_tree(fault_tree)?;
     info!(pdag_nodes = pdag.node_count(), "build_bdd: PDAG built");
@@ -55,7 +75,9 @@ pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild>
     }
 
     let ordering = Instant::now();
-    let order = if let Some(method) = opts.reorder {
+    let order = if let Some(explicit) = variable_order {
+        resolve_variable_order(&pdag, explicit)?
+    } else if let Some(method) = opts.reorder {
         best_order(&pdag, method, opts.reorder_budget)
     } else {
         compute_dfs_metadata_pdag(&pdag)?.variable_order
@@ -89,6 +111,43 @@ pub fn build_bdd(fault_tree: &FaultTree, opts: BuildOptions) -> Result<BddBuild>
         bdd,
         root,
     })
+}
+
+fn resolve_variable_order(pdag: &Pdag, names: &[String]) -> Result<Vec<NodeIndex>> {
+    let event_count = pdag
+        .nodes()
+        .values()
+        .filter(|node| node.is_basic_event())
+        .count();
+    if names.len() != event_count {
+        return Err(PraxisError::Logic(format!(
+            "explicit BDD order has {} entries, but the fault tree has {event_count} basic events",
+            names.len()
+        )));
+    }
+
+    let mut seen = HashSet::with_capacity(names.len());
+    let mut order = Vec::with_capacity(names.len());
+    for name in names {
+        let index = pdag.get_index(name).ok_or_else(|| {
+            PraxisError::Logic(format!("explicit BDD order references unknown event '{name}'"))
+        })?;
+        let node = pdag.get_node(index).ok_or_else(|| {
+            PraxisError::Logic(format!("explicit BDD order references missing node '{name}'"))
+        })?;
+        if !node.is_basic_event() {
+            return Err(PraxisError::Logic(format!(
+                "explicit BDD order entry '{name}' is not a basic event"
+            )));
+        }
+        if !seen.insert(index) {
+            return Err(PraxisError::Logic(format!(
+                "explicit BDD order contains duplicate event '{name}'"
+            )));
+        }
+        order.push(index);
+    }
+    Ok(order)
 }
 
 pub fn build_sequence_bdd(

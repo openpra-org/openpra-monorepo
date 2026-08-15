@@ -155,6 +155,17 @@ impl Bdd {
         self.nodes.len().saturating_sub(2)
     }
 
+    pub fn variable_count(&self) -> usize {
+        self.nodes
+            .iter()
+            .filter(|node| !node.is_sentinel())
+            .map(|node| node.var)
+            .max()
+            .map(|variable| variable + 1)
+            .unwrap_or_else(|| self.var_probs.len())
+            .max(self.var_probs.len())
+    }
+
     pub fn set_var_probs(&mut self, probs: Vec<f64>) {
         self.var_probs = probs;
     }

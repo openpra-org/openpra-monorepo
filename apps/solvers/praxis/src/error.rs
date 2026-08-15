@@ -9,6 +9,8 @@ pub enum PraxisError {
     Logic(String),
     IllegalOperation(String),
     Settings(String),
+    Bayesian(String),
+    Hcl(String),
     Version(String),
     Serialization(String),
     Mef(MefError),
@@ -57,6 +59,8 @@ impl fmt::Display for PraxisError {
             PraxisError::Logic(msg) => write!(f, "Logic Error: {}", msg),
             PraxisError::IllegalOperation(msg) => write!(f, "Illegal Operation: {}", msg),
             PraxisError::Settings(msg) => write!(f, "Settings Error: {}", msg),
+            PraxisError::Bayesian(msg) => write!(f, "Bayesian Error: {}", msg),
+            PraxisError::Hcl(msg) => write!(f, "HCL Error: {}", msg),
             PraxisError::Version(msg) => write!(f, "Version Error: {}", msg),
             PraxisError::Serialization(msg) => write!(f, "Serialization Error: {}", msg),
             PraxisError::Mef(err) => write!(f, "MEF Error: {}", err),
@@ -167,5 +171,11 @@ impl From<MefError> for PraxisError {
 impl From<quick_xml::Error> for PraxisError {
     fn from(err: quick_xml::Error) -> Self {
         PraxisError::Io(format!("XML error: {}", err))
+    }
+}
+
+impl From<tensorbayes::Error> for PraxisError {
+    fn from(err: tensorbayes::Error) -> Self {
+        PraxisError::Bayesian(err.to_string())
     }
 }

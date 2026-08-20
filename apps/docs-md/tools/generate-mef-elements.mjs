@@ -16,6 +16,17 @@ const ELEMENTS = [
   { slug: "ms", file: "mechanistic-source-term-analysis", title: "Mechanistic Source Term Analysis" },
   { slug: "rc", file: "radiological-consequence-analysis", title: "Radiological Consequence Analysis" },
   { slug: "ri", file: "risk-integration", title: "Risk Integration" },
+  {
+    slug: "hazards-screening",
+    file: "hazards-screening-analysis",
+    title: "Hazards Screening Analysis",
+  },
+  { slug: "seismic", file: "seismic-pra", title: "Seismic PRA" },
+  { slug: "internal-flood", file: "internal-flood-pra", title: "Internal Flood PRA" },
+  { slug: "internal-fire", file: "internal-fire-pra", title: "Internal Fire PRA" },
+  { slug: "high-winds", file: "high-winds-pra", title: "High Winds PRA" },
+  { slug: "external-flood", file: "external-flood-pra", title: "External Flood PRA" },
+  { slug: "other-hazards", file: "other-hazards-pra", title: "Other Hazards PRA" },
 ];
 
 const tsUrl = (el) => `/mef-elements/ts/${el.slug}/${el.file}/README.html`;

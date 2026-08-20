@@ -156,6 +156,31 @@ export default defineConfig({
               link: "/mef-elements/ts/rc/radiological-consequence-analysis/README.html",
             },
             { text: "Risk Integration", link: "/mef-elements/ts/ri/risk-integration/README.html" },
+            {
+              text: "Hazards Screening Analysis",
+              link: "/mef-elements/ts/hazards-screening/hazards-screening-analysis/README.html",
+            },
+            { text: "Seismic PRA", link: "/mef-elements/ts/seismic/seismic-pra/README.html" },
+            {
+              text: "Internal Flood PRA",
+              link: "/mef-elements/ts/internal-flood/internal-flood-pra/README.html",
+            },
+            {
+              text: "Internal Fire PRA",
+              link: "/mef-elements/ts/internal-fire/internal-fire-pra/README.html",
+            },
+            {
+              text: "High Winds PRA",
+              link: "/mef-elements/ts/high-winds/high-winds-pra/README.html",
+            },
+            {
+              text: "External Flood PRA",
+              link: "/mef-elements/ts/external-flood/external-flood-pra/README.html",
+            },
+            {
+              text: "Other Hazards PRA",
+              link: "/mef-elements/ts/other-hazards/other-hazards-pra/README.html",
+            },
           ],
         },
         {

@@ -265,6 +265,147 @@ export const PlantEvolutionSchema = z.object({
   sourceDocumentRef: z.string().optional(),
 });
 
+export const PosEvidenceTypeSchema = z.enum([
+  "DESIGN_BASIS",
+  "PROCESS_DRAWING",
+  "ELECTRICAL_I_AND_C",
+  "OPERATING_PROCEDURE",
+  "WORK_CONTROL",
+  "ENGINEERING_CALCULATION",
+  "HAZARD_BARRIER",
+  "HUMAN_FACTORS",
+  "OPERATING_EXPERIENCE",
+  "CONFIGURATION_CONTROL",
+  "INTERVIEW_WALKDOWN",
+]);
+
+export const PosEvidenceStatusSchema = z.enum(["PRELIMINARY", "APPROVED", "AS_BUILT", "AS_OPERATED", "SUPERSEDED"]);
+
+export const PosEvidenceRecordSchema = z.object({
+  uuid: z.string(),
+  identifier: z.string(),
+  title: z.string(),
+  revision: z.string(),
+  effectiveDate: z.string(),
+  evidenceType: PosEvidenceTypeSchema,
+  lifecycleStatus: PosEvidenceStatusSchema,
+  citation: z.string(),
+  extractedFact: z.string(),
+  affectedEvolutionIds: z.array(z.string()),
+  affectedPosIds: z.array(z.string()),
+  limitation: z.string().optional(),
+  reviewer: z.string().optional(),
+});
+
+export const EvolutionSearchMethodSchema = z.enum([
+  "MODE_LIFECYCLE",
+  "PROCEDURE_ACTIVITY",
+  "SYSTEM_SAFETY_FUNCTION",
+  "SOURCE_BARRIER",
+  "EXPERIENCE_PERSONNEL",
+]);
+
+export const EvolutionSearchRecordSchema = z.object({
+  uuid: z.string(),
+  method: EvolutionSearchMethodSchema,
+  evidenceIds: z.array(z.string()),
+  identifiedEvolutionIds: z.array(z.string()),
+  complete: z.boolean(),
+  basis: z.string(),
+});
+
+export const PosBoundaryDimensionSchema = z.enum([
+  "RADIOACTIVE_SOURCE",
+  "CRITICALITY_POWER",
+  "TIME_AFTER_SHUTDOWN",
+  "COOLANT_CONDITION",
+  "PROCESS_BOUNDARY",
+  "DECAY_HEAT_REMOVAL",
+  "INSTRUMENTATION",
+  "AUTOMATION",
+  "SSC_ALIGNMENT",
+  "SUPPORT_SYSTEMS",
+  "RADIONUCLIDE_BARRIER",
+  "HAZARD_BARRIER",
+  "HUMAN_ACTIVITY",
+  "HUMAN_CONTEXT",
+]);
+
+export const PosBoundaryDispositionSchema = z.enum(["UNRESOLVED", "RETAIN", "COMBINE"]);
+
+export const PosCandidateBoundarySchema = z.object({
+  uuid: z.string(),
+  evolutionId: z.string(),
+  sequence: z.number(),
+  label: z.string(),
+  activity: z.string(),
+  entryCondition: z.string(),
+  changedDimensions: z.array(PosBoundaryDimensionSchema),
+  evidenceIds: z.array(z.string()),
+  stateBeforeId: z.string().optional(),
+  stateAfterId: z.string().optional(),
+  disposition: PosBoundaryDispositionSchema,
+  basis: z.string(),
+});
+
+export const PosImpactResultSchema = z.enum(["CHANGED", "UNCHANGED", "UNRESOLVED"]);
+export const PosBoundaryInterfaceCodeSchema = z.enum([
+  "IE",
+  "ES",
+  "SC",
+  "SY",
+  "HR",
+  "DA",
+  "FL",
+  "F",
+  "S",
+  "HS",
+  "W",
+  "XF",
+  "O",
+  "ESQ",
+  "MS",
+  "RC",
+  "RI",
+]);
+
+export const PosBoundaryInterfaceReviewSchema = z.object({
+  uuid: z.string(),
+  technicalElementCode: PosBoundaryInterfaceCodeSchema,
+  result: PosImpactResultSchema,
+  affectedArtifact: z.string(),
+  responsibleAnalyst: z.string(),
+  reviewStatus: z.enum(["NOT_REVIEWED", "PENDING", "CONFIRMED"]),
+  technicalBasis: z.string(),
+});
+
+export const PosBoundaryImpactAssessmentSchema = z.object({
+  boundaryId: z.string(),
+  interfaceReviews: z.array(PosBoundaryInterfaceReviewSchema),
+  exposureTreatment: z.enum(["UNRESOLVED", "TIME_BASED", "DEMAND_BASED", "BOTH", "NOT_APPLICABLE"]),
+  exposureResult: PosImpactResultSchema,
+  exposureBasis: z.string(),
+  riskSignificanceCheck: z.enum(["UNRESOLVED", "PRESERVED", "COULD_MASK"]),
+  riskSignificanceBasis: z.string(),
+  conclusion: PosBoundaryDispositionSchema,
+  basis: z.string(),
+  reviewer: z.string().optional(),
+});
+
+export const PosBaselineReviewSchema = z.object({
+  revision: z.string(),
+  status: z.enum(["DRAFT", "READY", "BASELINED"]),
+  reviewer: z.string(),
+  reviewDate: z.string(),
+  evolutionTraceable: z.boolean(),
+  boundaryTraceable: z.boolean(),
+  groupingTraceable: z.boolean(),
+  quantificationTraceable: z.boolean(),
+  interfacesTraceable: z.boolean(),
+  openAssumptions: z.number(),
+  changeSummary: z.string(),
+});
+
 export const EvolutionGroupSchema = z.object({
   uuid: z.string(),
   name: z.string(),
@@ -408,6 +549,11 @@ export const PlantOperatingStatesAnalysisSchema = z.object({
   includesLPSDOperations: z.boolean().optional(),
   plantEvolutions: z.array(PlantEvolutionSchema),
   plantOperatingStates: z.array(PlantOperatingStateSchema),
+  evidenceRegister: z.array(PosEvidenceRecordSchema).optional(),
+  evolutionSearchRecords: z.array(EvolutionSearchRecordSchema).optional(),
+  candidateBoundaries: z.array(PosCandidateBoundarySchema).optional(),
+  boundaryImpactAssessments: z.array(PosBoundaryImpactAssessmentSchema).optional(),
+  baselineReview: PosBaselineReviewSchema.optional(),
   evolutionGroups: z.array(EvolutionGroupSchema).optional(),
   plantOperatingStateGroups: z.array(PlantOperatingStateGroupSchema).optional(),
   screeningRecords: z.array(PosScreeningRecordSchema),

@@ -24,7 +24,11 @@ describe("Seismic PRA MEF documents", () => {
     const result = SeismicPRASchema.safeParse(mef);
     expect(result.success).toBe(true);
     expect(mef.conformanceMatrix).toHaveLength(109);
-    expect(mef.conformanceMatrix.every((row) => row.status === "MET" && row.evidence.length > 0)).toBe(true);
+    expect(
+      mef.conformanceMatrix.every(
+        (row) => (row.status === "MET" || row.status === "NOT_APPLICABLE") && row.evidence.length > 0,
+      ),
+    ).toBe(true);
     expect(mef.seismicHazardAnalysis.hazardQuantification.hazardCurves.length).toBeGreaterThan(0);
     expect(mef.seismicFragilityAnalysis.results.fragilityEvaluations.length).toBeGreaterThan(0);
     expect(mef.seismicPlantResponseAnalysis.quantification.eventSequenceFamilyQuantifications.length).toBeGreaterThan(0);

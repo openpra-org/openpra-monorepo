@@ -262,6 +262,139 @@ export interface PlantEvolution extends Unique, Named {
   sourceDocumentRef?: string;
 }
 
+export type PosEvidenceType =
+  | "DESIGN_BASIS"
+  | "PROCESS_DRAWING"
+  | "ELECTRICAL_I_AND_C"
+  | "OPERATING_PROCEDURE"
+  | "WORK_CONTROL"
+  | "ENGINEERING_CALCULATION"
+  | "HAZARD_BARRIER"
+  | "HUMAN_FACTORS"
+  | "OPERATING_EXPERIENCE"
+  | "CONFIGURATION_CONTROL"
+  | "INTERVIEW_WALKDOWN";
+
+export type PosEvidenceStatus = "PRELIMINARY" | "APPROVED" | "AS_BUILT" | "AS_OPERATED" | "SUPERSEDED";
+
+export interface PosEvidenceRecord extends Unique {
+  identifier: string;
+  title: string;
+  revision: string;
+  effectiveDate: string;
+  evidenceType: PosEvidenceType;
+  lifecycleStatus: PosEvidenceStatus;
+  citation: string;
+  extractedFact: string;
+  affectedEvolutionIds: string[];
+  affectedPosIds: string[];
+  limitation?: string;
+  reviewer?: string;
+}
+
+export type EvolutionSearchMethod =
+  | "MODE_LIFECYCLE"
+  | "PROCEDURE_ACTIVITY"
+  | "SYSTEM_SAFETY_FUNCTION"
+  | "SOURCE_BARRIER"
+  | "EXPERIENCE_PERSONNEL";
+
+export interface EvolutionSearchRecord extends Unique {
+  method: EvolutionSearchMethod;
+  evidenceIds: string[];
+  identifiedEvolutionIds: string[];
+  complete: boolean;
+  basis: string;
+}
+
+export type PosBoundaryDimension =
+  | "RADIOACTIVE_SOURCE"
+  | "CRITICALITY_POWER"
+  | "TIME_AFTER_SHUTDOWN"
+  | "COOLANT_CONDITION"
+  | "PROCESS_BOUNDARY"
+  | "DECAY_HEAT_REMOVAL"
+  | "INSTRUMENTATION"
+  | "AUTOMATION"
+  | "SSC_ALIGNMENT"
+  | "SUPPORT_SYSTEMS"
+  | "RADIONUCLIDE_BARRIER"
+  | "HAZARD_BARRIER"
+  | "HUMAN_ACTIVITY"
+  | "HUMAN_CONTEXT";
+
+export type PosBoundaryDisposition = "UNRESOLVED" | "RETAIN" | "COMBINE";
+
+export interface PosCandidateBoundary extends Unique {
+  evolutionId: string;
+  sequence: number;
+  label: string;
+  activity: string;
+  entryCondition: string;
+  changedDimensions: PosBoundaryDimension[];
+  evidenceIds: string[];
+  stateBeforeId?: string;
+  stateAfterId?: string;
+  disposition: PosBoundaryDisposition;
+  basis: string;
+}
+
+export type PosImpactResult = "CHANGED" | "UNCHANGED" | "UNRESOLVED";
+export type PosBoundaryInterfaceCode =
+  | "IE"
+  | "ES"
+  | "SC"
+  | "SY"
+  | "HR"
+  | "DA"
+  | "FL"
+  | "F"
+  | "S"
+  | "HS"
+  | "W"
+  | "XF"
+  | "O"
+  | "ESQ"
+  | "MS"
+  | "RC"
+  | "RI";
+
+export interface PosBoundaryInterfaceReview extends Unique {
+  technicalElementCode: PosBoundaryInterfaceCode;
+  result: PosImpactResult;
+  affectedArtifact: string;
+  responsibleAnalyst: string;
+  reviewStatus: "NOT_REVIEWED" | "PENDING" | "CONFIRMED";
+  technicalBasis: string;
+}
+
+export interface PosBoundaryImpactAssessment {
+  boundaryId: string;
+  interfaceReviews: PosBoundaryInterfaceReview[];
+  exposureTreatment: "UNRESOLVED" | "TIME_BASED" | "DEMAND_BASED" | "BOTH" | "NOT_APPLICABLE";
+  exposureResult: PosImpactResult;
+  exposureBasis: string;
+  riskSignificanceCheck: "UNRESOLVED" | "PRESERVED" | "COULD_MASK";
+  riskSignificanceBasis: string;
+  conclusion: PosBoundaryDisposition;
+  basis: string;
+  reviewer?: string;
+}
+
+export interface PosBaselineReview {
+  revision: string;
+  status: "DRAFT" | "READY" | "BASELINED";
+  reviewer: string;
+  reviewDate: string;
+  evolutionTraceable: boolean;
+  boundaryTraceable: boolean;
+  groupingTraceable: boolean;
+  quantificationTraceable: boolean;
+  interfacesTraceable: boolean;
+  openAssumptions: number;
+  changeSummary: string;
+}
+
 export interface EvolutionGroup extends Unique, Named {
   memberEvolutionIds: string[];
   similarityBasis: string;
@@ -397,6 +530,12 @@ export interface PlantOperatingStatesAnalysis
 
   plantEvolutions: PlantEvolution[];
   plantOperatingStates: PlantOperatingState[];
+
+  evidenceRegister?: PosEvidenceRecord[];
+  evolutionSearchRecords?: EvolutionSearchRecord[];
+  candidateBoundaries?: PosCandidateBoundary[];
+  boundaryImpactAssessments?: PosBoundaryImpactAssessment[];
+  baselineReview?: PosBaselineReview;
 
   evolutionGroups?: EvolutionGroup[];
   plantOperatingStateGroups?: PlantOperatingStateGroup[];

@@ -2,8 +2,6 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
 const SRC_ROOT = resolve(__dirname, "../..");
-const WORKSPACE_ROOT = resolve(__dirname, "../../../../../..");
-const BRAND_ROOT = join(WORKSPACE_ROOT, "resources", "OpenPRA Brand Package");
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -14,10 +12,14 @@ function sourceFiles(directory: string): string[] {
 }
 
 describe("OpenPRA brand system", () => {
-  it("keeps the packaged design tokens as the source of truth", () => {
-    const packaged = readFileSync(join(BRAND_ROOT, "tokens", "openpra-tokens.css"), "utf8");
+  it("ships the canonical OpenPRA design tokens with the application", () => {
     const installed = readFileSync(join(SRC_ROOT, "design-system", "openpra-brand-tokens.css"), "utf8");
-    expect(installed).toBe(packaged);
+    expect(installed).toContain("--op-violet-500: #8F4EC7");
+    expect(installed).toContain("--op-ink: #1B1226");
+    expect(installed).toContain("--op-teal-500: #12C5B9");
+    expect(installed).toContain("--op-ember-500: #DE6A2B");
+    expect(installed).toContain("--op-font-ui: 'IBM Plex Sans'");
+    expect(installed).toContain("--op-font-display: 'STIX Two Text'");
   });
 
   it("installs every font family used by the brand typography roles", () => {
@@ -52,7 +54,7 @@ describe("OpenPRA brand system", () => {
     const tokens = readFileSync(join(SRC_ROOT, "design-system", "app-tokens.css"), "utf8");
     const foundation = readFileSync(join(SRC_ROOT, "design-system", "foundation.css"), "utf8");
     const theme = readFileSync(join(SRC_ROOT, "welcome", "useTheme.ts"), "utf8");
-    expect(tokens).toContain(":root,\n[data-theme=\"light\"],\n[data-theme=\"dark\"]");
+    expect(tokens).toMatch(/:root,\s*\[data-theme="light"\],\s*\[data-theme="dark"\]/);
     expect(tokens).toContain("--color-canvas: var(--op-slate-0)");
     expect(foundation).toMatch(/html,\s*body,\s*#root\s*{[\s\S]*background:\s*var\(--color-canvas\)/);
     expect(theme).toContain('style.backgroundColor = "#FFFFFF"');

@@ -1,6 +1,7 @@
 import { WorkbookInput, WorkbookTextarea } from "../workbooks/commitOnDeactivateFields";
 import { JSX, useEffect, useState } from "react";
 import { POSIcon } from "./posIcons";
+import { PosSectionHeading } from "./posHelp";
 import { Badge } from "./posShared";
 import { PreopAssumptionCard } from "./posPreopCard";
 import { type DrawerContext } from "./posScreens";
@@ -77,7 +78,12 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
       </div>
       <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Evolution details</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Evolution details"
+              description="Name the complete plant process or operating period, classify its type, describe what occurs, and cite the controlling design or operating document."
+            />
+          </div>
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
@@ -101,7 +107,12 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Operating modes</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Operating modes"
+              description="Select every formal plant operating mode through which this evolution passes. These modes help connect the evolution to its operating-state slices."
+            />
+          </div>
           <p className="posfield__hint" style={{ marginTop: 0 }}>Pick the plant modes this evolution passes through.</p>
           <div className="posrow posrow--wrap" style={{ gap: 6 }}>
             {OPERATING_MODES.map((m) => {
@@ -117,7 +128,10 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
 
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Operating states within this evolution</h3>
+            <PosSectionHeading
+              title="Operating states within this evolution"
+              description="Review the operating states assigned to this evolution and confirm that together they represent every materially different configuration encountered during it."
+            />
             <Badge kind="ok">{states.length} states</Badge>
           </div>
           {states.length === 0 ? (
@@ -148,7 +162,12 @@ function EvolutionEditor({ ev, durationFraction, states, canEdit, mefPatch, mefP
 
         {canEdit && (
           <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Remove evolution</h3></div>
+            <div className="poscard__head">
+              <PosSectionHeading
+                title="Remove evolution"
+                description="Delete this evolution from the analysis. Any operating state assigned to it will then require a new parent evolution."
+              />
+            </div>
             <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the evolution from the analysis. Any state that points to it will need a new parent.</p>
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete evolution</button>
           </div>
@@ -287,7 +306,12 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
       </div>
       <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">State details</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="State details"
+              description="Name the operating state, assign it to its parent evolution and formal operating mode, and briefly describe the configuration represented by the state."
+            />
+          </div>
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
@@ -314,7 +338,12 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Reactor coolant parameters</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Reactor coolant parameters"
+              description="Record the temperature, pressure, power, decay heat, and coolant-system lineup ranges that define when the plant is in this state."
+            />
+          </div>
           <div className="posfield-grid">
             <RangeRow label="Coolant temperature" value={draft.rcsParameters.reactorCoolantTemperature} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, reactorCoolantTemperature: v } })} />
             <RangeRow label="Coolant pressure" value={draft.rcsParameters.coolantPressure} onChange={(v) => update({ ...draft, rcsParameters: { ...draft.rcsParameters, coolantPressure: v } })} />
@@ -328,7 +357,12 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Configuration and boundary</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Configuration and boundary"
+              description="Define the reactor and containment boundary configuration, plus the observable conditions that start and end this operating state without overlap or gaps."
+            />
+          </div>
           <div className="posfield-grid">
             <div className="posfield posfield-grid--span2">
               <label className="posfield__label">Boundary configuration</label>
@@ -347,7 +381,10 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
 
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Radioactive material sources</h3>
+            <PosSectionHeading
+              title="Radioactive material sources"
+              description="List each radioactive-material inventory present during this state and identify its location and status so consequence and event-sequence models use the correct sources."
+            />
             {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radioactiveMaterialSources: [...draft.radioactiveMaterialSources, blankSource()] })}><POSIcon.Plus /> Add source</button>}
           </div>
           {draft.radioactiveMaterialSources.length === 0 ? (
@@ -370,7 +407,10 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
 
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Radionuclide transport barriers</h3>
+            <PosSectionHeading
+              title="Radionuclide transport barriers"
+              description="Identify the barriers credited or available between each radioactive-material source and the environment, together with their state-specific status."
+            />
             {canEdit && <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => update({ ...draft, radionuclideTransportBarriers: [...draft.radionuclideTransportBarriers, blankBarrier()] })}><POSIcon.Plus /> Add barrier</button>}
           </div>
           {draft.radionuclideTransportBarriers.length === 0 ? (
@@ -392,7 +432,12 @@ function StateEditor({ state, evolutions, preop, canEdit, mefPatch, mefPatchDebo
 
         {canEdit && (
           <div className="poscard">
-            <div className="poscard__head"><h3 className="poscard__title">Remove state</h3></div>
+            <div className="poscard__head">
+              <PosSectionHeading
+                title="Remove state"
+                description="Delete this operating state and remove it from any operating-state groups that currently reference it."
+              />
+            </div>
             <p className="posfield__hint" style={{ marginTop: 0 }}>This deletes the operating state from the analysis.</p>
             <button type="button" className="posnav__btn posnav__btn--sm" onClick={onDelete}><POSIcon.Close /> Delete state</button>
           </div>
@@ -467,7 +512,12 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
       </div>
       <fieldset disabled={!canEdit} className="posdrawer__body" style={{ border: 0, margin: 0, minInlineSize: 0 }}>
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Group details</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Group details"
+              description="Name the group, identify the common evolution type, and record how often the plant enters the grouped condition. Member-state durations are summed automatically."
+            />
+          </div>
           <div className="posfield-grid">
             <div className="posfield">
               <label className="posfield__label">Name</label>
@@ -491,7 +541,12 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Member states</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Member states"
+              description="Select only retained operating states whose PRA response is sufficiently similar for one group treatment to preserve risk-significant behavior."
+            />
+          </div>
           {states.length === 0 ? (
             <p className="posmuted" style={{ margin: 0 }}>No operating states to group yet.</p>
           ) : (
@@ -508,12 +563,22 @@ function GroupEditor({ group, states, preop, canEdit, mefPatch, mefPatchDebounce
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Similarity rationale</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Similarity rationale"
+              description="Explain why the selected states can share initiating-event treatment, success criteria, system availability, human actions, and other PRA modeling assumptions."
+            />
+          </div>
           <WorkbookTextarea className="posfield__textarea" value={draft.similarityBasis} placeholder="Why these states are similar enough to group." style={{ minHeight: 110 }} onChange={(e) => update({ ...draft, similarityBasis: e.target.value })} />
         </div>
 
         <div className="poscard">
-          <div className="poscard__head"><h3 className="poscard__title">Bounding characteristic</h3></div>
+          <div className="poscard__head">
+            <PosSectionHeading
+              title="Bounding characteristic"
+              description="Identify the member condition used to conservatively represent the group, such as the highest decay heat, shortest available response time, or least favorable system lineup."
+            />
+          </div>
           <WorkbookInput className="posfield__input" value={draft.boundingCharacteristics[0] ?? ""} placeholder="e.g. Lowest helium temperature, the bounding state" onChange={(e) => onBounding(e.target.value)} />
         </div>
 

@@ -1,5 +1,6 @@
 import { JSX, useMemo, useState } from "react";
 import { POSIcon } from "./posIcons";
+import { PosSectionHeading } from "./posHelp";
 import { Badge } from "./posShared";
 import {
   internalApproverView,
@@ -110,11 +111,14 @@ function InternalReviewScreen({
 
       <div className="poscard">
         <div className="poscard__head">
-          <h3 className="poscard__title">
-            {isApprovalStep
+          <PosSectionHeading
+            title={isApprovalStep
               ? (isPreparer ? "Comments by reviewers & approvers" : "Your comments")
               : "All review comments"}
-          </h3>
+            description={isApprovalStep
+              ? "Review the comment record that supports the approval decision, including each comment's resolution status and responsible role."
+              : "Review all technical comments from every assigned role, newest first, and track each one to resolution before approval."}
+          />
           <div className="posrow" style={{ gap: 6 }}>
             <button type="button" className={`poschip${filter === "all" ? " poschip--primary" : ""}`} onClick={() => setFilter("all")}>All ({displayComments.length})</button>
             <button type="button" className={`poschip${filter === "open" ? " poschip--primary" : ""}`} onClick={() => setFilter("open")}>Open ({displayOpen})</button>
@@ -151,7 +155,10 @@ function InternalReviewScreen({
       {isPreparer && isReviewStep && pos.workflowState !== "INTERNAL_TECHNICAL_REVIEW" && pos.workflowState !== "INTERNAL_APPROVAL" && pos.workflowState !== "FINAL" && (
         <div className="poscard">
           <div className="poscard__head">
-            <h3 className="poscard__title">Submit for Internal Approval</h3>
+            <PosSectionHeading
+              title="Submit for Internal Approval"
+              description={<>Advance the reviewed workbook to {approver?.name ?? "the assigned approver"} only after the reviewer has marked every technical comment resolved.</>}
+            />
             {allResolved
               ? <Badge kind="ok">All comments resolved</Badge>
               : <Badge kind="warn">{openCount} open comment{openCount === 1 ? "" : "s"}</Badge>}
@@ -190,7 +197,10 @@ function InternalReviewScreen({
         <>
           <div className="poscard">
             <div className="poscard__head">
-              <h3 className="poscard__title">What is being attested</h3>
+              <PosSectionHeading
+                title="What is being attested"
+                description="Confirm the capability target, supporting-requirement status, resolved comment record, and controlled configuration snapshot covered by the approval signature."
+              />
             </div>
             <div className="posapprove__attest-with-sign">
               <div className="posapprove__attest-grid">
@@ -230,7 +240,10 @@ function InternalReviewScreen({
           {approved && (
             <div className="poscard posapprove__handoff">
               <div className="poscard__head">
-                <h3 className="poscard__title">After approval — external workflows</h3>
+                <PosSectionHeading
+                  title="After approval — external workflows"
+                  description="Release the approved, locked workbook to independent peer review or audit. External participants may inspect and comment, but cannot alter the approved analysis."
+                />
                 <Badge kind="draft">View + comment only</Badge>
               </div>
               <p className="poscard__sub">

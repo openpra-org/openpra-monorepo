@@ -1,4 +1,4 @@
-name: "CI: Monorepo — Build & Test"
+name: "CI: Apps — Build, Test, Lint & Type-Check"
 
 on:
   push:
@@ -9,8 +9,13 @@ on:
       - "**"
 
 jobs:
-  build-and-test:
+  nx-apps:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ci-nx-apps-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    env:
+      NX_NO_CLOUD: "true"
     services:
       mongo:
         image: mongo:6
@@ -18,17 +23,6 @@ jobs:
           - 27017:27017
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
-    strategy:
-      matrix:
-        package:
-          - frontend-web-editor
-          - web-backend
-          - shared-types
-          - shared-sdk
-          - model-generator
-          - engine-scram
-          - mef-types
-          - microservices-raptor
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,93 +32,61 @@ jobs:
         with:
           node-version: "20.17.0"
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            make \
-            cmake \
-            g++ \
-            git \
-            python3 \
-            curl \
-            ca-certificates \
-            libxml2-dev \
-            libomp-dev \
-            libgoogle-perftools-dev \
-            libboost-program-options-dev \
-            libboost-math-dev \
-            libboost-random-dev \
-            libboost-filesystem-dev \
-            libboost-test-dev \
-            libboost-date-time-dev \
-            libjemalloc-dev \
-            libxml2 \
-            libboost-filesystem1.74.0 \
-            libboost-program-options1.74.0 \
-            libtcmalloc-minimal4 \
-            libjemalloc2
-
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
 
       - name: Install dependencies
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
-      - name: Build scram
-        if: matrix.package == 'engine-scram'
-        run: cd packages/engine/scram && npx -y pnpm@10.19.0 run install
-
-      - name: Install scram-cli (CI)
-        if: matrix.package == 'engine-scram'
-        run: |
-          # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
-          # Prefer cmake --install which works across generators; guard if install scripts are absent
-          if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram/build --prefix "$HOME/.local"
-          else
-            echo "No CMake install script found; skipping scram-cli install"
-          fi
-
       - name: Build
-        env:
-          NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:build --verbose
+        run: npx -y pnpm@10.19.0 nx run-many -t build --projects=backends-web-backend,frontends-web-frontend,praetor,site
 
-      - name: Build raptor engine
-        if: matrix.package == 'microservices-raptor'
-        env:
-          NX_NO_CLOUD: "true"
-        run: npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine --verbose
-
-      - name: Wait for MongoDB service
+      - name: Wait for MongoDB
         run: |
-          set -e
           for i in $(seq 1 60); do
-            if (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; then echo "MongoDB is listening"; break; fi; sleep 2; done
-
-      # Lint step temporarily disabled to unblock CI
-      # - name: Lint
-      #   run: pnpm nx run ${{ matrix.package }}:lint --verbose
+            (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1 && echo "MongoDB ready" && break
+            sleep 2
+          done
 
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
-          NX_NO_CLOUD: "true"
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
+          npx -y pnpm@10.19.0 nx run-many -t test --projects=backends-web-backend,frontends-web-frontend -- --testTimeout=60000
+          npx -y pnpm@10.19.0 nx run praetor:test
 
-      - name: E2E Tests
-        if: |
-          matrix.package == 'frontend-web-editor' ||
-          matrix.package == 'web-backend'
-        continue-on-error: true
-        env:
-          MONGO_URI: mongodb://localhost:27017/test
-          NX_NO_CLOUD: "true"
+      - name: Lint
+        run: npx -y pnpm@10.19.0 nx run-many -t lint --projects=backends-web-backend,frontends-web-frontend,interfaces-mef-types,interfaces-shared-types
+
+      - name: Type-check
+        run: npx -y pnpm@10.19.0 nx run-many -t typecheck --projects=backends-web-backend,frontends-web-frontend,praetor,interfaces-mef-types,interfaces-shared-types,site
+
+  rust-praxis:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-rust-praxis-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: apps/solvers/praxis
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:e2e
+          rustup update stable
+          rustup default stable
+          rustup component add clippy
+
+      - name: Type-check
+        run: cargo check
+
+      - name: Lint
+        run: cargo clippy -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+      - name: Build
+        run: cargo build

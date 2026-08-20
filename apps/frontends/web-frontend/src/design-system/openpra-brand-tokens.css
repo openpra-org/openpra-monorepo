@@ -1,0 +1,72 @@
+:root {
+  --op-violet-50: #F7F2FC;
+  --op-violet-100: #EDE0F8;
+  --op-violet-200: #DCC4F0;
+  --op-violet-300: #C5A0E4;
+  --op-violet-400: #AB77D7;
+  --op-violet-500: #8F4EC7;
+  --op-violet-600: #7639AA;
+  --op-violet-700: #5B2C84;
+  --op-violet-800: #432061;
+  --op-violet-900: #2C153F;
+  --op-violet-950: #1C0E28;
+  --op-slate-0: #FFFFFF;
+  --op-slate-50: #F9F7FB;
+  --op-slate-100: #F1EEF4;
+  --op-slate-200: #E2DCE7;
+  --op-slate-300: #CAC2D1;
+  --op-slate-400: #A99FB2;
+  --op-slate-500: #857891;
+  --op-slate-600: #675A72;
+  --op-slate-700: #4D4257;
+  --op-slate-800: #342A3C;
+  --op-slate-900: #201828;
+  --op-slate-950: #140D19;
+  --op-teal-300: #69F2E9;
+  --op-teal-500: #12C5B9;
+  --op-teal-600: #0E9C93;
+  --op-teal-700: #0B7E77;
+  --op-ember-300: #E99C72;
+  --op-ember-500: #DE6A2B;
+  --op-ember-700: #9F4819;
+  --op-ink: #1B1226;
+  --op-ink-tile: #150E1E;
+  --op-mist: #F5F0FA;
+  --op-line: #E3D8F0;
+
+  /* the triplet: one hue per quantity */
+  --op-s: #8F4EC7;   /* scenario   */
+  --op-p: #12C5B9;   /* probability */
+  --op-x: #DE6A2B;   /* consequence */
+  --op-s-text: #5B2C84;
+  --op-p-text: #0B7E77;
+  --op-x-text: #9F4819;
+
+  /* surfaces */
+  --op-bg: #FFFFFF;
+  --op-bg-sunken: #F5F0FA;
+  --op-fg: #1B1226;
+  --op-fg-muted: #675A72;
+  --op-border: #E3D8F0;
+  --op-accent: #8F4EC7;
+  --op-accent-text: #7639AA;   /* 7.15:1 on white */
+
+  /* type */
+  --op-font-display: 'STIX Two Text', Georgia, serif;
+  --op-font-notation: 'STIX Two Math', 'STIX Two Text', serif;
+  --op-font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --op-font-data: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+[data-theme='dark'] {
+  --op-bg: #150E1E;
+  --op-bg-sunken: #100A17;
+  --op-fg: #F2ECF7;
+  --op-fg-muted: #A99FB2;
+  --op-border: #2E2440;
+  --op-accent: #AB77D7;
+  --op-accent-text: #C5A0E4;
+  --op-s: #C5A0E4;
+  --op-p: #69F2E9;
+  --op-x: #E99C72;
+}

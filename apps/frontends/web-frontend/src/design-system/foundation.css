@@ -1,0 +1,64 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  background: var(--color-canvas);
+}
+
+body {
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+::selection {
+  background: var(--op-violet-200);
+  color: var(--op-ink);
+}
+
+h1,
+h2,
+h3,
+p {
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+code,
+kbd,
+pre,
+samp,
+[data-type="data"] {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-type="notation"] {
+  font-family: var(--font-notation);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition-duration: var(--transition-fast);
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-timing-function: ease;
+}

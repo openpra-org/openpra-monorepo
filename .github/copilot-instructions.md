@@ -12,22 +12,23 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 
 ## Workspace Overview
 
-- Tooling: Nx, pnpm, TypeScript, Jest, ESLint, Webpack.
-- Packages:
-  - `packages/frontend/web-editor`: React 18 + TS, Elastic UI, React Router, SWR.
-  - `packages/web-backend`: NestJS 10 + Mongoose 8.
-  - `packages/shared-types`: Pure types-only library; central domain types and DTOs (no runtime). MEF schemas are generated from these types.
-  - `packages/shared-sdk`: Runtime SDK (AuthService, ApiManager, invites, roles, predefined roles); imports types from `shared-types`.
-  - `packages/mef-types`: MEF technical element types extracted from shared-types.
-  - `packages/engine/scram-node`: Node wrappers for SCRAM engine.
-  - `packages/model-generator`, `packages/microservices/raptor`: utilities/services.
+- Tooling: Nx, pnpm, TypeScript, Jest, ESLint, Webpack, Rust, and CMake.
+- Active projects live under `apps/`:
+  - `apps/frontends/web-frontend`: React 18 + TypeScript web client.
+  - `apps/backends/web-backend`: NestJS REST API.
+  - `apps/interfaces/shared-types`: shared application schemas and DTOs.
+  - `apps/interfaces/mef-types`: MEF technical-element schemas and validation.
+  - `apps/microservices/praetor`: distributed quantification service.
+  - `apps/solvers/praxis`: Rust PRA solver.
+  - `apps/solvers/scram`: SCRAM C++ engine and `scram-node` addon.
+  - `apps/docs-md`: unified documentation site.
 
 ## Nx Commands
 
 - Serve all: `nx run-many -t serve --all`
 - Serve individual:
-  - Frontend: `nx serve frontend-web-editor`
-  - Backend: `nx serve web-backend`
+  - Frontend: `nx serve frontends-web-frontend`
+  - Backend: `nx serve backends-web-backend`
 - Build: `nx run-many -t build`
 - Test: `nx run-many -t test`
 - Lint: `nx run-many -t lint`
@@ -40,13 +41,11 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 - Use project-relative imports consistent with each package config.
 - Don’t invent paths. Verify with editor or quick search.
 
-### Frontend (web-editor)
+### Frontend (web-frontend)
 
-- Routing lives under `src/app/pages` and `src/app/components/pageContainers`.
-- Use React Router nested routes for model-scoped pages.
-- UI: Elastic UI (EUI). Match the existing EUI version; table actions should use `type: 'icon'` with `icon` not `iconType` if needed.
-- Data fetching: SWR hooks under `src/hooks`. Always return arrays to tables; handle loading/error states.
-- Keep components small; colocate with feature folder under `src/components`.
+- Keep workbook and newly developed method code in their existing feature directories.
+- Follow the shared design system and existing React Router conventions.
+- Keep components small and colocate tests with the affected feature.
 
 ### Backend (web-backend)
 
@@ -58,16 +57,10 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 
 ### Shared Types
 
-- Source of truth for interfaces/types used across frontend/backend.
-- Pure: no runtime code or framework dependencies. Keep NestJS/React runtime in other packages.
-- Update exports in `packages/shared-types/src/lib/index.ts` when adding new types.
-  // When schema JSON is needed, coordinate with maintainers; the generation pipeline has been decoupled from the deprecated `mef-schema` package.
-
-### Shared SDK (runtime)
-
-- Runtime-only utilities and APIs: `AuthService`, `ApiManager`, roles and invites APIs, predefined roles.
-- Depends on `shared-types` for types and DTOs.
-- Frontend and backend should import runtime helpers from `shared-sdk` instead of `shared-types`.
+- `apps/interfaces/shared-types` is the source of truth for shared application DTOs.
+- `apps/interfaces/mef-types` is the source of truth for MEF technical-element types.
+- Keep interfaces free of NestJS and React runtime dependencies.
+- Export additions through the appropriate interface project index.
 
 ## Quality Gates (Green-Before-Done)
 
@@ -101,9 +94,9 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 
 - 404s on API calls: confirm RouterModule mount paths and controller prefixes.
 - EUI tables crashing: ensure `items` is always an array; avoid undefined.
-- Type path issues: verify `shared-types` exports and package.json dependency versions.
+- Type path issues: verify `interfaces-shared-types` or `interfaces-mef-types` exports and workspace dependencies.
 - Backend start warnings about transformers are informational unless build fails.
 
 ---
 
-If in doubt, ask for the target route, data shape, and affected packages before large changes. Keep changes iterative and reversible.
+If in doubt, ask for the target route, data shape, and affected projects before large changes. Keep changes iterative and reversible.

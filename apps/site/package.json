@@ -1,0 +1,18 @@
+{
+  "name": "openpra.org",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "openpra.org — the OpenPRA ORG Inc. website",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.4",
+    "astro": "^4.16.0",
+    "typescript": "5.9.3"
+  }
+}

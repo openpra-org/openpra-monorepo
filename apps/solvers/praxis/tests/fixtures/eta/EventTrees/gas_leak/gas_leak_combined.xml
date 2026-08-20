@@ -1,0 +1,274 @@
+<?xml version="1.0"?>
+<opsa-mef>
+  <define-initiating-event name="Gas-Leak" event-tree="Gas-Leak-Event-Tree"/>
+
+  <define-event-tree name="Gas-Leak-Event-Tree">
+    <define-functional-event name="Gas-detection"/>
+    <define-sequence name="S9"/>
+    <define-sequence name="Link-to-reactive">
+      <event-tree name="Gas-Leak-Event-Tree-Reactive"/>
+    </define-sequence>
+    <initial-state>
+      <fork functional-event="Gas-detection">
+        <path state="Success">
+          <collect-formula>
+            <not>
+              <gate name="Gas-detection-system.root"/>
+            </not>
+          </collect-formula>
+          <sequence name="Link-to-reactive"/>
+        </path>
+        <path state="Failure">
+          <collect-formula>
+            <gate name="Gas-detection-system.root"/>
+          </collect-formula>
+          <sequence name="S9"/>
+        </path>
+      </fork>
+    </initial-state>
+  </define-event-tree>
+
+  <define-event-tree name="Gas-Leak-Event-Tree-Reactive">
+    <define-functional-event name="Isolation-valve-A-closes"/>
+    <define-functional-event name="Isolation-valve-B-closes"/>
+    <define-functional-event name="Blowdown-valve-opens"/>
+    <define-sequence name="S1"/>
+    <define-sequence name="S2"/>
+    <define-sequence name="S3"/>
+    <define-sequence name="S4"/>
+    <define-sequence name="S5"/>
+    <define-sequence name="S6"/>
+    <define-sequence name="S7"/>
+    <define-sequence name="S8"/>
+    <initial-state>
+      <fork functional-event="Isolation-valve-A-closes">
+        <path state="Success">
+          <collect-formula>
+            <not>
+              <gate name="Isolation-valve-A.TOP_A"/>
+            </not>
+          </collect-formula>
+          <fork functional-event="Isolation-valve-B-closes">
+            <path state="Success">
+              <collect-formula>
+                <not>
+                  <gate name="Isolation-valve-B.TOP_B"/>
+                </not>
+              </collect-formula>
+              <fork functional-event="Blowdown-valve-opens">
+                <path state="Success">
+                  <collect-formula>
+                    <not>
+                      <gate name="Blowdown-valve.TOP_BD"/>
+                    </not>
+                  </collect-formula>
+                  <sequence name="S1"/>
+                </path>
+                <path state="Failure">
+                  <collect-formula>
+                    <gate name="Blowdown-valve.TOP_BD"/>
+                  </collect-formula>
+                  <sequence name="S2"/>
+                </path>
+              </fork>
+            </path>
+            <path state="Failure">
+              <collect-formula>
+                <gate name="Isolation-valve-B.TOP_B"/>
+              </collect-formula>
+              <fork functional-event="Blowdown-valve-opens">
+                <path state="Success">
+                  <collect-formula>
+                    <not>
+                      <gate name="Blowdown-valve.TOP_BD"/>
+                    </not>
+                  </collect-formula>
+                  <sequence name="S3"/>
+                </path>
+                <path state="Failure">
+                  <collect-formula>
+                    <gate name="Blowdown-valve.TOP_BD"/>
+                  </collect-formula>
+                  <sequence name="S4"/>
+                </path>
+              </fork>
+            </path>
+          </fork>
+        </path>
+        <path state="Failure">
+          <collect-formula>
+            <gate name="Isolation-valve-A.TOP_A"/>
+          </collect-formula>
+          <fork functional-event="Isolation-valve-B-closes">
+            <path state="Success">
+              <collect-formula>
+                <not>
+                  <gate name="Isolation-valve-B.TOP_B"/>
+                </not>
+              </collect-formula>
+              <fork functional-event="Blowdown-valve-opens">
+                <path state="Success">
+                  <collect-formula>
+                    <not>
+                      <gate name="Blowdown-valve.TOP_BD"/>
+                    </not>
+                  </collect-formula>
+                  <sequence name="S5"/>
+                </path>
+                <path state="Failure">
+                  <collect-formula>
+                    <gate name="Blowdown-valve.TOP_BD"/>
+                  </collect-formula>
+                  <sequence name="S6"/>
+                </path>
+              </fork>
+            </path>
+            <path state="Failure">
+              <collect-formula>
+                <gate name="Isolation-valve-B.TOP_B"/>
+              </collect-formula>
+              <fork functional-event="Blowdown-valve-opens">
+                <path state="Success">
+                  <collect-formula>
+                    <not>
+                      <gate name="Blowdown-valve.TOP_BD"/>
+                    </not>
+                  </collect-formula>
+                  <sequence name="S7"/>
+                </path>
+                <path state="Failure">
+                  <collect-formula>
+                    <gate name="Blowdown-valve.TOP_BD"/>
+                  </collect-formula>
+                  <sequence name="S8"/>
+                </path>
+              </fork>
+            </path>
+          </fork>
+        </path>
+      </fork>
+    </initial-state>
+  </define-event-tree>
+
+  <define-fault-tree name="Gas-detection-system">
+    <label>Gas detection system fails on demand</label>
+    <define-gate name="root">
+      <or>
+        <basic-event name="CPU"/>
+        <gate name="Incoming-signal"/>
+      </or>
+    </define-gate>
+    <define-gate name="Incoming-signal" role="private">
+      <atleast min="2">
+        <basic-event name="SEN1"/>
+        <basic-event name="SEN2"/>
+        <basic-event name="SEN3"/>
+      </atleast>
+    </define-gate>
+    <define-basic-event name="CPU">
+      <label>Computer fails to correctly process sensor signals</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SEN1">
+      <label>Sensor 1</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SEN2">
+      <label>Sensor 2</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SEN3">
+      <label>Sensor 3</label>
+      <float value="0.05"/>
+    </define-basic-event>
+  </define-fault-tree>
+
+  <define-fault-tree name="Isolation-valve-A">
+    <label>Isolation valve A fails to close on demand</label>
+    <define-gate name="TOP_A">
+      <or>
+        <basic-event name="IVALA"/>
+        <basic-event name="RC1"/>
+        <gate name="SOL_A"/>
+      </or>
+    </define-gate>
+    <define-gate name="SOL_A">
+      <and>
+        <basic-event name="SOLA"/>
+        <basic-event name="SOLB"/>
+      </and>
+    </define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="Isolation-valve-B">
+    <label>Isolation valve B fails to close on demand</label>
+    <define-gate name="TOP_B">
+      <or>
+        <basic-event name="IVALB"/>
+        <basic-event name="RC1"/>
+        <gate name="Isolation-valve-A.SOL_A"/>
+      </or>
+    </define-gate>
+  </define-fault-tree>
+
+  <define-fault-tree name="Blowdown-valve">
+    <label>Blowdown valve fails to open on demand</label>
+    <define-gate name="TOP_BD">
+      <or>
+        <basic-event name="BDVAL"/>
+        <basic-event name="RC1"/>
+        <gate name="SOL_BD"/>
+      </or>
+    </define-gate>
+    <define-gate name="SOL_BD" role="private">
+      <and>
+        <basic-event name="SOLC"/>
+        <basic-event name="SOLD"/>
+      </and>
+    </define-gate>
+  </define-fault-tree>
+
+  <model-data>
+    <define-parameter name="default_availability">
+      <float value="0.95"/>
+    </define-parameter>
+    <define-parameter name="default_unavailability">
+      <sub>
+        <float value="1"/>
+        <parameter name="default_availability"/>
+      </sub>
+    </define-parameter>
+    <define-basic-event name="IVALA">
+      <label>Isolation valve A fails open</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="IVALB">
+      <label>Isolation valve B fails open</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="BDVAL">
+      <label>Blowdown valve fails closed</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SOLA">
+      <label>Solenoid A</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SOLB">
+      <label>Solenoid B</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SOLC">
+      <label>Solenoid C</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="SOLD">
+      <label>Solenoid D</label>
+      <float value="0.05"/>
+    </define-basic-event>
+    <define-basic-event name="RC1">
+      <label>Computer fails to drop out relay contacts</label>
+      <float value="0.05"/>
+    </define-basic-event>
+  </model-data>
+</opsa-mef>

@@ -1,0 +1,65 @@
+import { randomUUID } from "crypto";
+import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+
+export function createBlankDa(name: string, owner: string): DataAnalysis {
+  const now = new Date().toISOString();
+  return {
+    uuid: randomUUID(),
+    name,
+    type: TechnicalElementTypes.DATA_ANALYSIS,
+    version: "1",
+    created: now,
+    modified: now,
+    owner,
+    workflowState: "DRAFT",
+    workflowHistory: [{ state: "DRAFT", enteredAt: now, actor: owner }],
+    capabilityCategory: "CC-II",
+    plantStage: "PRE_OPERATIONAL",
+    metadata: {
+      versionInfo: { version: "1", lastUpdated: now, schemaVersion: "0.0.1" },
+      analysisDate: now,
+      analysts: [owner],
+      reviewers: [],
+      scope: "",
+      limitations: [],
+      lastModifiedDate: now,
+      lastModifiedBy: owner,
+    },
+    conformanceMatrix: [],
+    internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
+    activePeerReviewIds: [],
+    activeAuditIds: [],
+    praScope: "",
+    parameters: [],
+    componentBoundaries: [],
+    modelUncertainty: {
+      uuid: randomUUID(),
+      name: "DA model uncertainty documentation",
+      uncertaintySources: [],
+      relatedAssumptions: [],
+      reasonableAlternatives: [],
+    },
+    documentation: {
+      processDescription: "",
+      systemComponentBoundaries: "",
+      basicEventProbabilityModels: "",
+      genericParameterSources: "",
+      plantSpecificDataSourcesAndPeriods: "",
+      dataExclusionJustifications: "",
+      demandAndExposureCounting: "",
+      unavailabilityTreatment: "",
+      repairAndRecoveryData: "",
+      lpsdOutageData: "",
+      componentGroupingAndOutliers: "",
+      ccfParameterBasis: "",
+      bayesianPriorRationales: "",
+      parameterEstimatesWithUncertainty: "",
+      multiPosGenericUse: "",
+      modelUncertaintySources: "",
+      asBuiltLimitations: "",
+      praTaskInterfaces: "",
+      implementsSrs: [],
+    },
+  };
+}

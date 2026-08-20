@@ -1,0 +1,18 @@
+[package]
+name = "tensorbayes"
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenPRA Contributors"]
+description = "Exact discrete Bayesian-network inference for OpenPRA"
+license = "MIT"
+repository = "https://github.com/openpra-org/openpra-monorepo"
+
+[dependencies]
+thiserror = "1.0"
+
+[dev-dependencies]
+approx = "0.5"
+
+[lib]
+name = "tensorbayes"
+path = "src/lib.rs"

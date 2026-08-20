@@ -1,0 +1,179 @@
+.pcard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  position: relative;
+  outline: none;
+}
+
+.pcard:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-card);
+}
+
+.pcard:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+  border-color: var(--color-primary);
+}
+
+.pcard--archived {
+  opacity: 0.68;
+}
+
+.pcard--archived:hover {
+  opacity: 1;
+}
+
+.pcard__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pcard__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pcard__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  word-break: break-word;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.pcard__pin {
+  display: inline-flex;
+  color: var(--color-primary);
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.pcard__pin svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pcard__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pcard__progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pcard__progress-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.pcard__progress-pct {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard__progress-bar {
+  height: 6px;
+  background: var(--color-surface-low);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pcard__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--op-violet-400) 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.pcard__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pcard__foot-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pcard__foot-item svg {
+  width: 13px;
+  height: 13px;
+}
+
+.chip--success {
+  background: rgb(18 197 185 / 0.12);
+  color: var(--color-success);
+  border: 1px solid rgb(18 197 185 / 0.25);
+}
+
+
+
+.chip--muted {
+  background: var(--color-surface-low);
+  color: var(--color-text-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.chip--team {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip--team svg {
+  width: 12px;
+  height: 12px;
+}
+
+.chip--role {
+  background: rgb(18 197 185 / 0.08);
+  color: var(--color-success);
+  border: 1px solid rgb(18 197 185 / 0.25);
+}
+
+.chip--role-view {
+  background: var(--color-surface-low);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.chip--xs {
+  font-size: 11px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+}

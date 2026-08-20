@@ -5,28 +5,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "mef-types": ["packages/mef-types/src/index.ts"],
-      "mef-types/*": ["packages/mef-types/src/*"],
-      "shared-sdk": ["packages/shared-sdk/src/index.ts"],
-      "shared-sdk/*": ["packages/shared-sdk/src/*"],
-      "shared-types": ["packages/shared-types/src/index.ts"],
-      "shared-types/*": ["packages/shared-types/*"],
-      "shared-types/src/*": ["packages/shared-types/src/*"],
-      "shared-types/src/lib/api/*": ["packages/shared-sdk/src/lib/api/*"],
-      "shared-types/src/lib/data/*": ["packages/shared-sdk/src/lib/data/*"],
-      "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"]
+      "interfaces-shared-types": ["apps/interfaces/shared-types/index.ts"],
+      "interfaces-shared-types/*": ["apps/interfaces/shared-types/*"],
+      "interfaces-mef-types": ["apps/interfaces/mef-types/index.ts"],
+      "interfaces-mef-types/*": ["apps/interfaces/mef-types/*"]
     },
     "types": ["jest", "node", "@types/jest"],
-    "plugins": [
-      {
-        "transform": "typia/lib/transform"
-      },
-      {
-        "transform": "@nestia/core/lib/transform",
-        "validate": "assert",
-        "stringify": "assert"
-      }
-    ],
     "strictNullChecks": true,
     "strict": true,
     "experimentalDecorators": true,

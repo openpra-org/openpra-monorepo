@@ -1,0 +1,287 @@
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as Minio from 'minio';
+import { Readable } from 'stream';
+import { EnvVarKeys } from '../../config/env_vars.config';
+import type { NodeQuantRequest } from '../common/types/quantify-request';
+
+export interface JobMetadata {
+    jobId?: string;
+    status?: 'pending' | 'running' | 'completed' | 'failed';
+    error?: string;
+    sentAt?: number;
+    receivedAt?: number;
+    stats?: {
+        idleTime?: number;
+        executionTime?: number;
+        startedAt?: number;
+        endedAt?: number;
+        reportWriteTimeMs?: number;
+        analysisSeconds?: number;
+        totalSeconds?: number;
+        probability?: number;
+        products?: number;
+    };
+}
+
+@Injectable()
+export class MinioService implements OnModuleInit {
+    private readonly logger = new Logger(MinioService.name);
+    private minioClient: Minio.Client;
+    private readonly inputBucket: string;
+    private readonly outputBucket: string;
+    private readonly jobsBucket: string;
+    private readonly endpoint: string;
+    private readonly port: number;
+
+    constructor(private readonly configSvc: ConfigService) {
+        this.inputBucket = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_INPUT_BUCKET);
+        this.outputBucket = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_OUTPUT_BUCKET);
+        this.jobsBucket = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_JOBS_BUCKET);
+        this.endpoint = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_ENDPOINT);
+        this.port = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.ENV_MINIO_PORT));
+        this.minioClient = new Minio.Client({
+            endPoint: this.endpoint,
+            port: this.port,
+            useSSL: false,
+            accessKey: this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_ACCESS_KEY),
+            secretKey: this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_SECRET_KEY),
+        });
+    }
+
+    async onModuleInit() {
+        await this.initializeBuckets();
+    }
+
+    private async initializeBuckets(): Promise<void> {
+        try {
+            const buckets = [this.inputBucket, this.outputBucket, this.jobsBucket];
+            for (const bucket of buckets) {
+                const exists = await this.minioClient.bucketExists(bucket);
+                if (!exists) {
+                    try {
+                        await this.minioClient.makeBucket(bucket);
+                        this.logger.log(`Created bucket: ${bucket}`);
+                    } catch (err) {
+                        const message = err instanceof Error ? err.message : String(err);
+                        const code = (err as { code?: string; statusCode?: number }).code;
+                        const statusCode = (err as { code?: string; statusCode?: number }).statusCode;
+                        const alreadyExists = await this.minioClient
+                            .bucketExists(bucket)
+                            .catch(() => false);
+                        if (
+                            alreadyExists ||
+                            code === 'BucketAlreadyOwnedByYou' ||
+                            code === 'BucketAlreadyExists' ||
+                            statusCode === 409 ||
+                            /already (own|exist)s?/i.test(message)
+                        ) {
+                            this.logger.debug(`Bucket ${bucket} already present (race handled).`);
+                        } else {
+                            throw err;
+                        }
+                    }
+                } else {
+                    this.logger.log(`Bucket already exists: ${bucket}`);
+                }
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to initialize buckets: ${message}`);
+            throw error;
+        }
+    }
+
+    async storeInputData(inputData: string | NodeQuantRequest, jobId: string): Promise<void> {
+        const objectName = `input-${jobId}-${Date.now()}.json`;
+        try {
+            const inputDataString = typeof inputData === 'string' ? inputData : JSON.stringify(inputData);
+            const inputDataBuffer = Buffer.from(inputDataString, 'utf8');
+            await this.minioClient.putObject(this.inputBucket, objectName, inputDataBuffer, inputDataBuffer.length, {
+                'Content-Type': 'application/json',
+                'X-Job-ID': jobId,
+            });
+            this.logger.log(`Stored input data for job: ${jobId}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to store input data: ${message}`);
+            throw new Error(`Failed to store input data: ${message}`);
+        }
+    }
+
+    async getInputData(inputId: string): Promise<string> {
+        try {
+            const objectsList: Minio.BucketItem[] = [];
+            const stream = this.minioClient.listObjects(this.inputBucket, `input-${inputId}-`, true);
+            for await (const obj of stream) {
+                objectsList.push(obj);
+            }
+            if (objectsList.length === 0) {
+                throw new Error(`No input data found for ID: ${inputId}`);
+            }
+            const objectName = objectsList[0].name!;
+            const dataStream = await this.minioClient.getObject(this.inputBucket, objectName);
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of dataStream) {
+                chunks.push(chunk);
+            }
+            const data = Buffer.concat(chunks).toString('utf8');
+            this.logger.log(`Retrieved input data for ID: ${inputId}`);
+            return data;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to retrieve input data for ID ${inputId}: ${message}`);
+            throw new Error(`Failed to retrieve input data: ${message}`);
+        }
+    }
+
+    async storeOutputData(outputData: string | Readable, jobId: string): Promise<void> {
+        const objectName = `output-${jobId}-${Date.now()}.json`;
+        try {
+            const stream = typeof outputData === 'string'
+                ? Readable.from([outputData])
+                : outputData;
+            await this.minioClient.putObject(this.outputBucket, objectName, stream, undefined, {
+                'Content-Type': 'application/json',
+                'X-Job-ID': jobId,
+            });
+            this.logger.log(`Stored output data for job: ${jobId}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to store output data: ${message}`);
+            throw new Error(`Failed to store output data: ${message}`);
+        }
+    }
+
+    async getOutputData(outputId: string): Promise<string> {
+        try {
+            const objectsList: Minio.BucketItem[] = [];
+            const stream = this.minioClient.listObjects(this.outputBucket, `output-${outputId}-`, true);
+            for await (const obj of stream) {
+                objectsList.push(obj);
+            }
+            if (objectsList.length === 0) {
+                throw new Error(`No output data found for ID: ${outputId}`);
+            }
+            const objectName = objectsList[0].name!;
+            const dataStream = await this.minioClient.getObject(this.outputBucket, objectName);
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of dataStream) {
+                chunks.push(chunk);
+            }
+            const data = Buffer.concat(chunks).toString('utf8');
+            this.logger.log(`Retrieved output data for ID: ${outputId}`);
+            return data;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to retrieve output data for ID ${outputId}: ${message}`);
+            throw new Error(`Failed to retrieve output data: ${message}`);
+        }
+    }
+
+    async createJobMetadata(jobId: string, initialData?: Partial<JobMetadata>): Promise<void> {
+        const metadata: JobMetadata = {
+            jobId,
+            status: 'pending',
+            ...initialData,
+        };
+        const objectName = `job-${jobId}.json`;
+        try {
+            await this.minioClient.putObject(
+                this.jobsBucket,
+                objectName,
+                Buffer.from(JSON.stringify(metadata), 'utf8'),
+                undefined,
+                { 'Content-Type': 'application/json', 'X-Job-ID': jobId },
+            );
+            this.logger.log(`Created job metadata for ID: ${jobId}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to create job metadata: ${message}`);
+            throw new Error(`Failed to create job metadata: ${message}`);
+        }
+    }
+
+    async updateJobMetadata(jobId: string, updates: Partial<JobMetadata>): Promise<void> {
+        try {
+            const current = await this.getJobMetadata(jobId);
+            const updated = {
+                ...current,
+                ...updates,
+                stats: updates.stats
+                    ? { ...current.stats, ...updates.stats }
+                    : current.stats,
+            };
+            const objectName = `job-${jobId}.json`;
+            await this.minioClient.putObject(
+                this.jobsBucket,
+                objectName,
+                Buffer.from(JSON.stringify(updated), 'utf8'),
+                undefined,
+                { 'Content-Type': 'application/json', 'X-Job-ID': jobId },
+            );
+            this.logger.log(`Updated job metadata for ID: ${jobId}`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to update job metadata: ${message}`);
+            throw new Error(`Failed to update job metadata: ${message}`);
+        }
+    }
+
+    async getJobMetadata(jobId: string): Promise<JobMetadata> {
+        try {
+            const objectName = `job-${jobId}.json`;
+            const dataStream = await this.minioClient.getObject(this.jobsBucket, objectName);
+            const chunks: Uint8Array[] = [];
+            for await (const chunk of dataStream) {
+                chunks.push(chunk);
+            }
+            const data = Buffer.concat(chunks).toString('utf8');
+            return JSON.parse(data) as JobMetadata;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Failed to retrieve job metadata for ID ${jobId}: ${message}`);
+            throw new Error(`Failed to retrieve job metadata: ${message}`);
+        }
+    }
+
+    async cleanupOldFiles(maxAgeInDays: number = 7): Promise<void> {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - maxAgeInDays);
+        try {
+            await this.cleanupBucket(this.inputBucket, cutoffDate);
+            await this.cleanupBucket(this.outputBucket, cutoffDate);
+            await this.cleanupBucket(this.jobsBucket, cutoffDate);
+            this.logger.log(`Cleanup completed for files older than ${maxAgeInDays} days`);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Cleanup failed: ${message}`);
+            throw new Error(`Cleanup failed: ${message}`);
+        }
+    }
+
+    private async cleanupBucket(bucket: string, cutoffDate: Date): Promise<void> {
+        const objectsToDelete: string[] = [];
+        const stream = this.minioClient.listObjects(bucket, '', true);
+        for await (const obj of stream) {
+            if (obj.lastModified && obj.lastModified < cutoffDate) {
+                objectsToDelete.push(obj.name);
+            }
+        }
+        for (const objectName of objectsToDelete) {
+            await this.minioClient.removeObject(bucket, objectName);
+        }
+        this.logger.log(`Cleaned up ${objectsToDelete.length} objects from bucket: ${bucket}`);
+    }
+
+    async isHealthy(): Promise<boolean> {
+        try {
+            await this.minioClient.bucketExists(this.inputBucket);
+            return true;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Health check failed: ${message}`);
+            return false;
+        }
+    }
+}

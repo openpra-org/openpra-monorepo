@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  benchmark:
+    build:
+      context: ../../../
+      dockerfile: deploy/utilities/benchmarking/Dockerfile
+    environment:
+      - MODEL_NAME=${MODEL_NAME:-aralia}
+    volumes:
+      # Mount the ARALIA fault-tree dataset as the benchmark input
+      - ${BENCHMARK_INPUT_DIR:-../../../fixtures/models/aralia-fault-tree-dataset/data/openpsa}:/data
+      # Mount the benchmark scripts directory
+      - ./scripts:/benchmark/scripts
+      # Mount the results directory so output is accessible on the host
+      - ../../../fixtures/results:/benchmark/results
+    working_dir: /benchmark
+    command: ["bash", "/benchmark/scripts/run_benchmark.sh"]

@@ -1,0 +1,41 @@
+{
+  "note": "Current OpenPRA applications, interfaces, solvers, documentation, and utilities.",
+  "packages": [
+    {
+      "name": "praxis",
+      "blurb": "PRA eXecution and Insight System. The Rust solver provides Boolean, Monte Carlo, event-tree, and HCL analysis capabilities."
+    },
+    {
+      "name": "scram",
+      "blurb": "The original quantification engine, still maintained and still the reference the newer solvers are checked against."
+    },
+    {
+      "name": "canopy",
+      "blurb": "Monte Carlo quantification of Boolean logic on hardware-accelerated platforms, developed in its own repository."
+    },
+    {
+      "name": "interfaces-shared-types",
+      "blurb": "Shared application schemas and DTOs used by the frontend, backend, and services."
+    },
+    {
+      "name": "interfaces-mef-types",
+      "blurb": "The OpenPRA MEF technical-element schemas, validation logic, and generated Zod contracts."
+    },
+    {
+      "name": "frontends-web-frontend",
+      "blurb": "React and TypeScript workbooks \u2014 the interface analysts actually use."
+    },
+    {
+      "name": "raptor",
+      "blurb": "RabbitMQ job broker that scales quantification across workers."
+    },
+    {
+      "name": "docs-md",
+      "blurb": "Unified product, developer, API, and branding documentation."
+    },
+    {
+      "name": "pracciolini",
+      "blurb": "Format translation, including a SAPHIRE round trip through PRAXIS."
+    }
+  ]
+}

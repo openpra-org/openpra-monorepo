@@ -3,15 +3,21 @@ name: "Docs: Unified TypeScript + C++"
 on:
   push:
     branches:
-      - main
+      - "**"
     paths:
-      - "packages/docs-md/**"
-      - "packages/mef-types/**"
-      - "packages/shared-types/**"
-      - "packages/shared-sdk/**"
-      - "packages/frontend/web-editor/src/utils/**"
-      - "packages/engine/scram/**"
+      - "apps/docs-md/**"
+      - "apps/interfaces/mef-types/**"
+      - "apps/solvers/scram/**"
+      - "apps/interfaces/shared-types/**"
+      - "apps/backends/web-backend/**"
+      - "apps/frontends/web-frontend/**"
+      - "apps/microservices/praetor/**"
+      - "apps/solvers/praxis/**"
+      - "apps/utilities/pracciolini/**"
       - ".github/workflows/docs.yml"
+      - "docker/docs-stack.yml"
+      - "docker/docs-branch-stack.yml"
+      - "apps/docs-md/Dockerfile"
       - ".dockerignore"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
@@ -24,11 +30,13 @@ permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
-    concurrency:
-      group: docs-${{ github.ref }}
-      cancel-in-progress: true
-    runs-on: monorepo-runner
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--max-old-space-size=6144"
+    outputs:
+      image_tag: ${{ steps.vars.outputs.image_tag }}
+      sanitized_branch: ${{ steps.vars.outputs.sanitized_branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,7 +47,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          # Removed pnpm cache here because it requires pnpm to be on PATH during this step
+
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
 
@@ -53,50 +61,117 @@ jobs:
 
       - name: Install Doxybook2
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y unzip
           curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
-          # Unpack into /usr/local so the binary lands in /usr/local/bin
           sudo unzip -o doxybook2.zip -d /usr/local
           sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 
+      - name: Install Rust nightly and cargo-docs-md
+        run: |
+          if ! command -v rustup &>/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          fi
+          source "$HOME/.cargo/env"
+          rustup toolchain install nightly --no-self-update
+          cargo install cargo-docs-md --version 0.2.4
+
+      - name: Install Python doc tools
+        run: |
+          sudo apt-get install -y python3-pip
+          python3 -m pip install lazydocs==0.4.8 lxml plotly
+
+      - name: Generate Rust API docs (PRAXIS — cargo-docs-md)
+        run: |
+          mkdir -p apps/docs-md/api/rust/praxis
+          cd apps/solvers/praxis
+          RUSTDOCFLAGS='-Z unstable-options --output-format json' cargo +nightly doc --no-deps 2>&1 || echo "cargo doc encountered warnings"
+          cargo docs-md --dir target/doc/ -o ../../docs-md/api/rust/praxis/
+
+      - name: Generate Python API docs (pracciolini — lazydocs)
+        run: |
+          mkdir -p apps/docs-md/api/python/pracciolini
+          if (cd apps/utilities/pracciolini/src && \
+            PYTHONPATH=. python3 -m lazydocs._cli --output-path ../../../docs-md/api/python/pracciolini \
+              --no-watermark --overview-file index.md \
+              convert ftap ftap_verifier jsinp jsinp_verifier model \
+              openpsa_verifier openpsa_xml parse_ftrex_log parse_praxis_log \
+              parse_saphsolve_log parse_scram_log parse_xfta_log parse_zebra_log \
+              plot_benchmark_results s2ml s2ml_verifier 2>&1); then
+            node apps/docs-md/tools/sanitize-lazydocs-html.mjs apps/docs-md/api/python/pracciolini
+            rm -f apps/docs-md/api/python/pracciolini/.pages
+          else
+            echo "Pracciolini lazydocs failed — committed baseline will be used"
+          fi
+
       - name: Build unified Markdown docs (VitePress)
-        # Nx Cloud temporarily disabled — retain config here for quick re-enable
         env:
           NX_NO_CLOUD: "true"
-          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
-          # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-          # NX_BRANCH: ${{ github.ref_name }}
-          # NX_RUN_GROUP: docs-${{ github.run_id }}
+          VITEPRESS_BASE: "/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
       - name: Link check
         env:
-          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
+          VITEPRESS_BASE: "/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
+
+      - name: Determine image tag
+        id: vars
+        run: |
+          BRANCH_NAME="${{ github.ref_name }}"
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+
+          if [ "$BRANCH_NAME" = "main" ]; then
+            echo "image_tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "image_tag=${SANITIZED_BRANCH}" >> $GITHUB_OUTPUT
+          fi
+
+          echo "sanitized_branch=${SANITIZED_BRANCH}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Determine branch-based domain and image tag
-        id: vars
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/docs-md/Dockerfile
+          push: false
+          load: true
+          tags: |
+            registry.openpra.org/openpra-docs:${{ steps.vars.outputs.image_tag }}
+            registry.openpra.org/openpra-docs:${{ github.sha }}
+
+      - name: Save Docker image as artifact
         run: |
-          BRANCH_NAME="${{ github.ref_name }}"
-          # Sanitize branch name for domain (replace / with -)
-          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+          docker save \
+            registry.openpra.org/openpra-docs:${{ steps.vars.outputs.image_tag }} \
+            registry.openpra.org/openpra-docs:${{ github.sha }} \
+            | gzip > docs-image.tar.gz
 
-          if [ "$BRANCH_NAME" = "main" ]; then
-            DOMAIN="docs-dev.openpra.org"
-            IMAGE_TAG="latest"
-          else
-            DOMAIN="${SANITIZED_BRANCH}-docs-dev.openpra.org"
-            IMAGE_TAG="${SANITIZED_BRANCH}"
-          fi
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-image
+          path: docs-image.tar.gz
+          retention-days: 1
 
-          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
-          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+  deploy:
+    needs: build
+    runs-on: gaia1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-image
+
+      - name: Load Docker image
+        run: docker load < docs-image.tar.gz
 
       - name: Login to self-hosted registry
         uses: docker/login-action@v3
@@ -105,36 +180,34 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: packages/docs-md/Dockerfile
-          push: true
-          tags: |
-            registry.openpra.org/openpra-docs:${{ steps.vars.outputs.image_tag }}
-            registry.openpra.org/openpra-docs:${{ github.sha }}
-          build-args: |
-            VITEPRESS_BASE=/
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Push to registry
+        run: |
+          docker push registry.openpra.org/openpra-docs:${{ needs.build.outputs.image_tag }}
+          docker push registry.openpra.org/openpra-docs:${{ github.sha }}
 
       - name: Deploy to Docker Swarm
         run: |
-          DOMAIN="${{ steps.vars.outputs.domain }}"
-          IMAGE_TAG="${{ steps.vars.outputs.image_tag }}"
-          STACK_NAME="docs-${{ steps.vars.outputs.sanitized_branch }}"
-          BRANCH_SLUG="${{ steps.vars.outputs.sanitized_branch }}"
+          BRANCH_NAME="${{ github.ref_name }}"
+          SANITIZED_BRANCH="${{ needs.build.outputs.sanitized_branch }}"
 
-          # Export variables for docker stack
-          export IMAGE_DOCS="registry.openpra.org/openpra-docs:${IMAGE_TAG}"
-          export DOMAIN="${DOMAIN}"
-          export BRANCH_SLUG="${BRANCH_SLUG}"
+          export IMAGE_DOCS="registry.openpra.org/openpra-docs:${{ github.sha }}"
 
-          # Deploy stack with registry auth
-          docker stack deploy \
-            --with-registry-auth \
-            --compose-file docker/docs-stack.yml \
-            ${STACK_NAME}
-
-          echo "Documentation deployed to https://${DOMAIN}"
+          if [ "$BRANCH_NAME" = "main" ]; then
+            export DOMAIN="docs-dev.openpra.org"
+            export BRANCH_SLUG="main"
+            docker stack deploy \
+              --with-registry-auth \
+              --resolve-image never \
+              --compose-file docker/docs-stack.yml \
+              docs-main
+            echo "Documentation deployed to https://docs-dev.openpra.org"
+          else
+            export APP_NAME="openpra-docs-${SANITIZED_BRANCH}"
+            export HOST_URL="${SANITIZED_BRANCH}-docs-dev.openpra.org"
+            docker stack deploy \
+              --with-registry-auth \
+              --resolve-image never \
+              --compose-file docker/docs-branch-stack.yml \
+              "${APP_NAME}"
+            echo "Documentation deployed to https://${HOST_URL}"
+          fi

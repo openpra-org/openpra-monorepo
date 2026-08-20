@@ -1,0 +1,148 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<smile version="1.0" id="unified_bn" numsamples="10000">
+  <nodes>
+    <cpt id="Extra0">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.558963 0.441037</probabilities>
+    </cpt>
+    <cpt id="I0">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0</parents>
+      <probabilities>0.972738 0.027262 0.772970 0.227030</probabilities>
+    </cpt>
+    <cpt id="I1">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0 I0</parents>
+      <probabilities>0.177297 0.822703 0.666841 0.333159 0.816899 0.183101 0.250401 0.749599</probabilities>
+    </cpt>
+    <cpt id="I2">
+      <state id="False" />
+      <state id="True" />
+      <parents>I0 I1 Extra0</parents>
+      <probabilities>0.602249 0.397751 0.777961 0.222039 0.720857 0.279143 0.092344 0.907656 0.822422 0.177578 0.986624 0.013376 0.912630 0.087370 0.413291 0.586709</probabilities>
+    </cpt>
+    <cpt id="I3">
+      <state id="False" />
+      <state id="True" />
+      <parents>Extra0</parents>
+      <probabilities>0.155728 0.844272 0.204066 0.795934</probabilities>
+    </cpt>
+    <cpt id="I4">
+      <state id="False" />
+      <state id="True" />
+      <parents>I1 Extra0 I3 I2</parents>
+      <probabilities>0.699935 0.300065 0.667740 0.332260 0.472613 0.527387 0.611412 0.388588 0.086196 0.913804 0.371965 0.628035 0.367381 0.632619 0.512132 0.487868 0.416105 0.583895 0.760514 0.239486 0.602481 0.397519 0.910978 0.089022 0.866700 0.133300 0.712769 0.287231 0.538093 0.461907 0.780582 0.219418</probabilities>
+    </cpt>
+    <cpt id="E0">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.800046 0.199954</probabilities>
+    </cpt>
+    <cpt id="E1">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.684303 0.315697</probabilities>
+    </cpt>
+    <cpt id="E10">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.655912 0.344088</probabilities>
+    </cpt>
+    <cpt id="E11">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.724185 0.275815</probabilities>
+    </cpt>
+    <cpt id="E2">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.619138 0.380862</probabilities>
+    </cpt>
+    <cpt id="E3">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.964296 0.035704</probabilities>
+    </cpt>
+    <cpt id="E4">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.868925 0.131075</probabilities>
+    </cpt>
+    <cpt id="E5">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.686771 0.313229</probabilities>
+    </cpt>
+    <cpt id="E6">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.535050 0.464950</probabilities>
+    </cpt>
+    <cpt id="E7">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.640168 0.359832</probabilities>
+    </cpt>
+    <cpt id="E8">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.652017 0.347983</probabilities>
+    </cpt>
+    <cpt id="E9">
+      <state id="False" />
+      <state id="True" />
+      <probabilities>0.824030 0.175970</probabilities>
+    </cpt>
+    <cpt id="G3">
+      <state id="False" />
+      <state id="True" />
+      <parents>E2 E8 I2 I0</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G4">
+      <state id="False" />
+      <state id="True" />
+      <parents>E7 E3 E9 I4</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G5">
+      <state id="False" />
+      <state id="True" />
+      <parents>E0 E4 E1 E10</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G6">
+      <state id="False" />
+      <state id="True" />
+      <parents>E5 I3 I1 E6</parents>
+      <probabilities>1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G2">
+      <state id="False" />
+      <state id="True" />
+      <parents>G3 G4 G5 G6 E11</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G1">
+      <state id="False" />
+      <state id="True" />
+      <parents>G2 E0 E1 E2 E3</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="G0">
+      <state id="False" />
+      <state id="True" />
+      <parents>G1 E4 E5 E6</parents>
+      <probabilities>1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 1.000000 0.000000 0.000000 1.000000</probabilities>
+    </cpt>
+    <cpt id="Top">
+      <state id="False" />
+      <state id="True" />
+      <parents>G0</parents>
+      <probabilities>1.000000 0.000000 0.000000 1.000000</probabilities>
+    </cpt>
+  </nodes>
+</smile>

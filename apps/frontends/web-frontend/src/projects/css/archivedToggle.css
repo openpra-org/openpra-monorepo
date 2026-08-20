@@ -1,0 +1,76 @@
+.ap__archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.ap__archive-toggle:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.ap__archive-toggle svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-subtle);
+}
+
+.ap__archive-toggle:hover:not(:disabled) svg {
+  color: var(--color-text-muted);
+}
+
+.ap__archive-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ap__archive-toggle--active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.ap__archive-toggle--active svg {
+  color: var(--color-primary);
+}
+
+.ap__archive-toggle--active:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.ap__archive-toggle--active:hover:not(:disabled) svg {
+  color: var(--color-primary);
+}
+
+.ap__archive-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--color-surface-low);
+  color: var(--color-text-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ap__archive-toggle--active .ap__archive-toggle-count {
+  background: var(--color-primary);
+  color: #ffffff;
+}

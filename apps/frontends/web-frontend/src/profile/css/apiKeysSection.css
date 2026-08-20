@@ -1,0 +1,34 @@
+.pf__keys-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 20px;
+  background: var(--color-surface-low);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  gap: 8px;
+}
+
+.pf__keys-empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--color-text-subtle);
+  margin-bottom: 4px;
+}
+
+.pf__keys-empty h3 {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.pf__keys-empty p {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  max-width: 360px;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}

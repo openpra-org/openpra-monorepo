@@ -1,0 +1,32 @@
+FROM node:20-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ gcc cmake ninja-build git \
+    ca-certificates curl gnupg \
+    libxml2-dev libomp-dev \
+    libboost-all-dev \
+    libjemalloc-dev \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN corepack enable
+
+WORKDIR /usr/src/app
+
+COPY . .
+
+RUN pnpm install
+
+RUN npx nx run praetor:build
+
+RUN mkdir -p apps/solvers/scram/build && \
+    cd apps/solvers/scram/build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -G Ninja .. && \
+    cmake --build . --target scram-cli && \
+    ln -s "$(find /usr/src/app/apps/solvers/scram/build -name scram-cli -type f -executable | head -n1)" /usr/local/bin/scram
+
+ENV NODE_ENV=production
+
+CMD ["node", "apps/microservices/praetor/dist/src/main-runner.js"]

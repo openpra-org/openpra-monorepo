@@ -1,0 +1,160 @@
+.pf__team-search {
+  margin-bottom: 14px;
+}
+
+.pf__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pf__search-icon {
+  position: absolute;
+  left: 14px;
+  display: inline-flex;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+}
+
+.pf__search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pf__search-input {
+  width: 100%;
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 11px 40px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+
+.pf__search-input::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.pf__search-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.pf__search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pf__search-clear:hover {
+  background: var(--color-surface-low);
+  color: var(--color-text);
+}
+
+.pf__search-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pf__browse {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 4px 20px;
+  margin: 0 -4px;
+}
+
+.pf__browse-team {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--color-surface-low);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+}
+
+.pf__browse-team:hover {
+  border-color: var(--color-border-strong);
+}
+
+.pf__browse-team .pf__team-glyph {
+  margin-top: 2px;
+}
+
+.pf__browse-team .pf__team-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pf__visibility-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-ui), sans-serif;
+}
+
+.pf__visibility-tag--public {
+  background: rgb(18 197 185 / 0.12);
+  color: var(--color-success);
+}
+
+.pf__visibility-tag--private {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.pf__browse-desc {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.pf__browse-join {
+  flex-shrink: 0;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.pf__browse-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--color-text-subtle);
+  gap: 10px;
+}
+
+.pf__browse-empty svg {
+  width: 24px;
+  height: 24px;
+}
+
+.pf__browse-empty p {
+  margin: 0;
+  font-size: 13px;
+}

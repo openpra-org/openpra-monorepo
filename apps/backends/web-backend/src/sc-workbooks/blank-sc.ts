@@ -1,0 +1,76 @@
+import { randomUUID } from "crypto";
+import { type SuccessCriteriaDevelopment } from "interfaces-mef-types/sc/success-criteria-development";
+import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+
+export function createBlankSc(name: string, owner: string): SuccessCriteriaDevelopment {
+  const now = new Date().toISOString();
+  return {
+    uuid: randomUUID(),
+    name,
+    type: TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT,
+    version: "1",
+    created: now,
+    modified: now,
+    owner,
+    workflowState: "DRAFT",
+    workflowHistory: [{ state: "DRAFT", enteredAt: now, actor: owner }],
+    capabilityCategory: "CC-II",
+    plantStage: "PRE_OPERATIONAL",
+    metadata: {
+      versionInfo: { version: "1", lastUpdated: now, schemaVersion: "0.0.1" },
+      analysisDate: now,
+      analysts: [owner],
+      reviewers: [],
+      scope: "",
+      limitations: [],
+      lastModifiedDate: now,
+      lastModifiedBy: owner,
+    },
+    conformanceMatrix: [],
+    internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
+    activePeerReviewIds: [],
+    activeAuditIds: [],
+    praScope: "",
+    safeStableStateDefinition: {
+      definition: "",
+      basis: "",
+      implementsSrs: [],
+    },
+    endStateDefinitions: [],
+    safetyFunctionSuccessCriteria: [],
+    overallSuccessCriteria: [],
+    radionuclideBarrierCriteria: [],
+    missionTimes: [],
+    engineeringAnalyses: [],
+    analysisDetailConsistency: {
+      consistentWithInitiatingEventGrouping: false,
+      consistentWithPlantOperatingStateDefinition: false,
+      consistentWithEventSequenceModeling: false,
+      basis: "",
+      implementsSrs: [],
+    },
+    modelUncertainty: {
+      uuid: randomUUID(),
+      name: "SC model uncertainty documentation",
+      uncertaintySources: [],
+      relatedAssumptions: [],
+      reasonableAlternatives: [],
+    },
+    documentation: {
+      processDescription: "",
+      endStateDefinitionsBasis: "",
+      successCriteriaPerFunctionEventState: "",
+      missionTimesBasis: "",
+      calculationsAndCodesUsed: "",
+      codeValidationAndLimitations: "",
+      expertJudgmentUse: "",
+      sharedSystemsTreatment: "",
+      passiveSafetyTreatment: "",
+      consistencyWithPlantDesign: "",
+      modelUncertaintySources: "",
+      asBuiltLimitations: "",
+      praTaskInterfaces: "",
+      implementsSrs: [],
+    },
+  };
+}

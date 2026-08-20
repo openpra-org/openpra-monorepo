@@ -1,0 +1,98 @@
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+  width: calc(100% - 48px);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border-left: 4px solid;
+  box-shadow: 0 4px 20px rgb(143 78 199 / 0.12);
+  animation: toast-slide-in 0.2s ease;
+  font-family: var(--font-ui), 'Helvetica Neue', Arial, sans-serif;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast--danger {
+  background-color: #fff5f5;
+  border-left-color: var(--color-error);
+}
+
+.toast--success {
+  background: linear-gradient(135deg, #f0fdf4 0%, var(--color-surface-low) 100%);
+  border-left-color: var(--color-success);
+}
+
+.toast--info {
+  background: linear-gradient(135deg, var(--color-surface-low) 0%, #fdf7ff 100%);
+  border-left-color: var(--color-primary);
+}
+
+.toast--warning {
+  background-color: #fffbf0;
+  border-left-color: var(--color-warning);
+}
+
+.toast__body {
+  flex: 1;
+}
+
+.toast__type {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.toast--danger .toast__type { color: var(--color-error); }
+.toast--success .toast__type { color: var(--color-success); }
+.toast--info .toast__type { color: var(--color-primary); }
+.toast--warning .toast__type { color: var(--color-warning); }
+
+.toast__message {
+  font-size: 14px;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.toast__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  font-family: inherit;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.toast__close:hover {
+  opacity: 1;
+}

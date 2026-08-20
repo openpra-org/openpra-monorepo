@@ -1,0 +1,31 @@
+{
+  "name": "scram-node",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./build/Release/scram-node.node",
+  "types": "./targets/scram-node/lib/index.d.ts",
+  "private": true,
+  "scripts": {
+    "build": "cmake-js -C --parallel 32 rebuild --CDBUILD_TESTS=OFF",
+    "rebuild": "pnpm run build",
+    "configure": "cmake-js -C --parallel 32 configure --CDBUILD_TESTS=OFF",
+    "clean": "cmake-js clean",
+    "test": "node scripts/smoke-addon.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.lib.json"
+  },
+  "dependencies": {
+    "cmake-js": "7.3.0",
+    "node-addon-api": "8.1.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "binary": {
+    "napi_versions": [
+      9
+    ]
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,374 @@
+\begin{document}
+
+\chapter{Getting Started}
+
+\textbf{Key Concepts}
+\begin{itemize}
+    \item Models, systems of Boolean equations [cite: 1280]
+    \item extended OpenPSA format, S2ML+SBE [cite: 1281]
+    \item Scripts, commands [cite: 1281]
+    \item Instantiation, Flattening [cite: 1282]
+    \item Executions [cite: 1283]
+    \item Minimal cutsets approach [cite: 1284]
+    \item Binary decision diagram approach [cite: 1285]
+\end{itemize}
+
+\section{Models and Scripts}
+
+\subsection{Models}
+XFTA is a calculation engine for fault trees, or more exactly for systems of stochastic Boolean equations that are the underlying mathematical framework of fault trees and reliability block diagrams[cite: 1288]. A typical XFTA session consists in loading a model, performing some calculations on this model, and printing out results[cite: 1289].
+
+XFTA supports two input languages: \textbf{S2ML+SBE} (textual) and the \textbf{extended Open-PSA format} (XML)[cite: 1294]. S2ML+SBE is designed to be human-readable[cite: 1295].
+
+\begin{lstlisting}[caption={S2ML+SBE code for a simple fault tree}]
+gate top = g1 or g2;
+gate g1 = A and g3;
+gate g2 = E and g3;
+gate g3 = atleast 2 (B, C, D);
+
+basic-event A = 0.001;
+basic-event B = 0.03;
+basic-event C = 0.05;
+basic-event D = 0.04;
+basic-event E = 0.0009;
+\end{lstlisting}
+[cite: 1325]
+
+\subsection{Scripts}
+To perform calculations, you must write a script (typically with the extension \texttt{.xfta})[cite: 1337]. 
+
+\begin{lstlisting}[caption={XFTA assessment script}]
+load model "FaultTree001.sbe";
+build target-model;
+build BDT top;
+compute probability top output="prb.tsv";
+print minimal-cutsets top output="mcs.tsv";
+\end{lstlisting}
+[cite: 1350]
+
+The \texttt{build target-model} command performs \textbf{instantiation} and \textbf{flattening}[cite: 1353]. Results are often stored in \textbf{TSV} (tabulation separated values) files for compatibility with tools like Excel[cite: 1357, 1358].
+
+\section{Assessments and Approaches}
+XFTA provides two main normal forms for assessment:
+\begin{itemize}
+    \item \textbf{Binary Decision Diagrams (BDD):} Very efficient and provides exact results, but may fail on very large models due to memory limits[cite: 1669, 1670, 1671].
+    \item \textbf{Minimal Cutsets (MCS):} Acts as a model pruner by seeking the most probable cutsets; results are approximated but effective for low probabilities[cite: 1672, 1673, 1674].
+\end{itemize}
+
+\chapter{Installation Notes}
+From version 2.0.0, XFTA requires 64-bit architectures[cite: 1716].
+
+\section{Windows Installation}
+The core of XFTA consists of \texttt{xfta.dll} and \texttt{xftar.exe}[cite: 1730]. It is compiled with Microsoft Visual Studio C++ 2019; users may need to install the Microsoft redistributable libraries (\texttt{vc\_redist.x64.exe})[cite: 1732, 1733].
+
+\subsection{Execution}
+To run a script on Windows:
+\begin{lstlisting}[numbers=none]
+xftar.exe myscript.xfta
+\end{lstlisting}
+[cite: 1741]
+Or, if using the registry-based "App Paths" installation:
+\begin{lstlisting}[numbers=none]
+start /b xftar.exe myscript.xfta
+\end{lstlisting}
+[cite: 1766]
+
+\section{Linux and Mac OS}
+Installation is simpler on these platforms:
+\begin{itemize}
+    \item \textbf{Linux:} Decompress the zip archive and add the folder to the \texttt{PATH} environment variable[cite: 1793].
+    \item \textbf{Mac OS:} Move the \texttt{xftar} executable into \texttt{/usr/local/bin}[cite: 1807].
+\end{itemize}
+
+\section{Application Programmable Interface (API)}
+The API is provided in \texttt{xfta-api.h} and consists of a single C function[cite: 1813]:
+\begin{equation*}
+\text{int XFTA\_EvalScriptFile(char* fileName);}
+\end{equation*}
+[cite: 1814]
+
+\chapter{Guided Tour of the XFA's Input Formats}
+
+\textbf{Key Concepts}
+\begin{itemize}
+    \item Open-PSA format
+    \item S2ML+SBE
+    \item Systems of Boolean equations
+    \item Failure models
+    \item Extra-logical constructs
+    \item Blocks, prototypes, cloning
+    \item Identifiers and paths
+    \item Classes, instantiation
+    \item Graphical representations
+\end{itemize}
+
+This chapter introduces the two input formats, or modeling languages, supported by the current version of XFTA: the Open-PSA format on the one hand, S2ML+SBE on the other hand.
+
+\section{Preliminary Remarks}
+The "official" version of the Open-PSA format is described in the document that Steven "Woody" Epstein and I wrote in 2018 (Epstein and Rauzy 2008). This version is version number 2.0d. It consists of a XML grammar to describe:
+\begin{itemize}
+    \item Systems of Boolean equations defining fault trees;
+    \item Failure models associated with basic-events of fault trees;
+    \item Extra-logical constructs such as common-cause failure groups;
+    \item Event trees.
+\end{itemize}
+
+These elements are in line with the primary goal of the format, which was to deal with probabilistic risk assessment models coming from the nuclear industry. These models are for the most part combinations of event trees and fault trees (Kumamoto and Henley 1996). However, none of the versions of XFTA implements event trees. The reason is that XFTA has been designed as a calculation engine for fault trees and that models that combine event trees and fault trees are transformed into fault tree before being assessed. The fault tree resulting of this transformation is often called the master fault tree of the model.
+
+The current version of XFTA implements a full-fledged object-oriented language, so-called S2ML+SBE, to author Boolean risk assessment models. S2ML+SBE belongs to the S2ML+X family of modeling languages (Batteux, Prosvirnova, and Rauzy 2018; Rauzy and Haskins 2019). It is thus both much more than the original Open-PSA format, as it extends it with object-oriented constructs, but also less, as it does not implement event trees. Moreover, conversely to the Open-PSA format, it is a textual language and not a XML grammar.
+
+The decision I took was thus to update the Open-PSA format, i.e. to enhance it with S2ML constructs. In this way, the two input languages of XFTA are fully compatible, it would be even better to say strictly equivalent. The Open-PSA format comes has a XML grammar of SM2L+SBE.
+
+\section{Illustrative Example}
+To illustrate our presentation, we shall consider throughout this chapter the putative oil \& gas facility pictured in Figure 4.1. This facility F is made of two lines, L1 and L2, working in parallel. Each line consists thus of a separator S and a compressor C. One line is sufficient to ensure the production.
+
+We shall assume for now that they have only one failure mode and that their probability of failures obey negative exponential distributions with respective rates $\lambda_{s}=1.23\times10^{-4}$ and $\lambda_{c}=5.67\times10^{-4}$.
+
+\section{Systems of Boolean Equations}
+Figure 4.2 shows a simple fault tree describing the loss of the capacity. This fault tree represents graphically the following system of Boolean equations:
+
+\begin{align*}
+\text{F-lost} &= \text{L1-lost} \wedge \text{L2-lost} \\
+\text{L1-lost} &= \text{L1-S-failed} \vee \text{L1-C-failed} \\
+\text{L2-lost} &= \text{L2-S-failed} \vee \text{L2-C-failed}
+\end{align*}
+
+\subsection{Open-PSA format}
+The Open-PSA encoding for this system is given in Figure 4.3.
+
+\begin{lstlisting}[language=XML, caption={Open-PSA description of the fault tree}]
+<?xml version="1.0"?>
+<!DOCTYPE open-psa >
+<open-psa >
+  <define-gate name="F-lost">
+    <and>
+      <gate name="L1-lost" />
+      <gate name="L2-lost" />
+    </and>
+  </define-gate>
+  <define-gate name="L1-lost">
+    <or>
+      <basic-event name="L1-S-failed" />
+      <basic-event name="L1-C-failed" />
+    </or>
+  </define-gate>
+  <define-gate name="L2-lost">
+    <or>
+      <basic-event name="L2-S-failed" />
+      <basic-event name="L2-C-failed" />
+    </or>
+  </define-gate>
+</open-psa >
+\end{lstlisting}
+
+\subsection{S2ML+SBE}
+The principles of S2ML+SBE encoding are the same. Declarations follow this rule:
+\begin{lstlisting}
+Element Declaration ::= Type Path '=' Term ';'
+\end{lstlisting}
+
+The S2ML+SBE description for Figure 4.2 is:
+\begin{lstlisting}
+gate F-lost = L1-lost and L2-lost;
+gate L1-lost = L1-S-failed or L1-C-failed;
+gate L2-lost = L2-S-failed or L2-C-failed;
+\end{lstlisting}
+
+\section{Failure Models}
+We associate probability distributions with the four basic events.
+
+\subsection{S2ML+SBE Failure Modeling}
+\begin{lstlisting}
+basic-event L1-S-failed = exponential(lambda-S);
+basic-event L1-C-failed = exponential(lambda-C);
+basic-event L2-S-failed = exponential(lambda-S);
+basic-event L2-C-failed = exponential(lambda-C);
+
+parameter lambda-S = 1.23e-4;
+parameter lambda-C = 5.67e-4;
+\end{lstlisting}
+
+\chapter{Systems of Boolean Equations}
+
+\textbf{Key Concepts}
+\begin{itemize}
+    \item State and flow variables
+    \item Boolean formulas
+    \item Systems of Boolean equations
+    \item Data-Flow (Loop-Free) Systems
+    \item Truth assignments
+    \item Boolean functions
+    \item Structure functions
+    \item Entailment and Equivalence
+    \item Boolean algebra identities
+    \item Coherence
+\end{itemize}
+
+\section{Boolean Formulas}
+Boolean formulas are built over constants 1 (true) and 0 (false), variables $\mathcal{V}$, and logical connectives $\vee$ (or), $\wedge$ (and) and $\neg$ (not).
+
+\section{Systems of Boolean Equations}
+\textbf{Definition 5.2.1 - Systems of Boolean Equations.} Let $\mathcal{V}$ be a set of Boolean variables. A system $S$ is a finite set of equations:
+\begin{align*}
+V_1 &= f_1 \\
+&\vdots \\
+V_n &= f_n
+\end{align*}
+where $V_i \in \mathcal{V}$ and $f_i$ are Boolean formulas.
+
+\section{Properties}
+\textbf{Theorem 5.2 - Boolean algebras identities.}
+\begin{itemize}
+    \item $f \wedge g \equiv g \wedge f$ (Commutativity of $\wedge$)
+    \item $f \vee g \equiv g \vee f$ (Commutativity of $\vee$)
+    \item $f \wedge (g \wedge h) \equiv (f \wedge g) \wedge h$ (Associativity of $\wedge$)
+    \item $f \wedge (g \vee h) \equiv (f \wedge g) \vee (f \wedge h)$ (Distributivity of $\wedge$ over $\vee$)
+    \item $f \wedge f \equiv f$ (Idempotence of $\wedge$)
+    \item $\neg \neg f \equiv f$ (Double negation)
+    \item $\neg (f \wedge g) \equiv \neg f \vee \neg g$ (de Morgan's law for $\wedge$)
+\end{itemize}
+
+\section{Additional Connectives}
+\begin{itemize}
+    \item $f \Rightarrow g \equiv \neg f \vee g$ (Implication)
+    \item $f \oplus g \equiv (f \wedge \neg g) \vee (\neg f \wedge g)$ (XOR)
+    \item $f ? g : h \equiv (f \wedge g) \vee (\neg f \wedge h)$ (if-then-else)
+\end{itemize}
+
+\textbf{Definition 5.6.2 - k-out-of-n.} $\sigma(\text{atleast } k(f_1, \dots, f_n)) = 1$ if at least $k$ out of the $\sigma(f_i)$ are equal to 1.
+
+\section{S2ML+SBE EBNF Grammar}
+\begin{lstlisting}
+FlowVariableDeclaration ::= ('flow' | 'gate') Path '=' BooleanFormula ';'
+StateVariableDeclaration ::= ('state' | 'basic-event') Path '=' StochasticExpression ';'
+SourceVariableDeclaration ::= ('source' | 'house-event') Path '=' ('false' | 'true') ';'
+\end{lstlisting}
+
+\section*{1. Building and Customizing Minimal Cutset Extraction}
+The \texttt{build BDT} command is used to extract minimal cutsets, and its behavior is controlled by several key options:
+
+\begin{itemize}
+    \item \textbf{Cutoffs:} These define the limits of the extraction process to ensure efficiency and manage memory:
+    \begin{itemize}
+        \item \textbf{Maximum Number (\texttt{maximum-number}):} Limits the total number of minimal cutsets extracted. The default is 1,000,000, but it can be increased depending on computer memory.
+        \item \textbf{Maximum Order (\texttt{maximum-order}):} Limits the number of basic events allowed within a single minimal cutset.
+        \item \textbf{Minimum Probability (\texttt{minimum-probability}):} Sets a threshold where only cutsets with a probability above this value are extracted.
+        \item \textbf{Mission Time (\texttt{mission-time}):} Specifies the time at which probabilities are calculated.
+    \end{itemize}
+    \item \textbf{Variable Ordering Heuristics:} Building a binary decision tree (BDT) requires a total order of variables. Users can choose a heuristic via the \texttt{variable-ordering-heuristic} option (default is \textbf{DLFM}).
+\end{itemize}
+
+Values for these options can be set directly within a command (e.g., \texttt{build BDT Top mission-time 8760;}) or globally using the \texttt{set option} command.
+
+\section*{2. Managing Memory with Handles}
+XFTA uses ``handles'' to manage sums of minimal cutsets stored in memory:
+\begin{itemize}
+    \item \textbf{Default Handle:} By default, the BDT encoding minimal cutsets is named \textbf{BDT}.
+    \item \textbf{Source Handles:} Commands for printing or computing risk indicators use a \texttt{source-handle} to identify which set of cutsets to use (e.g., \texttt{print minimal-cutsets Top source-handle MCS2}).
+    \item \textbf{Resetting Memory:} To free up memory, the \texttt{reset source-handle} command can be used to delete sums of minimal cutsets that are no longer needed.
+\end{itemize}
+
+\section*{3. Printing Minimal Cutsets}
+The \texttt{print minimal-cutsets} command outputs extracted cutsets into a text file in \textbf{TSV (Tab-Separated Values)} format. The output is sorted by decreasing probability.
+
+Several indicators can be included in the output for each cutset:
+\begin{itemize}
+    \item \textbf{Rank:} The index of the cutset in the sorted list.
+    \item \textbf{Order:} The number of basic events in the cutset.
+    \item \textbf{Probability:} The calculated probability at the specified mission time.
+    \item \textbf{Contribution:} The probability of the specific cutset divided by the total probability of all minimal cutsets.
+    \item \textbf{Unconditional Failure Intensity:} A value defined by the sum of intensities and factors within the cutset.
+\end{itemize}
+
+\textbf{Table: Options for \texttt{print minimal-cutsets}}
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{Option} & \textbf{Type} & \textbf{Default Value} \\ \hline
+\texttt{top-event} & Identifier & None \\
+\texttt{source-handle} & Identifier & BDT \\
+\texttt{mission-time} & Positive real & 0.0 \\
+\texttt{print-minimal-cutset-rank} & Boolean & true \\
+\texttt{print-minimal-cutset-order} & Boolean & false \\
+\texttt{print-minimal-cutset-probability} & Boolean & true \\
+\texttt{print-minimal-cutset-contribution} & Boolean & true \\
+\texttt{print-minimal-cutset-failure-intensity} & Boolean & false \\
+\texttt{output} & String & result.txt \\
+\texttt{mode} & write/append & write \\ \hline
+\end{tabular}
+\end{center}
+
+\section*{4. Computing Statistics}
+The \texttt{compute} command allows users to generate various additional statistics regarding the minimal cutsets, referencing the same source handles and options as the printing commands.
+
+\section*{1. Mathematical and Algorithmic Framework}
+XFTA assesses the probability of the top event using either exact quantification (disjoint products) or approximation methods (minimal cutsets).
+
+\begin{itemize}
+    \item \textbf{Exact Quantification:} Performed using sums of disjoint products encoded as Binary Decision Diagrams (BDD). This relies on the \textbf{Shannon Decomposition}, allowing the calculation to run in linear time relative to the size of the BDD.
+    \item \textbf{Approximation Methods:} When using minimal cutsets (encoded as BDT or ZBDD), the exact probability is often too resource-intensive to calculate, necessitating approximations:
+    \begin{itemize}
+        \item \textbf{Rare Event Approximation (REA):} The simplest method, accurate when basic event probabilities are low. It runs in linear time but may yield pessimistic results (exceeding 1) if probabilities are high.
+        \item \textbf{Mincut Upper Bound (MCUB):} Provides a better approximation than REA and never exceeds 1. However, it cannot be calculated recursively, meaning its complexity is linear relative to the number of products rather than the data structure size.
+        \item \textbf{Pivotal Upper Bound (PUB):} An original XFTA algorithm that generally provides better results than REA or MCUB. It runs in linear time but is sensitive to the variable ordering used in the underlying data structure.
+    \end{itemize}
+\end{itemize}
+
+\section*{2. The \texttt{compute probability} Command}
+The primary command for assessing top-event probability is \texttt{compute probability}. Its behavior is defined by various options:
+
+\begin{itemize}
+    \item \textbf{Source and Method:}
+    \begin{itemize}
+        \item \textbf{\texttt{source-handle}:} Specifies the data structure (e.g., BDT, BDD) to use.
+        \item \textbf{\texttt{quantification-method}:} Selects between \texttt{rare-event-approximation}, \texttt{mincut-upper-bound}, or \texttt{pivotal-upper-bound}.
+    \end{itemize}
+    \item \textbf{Mission Times:} Mission times can be defined in three formats:
+    \begin{itemize}
+        \item A single real value (e.g., \texttt{8760}).
+        \item A list of values (e.g., \texttt{[0, 2190, 8760]}).
+        \item A range iterator (e.g., \texttt{range(0, 8760, 2190)}).
+    \end{itemize}
+    \item \textbf{Accuracy and Curve Fitting:}
+    \begin{itemize}
+        \item \textbf{\texttt{add-singular-points}:} Automatically adds dates where maintenance starts or stops, capturing discontinuities in unavailability.
+        \item \textbf{\texttt{smooth-curve}:} Adds intermediate points if the difference between successive dates exceeds the \texttt{smoothing-ratio}.
+    \end{itemize}
+\end{itemize}
+
+\textbf{Table: Options for \texttt{compute probability}}
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+\textbf{Option} & \textbf{Type} & \textbf{Default Value} \\ \hline
+\texttt{source-handle} & Identifier & None \\
+\texttt{quantification-method} & Identifier & pivotal-upper-bound \\
+\texttt{mission-time} & List descriptor & 0.0 \\
+\texttt{add-singular-points} & Boolean & false \\
+\texttt{smooth-curve} & Boolean & false \\
+\texttt{smoothing-ratio} & Real & 0.1 \\
+\texttt{print-unavailability} & Boolean & true \\
+\texttt{print-mean-unavailability} & Boolean & false \\
+\texttt{output} & String & results.txt \\
+\texttt{mode} & write/append & write \\ \hline
+\end{tabular}
+\end{center}
+
+\section*{3. Unavailability Indicators}
+XFTA can print different indicators based on the probability distribution:
+\begin{itemize}
+    \item \textbf{Unavailability ($Q_S(t)$):} The probability that the system is not working at time $t$.
+    \item \textbf{Mean Unavailability:} The empirical average value of unavailability from time 0 to $t$. It is calculated as the mean of the values calculated across mission times.
+\end{itemize}
+
+\section*{4. Auxiliary Quantification Commands}
+In addition to the main probability command, XFTA provides specialized assessment tools:
+\begin{itemize}
+    \item \textbf{\texttt{compute values-of-parameters}:} Calculates the values of all parameters involved in the top event at a specific mission time.
+    \item \textbf{\texttt{compute probabilities-of-basic-events}:} Recursively collects all basic events in the top event and calculates their individual probabilities.
+    \item \textbf{\texttt{compute time-to-probability}:} Performs a dichotomic search to find the mission time at which a variable reaches a target probability value. This command assumes that unavailability is monotonically increasing over the specified time interval.
+\end{itemize}
+
+\end{document}

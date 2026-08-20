@@ -1,0 +1,72 @@
+import { randomUUID } from "crypto";
+import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+
+export function createBlankMs(name: string, owner: string): MechanisticSourceTermAnalysis {
+  const now = new Date().toISOString();
+  return {
+    uuid: randomUUID(),
+    name,
+    type: TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS,
+    version: "1",
+    created: now,
+    modified: now,
+    owner,
+    workflowState: "DRAFT",
+    workflowHistory: [{ state: "DRAFT", enteredAt: now, actor: owner }],
+    capabilityCategory: "CC-II",
+    plantStage: "PRE_OPERATIONAL",
+    metadata: {
+      versionInfo: { version: "1", lastUpdated: now, schemaVersion: "0.0.1" },
+      analysisDate: now,
+      analysts: [owner],
+      reviewers: [],
+      scope: "",
+      limitations: [],
+      lastModifiedDate: now,
+      lastModifiedBy: owner,
+    },
+    conformanceMatrix: [],
+    internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 },
+    activePeerReviewIds: [],
+    activeAuditIds: [],
+    praScope: "",
+    releaseCategories: [],
+    releaseCategoryCompletenessAssessment: {
+      setReasonablyComplete: false,
+      consistencyWithConsequenceAnalysis: "",
+      basis: "",
+      implementsSrs: [],
+    },
+    sourceInventories: [],
+    transportBarrierAssessments: [],
+    transportPhenomenaAssessments: [],
+    sourceTermDefinitions: [],
+    uncertaintyAnalyses: [],
+    modelUncertainty: {
+      uuid: randomUUID(),
+      name: "MS model uncertainty documentation",
+      uncertaintySources: [],
+      relatedAssumptions: [],
+      reasonableAlternatives: [],
+    },
+    documentation: {
+      processDescription: "",
+      inputsDescription: "",
+      appliedMethods: "",
+      resultsSummary: "",
+      sourceCharacterizationAndInventories: "",
+      releaseCategoryDefinitionBases: "",
+      sequenceToReleaseCategoryAssignment: "",
+      transportPhenomenaPerCategory: "",
+      modelsAndComputerPrograms: "",
+      uncertaintyAndSensitivityAnalyses: "",
+      surrogateRiskMetrics: "",
+      sourceTermParameterTables: "",
+      modelUncertaintySources: "",
+      asBuiltLimitations: "",
+      praTaskInterfaces: "",
+      implementsSrs: [],
+    },
+  };
+}

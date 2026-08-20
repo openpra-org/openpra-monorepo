@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+  <information>
+    <software name="praxis" version="0.1.0"/>
+    <model-features>
+      <gates>8</gates>
+      <basic-events>8</basic-events>
+    </model-features>
+  </information>
+  <results>
+    <event-tree-analysis>
+      <event-tree id="Gas-Leak-Event-Tree" algorithm="zbdd">
+        <initiating-event id="Gas-Leak">
+        </initiating-event>
+        <sequences>
+          <sequence id="S1">
+            <probability>1</probability>
+            <frequency>1</frequency>
+            <sum-of-products products="1">
+              <product order="0"/>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S2">
+            <probability>0.05237499999999995</probability>
+            <frequency>0.05237499999999995</frequency>
+            <sum-of-products products="2">
+              <product order="1">
+                <basic-event name="BDVAL"/>
+              </product>
+              <product order="2">
+                <basic-event name="SOLC"/>
+                <basic-event name="SOLD"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S3">
+            <probability>0.050000000000000044</probability>
+            <frequency>0.050000000000000044</frequency>
+            <sum-of-products products="1">
+              <product order="1">
+                <basic-event name="IVALB"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S4">
+            <probability>0.0024999999999999467</probability>
+            <frequency>0.0024999999999999467</frequency>
+            <sum-of-products products="1">
+              <product order="2">
+                <basic-event name="BDVAL"/>
+                <basic-event name="IVALB"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S5">
+            <probability>0.050000000000000044</probability>
+            <frequency>0.050000000000000044</frequency>
+            <sum-of-products products="1">
+              <product order="1">
+                <basic-event name="IVALA"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S6">
+            <probability>0.0024999999999999467</probability>
+            <frequency>0.0024999999999999467</frequency>
+            <sum-of-products products="1">
+              <product order="2">
+                <basic-event name="BDVAL"/>
+                <basic-event name="IVALA"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S7">
+            <probability>0.004993749999999908</probability>
+            <frequency>0.004993749999999908</frequency>
+            <sum-of-products products="2">
+              <product order="2">
+                <basic-event name="IVALA"/>
+                <basic-event name="IVALB"/>
+              </product>
+              <product order="2">
+                <basic-event name="SOLA"/>
+                <basic-event name="SOLB"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S8">
+            <probability>0.050000000000000044</probability>
+            <frequency>0.050000000000000044</frequency>
+            <sum-of-products products="1">
+              <product order="1">
+                <basic-event name="RC1"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+          <sequence id="S9">
+            <probability>0.057107202343749885</probability>
+            <frequency>0.057107202343749885</frequency>
+            <sum-of-products products="4">
+              <product order="1">
+                <basic-event name="CPU"/>
+              </product>
+              <product order="2">
+                <basic-event name="SEN1"/>
+                <basic-event name="SEN2"/>
+              </product>
+              <product order="2">
+                <basic-event name="SEN1"/>
+                <basic-event name="SEN3"/>
+              </product>
+              <product order="2">
+                <basic-event name="SEN2"/>
+                <basic-event name="SEN3"/>
+              </product>
+            </sum-of-products>
+          </sequence>
+        </sequences>
+      </event-tree>
+    </event-tree-analysis>
+  </results>
+</report>

@@ -1,0 +1,80 @@
+.ap__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.ap__head-l {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ap__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  align-self: flex-start;
+  letter-spacing: 0.01em;
+}
+
+.ap__back:hover {
+  color: var(--color-primary);
+}
+
+.ap__back svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ap__title {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.ap__sub {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ap__clear {
+  font-size: 13px;
+}
+
+.ap__head-r {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .ap__head {
+    gap: 14px;
+  }
+  .ap__title {
+    font-size: 26px;
+  }
+}

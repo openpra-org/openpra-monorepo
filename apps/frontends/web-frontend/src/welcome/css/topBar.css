@@ -1,0 +1,234 @@
+.wp__topbar {
+  --color-text: var(--chrome-text);
+  --color-text-muted: var(--chrome-text-muted);
+  --color-text-subtle: var(--chrome-text-muted);
+  --color-border: var(--chrome-border);
+  --color-primary: var(--chrome-accent);
+  --color-primary-soft: color-mix(in srgb, var(--chrome-accent) 14%, transparent);
+  --color-surface: var(--chrome-surface);
+  --color-surface-low: var(--chrome-surface-low);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--chrome-border);
+  background: var(--topbar-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.wp__brand {
+  display: flex;
+  align-items: center;
+}
+
+.wp__brand--link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+.wp__brand--link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+  border-radius: var(--radius-sm);
+}
+
+.wp__brand-logo {
+  width: 142px;
+}
+
+.wp__topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wp__nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.wp__nav-link:hover {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.wp__nav-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.wp__nav-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.wp__avatar-wrap {
+  position: relative;
+}
+
+.wp__avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.wp__avatar-btn:hover {
+  border-color: var(--color-primary);
+}
+
+.wp__avatar-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.wp__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.wp__avatar-name {
+  font-weight: 600;
+}
+
+.wp__avatar-caret {
+  color: var(--color-text-subtle);
+  display: inline-flex;
+}
+
+.wp__avatar-caret svg {
+  width: 14px;
+  height: 14px;
+}
+
+.wp__menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(29, 25, 43, 0.1);
+  padding: 8px;
+  z-index: 100;
+}
+
+.wp__menu-header {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+
+.wp__menu-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.wp__menu-email {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  margin-top: 2px;
+}
+
+.wp__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.wp__menu-item:hover {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.wp__menu-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-subtle);
+}
+
+.wp__menu-item:hover svg {
+  color: var(--color-primary);
+}
+
+.wp__menu-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+@media (max-width: 920px) {
+  .wp__topbar {
+    padding: 14px 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .wp__topbar {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+  .wp__brand-name {
+    display: none;
+  }
+  .wp__nav-link span {
+    display: none;
+  }
+  .wp__avatar-name {
+    display: none;
+  }
+  .wp__avatar-btn {
+    padding: 4px;
+  }
+}

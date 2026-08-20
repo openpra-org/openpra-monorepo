@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    "../solvers/scram/targets/scram-node/lib/**/*.ts",
+    "../solvers/scram/targets/scram-node/lib/**/*.d.ts",
+    "../frontends/web-frontend/src/**/*.ts",
+    "../frontends/web-frontend/src/**/*.d.ts",
+    "../interfaces/mef-types/**/*.ts",
+    "../interfaces/mef-types/**/*.d.ts",
+    "../interfaces/shared-types/**/*.ts",
+    "../interfaces/shared-types/**/*.d.ts",
+    "../backends/web-backend/src/**/*.ts",
+    "../backends/web-backend/src/**/*.d.ts",
+    "../microservices/praetor/src/**/*.ts",
+    "../microservices/praetor/src/**/*.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}

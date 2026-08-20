@@ -1,0 +1,212 @@
+/* esqScreens.css â€” Event Sequence Quantification workspace.
+   Self-contained: the ESQ accent tokens and esq-* classes, the esqsrc upstream
+   cards, plus the reused cross-element classes (syflow interface map, esprov
+   provenance chip, essec eyebrow, eswarn note, hrnote, hrmethods, hrtheme) and
+   the load-example modal, so the workbook needs only this file plus the shared
+   workbookWorkspace chrome. */
+
+:root {
+  --esq-flow: #2c7f91;    --esq-flow-ink: #226576;
+  --esq-solve: #4f5bd5;   --esq-solve-ink: #3f49b8;
+  --esq-barrier: #b9742c; --esq-barrier-ink: #9a5f20;
+  --esq-red: var(--color-error);     --esq-red-ink: var(--color-error);
+}
+
+
+/* â”€â”€â”€ Upstream link cards (esqsrc, the six converging elements) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Own prefix rather than the sibling eslink classes, since the ES element's
+   load-example modal owns .eslink globally and caps it at a modal width. */
+.esqsrc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 980px) { .esqsrc { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .esqsrc { grid-template-columns: 1fr; } }
+.esqsrc__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; }
+.esqsrc__card--update { border-left: 4px solid var(--color-warning); }
+.esqsrc__top { display: flex; align-items: flex-start; gap: 10px; }
+.esqsrc__badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.esqsrc__badge svg { width: 15px; height: 15px; }
+.esqsrc__el { font-weight: 700; font-size: 13px; color: var(--color-text); line-height: 1.2; }
+.esqsrc__wb { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; }
+.esqsrc__delivers { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.esqsrc__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.esqsrc__sync { font-size: 11px; color: var(--color-text-subtle); }
+.esqsrc__resync { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary); cursor: default; }
+.esqsrc__status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; }
+.esqsrc__status svg { width: 13px; height: 13px; }
+.esqsrc__status--approved { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: interface map (syflow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.syflow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .syflow { grid-template-columns: 1fr; } }
+.syflow__col { display: flex; flex-direction: column; gap: 9px; }
+.syflow__col-head { font-family: var(--font-ui), sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-subtle); display: flex; align-items: center; gap: 7px; }
+.syflow__col-head svg { width: 14px; height: 14px; }
+.syflow__node { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); }
+.syflow__node--up { border-style: dashed; }
+.syflow__node-badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.syflow__node-badge svg { width: 15px; height: 15px; }
+.syflow__node-body { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.syflow__node-el { font-weight: 700; font-size: 12.5px; color: var(--color-text); line-height: 1.2; }
+.syflow__node-use { font-size: 11px; color: var(--color-text-muted); line-height: 1.35; margin-top: 2px; }
+
+/* â”€â”€â”€ Reused: provenance chip, eyebrow, warn note, info note â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esprov { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid var(--color-primary-focus); letter-spacing: 0.02em; }
+.esprov svg { width: 10px; height: 10px; }
+.essec { font-family: var(--font-ui), sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary); margin-bottom: 6px; }
+.eswarn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: rgba(196, 122, 24, 0.08); border-left: 3px solid var(--color-warning); border-radius: 6px; font-size: 12px; color: var(--color-text); line-height: 1.45; }
+.eswarn__icon { color: var(--color-warning); flex-shrink: 0; display: inline-flex; }
+.eswarn__icon svg { width: 15px; height: 15px; }
+.hrnote { display: flex; gap: 9px; align-items: flex-start; padding: 11px 14px; border-radius: 10px; background: var(--color-surface-low); border: 1px dashed var(--color-border-strong); font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+.hrnote svg { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
+.hrnote--ok { background: rgb(18 197 185 / 0.07); border-color: rgb(18 197 185 / 0.25); }
+.hrnote--ok svg { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: method chips and theme grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hrmethods { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.hrmethods__label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-subtle); }
+.hrmethod-chip { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: default; background: var(--color-primary); color: #fff; }
+.hrtheme { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 900px) { .hrtheme { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .hrtheme { grid-template-columns: 1fr; } }
+.hrtheme__cell { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; border-top: 3px solid var(--esq-flow); }
+.hrtheme__sr { font-size: 11px; font-weight: 700; color: var(--esq-flow-ink); }
+.hrtheme__t { font-size: 12px; color: var(--color-text); line-height: 1.35; }
+
+/* â”€â”€â”€ Reused: empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hrempty { padding: 28px 18px; text-align: center; }
+.hrempty__title { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
+.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
+
+/* â”€â”€â”€ Load-example modal (esqlink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esqlink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
+.esqlink { width: min(560px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: 0 24px 60px rgba(29, 25, 43, 0.28); overflow: hidden; }
+.esqlink__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
+.esqlink__eyebrow { display: flex; align-items: center; gap: 6px; font-family: var(--font-data), monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-primary); }
+.esqlink__eyebrow svg { width: 13px; height: 13px; }
+.esqlink__title { margin: 4px 0 0; font-family: var(--font-display), serif; font-size: 18px; color: var(--color-text); }
+.esqlink__close { display: inline-flex; padding: 6px; border: none; background: transparent; color: var(--color-text-subtle); cursor: pointer; border-radius: 8px; }
+.esqlink__close svg { width: 18px; height: 18px; }
+.esqlink__close:hover { background: var(--color-surface-low); }
+.esqlink__body { padding: 18px 20px; overflow-y: auto; }
+.esqlink__foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Reconciliation check note (importance review) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Screened-out mechanism line (barrier drawer) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Family quantification cards (HLR-A, the headline numbers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esqfam { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1120px) { .esqfam { grid-template-columns: 1fr 1fr; } }
+.esqfam__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 15px 17px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  display: flex; flex-direction: column; gap: 12px; border-top: 3px solid var(--esq-flow);
+}
+.esqfam__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.esqfam__card--warn { border-left: 4px solid var(--color-warning); }
+.esqfam__head { display: flex; align-items: flex-start; gap: 12px; }
+.esqfam__head-main { flex: 1; min-width: 0; }
+.esqfam__name { font-family: var(--font-display), Georgia, serif; font-size: 15.5px; font-weight: 700; color: var(--color-text); line-height: 1.25; }
+.esqfam__ref { font-size: 10.5px; font-weight: 700; color: var(--color-text-subtle); margin-top: 2px; }
+.esqfam__val { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.esqfam__val-num { font-family: var(--font-data), ui-monospace, monospace; font-size: 13.5px; font-weight: 600; color: var(--esq-flow-ink); }
+.esqfam__val-kind { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.esqfam__basis { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; }
+.esqfam__basis svg { width: 12px; height: 12px; }
+.esqfam__basis--point { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.esqfam__basis--mean { background: rgba(79,91,213,0.12); color: var(--esq-solve-ink); }
+.esqfam__basis--mean-rs { background: rgba(44,127,145,0.12); color: var(--esq-flow-ink); }
+.esqfam__pct { display: flex; flex-direction: column; gap: 5px; }
+.esqfam__pct-row { display: grid; grid-template-columns: 36px 1fr 70px; gap: 9px; align-items: center; }
+.esqfam__pct-k { font-size: 10px; font-weight: 700; color: var(--color-text-subtle); font-family: var(--font-data), ui-monospace, monospace; }
+.esqfam__pct-cell { display: flex; flex-direction: column; gap: 2px; }
+.esqfam__pct-v { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--color-text); text-align: right; }
+.esqfam__contrib { display: flex; flex-direction: column; gap: 6px; }
+.esqfam__contrib-row { display: grid; grid-template-columns: 1fr 50px 64px; gap: 9px; align-items: center; }
+.esqfam__contrib-name { font-size: 11.5px; color: var(--color-text); }
+.esqfam__contrib-type { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-subtle); text-align: right; }
+.esqfam__contrib-meter { display: flex; align-items: center; gap: 8px; }
+.esqfam__contrib-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--color-surface-low); position: relative; overflow: hidden; }
+.esqfam__contrib-bar-fill { position: absolute; inset: 0; background: rgba(79,91,213,0.35); border-radius: 3px; }
+.esqfam__contrib-pct { font-family: var(--font-data), ui-monospace, monospace; font-size: 10.5px; color: var(--color-text-subtle); min-width: 34px; text-align: right; }
+.esqfam__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--color-border); }
+.esqfam__rs { margin-left: auto; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); }
+
+/* â”€â”€â”€ The A5 capability split (point estimate vs mean with SOKC) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esqsplit { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .esqsplit { grid-template-columns: 1fr; } }
+.esqsplit__col {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; border-top: 3px solid var(--color-border-strong);
+}
+.esqsplit__col--ii { border-top-color: var(--esq-solve); }
+.esqsplit__cc { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; align-self: flex-start; }
+.esqsplit__cc--i { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.esqsplit__cc--ii { background: rgba(79,91,213,0.12); color: var(--esq-solve-ink); }
+.esqsplit__title { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.esqsplit__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.esqsplit__tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--esq-solve-ink); margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); }
+.esqsplit__tag svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* â”€â”€â”€ Computer code records (B1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esqcode { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .esqcode { grid-template-columns: 1fr 1fr; } }
+.esqcode__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--esq-solve);
+}
+.esqcode__head { display: flex; align-items: center; gap: 10px; }
+.esqcode__head-main { flex: 1; min-width: 0; }
+.esqcode__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+
+.esqstates { display: flex; flex-wrap: wrap; gap: 6px; }
+.esqstate { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.esqstate__dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.esqstate--on { background: rgb(18 197 185 / 0.12); color: var(--color-success); }
+.esqstate--off { background: var(--color-surface-low); color: var(--color-text-subtle); }
+
+.esqsol { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.esqsol__cell { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.esqsol__k { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-subtle); }
+.esqsol__v { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.esqcode__meta { display: flex; gap: 8px; font-size: 11.5px; line-height: 1.45; }
+.esqcode__meta-k { flex-shrink: 0; min-width: 68px; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-subtle); padding-top: 1px; }
+.esqcode__meta-v { color: var(--color-text-muted); }
+
+/* â”€â”€â”€ Approximation declaration (B4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Logic integrity items (B5, B6, B9, B10) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (min-width: 1080px) { .esqlogic { grid-template-columns: 1fr 1fr; } }
+
+/* â”€â”€â”€ House event flag setting (B9, the TRUE/FALSE rule) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 720px) { .esqflag__row { grid-template-columns: 1fr; gap: 6px; } }
+
+/* â”€â”€â”€ Mutually exclusive event rules (B7, B8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 760px) { .esqmutex__row { grid-template-columns: 1fr; gap: 7px; } }
+
+/* â”€â”€â”€ Multi-HFE cutset cards (C1, C2, the HR handshake) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (min-width: 1080px) { .esqhfe { grid-template-columns: 1fr 1fr; } }
+
+/* â”€â”€â”€ Adverse-environment credit fence (C8, C9) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 760px) { .esqcredit { grid-template-columns: 1fr; } }
+
+/* â”€â”€â”€ Radionuclide barrier cards (C10 to C15) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (min-width: 1120px) { .esqbar { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .esqbar__cols { grid-template-columns: 1fr; } }
+
+/* â”€â”€â”€ Phenomena dependency rows (C4, C6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 720px) { .esqphen__row { grid-template-columns: 1fr; gap: 6px; } }
+
+/* â”€â”€â”€ Risk-significant contributor rows (D6, D7) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Importance measures table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Cutset review records (D1, D5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (min-width: 1080px) { .esqcut { grid-template-columns: 1fr 1fr; } }
+
+/* â”€â”€â”€ Screening audit (D8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ The uncertainty funnel (E1, the convergence of every element) â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ SOKC propagation (E2, A5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Integration scope coverage grid (A2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

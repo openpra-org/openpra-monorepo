@@ -1,0 +1,134 @@
+{
+  "note": "Technical elements and codes are those of ANSI/ASME/ANS RA-S-1.4-2021, endorsed by NRC Trial RG 1.247. Statuses reflect the current platform implementation.",
+  "standard": "ANSI/ASME/ANS RA-S-1.4-2021",
+  "core": [
+    {
+      "code": "POS",
+      "name": "Plant operating state analysis",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "The states the plant can be in \u2014 power, shutdown, transition \u2014 each carrying its own initiators and success criteria."
+    },
+    {
+      "code": "IE",
+      "name": "Initiating event analysis",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Initiator identification, grouping, and frequency, carried through to the event sequence model."
+    },
+    {
+      "code": "ES",
+      "name": "Event sequence analysis",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Event sequences with linked functional and systemic branches, end states, and transfer logic \u2014 including sequences with no consequence, which the licensing case needs."
+    },
+    {
+      "code": "SC",
+      "name": "Success criteria development",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Criteria per sequence and per system, with the supporting calculation recorded alongside."
+    },
+    {
+      "code": "SY",
+      "name": "Systems analysis",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Fault trees, common cause groups, and system notebooks tied to the components they model."
+    },
+    {
+      "code": "HR",
+      "name": "Human reliability analysis",
+      "quantity": "p",
+      "status": "implemented",
+      "blurb": "THERP, IDHEAS, and NUREG-1792 method modules with their inputs kept in the model, not the analyst's head."
+    },
+    {
+      "code": "DA",
+      "name": "Data analysis",
+      "quantity": "p",
+      "status": "implemented",
+      "blurb": "Parameter estimation with distributions and sources attached to every basic event."
+    },
+    {
+      "code": "ESQ",
+      "name": "Event sequence quantification",
+      "quantity": "p",
+      "status": "implemented",
+      "blurb": "Solving the model as written rather than truncating until it is tractable. PRAXIS is the default solver; SCRAM remains as the reference implementation."
+    },
+    {
+      "code": "MS",
+      "name": "Mechanistic source term analysis",
+      "quantity": "x",
+      "status": "implemented",
+      "blurb": "Release categories derived from the physics of the sequence rather than from a surrogate metric."
+    },
+    {
+      "code": "RC",
+      "name": "Radiological consequence analysis",
+      "quantity": "x",
+      "status": "implemented",
+      "blurb": "Offsite dose and health effects \u2014 the metrics RA-S-1.4 actually uses, since core damage frequency and large early release frequency do not apply to many advanced designs."
+    },
+    {
+      "code": "RI",
+      "name": "Risk integration",
+      "quantity": "x",
+      "status": "implemented",
+      "blurb": "Radionuclide sources, operating states, and hazard groups assembled into integrated plant risk, with risk significance applied to the result."
+    }
+  ],
+  "hazards": [
+    {
+      "code": "HS",
+      "name": "Hazards screening analysis",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Screening the hazard groups in or out, with the basis recorded."
+    },
+    {
+      "code": "S",
+      "name": "Seismic PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Hazard, fragility, and plant response \u2014 schemas named SHA, SFR, and SPR after the LWR standard's designators \u2014 with a worked HTGR example in the workbook."
+    },
+    {
+      "code": "F",
+      "name": "Internal fire PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Fire-area partitioning, ignition frequencies, scenario development, circuit analysis, suppression, plant response, fire HRA, and quantified risk insights in one controlled workbook."
+    },
+    {
+      "code": "FL",
+      "name": "Internal flood PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Flood areas, sources, propagation, scenarios, plant response, human reliability, quantification, and technical-element handoffs with complete worked examples."
+    },
+    {
+      "code": "W",
+      "name": "High winds PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Straight-wind, tropical-cyclone, and tornado hazard analysis integrated with pressure, missile, interaction, rain, fragility, plant-response, HRA, and risk quantification."
+    },
+    {
+      "code": "XF",
+      "name": "External flooding PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "External-flood screening, site flood modeling, hazard analysis, fragility, plant response, human reliability, quantification, and risk integration with complete worked examples."
+    },
+    {
+      "code": "O",
+      "name": "Other hazards PRA",
+      "quantity": "s",
+      "status": "implemented",
+      "blurb": "Other-hazard identification, screening, source and effect characterization, frequency analysis, fragility, plant response, human reliability, quantification, and risk integration with complete worked examples."
+    }
+  ]
+}

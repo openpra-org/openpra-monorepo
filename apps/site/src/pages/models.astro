@@ -1,0 +1,128 @@
+---
+import Base from '../layouts/Base.astro';
+import data from '../data/models.json';
+
+const label = {
+  reference: 'Published reference model',
+  verified: 'Verified',
+  generated: 'AI-generated, unverified',
+  planned: 'Not yet migrated',
+};
+type Provenance = keyof typeof label;
+type Model = Omit<(typeof data.models)[number], 'provenance'> & {
+  provenance: Provenance;
+};
+
+const cls: Record<Provenance, string> = { reference: 'tag', verified: 'tag--verified',
+  generated: 'tag--unverified', planned: 'tag--planned' };
+const order: Provenance[] = ['reference', 'generated', 'verified', 'planned'];
+const models = data.models as Model[];
+const groups = order.map((kind) => ({
+  kind,
+  items: models.filter((model) => model.provenance === kind),
+}));
+---
+<Base title="Models" path="/models/"
+      description="Reference and example PRA models in OpenPRA, each labelled with how it was built and whether it has been reviewed.">
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Models</span>
+      <h1 style="max-width:17ch">Models, and how each one was made</h1>
+      <p class="lede" style="margin-top:1.1rem">
+        Some of these were generated from published design detail by software.
+        Some were built by hand and checked against a reference solution. Some
+        are not in the new stack yet. Every card says which, because the
+        difference is the whole point.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section--sunken" style="padding-top:0">
+    <div class="wrap" style="padding-top:clamp(3rem,6vw,4.5rem)">
+      <div class="grid grid--4" style="align-items:start">
+        <div>
+          <span class="tag">Published reference model</span>
+          <p class="note" style="margin-top:.7rem">
+            Released in its own repository as a generic model of a reactor
+            class. Check the repository for scope and verification status
+            before relying on it.
+          </p>
+        </div>
+        <div>
+          <span class="tag tag--unverified">AI-generated, unverified</span>
+          <p class="note" style="margin-top:.7rem">
+            Built by the model generator from published design detail. Good for
+            exercising the platform, teaching, and benchmarking. Not reviewed
+            against a reference solution and not a plant model.
+          </p>
+        </div>
+        <div>
+          <span class="tag tag--verified">Verified</span>
+          <p class="note" style="margin-top:.7rem">
+            Built by hand, quantified, and checked against its own reference
+            solution — normally SAPHIRE. Where results disagree, the
+            disagreement is recorded with the model.
+          </p>
+        </div>
+        <div>
+          <span class="tag tag--planned">Not yet migrated</span>
+          <p class="note" style="margin-top:.7rem">
+            Exists as a SAPHIRE model. Translation into the OpenPRA MEF through
+            the SAPHIRE round trip is planned but has not been done.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {groups.map(({ kind, items }) => items.length > 0 && (
+    <section class="section" style="padding-bottom:0">
+      <div class="wrap">
+        <span class="eyebrow">{label[kind]}</span>
+        <div class="grid grid--2" style="margin-top:1.25rem">
+          {items.map((m) => (
+            <div class="card">
+              <div style="display:flex;gap:1rem;justify-content:space-between;align-items:start">
+                <div>
+                  <h3 style="font-size:1.2rem">{m.name}</h3>
+                  <p style="color:var(--fg-muted);font-size:.9rem;margin:.15rem 0 0">{m.long}</p>
+                </div>
+                <span class={`tag ${cls[m.provenance]}`}>{label[m.provenance]}</span>
+              </div>
+              <p style="margin:.9rem 0">{m.blurb}</p>
+              <p class="mono" style="color:var(--fg-subtle);font-size:.8rem;margin:0 0 .9rem">{m.scope}</p>
+              <a href={m.href}>{m.provenance === 'generated' ? 'Open the app' : 'Repository'} →</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  ))}
+
+  <section class="section">
+    <div class="wrap">
+      <hr class="rule" style="margin-bottom:2.5rem" />
+      <div class="grid grid--2">
+        <div>
+          <h2 style="font-size:1.5rem">Why label them at all</h2>
+          <p style="margin-top:.8rem">
+            A model that looks complete and has never been checked is more
+            dangerous than no model, because it invites use it cannot support.
+            Generated models are genuinely useful — they let someone learn the
+            tool on a realistic structure in an afternoon — but only if nobody
+            mistakes them for an assessment.
+          </p>
+        </div>
+        <div>
+          <h2 style="font-size:1.5rem">Bringing your own</h2>
+          <p style="margin-top:.8rem">
+            <code>pracciolini</code> translates between the OpenPRA MEF, OpenPSA
+            MEF XML, and SAPHIRE through a PRAXIS round trip. If a model
+            survives the round trip unchanged, it will open here.
+          </p>
+          <a href="https://revamp-docs-dev.openpra.org">Import guide →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>

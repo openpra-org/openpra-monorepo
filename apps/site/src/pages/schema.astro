@@ -1,0 +1,171 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Schema" path="/schema/"
+      description="The OpenPRA MEF: a model exchange format defined in TypeScript, published as JSON Schema, and readable without a licence.">
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Schema</span>
+      <h1 style="max-width:18ch">A model you can read without the software</h1>
+      <p class="lede" style="margin-top:1.1rem">
+        The OpenPRA Model Exchange Format is the part of this project most likely
+        to outlive it. It is defined once, in TypeScript, and published as JSON
+        Schema — so a regulator, a reviewer, or a competing tool can read a model
+        without asking anyone's permission.
+      </p>
+      <div class="btn-row">
+        <a class="btn" href="https://revamp-docs-dev.openpra.org">Schema reference</a>
+        <a class="btn btn--ghost" href="https://github.com/openpra-org/openpra-monorepo">Source</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken">
+    <div class="wrap">
+      <span class="eyebrow">Lineage</span>
+      <h2 style="max-width:22ch">Where this format comes from</h2>
+      <div class="grid grid--2" style="margin-top:1.5rem">
+        <div>
+          <p>
+            The OpenPRA MEF is not a new idea. It descends from the
+            <a href="https://open-psa.github.io/mef/">Open-PSA Model Exchange
+            Format</a>, published between 2007 and 2017 by the Open-PSA
+            Initiative — a group of PSA practitioners and researchers who argued
+            that a model tied to the software that made it is a model nobody can
+            check. They wrote the specification, chose XML, and set out the
+            layered architecture that a PRA model needs: stochastic, fault tree,
+            meta-logical, event tree, and report.
+          </p>
+          <p>
+            Steven “Woody” Epstein (1948–2019) was one of the founders of that
+            Initiative. He spent thirty-five years in probabilistic risk
+            assessment, on more than twenty plant assessments, and after 2011
+            wrote a practitioner's independent assessment of Fukushima Daiichi.
+            The argument this whole project rests on — that a model no one
+            outside the organisation can read has never really been reviewed —
+            is his and his colleagues' argument before it was ours.
+          </p>
+        </div>
+        <div>
+          <p>
+            That lineage is operational, not sentimental. OpenPSA XML is a
+            first-class input to PRAXIS through a documented mapping
+            specification with its own diagnostics catalogue and placeholder
+            policy — not a legacy importer bolted on the side. A model written
+            against the Open-PSA format two decades ago should still open.
+          </p>
+          <p>
+            What OpenPRA adds is a single TypeScript source of truth, JSON
+            Schema generated from it rather than maintained alongside it, and
+            coverage of the technical elements RA-S-1.4 requires. The premise
+            underneath is unchanged.
+          </p>
+          <p class="note">
+            The Open-PSA Model Exchange Format specification is listed under
+            Foundations on the <a href="/research/#foundations">Research</a>
+            page, alongside Kaplan and Garrick.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">How it is built</span>
+      <h2>One definition, two artefacts</h2>
+      <div class="grid grid--3" style="margin-top:2rem">
+        <div class="card">
+          <span class="card__code">shared-types</span>
+          <h3>TypeScript definitions</h3>
+          <p style="margin-top:.5rem">
+            The single source of truth. Every domain type and DTO in the platform
+            comes from here, so the app and the schema cannot drift apart.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card__code">mef-schema</span>
+          <h3>Generated JSON Schema</h3>
+          <p style="margin-top:.5rem">
+            Emitted from the definitions rather than maintained by hand. Validate
+            a model against it in any language — and hand it straight to the
+            solver, since PRAXIS reads the MEF natively rather than converting
+            first.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card__code">pracciolini</span>
+          <h3>Format translation</h3>
+          <p style="margin-top:.5rem">
+            <a href="https://github.com/openpra-org/mef-schema">OpenPSA MEF XML</a>
+            in and out, plus SAPHIRE round trips through PRAXIS.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap grid grid--2">
+      <div>
+        <span class="eyebrow">Standards</span>
+        <h2 style="font-size:1.6rem">Mapped against RG 1.247</h2>
+        <p style="margin-top:.9rem">
+          Trial Regulatory Guide 1.247 endorses ANSI/ASME/ANS RA-S-1.4-2021 for
+          advanced non-LWR risk-informed activities. The schema has been walked
+          against it to find where it does not yet carry what a peer review would
+          ask for. The gaps are written down rather than quietly left out, and
+          they drive what gets built next.
+        </p>
+        <p class="note">
+          Being able to represent something is not the same as it being right.
+          The schema is a container; the analysis is still yours.
+        </p>
+      </div>
+      <div>
+        <span class="eyebrow">Human reliability</span>
+        <h2 style="font-size:1.6rem">Methods, not just numbers</h2>
+        <p style="margin-top:.9rem">
+          The HRA module carries THERP, IDHEAS, and NUREG-1792 as structured
+          method definitions — performance shaping factors, dependency, and
+          recovery kept in the model rather than in a spreadsheet that travels
+          separately and gets lost.
+        </p>
+        <p class="note">
+          A human error probability without the method that produced it is not
+          reviewable. The schema refuses to store one that way.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken">
+    <div class="wrap">
+      <span class="eyebrow">Problems this is meant to solve</span>
+      <h2>Why a model exchange format at all</h2>
+      <p class="lede" style="margin:1rem 0 0">
+        This list is not ours. It is adapted from section 2.1 of the Open-PSA
+        Model Exchange Format specification, where the case was made first and
+        made well. Two decades on, most of it still holds.
+      </p>
+      <div class="grid grid--2" style="margin-top:1.75rem">
+        <ul>
+          <li>Two tools cannot open the same model without a bespoke converter.</li>
+          <li>A model written last year may not open next year.</li>
+          <li>There is no common format for the industry's own data.</li>
+          <li>Numerical approximation and truncation are relied on without being stated.</li>
+          <li>Calculations are hard to quality-assure because the method is not recorded.</li>
+        </ul>
+        <ul>
+          <li>Models do not travel between organisations, so review is shallow.</li>
+          <li>Human actions are modelled in ways that cannot be re-derived.</li>
+          <li>Scenarios not yet thought of have nowhere to live in the model.</li>
+          <li>Digital and autonomous control systems have nowhere to live in the model.</li>
+          <li>Results are hard to visualise, so insight stays with whoever ran the model.</li>
+          <li>Models are unclear: what a model actually represents is not evident from the file.</li>
+          <li>The completeness of a model is asserted rather than shown.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</Base>

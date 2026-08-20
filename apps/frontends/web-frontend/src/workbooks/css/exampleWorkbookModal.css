@@ -1,0 +1,108 @@
+/* exampleWorkbookModal.css â€” shared Load/Unload example confirmation modal.
+   Used identically by every technical element workbook (POS, IE, ES, SC, SY,
+   HRA, DA, ESQ, MS, RC, RI) so the disclaimer can never drift per element.
+   Only the example name in the body copy changes between elements. */
+
+.exmodal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.exmodal {
+  width: min(520px, 92vw);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.exmodal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exmodal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.exmodal__close {
+  background: transparent;
+  border: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+.exmodal__close:hover { background: var(--color-bg-to); color: var(--color-text); }
+.exmodal__close:disabled { opacity: 0.5; cursor: not-allowed; }
+.exmodal__close svg { width: 18px; height: 18px; }
+
+.exmodal__body {
+  padding: 18px 22px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.exmodal__body p { margin: 0 0 10px; }
+.exmodal__hint { color: var(--color-text-muted); font-size: 13px; }
+
+.exmodal__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 14px;
+}
+.exmodal__choice-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.exmodal__choice-select {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.exmodal__choice-select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.exmodal__disclaimer {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--color-warning-bg, rgba(196, 122, 24, 0.08));
+  border-left: 3px solid var(--color-warning);
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+
+.exmodal__error {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.exmodal__foot {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border);
+}

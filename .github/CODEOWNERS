@@ -1,0 +1,6 @@
+# This file defines the code owners for the repository.
+# Code owners are automatically requested for review when someone opens a pull request.
+# They also have the authority to publish releases in the CD pipeline context.
+
+# Match all files to the organization or primary owner
+*       @ncsu-ne-prag

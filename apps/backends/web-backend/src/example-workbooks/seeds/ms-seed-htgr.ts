@@ -1,0 +1,912 @@
+import {
+  type MechanisticSourceTermAnalysis,
+  type ReleaseCategory,
+  type SourceInventory,
+  type TransportBarrierAssessment,
+  type TransportPhenomenaAssessment,
+  type SourceTermDefinition,
+  type SourceTermModel,
+  type MsUncertaintyAnalysis,
+  type MsModelUncertaintyAssessment,
+  type MsDocumentation,
+  ReleaseForm,
+  TransportPhenomenonType,
+  MS_SR_CATALOG,
+} from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+import { DistributionType } from "interfaces-mef-types/core/events";
+import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
+import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
+
+const NOW = "2026-06-15T12:00:00.000Z";
+const CREATED = "2026-06-08T09:00:00.000Z";
+
+function srs(...codes: string[]): SRReference[] {
+  return codes.map((code) => ({ sr: code, hlr: code.charAt(3) as HlrId }));
+}
+
+const WARN_SRS = new Set<string>(["MS-A3"]);
+
+const SR_EVIDENCE: Record<string, string> = {
+  "MS-A1": "The three release categories carry the seven source-term attributes the consequence analysis needs.",
+  "MS-A2": "Every release-bearing event sequence family maps to one category, and the success family carries no release.",
+  "MS-A3": "The early-release grouping that holds the isolation-failure family and the unprotected transients together still needs the CC-II split shown.",
+  "MS-A4": "Each category carries a justified release-termination time, with the conduction-cooldown tail checked.",
+  "MS-A5": "Each category carries a bounding sequence with its justification.",
+  "MS-B1": "Three source inventories are built, two plant-specific and one generic.",
+  "MS-B2": "The barriers from the source to the environment are identified for both risk-significant categories, six assessments across the fuel, the boundary and the building.",
+  "MS-B5": "Twelve phenomena are addressed, with the design-unique graphite and dust physics included by name.",
+  "MS-B7": "The barrier retention rests on design analyses, logged as a pre-operational assumption.",
+  "MS-C3": "The plant-specific calculation is performed for both risk-significant categories.",
+  "MS-C5": "Three validated codes run within their applicability limits.",
+  "MS-C7": "The inventories use design values, logged as a pre-operational assumption.",
+  "MS-D3": "Six model-uncertainty sources are assessed for their consequence effects.",
+  "MS-D4": "The component distributions are propagated with the phenomena dependencies for the risk-significant categories.",
+  "MS-E2": "The quantitative source-term table is provided for each category by species, phase and form.",
+  "MS-E4": "The pre-operational assumptions are documented against the barrier and source-term requirements.",
+};
+
+function pathForHlr(hlr: HlrId): string {
+  if (hlr === "A") return "releaseCategories";
+  if (hlr === "B") return "transportBarrierAssessments";
+  if (hlr === "C") return "sourceTermDefinitions";
+  if (hlr === "D") return "uncertaintyAnalyses";
+  return "documentation";
+}
+
+const conformanceMatrix: SRConformance[] = Object.keys(MS_SR_CATALOG).flatMap((code) => {
+  const meta = MS_SR_CATALOG[code];
+  const status: SRStatus = WARN_SRS.has(code) ? "PARTIAL" : "MET";
+  const stages: PlantStage[] = meta.stages;
+  const evidence = SR_EVIDENCE[code] ?? "Addressed in the mechanistic source term analysis.";
+  const hlr = meta.hlr;
+  return (["CC-I", "CC-II"] as const).map((capabilityCategory) => ({
+    sr: code,
+    hlr,
+    capabilityCategory,
+    applicableToStage: stages,
+    status,
+    satisfiedByElementPaths: [pathForHlr(hlr)],
+    evidence,
+  }));
+});
+
+const releaseCategories: ReleaseCategory[] = [
+  {
+    uuid: "RC-1",
+    name: "Unfiltered release, isolation failed",
+    description: "The challenge reaches a reactor building whose isolation or filtration has failed, so the release passes unfiltered.",
+    technicalBasis: "Bounded by the depressurized heat-up sequence that meets a building with failed isolation.",
+    supportingReferences: ["ESF-EARLY", "ESF-ATWS"],
+    groupingJustification: "The early-release grouping holds the isolation-failure family and the unprotected transients together. The fine grouping at CC-II that separates them is under review.",
+    differentiationBasis: "CONSEQUENCE_METRIC_AND_RISK_SIGNIFICANT_DIFFERENTIATION",
+    timingClassification: "Early",
+    magnitudeClassification: "Moderate",
+    boundingSequenceReference: "EHP-4",
+    boundingSequenceJustification: "The chosen worst sequence, the depressurized conduction cooldown with failed building isolation, bounds the unfiltered release across this category.",
+    releaseTerminationTime: { value: 96, unit: "h", justification: "The release is tracked through the conduction cooldown, including the late diffusion tail from the heated fuel." },
+    implementsSrs: srs("MS-A1", "MS-A3", "MS-A4", "MS-A5"),
+  },
+  {
+    uuid: "RC-2",
+    name: "Delayed filtered release",
+    description: "Forced and passive heat removal degrade, so the fuel heat-up develops over tens of hours while the building holds and filters the delayed release.",
+    technicalBasis: "Bounded by the heat-up sequence where the building holds and the filtration retains most of the airborne activity.",
+    supportingReferences: ["ESF-LATE"],
+    groupingJustification: "The late filtered family carries its own bin, since the delayed timing differentiates the consequence.",
+    differentiationBasis: "CONSEQUENCE_METRIC_AND_RISK_SIGNIFICANT_DIFFERENTIATION",
+    timingClassification: "Delayed",
+    magnitudeClassification: "Low",
+    boundingSequenceReference: "EHP-3",
+    boundingSequenceJustification: "The pressurized heat-up sequence bounds the delayed release through the filtered building pathway.",
+    releaseTerminationTime: { value: 72, unit: "h", justification: "The fuel temperature turns over on the passive path and the airborne activity settles, with the late diffusion tail checked and found bounded." },
+    implementsSrs: srs("MS-A1", "MS-A3", "MS-A4", "MS-A5"),
+  },
+  {
+    uuid: "RC-3",
+    name: "Intact building, design leakage",
+    description: "A helium-boundary or configuration fault releases circulating activity into the reactor building, which holds and filters it, so only design leakage escapes.",
+    technicalBasis: "Bounded by the boundary-fault sequences where the building holds and only the design leak path remains.",
+    supportingReferences: ["ESF-LEAK"],
+    groupingJustification: "The intact-leakage sequences share the end state and the negligible release, so one coarse bin suffices.",
+    differentiationBasis: "CONSEQUENCE_METRIC",
+    timingClassification: "Late",
+    magnitudeClassification: "Negligible",
+    boundingSequenceReference: "EHP-P02-3",
+    boundingSequenceJustification: "The boundary-fault sequence in the reduced-power state bounds the design-leakage release with the building holding.",
+    releaseTerminationTime: { value: 24, unit: "h", justification: "The circulating activity is depleted and the building leak path carries no further inventory." },
+    implementsSrs: srs("MS-A1", "MS-A3", "MS-A4", "MS-A5"),
+  },
+];
+
+const sourceInventories: SourceInventory[] = [
+  {
+    uuid: "SRC-H1",
+    name: "Reactor core, coated-particle fuel",
+    radioactiveSourceRef: "SRC-CORE",
+    description: "The coated-particle core inventory at the end of the equilibrium cycle, carried across the eight release-relevant radionuclide groups.",
+    calculationBasis: "PLANT_SPECIFIC_CALCULATION",
+    inventory: [
+      { radionuclide: "Xe-133", quantity: 2.8e18, unit: "Bq", physicalForm: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "Kr-85", quantity: 4.0e16, unit: "Bq", physicalForm: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "I-131", quantity: 1.6e18, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Elemental iodine, sorbing to dust" },
+      { radionuclide: "Cs-137", quantity: 1.5e17, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Cs-134", quantity: 9.0e16, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Ag-110m", quantity: 6.0e15, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Silver, diffusing through intact coatings" },
+      { radionuclide: "Te-132", quantity: 1.1e18, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Tellurium" },
+      { radionuclide: "Sb-127", quantity: 8.0e17, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Antimony" },
+      { radionuclide: "Sr-90", quantity: 8.0e16, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Strontium, carried on graphite dust" },
+      { radionuclide: "Ba-140", quantity: 9.0e17, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Barium, carried on graphite dust" },
+      { radionuclide: "Ru-103", quantity: 6.0e17, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Ruthenium" },
+      { radionuclide: "Ru-106", quantity: 9.0e16, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Ruthenium" },
+      { radionuclide: "Ce-144", quantity: 7.0e17, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Cerium oxide, refractory" },
+      { radionuclide: "La-140", quantity: 9.0e17, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Lanthanum oxide, refractory" },
+      { radionuclide: "Pu-239", quantity: 1.5e15, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
+      { radionuclide: "Pu-241", quantity: 2.0e16, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
+    ],
+    inventoryDataSource: "Isotopic depletion calculation at the end of the equilibrium cycle.",
+    radionuclideSelectionBasis: "The dose-significant species are selected across the noble gases (Xe, Kr), the halogens (I), the alkali metals (Cs), the silver group (Ag), the tellurium group (Te, Sb), the alkaline earths (Sr, Ba), the noble metals (Ru), the lanthanides (Ce, La) and the refractory actinides (Pu).",
+    implementsSrs: srs("MS-B1"),
+  },
+  {
+    uuid: "SRC-H2",
+    name: "Primary circuit, plateout and dust",
+    radioactiveSourceRef: "SRC-CIRCUIT",
+    description: "The circulating activity, the plateout on the metallic surfaces and the activity bound to the graphite dust in the primary circuit.",
+    calculationBasis: "PLANT_SPECIFIC_CALCULATION",
+    inventory: [
+      { radionuclide: "H-3", quantity: 2.0e15, unit: "Bq", physicalForm: ReleaseForm.ELEMENTAL, chemicalForm: "Tritiated gas in the helium" },
+      { radionuclide: "Cs-137", quantity: 5.0e14, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Plateout and dust-bound cesium" },
+      { radionuclide: "Ag-110m", quantity: 2.0e14, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Plateout silver" },
+      { radionuclide: "I-131", quantity: 3.0e14, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Plateout iodine" },
+      { radionuclide: "Sr-90", quantity: 8.0e13, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Dust-bound strontium" },
+    ],
+    inventoryDataSource: "Plateout and dust transport calculation for the equilibrium primary circuit.",
+    radionuclideSelectionBasis: "The species that plate out on the circuit surfaces or ride the graphite dust are selected, with the tritium carried by the helium.",
+    implementsSrs: srs("MS-B1"),
+  },
+  {
+    uuid: "SRC-H3",
+    name: "Fuel handling and storage",
+    radioactiveSourceRef: "SRC-FHS",
+    description: "The decayed inventory of the spent fuel elements held in the storage wells.",
+    calculationBasis: "GENERIC_ESTIMATE",
+    inventory: [
+      { radionuclide: "Cs-137", quantity: 2.0e16, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Sr-90", quantity: 1.5e16, unit: "Bq", physicalForm: ReleaseForm.DUST, chemicalForm: "Strontium, carried on graphite dust" },
+      { radionuclide: "Ag-110m", quantity: 4.0e14, unit: "Bq", physicalForm: ReleaseForm.AEROSOL, chemicalForm: "Silver" },
+    ],
+    inventoryDataSource: "Generic decayed-inventory estimate scaled to the storage loading.",
+    radionuclideSelectionBasis: "The long-lived species that survive the decay period are selected.",
+    implementsSrs: srs("MS-B1"),
+  },
+];
+
+const transportBarrierAssessments: TransportBarrierAssessment[] = [
+  {
+    uuid: "BAR-1",
+    name: "TRISO-coated fuel particles",
+    releaseCategoryReference: "RC-1",
+    sourceInventoryRefs: ["SRC-H1"],
+    description: "The first barrier, the coated fuel particles, evaluated for the depressurized heat-up with failed building isolation.",
+    barrierType: "Coated-particle fuel",
+    decontaminationFactor: 2000,
+    failureModes: ["As-manufactured coating defects", "Incremental coating failures at temperature"],
+    transportCharacteristics: [
+      {
+        description: "The intact coatings hold the fission products through the heat-up, and the release comes from the defect and incremental-failure fraction, with silver diffusing through intact coatings.",
+        affectedRadionuclides: ["Xe-133", "I-131", "Cs-137", "Ag-110m"],
+        retentionEffectiveness: "Very high for every group while the coatings hold, with the silver diffusion the known exception.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Peaking below the fuel limit during the conduction cooldown",
+      chemicalEnvironment: "Oxide kernels inside intact silicon-carbide coatings",
+      impactOnTransport: "The retention falls only through the small failed-particle fraction as the fuel heats up.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.INVENTORY_RELOCATION, description: "Incremental particle failures during the heat-up.", significance: ImportanceLevel.HIGH },
+      { mechanismType: TransportPhenomenonType.CHEMICAL_PHYSICAL_FORM, description: "Silver diffusion through intact coatings.", significance: ImportanceLevel.MEDIUM },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+  {
+    uuid: "BAR-2",
+    name: "Primary helium boundary",
+    releaseCategoryReference: "RC-1",
+    sourceInventoryRefs: ["SRC-H1", "SRC-H2"],
+    description: "The helium pressure boundary, open in this category by the depressurization, with the plateout holding a share of the activity.",
+    barrierType: "Helium pressure boundary",
+    decontaminationFactor: 5,
+    failureModes: ["Depressurization through the break", "Dust and plateout liftoff on the blowdown"],
+    transportCharacteristics: [
+      {
+        description: "The blowdown carries the circulating activity and lifts a fraction of the dust and plateout, while the remainder stays on the circuit surfaces.",
+        affectedRadionuclides: ["Cs-137", "Ag-110m", "I-131", "H-3"],
+        retentionEffectiveness: "Moderate, set by the plateout share that resists liftoff during the blowdown.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Falling through the blowdown, then reheating on the cooldown",
+      chemicalEnvironment: "Helium with graphite dust and metallic plateout surfaces",
+      impactOnTransport: "The liftoff fraction sets what the building receives during the depressurization.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.GASEOUS_TRANSPORT, description: "Blowdown of the circulating activity.", significance: ImportanceLevel.HIGH },
+      { mechanismType: TransportPhenomenonType.RESUSPENSION, description: "Dust and plateout liftoff on the depressurization.", significance: ImportanceLevel.HIGH },
+      { mechanismType: TransportPhenomenonType.DEPOSITION, description: "Plateout retention on the circuit surfaces.", significance: ImportanceLevel.MEDIUM },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+  {
+    uuid: "BAR-3",
+    name: "Reactor building, functional containment",
+    releaseCategoryReference: "RC-1",
+    sourceInventoryRefs: ["SRC-H1", "SRC-H2", "SRC-H3"],
+    description: "The vented and filtered reactor building, with the retention degraded in this category by the failed isolation.",
+    barrierType: "Functional containment",
+    decontaminationFactor: 1.1,
+    failureModes: ["Isolation failure on the release pathway", "Filtration bypass"],
+    transportCharacteristics: [
+      {
+        description: "The building retains material by settling and plate-out, with the filtration bypassed in this category.",
+        affectedRadionuclides: ["Cs-137", "Ag-110m", "Sr-90"],
+        retentionEffectiveness: "Low in this category, held only by settling along the unfiltered pathway.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Near ambient through the release",
+      chemicalEnvironment: "Building air with settling graphite dust",
+      impactOnTransport: "The failed isolation raises the fraction that passes in the unfiltered category.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.DEPOSITION, description: "Settling and plate-out along the pathway.", significance: ImportanceLevel.MEDIUM },
+      { mechanismType: TransportPhenomenonType.RESUSPENSION, description: "Resuspension on a later disturbance.", significance: ImportanceLevel.LOW },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+  {
+    uuid: "BAR-4",
+    name: "TRISO-coated fuel particles",
+    releaseCategoryReference: "RC-2",
+    sourceInventoryRefs: ["SRC-H1"],
+    description: "The coated fuel particles assessed for the delayed filtered category, where the pressurized heat-up stays below the failure knee.",
+    barrierType: "Coated-particle fuel",
+    decontaminationFactor: 2500,
+    failureModes: ["Incremental coating failures at the temperature peak"],
+    transportCharacteristics: [
+      {
+        description: "The pressurized heat-up peaks lower than the depressurized case, so the incremental failure fraction stays smaller and the coatings hold the rest.",
+        affectedRadionuclides: ["Xe-133", "I-131", "Cs-137"],
+        retentionEffectiveness: "Very high, with a smaller incremental-failure fraction than the depressurized case.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Peaking below the depressurized case during the pressurized cooldown",
+      chemicalEnvironment: "Oxide kernels inside intact silicon-carbide coatings",
+      impactOnTransport: "The lower peak keeps the failed-particle fraction small.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.INVENTORY_RELOCATION, description: "Incremental particle failures at the temperature peak.", significance: ImportanceLevel.MEDIUM },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+  {
+    uuid: "BAR-5",
+    name: "Primary helium boundary",
+    releaseCategoryReference: "RC-2",
+    sourceInventoryRefs: ["SRC-H1", "SRC-H2"],
+    description: "The helium pressure boundary assessed for the delayed filtered category, holding with only the small leak path open.",
+    barrierType: "Helium pressure boundary",
+    decontaminationFactor: 40,
+    failureModes: ["Small leak path to the building"],
+    transportCharacteristics: [
+      {
+        description: "The boundary holds, so only the small leak path carries activity, and the circuit plateout retains the rest.",
+        affectedRadionuclides: ["Cs-137", "Ag-110m", "I-131", "H-3"],
+        retentionEffectiveness: "High, since the intact boundary keeps the plateout in place and only the leak path passes.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Reheating slowly through the pressurized cooldown",
+      chemicalEnvironment: "Helium with graphite dust and metallic plateout surfaces",
+      impactOnTransport: "The intact boundary limits the pathway to the small leak flow.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.DEPOSITION, description: "Plateout retention on the circuit surfaces.", significance: ImportanceLevel.HIGH },
+      { mechanismType: TransportPhenomenonType.GASEOUS_TRANSPORT, description: "Leak-path transport of the circulating activity.", significance: ImportanceLevel.MEDIUM },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+  {
+    uuid: "BAR-6",
+    name: "Reactor building, functional containment",
+    releaseCategoryReference: "RC-2",
+    sourceInventoryRefs: ["SRC-H1", "SRC-H2"],
+    description: "The vented and filtered reactor building assessed for the delayed filtered category, holding and filtering the release.",
+    barrierType: "Functional containment",
+    decontaminationFactor: 5,
+    failureModes: ["Filtered design-leakage pathway"],
+    transportCharacteristics: [
+      {
+        description: "The building holds, so the dust-borne activity passes the filtration and settling before the delayed escape.",
+        affectedRadionuclides: ["Cs-137", "Ag-110m", "Sr-90"],
+        retentionEffectiveness: "Effective filtration of the coarse dust with the building holding.",
+      },
+    ],
+    physicalChemicalConditions: {
+      temperature: "Near ambient through the release",
+      chemicalEnvironment: "Building air with settling graphite dust",
+      impactOnTransport: "The holding building filters the delayed release.",
+    },
+    transportMechanisms: [
+      { mechanismType: TransportPhenomenonType.DEPOSITION, description: "Filtration and gravitational settling of the dust.", significance: ImportanceLevel.HIGH },
+    ],
+    implementsSrs: srs("MS-B2", "MS-B3", "MS-B4"),
+  },
+];
+
+const transportPhenomenaAssessments: TransportPhenomenaAssessment[] = [
+  {
+    uuid: "TPA-1",
+    releaseCategoryReference: "RC-1",
+    phenomenaChecklist: [
+      { phenomenonType: TransportPhenomenonType.HEAT_GENERATION, included: true, justification: "The decay heat and the graphite oxidation exotherm on air ingress are included." },
+      { phenomenonType: TransportPhenomenonType.HEAT_REMOVAL, included: true, justification: "The passive conduction-cooldown path to the cavity cooling is included." },
+      { phenomenonType: TransportPhenomenonType.GASEOUS_TRANSPORT, included: true, justification: "The depressurization blowdown and the buoyant building flow are included." },
+      { phenomenonType: TransportPhenomenonType.SOLID_TRANSPORT, included: true, justification: "The graphite dust transport through the break and the building is included." },
+      { phenomenonType: TransportPhenomenonType.INVENTORY_RELOCATION, included: true, justification: "The incremental particle failures during the heat-up are included." },
+      { phenomenonType: TransportPhenomenonType.CHEMICAL_PHYSICAL_FORM, included: true, justification: "The iodine sorption to dust and the silver diffusion through intact coatings are included." },
+      { phenomenonType: TransportPhenomenonType.DEPOSITION, included: true, justification: "The circuit plateout and the building settling are included." },
+      { phenomenonType: TransportPhenomenonType.RESUSPENSION, included: true, justification: "The dust and plateout liftoff on the depressurization is included, since it sets the early puff." },
+      { phenomenonType: TransportPhenomenonType.RADIONUCLIDE_DECAY_AND_BUILDUP, included: true, justification: "The decay and the daughter buildup during transport are included, since the source term changes as it travels." },
+      { phenomenonType: TransportPhenomenonType.EXPLOSION_EFFECTS, included: true, justification: "The combustible-gas generation from a steam-graphite reaction is assessed and found to be low for this design." },
+      { phenomenonType: TransportPhenomenonType.DESIGN_UNIQUE, included: true, justification: "The graphite dust liftoff and the air-ingress oxidation are included by name." },
+      { phenomenonType: TransportPhenomenonType.OTHER, included: false, justification: "No additional phenomenon is identified beyond the listed set." },
+    ],
+    designUniquePhenomena: [
+      { name: "Graphite dust liftoff on depressurization", note: "The blowdown lifts the dust-bound activity from the circuit surfaces and sets the early puff." },
+      { name: "Air-ingress graphite oxidation", note: "A sustained air path can oxidize the hot graphite and add chemical energy and carried activity." },
+    ],
+    modelsUsed: ["Fuel performance and particle failure code", "Plateout and dust transport code", "Depletion and decay code"],
+    relatedBarrierAssessmentRefs: ["BAR-1", "BAR-2", "BAR-3"],
+    consequenceQuantificationSupport: {
+      description: "The phenomena treatment supports the consequence metric and discriminates the risk-significant differences between families.",
+      adequacyJustification: "The treatment is sufficient to determine the risk-significant differences between the event sequence families.",
+      sufficientForRiskSignificantDifferentiation: true,
+    },
+    implementsSrs: srs("MS-B5", "MS-C4"),
+  },
+  {
+    uuid: "TPA-2",
+    releaseCategoryReference: "RC-2",
+    phenomenaChecklist: [
+      { phenomenonType: TransportPhenomenonType.HEAT_GENERATION, included: true, justification: "The decay heat is included, with no oxidation exotherm since the boundary holds against air." },
+      { phenomenonType: TransportPhenomenonType.HEAT_REMOVAL, included: true, justification: "The passive conduction-cooldown path is included and turns the fuel temperature over." },
+      { phenomenonType: TransportPhenomenonType.GASEOUS_TRANSPORT, included: true, justification: "The pressurized leak path to the building is included." },
+      { phenomenonType: TransportPhenomenonType.SOLID_TRANSPORT, included: true, justification: "The dust transport to the filtered building is included." },
+      { phenomenonType: TransportPhenomenonType.INVENTORY_RELOCATION, included: true, justification: "The incremental particle failures at the temperature peak are included." },
+      { phenomenonType: TransportPhenomenonType.CHEMICAL_PHYSICAL_FORM, included: true, justification: "The iodine sorption to dust and the cesium dust carriage are included." },
+      { phenomenonType: TransportPhenomenonType.DEPOSITION, included: true, justification: "The circuit plateout and the building filtration are included, and dominate the retention here." },
+      { phenomenonType: TransportPhenomenonType.RESUSPENSION, included: false, justification: "No depressurization occurs in this category, so no liftoff pathway opens." },
+      { phenomenonType: TransportPhenomenonType.RADIONUCLIDE_DECAY_AND_BUILDUP, included: true, justification: "The decay across the delayed timing is included." },
+      { phenomenonType: TransportPhenomenonType.EXPLOSION_EFFECTS, included: false, justification: "No combustible-gas challenge arises while the boundary holds." },
+      { phenomenonType: TransportPhenomenonType.DESIGN_UNIQUE, included: true, justification: "The building filtration of the dust-borne activity is credited as the design-unique retention step." },
+      { phenomenonType: TransportPhenomenonType.OTHER, included: false, justification: "No additional phenomenon is identified beyond the listed set." },
+    ],
+    designUniquePhenomena: [
+      { name: "Filtered retention of dust-borne activity", note: "The building filtration holds the dust-borne cesium and strontium, the dominant retention step for the delayed release." },
+    ],
+    modelsUsed: ["Fuel performance and particle failure code", "Plateout and dust transport code"],
+    relatedBarrierAssessmentRefs: ["BAR-4", "BAR-5", "BAR-6"],
+    consequenceQuantificationSupport: {
+      description: "The phenomena treatment for the delayed filtered release resolves the filtered dust path that differentiates this category from the unfiltered release.",
+      adequacyJustification: "The treatment is sufficient to place the delayed release below the moderate-release threshold and to differentiate it from the risk-significant unfiltered release.",
+      sufficientForRiskSignificantDifferentiation: true,
+    },
+    implementsSrs: srs("MS-B5", "MS-C4"),
+  },
+];
+
+const sourceTermDefinitions: SourceTermDefinition[] = [
+  {
+    uuid: "ST-3",
+    releaseCategoryReference: "RC-1",
+    sourceTermBasis: "PLANT_SPECIFIC_MECHANISTIC",
+    riskSignificantCategoryCalculationConfirmed: true,
+    involvedReactors: 1,
+    initiatingEventCharacteristics: "Depressurized conduction cooldown reaching a reactor building whose isolation has failed, so the release passes unfiltered.",
+    releasePhases: [
+      { uuid: "p1", name: "Depressurization puff", startTime: 0, endTime: 2, timeUnit: "h" },
+      { uuid: "p2", name: "Cooldown tail", startTime: 2, endTime: 96, timeUnit: "h" },
+    ],
+    radionuclideReleases: [
+      {
+        phaseId: "p1",
+        quantities: [
+          { radionuclide: "Xe-133", quantity: 2.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Kr-85", quantity: 2.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "H-3", quantity: 1.0e-1, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "I-131", quantity: 3.0e-4, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-137", quantity: 6.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-134", quantity: 5.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ag-110m", quantity: 2.0e-4, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Te-132", quantity: 8.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Sb-127", quantity: 5.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Sr-90", quantity: 6.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ba-140", quantity: 8.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ru-103", quantity: 4.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ru-106", quantity: 4.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ce-144", quantity: 1.0e-7, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "La-140", quantity: 1.0e-7, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Pu-239", quantity: 5.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Pu-241", quantity: 5.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+        ],
+      },
+      {
+        phaseId: "p2",
+        quantities: [
+          { radionuclide: "Xe-133", quantity: 1.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Kr-85", quantity: 1.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "H-3", quantity: 5.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "I-131", quantity: 2.0e-4, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-137", quantity: 3.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-134", quantity: 2.5e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ag-110m", quantity: 1.0e-4, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Te-132", quantity: 4.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Sb-127", quantity: 2.5e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Sr-90", quantity: 3.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ba-140", quantity: 4.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ru-103", quantity: 2.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ru-106", quantity: 2.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ce-144", quantity: 5.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "La-140", quantity: 5.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Pu-239", quantity: 3.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Pu-241", quantity: 3.0e-8, unit: "fraction", expressedAsReleaseFraction: true },
+        ],
+      },
+    ],
+    releaseForms: [
+      { radionuclide: "Xe-133", form: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "Kr-85", form: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "H-3", form: ReleaseForm.ELEMENTAL, chemicalForm: "Tritiated gas" },
+      { radionuclide: "I-131", form: ReleaseForm.AEROSOL, chemicalForm: "Elemental iodine, sorbing to dust" },
+      { radionuclide: "Cs-137", form: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Cs-134", form: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Ag-110m", form: ReleaseForm.AEROSOL, chemicalForm: "Silver aerosol from plateout liftoff" },
+      { radionuclide: "Te-132", form: ReleaseForm.AEROSOL, chemicalForm: "Tellurium" },
+      { radionuclide: "Sb-127", form: ReleaseForm.AEROSOL, chemicalForm: "Antimony" },
+      { radionuclide: "Sr-90", form: ReleaseForm.DUST, chemicalForm: "Strontium, carried on graphite dust" },
+      { radionuclide: "Ba-140", form: ReleaseForm.DUST, chemicalForm: "Barium, carried on graphite dust" },
+      { radionuclide: "Ru-103", form: ReleaseForm.AEROSOL, chemicalForm: "Ruthenium" },
+      { radionuclide: "Ru-106", form: ReleaseForm.AEROSOL, chemicalForm: "Ruthenium" },
+      { radionuclide: "Ce-144", form: ReleaseForm.AEROSOL, chemicalForm: "Cerium oxide, refractory" },
+      { radionuclide: "La-140", form: ReleaseForm.AEROSOL, chemicalForm: "Lanthanum oxide, refractory" },
+      { radionuclide: "Pu-239", form: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
+      { radionuclide: "Pu-241", form: ReleaseForm.AEROSOL, chemicalForm: "Plutonium oxide, refractory actinide" },
+    ],
+    particleSizeDistribution: {
+      description: "The airborne material is graphite-dust dominated, coarser than a fuel aerosol, with the mode near 4 microns AMAD.",
+      sizeRanges: [
+        { min: 0.5, max: 2, unit: "micron AMAD", fraction: 0.2 },
+        { min: 2, max: 6, unit: "micron AMAD", fraction: 0.45 },
+        { min: 6, max: 15, unit: "micron AMAD", fraction: 0.3 },
+        { min: 15, max: 30, unit: "micron AMAD", fraction: 0.05 },
+      ],
+    },
+    warningTimeForEvacuation: "About 6 hours of warning before the significant release develops.",
+    releaseEnergy: { quantity: 0.5, unit: "MW thermal" },
+    releaseElevation: { quantity: 10, unit: "m, ground level" },
+    sourceTermModelRefs: ["MOD-1"],
+    implementsSrs: srs("MS-C1", "MS-C3", "MS-C4", "MS-E2"),
+  },
+  {
+    uuid: "ST-2",
+    releaseCategoryReference: "RC-2",
+    sourceTermBasis: "PLANT_SPECIFIC_MECHANISTIC",
+    riskSignificantCategoryCalculationConfirmed: true,
+    involvedReactors: 1,
+    initiatingEventCharacteristics: "Forced and passive heat removal degrade while the building holds, so the filtered release develops over tens of hours.",
+    releasePhases: [{ uuid: "p1", name: "Delayed filtered", startTime: 24, endTime: 72, timeUnit: "h" }],
+    radionuclideReleases: [
+      {
+        phaseId: "p1",
+        quantities: [
+          { radionuclide: "Xe-133", quantity: 5.0e-3, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Kr-85", quantity: 5.0e-3, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "H-3", quantity: 2.0e-2, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "I-131", quantity: 1.0e-5, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-137", quantity: 2.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Cs-134", quantity: 1.6e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "Ag-110m", quantity: 5.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+        ],
+      },
+    ],
+    releaseForms: [
+      { radionuclide: "Xe-133", form: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "Kr-85", form: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "H-3", form: ReleaseForm.ELEMENTAL, chemicalForm: "Tritiated gas" },
+      { radionuclide: "I-131", form: ReleaseForm.AEROSOL, chemicalForm: "Elemental iodine, sorbing to dust" },
+      { radionuclide: "Cs-137", form: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Cs-134", form: ReleaseForm.DUST, chemicalForm: "Cesium, carried on graphite dust" },
+      { radionuclide: "Ag-110m", form: ReleaseForm.AEROSOL, chemicalForm: "Silver aerosol" },
+    ],
+    particleSizeDistribution: {
+      description: "The filtration removes the coarse dust, leaving a sub-micron to few-micron penetrating fraction.",
+      sizeRanges: [
+        { min: 0.05, max: 0.3, unit: "micron AMAD", fraction: 0.5 },
+        { min: 0.3, max: 1, unit: "micron AMAD", fraction: 0.4 },
+        { min: 1, max: 3, unit: "micron AMAD", fraction: 0.1 },
+      ],
+    },
+    warningTimeForEvacuation: "About 24 hours of warning before the delayed release.",
+    releaseEnergy: { quantity: 0.05, unit: "MW thermal" },
+    releaseElevation: { quantity: 10, unit: "m, ground level" },
+    sourceTermModelRefs: ["MOD-1"],
+    implementsSrs: srs("MS-C1", "MS-C3", "MS-C4", "MS-E2"),
+  },
+  {
+    uuid: "ST-1",
+    releaseCategoryReference: "RC-3",
+    sourceTermBasis: "GENERIC_APPLICABLE",
+    genericApplicabilityJustification: "An applicable generic circulating-activity source term bounds the design-leakage release.",
+    postProcessingModifications: ["Scaled to the Generic-2 circulating activity", "Decayed to the termination time"],
+    riskSignificantCategoryCalculationConfirmed: false,
+    involvedReactors: 1,
+    initiatingEventCharacteristics: "A helium-boundary or configuration fault with the building holding, leaving only design leakage.",
+    releasePhases: [{ uuid: "p1", name: "Design leakage", startTime: 0, endTime: 24, timeUnit: "h" }],
+    radionuclideReleases: [
+      {
+        phaseId: "p1",
+        quantities: [
+          { radionuclide: "Xe-133", quantity: 1.0e-6, unit: "fraction", expressedAsReleaseFraction: true },
+          { radionuclide: "H-3", quantity: 1.0e-4, unit: "fraction", expressedAsReleaseFraction: true },
+        ],
+      },
+    ],
+    releaseForms: [
+      { radionuclide: "Xe-133", form: ReleaseForm.ELEMENTAL, chemicalForm: "Noble gas" },
+      { radionuclide: "H-3", form: ReleaseForm.ELEMENTAL, chemicalForm: "Tritiated gas" },
+    ],
+    particleSizeDistribution: {
+      description: "No particulate release, the term is noble gas and tritium only.",
+      sizeRanges: [],
+    },
+    warningTimeForEvacuation: "The release stays below the protective-action threshold.",
+    releaseEnergy: { quantity: 0.0, unit: "MW thermal" },
+    releaseElevation: { quantity: 10, unit: "m, ground level" },
+    sourceTermModelRefs: ["MOD-3"],
+    implementsSrs: srs("MS-C1", "MS-C2", "MS-E2"),
+  },
+];
+
+const sourceTermModels: SourceTermModel[] = [
+  {
+    uuid: "MOD-1",
+    name: "Fuel performance and particle failure code",
+    version: "4.1",
+    technicalBasis: "Calculates the particle failure fraction and the kernel release through the heat-up",
+    validationStatus: "Validated",
+    verificationValidationProcess: "Validated under an accepted process against irradiation and heating-test data.",
+    applicabilityLimits: ["Applicable within the tested burnup and temperature envelope", "The failure statistics are bounded by the irradiation-program sample size"],
+    similarClassApplicationEvaluation: "Evaluated qualitatively against similar coated-particle applications.",
+    implementsSrs: srs("MS-C5"),
+  },
+  {
+    uuid: "MOD-2",
+    name: "Plateout and dust transport code",
+    version: "2.3",
+    technicalBasis: "Calculates the circuit plateout, the dust inventory and the liftoff on depressurization",
+    validationStatus: "Validated",
+    verificationValidationProcess: "Validated against circuit plateout measurements and dust-liftoff test data.",
+    applicabilityLimits: ["The liftoff model is bounded to the tested blowdown range"],
+    similarClassApplicationEvaluation: "Evaluated against plateout behavior in comparable helium circuits.",
+    implementsSrs: srs("MS-C5"),
+  },
+  {
+    uuid: "MOD-3",
+    name: "Depletion and decay code",
+    version: "5.1",
+    technicalBasis: "Builds the inventory and calculates the decay and the daughter buildup",
+    validationStatus: "Verified and validated",
+    verificationValidationProcess: "Verified against benchmark depletion cases under the software quality process.",
+    applicabilityLimits: ["Applicable to the coated-particle fuel composition and the burnup range"],
+    similarClassApplicationEvaluation: "Widely applied to graphite-moderated fuel cycles.",
+    implementsSrs: srs("MS-C5"),
+  },
+];
+
+const uncertaintyAnalyses: MsUncertaintyAnalysis[] = [
+  {
+    uuid: "UA-3",
+    propagationMethod: "MONTE_CARLO",
+    numberOfSamples: 10000,
+    modelUncertainties: [
+      { uncertaintyId: "MU-1", description: "Particle failure fraction model", impact: "Drives the spread of every fuel-sourced release fraction.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+      { uncertaintyId: "MU-2", description: "Dust inventory and liftoff model", impact: "Combines with the blowdown rate to set the early puff.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+      { uncertaintyId: "MU-3", description: "Plateout distribution model", impact: "Shifts the share of the circuit activity available for liftoff.", isQuantified: false, treatmentApproach: "Carried qualitatively alongside the propagation." },
+      { uncertaintyId: "MU-4", description: "Air-ingress graphite oxidation model", impact: "Adds carried activity and chemical energy on a sustained air path.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+      { uncertaintyId: "MU-5", description: "Building filtration and leak-path model", impact: "Sets the fraction that bypasses the filtration in the unfiltered category.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+    ],
+    releaseCategoryReference: "RC-1",
+    sourceTermDefinitionRef: "ST-3",
+    uncertainInputParameters: [
+      { parameter: "Particle failure fraction", description: "The failed-particle fraction through the heat-up." },
+      { parameter: "Dust liftoff fraction", description: "The share of the dust-bound activity lifted by the blowdown." },
+      { parameter: "Plateout inventory", description: "The circuit plateout available for liftoff." },
+    ],
+    componentEstimates: [
+      { component: "Cs-137 release fraction", valueType: "MEAN", isRiskSignificantFamily: true, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: 9.0e-5, errorFactor: 3.0 } },
+      { component: "I-131 release fraction", valueType: "MEAN", isRiskSignificantFamily: true, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: 5.0e-4, errorFactor: 2.6 } },
+    ],
+    expertJudgmentUsed: true,
+    expertJudgmentProcessSatisfied: true,
+    characterizationLevel: "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES",
+    phenomenaDependencies: [
+      { description: "The fuel temperature and the incremental particle failures are correlated through the heat-up.", dependentPhenomena: ["Fuel temperature", "Particle failures"], treatmentMethod: "Sampled together so the temperature moves both." },
+      { description: "The blowdown rate and the dust liftoff are correlated through the depressurization.", dependentPhenomena: ["Blowdown rate", "Dust liftoff"], treatmentMethod: "Sampled together so the depressurization moves both." },
+    ],
+    uncertaintyPropagationResults: {
+      description: "Monte Carlo propagation of the component distributions with the phenomena dependencies.",
+      resultSummary: "The Cs-137 release fraction spans about a factor of nine across the propagated distribution.",
+      confidenceIntervals: [{ level: 90, lowerBound: 3.0e-5, upperBound: 2.7e-4 }],
+    },
+    implementsSrs: srs("MS-D1", "MS-D2", "MS-D4"),
+  },
+  {
+    uuid: "UA-2",
+    propagationMethod: "MONTE_CARLO",
+    numberOfSamples: 10000,
+    modelUncertainties: [
+      { uncertaintyId: "MU-1", description: "Particle failure fraction model", impact: "Drives the spread of every fuel-sourced release fraction.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+      { uncertaintyId: "MU-5", description: "Building filtration and leak-path model", impact: "Sets the retention of the filtered building path.", isQuantified: true, treatmentApproach: "Propagated with the phenomena dependencies." },
+    ],
+    releaseCategoryReference: "RC-2",
+    sourceTermDefinitionRef: "ST-2",
+    uncertainInputParameters: [
+      { parameter: "Particle failure fraction", description: "The failed-particle fraction at the temperature peak." },
+      { parameter: "Building filtration efficiency", description: "The retention of the filtered building path." },
+    ],
+    componentEstimates: [
+      { component: "Cs-137 release fraction", valueType: "MEAN", isRiskSignificantFamily: true, probabilisticRepresentationProvided: true, distribution: { type: DistributionType.LOGNORMAL, median: 2.0e-6, errorFactor: 3.2 } },
+    ],
+    expertJudgmentUsed: false,
+    characterizationLevel: "PROPAGATED_WITH_PHENOMENA_DEPENDENCIES",
+    phenomenaDependencies: [
+      { description: "The building filtration and the penetrating dust size are correlated through the filter loading.", dependentPhenomena: ["Building filtration", "Penetrating dust size"], treatmentMethod: "Sampled together so the loading moves both." },
+    ],
+    uncertaintyPropagationResults: {
+      description: "Monte Carlo propagation of the component distributions with the phenomena dependencies.",
+      resultSummary: "The Cs-137 release fraction stays below the moderate-release threshold across the distribution.",
+      confidenceIntervals: [{ level: 90, lowerBound: 6.0e-7, upperBound: 6.4e-6 }],
+    },
+    implementsSrs: srs("MS-D1", "MS-D2", "MS-D4"),
+  },
+  {
+    uuid: "UA-1",
+    propagationMethod: "ANALYTICAL",
+    modelUncertainties: [
+      { uncertaintyId: "MU-6", description: "Building leak rate characterization", impact: "Bounds the spread of the design-leakage release.", isQuantified: false, treatmentApproach: "Characterized against the leak-rate range." },
+    ],
+    releaseCategoryReference: "RC-3",
+    sourceTermDefinitionRef: "ST-1",
+    uncertainInputParameters: [
+      { parameter: "Building leak rate", description: "The design leak rate of the holding building." },
+    ],
+    componentEstimates: [
+      { component: "Xe-133 release fraction", valueType: "POINT_ESTIMATE", isRiskSignificantFamily: false, probabilisticRepresentationProvided: false },
+    ],
+    expertJudgmentUsed: false,
+    characterizationLevel: "CHARACTERIZED",
+    uncertaintyPropagationResults: {
+      description: "Characterized uncertainty for the design-leakage category.",
+      resultSummary: "The release stays below the protective-action threshold across the characterized range.",
+    },
+    implementsSrs: srs("MS-D1", "MS-D2", "MS-D4"),
+  },
+];
+
+const modelUncertaintyAssessments: MsModelUncertaintyAssessment[] = [
+  {
+    uuid: "MU-1",
+    sourceBlock: "BARRIER_TRANSPORT_ASSESSMENT",
+    uncertaintySource: "Particle failure fraction model",
+    relatedAssumptions: ["The failure statistics follow the irradiation-program sample."],
+    evaluationType: "QUANTITATIVE",
+    evaluationScope: "INDIVIDUAL",
+    consequenceEffect: "Drives the spread of every fuel-sourced release fraction.",
+    implementsSrs: srs("MS-B6", "MS-D3"),
+  },
+  {
+    uuid: "MU-2",
+    sourceBlock: "SOURCE_TERM_CALCULATION",
+    uncertaintySource: "Dust inventory and liftoff model",
+    relatedAssumptions: ["The circuit dust inventory follows the design estimate."],
+    evaluationType: "QUANTITATIVE",
+    evaluationScope: "COMBINATION",
+    consequenceEffect: "Combines with the blowdown rate to set the early puff.",
+    implementsSrs: srs("MS-C6", "MS-D3"),
+  },
+  {
+    uuid: "MU-3",
+    sourceBlock: "BARRIER_TRANSPORT_ASSESSMENT",
+    uncertaintySource: "Plateout distribution model",
+    relatedAssumptions: ["The plateout distribution follows the equilibrium circuit calculation."],
+    evaluationType: "QUALITATIVE",
+    evaluationScope: "INDIVIDUAL",
+    consequenceEffect: "Shifts the share of the circuit activity available for liftoff.",
+    implementsSrs: srs("MS-C6", "MS-D3"),
+  },
+  {
+    uuid: "MU-4",
+    sourceBlock: "SOURCE_TERM_CALCULATION",
+    uncertaintySource: "Air-ingress graphite oxidation model",
+    relatedAssumptions: ["The air path and the oxidation extent are bounded by the break geometry."],
+    evaluationType: "QUANTITATIVE",
+    evaluationScope: "INDIVIDUAL",
+    consequenceEffect: "Adds carried activity and chemical energy on a sustained air path.",
+    implementsSrs: srs("MS-C6", "MS-D3"),
+  },
+  {
+    uuid: "MU-5",
+    sourceBlock: "BARRIER_TRANSPORT_ASSESSMENT",
+    uncertaintySource: "Building filtration and leak-path model",
+    relatedAssumptions: ["The filtration and the leak path follow the design penetration behavior."],
+    evaluationType: "QUANTITATIVE",
+    evaluationScope: "INDIVIDUAL",
+    consequenceEffect: "Sets the fraction that bypasses the filtration in the unfiltered category.",
+    implementsSrs: srs("MS-B6", "MS-D3"),
+  },
+  {
+    uuid: "MU-6",
+    sourceBlock: "BARRIER_TRANSPORT_ASSESSMENT",
+    uncertaintySource: "Building leak rate characterization",
+    relatedAssumptions: ["The holding building leaks within the design leak-rate range."],
+    evaluationType: "QUALITATIVE",
+    evaluationScope: "INDIVIDUAL",
+    consequenceEffect: "Bounds the spread of the design-leakage release.",
+    implementsSrs: srs("MS-B6", "MS-D3"),
+  },
+];
+
+const sensitivityStudies: SensitivityStudy[] = [
+  { uuid: "SS-1", name: "Particle-failure-fraction sensitivity", description: "Sweep of the failed-particle fraction.", variedParameters: ["Particle failure fraction"], parameterRanges: { "Particle failure fraction": [1e-5, 1e-3] }, results: "Raising the failure fraction by a decade raises the Cs-137 release fraction by close to a decade.", implementsSrs: srs("MS-D3") },
+  { uuid: "SS-2", name: "Dust liftoff sweep", description: "Sweep of the dust liftoff fraction on depressurization.", variedParameters: ["Dust liftoff fraction"], parameterRanges: { "Dust liftoff fraction": [0.01, 0.5] }, results: "A higher liftoff fraction moves release from the cooldown tail into the early puff.", implementsSrs: srs("MS-B5") },
+  { uuid: "SS-3", name: "Termination-time sweep", description: "Sweep of the release-termination time.", variedParameters: ["Termination time"], parameterRanges: { "Termination time": [48, 144] }, results: "Extending the termination time adds a small late diffusion contribution from the heated fuel.", implementsSrs: srs("MS-A4") },
+];
+
+const preOperationalAssumptions = [
+  { id: "PA-1", area: "Barriers", desc: "The particle failure statistics rest on the irradiation program, to confirm against the as-built fuel.", path: "transportBarrierAssessments", sr: "MS-B7" },
+  { id: "PA-2", area: "Source term", desc: "The dust and plateout inventories use design estimates, to replace with as-built confirmation.", path: "sourceInventories", sr: "MS-C7" },
+  { id: "PA-3", area: "Documentation", desc: "The source term rests on inherited pre-operational inputs, recorded as limitations.", path: "documentation", sr: "MS-E4" },
+].map((a) => ({
+  uuid: a.id,
+  assumptionId: a.id,
+  description: a.desc,
+  influenceOnDefinition: a.area,
+  status: "OPEN" as const,
+  limitations: ["Pre-operational, pending as-built and as-operated confirmation."],
+  riskImpact: ImportanceLevel.MEDIUM,
+  closureBasis: "Confirm against the operating plant.",
+  plannedClosureActions: ["Re-check at the operating stage."],
+  affectedElementIds: [a.path],
+  implementsSrs: srs(a.sr),
+}));
+
+const documentation: MsDocumentation = {
+  processDescription: "The release categories are characterized, the barriers and transport phenomena are assessed, and the source term is calculated mechanistically, per ASME/ANS RA-S-1.4 HLR-MS-A through E.",
+  inputsDescription: "MS takes the release-category definitions from ES, carries the radioactive sources and transport barriers identified in POS as the plant-level inventories SRC-H1 to SRC-H3, and takes the risk-significance of each category from ESQ.",
+  appliedMethods: "Isotopic depletion for the inventories, fuel-performance statistics for the particle failures, plateout and dust transport for the release and Monte Carlo for the uncertainty, each one accepted way to do its sub-task.",
+  resultsSummary: "Three release categories are characterized, two of them risk-significant with plant-specific mechanistic source terms, and the unfiltered-release Cs-137 fraction is 9.0E-5.",
+  sourceCharacterizationAndInventories: "Three sources are characterized, the coated-particle core, the primary circuit with its plateout and dust, and the fuel-handling storage, with plant-specific inventories for the first two.",
+  releaseCategoryDefinitionBases: "The categories are defined under ES-C1 and verified here to carry the full source-term attribute set, with bounding sequences and justified termination times.",
+  sequenceToReleaseCategoryAssignment: "Every release-bearing event sequence family maps to one release category, and the success family carries no release.",
+  transportPhenomenaPerCategory: "The twelve-item phenomena checklist is addressed for both risk-significant categories, with the design-unique graphite and dust physics included by name.",
+  modelsAndComputerPrograms: "Three validated codes run within their applicability limits, the fuel-performance code, the plateout and dust transport code and the depletion code.",
+  uncertaintyAndSensitivityAnalyses: "The component distributions are propagated with the phenomena dependencies for the risk-significant categories, and three sensitivity studies bound the open questions.",
+  surrogateRiskMetrics: "The large-release-frequency surrogate maps to the unfiltered-release category, with the relationship documented.",
+  sourceTermParameterTables: "The quantitative source-term table is provided for each category by species, phase and form, with the uncertainty carried per component.",
+  modelUncertaintySources: "The six model-uncertainty sources are the particle failure fraction, the dust inventory and liftoff, the plateout distribution, the air-ingress oxidation, the building filtration path and the building leak rate.",
+  asBuiltLimitations: "Pre-operational: the particle failure statistics and the dust inventories rest on the irradiation program and design estimates pending as-built confirmation.",
+  praTaskInterfaces: "MS takes the categories from ES, the inventory from POS and the significance from ESQ, and it delivers the source-term table to the Radiological Consequence analysis, which Risk Integration pairs with the ESQ frequency.",
+  implementsSrs: srs("MS-E1", "MS-E2", "MS-E3", "MS-E4"),
+};
+
+export const MS_ANALYSIS_HTGR: MechanisticSourceTermAnalysis = {
+  uuid: "ms-generic-2",
+  name: "MS Workbook 1",
+  type: TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS,
+  version: "1",
+  created: CREATED,
+  modified: NOW,
+  owner: "nsorensen",
+  workflowState: "DRAFT",
+  workflowHistory: [{ state: "DRAFT", enteredAt: CREATED, actor: "nsorensen" }],
+  capabilityCategory: "CC-II",
+  plantStage: "PRE_OPERATIONAL",
+  metadata: {
+    versionInfo: { version: "1", lastUpdated: NOW, schemaVersion: "0.0.1" },
+    analysisDate: NOW,
+    analysts: ["nsorensen", "rmenon", "abensalem"],
+    reviewers: [
+      { id: "rev-1", name: "Dr. Hossein Ardakani", role: "INTERNAL_REVIEWER", title: "Lead Technical Reviewer", organization: "Nuclear Safety Associates" },
+      { id: "rev-2", name: "Lena Hoffmann", role: "INTERNAL_REVIEWER", title: "Independent Reviewer, also Event Sequence reviewer", organization: "Nuclear Safety Associates" },
+      { id: "rev-3", name: "Priya Raman", role: "INTERNAL_REVIEWER", title: "Independent Reviewer, also Radiological Consequence reviewer", organization: "Nuclear Safety Associates" },
+      { id: "ewhitmore", name: "Dr. Elaine Whitmore", role: "INTERNAL_APPROVER", title: "PRA Technical Authority", organization: "Generic Atomics" },
+    ],
+    scope: "Mechanistic source term analysis for the Generic-2 helium-cooled reactor, calculating what actually comes out when a release happens, by species, quantity, form, timing, energy and location.",
+    limitations: ["Pre-operational: the particle failure statistics and the dust inventories rest on the irradiation program and design estimates, logged as assumptions."],
+    lastModifiedDate: NOW,
+    lastModifiedBy: "nsorensen",
+  },
+  conformanceMatrix,
+  internalReviewComments: {
+    openCount: 4,
+    resolvedCount: 1,
+    comments: [
+      { uuid: "msc-1", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-06-10T09:14:00.000Z", associatedSr: "MS-A3", text: "The unfiltered category groups the isolation-failure family and the unprotected transients together, so MS-A3 needs the CC-II split shown to confirm the grouping does not mask a risk-significant difference.", severity: "MAJOR", resolved: false },
+      { uuid: "msc-2", authorRole: "INTERNAL_REVIEWER", authorId: "rev-1", createdAt: "2026-06-10T10:30:00.000Z", associatedSr: "MS-B5", text: "The phenomena checklist is complete, but MS-B5 needs the design-unique item shown to cover the air-ingress oxidation in the sequences where a sustained air path exists.", severity: "MAJOR", resolved: false },
+      { uuid: "msc-3", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-06-11T14:05:00.000Z", associatedSr: "MS-C2", text: "The design-leakage category borrows a generic circulating-activity term, so MS-C2 needs the post-processing modifications listed so the applicability is traceable.", severity: "MINOR", resolved: false },
+      { uuid: "msc-4", authorRole: "INTERNAL_REVIEWER", authorId: "rev-2", createdAt: "2026-06-11T15:20:00.000Z", associatedSr: "MS-A4", text: "The termination time accounts for the late diffusion tail in the unfiltered category.", severity: "OBSERVATION", resolved: true, resolution: "No change required, the diffusion-tail basis is recorded in the termination-time justification.", resolvedAt: "2026-06-11T16:30:00.000Z", resolvedBy: "rev-2" },
+      { uuid: "msc-5", authorRole: "INTERNAL_REVIEWER", authorId: "rev-3", createdAt: "2026-06-11T16:00:00.000Z", associatedSr: "MS-D4", text: "The propagation samples the fuel temperature and the particle failures together, so MS-D4 needs the phenomena dependency shown so the correlation is auditable.", severity: "MINOR", resolved: false },
+    ],
+  },
+  activePeerReviewIds: [],
+  activeAuditIds: [],
+  praScope: "Full-scope mechanistic source term analysis for the Generic-2 HTGR, pre-operational stage, capability category CC-II.",
+  releaseCategories,
+  releaseCategoryCompletenessAssessment: {
+    setReasonablyComplete: true,
+    consistencyWithConsequenceAnalysis: "The category set is consistent with the consequence-analysis requirements.",
+    basis: "Every release-bearing event sequence family maps to one category, and the success family carries no release.",
+    implementsSrs: srs("MS-A2"),
+  },
+  sourceInventories,
+  transportBarrierAssessments,
+  transportPhenomenaAssessments,
+  sourceTermDefinitions,
+  sourceTermModels,
+  uncertaintyAnalyses,
+  modelUncertaintyAssessments,
+  sensitivityStudies,
+  riskIntegrationFeedback: {
+    analysisRef: "ri-generic-2",
+    feedbackDate: NOW,
+    releaseCategoryFeedback: [
+      { releaseCategoryReference: "RC-1", riskSignificance: ImportanceLevel.HIGH, insights: ["The unfiltered release category drives the dose."], recommendations: ["Prioritize the particle-failure and dust-transport phenomena."], status: "IN_PROGRESS" },
+    ],
+    sourceTermFeedback: [
+      { sourceTermDefinitionRef: "ST-3", riskSignificance: ImportanceLevel.HIGH, keyUncertainties: ["Particle failure fraction", "Dust inventory and liftoff"], status: "IN_PROGRESS" },
+    ],
+    generalFeedback: "The unfiltered release category drives the dose, so prioritize the particle-failure and dust-transport phenomena.",
+    response: {
+      description: "The particle-failure-fraction model is carried as the leading model uncertainty and swept in the sensitivity study.",
+      changes: ["MU-1 held as the leading model uncertainty", "SS-1 sweeps the particle failure fraction"],
+      status: "IN_PROGRESS",
+    },
+  },
+  modelUncertainty: {
+    uuid: "ms-mu-2",
+    name: "MS model uncertainty documentation",
+    uncertaintySources: [
+      { source: "Particle failure fraction model", impact: "Drives the spread of every fuel-sourced release fraction." },
+      { source: "Dust inventory and liftoff model", impact: "Combines with the blowdown rate to set the early puff." },
+      { source: "Plateout distribution model", impact: "Shifts the share of the circuit activity available for liftoff." },
+      { source: "Air-ingress graphite oxidation model", impact: "Adds carried activity and chemical energy on a sustained air path." },
+      { source: "Building filtration and leak-path model", impact: "Sets the fraction that bypasses the filtration in the unfiltered category." },
+      { source: "Building leak rate characterization", impact: "Bounds the spread of the design-leakage release." },
+    ],
+    relatedAssumptions: [],
+    reasonableAlternatives: [],
+  },
+  preOperationalAssumptions,
+  documentation,
+  configurationControlRecordId: "cc-2026.05.20-001",
+  exampleDocuments: [
+    { id: "MS-DOC-01", name: "Overview of Modular HTGR Safety Characterization", kind: "doc", sizeLabel: "ORNL", uploadedLabel: "ORNL/TM-2014/187", extracted: "Functional-containment and source-term characterization basis for the release categories", linked: 3, url: "/api/example-documents/ms/htgr-safety" },
+    { id: "MS-DOC-02", name: "HTGR PRA White Paper", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL/EXT-11-21270", extracted: "Event sequence families and release-category framing the source terms bin against", linked: 2, url: "/api/example-documents/ms/ngnp-pra" },
+    { id: "MS-DOC-03", name: "MHTGR-350 Core Design Benchmark", kind: "doc", sizeLabel: "INL", uploadedLabel: "INL-EXT-13-30176", extracted: "Reference-core power and decay-heat basis behind the inventory and heat-up timing", linked: 2, url: "/api/example-documents/ms/mhtgr-benchmark" },
+    { id: "MS-DOC-04", name: "Multi-physics Analysis of the MHTGR-350", kind: "doc", sizeLabel: "Journal", uploadedLabel: "ISN 0022-3131", extracted: "Peak-fuel-temperature margins behind the particle failure fractions", linked: 2, url: "/api/example-documents/ms/mhtgr-analysis" },
+  ],
+  newlyDevelopedMethodIds: ["NM-082", "NM-085", "NM-088"],
+};

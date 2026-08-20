@@ -1,0 +1,36 @@
+.ap__view {
+  display: inline-flex;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.ap__view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-subtle);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.ap__view-btn:hover {
+  color: var(--color-text);
+}
+
+.ap__view-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ap__view-btn--active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}

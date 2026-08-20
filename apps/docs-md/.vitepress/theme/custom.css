@@ -1,0 +1,189 @@
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/plex-sans-300.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/plex-sans-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/plex-sans-500.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/plex-sans-600.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/plex-mono-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "STIX Two Text";
+  src: url("/fonts/stix-text-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --op-violet-50: #f7f2fc;
+  --op-violet-100: #ede0f8;
+  --op-violet-200: #dcc4f0;
+  --op-violet-300: #c5a0e4;
+  --op-violet-400: #ab77d7;
+  --op-violet-500: #8f4ec7;
+  --op-violet-600: #7639aa;
+  --op-violet-700: #5b2c84;
+  --op-violet-800: #432061;
+  --op-violet-900: #2c153f;
+  --op-violet-950: #1c0e28;
+  --op-slate-50: #f9f7fb;
+  --op-slate-100: #f1eef4;
+  --op-slate-200: #e2dce7;
+  --op-slate-300: #cac2d1;
+  --op-slate-400: #a99fb2;
+  --op-slate-500: #857891;
+  --op-slate-600: #675a72;
+  --op-slate-700: #4d4257;
+  --op-slate-800: #342a3c;
+  --op-slate-900: #201828;
+  --op-slate-950: #140d19;
+  --op-teal-500: #12c5b9;
+  --op-ember-500: #de6a2b;
+  --op-ink: #1b1226;
+  --op-mist: #f5f0fa;
+  --op-line: #e3d8f0;
+  --op-font-display: "STIX Two Text", Georgia, serif;
+  --op-font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --op-font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --vp-font-family-base: var(--op-font-ui);
+  --vp-font-family-mono: var(--op-font-data);
+  --vp-c-brand-1: var(--op-violet-600);
+  --vp-c-brand-2: var(--op-violet-500);
+  --vp-c-brand-3: var(--op-violet-700);
+  --vp-c-brand-soft: var(--op-violet-100);
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: var(--op-slate-50);
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: var(--op-mist);
+  --vp-c-text-1: var(--op-ink);
+  --vp-c-text-2: var(--op-slate-700);
+  --vp-c-text-3: var(--op-slate-600);
+  --vp-c-divider: var(--op-line);
+  --vp-c-gutter: var(--op-slate-100);
+  --vp-code-font-size: 0.875em;
+  --vp-button-brand-border: var(--op-violet-500);
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: var(--op-violet-500);
+  --vp-button-brand-hover-border: var(--op-violet-600);
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: var(--op-violet-600);
+  --vp-button-brand-active-border: var(--op-violet-700);
+  --vp-button-brand-active-bg: var(--op-violet-700);
+  --vp-home-hero-name-color: var(--op-violet-600);
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
+}
+
+.dark {
+  --vp-c-brand-1: var(--op-violet-300);
+  --vp-c-brand-2: var(--op-violet-400);
+  --vp-c-brand-3: var(--op-violet-200);
+  --vp-c-brand-soft: var(--op-violet-900);
+  --vp-c-bg: var(--op-slate-950);
+  --vp-c-bg-alt: #100a17;
+  --vp-c-bg-elv: var(--op-slate-900);
+  --vp-c-bg-soft: var(--op-slate-900);
+  --vp-c-text-1: var(--op-slate-100);
+  --vp-c-text-2: var(--op-slate-300);
+  --vp-c-text-3: var(--op-slate-400);
+  --vp-c-divider: var(--op-slate-800);
+  --vp-c-gutter: var(--op-slate-900);
+  --vp-button-brand-border: var(--op-violet-400);
+  --vp-button-brand-bg: var(--op-violet-600);
+  --vp-button-brand-hover-border: var(--op-violet-300);
+  --vp-button-brand-hover-bg: var(--op-violet-500);
+  --vp-home-hero-name-color: var(--op-violet-300);
+}
+
+::selection {
+  background: var(--op-violet-200);
+  color: var(--op-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name,
+.VPHero .text {
+  font-family: var(--op-font-display);
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.VPNavBarTitle .logo {
+  width: auto;
+  height: 28px;
+}
+
+.VPNavBarTitle .title {
+  gap: 0.75rem;
+}
+
+.VPHero .image-bg {
+  display: none;
+}
+
+.VPHero .VPImage {
+  width: min(300px, 72vw);
+  padding: 1.25rem;
+}
+
+.VPFeature {
+  border-color: var(--vp-c-divider);
+  border-radius: 10px;
+}
+
+.VPFeature:hover {
+  border-color: var(--vp-c-brand-2);
+}
+
+.VPButton {
+  border-radius: 10px;
+}
+
+.vp-doc code,
+.vp-doc pre,
+.vp-doc kbd,
+.vp-doc samp,
+.VPBadge {
+  font-family: var(--op-font-data);
+  font-variant-numeric: tabular-nums;
+}

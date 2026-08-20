@@ -1,0 +1,166 @@
+---
+import Base from '../layouts/Base.astro';
+import elements from '../data/elements.json';
+import packages from '../data/packages.json';
+---
+<Base title="Platform" path="/platform/"
+      description="What OpenPRA covers: every internal-events technical element, implemented hazard PRA workbooks, exact quantification, and the packages behind them.">
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Platform</span>
+      <h1 style="max-width:16ch">What the platform covers</h1>
+      <p class="lede" style="margin-top:1.1rem">
+        A PRA is not one artefact. It is eighteen analyses that have to agree with
+        each other. OpenPRA holds them in one schema so they can.
+      </p>
+      <p class="note" style="margin-top:1rem">
+        Element names and codes follow ANSI/ASME/ANS RA-S-1.4-2021, endorsed by the
+        NRC in Trial Regulatory Guide 1.247. The standard is technology-inclusive
+        and integrated: it runs from initiating events to offsite consequence
+        without splitting into levels, and it does not use core damage frequency
+        or large early release frequency, which do not apply to many advanced
+        designs.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section--sunken" style="padding-top:0;padding-bottom:clamp(3rem,6vw,4.5rem)">
+    <div class="wrap" style="padding-top:clamp(3rem,6vw,4.5rem)">
+      <span class="eyebrow">Across every hazard group</span>
+      <h2>From operating states to integrated risk</h2>
+      <p class="lede" style="margin:1rem 0 0">
+        Initiating events through to risk integration are built. That means the
+        chain runs all the way to offsite dose and health effects — the metrics
+        the standard uses — rather than stopping at a surrogate and leaving the
+        consequence side to another tool.
+      </p>
+      <div class="grid grid--2" style="margin-top:2rem">
+        {elements.core.map((e) => (
+          <div class="card">
+            <span class="card__code">{e.code} &nbsp;·&nbsp; {e.quantity}</span>
+            <h3>{e.name}</h3>
+            <p style="margin:.5rem 0 .9rem">{e.blurb}</p>
+            <span class="tag">{e.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Hazard groups</span>
+      <h2>Implemented hazard PRA workbooks</h2>
+      <p class="lede" style="margin-top:1rem;margin-bottom:2rem">
+        Hazards screening, seismic, internal fire, internal flood, and high winds
+        share the schema with the internal-events model rather than living in
+        parallel studies. External flooding and other hazards remain planned.
+      </p>
+      <div class="grid grid--3">
+        {elements.hazards.map((e) => (
+          <div class="card">
+            <span class="card__code">{e.code} &nbsp;·&nbsp; {e.quantity}</span>
+            <h3>{e.name}</h3>
+            <p style="margin:.5rem 0 .9rem">{e.blurb}</p>
+            <span class="tag">{e.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--sunken">
+    <div class="wrap">
+      <span class="eyebrow">Quantification</span>
+      <h2 style="max-width:20ch">Solve the model, don't truncate it</h2>
+      <div class="grid grid--2" style="margin-top:1.5rem">
+        <div>
+          <p>
+            Most tools reach a truncation limit and stop, then report a number
+            that depends on where they stopped. The engines here are built to
+            solve the model as written, and to say plainly when they cannot.
+            That is the <code>ESQ</code> element doing its job.
+          </p>
+          <p>
+            <strong>PRAXIS</strong> — the PRA eXecution and Insight System — is
+            the default solver. It is written in Rust, works on propositional
+            directed acyclic graphs, builds with or without CUDA, and reads the
+            OpenPRA MEF directly rather than through a converter. The platform
+            calls it over NAPI-RS bindings, so one binary serves the web
+            workbooks and the command line alike.
+          </p>
+          <p>
+            <strong>SCRAM</strong> came first and is still maintained. It stays
+            in the tree as the reference the newer solver is checked against,
+            which is the only good reason to carry a second engine.
+          </p>
+          <p>
+            Quantification runs are distributed through a job broker, so a model
+            that takes hours on a laptop takes minutes on a cluster without
+            changing anything about the model.
+          </p>
+        </div>
+        <div>
+          <p class="note">
+            Nothing is promoted on a claim. PRAXIS carries a release gate and a
+            milestone promotion gate: converted real-model parity against the
+            seven MHTGR OpenPSA models, run as exact CUDA Monte Carlo matching
+            with no tolerance, blocks promotion on failure. The rollback
+            procedure for every milestone is written down before it is needed.
+          </p>
+          <p class="note">
+            Benchmarks against reference solutions live in the repositories
+            alongside the models, not in a marketing table. Where a result
+            disagrees with SAPHIRE, the disagreement is written down.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Architecture</span>
+      <h2>The packages</h2>
+      <p class="lede" style="margin-top:1rem;margin-bottom:2rem">
+        One monorepo, plus a few satellites. If you want to understand the
+        codebase, start with <code>shared-types</code> and follow it outward.
+      </p>
+      <div class="grid grid--3">
+        {packages.packages.map((p) => (
+          <div class="card">
+            <span class="card__code">{p.name}</span>
+            <p style="margin:0">{p.blurb}</p>
+          </div>
+        ))}
+      </div>
+      <div class="btn-row">
+        <a class="btn btn--ghost" href="https://github.com/openpra-org/openpra-monorepo">Monorepo on GitHub</a>
+        <a class="btn btn--ghost" href="https://revamp-docs-dev.openpra.org">Developer guide</a>
+      </div>
+
+      <hr class="rule" style="margin:3rem 0 2.25rem" />
+      <span class="eyebrow">Deployments</span>
+      <h2 style="font-size:1.6rem">Where it runs</h2>
+      <p class="lede" style="margin:.9rem 0 1.5rem">
+        The public site runs at openpra.org. Use the current application and
+        documentation deployments below; the original application remains
+        available as the legacy deployment.
+      </p>
+      <table>
+        <thead><tr><th>Role</th><th style="width:45%">Deployment</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td>App</td>
+              <td><a href="https://revamp-dev.openpra.org">revamp-dev.openpra.org</a></td>
+              <td>The current OpenPRA application.</td></tr>
+          <tr><td>Docs</td>
+              <td><a href="https://revamp-docs-dev.openpra.org">revamp-docs-dev.openpra.org</a></td>
+              <td>The current user and developer documentation.</td></tr>
+          <tr><td>Legacy</td>
+              <td><a href="https://app.openpra.org">app.openpra.org</a></td>
+              <td>The original OpenPRA application.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Base>

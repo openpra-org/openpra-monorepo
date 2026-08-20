@@ -1,0 +1,407 @@
+/* daScreens.css â€” Data Analysis workspace.
+   Self-contained: the DA accent tokens and da-* classes, plus the reused
+   cross-element classes (eslink upstream cards, syflow interface map, esprov
+   provenance chip, essec eyebrow, eswarn note, hrnote, hrmethods, hrtheme) and
+   the load-example modal, so the workbook needs only this file plus the shared
+   workbookWorkspace chrome. */
+
+:root {
+  --da-plant: #3a8f5c;   --da-plant-ink: #2c7a4a;
+  --da-generic: #3b6ea5; --da-generic-ink: #2f5d8f;
+  --da-similar: #c0852e; --da-similar-ink: #a06f1f;
+  --da-red: var(--color-error);     --da-red-ink: var(--color-error);
+}
+
+
+/* â”€â”€â”€ Reused: upstream link cards (eslink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.eslink { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (max-width: 720px) { .eslink { grid-template-columns: 1fr; } }
+.eslink__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; }
+.eslink__card--update { border-left: 4px solid var(--color-warning); }
+.eslink__top { display: flex; align-items: flex-start; gap: 10px; }
+.eslink__badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.eslink__badge svg { width: 15px; height: 15px; }
+.eslink__el { font-weight: 700; font-size: 13px; color: var(--color-text); line-height: 1.2; }
+.eslink__wb { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; }
+.eslink__delivers { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.eslink__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.eslink__sync { font-size: 11px; color: var(--color-text-subtle); }
+.eslink__resync { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary); cursor: pointer; }
+.eslink__status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; }
+.eslink__status svg { width: 13px; height: 13px; }
+.eslink__status--approved { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: interface map (syflow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.syflow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .syflow { grid-template-columns: 1fr; } }
+.syflow__col { display: flex; flex-direction: column; gap: 9px; }
+.syflow__col-head { font-family: var(--font-ui), sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-subtle); display: flex; align-items: center; gap: 7px; }
+.syflow__col-head svg { width: 14px; height: 14px; }
+.syflow__node { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); }
+.syflow__node--up { border-style: dashed; }
+.syflow__node-badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.syflow__node-badge svg { width: 15px; height: 15px; }
+.syflow__node-body { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.syflow__node-el { font-weight: 700; font-size: 12.5px; color: var(--color-text); line-height: 1.2; }
+.syflow__node-use { font-size: 11px; color: var(--color-text-muted); line-height: 1.35; margin-top: 2px; }
+
+/* â”€â”€â”€ Reused: provenance chip, eyebrow, warn note, info note â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esprov { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid var(--color-primary-focus); letter-spacing: 0.02em; }
+.esprov svg { width: 10px; height: 10px; }
+.essec { font-family: var(--font-ui), sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary); margin-bottom: 6px; }
+.eswarn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: rgba(196, 122, 24, 0.08); border-left: 3px solid var(--color-warning); border-radius: 6px; font-size: 12px; color: var(--color-text); line-height: 1.45; }
+.eswarn__icon { color: var(--color-warning); flex-shrink: 0; display: inline-flex; }
+.eswarn__icon svg { width: 15px; height: 15px; }
+.hrnote { display: flex; gap: 9px; align-items: flex-start; padding: 11px 14px; border-radius: 10px; background: var(--color-surface-low); border: 1px dashed var(--color-border-strong); font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+.hrnote svg { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
+.hrnote--ok { background: rgb(18 197 185 / 0.07); border-color: rgb(18 197 185 / 0.25); }
+.hrnote--ok svg { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: method chips and theme grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hrmethods { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.hrmethods__label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-subtle); }
+.hrmethod-chip { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: default; background: var(--color-primary); color: #fff; }
+
+/* â”€â”€â”€ Reused: empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hrempty { padding: 28px 18px; text-align: center; }
+.hrempty__title { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
+.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
+
+/* â”€â”€â”€ Load-example modal (dalink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dalink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
+.dalink { width: min(560px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: 0 24px 60px rgba(29, 25, 43, 0.28); overflow: hidden; }
+.dalink__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
+.dalink__eyebrow { display: flex; align-items: center; gap: 6px; font-family: var(--font-data), monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-primary); }
+.dalink__eyebrow svg { width: 13px; height: 13px; }
+.dalink__title { margin: 4px 0 0; font-family: var(--font-display), serif; font-size: 18px; color: var(--color-text); }
+.dalink__close { display: inline-flex; padding: 6px; border: none; background: transparent; color: var(--color-text-subtle); cursor: pointer; border-radius: 8px; }
+.dalink__close svg { width: 18px; height: 18px; }
+.dalink__close:hover { background: var(--color-surface-low); }
+.dalink__body { padding: 18px 20px; overflow-y: auto; }
+.dalink__foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Upstream inputs, two sources side by side â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.eslink--2up { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 720px) { .eslink--2up { grid-template-columns: 1fr; } }
+
+/* â”€â”€â”€ The evidence ladder strip (DA framing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daladder { display: flex; flex-direction: column; gap: 10px; }
+.daladder__rung {
+  display: grid; grid-template-columns: 30px 40px 1fr auto; gap: 13px; align-items: center;
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 13px 16px; border-left: 4px solid var(--color-border-strong);
+  position: relative;
+}
+.daladder__rung--plant   { border-left-color: var(--da-plant); }
+.daladder__rung--generic { border-left-color: var(--da-generic); margin-left: 22px; }
+.daladder__rung--similar { border-left-color: var(--da-similar); margin-left: 44px; }
+@media (max-width: 640px) { .daladder__rung--generic, .daladder__rung--similar { margin-left: 0; } }
+.daladder__rung-num {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-data), ui-monospace, monospace; font-size: 13px; font-weight: 700;
+  background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border);
+}
+.daladder__rung--plant   .daladder__rung-num { background: rgba(58,143,92,0.14); color: var(--da-plant-ink); border-color: rgba(58,143,92,0.3); }
+.daladder__rung--generic .daladder__rung-num { background: rgba(59,110,165,0.14); color: var(--da-generic-ink); border-color: rgba(59,110,165,0.3); }
+.daladder__rung--similar .daladder__rung-num { background: rgba(192,133,46,0.14); color: var(--da-similar-ink); border-color: rgba(192,133,46,0.3); }
+.daladder__icon {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-surface-low); color: var(--color-text-muted);
+}
+.daladder__rung--plant   .daladder__icon { background: rgba(58,143,92,0.12); color: var(--da-plant-ink); }
+.daladder__rung--generic .daladder__icon { background: rgba(59,110,165,0.12); color: var(--da-generic-ink); }
+.daladder__rung--similar .daladder__icon { background: rgba(192,133,46,0.12); color: var(--da-similar-ink); }
+.daladder__icon svg { width: 19px; height: 19px; }
+.daladder__main { min-width: 0; }
+.daladder__label { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); line-height: 1.15; }
+.daladder__tag { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; color: var(--color-text-subtle); margin-top: 1px; }
+.daladder__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; margin: 5px 0 0; }
+.daladder__sr {
+  align-self: flex-start; flex-shrink: 0; font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle);
+}
+.daladder__foot {
+  display: flex; gap: 9px; align-items: center; margin-left: 44px; margin-top: 2px;
+  font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+}
+@media (max-width: 640px) { .daladder__foot { margin-left: 0; } }
+.daladder__foot svg { width: 14px; height: 14px; color: var(--color-primary); flex-shrink: 0; }
+
+/* â”€â”€â”€ Parameter type pill and pedigree pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daptype {
+  font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+.daptype--primary { background: var(--color-primary-soft); color: var(--color-primary); }
+.daptype--generic { background: rgba(59,110,165,0.12); color: var(--da-generic-ink); }
+.daptype--plant   { background: rgba(58,143,92,0.12); color: var(--da-plant-ink); }
+.daptype--similar { background: rgba(192,133,46,0.12); color: var(--da-similar-ink); }
+.daptype--red     { background: rgb(179 38 30 / 0.12); color: var(--da-red-ink); }
+.darung {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+}
+.darung--plant   { background: rgba(58,143,92,0.12); color: var(--da-plant-ink); }
+.darung--generic { background: rgba(59,110,165,0.12); color: var(--da-generic-ink); }
+.darung--similar { background: rgba(192,133,46,0.12); color: var(--da-similar-ink); }
+
+/* â”€â”€â”€ Parameter cards (the slots) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daparam { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 1000px) { .daparam { grid-template-columns: 1fr; } }
+.daparam__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  display: flex; flex-direction: column; gap: 9px;
+}
+.daparam__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.daparam__card--warn { border-left: 4px solid var(--color-warning); }
+.daparam__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.daparam__be { font-size: 11px; font-weight: 500; color: var(--color-text-subtle); }
+.daparam__head .darung { margin-left: auto; }
+.daparam__name { font-size: 12.5px; font-weight: 700; color: var(--color-text); line-height: 1.4; }
+.daparam__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; }
+.daparam__rs { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); }
+.daparam__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-top: auto; padding-top: 9px; border-top: 1px dashed var(--color-border);
+}
+.daparam__model { font-size: 11.5px; color: var(--color-text-muted); }
+.daparam__val { font-size: 12.5px; font-weight: 600; color: var(--color-text); white-space: nowrap; }
+.daparam__unit { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-subtle); margin-left: 6px; }
+
+/* â”€â”€â”€ Component boundary cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daboundary { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .daboundary { grid-template-columns: 1fr 1fr; } }
+.daboundary__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  display: flex; flex-direction: column; gap: 11px;
+}
+.daboundary__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.daboundary__card--warn { border-left: 4px solid var(--color-warning); }
+.daboundary__head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.daboundary__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.daboundary__sys { font-size: 11px; font-weight: 700; color: var(--color-primary); }
+.daboundary__head .posbadge { margin-left: auto; }
+.daboundary__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 480px) { .daboundary__cols { grid-template-columns: 1fr; } }
+.daboundary__col { display: flex; flex-direction: column; gap: 5px; }
+.daboundary__col-cap {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.daboundary__col-cap svg { width: 12px; height: 12px; }
+.daboundary__col-cap--in { color: var(--da-plant-ink); }
+.daboundary__col-cap--out { color: var(--color-text-subtle); }
+.daboundary__item { font-size: 11.5px; color: var(--color-text); padding: 3px 9px; border-radius: 7px; background: rgba(58,143,92,0.07); border: 1px solid rgba(58,143,92,0.18); }
+.daboundary__item--out { color: var(--color-text-subtle); background: var(--color-surface-low); border-color: var(--color-border); text-decoration: line-through; opacity: 0.8; }
+.daboundary__basis { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.45; }
+.daboundary__basis svg { width: 13px; height: 13px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
+
+/* â”€â”€â”€ Probability model basis pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.damodel-basis { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.damodel-basis--demand { background: var(--color-primary-soft); color: var(--color-primary); }
+.damodel-basis--time { background: rgba(58,143,92,0.12); color: var(--da-plant-ink); }
+
+/* â”€â”€â”€ Component grouping cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dagroup { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .dagroup { grid-template-columns: 1fr 1fr; } }
+.dagroup__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.dagroup__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.dagroup__head { display: flex; align-items: center; gap: 10px; }
+.dagroup__head-main { flex: 1; min-width: 0; }
+.dagroup__name { font-weight: 600; font-size: 13px; color: var(--color-text); line-height: 1.3; }
+.dagroup__sys { font-size: 11px; font-weight: 500; color: var(--color-primary); margin-top: 2px; }
+.dagroup__cc { flex-shrink: 0; align-self: flex-start; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.dagroup__cc--i { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.dagroup__cc--ii { background: var(--color-primary-soft); color: var(--color-primary); }
+.dagroup__members { display: flex; flex-wrap: wrap; gap: 5px; }
+.dagroup__member { font-family: var(--font-data), ui-monospace, monospace; font-size: 10.5px; padding: 2px 9px; border-radius: 7px; background: var(--color-surface-low); border: 1px solid var(--color-border); color: var(--color-text-muted); }
+.dagroup__just { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
+
+/* â”€â”€â”€ Outlier rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daoutlier { display: flex; flex-direction: column; gap: 9px; }
+.daoutlier__row {
+  display: grid; grid-template-columns: 1.4fr 1.4fr auto; gap: 14px; align-items: center;
+  padding: 11px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface);
+  border-left: 4px solid var(--da-red);
+}
+@media (max-width: 760px) { .daoutlier__row { grid-template-columns: 1fr; gap: 8px; } }
+.daoutlier__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.daoutlier__name { font-weight: 600; font-size: 12.5px; color: var(--color-text); }
+.daoutlier__reason { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.daoutlier__diff { display: flex; flex-wrap: wrap; gap: 5px; }
+.daoutlier__tag { font-size: 10.5px; padding: 2px 9px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.daoutlier__status { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); white-space: nowrap; }
+.daoutlier__row { cursor: pointer; }
+.daoutlier__row:hover { border-color: var(--color-primary); }
+
+/* â”€â”€â”€ Generic source cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dasource { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .dasource { grid-template-columns: 1fr 1fr; } }
+.dasource__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px;
+}
+.dasource__card--other { border-left: 4px solid var(--da-generic); }
+.dasource__head { display: flex; align-items: center; gap: 9px; }
+.dasource__head-main { flex: 1; min-width: 0; }
+.dasource__name { font-weight: 600; font-size: 13px; color: var(--color-text); line-height: 1.3; }
+.dasource__type { font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; font-family: var(--font-data), ui-monospace, monospace; }
+.dasource__flag {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; align-self: flex-start;
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px;
+}
+.dasource__flag--other { background: rgba(59,110,165,0.12); color: var(--da-generic-ink); }
+.dasource__flag--nonnuclear { background: rgba(192,133,46,0.14); color: var(--da-similar-ink); }
+.dasource__applies { display: flex; flex-wrap: wrap; gap: 5px; }
+.dasource__param { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 7px; background: var(--color-surface-low); border: 1px solid var(--color-border); color: var(--color-text-muted); cursor: default; }
+.dasource__note { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
+.dasource__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: auto; padding-top: 9px; border-top: 1px dashed var(--color-border); }
+.dasource__state { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: var(--color-text-subtle); }
+.dasource__state--on { color: var(--da-plant-ink); }
+.dasource__foot .esprov { margin-left: auto; }
+
+/* â”€â”€â”€ Reuse rows (C25) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dareuse { display: flex; flex-direction: column; gap: 8px; }
+.dareuse__row { display: grid; grid-template-columns: 220px 1fr auto; gap: 14px; align-items: center; padding: 11px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+@media (max-width: 760px) { .dareuse__row { grid-template-columns: 1fr; gap: 6px; } }
+.dareuse__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dareuse__meta { font-size: 10.5px; color: var(--color-text-subtle); }
+.dareuse__applies { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; max-width: 260px; }
+.dareuse__name { font-weight: 600; font-size: 12.5px; color: var(--color-text); }
+.dareuse__just { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+
+/* â”€â”€â”€ Failure definition (C5, C6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dafail { display: flex; flex-direction: column; gap: 12px; }
+
+/* â”€â”€â”€ Basis pills (counting) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dabasis { font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.dabasis--preop { background: rgba(196,122,24,0.12); color: var(--c-review-inreview); border: 1px solid rgba(196,122,24,0.3); }
+
+/* â”€â”€â”€ Exposure rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Test credibility cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€â”€ Unavailability cards (C13 to C19) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daunavail { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .daunavail { grid-template-columns: 1fr 1fr; } }
+.daunavail__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.daunavail__card--support { border-left: 4px solid var(--da-generic); }
+.daunavail__head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.daunavail__name { font-weight: 600; font-size: 13px; color: var(--color-text); }
+.daunavail__sys { font-size: 11px; font-weight: 500; color: var(--color-primary); }
+.daunavail__assign { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.daunavail__acts { display: flex; flex-direction: column; gap: 6px; }
+.daunavail__act { display: grid; grid-template-columns: 1fr auto auto; gap: 9px; align-items: center; padding: 7px 11px; border-radius: 8px; background: var(--color-surface-low); }
+.daunavail__act-name { font-size: 11.5px; font-weight: 600; color: var(--color-text); }
+.daunavail__act-dur { font-size: 11px; color: var(--color-text-subtle); }
+.daunavail__act-flag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.daunavail__act--disables .daunavail__act-flag { color: var(--da-red-ink); }
+.daunavail__act--no .daunavail__act-flag { color: var(--color-text-subtle); }
+.daunavail__note { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
+
+/* â”€â”€â”€ Coincident maintenance (C18) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dacoin { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; border-left: 4px solid var(--da-generic); }
+.dacoin__head { display: flex; align-items: center; gap: 11px; }
+.dacoin__main { flex: 1; min-width: 0; }
+.dacoin__eq { font-weight: 600; font-size: 13px; color: var(--color-text); }
+.dacoin__act { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.dacoin__val { margin-left: auto; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--color-text); text-align: right; }
+.dacoin__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* â”€â”€â”€ Repair, recovery, outage (C20 to C26) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dargo { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 900px) { .dargo { grid-template-columns: repeat(3, 1fr); } }
+.dargo__group { display: flex; flex-direction: column; gap: 8px; }
+.dargo__group-cap { display: flex; align-items: center; justify-content: space-between; gap: 7px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-subtle); padding-bottom: 4px; border-bottom: 1px dashed var(--color-border); }
+.dargo__row { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.dargo__name { font-weight: 600; font-size: 12px; color: var(--color-text); }
+.dargo__val { font-size: 11px; color: var(--color-text-muted); }
+.dargo__row .poschip { align-self: flex-start; margin-top: 2px; }
+
+/* â”€â”€â”€ Ladder position indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daladpos { display: flex; gap: 4px; }
+.daladpos__rung { flex: 1; text-align: center; font-size: 9.5px; font-weight: 700; padding: 4px 4px; border-radius: 7px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); opacity: 0.6; }
+.daladpos__rung--on { opacity: 1; }
+.daladpos__rung--plant.daladpos__rung--on { background: rgba(58,143,92,0.14); color: var(--da-plant-ink); border-color: rgba(58,143,92,0.3); }
+.daladpos__rung--generic.daladpos__rung--on { background: rgba(59,110,165,0.14); color: var(--da-generic-ink); border-color: rgba(59,110,165,0.3); }
+.daladpos__rung--similar.daladpos__rung--on { background: rgba(192,133,46,0.14); color: var(--da-similar-ink); border-color: rgba(192,133,46,0.3); }
+
+/* â”€â”€â”€ Estimate cards (the heart of HLR-D) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daest { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1180px) { .daest { grid-template-columns: 1fr 1fr; } }
+.daest__card {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 15px 17px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  display: flex; flex-direction: column; gap: 12px; border-top: 3px solid var(--color-border-strong);
+}
+.daest__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.daest__card--plant   { border-top-color: var(--da-plant); }
+.daest__card--generic { border-top-color: var(--da-generic); }
+.daest__card--similar { border-top-color: var(--da-similar); }
+.daest__card--warn { border-left: 4px solid var(--color-warning); }
+.daest__head { display: flex; align-items: flex-start; gap: 12px; }
+.daest__head-main { flex: 1; min-width: 0; }
+.daest__name { font-size: 12.5px; font-weight: 600; color: var(--color-text); line-height: 1.4; }
+.daest__be { font-size: 11px; font-weight: 500; color: var(--color-text-subtle); margin-top: 2px; }
+.daest__val { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.daest__val-num { font-size: 13px; font-weight: 600; color: var(--color-text); }
+.daest__val-kind { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.daest__uncert { display: flex; gap: 7px; align-items: flex-start; font-size: 12px; color: var(--color-text-muted); line-height: 1.4; }
+.daest__similar { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; color: var(--color-text); line-height: 1.4; padding: 8px 11px; border-radius: 8px; background: rgba(192,133,46,0.08); }
+.daest__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--color-border); }
+.daest__foot .hrmethods { margin-top: 0; }
+.daest__rs { margin-left: auto; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); }
+.daest__rung { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Bayesian estimate cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.dabayes { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .dabayes { grid-template-columns: 1fr 1fr; } }
+.dabayes__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.dabayes__head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.dabayes__name { font-weight: 600; font-size: 13px; color: var(--color-text); flex: 1; min-width: 0; }
+.dabayes__stage { flex-shrink: 0; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; }
+.dabayes__stage--plant { background: rgba(58,143,92,0.12); color: var(--da-plant-ink); }
+.dabayes__stage--tech { background: rgba(59,110,165,0.12); color: var(--da-generic-ink); }
+.dabayes__flow { display: flex; align-items: center; gap: 9px; }
+.dabayes__node { flex: 1; font-size: 11.5px; font-weight: 600; padding: 8px 11px; border-radius: 9px; line-height: 1.3; text-align: center; }
+.dabayes__node--prior { background: var(--color-surface-low); color: var(--color-text-muted); border: 1px dashed var(--color-border-strong); }
+.dabayes__node--post { background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid var(--color-primary-focus); font-family: var(--font-data), ui-monospace, monospace; }
+.dabayes__arrow { flex-shrink: 0; color: var(--color-text-subtle); }
+.dabayes__check { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.45; padding: 8px 11px; border-radius: 8px; background: rgba(58,143,92,0.07); }
+.dabayes__check--warn { background: rgba(196,122,24,0.08); }
+
+/* â”€â”€â”€ Common-cause cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.daccf { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .daccf { grid-template-columns: 1fr 1fr; } }
+.daccf__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; }
+.daccf__card--rs { border-top: 3px solid var(--color-primary); }
+.daccf__head { display: flex; align-items: center; gap: 10px; }
+.daccf__head-main { flex: 1; min-width: 0; }
+.daccf__name { font-weight: 600; font-size: 13px; color: var(--color-text); line-height: 1.3; }
+.daccf__ref { font-size: 11px; font-weight: 500; color: var(--color-text-subtle); margin-top: 2px; }
+.daccf__model { flex-shrink: 0; align-self: flex-start; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.daccf__model--i { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.daccf__model--ii { background: var(--color-primary-soft); color: var(--color-primary); }
+.daccf__params { display: flex; flex-wrap: wrap; gap: 8px; }
+.daccf__param { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 8px; background: var(--color-surface-low); border: 1px solid var(--color-border); }
+.daccf__param-k { font-size: 11px; color: var(--color-text-subtle); }
+.daccf__param-v { font-size: 12px; font-weight: 600; color: var(--color-text); }
+.daccf__rows { display: flex; flex-direction: column; gap: 6px; }
+.daccf__r { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.daccf__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.daccf__foot .hrmethods { margin-top: 0; }
+.daccf__foot .esprov { margin-left: auto; }
+
+/* â”€â”€â”€ Data modification rows (D10) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.dasource__card, .dareuse__row, .dafail, .daunavail__card, .dacoin, .dargo__row, .dabayes__card, .daccf__card { cursor: pointer; transition: border-color 0.12s; }
+.dasource__card:hover, .dareuse__row:hover, .daunavail__card:hover, .dacoin:hover, .dargo__row:hover, .dabayes__card:hover, .daccf__card:hover { border-color: var(--color-primary); }

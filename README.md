@@ -1,351 +1,549 @@
-# OpenPRA monorepo
+# OpenPRA Monorepo
 
 <a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a> [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-Welcome to the OpenPRA monorepo, the unified codebase for the [v2 OpenPRA App](https://v2-app.openpra.org/), which
-includes the web client, backend REST APIs, distributed microservices, wrappers for underlying C/C++ probabilistic risk
-assessment (PRA) engines, shared JSON schema definitions, and utility packages for automated PRA model generation.
+Welcome to the OpenPRA monorepo. This is the unified codebase for the OpenPRA App. It includes the web client, the backend REST API, distributed microservices, probabilistic risk assessment (PRA) solver engines, shared type definitions, documentation, and utilities.
 
-## Internal Packages
+This README is a complete deployment guide:
 
-Included within this monorepo are the following packages:
+1. [Local development](#5-run-the-app-locally-development-mode). Infrastructure in Docker, apps running natively with hot reload.
+2. [Docker](#6-docker-deployment). The production container images, built and run on one machine.
+3. [Cluster](#7-cluster-deployment-docker-swarm). Docker Swarm behind Traefik, driven by GitHub Actions.
 
-- `engine-scram`: Node.js wrappers for the `SCRAM` C/C++ engine.
-- `frontend-web-editor`: A React v18 and TypeScript-based frontend UI.
-- `mef-schema`: OpenPRA MEF JSON Schema definitions, generated using the `shared-types` package.
-- `raptor`: RabbitMQ based distributed queues for scaling quantification requests.
-- `model-generator`: A tool for creating synthetic PRA models.
-- `shared-types`: Pure TypeScript type definitions (no runtime/framework deps); the single source of truth for domain data types and DTOs used across apps/services.
-- `shared-sdk`: Runtime SDK with `AuthService`, `ApiManager`, roles and invites APIs, and predefined roles (imports types from `shared-types`).
-- `mef-types`: MEF technical element TypeScript types extracted from `shared-types` for clearer separation of MEF concerns.
-- `web-backend`: A NestJS REST-API backend service written in TypeScript.
+## Repository layout
 
-We're managing this monorepo using the [Nx](https://nx.dev) build system, which enables flexible package bundling. For
-instance, the `mef-schema` package centralizes the
-[OpenPRA-MEF (Model Exchange Format) JSON definitions](https://docs.openpra.org/en/model-exchange-formats), generated
-from the TypeScript definitions specified in the `shared-types` package.
+All maintained projects live under `apps/`.
 
-# Quick Start Guide
+| Path                                   | Nx project name           | What it is                                                         |
+| -------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| `apps/frontends/web-frontend`          | `frontends-web-frontend`  | React 18 web client (webpack)                                      |
+| `apps/backends/web-backend`            | `backends-web-backend`    | NestJS REST API (Mongoose, MinIO, JWT, OAuth, 2FA)                 |
+| `apps/microservices/praetor`           | `praetor`                 | Distributed quantification broker and engine (RabbitMQ, MinIO)     |
+| `apps/interfaces/shared-types`         | `interfaces-shared-types` | Shared Zod schemas and inferred types                              |
+| `apps/interfaces/mef-types`            | `interfaces-mef-types`    | OpenPRA MEF technical element types                                |
+| `apps/solvers/scram`                   | `engine-scram`            | SCRAM C++ PRA engine and Node addon                                |
+| `apps/solvers/praxis`                  | none (Cargo)              | PRAXIS Rust solver                                                 |
+| `apps/docs-md`                         | `docs-md`                 | Unified VitePress documentation and API reference tooling          |
+| `apps/solvers/xfta`                    | none                      | XFTA solver binary and documentation                               |
+| `apps/solvers/{ftrex,zebra,saphsolve}` | none                      | Licensed solver directories, gitignored, absent from a fresh clone |
+| `apps/utilities/pracciolini`           | none                      | Python model conversion tooling                                    |
 
-Follow these steps to set up and run the project.
+### Services and ports
 
-## Prerequisites
+| Service                   | Port        | Notes                                            |
+| ------------------------- | ----------- | ------------------------------------------------ |
+| web-frontend (dev server) | 4201        | Proxies `/api` to the backend                    |
+| web-backend               | 8000        | All routes under the `/api` prefix               |
+| praetor manager           | 3000        | Swagger UI at `/q/docs`                          |
+| MongoDB                   | 27017       | No auth in local dev                             |
+| RabbitMQ                  | 5672, 15672 | Management UI on 15672, login `guest`/`guest`    |
+| MinIO                     | 9000, 9001  | Console on 9001, login `minioadmin`/`minioadmin` |
+| Full-Docker frontend      | 8080        | Only in the Docker deployment mode               |
 
-Make sure you have the following tools installed on your system:
+---
 
-- **Node.js v20.17.0** (managed via **nvm**)
-- **pnpm** (Package Manager)
-- **MongoDB**
-- **RabbitMQ**
+## 1. Prerequisites
 
-## Installation
+### Git and Git LFS
 
-### 1. Install **nvm** (Node Version Manager)
+macOS: `brew install git git-lfs`. Debian and Ubuntu: `sudo apt-get install git git-lfs`. Windows: install [Git for Windows](https://git-scm.com/download/win) and [Git LFS](https://git-lfs.com/).
 
-#### macOS and Linux
+Then activate LFS once per machine:
 
-Run the following command in your terminal:
+```bash
+git lfs install
+```
+
+### Node.js via nvm
+
+macOS and Linux:
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-```
-
-After installation, restart your terminal or run `source ~/.bashrc` (or `source ~/.zshrc` for Zsh).
-
-#### Windows
-
-Download and run the [nvm Windows installer](https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.zip).
-
-### 2. Install **`node`**
-
-Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the
-following commands:
-
-```shell
 nvm install 20.17.0
 nvm use 20.17.0
 ```
 
-### 3. Install **pnpm** (Package Manager)
+Windows: install [nvm-windows](https://github.com/coreybutler/nvm-windows/releases/latest), then run the same two `nvm` commands.
 
-#### macOS and Linux
-
-Run:
+### pnpm
 
 ```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
+npm install -g pnpm@10.19.0
 ```
 
-Ensure `pnpm` is added to your `PATH`. You may need to restart your terminal or run `source ~/.bashrc`.
+### Docker
 
-#### Windows
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on macOS and Windows, or Docker Engine plus the compose plugin on Linux. Verify with `docker info`, which fails when the daemon is not running or not reachable. On Linux, also add your user to the docker group so you can use Docker without sudo: `sudo usermod -aG docker $USER`, then log out and back in.
 
-Run:
+## 2. Clone the repository
 
 ```bash
-npm install -g pnpm
+git clone --recurse-submodules https://github.com/openpra-org/openpra-monorepo.git
+cd openpra-monorepo
+git checkout main
+git submodule update --init --recursive
 ```
 
-### 4. Install **MongoDB**
+The three submodules under `fixtures/models/` hold example model datasets (synthetic models, the Aralia fault tree dataset, and a generic PWR model). If you cloned without `--recurse-submodules`, the second `git submodule` command fetches them.
 
-Follow the official MongoDB installation guide for your operating system:
+If you cloned before installing Git LFS, the PDF files are tiny pointer stubs. Fix with `git lfs pull`.
 
-- **macOS**: [Install MongoDB on macOS](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/)
-- **Windows**: [Install MongoDB on Windows](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/)
-- **Linux**: [Install MongoDB on Linux](https://docs.mongodb.com/manual/administration/install-on-linux/)
+## 3. Install dependencies
 
-## Setup
+From the repo root:
 
-Once prerequisites are installed, initialize the project with these commands:
-
-```shell
-pnpm setup
+```bash
 pnpm install
 ```
 
-We recommend using the local Nx CLI via pnpm in this workspace (no global install required). You can verify Nx with:
+This installs every workspace package and sets up the Husky git hooks. A fresh clone resolves about 2700 packages, so the first install takes a few minutes. Reruns finish in seconds. Two notes.
+
+- pnpm 10 blocks dependency build scripts by default. If pnpm prints a warning about ignored build scripts, run `pnpm approve-builds`, approve the listed packages, and run `pnpm install` again.
+- A plain install does not compile any native modules. You do not need a C++ toolchain to run the web app.
+
+## 4. Environment variables and secrets
+
+### 4.1 How configuration is loaded
+
+There are two env files that matter.
+
+1. The root `.env` is **committed to git**. You already have it after cloning. It carries dev defaults for MongoDB, RabbitMQ, MinIO, and the full RabbitMQ queue topology (`MQ_*`). Nx loads it automatically for every task, which is how `praetor` and the legacy packages get their settings. Do not put personal secrets in it.
+2. `apps/backends/web-backend/.env` is **gitignored and does not exist in a fresh clone**. The backend loads it from that exact path ([app.module.ts](apps/backends/web-backend/src/app.module.ts)). The backend refuses to boot without the required values in it. You must create this file.
+
+The frontend needs no env file. It calls the backend with relative `/api` paths, and the dev server proxies those to `BACKEND_URL` (default `http://localhost:8000`).
+
+### 4.2 Create the backend .env file
+
+Create `apps/backends/web-backend/.env` with this content:
 
 ```bash
-pnpm nx --version
+MONGO_URI=mongodb://127.0.0.1:27017/openpra
+PORT=8000
+APP_BASE_URL=http://localhost:4201
+
+JWT_SECRET=REPLACE_WITH_GENERATED_SECRET
+JWT_EXPIRES_IN=7d
+
+RESEND_API_KEY=local-placeholder
+MAIL_FROM=noreply@localhost
+MAIL_FROM_NAME=OpenPRA
+
+TFA_ENC_KEY=REPLACE_WITH_GENERATED_SECRET
+TFA_ISSUER=OpenPRA
+TFA_TIME_URL=https://www.google.com/generate_204
+
+OAUTH_CALLBACK_BASE=http://localhost:8000/api
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=openpra-web
+MINIO_PUBLIC_URL=http://localhost:9000
 ```
 
-## Running the Project
+Save the file as plain UTF-8. On Windows, create it in your editor rather than with `Out-File`, whose UTF-16 default produces a file the config loader cannot read.
 
-### Start All Services Concurrently
+What is required and what is optional:
 
-To serve all packages at once, run one of the following:
+| Variable                                                                                     | Required | Behavior                                                                                                                           |
+| -------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`, `MAIL_FROM`                                                                | Yes      | Backend throws at boot if missing. A placeholder value boots fine. Only the password reset email actually sends mail.              |
+| `TFA_ENC_KEY`                                                                                | Yes      | Backend throws at boot if missing. Encrypts stored 2FA secrets.                                                                    |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MINIO_PUBLIC_URL` | Yes      | Backend throws at boot if missing. Buckets are created automatically on first use.                                                 |
+| `MONGO_URI`                                                                                  | No       | Defaults to `mongodb://127.0.0.1:27017/openpra`. Note the name. It is `MONGO_URI`, not the `MONGO_URL` used by the legacy backend. |
+| `JWT_SECRET`, `JWT_EXPIRES_IN`                                                               | No       | Insecure defaults exist. Always set `JWT_SECRET` anyway.                                                                           |
+| `APP_BASE_URL`                                                                               | No       | CORS origin and the base for links in emails. Must equal the frontend origin.                                                      |
+| `OAUTH_CALLBACK_BASE`                                                                        | No       | Base of the OAuth redirect URIs. Default `http://localhost:8000/api`.                                                              |
+| `GOOGLE_*`, `GITHUB_*`                                                                       | No       | Leave empty and the social login buttons report the provider as not configured. Everything else works.                             |
+| `PORT`, `MAIL_FROM_NAME`, `TFA_ISSUER`, `TFA_TIME_URL`                                       | No       | Sensible defaults.                                                                                                                 |
+
+### 4.3 Generate secrets
+
+Run this twice, once for `JWT_SECRET` and once for `TFA_ENC_KEY`:
 
 ```bash
-pnpm run dev:all
-# or
-pnpm nx run-many -t serve --all
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ```
 
-### Start Individual Services
+### 4.4 Resend email key (optional for local dev)
 
-To serve a specific package, run:
+Email is only sent for password resets. The placeholder value lets the backend boot. To make password reset actually deliver mail, create a free account at [resend.com](https://resend.com), create an API key under API Keys, set it as `RESEND_API_KEY`, and set `MAIL_FROM` to an address on a domain you verified in Resend.
 
-- **Web Editor**:
+### 4.5 Google OAuth app
 
-  ```bash
-  pnpm nx serve frontend-web-editor
-  ```
+Skip this if you do not need the Google login button.
 
-- **Web Backend**:
+1. Go to the [Google Cloud Console](https://console.cloud.google.com) and create or select a project.
+2. Open APIs & Services, then OAuth consent screen. Configure it as External and add your teammates as test users.
+3. Open APIs & Services, then Credentials. Click Create Credentials, then OAuth client ID, application type Web application.
+4. Add this authorized redirect URI for local dev: `http://localhost:8000/api/auth/oauth/google/callback`
+5. For a deployed instance, add `https://<your-host>/api/auth/oauth/google/callback` as well.
+6. Copy the client ID and client secret into `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
-  ```bash
-  pnpm nx serve web-backend
-  ```
+The redirect URI is always `${OAUTH_CALLBACK_BASE}/auth/oauth/google/callback`. It must match character for character or Google returns `redirect_uri_mismatch`.
 
-## Testing and Linting
+### 4.6 GitHub OAuth app
 
-### Run Tests
+Skip this if you do not need the GitHub login button.
 
-Execute Jest unit tests:
+1. Go to GitHub Settings, then Developer settings, then OAuth Apps, then New OAuth App.
+2. Homepage URL: `http://localhost:4201`
+3. Authorization callback URL: `http://localhost:8000/api/auth/oauth/github/callback`
+4. Register, then click Generate a new client secret.
+5. Copy both values into `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
+
+A GitHub OAuth app holds a single callback URL. Create one app per environment (local, dev cluster, production).
+
+## 5. Run the app locally (development mode)
+
+### 5.1 Start the infrastructure
+
+Make sure the Docker engine is actually running first. On macOS and Windows that means Docker Desktop is open. `docker compose version` succeeds even when the engine is down, so verify with `docker info` instead. If the engine is down you will see a `cannot connect to the Docker API` or npipe error on the next command.
+
+`docker-compose.infra.yml` is gitignored, just like the backend `.env`, so a fresh clone does not contain it. Create it at the repo root with this content:
+
+```yaml
+services:
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/configs/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+
+  minio:
+    image: quay.io/minio/minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+volumes:
+  mongo_data:
+  rabbitmq_data:
+  minio_data:
+```
+
+Then start the stack:
 
 ```bash
-pnpm nx run-many -t test
+docker compose -f docker-compose.infra.yml up -d
 ```
 
-### Run Linting
-
-Check code quality with ESLint:
+This starts MongoDB (27017), RabbitMQ (5672 and 15672), and MinIO (9000 and 9001) with persistent volumes. Verify:
 
 ```bash
-pnpm nx run-many -t lint
+docker compose -f docker-compose.infra.yml ps
 ```
 
-### Nx Cloud caching (optional)
+All three should be `running`. The MinIO console is at http://localhost:9001 and the RabbitMQ UI at http://localhost:15672.
 
-If you see local warnings about Nx Cloud not being connected (401), you can either connect the workspace to Nx Cloud
-for distributed caching or use local caching only. For most local development, using the local Nx CLI via `pnpm nx`
-is sufficient without connecting Nx Cloud.
+### 5.2 Start the backend
 
-## Jest + SWC (fast TypeScript tests)
+```bash
+pnpm nx serve backends-web-backend
+```
 
-We use `@swc/jest` for TypeScript transforms in most packages for faster tests. Key notes:
+Wait for `web-backend listening on http://localhost:8000`. If the `.env` is missing or incomplete, the app compiles, maps all routes, and then dies at module init with an error naming one missing variable, for example `Error: MINIO_BUCKET is required but not set`, followed by `Process exited with code 1, waiting for changes to restart...`. Missing variables surface one at a time, so complete the whole template from section 4.2 instead of fixing them one by one.
 
-- NestJS projects (decorators required)
-  - Enable decorators and metadata in the Jest transform options
-  - Use CommonJS modules for Jest
+### 5.3 Start the frontend
 
-  Example transform block in `jest.config.ts`:
+In a second terminal:
 
-  ```ts
-  transform: {
-    "^.+\\.[tj]s$": [
-      "@swc/jest",
-      {
-        jsc: {
-          parser: { syntax: "typescript", decorators: true },
-          target: "es2020",
-          transform: { decoratorMetadata: true },
-        },
-        module: { type: "commonjs" },
-        sourceMaps: "inline",
-      },
-    ],
+```bash
+pnpm nx serve frontends-web-frontend
+```
+
+Open http://localhost:4201. Register an account with email and password. Login, projects, and workbooks all work at this point.
+
+### 5.4 Start praetor (quantification)
+
+Praetor is only needed for running quantification jobs. In two more terminals:
+
+```bash
+pnpm nx start-manager praetor
+pnpm nx start-engine praetor
+```
+
+The manager listens on port 3000 with Swagger at http://localhost:3000/q/docs. Both processes read RabbitMQ and MinIO settings from the committed root `.env`, which Nx injects, and they create their MinIO buckets on first start. Both boot without any native addon. Executing a quantification job is what requires the `scram-node` addon. Building it requires CMake, g++, Boost, and libxml2 (`pnpm nx build engine-scram`). If you cannot build it on your machine, run praetor in Docker instead (section 6.3).
+
+## 6. Docker deployment
+
+This mode builds and runs the same production images that CI ships. Stop the dev infrastructure first so ports do not clash:
+
+```bash
+docker compose -f docker-compose.infra.yml down
+```
+
+### 6.1 Build the images
+
+The steps below mirror `.github/workflows/cd-apps.yml`. Run them in bash from the repo root. On Windows use Git Bash or WSL.
+
+```bash
+pnpm nx build backends-web-backend --configuration=production
+pnpm nx build frontends-web-frontend --configuration=production
+
+mkdir -p docker-context/web-backend
+cp dist/apps/backends/web-backend/main.js docker-context/web-backend/main.js
+cp apps/backends/web-backend/package.json docker-context/web-backend/package.json
+node -e '
+  const fs = require("fs");
+  const path = "docker-context/web-backend/package.json";
+  const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+  for (const key of ["dependencies", "devDependencies"]) {
+    if (!pkg[key]) continue;
+    for (const [name, version] of Object.entries({ ...pkg[key] })) {
+      if (typeof version === "string" && version.startsWith("workspace:")) delete pkg[key][name];
+    }
   }
-  ```
+  delete pkg.devDependencies;
+  fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
+'
+cp deploy/web/backend.Dockerfile docker-context/web-backend/Dockerfile
+docker build -t openpra-apps-web-backend:local docker-context/web-backend
 
-- Path mapping for workspace packages
-  - When tests import from sources, add `moduleNameMapper` so Jest resolves to TS files:
+mkdir -p docker-context/web-frontend/html
+cp -r dist/apps/frontends/web-frontend/* docker-context/web-frontend/html/
+cp deploy/web/nginx.conf docker-context/web-frontend/nginx.conf
+cp deploy/web/frontend.Dockerfile docker-context/web-frontend/Dockerfile
+docker build -t openpra-apps-web-frontend:local docker-context/web-frontend
+```
 
-  ```ts
-  moduleNameMapper: {
-    // shared-types (pure types library)
-    "^shared-types/src/(.*)$": "<rootDir>/../shared-types/src/$1",
-    "^shared-types/(.*)$": "<rootDir>/../shared-types/src/$1",
-    "^shared-types$": "<rootDir>/../shared-types/src/index.ts",
-
-    // mef-types (types only)
-    "^mef-types/(.*)$": "<rootDir>/../mef-types/src/$1",
-    "^mef-types$": "<rootDir>/../mef-types/src/index.ts",
-  }
-  ```
-
-  Tip: for types-only packages (like `mef-types`), prefer `import type { ... } from 'mef-types/...'` to avoid runtime resolution of `.d.ts` files under SWC.
-
-- Debian 12 MongoDB tip
-  - On Debian 12/bookworm, `mongodb-memory-server` may fail due to OpenSSL 1.1. Our Jest setups auto-detect and fall back to `MONGO_URI` when possible. See
-    [Troubleshooting (Debian 12 / OpenSSL 3)](#troubleshooting-debian-12--openssl-3) for details.
-
-### Troubleshooting (Debian 12 / OpenSSL 3)
-
-If you run backend tests on Debian 12 (bookworm) or a container based on it, you might hit OpenSSL 1.1 binary issues with `mongodb-memory-server`. Our Jest setup in the backend auto-detects this environment and will use a locally running MongoDB if available. You can opt-in explicitly by setting `MONGO_URI`:
+### 6.2 Run the full stack
 
 ```bash
-# Example: run tests against a local MongoDB instance
-export MONGO_URI="mongodb://127.0.0.1:27017/test"
-pnpm nx test web-backend -- --test-timeout=60000
+docker compose -f docker/docker-compose.apps.yml up -d
 ```
 
-For more details, see `packages/web-backend/README.md`.
-
-## Versioning & Releases (Nx Release)
-
-We use Nx Release with Conventional Commits to version the monorepo, generate changelogs, publish to npm, and create GitHub releases.
-
-- Local dry-run (no files changed):
+Open http://localhost:8080. The compose file wires the frontend nginx to proxy `/api` to the backend, plus MongoDB and MinIO. Secrets default to local-only placeholders. Override them through the shell environment when needed, for example:
 
 ```bash
-pnpm nx release version --dry-run
+JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))") \
+docker compose -f docker/docker-compose.apps.yml up -d
 ```
 
-- Full local release (apply changes):
+For OAuth in this mode the callback base is `http://localhost:8080/api`, so the OAuth apps need `http://localhost:8080/api/auth/oauth/<provider>/callback` as an additional redirect URI.
+
+Tear down with `docker compose -f docker/docker-compose.apps.yml down`.
+
+### 6.3 Praetor in Docker
+
+Praetor has a self-contained stack that builds the image (including the SCRAM native addon) and starts RabbitMQ and MinIO alongside it:
 
 ```bash
-# 1) Bump versions from conventional commits
-pnpm nx release version
-
-# 2) Generate/update changelog(s)
-pnpm nx release changelog
-
-# 3) Publish to npm (requires NPM_TOKEN)
-pnpm nx release publish
-
-# 4) Create a GitHub Release from the new tag(s)
-pnpm nx release github
+docker compose -f deploy/microservices/praetor/docker-compose.yml up --build -d
 ```
 
-- CI workflow: `.github/workflows/release.yml`
-  - Manual dispatch supports a dry-run toggle.
-  - On pushes to `main`, the workflow builds and tests. Use manual dispatch to apply version/changelog/publish steps.
-  - Required GitHub secrets:
-    - `NPM_TOKEN` for publishing to npm.
-    - `MONGO_URI` for backend tests in CI.
+The build takes a while on the first run because it compiles the C++ addon. The manager is at http://localhost:3000/q/docs. Stop other stacks first to free the RabbitMQ and MinIO ports.
 
-Notes:
+## 7. Cluster deployment (Docker Swarm)
 
-- We default to a single global version across the workspace (configured in `nx.json`).
-- Backend tests in certain local containers (Debian 12) require `MONGO_URI` to point to an external MongoDB.
+Production and branch deployments run on Docker Swarm behind Traefik. There is no Kubernetes in this repo. Two ways to deploy follow: the GitHub Actions pipeline we use, and a manual path for your own cluster.
 
-## Conventional Commits, Commitlint & Husky
+### 7.1 How our pipeline works
 
-Commit messages must follow Conventional Commits. A Husky `commit-msg` hook runs Commitlint to enforce this.
+`.github/workflows/cd-apps.yml` runs on every push to `main` and on manual dispatch.
 
-- Format: `type(scope): short description`
-- Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `build`, `ci`.
+1. The build job compiles both apps, assembles the Docker contexts exactly as in section 6.1, and pushes the images to our private registry `registry.openpra.org` tagged with the short SHA and the branch slug.
+2. The deploy job runs on the self-hosted runner `gaia1` (a Swarm manager). It populates a content-addressed volume with the example documents, then runs `docker stack deploy` with `deploy/web/cd-stack.yml`.
+3. Traefik picks up the stack labels and serves the app at `https://<branch-slug>-dev.openpra.org`, with MinIO at `https://minio-<branch-slug>-dev.openpra.org`.
 
-Examples:
+### 7.2 GitHub repository secrets
 
-```text
-feat(web-editor): add searchable initiator list
-fix(web-backend): handle invalid ObjectId in GET /items/:id
-chore(release): add commitlint + husky hook
-```
+The pipeline needs these repository secrets. Without them the deploy job fails or the backend boots without OAuth and email.
 
-Getting blocked by the hook?
+| Secret                                               | Used for                                           |
+| ---------------------------------------------------- | -------------------------------------------------- |
+| `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`             | Login to `registry.openpra.org`                    |
+| `APPS_JWT_SECRET`                                    | Backend `JWT_SECRET` (deploy fails fast if unset)  |
+| `APPS_TFA_ENC_KEY`                                   | Backend `TFA_ENC_KEY` (deploy fails fast if unset) |
+| `APPS_RESEND_API_KEY`                                | Backend `RESEND_API_KEY`                           |
+| `APPS_GOOGLE_CLIENT_ID`, `APPS_GOOGLE_CLIENT_SECRET` | Google login                                       |
+| `APPS_GH_CLIENT_ID`, `APPS_GH_CLIENT_SECRET`         | GitHub login                                       |
+
+The OAuth apps for a cluster deployment need the callback `https://<host>/api/auth/oauth/<provider>/callback` registered, one per host.
+
+### 7.3 One-time cluster preparation
+
+On the machine that will be the Swarm manager:
 
 ```bash
-# Amend your last commit message to conform
-git commit --amend
-git push --force-with-lease
+docker swarm init
+docker network create --driver=overlay traefik-public
 ```
 
-Husky installs automatically via the `prepare` script on `pnpm install`. If hooks are missing, re-run `pnpm install`.
+Then deploy a Traefik v2 instance attached to `traefik-public` with a certificate resolver named `cloudflare`. `deploy/microservices/praetor/traefik-stack.yml` is a working starting point, but edit the ACME email and switch the resolver name or DNS provider to match your setup. `deploy/web/cd-stack.yml` references the resolver name `cloudflare` in its labels.
 
-## Docs
+DNS: point `<host>` and `minio-<host>` at the cluster ingress.
 
-Generate the aggregated documentation site with a single command:
+Registry: the stack pulls images by name, so either push your images to a registry the cluster can reach and `docker login` on the manager, or build the images directly on the single node and deploy with `--resolve-image never`.
+
+Placement: `deploy/web/cd-stack.yml` pins mongodb, minio, and the backend to `node.hostname == gaia`. On your own cluster, edit those `placement.constraints` to a hostname or label that exists, otherwise the services stay in `pending` forever.
+
+### 7.4 Manual stack deploy
+
+From a checkout on the Swarm manager, after building or pulling the two images:
 
 ```bash
-pnpm nx run docs:build-site
+export APP_NAME=openpra-apps-main
+export HOST_URL=app.example.org
+export IMAGE_BACKEND=openpra-apps-web-backend:local
+export IMAGE_FRONTEND=openpra-apps-web-frontend:local
+export IMAGE_MONGO=mongo:latest
+export IMAGE_MINIO=minio/minio:latest
+export JWT_SECRET=<generated>
+export TFA_ENC_KEY=<generated>
+export RESEND_API_KEY=<key or placeholder>
+export GOOGLE_CLIENT_ID= GOOGLE_CLIENT_SECRET= GITHUB_CLIENT_ID= GITHUB_CLIENT_SECRET=
+
+export DOCS_HASH=$(find dist/apps/backends/web-backend/example-documents -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
+docker volume create "openpra-docs-$DOCS_HASH"
+docker run --rm -v "openpra-docs-$DOCS_HASH":/dest -v "$PWD/dist/apps/backends/web-backend/example-documents":/src:ro \
+  busybox sh -c 'cp -r /src/. /dest/'
+
+docker stack deploy --with-registry-auth --resolve-image never \
+  --compose-file deploy/web/cd-stack.yml "$APP_NAME"
+
+docker service ls --filter "label=com.docker.stack.namespace=$APP_NAME"
 ```
 
-### Preview the docs locally
+`HOST_URL`, `JWT_SECRET`, and `TFA_ENC_KEY` are mandatory. The stack file rejects deployment when they are unset. Check `docker service ps <service> --no-trunc` for anything stuck in `pending` (usually a placement constraint) or restarting (usually a missing env value, check `docker service logs`).
 
-Serve the generated static site from `dist/docs` with a simple local web server (Python 3):
+### 7.5 Praetor on the cluster
+
+Praetor has its own Swarm stack at `deploy/microservices/praetor/cd-stack.yml`. It expects the image in `IMAGE_BACKEND`, replica counts in `NUM_BROKERS` and `NUM_WORKERS`, placement pools in `DEPLOYMENT_BROKER_POOL` and `DEPLOYMENT_WORKER_POOL`, and two file-based secrets, `secrets/DSF_JWT_SECRET` and `secrets/CLOUDFLARE_TUNNEL_TOKEN`, relative to the stack file. Those two files are not in the repository. Create them on the swarm manager next to the stack file before deploying, the first holding a generated JWT secret and the second the Cloudflare tunnel token. It publishes the manager through a Cloudflare tunnel instead of Traefik.
+
+## 8. Offline deployment (air-gapped machines)
+
+For a machine with no internet access, nothing can be pulled or installed there. Instead, one connected machine builds a single self-contained tarball, and the offline machine only loads and runs it. Docker images carry everything, so the offline machine needs only Docker Engine with the compose plugin and a user in the docker group.
+
+Build the bundle on a connected machine (Linux, or Docker Desktop on Windows and macOS, images are built for linux/amd64):
 
 ```bash
-python3 -m http.server 5050 -d dist/docs
+bash deploy/offline/make-bundle.sh /path/to/output
 ```
 
-Then open http://localhost:5050 in your browser.
+The bundle covers the web app only: frontend, backend, MongoDB, and MinIO. Praetor and the solver engines are excluded, since they are not needed by the web app. The script builds the backend and frontend images, pulls mongo and minio, saves all four images into one tar, and packs them with a self-contained compose file, the nginx proxy config, the example documents, an INSTALL.md, and a git bundle of the source. The result is `openpra-offline-bundle.tar.gz`.
 
-Tip: In a dev container or remote environment, your editor may auto-forward the port and provide an external URL.
-
-Outputs:
-
-- Aggregated site: `dist/docs` (published by the GitHub Pages workflow at `.github/workflows/docs.yml`).
-- Per-package HTML docs remain under each package, for example:
-  - `packages/shared-types/docs`
-  - `packages/shared-sdk/docs`
-  - C++ Doxygen HTML for SCRAM: `packages/engine/scram-node/docs/cpp/html`
-- Optional Markdown docs (local only):
-  - `packages/shared-types/docs-md`
-  - `packages/shared-sdk/docs-md`
-
-The Pages workflow is named "Docs: Unified TypeScript + C++" and runs on pushes to `main` or manual dispatch.
-
-### Docs coverage
-
-Run a quick TSDoc coverage report across key packages:
+If the offline machine might not have Docker at all, also build the Docker installer archive:
 
 ```bash
-pnpm nx run docs:coverage
+bash deploy/offline/make-docker-bundle.sh /path/to/output
 ```
 
-This prints, per package, how many exported declarations have TSDoc blocks and highlights low-coverage areas to target first. It’s local-only and safe to run anytime.
+This downloads the official static Docker binaries and the compose plugin, which work on any x86_64 Linux regardless of distribution, and packs them with an installer script as `docker-engine-offline.tar.gz` next to the app bundle. On the target machine, untar it and run `sudo bash install-docker.sh` first, then proceed with the app bundle.
 
-## Additional Documentation
+On the offline machine:
 
-Additional documentation can be found in the [Extended README](README/README.md)
-section.
+```bash
+tar -xzf openpra-offline-bundle.tar.gz
+cd openpra-offline
+docker load -i openpra-images.tar
+docker compose up -d
+```
+
+The app is then at http://localhost:8080. The bundled `INSTALL.md` covers serving other machines on the network (`OPENPRA_HOST=<server-ip>`), overriding `JWT_SECRET` and `TFA_ENC_KEY`, and restoring the source from the git bundle.
+
+Offline behavior to communicate to users: password reset emails cannot send, Google and GitHub login are unavailable so accounts use username and password, and 2FA verifies against the server clock. `TFA_TIME_URL` is deliberately unset in the offline compose so the backend never tries to reach the internet.
+
+## 9. Troubleshooting
+
+**The backend compiles, then exits with `... is required but not set`.** The first one you see is usually `Error: MINIO_BUCKET is required but not set`. Missing variables are reported one at a time, so do not fix them one by one. Create or complete the full `apps/backends/web-backend/.env` (section 4.2). This is the single most common failure for new setups.
+
+**Mongo connects to the wrong database or not at all.** The current backend reads `MONGO_URI`. The legacy backend and the committed root `.env` use `MONGO_URL`. Set `MONGO_URI` in the backend `.env` and do not expect the root `.env` value to apply.
+
+**`redirect_uri_mismatch` or OAuth error page.** The redirect URI registered with the provider must equal `${OAUTH_CALLBACK_BASE}/auth/oauth/<provider>/callback` exactly, including scheme and port.
+
+**Social login buttons say the provider is not configured.** Both the client ID and the client secret for that provider must be non-empty in the backend env.
+
+**Password reset emails never arrive.** You are running with the placeholder `RESEND_API_KEY`. Set a real key (section 4.4).
+
+**CORS errors in the browser console.** `APP_BASE_URL` must equal the exact frontend origin, `http://localhost:4201` in dev mode.
+
+**pnpm warns about ignored build scripts.** Run `pnpm approve-builds`, approve, and `pnpm install` again.
+
+**`permission denied while trying to connect to the Docker daemon socket` on Linux.** Any image pull or compose command fails this way when your user cannot access `/var/run/docker.sock`. Make sure the daemon runs (`sudo systemctl enable --now docker`), add yourself to the docker group (`sudo usermod -aG docker $USER`), then log out and back in or run `newgrp docker`. Verify with `docker info` without sudo. Avoid running compose under sudo, since root then owns the containers and volumes.
+
+**PDF files are one-line pointer files, or `git push` fails in the LFS hook.** Install Git LFS, run `git lfs install`, then `git lfs pull`.
+
+**`fixtures/models/*` directories are empty.** Run `git submodule update --init --recursive`.
+
+**Ports already in use.** The dev infra stack, the praetor Docker stack, and the full-Docker stack all bind MongoDB, RabbitMQ, or MinIO ports. Run one stack at a time, or `docker compose ... down` the others first.
+
+**Swarm service stuck in `pending`.** A placement constraint references a node that does not exist. Edit the `placement.constraints` in the stack file (section 7.3).
+
+**`nx run praetor:serve` fails.** That target does not exist. Use `start-manager` and `start-engine` (section 5.4).
 
 ---
 
-## Deploy and lockfile
+# Development reference
 
-Deployments run Nx targets inside a single repository image that is installed from the root `pnpm-lock.yaml`. We do not
-generate pruned lockfiles or `dist/package.json` files during webpack builds for server apps (e.g., `web-backend`,
-`raptor`). Instead, production images rely on the root-installed workspace dependencies.
+## Testing and linting
 
-- Why: avoids pnpm v9 pruned-lockfile edge cases and keeps builds simpler and faster.
-- Where configured: per app `project.json` with `generateLockfile: false` and `generatePackageJson: false` under the
-  webpack build target.
-- If your deploy flow expects a `dist/package.json`, you can re-enable `generatePackageJson` in that app and ensure your
-  environment supports pruned lockfile generation.
+```bash
+pnpm nx run-many -t test
+pnpm nx run-many -t lint
+pnpm nx test backends-web-backend
+pnpm nx typecheck frontends-web-frontend
+```
+
+Backend tests use `mongodb-memory-server` and fall back to a running MongoDB via `MONGO_URI` on platforms where the bundled binary fails (for example Debian 12 with OpenSSL 3):
+
+```bash
+export MONGO_URI="mongodb://127.0.0.1:27017/test"
+pnpm nx test backends-web-backend
+```
+
+## Conventional commits
+
+Commit messages must follow Conventional Commits. A Husky `commit-msg` hook runs Commitlint. Format: `type(scope): short description` with types `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `build`, `ci`. If a commit is rejected, amend the message with `git commit --amend`. Hooks install automatically on `pnpm install`.
+
+## Versioning and releases
+
+Nx Release drives versioning, changelogs, npm publishing, and GitHub releases:
+
+```bash
+pnpm nx release version --dry-run
+pnpm nx release version
+pnpm nx release changelog
+pnpm nx release publish
+pnpm nx release github
+```
+
+The CI workflow is `.github/workflows/release.yml`. It needs the `NPM_TOKEN` and `MONGO_URI` secrets.
+
+## Docs
+
+```bash
+pnpm nx run docs-md:site:build --no-cloud
+pnpm --filter docs-md preview --host 127.0.0.1 --port 5050
+```
+
+The docs site deploys through `.github/workflows/docs.yml` to the Swarm as well.
 
 ## Citation
 

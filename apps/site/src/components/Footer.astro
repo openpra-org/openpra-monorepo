@@ -1,0 +1,47 @@
+---
+type FooterLink = [href: string, label: string];
+type FooterColumn = [heading: string, items: FooterLink[]];
+
+const cols: FooterColumn[] = [
+  ['Platform', [
+    ['/platform/', 'Technical elements'],
+    ['/schema/', 'OpenPRA MEF'],
+    ['/models/', 'Reference models'],
+    ['https://revamp-dev.openpra.org', 'Web app'],
+  ]],
+  ['Documentation', [
+    ['https://revamp-docs-dev.openpra.org', 'User guide'],
+    ['https://revamp-docs-dev.openpra.org', 'Developer guide'],
+    ['https://revamp-docs-dev.openpra.org', 'Schema reference'],
+  ]],
+  ['Source', [
+    ['https://github.com/openpra-org', 'GitHub organisation'],
+    ['https://github.com/openpra-org/openpra-monorepo', 'Monorepo'],
+    ['https://github.com/openpra-org/openpra-monorepo/blob/main/CONTRIBUTING.md', 'Contributing'],
+  ]],
+  ['Organisation', [
+    ['/about/', 'About OpenPRA ORG Inc.'],
+    ['/research/', 'Publications'],
+    ['mailto:info@openpra.org', 'info@openpra.org'],
+  ]],
+];
+const year = new Date().getFullYear();
+---
+<footer class="footer">
+  <div class="wrap">
+    <img src="/brand/lockup-dark.svg" alt="OpenPRA" style="height:54px;width:auto" />
+    <div class="grid grid--4" style="margin-top:2.5rem">
+      {cols.map(([heading, items]) => (
+        <div>
+          <h3>{heading}</h3>
+          <ul>{items.map(([href, label]) => <li><a href={href}>{label}</a></li>)}</ul>
+        </div>
+      ))}
+    </div>
+    <div class="footer__base">
+      <span>OPENPRA ORG INC. — A 501(C)(3) NON-PROFIT</span>
+      <span>RISK, IN THE OPEN.</span>
+      <span>&copy; {year}</span>
+    </div>
+  </div>
+</footer>

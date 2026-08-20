@@ -1,0 +1,222 @@
+.iee {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  background: var(--color-surface);
+}
+
+.iee__result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+.iee__sep {
+  width: 1px;
+  height: 26px;
+  background: var(--color-border);
+}
+.iee__spacer {
+  flex: 1;
+}
+.iee__metric {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.iee__val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.iee__cap {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+.iee__badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.iee-seg {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.iee-seg button {
+  border: none;
+  background: var(--color-surface);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 6px 13px;
+  color: var(--color-text-subtle);
+}
+.iee-seg button.is-on {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.iee__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.iee__btn:hover {
+  border-color: var(--color-primary);
+}
+.iee__btn--primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.iee__gridwrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.iee-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.iee-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  background: var(--color-surface-low);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.iee-grid td {
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+}
+.iee-grid thead th.iee-grid__rownum {
+  text-align: center;
+}
+.iee-grid__rownum {
+  width: 34px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-subtle);
+  padding: 9px 0 !important;
+  vertical-align: top;
+}
+.iee-grid__delcol {
+  width: 38px;
+  text-align: center;
+  vertical-align: middle !important;
+}
+
+.iee-cell {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text);
+  padding: 9px 12px;
+  outline: none;
+}
+.iee-cell:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  background: var(--color-surface);
+}
+.iee-cell--mono {
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-size: 11.5px;
+}
+
+.iee-sel {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text);
+  padding: 9px 8px;
+  cursor: pointer;
+  outline: none;
+}
+.iee-sel:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.iee-sel.iee-tag--hi {
+  color: var(--color-error);
+}
+.iee-sel.iee-tag--med {
+  color: var(--color-warning);
+}
+.iee-sel.iee-tag--lo {
+  color: var(--color-success);
+}
+
+.iee-grid__del {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-subtle);
+  padding: 6px;
+  border-radius: 6px;
+}
+.iee-grid__del:hover {
+  color: var(--color-error);
+  background: rgb(179 38 30 / 0.08);
+}
+
+.iee__footbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-low);
+}
+.iee__note {
+  font-size: 11.5px;
+  color: var(--color-text-subtle);
+  line-height: 1.4;
+}

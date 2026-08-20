@@ -1,0 +1,443 @@
+/* rcScreens.css â€” Radiological Consequence Analysis workspace.
+   Self-contained: the RC accent tokens and rc-* classes, the rcsrc upstream
+   cards, plus the reused cross-element classes (syflow interface map, esprov
+   provenance chip, essec eyebrow, eswarn note, hrnote, hrmethods, hrempty) and
+   the load-example modal, so the workbook needs only this file plus the shared
+   workbookWorkspace chrome.
+
+   RC's identity is the plume that leaves the site fence. Four accent tones sit
+   beside the violet primary. A blue marks the atmosphere, the weather and the
+   dispersion. A clay marks the site, the population, the land and the
+   economics. A teal marks the dose and the health effects. A red marks the
+   quantification and the credit fence, the places where favorable physics must
+   be earned. */
+
+:root {
+  --rc-atmos: #2d7fb8;  --rc-atmos-ink: #1f6796;
+  --rc-site: #bf7a45;   --rc-site-ink: #9c5f30;
+  --rc-health: var(--color-probability-text); --rc-health-ink: #1f6b5e;
+  --rc-credit: var(--color-error); --rc-credit-ink: var(--color-error);
+}
+
+
+/* â”€â”€â”€ Upstream link cards (rcsrc, the three converging elements) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Own prefix rather than the sibling eslink classes, since the ES element's
+   load-example modal owns .eslink globally and caps it at a modal width. */
+.rcsrc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 900px) { .rcsrc { grid-template-columns: 1fr; } }
+.rcsrc__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; }
+.rcsrc__card--update { border-left: 4px solid var(--color-warning); }
+.rcsrc__top { display: flex; align-items: flex-start; gap: 10px; }
+.rcsrc__badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.rcsrc__badge svg { width: 15px; height: 15px; }
+.rcsrc__el { font-weight: 700; font-size: 13px; color: var(--color-text); line-height: 1.2; }
+.rcsrc__wb { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; color: var(--color-text-subtle); margin-top: 2px; }
+.rcsrc__delivers { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.rcsrc__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.rcsrc__sync { font-size: 11px; color: var(--color-text-subtle); }
+.rcsrc__resync { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary); cursor: default; }
+.rcsrc__status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; }
+.rcsrc__status svg { width: 13px; height: 13px; }
+.rcsrc__status--approved { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: interface map (syflow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.syflow { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .syflow { grid-template-columns: 1fr; } }
+.syflow__col { display: flex; flex-direction: column; gap: 9px; }
+.syflow__col-head { font-family: var(--font-ui), sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-subtle); display: flex; align-items: center; gap: 7px; }
+.syflow__col-head svg { width: 14px; height: 14px; }
+.syflow__node { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); }
+.syflow__node--up { border-style: dashed; }
+.syflow__node-badge { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.syflow__node-badge svg { width: 15px; height: 15px; }
+.syflow__node-body { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.syflow__node-el { font-weight: 700; font-size: 12.5px; color: var(--color-text); line-height: 1.2; }
+.syflow__node-use { font-size: 11px; color: var(--color-text-muted); line-height: 1.35; margin-top: 2px; }
+
+/* â”€â”€â”€ Reused: provenance chip, eyebrow, warn note, info note â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.esprov { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary); border: 1px solid var(--color-primary-focus); letter-spacing: 0.02em; }
+.esprov svg { width: 10px; height: 10px; }
+.essec { font-family: var(--font-ui), sans-serif; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-primary); margin-bottom: 6px; }
+.eswarn { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; background: rgba(196, 122, 24, 0.08); border-left: 3px solid var(--color-warning); border-radius: 6px; font-size: 12px; color: var(--color-text); line-height: 1.45; }
+.eswarn__icon { color: var(--color-warning); flex-shrink: 0; display: inline-flex; }
+.eswarn__icon svg { width: 15px; height: 15px; }
+.hrnote { display: flex; gap: 9px; align-items: flex-start; padding: 11px 14px; border-radius: 10px; background: var(--color-surface-low); border: 1px dashed var(--color-border-strong); font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+.hrnote svg { width: 15px; height: 15px; color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
+.hrnote--ok { background: rgb(18 197 185 / 0.07); border-color: rgb(18 197 185 / 0.25); }
+.hrnote--ok svg { color: var(--c-complete); }
+
+/* â”€â”€â”€ Reused: method chips and empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.hrmethods { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.hrmethods__label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-subtle); }
+.hrmethod-chip { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 999px; cursor: default; background: var(--color-primary); color: #fff; }
+.hrempty { padding: 28px 18px; text-align: center; }
+.hrempty__title { font-family: var(--font-display), Georgia, serif; font-size: 16px; font-weight: 700; color: var(--color-text); }
+.hrempty__hint { margin: 8px auto 0; max-width: 520px; font-size: 13px; color: var(--color-text-muted); line-height: 1.55; }
+
+/* â”€â”€â”€ Load-example modal (rclink) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rclink-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(29, 25, 43, 0.45); backdrop-filter: blur(2px); }
+.rclink { width: min(560px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 16px; box-shadow: 0 24px 60px rgba(29, 25, 43, 0.28); overflow: hidden; }
+.rclink__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
+.rclink__eyebrow { display: flex; align-items: center; gap: 6px; font-family: var(--font-data), monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-primary); }
+.rclink__eyebrow svg { width: 13px; height: 13px; }
+.rclink__title { margin: 4px 0 0; font-family: var(--font-display), serif; font-size: 18px; color: var(--color-text); }
+.rclink__close { display: inline-flex; padding: 6px; border: none; background: transparent; color: var(--color-text-subtle); cursor: pointer; border-radius: 8px; }
+.rclink__close svg { width: 18px; height: 18px; }
+.rclink__close:hover { background: var(--color-surface-low); }
+.rclink__body { padding: 18px 20px; overflow-y: auto; }
+.rclink__foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Shared card primitives (accent-topped surface cards) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rccard {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 11px;
+}
+.rccard--atmos { border-top: 3px solid var(--rc-atmos); }
+.rccard--site { border-top: 3px solid var(--rc-site); }
+.rccard--health { border-top: 3px solid var(--rc-health); }
+.rccard--credit { border-top: 3px solid var(--rc-credit); }
+.rcgrid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .rcgrid { grid-template-columns: 1fr 1fr 1fr; } }
+.rcgrid--2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 860px) { .rcgrid--2 { grid-template-columns: 1fr 1fr; } }
+
+/* â”€â”€â”€ Sub-element badge (RC is a composite of eight) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcse {
+  font-family: var(--font-data), ui-monospace, monospace; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.04em; padding: 1px 6px; border-radius: 5px; white-space: nowrap;
+  background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border);
+}
+.rcse--atmos { background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); border-color: transparent; }
+.rcse--site { background: rgba(191,122,69,0.12); color: var(--rc-site-ink); border-color: transparent; }
+.rcse--health { background: rgba(47,138,122,0.12); color: var(--rc-health-ink); border-color: transparent; }
+.rcse--credit { background: rgb(179 38 30 / 0.12); color: var(--rc-credit-ink); border-color: transparent; }
+.rcse--primary { background: var(--color-primary-soft); color: var(--color-primary); border-color: transparent; }
+
+/* â”€â”€â”€ The pipeline overview (eight sub-elements in formation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcpipe {
+  display: flex; align-items: stretch; gap: 4px; flex-wrap: wrap;
+  padding: 16px 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-low);
+}
+.rcpipe__stage {
+  flex: 1; min-width: 92px; display: flex; flex-direction: column; gap: 5px;
+  padding: 11px 12px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-border-strong);
+}
+.rcpipe__stage--atmos { border-top-color: var(--rc-atmos); }
+.rcpipe__stage--site { border-top-color: var(--rc-site); }
+.rcpipe__stage--health { border-top-color: var(--rc-health); }
+.rcpipe__stage--credit { border-top-color: var(--rc-credit); }
+.rcpipe__stage--primary { border-top-color: var(--color-primary); }
+.rcpipe__se { font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px; font-weight: 700; color: var(--color-text-subtle); letter-spacing: 0.03em; }
+.rcpipe__name { font-size: 11px; font-weight: 700; color: var(--color-text); line-height: 1.25; }
+.rcpipe__role { font-size: 9.5px; color: var(--color-text-muted); line-height: 1.35; }
+.rcpipe__arrow { display: flex; align-items: center; color: var(--color-text-subtle); flex-shrink: 0; }
+.rcpipe__arrow svg { width: 14px; height: 14px; }
+
+/* â”€â”€â”€ The CC comparator (CC-I simplified vs CC-II realistic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcsplit { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .rcsplit { grid-template-columns: 1fr; } }
+.rcsplit__col {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; border-top: 3px solid var(--color-border-strong);
+}
+.rcsplit__col--ii { border-top-color: var(--color-primary); }
+.rcsplit--atmos .rcsplit__col--ii { border-top-color: var(--rc-atmos); }
+.rcsplit--site .rcsplit__col--ii { border-top-color: var(--rc-site); }
+.rcsplit--health .rcsplit__col--ii { border-top-color: var(--rc-health); }
+.rcsplit--credit .rcsplit__col--ii { border-top-color: var(--rc-credit); }
+.rcsplit__cc { font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; align-self: flex-start; }
+.rcsplit__cc--i { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+.rcsplit__cc--ii { background: var(--color-primary-soft); color: var(--color-primary); }
+.rcsplit__cc--health { background: rgba(47,138,122,0.12); color: var(--rc-health-ink); }
+.rcsplit__cc--credit { background: rgb(179 38 30 / 0.12); color: var(--rc-credit-ink); }
+.rcsplit--atmos .rcsplit__cc--ii { background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); }
+.rcsplit--site .rcsplit__cc--ii { background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rcsplit--health .rcsplit__cc--ii { background: rgba(47,138,122,0.12); color: var(--rc-health-ink); }
+.rcsplit--credit .rcsplit__cc--ii { background: rgb(179 38 30 / 0.12); color: var(--rc-credit-ink); }
+.rcsplit__title { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.rcsplit__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.rcsplit__tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--color-text-subtle); margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); }
+.rcsplit__tag svg { width: 13px; height: 13px; flex-shrink: 0; }
+.rcsplit__col--ii .rcsplit__tag { color: var(--color-primary); }
+.rcsplit--atmos .rcsplit__col--ii .rcsplit__tag { color: var(--rc-atmos-ink); }
+.rcsplit--site .rcsplit__col--ii .rcsplit__tag { color: var(--rc-site-ink); }
+.rcsplit--health .rcsplit__col--ii .rcsplit__tag { color: var(--rc-health-ink); }
+.rcsplit--credit .rcsplit__col--ii .rcsplit__tag { color: var(--rc-credit-ink); }
+
+/* â”€â”€â”€ The site fork selector (actual-site vs bounding-site, RCRE-A1) â”€â”€â”€â”€â”€â”€â”€ */
+.rcsite { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 720px) { .rcsite { grid-template-columns: 1fr; } }
+.rcsite__opt {
+  border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface);
+  padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.12s, box-shadow 0.12s;
+  text-align: left; font: inherit; color: inherit;
+}
+.rcsite__opt--active { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-focus); }
+.rcsite__opt-head { display: flex; align-items: center; gap: 10px; }
+.rcsite__opt-icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rcsite__opt-icon svg { width: 17px; height: 17px; }
+.rcsite__opt-name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.rcsite__opt-tag { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-subtle); margin-top: 1px; }
+.rcsite__opt-desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.rcsite__opt-meta { font-size: 11px; color: var(--rc-site-ink); display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px dashed var(--color-border); }
+.rcsite__opt-meta svg { width: 13px; height: 13px; }
+
+/* â”€â”€â”€ The handoff input checklist (RCRE-A2, nine inputs per category) â”€â”€â”€â”€â”€â”€ */
+.rcinput { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+@media (max-width: 980px) { .rcinput { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .rcinput { grid-template-columns: 1fr; } }
+.rcinput__cell {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px;
+  border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface);
+  border-left: 3px solid var(--rc-atmos);
+}
+.rcinput__icon { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); }
+.rcinput__icon svg { width: 14px; height: 14px; }
+.rcinput__main { flex: 1; min-width: 0; }
+.rcinput__label { font-weight: 700; font-size: 12px; color: var(--color-text); }
+.rcinput__note { font-size: 10.5px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+
+/* â”€â”€â”€ The scoping declaration (RCRE-B2, aspect-by-aspect degree) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcscope { display: flex; flex-direction: column; gap: 7px; }
+.rcscope__row { display: grid; grid-template-columns: 200px 1fr auto; gap: 12px; align-items: center; padding: 9px 13px; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface); }
+@media (max-width: 720px) { .rcscope__row { grid-template-columns: 1fr; gap: 5px; } }
+.rcscope__aspect { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcscope__aspect svg { width: 14px; height: 14px; color: var(--rc-atmos); }
+.rcscope__degree { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.rcscope__level { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.rcscope__level--full { background: rgba(47,138,122,0.14); color: var(--rc-health-ink); }
+.rcscope__level--partial { background: rgba(191,122,69,0.14); color: var(--rc-site-ink); }
+.rcscope__level--screened { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Protective action cards (RCPA-A1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcpa { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 760px) { .rcpa { grid-template-columns: 1fr; } }
+.rcpa__cell {
+  display: flex; align-items: flex-start; gap: 11px; padding: 12px 14px; border: 1px solid var(--color-border);
+  border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--rc-site);
+}
+.rcpa__cell--out { border-left-color: var(--color-border-strong); opacity: 0.65; }
+.rcpa__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rcpa__icon svg { width: 16px; height: 16px; }
+.rcpa__main { flex: 1; min-width: 0; }
+.rcpa__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcpa__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
+.rcpa__state { flex-shrink: 0; }
+.rcpa__state svg { width: 16px; height: 16px; }
+.rcpa__state--in { color: var(--rc-health-ink); }
+.rcpa__state--out { color: var(--color-text-subtle); }
+
+/* â”€â”€â”€ Incident phase band (RCPA-A2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcphase { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .rcphase { grid-template-columns: 1fr; } }
+.rcphase__col { border: 1px solid var(--color-border); border-top: 3px solid var(--rc-site); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 7px; }
+.rcphase__col:nth-child(2) { border-top-color: var(--rc-atmos); }
+.rcphase__col:nth-child(3) { border-top-color: var(--rc-health); }
+.rcphase__col-head { display: flex; align-items: center; gap: 8px; }
+.rcphase__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcphase__window { font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px; color: var(--color-text-subtle); }
+.rcphase__desc { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin: 0; }
+
+/* â”€â”€â”€ Cohort cards (RCPA-A4, the compliance split) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rccohort { display: grid; grid-template-columns: 1fr; gap: 10px; border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; }
+@media (min-width: 860px) { .rccohort { grid-template-columns: 1fr 1fr; } }
+.rccohort__card { border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--rc-site); }
+.rccohort__card--refuse { border-left-color: var(--rc-credit); }
+.rccohort__name { font-weight: 700; font-size: 13.5px; color: var(--color-text); }
+.rccohort__desc { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.rcnum { flex-shrink: 0; min-width: 20px; font-family: var(--font-data), ui-monospace, monospace; font-size: 12.5px; font-weight: 700; color: var(--color-text-subtle); }
+.rcbtn-danger { color: var(--rc-credit-ink); border-color: rgb(179 38 30 / 0.45); }
+.rcbtn-danger:hover { background: rgb(179 38 30 / 0.09); border-color: var(--rc-credit); }
+
+/* â”€â”€â”€ Evacuation delay chain (RCPA-A9, the six-link chain) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcdelay { display: flex; flex-direction: column; gap: 0; }
+.rcdelay__link { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 9px 0; }
+.rcdelay__num { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-data), ui-monospace, monospace; font-size: 12px; font-weight: 700; background: rgba(191,122,69,0.12); color: var(--rc-site-ink); position: relative; }
+.rcdelay__link:not(:last-child) .rcdelay__num::after { content: ""; position: absolute; top: 30px; left: 50%; width: 2px; height: 18px; background: var(--color-border-strong); transform: translateX(-50%); }
+.rcdelay__label { font-size: 12px; color: var(--color-text); line-height: 1.4; }
+.rcdelay__est { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--rc-site-ink); white-space: nowrap; padding: 3px 9px; border-radius: 999px; background: var(--color-surface-low); }
+
+/* â”€â”€â”€ Site data basis rows (RCPA-B, the assumed vs sourced split) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcbasis { display: flex; flex-direction: column; gap: 9px; }
+.rcbasis__row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 11px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--rc-site); }
+@media (max-width: 720px) { .rcbasis__row { grid-template-columns: 1fr; gap: 6px; } }
+.rcbasis__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rcbasis__icon svg { width: 16px; height: 16px; }
+.rcbasis__main { min-width: 0; }
+.rcbasis__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcbasis__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.rcbasis__tag { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.rcbasis__tag--rich { background: rgba(47,138,122,0.14); color: var(--rc-health-ink); }
+.rcbasis__tag--simple { background: var(--color-surface-low); color: var(--color-text-subtle); border: 1px solid var(--color-border); }
+
+/* â”€â”€â”€ Meteorology dashboard (RCME) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcmet { display: block; }
+.rcmet__rows { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.rcmet__row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: baseline; }
+@media (max-width: 620px) { .rcmet__row { grid-template-columns: 1fr; gap: 2px; } }
+.rcmet__k { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; color: var(--color-text-subtle); }
+.rcmet__k svg { width: 13px; height: 13px; color: var(--rc-atmos); }
+.rcmet__v { font-size: 12px; color: var(--color-text); line-height: 1.45; }
+.rcparam { display: flex; flex-wrap: wrap; gap: 7px; }
+.rcparam__chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 999px; background: rgba(45,127,184,0.1); color: var(--rc-atmos-ink); }
+.rcparam__chip svg { width: 13px; height: 13px; }
+.rcparam__chip--off { background: var(--color-surface-low); color: var(--color-text-subtle); }
+.rcparam__chip--site { background: rgba(191,122,69,0.1); color: var(--rc-site-ink); }
+
+/* â”€â”€â”€ Dispersion model + the credit fence (RCAD) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcdisp { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); border-left: 4px solid var(--rc-atmos); }
+@media (max-width: 720px) { .rcdisp { grid-template-columns: 1fr; } }
+.rcdisp__main { min-width: 0; }
+.rcdisp__model { font-family: var(--font-display), Georgia, serif; font-size: 14px; font-weight: 700; color: var(--color-text); }
+.rcdisp__desc { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.5; margin: 4px 0 0; }
+.rcdisp__class { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 10px; border-radius: 999px; background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); white-space: nowrap; }
+
+/* The credit fence, RC's signature policing. Favorable physics must be earned. */
+.rccredit { border: 1px solid rgb(179 38 30 / 0.3); border-radius: 12px; background: rgb(179 38 30 / 0.04); padding: 6px 4px; }
+.rccredit__row { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 16px; align-items: start; padding: 11px 14px; }
+@media (max-width: 720px) { .rccredit__row { grid-template-columns: 1fr; gap: 6px; } }
+.rccredit__row:not(:last-child) { border-bottom: 1px dashed rgb(179 38 30 / 0.22); }
+.rccredit__main { min-width: 0; }
+.rccredit__name { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rccredit__name svg { width: 14px; height: 14px; color: var(--rc-credit); flex-shrink: 0; }
+.rccredit__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin: 3px 0 0; }
+.rccredit__side { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
+.rccredit__detail { font-size: 10.5px; color: var(--color-text-muted); line-height: 1.35; }
+.rccredit__state { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 4px 10px; border-radius: 999px; white-space: nowrap; text-align: center; }
+.rccredit__state--forbidden { background: rgb(179 38 30 / 0.14); color: var(--rc-credit-ink); }
+.rccredit__state--earned { background: rgba(47,138,122,0.14); color: var(--rc-health-ink); }
+
+/* â”€â”€â”€ Deposition matrix (RCAD-E, the DO NOT INCLUDE litany) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcdepo { border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; }
+.rcdepo__row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; align-items: stretch; }
+.rcdepo__row:not(:last-child) { border-bottom: 1px solid var(--color-border); }
+.rcdepo__row--head { background: var(--color-surface-low); }
+.rcdepo__cell { padding: 11px 14px; display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+.rcdepo__cell:not(:last-child) { border-right: 1px solid var(--color-border); }
+.rcdepo__process { font-weight: 700; font-size: 12px; color: var(--color-text); }
+.rcdepo__process-note { font-size: 10px; color: var(--color-text-muted); line-height: 1.35; }
+.rcdepo__head-cc { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--color-text-subtle); }
+.rcdepo__state { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
+.rcdepo__state svg { width: 14px; height: 14px; flex-shrink: 0; }
+.rcdepo__state--on { color: var(--rc-health-ink); }
+.rcdepo__state--off { color: var(--color-text-subtle); }
+.rcdepo__state-detail { font-size: 10px; color: var(--color-text-muted); font-weight: 400; line-height: 1.35; }
+
+/* â”€â”€â”€ Exposure pathway cards (RCDO-A1, the five pathways) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcpath { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 980px) { .rcpath { grid-template-columns: 1fr 1fr; } }
+.rcpath__card { display: flex; align-items: flex-start; gap: 11px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 3px solid var(--rc-health); }
+.rcpath__card--out { border-left-color: var(--color-border-strong); opacity: 0.66; }
+.rcpath__icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(47,138,122,0.12); color: var(--rc-health-ink); }
+.rcpath__icon svg { width: 16px; height: 16px; }
+.rcpath__main { flex: 1; min-width: 0; }
+.rcpath__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcpath__note { font-size: 11px; color: var(--color-text-muted); line-height: 1.45; margin-top: 2px; }
+.rcpath__state { flex-shrink: 0; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 999px; }
+.rcpath__state--in { background: rgba(47,138,122,0.14); color: var(--rc-health-ink); }
+.rcpath__state--out { background: var(--color-surface-low); color: var(--color-text-subtle); }
+
+/* â”€â”€â”€ Health effects columns (RCHE) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rche { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .rche { grid-template-columns: 1fr; } }
+.rche__col { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; border-top: 3px solid var(--rc-health); }
+.rche__col--latent { border-top-style: dashed; }
+.rche__col-head { display: flex; align-items: center; gap: 9px; }
+.rche__col-icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: rgba(47,138,122,0.12); color: var(--rc-health-ink); }
+.rche__col-icon svg { width: 16px; height: 16px; }
+.rche__col-title { font-weight: 700; font-size: 13px; color: var(--color-text); }
+.rche__col-when { font-size: 10px; color: var(--color-text-subtle); margin-top: 1px; }
+.rche__list { display: flex; flex-direction: column; gap: 5px; }
+.rche__item { display: flex; gap: 7px; align-items: flex-start; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.4; }
+.rche__item svg { width: 13px; height: 13px; color: var(--rc-health-ink); flex-shrink: 0; margin-top: 1px; }
+
+/* â”€â”€â”€ Cost category cards (RCEC-A1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rccost { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (min-width: 1080px) { .rccost { grid-template-columns: 1fr 1fr 1fr; } }
+@media (max-width: 620px) { .rccost { grid-template-columns: 1fr; } }
+.rccost__cell { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); border-left: 3px solid var(--rc-site); }
+.rccost__icon { width: 28px; height: 28px; flex-shrink: 0; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rccost__icon svg { width: 14px; height: 14px; }
+.rccost__main { min-width: 0; }
+.rccost__name { font-weight: 700; font-size: 12px; color: var(--color-text); }
+.rccost__note { font-size: 10.5px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+
+/* â”€â”€â”€ Consequence result, the RCQ-A3 deliverable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcfamily { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 1080px) { .rcfamily { grid-template-columns: 1fr 1fr 1fr; } }
+.rcfamily__card { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; border-top: 3px solid var(--rc-credit); cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+.rcfamily__card:hover { border-color: var(--color-primary); box-shadow: 0 3px 14px rgb(143 78 199 / 0.10); }
+.rcfamily__head { display: flex; align-items: flex-start; gap: 10px; }
+.rcfamily__head-main { flex: 1; min-width: 0; }
+.rcfamily__id { font-family: var(--font-data), ui-monospace, monospace; font-size: 11px; font-weight: 700; color: var(--rc-credit-ink); }
+.rcfamily__name { font-size: 12.5px; font-weight: 700; color: var(--color-text); line-height: 1.3; margin-top: 2px; }
+.rcfamily__sig { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.rcfamily__sig--high { background: rgb(179 38 30 / 0.14); color: var(--rc-credit-ink); }
+.rcfamily__sig--low { background: var(--color-surface-low); color: var(--color-text-subtle); }
+.rcfamily__metrics { display: flex; flex-direction: column; gap: 7px; }
+.rcfamily__metric { display: flex; flex-direction: column; gap: 3px; padding: 8px 0; border-top: 1px dashed var(--color-border); }
+.rcfamily__metric-k { font-size: 10px; font-weight: 700; color: var(--color-text-subtle); }
+.rcfamily__metric-vrow { display: flex; align-items: baseline; gap: 8px; }
+.rcfamily__metric-v { font-family: var(--font-data), ui-monospace, monospace; font-size: 15px; font-weight: 700; color: var(--color-text); }
+.rcfamily__metric-u { font-size: 10px; color: var(--color-text-subtle); }
+.rcfamily__metric-ci { font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px; color: var(--color-text-muted); margin-left: auto; }
+
+/* â”€â”€â”€ Risk-significant contributors (RCQ-B3, the RI handshake) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rccontrib { display: flex; flex-direction: column; gap: 8px; }
+.rccontrib__row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); border-left: 3px solid var(--rc-credit); }
+.rccontrib__rank { font-family: var(--font-data), ui-monospace, monospace; font-size: 13px; font-weight: 700; color: var(--rc-credit-ink); }
+.rccontrib__main { min-width: 0; }
+.rccontrib__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rccontrib__basis { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.rccontrib__imp { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 9px; border-radius: 999px; background: rgb(179 38 30 / 0.14); color: var(--rc-credit-ink); white-space: nowrap; }
+
+/* â”€â”€â”€ The uncertainty funnel (RCQ-C1/C2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcfunnel { display: grid; grid-template-columns: 1fr auto 1.1fr; gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-low); }
+@media (max-width: 860px) { .rcfunnel { grid-template-columns: 1fr; } }
+.rcfunnel__sources { display: flex; flex-wrap: wrap; gap: 6px; }
+.rcfunnel__src { font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px; font-weight: 700; padding: 4px 9px; border-radius: 7px; }
+.rcfunnel__src--primary { background: var(--color-primary-soft); color: var(--color-primary); }
+.rcfunnel__src--atmos { background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); }
+.rcfunnel__src--site { background: rgba(191,122,69,0.12); color: var(--rc-site-ink); }
+.rcfunnel__src--health { background: rgba(47,138,122,0.12); color: var(--rc-health-ink); }
+.rcfunnel__src--credit { background: rgb(179 38 30 / 0.12); color: var(--rc-credit-ink); }
+.rcfunnel__arrow { display: flex; align-items: center; justify-content: center; color: var(--color-text-subtle); }
+.rcfunnel__arrow svg { width: 26px; height: 26px; }
+@media (max-width: 860px) { .rcfunnel__arrow { transform: rotate(90deg); } }
+.rcfunnel__out { display: flex; flex-direction: column; gap: 7px; }
+.rcfunnel__out-cap { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-subtle); }
+.rcfunnel__dist { height: 8px; border-radius: 4px; background: linear-gradient(90deg, rgb(179 38 30 / 0.12), rgb(179 38 30 / 0.5), rgb(179 38 30 / 0.12)); position: relative; }
+.rcfunnel__dist-mean { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; background: var(--rc-credit); border-radius: 2px; }
+.rcfunnel__scale { display: flex; justify-content: space-between; font-family: var(--font-data), ui-monospace, monospace; font-size: 9.5px; color: var(--color-text-muted); }
+.rcfunnel__level { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--rc-credit-ink); }
+.rcfunnel__level svg { width: 13px; height: 13px; }
+
+/* â”€â”€â”€ Code cards (RCQ-A1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rccode { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 980px) { .rccode { grid-template-columns: 1fr 1fr; } }
+.rccode__card { display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; border: 1px solid var(--color-border); border-radius: 11px; background: var(--color-surface); border-left: 4px solid var(--rc-credit); }
+.rccode__icon { width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: rgb(179 38 30 / 0.1); color: var(--rc-credit-ink); }
+.rccode__icon svg { width: 17px; height: 17px; }
+.rccode__main { min-width: 0; }
+.rccode__name { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rccode__role { font-size: 11px; color: var(--color-text-muted); line-height: 1.4; margin-top: 2px; }
+.rccode__bench { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--rc-health-ink); margin-top: 6px; }
+.rccode__bench svg { width: 12px; height: 12px; }
+
+/* â”€â”€â”€ Frequency-consequence target note (RCQ) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcmetric { display: flex; gap: 12px; align-items: flex-start; padding: 13px 15px; margin-top: 12px; border-radius: 11px; background: var(--color-surface-low); border: 1px solid var(--color-border); }
+.rcmetric__icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--color-primary-soft); color: var(--color-primary); }
+.rcmetric__icon svg { width: 18px; height: 18px; }
+.rcmetric__main { min-width: 0; }
+.rcmetric__title { font-weight: 700; font-size: 12.5px; color: var(--color-text); }
+.rcmetric__body { font-size: 11.5px; color: var(--color-text-muted); line-height: 1.45; margin: 3px 0 0; }
+
+/* â”€â”€â”€ Release form pills (shared by tables) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.rcform { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.rcform--elemental { background: rgba(45,127,184,0.12); color: var(--rc-atmos-ink); }
+.rcform--aerosol { background: rgba(191,122,69,0.14); color: var(--rc-site-ink); }
+.rcform--other { background: var(--color-surface-low); color: var(--color-text-subtle); }
+
+/* â”€â”€â”€ Drawer SR chip row (shared by the drawer panels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.posdrawer__srs { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }

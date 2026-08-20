@@ -1,0 +1,349 @@
+.posapproval {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-top: 16px;
+}
+
+.posapproval__title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.posapproval__status,
+.posapproval__empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 18px 0;
+}
+
+.posapproval__error {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.posapproval__hint {
+  margin: 14px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.posapproval__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.posapproval__table th,
+.posapproval__table td {
+  padding: 12px 10px;
+  text-align: left;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.posapproval__table thead th {
+  background: var(--color-bg-to);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.posapproval__action {
+  font-weight: 700;
+}
+.posapproval__action--preparer { color: var(--color-primary); }
+.posapproval__action--co_preparer { color: #5b21b6; }
+.posapproval__action--reviewer { color: var(--color-warning); }
+.posapproval__action--approver { color: var(--color-success); }
+
+.posapproval__signature {
+  font-family: var(--font-display), cursive, var(--font-body);
+  font-size: 18px;
+  color: var(--color-text);
+}
+
+.posapproval__sig-pending {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.posapproval__date {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.posapproval__row--signed {
+  background: rgba(34, 197, 94, 0.04);
+}
+
+
+.posapproval__name {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 13.5px;
+}
+
+.posapproval__desig {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.posapproval__locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.posapproval__locked svg {
+  width: 13px;
+  height: 13px;
+}
+
+.posapproval__ack {
+  border: 1px dashed var(--color-border-strong, var(--color-border));
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.posapproval__ack:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+.posapproval__sign-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.posapproval__ack-confirmed {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success);
+  white-space: nowrap;
+}
+
+.posapproval__ack-undo {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: 4px;
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.posapproval__signhint {
+  font-size: 12px;
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+
+/* Prominent sign card (acting reviewer/approver/preparer) */
+.posapprove__signcard {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-focus, rgb(143 78 199 / 0.12));
+}
+
+.posapprove__ackrow {
+  margin: 4px 0 12px;
+}
+
+.posapprove__ack {
+  border: 1px dashed var(--color-border-strong, var(--color-border));
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.posapprove__ack:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+.posapprove__ack-confirmed {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.posapprove__ack-undo {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: 4px;
+  font-size: 12.5px;
+  color: var(--color-text-subtle);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.posapprove__signhint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-warning);
+}
+.posapprove__signhint svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+.posapproval__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  background: rgb(222 106 43 / 0.08);
+  border-left: 3px solid var(--color-warning);
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+
+.posapproval__note svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
+
+.posapprove__attest-with-sign {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.posapprove__attest-with-sign > .posapprove__attest-grid {
+  flex: 1;
+  min-width: 0;
+}
+
+.posapprove__sign-col {
+  flex-shrink: 0;
+  width: 360px;
+  padding-left: 28px;
+  margin-left: 28px;
+  border-left: 1px solid var(--color-border);
+}
+
+.posapprove__sign-col .poscard {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  .posapprove__attest-with-sign {
+    flex-direction: column;
+  }
+  .posapprove__sign-col {
+    width: 100%;
+    padding-left: 0;
+    margin-left: 0;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    padding-top: 20px;
+    margin-top: 20px;
+  }
+}
+
+.posapprove__signer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.posapprove__signer-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.posapprove__signer-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.posapprove__signer-role {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.posapprove__signbtn {
+  margin-top: 4px;
+}
+
+.posapprove__sig-confirm {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--color-surface-low);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.posapprove__sig-confirm-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.posapprove__sig-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 72px;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  object-fit: contain;
+}
+
+.posapprove__sig-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.posapproval__sig-img {
+  display: block;
+  max-width: 140px;
+  max-height: 44px;
+  object-fit: contain;
+}

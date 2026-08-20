@@ -1,0 +1,64 @@
+name: openpra-offline
+
+services:
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+  backend:
+    image: openpra-apps-web-backend:local
+    restart: unless-stopped
+    volumes:
+      - ./example-documents:/app/example-documents:ro
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      MONGO_URI: mongodb://mongodb:27017/openpra
+      JWT_SECRET: ${JWT_SECRET:-offline-jwt-secret-change-me}
+      JWT_EXPIRES_IN: 7d
+      APP_BASE_URL: http://${OPENPRA_HOST:-localhost}:8080
+      OAUTH_CALLBACK_BASE: http://${OPENPRA_HOST:-localhost}:8080/api
+      RESEND_API_KEY: offline-placeholder
+      MAIL_FROM: noreply@localhost
+      MAIL_FROM_NAME: OpenPRA
+      TFA_ENC_KEY: ${TFA_ENC_KEY:-offline-tfa-key-change-me}
+      TFA_ISSUER: OpenPRA
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: openpra-web
+      MINIO_PUBLIC_URL: http://${OPENPRA_HOST:-localhost}:9000
+    depends_on:
+      - mongodb
+      - minio
+
+  frontend:
+    image: openpra-apps-web-frontend:local
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-frontend.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
+  minio_data:

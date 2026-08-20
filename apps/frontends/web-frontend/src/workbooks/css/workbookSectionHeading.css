@@ -1,0 +1,86 @@
+.workbook-section-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.workbook-cue-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.workbook-cue-label .workbook-help__button {
+  width: 19px;
+  height: 19px;
+}
+
+.workbook-cue-label .workbook-help__button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.workbook-section-heading .posgen__readout-h {
+  margin: 0;
+}
+
+.posgen__readout > .workbook-section-heading {
+  margin-bottom: 12px;
+}
+
+.workbook-help {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.workbook-help__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+}
+
+.workbook-help__button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.workbook-help__button:hover,
+.workbook-help__button[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.workbook-help__button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-primary-focus);
+}
+
+.workbook-help__popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(320px, calc(100vw - 48px));
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: 0 12px 32px rgba(42, 24, 63, 0.16);
+  color: var(--color-text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+}

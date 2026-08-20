@@ -1,0 +1,579 @@
+{
+ "runDate": "2026-07-03",
+ "method": "DDET",
+ "probes": 41,
+ "verification": "Every probe outcome matched the closed-form race within 0.5 minutes.",
+ "tau": 0.2,
+ "nominalMW": 62.5,
+ "loopFraction": 0.0224,
+ "loopMW": 1.4,
+ "d0": {
+  "POS-01": 0.06,
+  "POS-02": 0.032,
+  "POS-03": 0.016,
+  "POS-04": 0.005,
+  "POS-05": 0.004,
+  "POS-06": 0.003,
+  "POS-07": 0.01,
+  "POS-08": 0.022,
+  "POS-09": 0.007
+ },
+ "claddingWindowMin": {
+  "POS-01": 200,
+  "POS-02": 375,
+  "POS-03": 750,
+  "POS-04": 2400,
+  "POS-05": 3000,
+  "POS-06": 4000,
+  "POS-07": 1200,
+  "POS-08": 545.5,
+  "POS-09": 1714.3
+ },
+ "dracs": {
+  "POS-01": {
+   "oneLoopSufficient": false,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 200,
+   "twoLoopOutcomeMin": 258.53
+  },
+  "POS-02": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 356.99,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-03": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-04": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-05": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-06": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-07": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-08": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 54.83,
+   "twoLoopOutcomeMin": 32
+  },
+  "POS-09": {
+   "oneLoopSufficient": true,
+   "twoLoopsSufficient": true,
+   "oneLoopOutcomeMin": 32,
+   "twoLoopOutcomeMin": 32
+  }
+ },
+ "dracsCapacityFrontierPos01": {
+  "belowFraction": 0.038,
+  "aboveFraction": 0.0385,
+  "belowMW": 2.38,
+  "aboveMW": 2.41,
+  "loopsRequiredAtFullPower": 2
+ },
+ "startWindows": {
+  "POS-01": [
+   {
+    "delayMin": 30,
+    "safe": true
+   },
+   {
+    "delayMin": 180,
+    "safe": true
+   },
+   {
+    "delayMin": 210,
+    "safe": false
+   }
+  ],
+  "POS-02": [
+   {
+    "delayMin": 350,
+    "safe": true
+   },
+   {
+    "delayMin": 400,
+    "safe": false
+   }
+  ],
+  "POS-04": [
+   {
+    "delayMin": 2300,
+    "safe": true
+   },
+   {
+    "delayMin": 2500,
+    "safe": false
+   }
+  ]
+ },
+ "naturalCirculation": [
+  {
+   "pos": "POS-01",
+   "delayMin": 8,
+   "safe": true,
+   "outcomeMin": 149.3
+  },
+  {
+   "pos": "POS-01",
+   "delayMin": 190,
+   "safe": true,
+   "outcomeMin": 192
+  },
+  {
+   "pos": "POS-01",
+   "delayMin": 210,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "pos": "POS-02",
+   "delayMin": 8,
+   "safe": true,
+   "outcomeMin": 10
+  }
+ ],
+ "atws": [
+  {
+   "capacityFraction": 0.045,
+   "safe": true,
+   "outcomeMin": 163.64
+  },
+  {
+   "capacityFraction": 0.0224,
+   "safe": false,
+   "outcomeMin": 368.1
+  }
+ ],
+ "results": [
+  {
+   "id": "DRACS-POS-01-L1",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "DRACS-POS-01-L2",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 258.53
+  },
+  {
+   "id": "DRACS-POS-02-L1",
+   "kind": "heat",
+   "pos": "POS-02",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 356.99
+  },
+  {
+   "id": "DRACS-POS-02-L2",
+   "kind": "heat",
+   "pos": "POS-02",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-03-L1",
+   "kind": "heat",
+   "pos": "POS-03",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-03-L2",
+   "kind": "heat",
+   "pos": "POS-03",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-04-L1",
+   "kind": "heat",
+   "pos": "POS-04",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-04-L2",
+   "kind": "heat",
+   "pos": "POS-04",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-05-L1",
+   "kind": "heat",
+   "pos": "POS-05",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-05-L2",
+   "kind": "heat",
+   "pos": "POS-05",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-06-L1",
+   "kind": "heat",
+   "pos": "POS-06",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-06-L2",
+   "kind": "heat",
+   "pos": "POS-06",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-07-L1",
+   "kind": "heat",
+   "pos": "POS-07",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-07-L2",
+   "kind": "heat",
+   "pos": "POS-07",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-08-L1",
+   "kind": "heat",
+   "pos": "POS-08",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 54.83
+  },
+  {
+   "id": "DRACS-POS-08-L2",
+   "kind": "heat",
+   "pos": "POS-08",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-09-L1",
+   "kind": "heat",
+   "pos": "POS-09",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-09-L2",
+   "kind": "heat",
+   "pos": "POS-09",
+   "fn": "DRACS",
+   "capacity": 0.0448,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 32
+  },
+  {
+   "id": "DRACS-POS-01-L3",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.0672,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 34.05
+  },
+  {
+   "id": "FRONT-POS-01-C03",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.03,
+   "delayMin": 30,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "FRONT-POS-01-C035",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.035,
+   "delayMin": 30,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "FRONT-POS-01-C038",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.038,
+   "delayMin": 30,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "FRONT-POS-01-C0385",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.0385,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 551.57
+  },
+  {
+   "id": "FRONT-POS-01-C04",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.04,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 455.63
+  },
+  {
+   "id": "FRONT-POS-01-C045",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 252.84
+  },
+  {
+   "id": "WIN-POS-01-D30",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 252.84
+  },
+  {
+   "id": "WIN-POS-01-D180",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 180,
+   "safe": true,
+   "outcomeMin": 252.84
+  },
+  {
+   "id": "WIN-POS-01-D210",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 210,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "WIN-POS-02-D350",
+   "kind": "heat",
+   "pos": "POS-02",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 350,
+   "safe": true,
+   "outcomeMin": 352
+  },
+  {
+   "id": "WIN-POS-02-D400",
+   "kind": "heat",
+   "pos": "POS-02",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 400,
+   "safe": false,
+   "outcomeMin": 375
+  },
+  {
+   "id": "WIN-POS-04-D2300",
+   "kind": "heat",
+   "pos": "POS-04",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 2300,
+   "safe": true,
+   "outcomeMin": 2302
+  },
+  {
+   "id": "WIN-POS-04-D2500",
+   "kind": "heat",
+   "pos": "POS-04",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 2500,
+   "safe": false,
+   "outcomeMin": 2400
+  },
+  {
+   "id": "NC-POS-01-D8",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "NC",
+   "capacity": 0.05,
+   "delayMin": 8,
+   "safe": true,
+   "outcomeMin": 149.3
+  },
+  {
+   "id": "NC-POS-01-D190",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "NC",
+   "capacity": 0.05,
+   "delayMin": 190,
+   "safe": true,
+   "outcomeMin": 192
+  },
+  {
+   "id": "NC-POS-01-D210",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "NC",
+   "capacity": 0.05,
+   "delayMin": 210,
+   "safe": false,
+   "outcomeMin": 200
+  },
+  {
+   "id": "NC-POS-02-D8",
+   "kind": "heat",
+   "pos": "POS-02",
+   "fn": "NC",
+   "capacity": 0.05,
+   "delayMin": 8,
+   "safe": true,
+   "outcomeMin": 10
+  },
+  {
+   "id": "SDHR-POS-01",
+   "kind": "heat",
+   "pos": "POS-01",
+   "fn": "SDHR",
+   "capacity": 0.1,
+   "delayMin": 6,
+   "safe": true,
+   "outcomeMin": 8
+  },
+  {
+   "id": "SDHR-POS-03",
+   "kind": "heat",
+   "pos": "POS-03",
+   "fn": "SDHR",
+   "capacity": 0.1,
+   "delayMin": 6,
+   "safe": true,
+   "outcomeMin": 8
+  },
+  {
+   "id": "ATWS-POS-01-C045",
+   "kind": "atws",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.045,
+   "delayMin": 30,
+   "safe": true,
+   "outcomeMin": 163.64
+  },
+  {
+   "id": "ATWS-POS-01-C0224",
+   "kind": "atws",
+   "pos": "POS-01",
+   "fn": "DRACS",
+   "capacity": 0.0224,
+   "delayMin": 30,
+   "safe": false,
+   "outcomeMin": 368.1
+  },
+  {
+   "id": "BND-POS-04-ISOL",
+   "kind": "boundary",
+   "pos": "POS-04",
+   "fn": "ISOL",
+   "safe": true,
+   "outcomeMin": 17
+  }
+ ]
+}

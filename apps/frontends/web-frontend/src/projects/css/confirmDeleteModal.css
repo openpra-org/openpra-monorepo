@@ -1,0 +1,8 @@
+.btn--danger {
+  background: var(--color-error);
+  color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--color-error);
+}

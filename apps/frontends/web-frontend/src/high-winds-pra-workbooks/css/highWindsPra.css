@@ -1,0 +1,18 @@
+.windw {
+  --fl-integrated:#245f86;
+  --fl-integrated-soft:#eaf3f8;
+  --wind-wha:#166b73;
+  --wind-wha-soft:#e7f5f4;
+  --wind-wfr:#8a5a16;
+  --wind-wfr-soft:#faf1df;
+  --wind-wpr:#6c4f8c;
+  --wind-wpr-soft:#f2edf7;
+}
+.windw .flsubbadge--wha{background:var(--wind-wha-soft);color:var(--wind-wha)}
+.windw .flsubbadge--wfr{background:var(--wind-wfr-soft);color:var(--wind-wfr)}
+.windw .flsubbadge--wpr{background:var(--wind-wpr-soft);color:var(--wind-wpr)}
+.windw .fltable tbody tr:hover{background:color-mix(in srgb,var(--fl-integrated-soft) 58%,transparent)}
+.windw .posdock__gauge-fill{stroke:var(--fl-integrated)}
+.windw .posrail__bar-fill{background:var(--fl-integrated)}
+.windw .posrail__step--active{border-left-color:var(--fl-integrated)}
+@media (max-width:1100px){.windw .poshd__save-pill{display:none}}

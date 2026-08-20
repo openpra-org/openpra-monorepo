@@ -1,0 +1,83 @@
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
+import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
+import { type MechanisticSourceTermAnalysis } from "interfaces-mef-types/ms/mechanistic-source-term-analysis";
+
+type MsWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
+
+interface MsWorkbookResponse {
+  workbookId: string;
+  projectId: string;
+  ownerUsername: string;
+  mef: MechanisticSourceTermAnalysis;
+  myRoles: MsWorkbookRoleName[];
+  hasPreviousMef: boolean;
+  updatedAt: string;
+}
+
+async function getMsWorkbook(workbookId: string): Promise<MsWorkbookResponse> {
+  return fetchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`);
+}
+
+async function patchMsWorkbook(workbookId: string, current: MechanisticSourceTermAnalysis, mef: MechanisticSourceTermAnalysis): Promise<MsWorkbookResponse> {
+  return patchJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+}
+
+interface MsExampleOption {
+  id: string;
+  label: string;
+}
+
+async function getMsExamples(): Promise<MsExampleOption[]> {
+  return fetchJson<MsExampleOption[]>("/api/example-workbooks/ms-examples");
+}
+
+async function loadMsExample(workbookId: string, exampleId?: string): Promise<MsWorkbookResponse> {
+  return postJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}/load-example`, exampleId !== undefined ? { example: exampleId } : {});
+}
+
+async function unloadMsExample(workbookId: string): Promise<MsWorkbookResponse> {
+  return postJson<MsWorkbookResponse>(`/api/ms-workbooks/${workbookId}/unload-example`, {});
+}
+
+interface MsDocumentEntry {
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+async function listMsDocuments(workbookId: string): Promise<MsDocumentEntry[]> {
+  return fetchJson<MsDocumentEntry[]>(`/api/ms-workbooks/${workbookId}/documents`);
+}
+
+async function uploadMsDocument(workbookId: string, file: File): Promise<MsDocumentEntry> {
+  const form = new FormData();
+  form.append("file", file);
+  return postMultipart<MsDocumentEntry>(`/api/ms-workbooks/${workbookId}/documents`, form);
+}
+
+async function deleteMsDocument(workbookId: string, documentId: string): Promise<void> {
+  await deleteJson<void>(`/api/ms-workbooks/${workbookId}/documents/${documentId}`);
+}
+
+async function getMsDocumentDownload(workbookId: string, documentId: string): Promise<{ url: string; filename: string }> {
+  return fetchJson<{ url: string; filename: string }>(`/api/ms-workbooks/${workbookId}/documents/${documentId}/download`);
+}
+
+export {
+  getMsWorkbook,
+  patchMsWorkbook,
+  getMsExamples,
+  loadMsExample,
+  unloadMsExample,
+  listMsDocuments,
+  uploadMsDocument,
+  deleteMsDocument,
+  getMsDocumentDownload,
+  type MsWorkbookResponse,
+  type MsWorkbookRoleName,
+  type MsExampleOption,
+  type MsDocumentEntry,
+};

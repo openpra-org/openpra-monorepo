@@ -1,0 +1,473 @@
+import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from "react-router-dom";
+import { JSX, ReactElement, useEffect } from "react";
+import { AuthProvider, useAuth } from "../auth/AuthContext";
+import { RoleContext } from "../role/roleProvider";
+import { DefaultRole } from "../role/role";
+import { ToastProvider } from "../toast/toastProvider";
+import { ToastContainer } from "../toast/toastContainer";
+import { AuthPage } from "../auth/authPage";
+import { OAuthCallbackPage } from "../auth/oauthCallback";
+import { ResetPasswordPage } from "../auth/resetPassword";
+import { WelcomePage } from "../welcome/welcomePage";
+import { ProjectsPage } from "../projects/projectsPage";
+import { ProjectWorkspacePage } from "../projects/projectWorkspacePage";
+import { PosDemoPage } from "../pos-workbooks/posDemoPage";
+import { PosWorkbookPage } from "../pos-workbooks/posWorkbookPage";
+import { IeDemoPage } from "../ie-workbooks/ieDemoPage";
+import { IeWorkbookPage } from "../ie-workbooks/ieWorkbookPage";
+import { EsDemoPage } from "../es-workbooks/esDemoPage";
+import { EsWorkbookPage } from "../es-workbooks/esWorkbookPage";
+import { ScDemoPage } from "../sc-workbooks/scDemoPage";
+import { ScWorkbookPage } from "../sc-workbooks/scWorkbookPage";
+import { SyDemoPage } from "../sy-workbooks/syDemoPage";
+import { SyWorkbookPage } from "../sy-workbooks/syWorkbookPage";
+import { HrDemoPage } from "../hr-workbooks/hrDemoPage";
+import { HrWorkbookPage } from "../hr-workbooks/hrWorkbookPage";
+import { DaDemoPage } from "../da-workbooks/daDemoPage";
+import { DaWorkbookPage } from "../da-workbooks/daWorkbookPage";
+import { EsqDemoPage } from "../esq-workbooks/esqDemoPage";
+import { EsqWorkbookPage } from "../esq-workbooks/esqWorkbookPage";
+import { MsDemoPage } from "../ms-workbooks/msDemoPage";
+import { MsWorkbookPage } from "../ms-workbooks/msWorkbookPage";
+import { RcDemoPage } from "../rc-workbooks/rcDemoPage";
+import { RcWorkbookPage } from "../rc-workbooks/rcWorkbookPage";
+import { RiDemoPage } from "../ri-workbooks/riDemoPage";
+import { RiWorkbookPage } from "../ri-workbooks/riWorkbookPage";
+import { SeismicPraDemoPage } from "../seismic-pra-workbooks/seismicPraDemoPage";
+import { SeismicPraWorkbookPage } from "../seismic-pra-workbooks/seismicPraWorkbookPage";
+import { InternalFloodPraDemoPage } from "../internal-flood-pra-workbooks/internalFloodPraDemoPage";
+import { InternalFloodPraWorkbookPage } from "../internal-flood-pra-workbooks/internalFloodPraWorkbookPage";
+import { InternalFirePraDemoPage } from "../internal-fire-pra-workbooks/internalFirePraDemoPage";
+import { InternalFirePraWorkbookPage } from "../internal-fire-pra-workbooks/internalFirePraWorkbookPage";
+import { HsaDemoPage } from "../hazards-screening-analysis-workbooks/hsaDemoPage";
+import { HsaWorkbookPage } from "../hazards-screening-analysis-workbooks/hsaWorkbookPage";
+import { HighWindsPraDemoPage } from "../high-winds-pra-workbooks/highWindsPraDemoPage";
+import { HighWindsPraWorkbookPage } from "../high-winds-pra-workbooks/highWindsPraWorkbookPage";
+import { ExternalFloodPraDemoPage } from "../external-flood-pra-workbooks/externalFloodPraDemoPage";
+import { ExternalFloodPraWorkbookPage } from "../external-flood-pra-workbooks/externalFloodPraWorkbookPage";
+import { OtherHazardsPraDemoPage } from "../other-hazards-pra-workbooks/otherHazardsPraDemoPage";
+import { OtherHazardsPraWorkbookPage } from "../other-hazards-pra-workbooks/otherHazardsPraWorkbookPage";
+import { ProfilePage } from "../profile/profilePage";
+import { SettingsPage } from "../settings/settingsPage";
+import { TeamPage } from "../teams/teamPage";
+import { UserProfilePage } from "../users/userProfilePage";
+import { applyAppearance, loadStoredAppearance } from "../settings/useAppearancePrefs";
+import { AnalyticsTracker } from "../analytics/analyticsTracker";
+import { CampaignLandingPage } from "../analytics/campaignLandingPage";
+import { AdminPage } from "../admin/adminPage";
+import { initializeTheme } from "../welcome/useTheme";
+
+function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
+  return children;
+}
+
+function AdminRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!user.roles.includes("admin-role")) return <Navigate to="/" replace />;
+  return children;
+}
+
+const routes: RouteObject[] = [
+  {
+    path: "/r/:token",
+    element: <CampaignLandingPage />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPasswordPage />,
+  },
+  {
+    path: "/auth/*",
+    element: <AuthPage />,
+  },
+  {
+    path: "/oauth/callback",
+    element: <OAuthCallbackPage />,
+  },
+  {
+    path: "/",
+    element: (
+      <ProtectedRoute>
+        <WelcomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/projects",
+    element: (
+      <ProtectedRoute>
+        <ProjectsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/projects/:id",
+    element: (
+      <ProtectedRoute>
+        <ProjectWorkspacePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/pos-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <PosDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/pos-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <PosWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ie-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <IeDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ie-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <IeWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/es-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <EsDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/es-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <EsWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sc-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <ScDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sc-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <ScWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sy-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <SyDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/sy-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <SyWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <HrDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <HrWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/da-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <DaDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/da-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <DaWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/esq-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <EsqDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/esq-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <EsqWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ms-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <MsDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ms-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <MsWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/rc-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <RcDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/rc-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <RcWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ri-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <RiDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/ri-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <RiWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin",
+    element: (
+      <AdminRoute>
+        <AdminPage />
+      </AdminRoute>
+    ),
+  },
+  {
+    path: "/seismic-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <SeismicPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/seismic-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <SeismicPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/internal-flood-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <InternalFloodPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/internal-flood-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <InternalFloodPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/internal-fire-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <InternalFirePraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/internal-fire-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <InternalFirePraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hazards-screening-analysis-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <HsaDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hazards-screening-analysis-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <HsaWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/high-winds-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <HighWindsPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/high-winds-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <HighWindsPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/external-flood-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <ExternalFloodPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/external-flood-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <ExternalFloodPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/other-hazards-pra-workbooks/example",
+    element: (
+      <ProtectedRoute>
+        <OtherHazardsPraDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/other-hazards-pra-workbooks/:id",
+    element: (
+      <ProtectedRoute>
+        <OtherHazardsPraWorkbookPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/profile",
+    element: (
+      <ProtectedRoute>
+        <ProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/settings",
+    element: (
+      <ProtectedRoute>
+        <SettingsPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/teams/:id",
+    element: (
+      <ProtectedRoute>
+        <TeamPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/users/:username",
+    element: (
+      <ProtectedRoute>
+        <UserProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "*",
+    element: <Navigate to="/" replace />,
+  },
+];
+
+const router = createBrowserRouter(routes, {
+  future: {
+    v7_normalizeFormMethod: true,
+  },
+});
+
+function App(): ReactElement {
+  const role = DefaultRole();
+  useEffect(() => {
+    initializeTheme();
+    applyAppearance(loadStoredAppearance());
+  }, []);
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <RoleContext.Provider value={role}>
+          <AnalyticsTracker />
+          <RouterProvider router={router} />
+          <ToastContainer />
+        </RoleContext.Provider>
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+export { App };

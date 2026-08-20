@@ -5,7 +5,7 @@
     }
   },
   "release": {
-    "projects": ["packages/*", "packages/*/*"],
+    "projects": ["apps/*", "apps/*/*", "apps/*/*/*"],
     "changelog": {
       "workspaceChangelog": true
     },
@@ -21,6 +21,10 @@
   "targetDefaults": {
     "build": {
       "cache": true
+    },
+    "@nx/vite:test": {
+      "cache": true,
+      "inputs": ["default", "^production"]
     },
     "@nx/jest:jest": {
       "cache": true,

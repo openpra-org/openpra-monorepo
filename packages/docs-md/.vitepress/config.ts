@@ -75,6 +75,7 @@ export default defineConfig({
         items: [
           { text: "Building", link: "/guides/building.html" },
           { text: "Testing", link: "/guides/testing.html" },
+          { text: "Branding Guidelines", link: "/guides/branding.html" },
           { text: "Contributing", link: "/guides/contributing.html" },
         ],
       },
@@ -162,6 +163,7 @@ export default defineConfig({
           items: [
             { text: "Building", link: "/guides/building.html" },
             { text: "Testing", link: "/guides/testing.html" },
+            { text: "Branding Guidelines", link: "/guides/branding.html" },
             { text: "Contributing", link: "/guides/contributing.html" },
           ],
         },

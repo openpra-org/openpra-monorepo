@@ -71,7 +71,7 @@ COPY --from=builder /data/project/scram-node ./scram-node
 COPY --from=builder /data/project/package.json ./package.json
 
 # Copy entrypoint
-COPY docker/entrypoint.sh /
+COPY deploy/microservices/praetor/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 ENV NODE_ENV=production

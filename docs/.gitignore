@@ -1,6 +1,0 @@
-.tmp/
-public/api/cpp/
-public/api/rust/
-.vitepress/dist/
-.vitepress/cache/
-node_modules/

@@ -50,7 +50,7 @@ From the repo root:
 
 ```bash
 MSYS_NO_PATHCONV=1 docker compose \
-  -f deploy/tools/benchmarking/docker-compose.yml up --build
+  -f deploy/utilities/benchmarking/docker-compose.yml up --build
 ```
 
 Override the input dataset:
@@ -58,7 +58,7 @@ Override the input dataset:
 ```bash
 BENCHMARK_INPUT_DIR=/absolute/path/to/models \
 MSYS_NO_PATHCONV=1 docker compose \
-  -f deploy/tools/benchmarking/docker-compose.yml up --build
+  -f deploy/utilities/benchmarking/docker-compose.yml up --build
 ```
 
 > **Windows / Git Bash:** `MSYS_NO_PATHCONV=1` is required to prevent path conversion.

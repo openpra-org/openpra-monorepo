@@ -59,11 +59,11 @@ docker save -o "$STAGE/openpra-images.tar" \
 echo "==> Collecting runtime files"
 cp deploy/offline/docker-compose.offline.yml "$STAGE/docker-compose.yml"
 cp deploy/offline/INSTALL.md "$STAGE/INSTALL.md"
-cp docker/nginx-frontend.preview.conf "$STAGE/nginx-frontend.conf"
+cp docker/nginx-frontend.conf "$STAGE/nginx-frontend.conf"
 cp -r dist/apps/backends/web-backend/example-documents "$STAGE/example-documents"
 
 echo "==> Bundling the repository source"
-git bundle create "$STAGE/openpra-repo.bundle" revamp
+git bundle create "$STAGE/openpra-repo.bundle" main
 
 echo "==> Creating final tarball"
 tar -czf "$OUT/openpra-offline-bundle.tar.gz" -C "$OUT" openpra-offline

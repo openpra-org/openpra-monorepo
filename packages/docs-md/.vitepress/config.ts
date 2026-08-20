@@ -65,8 +65,11 @@ export default defineConfig({
         text: "Stack",
         items: [
           { text: "Overview", link: "/stack/index.html" },
+          { text: "Architecture", link: "/stack/architecture.html" },
           { text: "Frontend", link: "/stack/frontend-overview.html" },
+          { text: "Frontend authentication", link: "/stack/frontend-auth.html" },
           { text: "Backend", link: "/stack/backend-overview.html" },
+          { text: "Backend authentication", link: "/stack/backend-auth.html" },
           { text: "Engine", link: "/stack/engine-overview.html" },
         ],
       },
@@ -75,6 +78,9 @@ export default defineConfig({
         items: [
           { text: "Building", link: "/guides/building.html" },
           { text: "Testing", link: "/guides/testing.html" },
+          { text: "Admin analytics", link: "/guides/admin-analytics.html" },
+          { text: "Benchmarking", link: "/guides/benchmarking.html" },
+          { text: "Pracciolini knowledge base", link: "/guides/pracciolini-knowledge-base.html" },
           { text: "Branding Guidelines", link: "/guides/branding.html" },
           { text: "Contributing", link: "/guides/contributing.html" },
         ],
@@ -107,8 +113,11 @@ export default defineConfig({
           text: "Stack",
           items: [
             { text: "Overview", link: "/stack/index.html" },
+            { text: "Architecture", link: "/stack/architecture.html" },
             { text: "Frontend", link: "/stack/frontend-overview.html" },
+            { text: "Frontend authentication", link: "/stack/frontend-auth.html" },
             { text: "Backend", link: "/stack/backend-overview.html" },
+            { text: "Backend authentication", link: "/stack/backend-auth.html" },
             { text: "Engine", link: "/stack/engine-overview.html" },
           ],
         },
@@ -163,6 +172,9 @@ export default defineConfig({
           items: [
             { text: "Building", link: "/guides/building.html" },
             { text: "Testing", link: "/guides/testing.html" },
+            { text: "Admin analytics", link: "/guides/admin-analytics.html" },
+            { text: "Benchmarking", link: "/guides/benchmarking.html" },
+            { text: "Pracciolini knowledge base", link: "/guides/pracciolini-knowledge-base.html" },
             { text: "Branding Guidelines", link: "/guides/branding.html" },
             { text: "Contributing", link: "/guides/contributing.html" },
           ],

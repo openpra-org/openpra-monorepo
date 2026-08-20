@@ -81,7 +81,7 @@ Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on mac
 ```bash
 git clone --recurse-submodules https://github.com/openpra-org/openpra-monorepo.git
 cd openpra-monorepo
-git checkout revamp
+git checkout main
 git submodule update --init --recursive
 ```
 
@@ -366,7 +366,7 @@ Production and branch deployments run on Docker Swarm behind Traefik. There is n
 
 ### 7.1 How our pipeline works
 
-`.github/workflows/cd-apps.yml` runs on every push to `revamp` and on manual dispatch.
+`.github/workflows/cd-apps.yml` runs on every push to `main` and on manual dispatch.
 
 1. The build job compiles both apps, assembles the Docker contexts exactly as in section 6.1, and pushes the images to our private registry `registry.openpra.org` tagged with the short SHA and the branch slug.
 2. The deploy job runs on the self-hosted runner `gaia1` (a Swarm manager). It populates a content-addressed volume with the example documents, then runs `docker stack deploy` with `deploy/web/cd-stack.yml`.
@@ -474,7 +474,7 @@ Offline behavior to communicate to users: password reset emails cannot send, Goo
 
 **The backend compiles, then exits with `... is required but not set`.** The first one you see is usually `Error: MINIO_BUCKET is required but not set`. Missing variables are reported one at a time, so do not fix them one by one. Create or complete the full `apps/backends/web-backend/.env` (section 4.2). This is the single most common failure for new setups.
 
-**Mongo connects to the wrong database or not at all.** The revamp backend reads `MONGO_URI`. The legacy backend and the committed root `.env` use `MONGO_URL`. Set `MONGO_URI` in the backend `.env` and do not expect the root `.env` value to apply.
+**Mongo connects to the wrong database or not at all.** The current backend reads `MONGO_URI`. The legacy backend and the committed root `.env` use `MONGO_URL`. Set `MONGO_URI` in the backend `.env` and do not expect the root `.env` value to apply.
 
 **`redirect_uri_mismatch` or OAuth error page.** The redirect URI registered with the provider must equal `${OAUTH_CALLBACK_BASE}/auth/oauth/<provider>/callback` exactly, including scheme and port.
 
@@ -539,8 +539,8 @@ The CI workflow is `.github/workflows/release.yml`. It needs the `NPM_TOKEN` and
 ## Docs
 
 ```bash
-pnpm nx run docs:build-site
-python3 -m http.server 5050 -d dist/docs
+pnpm nx run docs-md:site:build --no-cloud
+pnpm --filter docs-md preview --host 127.0.0.1 --port 5050
 ```
 
 The docs site deploys through `.github/workflows/docs.yml` to the Swarm as well.

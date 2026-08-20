@@ -94,7 +94,7 @@ Password reset emails cannot send without internet, so accounts are recovered by
 The full repository is in `openpra-repo.bundle`. To restore it:
 
 ```bash
-git clone openpra-repo.bundle -b revamp openpra-monorepo
+git clone openpra-repo.bundle -b main openpra-monorepo
 ```
 
 ## Reboots

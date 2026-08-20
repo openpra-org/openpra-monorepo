@@ -1,10 +1,8 @@
 # Web App and Site Deployment
 
-CI/CD for the `apps/` web application and public site. It mirrors the `packages/`
-pipeline (`docker/cd-stack.yml` + `.github/workflows/cd-monorepo.yml`) but targets
-the `gaia1` self-hosted runner. The web application deploys each branch to
-`https://<branch-slug>-dev.openpra.org`; the site deploys to
-`https://openpra.org`.
+CI/CD for the `apps/` web application and public site targets the `gaia1`
+self-hosted runner. The web application deploys to
+`https://<branch-slug>-dev.openpra.org`; the site deploys to `https://openpra.org`.
 
 ## Pipeline
 
@@ -20,8 +18,7 @@ the `gaia1` self-hosted runner. The web application deploys each branch to
    `openpra-apps-<branch-slug>` and `deploy/site/cd-stack.yml` as the independent
    `openpra-site` stack.
 
-Triggers: `workflow_dispatch` and `push` to `revamp`. Add branches under
-`on.push.branches` to deploy more branches.
+Triggers: `workflow_dispatch` and `push` to `main`.
 
 ## Stack services (`cd-stack.yml`)
 

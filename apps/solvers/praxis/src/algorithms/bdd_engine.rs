@@ -273,8 +273,8 @@ impl Bdd {
             }
         }
         let mut freed = 0;
-        for i in 2..n {
-            if !marked[i] && !self.nodes[i].is_sentinel() {
+        for (i, &is_marked) in marked.iter().enumerate().take(n).skip(2) {
+            if !is_marked && !self.nodes[i].is_sentinel() {
                 let key = self.nodes[i];
                 self.unique.remove(&key);
                 self.nodes[i] = SENTINEL;

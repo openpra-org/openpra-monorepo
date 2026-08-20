@@ -413,6 +413,12 @@ struct ComputedEntry {
     result: u32,
 }
 
+#[derive(Default)]
+struct BddConversionMemo {
+    max_path_prob: HashMap<BddRef, f64>,
+    converted: HashMap<(BddRef, Option<usize>), (f64, ZbddRef)>,
+}
+
 pub struct ZbddEngine {
     nodes: Vec<ZbddNode>,
     unique: UniqueTable,
@@ -1356,10 +1362,8 @@ impl ZbddEngine {
         z.var_probs = bdd.var_probs().to_vec();
         z.scale = scale;
         let min_value = cut_off.unwrap_or(0.0);
-        let mut maxp: HashMap<BddRef, f64> = HashMap::new();
-        let mut cache: HashMap<(BddRef, Option<usize>), (f64, ZbddRef)> = HashMap::new();
-        let raw =
-            z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut maxp, &mut cache);
+        let mut memo = BddConversionMemo::default();
+        let raw = z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut memo);
         let result = if coherent { raw } else { z.minimize(raw) };
         let result = if min_value > 0.0 {
             z.prune_below_probability(result, min_value)
@@ -1392,10 +1396,9 @@ impl ZbddEngine {
         z.var_probs = bdd.var_probs().to_vec();
         z.scale = scale;
         let min_value = cut_off.unwrap_or(0.0);
-        let mut maxp: HashMap<BddRef, f64> = HashMap::new();
-        let mut cache: HashMap<(BddRef, Option<usize>), (f64, ZbddRef)> = HashMap::new();
+        let mut memo = BddConversionMemo::default();
 
-        let raw = z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut maxp, &mut cache);
+        let raw = z.convert_bdd_limited(bdd, root, limit_order, scale, min_value, &mut memo);
         let mut result = if coherent { raw } else { z.minimize(raw) };
 
         for &delete_root in delete_roots {
@@ -1405,8 +1408,7 @@ impl ZbddEngine {
                 limit_order,
                 scale,
                 min_value,
-                &mut maxp,
-                &mut cache,
+                &mut memo,
             );
             let delete = z.minimize(raw_delete);
             result = z.nonsuperset(result, delete);
@@ -1455,8 +1457,7 @@ impl ZbddEngine {
         budget: Option<usize>,
         p_acc: f64,
         min_value: f64,
-        maxp: &mut HashMap<BddRef, f64>,
-        cache: &mut HashMap<(BddRef, Option<usize>), (f64, ZbddRef)>,
+        memo: &mut BddConversionMemo,
     ) -> ZbddRef {
         if f.is_false() {
             return ZBDD_EMPTY;
@@ -1465,13 +1466,13 @@ impl ZbddEngine {
             return if p_acc >= min_value { ZBDD_BASE } else { ZBDD_EMPTY };
         }
         if min_value > 0.0 {
-            let bound = self.bdd_max_path_prob(bdd, f, maxp);
+            let bound = self.bdd_max_path_prob(bdd, f, &mut memo.max_path_prob);
             if p_acc * bound < min_value {
                 return ZBDD_EMPTY;
             }
         }
         let key = (f, budget);
-        if let Some(&(stored_p, r)) = cache.get(&key) {
+        if let Some(&(stored_p, r)) = memo.converted.get(&key) {
             if min_value == 0.0 || p_acc <= stored_p {
                 return r;
             }
@@ -1494,14 +1495,13 @@ impl ZbddEngine {
                 new_budget,
                 p_acc * p_var,
                 min_value,
-                maxp,
-                cache,
+                memo,
             )
         };
-        let lo_z = self.convert_bdd_limited(bdd, cofactor_lo, budget, p_acc, min_value, maxp, cache);
+        let lo_z = self.convert_bdd_limited(bdd, cofactor_lo, budget, p_acc, min_value, memo);
         let with_var = self.multiply(var, hi_z);
         let result = self.union(with_var, lo_z);
-        cache.insert(key, (p_acc, result));
+        memo.converted.insert(key, (p_acc, result));
         result
     }
 

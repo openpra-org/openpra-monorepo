@@ -304,7 +304,6 @@ export function validateHighWindsPra(mef: HighWindsPRA): HighWindsPraDiagnostic[
   if (needsRain && (mef.interactionAndRainFragilityAnalysis.rainEntryPaths.length === 0 || mef.interactionAndRainFragilityAnalysis.windDrivenRainModels.length === 0 || mef.interactionAndRainFragilityAnalysis.rainTargetVulnerabilities.length === 0)) add("WFR-G-001", "ERROR", "WFR", "Define rain-entry paths, wind-driven rain models, and vulnerable target responses.");
 
   const initiatingEventRefs = new Set(mef.plantResponseModel.initiatingEventModels.map((item) => item.uuid));
-  const eventSequenceRefs = new Set(mef.plantResponseModel.eventSequenceModels.map((item) => item.uuid));
   const missionTimeRefs = new Set(mef.plantResponseModel.missionTimes.map((item) => item.uuid));
   if (mef.plantResponseModel.initiatingEventModels.length === 0 || mef.plantResponseModel.eventSequenceModels.length === 0 || mef.plantResponseModel.systemModelModifications.length === 0) add("WPR-A-001", "ERROR", "WPR", "Develop high-wind initiating events, event sequences, and systems-model modifications.");
   for (const sequence of mef.plantResponseModel.eventSequenceModels) {

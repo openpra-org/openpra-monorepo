@@ -91,6 +91,10 @@ __pycache__/
 .codex/
 .mcp.json
 
+# Local root-level planning and contributor instruction files
+/*TODO*
+/GUIDELINES.md
+
 tools/
 !packages/docs-md/tools/
 traefik/

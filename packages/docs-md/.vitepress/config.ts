@@ -18,7 +18,14 @@ export default defineConfig({
   outDir: ".vitepress/dist",
   lastUpdated: true,
   appearance: "force-auto",
-  head: [["link", { rel: "icon", type: "image/png", href: `${base}openpra-logo.png` }]],
+  head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` }],
+    ["link", { rel: "alternate icon", href: `${base}favicon.ico` }],
+    ["link", { rel: "apple-touch-icon", href: `${base}apple-touch-icon.png` }],
+    ["meta", { name: "theme-color", content: "#8F4EC7" }],
+    ["meta", { property: "og:image", content: `${base}brand/social-card-light.png` }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+  ],
   srcExclude: [
     "api/ts/coverage.md",
     "api/ts/gaps-params.md",
@@ -33,7 +40,12 @@ export default defineConfig({
     },
   },
   themeConfig: {
-    logo: { src: "/openpra-logo.png", alt: "OpenPRA" },
+    logo: {
+      light: "/brand/lockup-primary.svg",
+      dark: "/brand/lockup-dark.svg",
+      alt: "OpenPRA",
+    },
+    siteTitle: "Documentation",
     socialLinks: [{ icon: "github", link: "https://github.com/openpra-org/openpra-monorepo" }],
     footer: {
       message:

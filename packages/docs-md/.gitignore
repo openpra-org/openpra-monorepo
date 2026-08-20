@@ -1,3 +1,4 @@
 # Generated documentation artifacts (regenerated on every build)
 .tmp/
+api/
 mef-elements/

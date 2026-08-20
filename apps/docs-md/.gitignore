@@ -1,0 +1,14 @@
+# Generated documentation artifacts (regenerated on every build)
+.tmp/
+api/*
+!api/python/
+api/python/*
+!api/python/pracciolini/
+api/python/pracciolini/*
+!api/python/pracciolini/index.md
+!api/rust/
+api/rust/*
+!api/rust/praxis/
+api/rust/praxis/*
+!api/rust/praxis/index.md
+mef-elements/

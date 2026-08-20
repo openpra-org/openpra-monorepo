@@ -5,7 +5,7 @@
     }
   },
   "release": {
-    "projects": ["packages/*", "packages/*/*"],
+    "projects": ["apps/*", "apps/*/*", "apps/*/*/*"],
     "changelog": {
       "workspaceChangelog": true
     },

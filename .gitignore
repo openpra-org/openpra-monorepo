@@ -96,7 +96,7 @@ __pycache__/
 /GUIDELINES.md
 
 tools/
-!packages/docs-md/tools/
+!apps/docs-md/tools/
 traefik/
 fixtures/
 registry/

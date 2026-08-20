@@ -35,7 +35,7 @@ cert resolver; the stack attaches to the external `traefik-public` network.
 
 ## Required GitHub Actions secrets
 
-Already used by the `packages/` pipeline (reused here):
+Shared registry credentials:
 
 - `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`
 

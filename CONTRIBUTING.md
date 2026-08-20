@@ -69,7 +69,7 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you a
 ## Documentation
 
 - Update the documentation for any changes to the API, configuration, or behavior.
-- Documentation lives in each `/packages/**/docs` directory.
+- Unified documentation lives in `apps/docs-md`; project-specific details belong in the relevant application README.
 
 ## Community
 

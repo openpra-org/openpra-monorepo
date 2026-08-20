@@ -1,9 +1,9 @@
 {
-  "note": "EDIT ME \u2014 confirm against the monorepo README. packages/engine currently holds praxis and scram; canopy is a separate repository.",
+  "note": "Current OpenPRA applications, interfaces, solvers, documentation, and utilities.",
   "packages": [
     {
       "name": "praxis",
-      "blurb": "PRA eXecution and Insight System. The default solver \u2014 Rust, PDAG-based, with optional CUDA acceleration. Reads the OpenPRA MEF directly and exposes itself to the platform through NAPI-RS bindings."
+      "blurb": "PRA eXecution and Insight System. The Rust solver provides Boolean, Monte Carlo, event-tree, and HCL analysis capabilities."
     },
     {
       "name": "scram",
@@ -14,15 +14,15 @@
       "blurb": "Monte Carlo quantification of Boolean logic on hardware-accelerated platforms, developed in its own repository."
     },
     {
-      "name": "shared-types",
-      "blurb": "Pure TypeScript definitions. The single source of truth for every domain type and DTO."
+      "name": "interfaces-shared-types",
+      "blurb": "Shared application schemas and DTOs used by the frontend, backend, and services."
     },
     {
-      "name": "mef-schema",
-      "blurb": "The OpenPRA MEF, generated as JSON Schema from shared-types."
+      "name": "interfaces-mef-types",
+      "blurb": "The OpenPRA MEF technical-element schemas, validation logic, and generated Zod contracts."
     },
     {
-      "name": "frontend-web-editor",
+      "name": "frontends-web-frontend",
       "blurb": "React and TypeScript workbooks \u2014 the interface analysts actually use."
     },
     {
@@ -30,8 +30,8 @@
       "blurb": "RabbitMQ job broker that scales quantification across workers."
     },
     {
-      "name": "model-generator",
-      "blurb": "Synthetic and design-derived model construction."
+      "name": "docs-md",
+      "blurb": "Unified product, developer, API, and branding documentation."
     },
     {
       "name": "pracciolini",

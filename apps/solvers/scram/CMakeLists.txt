@@ -308,6 +308,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateEmbeddedSchemas.cmake")
 add_subdirectory(src)
 add_subdirectory(targets/scram)
 add_subdirectory(targets/scram-boolean)
+add_subdirectory(targets/scram-node)
 
 if(BUILD_TESTS)
   # Fetch Catch2 for testing

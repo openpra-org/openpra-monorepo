@@ -23,7 +23,7 @@ WORKDIR /data/project
 COPY scram-node ./scram-node
 
 WORKDIR /data/project/scram-node
-RUN npm install && npm run install
+RUN npm install && npm run build
 
 # --- 2. Build NestJS App ---
 WORKDIR /data/project

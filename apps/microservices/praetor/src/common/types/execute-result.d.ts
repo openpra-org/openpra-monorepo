@@ -1,4 +1,4 @@
-import type { ExecutionResult } from '../../../../../../packages/shared-types/src/lib/utils/execution-result';
+import type { ExecutionResult } from "interfaces-shared-types/execution";
 import { ExecuteSolver } from './execute-request';
 
 export interface ExecuteResult extends ExecutionResult {

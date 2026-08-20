@@ -2,7 +2,7 @@
 
 <a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a> [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-Welcome to the OpenPRA monorepo. This is the unified codebase for the OpenPRA App. It includes the web client, the backend REST API, distributed microservices, probabilistic risk assessment (PRA) solver engines, shared type definitions, and utility packages.
+Welcome to the OpenPRA monorepo. This is the unified codebase for the OpenPRA App. It includes the web client, the backend REST API, distributed microservices, probabilistic risk assessment (PRA) solver engines, shared type definitions, documentation, and utilities.
 
 This README is a complete deployment guide:
 
@@ -12,21 +12,21 @@ This README is a complete deployment guide:
 
 ## Repository layout
 
-The repo is mid-migration. Active development happens under `apps/`. The old `packages/` tree is legacy and stays read-only until fully migrated. See `GUIDELINES.md` for the rules.
+All maintained projects live under `apps/`.
 
-| Path                                   | Nx project name           | What it is                                                                            |
-| -------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| `apps/frontends/web-frontend`          | `frontends-web-frontend`  | React 18 web client (webpack)                                                         |
-| `apps/backends/web-backend`            | `backends-web-backend`    | NestJS REST API (Mongoose, MinIO, JWT, OAuth, 2FA)                                    |
-| `apps/microservices/praetor`           | `praetor`                 | Distributed quantification broker and engine (RabbitMQ, MinIO)                        |
-| `apps/interfaces/shared-types`         | `interfaces-shared-types` | Shared Zod schemas and inferred types                                                 |
-| `apps/interfaces/mef-types`            | `interfaces-mef-types`    | OpenPRA MEF technical element types                                                   |
-| `apps/solvers/scram`                   | none (CMake)              | SCRAM C++ PRA engine                                                                  |
-| `apps/solvers/praxis`                  | none (Cargo)              | PRAXIS Rust solver                                                                    |
-| `apps/solvers/xfta`                    | none                      | XFTA solver binary and documentation                                                  |
-| `apps/solvers/{ftrex,zebra,saphsolve}` | none                      | Licensed solver directories, gitignored, absent from a fresh clone                    |
-| `apps/utilities/pracciolini`           | none                      | Python model conversion tooling                                                       |
-| `packages/*`                           | various                   | Legacy v1 packages (`frontend-web-editor`, `web-backend`, `engine-scram`, and others) |
+| Path                                   | Nx project name           | What it is                                                         |
+| -------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| `apps/frontends/web-frontend`          | `frontends-web-frontend`  | React 18 web client (webpack)                                      |
+| `apps/backends/web-backend`            | `backends-web-backend`    | NestJS REST API (Mongoose, MinIO, JWT, OAuth, 2FA)                 |
+| `apps/microservices/praetor`           | `praetor`                 | Distributed quantification broker and engine (RabbitMQ, MinIO)     |
+| `apps/interfaces/shared-types`         | `interfaces-shared-types` | Shared Zod schemas and inferred types                              |
+| `apps/interfaces/mef-types`            | `interfaces-mef-types`    | OpenPRA MEF technical element types                                |
+| `apps/solvers/scram`                   | `engine-scram`            | SCRAM C++ PRA engine and Node addon                                |
+| `apps/solvers/praxis`                  | none (Cargo)              | PRAXIS Rust solver                                                 |
+| `apps/docs-md`                         | `docs-md`                 | Unified VitePress documentation and API reference tooling          |
+| `apps/solvers/xfta`                    | none                      | XFTA solver binary and documentation                               |
+| `apps/solvers/{ftrex,zebra,saphsolve}` | none                      | Licensed solver directories, gitignored, absent from a fresh clone |
+| `apps/utilities/pracciolini`           | none                      | Python model conversion tooling                                    |
 
 ### Services and ports
 

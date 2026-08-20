@@ -1,0 +1,28 @@
+{
+  "name": "engine-scram",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "build": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "build"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "typecheck"
+      }
+    },
+    "test": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "test"
+      },
+      "dependsOn": ["build"]
+    }
+  },
+  "sourceRoot": "apps/solvers/scram/src",
+  "projectType": "library",
+  "tags": []
+}

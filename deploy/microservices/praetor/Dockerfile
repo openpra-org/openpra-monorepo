@@ -23,18 +23,16 @@ WORKDIR /usr/src/app
 # --- 1. Copy All Workspace Files ---
 COPY . .
 
-# Install Dependencies (includes scram-node building via postinstall/bindings)
+# Install workspace dependencies, then build the native SCRAM addon explicitly.
 RUN pnpm install
+RUN pnpm --filter scram-node build
 
 # Build the App via Nx
 RUN npx nx run praetor:build
 
-# Prune dev dependencies to reduce size
-# We save the scram-node build dir because prepublish from prune deletes local workspaces
-RUN cp -r node_modules/scram-node/build /tmp/scram-build && \
-    pnpm prune --prod --no-optional --ignore-scripts && \
-    mkdir -p node_modules/scram-node/build && \
-    cp -r /tmp/scram-build/* node_modules/scram-node/build/
+# Prune dev dependencies to reduce size. The built workspace addon is copied
+# into the runtime image separately below.
+RUN pnpm prune --prod --no-optional --ignore-scripts
 
 # ------------------------------------------------------------------------------
 # Stage 2: Runner (Lightweight)
@@ -55,10 +53,10 @@ WORKDIR /usr/src/app
 # Copy built artifacts from builder
 COPY --from=builder /usr/src/app/node_modules ./node_modules  
 COPY --from=builder /usr/src/app/apps/microservices/praetor/dist ./dist
-COPY --from=builder /usr/src/app/apps/solvers/scram ./apps/solvers/scram
+COPY --from=builder /usr/src/app/apps/solvers/scram ./node_modules/scram-node
 
 # Ensure the library paths are set for scram-node
-ENV LD_LIBRARY_PATH="/root/.local/lib/scram:/root/.local/lib:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/root/.local/lib/scram:/root/.local/lib"
 
 # Set Env
 ENV NODE_ENV=production

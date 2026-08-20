@@ -5,11 +5,9 @@ on:
     branches:
       - "**"
     paths:
-      - "packages/docs-md/**"
+      - "apps/docs-md/**"
       - "apps/interfaces/mef-types/**"
-      - "packages/shared-sdk/**"
-      - "packages/frontend/web-editor/src/utils/**"
-      - "packages/engine/scram/**"
+      - "apps/solvers/scram/**"
       - "apps/interfaces/shared-types/**"
       - "apps/backends/web-backend/**"
       - "apps/frontends/web-frontend/**"
@@ -19,7 +17,7 @@ on:
       - ".github/workflows/docs.yml"
       - "docker/docs-stack.yml"
       - "docker/docs-branch-stack.yml"
-      - "packages/docs-md/Dockerfile"
+      - "apps/docs-md/Dockerfile"
       - ".dockerignore"
       - "pnpm-workspace.yaml"
       - "pnpm-lock.yaml"
@@ -86,23 +84,23 @@ jobs:
 
       - name: Generate Rust API docs (PRAXIS — cargo-docs-md)
         run: |
-          mkdir -p packages/docs-md/api/rust/praxis
+          mkdir -p apps/docs-md/api/rust/praxis
           cd apps/solvers/praxis
           RUSTDOCFLAGS='-Z unstable-options --output-format json' cargo +nightly doc --no-deps 2>&1 || echo "cargo doc encountered warnings"
-          cargo docs-md --dir target/doc/ -o ../../../packages/docs-md/api/rust/praxis/
+          cargo docs-md --dir target/doc/ -o ../../docs-md/api/rust/praxis/
 
       - name: Generate Python API docs (pracciolini — lazydocs)
         run: |
-          mkdir -p packages/docs-md/api/python/pracciolini
+          mkdir -p apps/docs-md/api/python/pracciolini
           if (cd apps/utilities/pracciolini/src && \
-            PYTHONPATH=. python3 -m lazydocs._cli --output-path ../../../../packages/docs-md/api/python/pracciolini \
+            PYTHONPATH=. python3 -m lazydocs._cli --output-path ../../../docs-md/api/python/pracciolini \
               --no-watermark --overview-file index.md \
               convert ftap ftap_verifier jsinp jsinp_verifier model \
               openpsa_verifier openpsa_xml parse_ftrex_log parse_praxis_log \
               parse_saphsolve_log parse_scram_log parse_xfta_log parse_zebra_log \
               plot_benchmark_results s2ml s2ml_verifier 2>&1); then
-            node packages/docs-md/tools/sanitize-lazydocs-html.mjs packages/docs-md/api/python/pracciolini
-            rm -f packages/docs-md/api/python/pracciolini/.pages
+            node apps/docs-md/tools/sanitize-lazydocs-html.mjs apps/docs-md/api/python/pracciolini
+            rm -f apps/docs-md/api/python/pracciolini/.pages
           else
             echo "Pracciolini lazydocs failed — committed baseline will be used"
           fi
@@ -139,7 +137,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: packages/docs-md/Dockerfile
+          file: apps/docs-md/Dockerfile
           push: false
           load: true
           tags: |

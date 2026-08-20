@@ -61,13 +61,13 @@ jobs:
 
       - name: Build scram-node native addon
         run: |
-          cd packages/engine/scram
-          npx -y pnpm@10.19.0 run install
+          cd apps/solvers/scram
+          npx -y pnpm@10.19.0 run build
 
       - name: Install scram CLI (optional)
         run: |
-          if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
-            sudo cmake --install packages/engine/scram/build
+          if [ -f apps/solvers/scram/build/cmake_install.cmake ]; then
+            sudo cmake --install apps/solvers/scram/build
             sudo ldconfig
           else
             echo "No CMake install script found; skipping scram-cli install"

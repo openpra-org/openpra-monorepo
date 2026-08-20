@@ -1,0 +1,14 @@
+{
+  "global": {
+    "symbolDocPct": 90,
+    "paramsPct": 90,
+    "returnsPct": 90
+  },
+  "ts": {
+    "shared-types": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "web-frontend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 },
+    "praetor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "scram-node": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 }
+  }
+}

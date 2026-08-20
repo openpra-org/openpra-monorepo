@@ -1,0 +1,9 @@
+{
+  "name": "praetor-service",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "interfaces-shared-types": "workspace:*",
+    "scram-node": "workspace:*"
+  }
+}

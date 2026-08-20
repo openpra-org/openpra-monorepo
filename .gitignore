@@ -88,6 +88,7 @@ __pycache__/
 .github/instructions/nx.instructions.md
 
 .claude/
+.codex/
 .mcp.json
 
 tools/
@@ -101,6 +102,10 @@ docker-compose.infra.yml
 apps/solvers/xfta/XFTA.pdf
 /resources/
 /plans/
+/HCL_MH/
+
+# Generated native artifacts (build locally; do not commit platform binaries)
+/apps/utilities/pracciolini/src/saphire-native-reader.exe
 
 # Generated documentation output (not committed, built at CI time)
 /docs/api/

@@ -75,7 +75,7 @@
     "cpp:doxybook2": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "bash -c 'set -e; BIN=\"$(apps/docs-md/tools/install-doxybook2.sh)\" && cd apps/docs-md && mkdir -p api/cpp-doxybook2 && \"$BIN\" --input .tmp/doxygen/doxygen-xml --output api/cpp-doxybook2 --config tools/doxybook2.json'"
+        "command": "bash -c 'set -e; BIN=\"$(bash apps/docs-md/tools/install-doxybook2.sh)\" && cd apps/docs-md && mkdir -p api/cpp-doxybook2 && \"$BIN\" --input .tmp/doxygen/doxygen-xml --output api/cpp-doxybook2 --config tools/doxybook2.json'"
       },
       "dependsOn": ["cpp:doxygen-xml"]
     },

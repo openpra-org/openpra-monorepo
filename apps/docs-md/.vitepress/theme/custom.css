@@ -162,8 +162,8 @@
 }
 
 .VPHero .VPImage {
-  width: min(300px, 72vw);
-  padding: 1.25rem;
+  width: min(520px, 82vw);
+  padding: 0;
 }
 
 .VPFeature {

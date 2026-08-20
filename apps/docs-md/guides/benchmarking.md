@@ -2,6 +2,10 @@
 
 Runs a set of fault tree solvers against a collection of OpenPSA XML models, measures execution time for each solver/algorithm combination, compares probability and minimal cut set (MCS) results, and produces a single self-contained HTML report.
 
+::: warning Proprietary benchmarking materials
+SAPHIRE/SAPHSOLVE, FTREX, ZEBRA, and the ENT fixture are proprietary. Their executables, libraries, license material, and model data are not included in the OpenPRA source code or distributed with this repository. They were used only for benchmarking and code-to-code verification; references here document those benchmark configurations and results.
+:::
+
 ## Solvers
 
 | Solver    | Algorithms                                   |
@@ -36,7 +40,7 @@ docker build -f deploy/utilities/benchmarking/Dockerfile -t openpra-benchmark:la
 docker build -f deploy/utilities/benchmarking/Dockerfile -t openpra-benchmark:latest .
 ```
 
-This builds all solvers (SCRAM, PRAXIS, SAPHSOLVE cross-compiled for Windows, FTREX via Wine, ZEBRA via Wine, XFTA) into a single image. Build takes several minutes on first run.
+The public repository does not contain SAPHIRE/SAPHSOLVE, FTREX, ZEBRA, or the ENT fixture. Historical benchmark images that exercised those comparison legs were assembled in an authorized private environment using separately licensed tools and data. A clean public checkout cannot reproduce those proprietary comparison legs unless an authorized user independently supplies the required material; the public sources retain only the benchmark orchestration and result-processing code.
 
 ## Run the Benchmark
 

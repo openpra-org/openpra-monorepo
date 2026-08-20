@@ -2,16 +2,15 @@
 layout: home
 title: OpenPRA Documentation
 hero:
-  name: OpenPRA
-  text: Open Way for PRA
-  tagline: Model Exchange Format (MEF) Technical Elements - Testing deployment
+  name: Risk, in the open.
+  tagline: Risk is a set of triplets — what can go wrong, how likely it is, and what the consequences are if it does. OpenPRA is where you build that set — schema, engines, workbooks, and reference models, all readable by anyone.
   image:
-    src: /brand/lockup-primary-tagline.svg
-    alt: OpenPRA
+    src: /brand/triplet.svg
+    alt: Risk is the set of scenario, probability, and consequence triplets
   actions:
     - theme: brand
       text: What is OpenPRA?
-      link: /stack/index.html
+      link: https://openpra.org
     - theme: alt
       text: MEF Technical Elements
       link: /mef-elements/index.html

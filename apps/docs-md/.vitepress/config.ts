@@ -45,7 +45,7 @@ export default defineConfig({
       dark: "/brand/lockup-dark.svg",
       alt: "OpenPRA",
     },
-    siteTitle: "Documentation",
+    siteTitle: false,
     socialLinks: [{ icon: "github", link: "https://github.com/openpra-org/openpra-monorepo" }],
     footer: {
       message:

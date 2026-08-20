@@ -34,32 +34,30 @@ const zodUrl = (el) => `/mef-elements/zod/${el.slug}/${el.file}/README.html`;
 const tsReadme = (el) => path.join(MEF_DIR, "ts", el.slug, el.file, "README.md");
 const zodReadme = (el) => path.join(MEF_DIR, "zod", el.slug, el.file, "README.md");
 
-const TOGGLE_MARK = "<!-- mef-view-toggle -->";
+const TOGGLE_PATTERN =
+  /^<!-- mef-view-toggle -->\r?\n\r?\n# .+?\r?\n\r?\nView as: .+?\r?\n\r?\n\*\*\*\r?\n\r?\n/;
 
-function injectToggle(file, active, el) {
+function removeToggle(file) {
   if (!fs.existsSync(file)) {
-    console.warn(`[mef:elements] missing ${active} page for ${el.slug}: ${file}`);
+    console.warn(`[mef:elements] missing generated page: ${file}`);
     return false;
   }
   const body = fs.readFileSync(file, "utf-8");
-  if (body.includes(TOGGLE_MARK)) return true;
-  const ts = active === "ts" ? "**TypeScript**" : `[TypeScript](${tsUrl(el)})`;
-  const zod = active === "zod" ? "**Zod**" : `[Zod](${zodUrl(el)})`;
-  const header = `${TOGGLE_MARK}\n\n# ${el.title}\n\nView as: ${ts} · ${zod}\n\n***\n\n`;
-  fs.writeFileSync(file, header + body);
+  const cleaned = body.replace(TOGGLE_PATTERN, "");
+  if (cleaned !== body) fs.writeFileSync(file, cleaned);
   return true;
 }
 
-let injected = 0;
+let processed = 0;
 for (const el of ELEMENTS) {
-  if (injectToggle(tsReadme(el), "ts", el)) injected += 1;
-  if (injectToggle(zodReadme(el), "zod", el)) injected += 1;
+  if (removeToggle(tsReadme(el))) processed += 1;
+  if (removeToggle(zodReadme(el))) processed += 1;
 }
 
 const lines = [
   "# MEF Technical Elements",
   "",
-  "Schema reference for the OpenPRA Model Exchange Format technical elements, generated from `apps/interfaces/mef-types`. Every element is available as TypeScript types and as its Zod validation mirror — use the toggle at the top of each page to switch between them.",
+  "Schema reference for the OpenPRA Model Exchange Format technical elements, generated from `apps/interfaces/mef-types`. Every element is available as TypeScript types and as its Zod validation mirror through the links below.",
   "",
   "## Technical Elements",
   "",
@@ -76,4 +74,4 @@ lines.push(
 lines.push("");
 fs.writeFileSync(path.join(MEF_DIR, "index.md"), lines.join("\n"));
 
-console.log(`[mef:elements] wrote landing and injected ${injected} element toggles`);
+console.log(`[mef:elements] wrote landing and processed ${processed} element pages without view toggles`);

@@ -3,6 +3,10 @@
 Issues encountered during parsing, verification, or format conversion.
 Grouped by format. Each entry: 2-sentence problem summary, status, solution.
 
+::: warning Proprietary benchmarking materials
+SAPHIRE/SAPHSOLVE, FTREX, ZEBRA, and the ENT fixture are proprietary. Their executables, libraries, license material, and model data are not included in the OpenPRA source code or distributed with this repository. They were used only for benchmarking and code-to-code verification. File paths below identify the historical benchmark inputs; they do not indicate that those proprietary materials are present in the repository.
+:::
+
 ---
 
 ## FTAP (.ftp)
@@ -296,9 +300,9 @@ Beyond gates, JSINP also carries an event tree: initiating event, systems, and s
 
 ## Dataset Notes
 
-### fixtures/ent/ENT.ftp
+### ENT benchmark fixture (not distributed)
 
-91k-line SAPHIRE model. Truncation limit: `1E-12`. Contains 265 ATLEAST gates and multi-line gate definitions.
+Historical 91k-line SAPHIRE model, referenced in benchmark records as `fixtures/ent/ENT.ftp`. Truncation limit: `1E-12`. Contains 265 ATLEAST gates and multi-line gate definitions. The proprietary fixture is not included in the repository.
 All blockers resolved (FTAP-001, FTAP-002, JSINP-001, OPENPSA-001, OPENPSA-002, S2ML-001).
 Feasible targets: OpenPSA XML, S2ML/SBE. Not feasible: FTAP output (no ATLEAST support), JSINP (no ATLEAST support).
 

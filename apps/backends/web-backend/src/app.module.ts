@@ -31,6 +31,7 @@ import { HighWindsPraWorkbooksModule } from "./high-winds-pra-workbooks/high-win
 import { ExternalFloodPraWorkbooksModule } from "./external-flood-pra-workbooks/external-flood-pra-workbooks.module";
 import { OtherHazardsPraWorkbooksModule } from "./other-hazards-pra-workbooks/other-hazards-pra-workbooks.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { NewlyDevelopedMethodsModule } from "./newly-developed-methods/newly-developed-methods.module";
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     HighWindsPraWorkbooksModule,
     ExternalFloodPraWorkbooksModule,
     OtherHazardsPraWorkbooksModule,
+    NewlyDevelopedMethodsModule,
   ],
 })
 export class AppModule {}

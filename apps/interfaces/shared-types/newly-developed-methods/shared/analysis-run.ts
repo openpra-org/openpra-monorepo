@@ -15,6 +15,15 @@ const AnalysisEngineMetadataSchema = z.object({
   version: z.string().trim().min(1, "Analysis engine version is required"),
 });
 
+const AnalysisRunFailureSchema = z
+  .object({
+    kind: z.string().trim().min(1, "Analysis failure kind is required"),
+    code: z.string().trim().min(1, "Analysis failure code is required"),
+    message: z.string().trim().min(1, "Analysis failure message is required"),
+    details: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
 const OptionalRunTimestampSchema = z.string().datetime({ offset: true }).nullable();
 
 const AnalysisRunMetadataSchema = z
@@ -30,6 +39,7 @@ const AnalysisRunMetadataSchema = z
     startedAt: OptionalRunTimestampSchema,
     completedAt: OptionalRunTimestampSchema,
     engine: AnalysisEngineMetadataSchema.nullable(),
+    failure: AnalysisRunFailureSchema.nullable().optional(),
   })
   .superRefine((run, context) => {
     if (run.status === "QUEUED" && (run.startedAt !== null || run.completedAt !== null || run.engine !== null)) {
@@ -53,6 +63,21 @@ const AnalysisRunMetadataSchema = z
         code: "custom",
         path: ["status"],
         message: "Succeeded and failed runs require start, completion, and engine metadata",
+      });
+    }
+
+    if (run.status === "FAILED" && (run.failure === undefined || run.failure === null)) {
+      context.addIssue({
+        code: "custom",
+        path: ["failure"],
+        message: "Failed runs require structured failure details",
+      });
+    }
+    if (run.status !== "FAILED" && run.failure !== undefined && run.failure !== null) {
+      context.addIssue({
+        code: "custom",
+        path: ["failure"],
+        message: "Only failed runs can have failure details",
       });
     }
 
@@ -87,6 +112,7 @@ type AnalysisRunSchemaVersion = z.infer<typeof AnalysisRunSchemaVersionSchema>;
 type AnalysisRunId = z.infer<typeof AnalysisRunIdSchema>;
 type AnalysisRunStatus = z.infer<typeof AnalysisRunStatusSchema>;
 type AnalysisEngineMetadata = z.infer<typeof AnalysisEngineMetadataSchema>;
+type AnalysisRunFailure = z.infer<typeof AnalysisRunFailureSchema>;
 type AnalysisRunMetadata = z.infer<typeof AnalysisRunMetadataSchema>;
 
 export {
@@ -95,6 +121,7 @@ export {
   AnalysisRunIdSchema,
   AnalysisRunStatusSchema,
   AnalysisEngineMetadataSchema,
+  AnalysisRunFailureSchema,
   AnalysisRunMetadataSchema,
 };
 export type {
@@ -102,5 +129,6 @@ export type {
   AnalysisRunId,
   AnalysisRunStatus,
   AnalysisEngineMetadata,
+  AnalysisRunFailure,
   AnalysisRunMetadata,
 };

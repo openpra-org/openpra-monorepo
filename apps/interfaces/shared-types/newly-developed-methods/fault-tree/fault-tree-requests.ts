@@ -13,6 +13,7 @@ import type {
   ValidationMode,
 } from "../shared";
 import type {
+  FaultTreeBasicEvent,
   FaultTreeGate,
   FaultTreeGateInput,
   FaultTreeLeafNode,
@@ -20,6 +21,7 @@ import type {
   FaultTreeTopGateReference,
 } from "./fault-tree-model";
 import {
+  FaultTreeBasicEventSchema,
   FaultTreeGateInputSchema,
   FaultTreeGateSchema,
   FaultTreeLeafNodeSchema,
@@ -70,6 +72,21 @@ interface FaultTreeExecuteRequest {
   modelId: MethodModelId;
   revision: MethodModelRevision;
   requestedBy: string;
+}
+
+interface FaultTreeBasicEventCatalogueCreateRequest {
+  schemaVersion: MethodModelSchemaVersion;
+  projectId: string;
+  createdBy: string;
+  basicEvents: FaultTreeBasicEvent[];
+}
+
+interface FaultTreeBasicEventCataloguePatchRequest {
+  schemaVersion: MethodModelSchemaVersion;
+  projectId: string;
+  expectedRevision: MethodModelRevision;
+  updatedBy: string;
+  basicEvents: FaultTreeBasicEvent[];
 }
 
 const FaultTreeCreateRequestSchema = z
@@ -127,6 +144,25 @@ const FaultTreeExecuteRequestSchema = z
   })
   .strict();
 
+const FaultTreeBasicEventCatalogueCreateRequestSchema = z
+  .object({
+    schemaVersion: MethodModelSchemaVersionSchema,
+    projectId: z.string().trim().min(1, "Project id is required"),
+    createdBy: z.string().trim().min(1, "Creator id is required"),
+    basicEvents: z.array(FaultTreeBasicEventSchema),
+  })
+  .strict();
+
+const FaultTreeBasicEventCataloguePatchRequestSchema = z
+  .object({
+    schemaVersion: MethodModelSchemaVersionSchema,
+    projectId: z.string().trim().min(1, "Project id is required"),
+    expectedRevision: MethodModelRevisionSchema,
+    updatedBy: z.string().trim().min(1, "Updater id is required"),
+    basicEvents: z.array(FaultTreeBasicEventSchema),
+  })
+  .strict();
+
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type _AssertFaultTreeCreateRequest = Expect<
@@ -144,6 +180,18 @@ type _AssertFaultTreeValidateRequest = Expect<
 type _AssertFaultTreeExecuteRequest = Expect<
   Equal<z.infer<typeof FaultTreeExecuteRequestSchema>, FaultTreeExecuteRequest>
 >;
+type _AssertFaultTreeBasicEventCatalogueCreateRequest = Expect<
+  Equal<
+    z.infer<typeof FaultTreeBasicEventCatalogueCreateRequestSchema>,
+    FaultTreeBasicEventCatalogueCreateRequest
+  >
+>;
+type _AssertFaultTreeBasicEventCataloguePatchRequest = Expect<
+  Equal<
+    z.infer<typeof FaultTreeBasicEventCataloguePatchRequestSchema>,
+    FaultTreeBasicEventCataloguePatchRequest
+  >
+>;
 
 export {
   FaultTreeCreateRequestSchema,
@@ -151,6 +199,8 @@ export {
   FaultTreePatchRequestSchema,
   FaultTreeValidateRequestSchema,
   FaultTreeExecuteRequestSchema,
+  FaultTreeBasicEventCatalogueCreateRequestSchema,
+  FaultTreeBasicEventCataloguePatchRequestSchema,
 };
 export type {
   FaultTreeCreateRequest,
@@ -158,4 +208,6 @@ export type {
   FaultTreePatchRequest,
   FaultTreeValidateRequest,
   FaultTreeExecuteRequest,
+  FaultTreeBasicEventCatalogueCreateRequest,
+  FaultTreeBasicEventCataloguePatchRequest,
 };

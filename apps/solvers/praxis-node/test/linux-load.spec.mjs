@@ -17,8 +17,8 @@ test("loads the Linux x64 GNU binary directly", () => {
   const addon = require(bindingPath);
   const requestJson = JSON.stringify({
     schemaVersion: "1.0.0",
-    request: { methodType: "HYBRID_CAUSAL_LOGIC" },
-    modelSnapshots: [{ methodType: "HYBRID_CAUSAL_LOGIC" }],
+    request: { methodType: "UNSUPPORTED_TEST_METHOD" },
+    modelSnapshots: [{ methodType: "UNSUPPORTED_TEST_METHOD" }],
   });
 
   assert.deepEqual(Object.keys(addon).sort(), ["execute", "validate"]);

@@ -25,14 +25,21 @@ import type {
   MethodType,
   ValidationMode,
   NewlyDevelopedMethodModel,
+  AnalysisRunFailure,
   BayesianNetworkModel,
   EventTreeModel,
+  FaultTreeBasicEventCatalogue,
   FaultTreeModel,
   HclConfigurationModel,
 } from "interfaces-shared-types/newly-developed-methods";
 import {
   AnalysisRunMetadataSchema,
+  BayesianNetworkAnalysisResultSchema,
   CURRENT_ANALYSIS_RUN_SCHEMA_VERSION,
+  EventTreeAnalysisResultSchema,
+  FaultTreeAnalysisResultSchema,
+  FaultTreeBasicEventCatalogueSchema,
+  HclQuantificationResultSchema,
   MethodAnalysisRunResultSchema,
   MethodModelDependenciesResponseSchema,
   NewlyDevelopedMethodModelSchema,
@@ -48,12 +55,19 @@ import {
 import { ProjectsService } from "../../projects/projects.service";
 import { WorkbookElementRegistry } from "../../workbooks/workbook-element-registry";
 import { Workbook, type WorkbookDocument } from "../../workbooks/workbook.schema";
+import {
+  FaultTreeBasicEventCatalogueRecord,
+  type FaultTreeBasicEventCatalogueRecordDocument,
+} from "../fault-tree/fault-tree-basic-event-catalogue-record.schema";
 import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "./analysis-run-record.schema";
 import { MethodModelRecord, type MethodModelRecordDocument } from "./method-model-record.schema";
+import { PraetorAnalysisClient } from "./praetor-analysis.client";
 
 interface ActingUser {
   username: string;
 }
+
+const PRAXIS_ENGINE = { name: "PRAXIS", version: "0.1.0" } as const;
 
 function defaultLayout(direction: CanvasLayoutMetadata["direction"]): CanvasLayoutMetadata {
   return {
@@ -145,6 +159,10 @@ function isDuplicateKeyError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11_000;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function escapeJsonPointerSegment(segment: string | number): string {
   return String(segment).replace(/~/g, "~0").replace(/\//g, "~1");
 }
@@ -207,6 +225,7 @@ function toAnalysisRunMetadata(doc: AnalysisRunRecordDocument): AnalysisRunMetad
     startedAt: doc.startedAt?.toISOString() ?? null,
     completedAt: doc.completedAt?.toISOString() ?? null,
     engine: doc.engine,
+    failure: doc.failure ?? null,
   });
 }
 
@@ -219,8 +238,11 @@ class MethodModelsService {
     private readonly analysisRunModel: Model<AnalysisRunRecordDocument>,
     @InjectModel(Workbook.name)
     private readonly workbookModel: Model<WorkbookDocument>,
+    @InjectModel(FaultTreeBasicEventCatalogueRecord.name)
+    private readonly basicEventCatalogueModel: Model<FaultTreeBasicEventCatalogueRecordDocument>,
     private readonly projectsService: ProjectsService,
     private readonly workbookElementRegistry: WorkbookElementRegistry,
+    private readonly praetorAnalysisClient: PraetorAnalysisClient,
   ) {}
 
   async listProjectModels(
@@ -379,7 +401,10 @@ class MethodModelsService {
       throw new ConflictException("Method model revision conflict");
     }
 
-    const relatedDocs = await this.methodModel.find({ projectId }).exec();
+    const [relatedDocs, basicEventCatalogue] = await Promise.all([
+      this.methodModel.find({ projectId }).exec(),
+      this.loadBasicEventCatalogueSnapshot(projectId),
+    ]);
     const relatedModels = relatedDocs.map((doc) =>
       NewlyDevelopedMethodModelSchema.parse(doc.model),
     );
@@ -389,6 +414,7 @@ class MethodModelsService {
       relatedModels,
       request.mode,
       new Date().toISOString(),
+      basicEventCatalogue,
     );
   }
 
@@ -410,7 +436,10 @@ class MethodModelsService {
       throw new ForbiddenException("You cannot run analyses in this project");
     }
 
-    const snapshotDocs = await this.methodModel.find({ projectId }).exec();
+    const [snapshotDocs, basicEventCatalogue] = await Promise.all([
+      this.methodModel.find({ projectId }).exec(),
+      this.loadBasicEventCatalogueSnapshot(projectId),
+    ]);
     const modelSnapshots = snapshotDocs.map((doc) =>
       NewlyDevelopedMethodModelSchema.parse(doc.model),
     );
@@ -430,6 +459,7 @@ class MethodModelsService {
       modelSnapshots,
       "ANALYSIS_READY",
       new Date().toISOString(),
+      basicEventCatalogue,
     );
     if (!("quantificationAllowed" in validation) || !validation.quantificationAllowed) {
       throw new BadRequestException({
@@ -453,14 +483,27 @@ class MethodModelsService {
       startedAt: null,
       completedAt: null,
       engine: null,
+      failure: null,
       request,
       modelSnapshots,
+      resources:
+        basicEventCatalogue === undefined
+          ? {}
+          : { faultTreeBasicEventCatalogue: basicEventCatalogue },
       result: null,
     });
 
+    const completedRun =
+      request.methodType === "FAULT_TREE" ||
+      request.methodType === "BAYESIAN_NETWORK" ||
+      request.methodType === "EVENT_TREE" ||
+      request.methodType === "HYBRID_CAUSAL_LOGIC"
+        ? await this.executeNativeRun(run)
+        : run;
+
     return {
       schemaVersion: request.schemaVersion,
-      run: toAnalysisRunMetadata(run),
+      run: toAnalysisRunMetadata(completedRun),
     };
   }
 
@@ -593,6 +636,121 @@ class MethodModelsService {
     return doc;
   }
 
+  private async loadBasicEventCatalogueSnapshot(
+    projectId: string,
+  ): Promise<FaultTreeBasicEventCatalogue | undefined> {
+    const document = await this.basicEventCatalogueModel.findOne({ projectId }).exec();
+    return document === null
+      ? undefined
+      : FaultTreeBasicEventCatalogueSchema.parse(document.catalogue);
+  }
+
+  private async transitionRun(
+    runId: string,
+    expectedStatus: AnalysisRunMetadata["status"],
+    update: Record<string, unknown>,
+  ): Promise<AnalysisRunRecordDocument> {
+    const updated = await this.analysisRunModel
+      .findOneAndUpdate({ id: runId, status: expectedStatus }, { $set: update }, { new: true })
+      .exec();
+    if (updated === null) {
+      throw new ConflictException(`Analysis run ${runId} is no longer ${expectedStatus}`);
+    }
+    return updated;
+  }
+
+  private async failRun(
+    runId: string,
+    failure: AnalysisRunFailure,
+  ): Promise<AnalysisRunRecordDocument> {
+    return this.transitionRun(runId, "RUNNING", {
+      status: "FAILED",
+      completedAt: new Date(),
+      failure,
+      result: null,
+    });
+  }
+
+  private async executeNativeRun(
+    queuedRun: AnalysisRunRecordDocument,
+  ): Promise<AnalysisRunRecordDocument> {
+    const running = await this.transitionRun(queuedRun.id, "QUEUED", {
+      status: "RUNNING",
+      startedAt: new Date(),
+      engine: PRAXIS_ENGINE,
+      failure: null,
+    });
+
+    let response: Awaited<ReturnType<PraetorAnalysisClient["execute"]>>;
+    try {
+      response = await this.praetorAnalysisClient.execute({
+        schemaVersion: "1.0.0",
+        request: running.request,
+        modelSnapshots: running.modelSnapshots,
+        resources: running.resources,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return this.failRun(running.id, {
+        kind: "SYSTEM_ERROR",
+        code: "PRAETOR_REQUEST_FAILED",
+        message,
+        details: {},
+      });
+    }
+
+    if (response.error !== undefined) {
+      return this.failRun(running.id, response.error);
+    }
+
+    const completedAt = new Date();
+    if (!isRecord(response.result) || response.result["methodType"] !== running.methodType) {
+      return this.failRun(running.id, {
+        kind: "SYSTEM_ERROR",
+        code: "INVALID_PRAXIS_RESULT",
+        message: "Praetor returned a result that does not match the analysis run",
+        details: {},
+      });
+    }
+
+    const { methodType: _methodType, ...solverResult } = response.result;
+    const resultCandidate = {
+      ...solverResult,
+      schemaVersion: running.request.schemaVersion,
+      runId: running.id,
+      completedAt: completedAt.toISOString(),
+    };
+    const parsedResult = (() => {
+      switch (running.methodType) {
+        case "FAULT_TREE":
+          return FaultTreeAnalysisResultSchema.safeParse(resultCandidate);
+        case "BAYESIAN_NETWORK":
+          return BayesianNetworkAnalysisResultSchema.safeParse(resultCandidate);
+        case "EVENT_TREE":
+          return EventTreeAnalysisResultSchema.safeParse(resultCandidate);
+        case "HYBRID_CAUSAL_LOGIC":
+          return HclQuantificationResultSchema.safeParse(resultCandidate);
+        default:
+          return { success: false, error: { issues: [] } } as const;
+      }
+    })();
+    if (!parsedResult.success) {
+      return this.failRun(running.id, {
+        kind: "SYSTEM_ERROR",
+        code: "INVALID_PRAXIS_RESULT",
+        message: `Praetor returned a malformed ${running.methodType} result`,
+        details: { issues: parsedResult.error.issues },
+      });
+    }
+
+    return this.transitionRun(running.id, "RUNNING", {
+      status: "SUCCEEDED",
+      completedAt,
+      failure: null,
+      result: parsedResult.data,
+    });
+  }
+
   private validateExecutionSelection(
     model: NewlyDevelopedMethodModel,
     request: MethodModelExecuteRequest,
@@ -679,6 +837,7 @@ class MethodModelsService {
     relatedModels: NewlyDevelopedMethodModel[],
     mode: ValidationMode,
     validatedAt: string,
+    basicEventCatalogue?: FaultTreeBasicEventCatalogue,
   ): DraftValidationOutcome | AnalysisReadyValidationOutcome {
     const faultTrees = relatedModels.filter(
       (model): model is FaultTreeModel => model.methodType === "FAULT_TREE",
@@ -696,6 +855,7 @@ class MethodModelsService {
     switch (target.methodType) {
       case "FAULT_TREE": {
         const context = {
+          basicEventCatalogue,
           faultTreeModels: faultTrees,
           availableTransferTargets: faultTrees.flatMap((faultTree) =>
             faultTree.gates.map((gate) => ({

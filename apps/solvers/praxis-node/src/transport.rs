@@ -14,6 +14,14 @@ pub(crate) struct SolverRequest {
     pub(crate) schema_version: String,
     pub(crate) request: Value,
     pub(crate) model_snapshots: Vec<Value>,
+    #[serde(default)]
+    pub(crate) resources: SolverResources,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SolverResources {
+    pub(crate) fault_tree_basic_event_catalogue: Option<Value>,
 }
 
 impl SolverRequest {

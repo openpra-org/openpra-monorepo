@@ -10,12 +10,16 @@ import {
   type WorkbookDocument,
 } from "../../../workbooks/workbook.schema";
 import {
+  FaultTreeBasicEventCatalogueRecord,
+  FaultTreeBasicEventCatalogueRecordSchema,
+} from "../../fault-tree/fault-tree-basic-event-catalogue-record.schema";
+import {
   AnalysisRunRecord,
   AnalysisRunRecordSchema,
-  type AnalysisRunRecordDocument,
 } from "../analysis-run-record.schema";
 import { MethodModelRecord, MethodModelRecordSchema } from "../method-model-record.schema";
 import { MethodModelsService } from "../method-models.service";
+import { PraetorAnalysisClient } from "../praetor-analysis.client";
 
 const acting = { username: "ada" };
 const requestMetadata = {
@@ -29,7 +33,6 @@ const requestMetadata = {
 describe("MethodModelsService Mongo persistence", () => {
   let mongo: MongoMemoryServer;
   let service: MethodModelsService;
-  let analysisRunModel: Model<AnalysisRunRecordDocument>;
   let workbookModel: Model<WorkbookDocument>;
   let workbookElementRegistry: { tryGet: jest.Mock };
   let moduleRef: TestingModule;
@@ -43,6 +46,10 @@ describe("MethodModelsService Mongo persistence", () => {
         MongooseModule.forFeature([
           { name: MethodModelRecord.name, schema: MethodModelRecordSchema },
           { name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema },
+          {
+            name: FaultTreeBasicEventCatalogueRecord.name,
+            schema: FaultTreeBasicEventCatalogueRecordSchema,
+          },
           { name: Workbook.name, schema: WorkbookSchema },
         ]),
       ],
@@ -58,10 +65,40 @@ describe("MethodModelsService Mongo persistence", () => {
           provide: WorkbookElementRegistry,
           useValue: workbookElementRegistry,
         },
+        {
+          provide: PraetorAnalysisClient,
+          useValue: {
+            execute: jest.fn().mockImplementation(
+              (envelope: {
+                request: { modelId: string; revision: number };
+                modelSnapshots: Array<{
+                  methodType: string;
+                  topGate?: { gateId: string } | null;
+                }>;
+              }) => {
+                const faultTree = envelope.modelSnapshots.find(
+                  (model) => model.methodType === "FAULT_TREE",
+                );
+                return Promise.resolve({
+                  schemaVersion: "1.0.0",
+                  result: {
+                    methodType: "FAULT_TREE",
+                    modelId: envelope.request.modelId,
+                    modelRevision: envelope.request.revision,
+                    topGateId: faultTree?.topGate?.gateId,
+                    topEventProbability: 0.01,
+                    minimalCutSetCount: 0,
+                    leadingCutSets: [],
+                    validationIssues: [],
+                  },
+                });
+              },
+            ),
+          },
+        },
       ],
     }).compile();
     service = moduleRef.get(MethodModelsService);
-    analysisRunModel = moduleRef.get(getModelToken(AnalysisRunRecord.name));
     workbookModel = moduleRef.get(getModelToken(Workbook.name));
   }, 90_000);
 
@@ -314,7 +351,7 @@ describe("MethodModelsService Mongo persistence", () => {
     await service.deleteModel("project-1", bayesianNetwork.id, acting);
   });
 
-  it("persists a queued analysis run and retrieves its eventual typed result", async () => {
+  it("persists a completed analysis run and retrieves its typed result", async () => {
     const faultTree = await service.createModel(
       "project-1",
       { ...requestMetadata, methodType: "FAULT_TREE", code: "FT-RUN" },
@@ -390,49 +427,25 @@ describe("MethodModelsService Mongo persistence", () => {
     expect(created.run).toMatchObject({
       modelId: faultTree.id,
       modelRevision: revision,
-      status: "QUEUED",
+      status: "SUCCEEDED",
     });
     await expect(
       service.getAnalysisRun("project-1", faultTree.id, created.run.id, acting),
     ).resolves.toEqual(created.run);
-    await expect(
-      service.getAnalysisRunResult("project-1", faultTree.id, created.run.id, acting),
-    ).rejects.toThrow("Analysis result is not available while the run is QUEUED");
-
-    const startedAt = new Date(created.run.requestedAt);
-    startedAt.setSeconds(startedAt.getSeconds() + 1);
-    const completedAt = new Date(startedAt);
-    completedAt.setSeconds(completedAt.getSeconds() + 1);
-    const result = {
-      schemaVersion: "1.0.0" as const,
-      runId: created.run.id,
-      modelId: faultTree.id,
-      modelRevision: revision,
-      topGateId: gateId,
-      topEventProbability: 0.01,
-      minimalCutSetCount: 0,
-      leadingCutSets: [],
-      validationIssues: [],
-      completedAt: completedAt.toISOString(),
-    };
-    await analysisRunModel.updateOne(
-      { id: created.run.id },
-      {
-        $set: {
-          status: "SUCCEEDED",
-          startedAt,
-          completedAt,
-          engine: { name: "PRAXIS", version: "0.1.0" },
-          result,
-        },
-      },
+    const completed = await service.getAnalysisRunResult(
+      "project-1",
+      faultTree.id,
+      created.run.id,
+      acting,
     );
-
-    await expect(
-      service.getAnalysisRunResult("project-1", faultTree.id, created.run.id, acting),
-    ).resolves.toMatchObject({
+    expect(completed).toMatchObject({
       run: { id: created.run.id, status: "SUCCEEDED" },
-      result,
+      result: {
+        modelId: faultTree.id,
+        modelRevision: revision,
+        topGateId: gateId,
+        topEventProbability: 0.01,
+      },
     });
   });
 });

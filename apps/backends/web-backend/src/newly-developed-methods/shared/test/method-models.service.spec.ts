@@ -16,9 +16,11 @@ import {
 import { ProjectsService } from "../../../projects/projects.service";
 import { WorkbookElementRegistry } from "../../../workbooks/workbook-element-registry";
 import { Workbook } from "../../../workbooks/workbook.schema";
+import { FaultTreeBasicEventCatalogueRecord } from "../../fault-tree/fault-tree-basic-event-catalogue-record.schema";
 import { AnalysisRunRecord } from "../analysis-run-record.schema";
 import { MethodModelRecord } from "../method-model-record.schema";
 import { MethodModelsService } from "../method-models.service";
+import { PraetorAnalysisClient } from "../praetor-analysis.client";
 
 const MODEL_ID = "123e4567-e89b-42d3-a456-426614174000";
 const BN_MODEL_ID = "123e4567-e89b-42d3-a456-426614174001";
@@ -87,6 +89,7 @@ function makeRunRecord(overrides: Record<string, unknown> = {}): Record<string, 
     startedAt: null,
     completedAt: null,
     engine: null,
+    failure: null,
     request: {
       schemaVersion: "1.0.0",
       methodType: "FAULT_TREE",
@@ -94,6 +97,8 @@ function makeRunRecord(overrides: Record<string, unknown> = {}): Record<string, 
       revision: 2,
       requestedBy: "ada",
     },
+    modelSnapshots: [makeAnalysisReadyFaultTree()],
+    resources: {},
     result: null,
     ...overrides,
   };
@@ -161,6 +166,87 @@ function makeBayesianNetwork(overrides: Record<string, unknown> = {}): Record<st
   };
 }
 
+function makeAnalysisReadyBayesianNetwork(): Record<string, unknown> {
+  const nodeA = "123e4567-e89b-42d3-a456-426614174040";
+  const nodeB = "123e4567-e89b-42d3-a456-426614174041";
+  const aFalse = "123e4567-e89b-42d3-a456-426614174042";
+  const aTrue = "123e4567-e89b-42d3-a456-426614174043";
+  const bFalse = "123e4567-e89b-42d3-a456-426614174044";
+  const bTrue = "123e4567-e89b-42d3-a456-426614174045";
+  return makeBayesianNetwork({
+    id: MODEL_ID,
+    nodes: [
+      {
+        id: nodeA,
+        code: "A",
+        name: "Cause",
+        description: "Parent node",
+        kind: "CHANCE_NODE",
+        states: [
+          { id: aFalse, code: "FALSE", name: "False" },
+          { id: aTrue, code: "TRUE", name: "True" },
+        ],
+      },
+      {
+        id: nodeB,
+        code: "B",
+        name: "Effect",
+        description: "Child node",
+        kind: "CHANCE_NODE",
+        states: [
+          { id: bFalse, code: "FALSE", name: "False" },
+          { id: bTrue, code: "TRUE", name: "True" },
+        ],
+      },
+    ],
+    edges: [
+      {
+        id: "123e4567-e89b-42d3-a456-426614174046",
+        parentNodeId: nodeA,
+        childNodeId: nodeB,
+      },
+    ],
+    conditionalProbabilityTables: [
+      {
+        nodeId: nodeA,
+        parents: [],
+        rows: [
+          {
+            id: "123e4567-e89b-42d3-a456-426614174047",
+            parentStates: [],
+            values: [
+              { stateId: aFalse, probability: 0.6 },
+              { stateId: aTrue, probability: 0.4 },
+            ],
+          },
+        ],
+      },
+      {
+        nodeId: nodeB,
+        parents: [{ nodeId: nodeA, order: 0 }],
+        rows: [
+          {
+            id: "123e4567-e89b-42d3-a456-426614174048",
+            parentStates: [{ parentNodeId: nodeA, stateId: aFalse }],
+            values: [
+              { stateId: bFalse, probability: 0.7 },
+              { stateId: bTrue, probability: 0.3 },
+            ],
+          },
+          {
+            id: "123e4567-e89b-42d3-a456-426614174049",
+            parentStates: [{ parentNodeId: nodeA, stateId: aTrue }],
+            values: [
+              { stateId: bFalse, probability: 0.2 },
+              { stateId: bTrue, probability: 0.8 },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+}
+
 describe("MethodModelsService", () => {
   let service: MethodModelsService;
   let methodModelMock: {
@@ -172,10 +258,13 @@ describe("MethodModelsService", () => {
   let projectsServiceMock: { resolveAccess: jest.Mock };
   let analysisRunModelMock: {
     findOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
     create: jest.Mock;
   };
   let workbookModelMock: { find: jest.Mock };
+  let basicEventCatalogueModelMock: { findOne: jest.Mock };
   let workbookElementRegistryMock: { tryGet: jest.Mock };
+  let praetorAnalysisClientMock: { execute: jest.Mock };
 
   beforeEach(async () => {
     methodModelMock = {
@@ -186,10 +275,14 @@ describe("MethodModelsService", () => {
     };
     analysisRunModelMock = {
       findOne: jest.fn(),
+      findOneAndUpdate: jest.fn(),
       create: jest.fn(),
     };
     workbookModelMock = {
       find: jest.fn().mockReturnValue({ exec: () => Promise.resolve([]) }),
+    };
+    basicEventCatalogueModelMock = {
+      findOne: jest.fn().mockReturnValue({ exec: () => Promise.resolve(null) }),
     };
     workbookElementRegistryMock = {
       tryGet: jest.fn().mockReturnValue(undefined),
@@ -197,6 +290,34 @@ describe("MethodModelsService", () => {
     projectsServiceMock = {
       resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "viewer" }),
     };
+    praetorAnalysisClientMock = {
+      execute: jest.fn().mockResolvedValue({
+        schemaVersion: "1.0.0",
+        result: {
+          methodType: "FAULT_TREE",
+          modelId: MODEL_ID,
+          modelRevision: 2,
+          topGateId: "123e4567-e89b-42d3-a456-426614174020",
+          topEventProbability: 0.01,
+          minimalCutSetCount: 0,
+          leadingCutSets: [],
+          validationIssues: [],
+        },
+      }),
+    };
+    let runState = makeRunRecord();
+    analysisRunModelMock.create.mockImplementation((run: Record<string, unknown>) => {
+      runState = { ...run };
+      return Promise.resolve(runState);
+    });
+    analysisRunModelMock.findOneAndUpdate.mockImplementation(
+      (_filter: Record<string, unknown>, operation: { $set: Record<string, unknown> }) => ({
+        exec: () => {
+          runState = { ...runState, ...operation.$set };
+          return Promise.resolve(runState);
+        },
+      }),
+    );
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -204,8 +325,13 @@ describe("MethodModelsService", () => {
         { provide: getModelToken(MethodModelRecord.name), useValue: methodModelMock },
         { provide: getModelToken(AnalysisRunRecord.name), useValue: analysisRunModelMock },
         { provide: getModelToken(Workbook.name), useValue: workbookModelMock },
+        {
+          provide: getModelToken(FaultTreeBasicEventCatalogueRecord.name),
+          useValue: basicEventCatalogueModelMock,
+        },
         { provide: ProjectsService, useValue: projectsServiceMock },
         { provide: WorkbookElementRegistry, useValue: workbookElementRegistryMock },
+        { provide: PraetorAnalysisClient, useValue: praetorAnalysisClientMock },
       ],
     }).compile();
 
@@ -601,16 +727,12 @@ describe("MethodModelsService", () => {
       requestedBy: "ada",
     };
 
-    it("validates an analysis-ready revision and persists a queued typed request", async () => {
+    it("validates an analysis-ready revision and completes a typed PRAXIS run", async () => {
       projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
       const model = makeAnalysisReadyFaultTree();
       const record = makeRecord({ model });
       methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(record) });
       methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([record]) });
-      analysisRunModelMock.create.mockImplementation((run: Record<string, unknown>) =>
-        Promise.resolve(run),
-      );
-
       const result = await service.createAnalysisRun(
         "project-1",
         MODEL_ID,
@@ -624,11 +746,10 @@ describe("MethodModelsService", () => {
           modelId: MODEL_ID,
           modelRevision: 2,
           methodType: "FAULT_TREE",
-          status: "QUEUED",
+          status: "SUCCEEDED",
           requestedBy: "ada",
-          startedAt: null,
-          completedAt: null,
-          engine: null,
+          engine: { name: "PRAXIS", version: "0.1.0" },
+          failure: null,
         },
       });
       expect(MethodModelExecuteResultSchema.safeParse(result).success).toBe(true);
@@ -637,8 +758,21 @@ describe("MethodModelsService", () => {
           projectId: "project-1",
           request: executeRequest,
           modelSnapshots: [model],
+          resources: {},
           result: null,
         }),
+      );
+      expect(analysisRunModelMock.findOneAndUpdate).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ status: "QUEUED" }),
+        expect.objectContaining({ $set: expect.objectContaining({ status: "RUNNING" }) }),
+        { new: true },
+      );
+      expect(analysisRunModelMock.findOneAndUpdate).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ status: "RUNNING" }),
+        expect.objectContaining({ $set: expect.objectContaining({ status: "SUCCEEDED" }) }),
+        { new: true },
       );
     });
 
@@ -659,6 +793,71 @@ describe("MethodModelsService", () => {
         },
       });
       expect(analysisRunModelMock.create).not.toHaveBeenCalled();
+    });
+
+    it("persists a structured failed run when PRAXIS rejects execution", async () => {
+      projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
+      const model = makeAnalysisReadyFaultTree();
+      const record = makeRecord({ model });
+      methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([record]) });
+      const failure = {
+        kind: "SOLVER_ERROR",
+        code: "PRAXIS_LOGIC",
+        message: "Invalid gate",
+        details: { gateId: "G-1" },
+      };
+      praetorAnalysisClientMock.execute.mockResolvedValue({
+        schemaVersion: "1.0.0",
+        error: failure,
+      });
+
+      const result = await service.createAnalysisRun(
+        "project-1",
+        MODEL_ID,
+        executeRequest,
+        { username: "ada" },
+      );
+
+      expect(result.run).toMatchObject({ status: "FAILED", failure });
+      expect(analysisRunModelMock.findOneAndUpdate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "RUNNING" }),
+        expect.objectContaining({
+          $set: expect.objectContaining({ status: "FAILED", failure, result: null }),
+        }),
+        { new: true },
+      );
+    });
+
+    it.each([
+      ["unavailable", new Error("Praetor offline"), "PRAETOR_REQUEST_FAILED"],
+      [
+        "malformed",
+        { schemaVersion: "1.0.0", result: { methodType: "FAULT_TREE" } },
+        "INVALID_PRAXIS_RESULT",
+      ],
+    ])("persists a structured failure for a %s Praetor response", async (_case, response, code) => {
+      projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
+      const model = makeAnalysisReadyFaultTree();
+      methodModelMock.find.mockReturnValue({
+        exec: () => Promise.resolve([makeRecord({ model })]),
+      });
+      if (response instanceof Error) {
+        praetorAnalysisClientMock.execute.mockRejectedValue(response);
+      } else {
+        praetorAnalysisClientMock.execute.mockResolvedValue(response);
+      }
+
+      const result = await service.createAnalysisRun(
+        "project-1",
+        MODEL_ID,
+        executeRequest,
+        { username: "ada" },
+      );
+
+      expect(result.run).toMatchObject({
+        status: "FAILED",
+        failure: { kind: "SYSTEM_ERROR", code },
+      });
     });
 
     it("rejects a stale revision before preserving or queuing snapshots", async () => {
@@ -703,6 +902,61 @@ describe("MethodModelsService", () => {
       expect(analysisRunModelMock.create).not.toHaveBeenCalled();
     });
 
+    it("completes a Bayesian-network query with typed exact marginals", async () => {
+      projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
+      const model = makeAnalysisReadyBayesianNetwork();
+      const queryNodeId = "123e4567-e89b-42d3-a456-426614174040";
+      const falseStateId = "123e4567-e89b-42d3-a456-426614174042";
+      const trueStateId = "123e4567-e89b-42d3-a456-426614174043";
+      methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([{ model }]) });
+      praetorAnalysisClientMock.execute.mockResolvedValue({
+        schemaVersion: "1.0.0",
+        result: {
+          methodType: "BAYESIAN_NETWORK",
+          modelId: MODEL_ID,
+          modelRevision: 2,
+          evidence: { observations: [] },
+          marginals: [
+            {
+              nodeId: queryNodeId,
+              values: [
+                { stateId: falseStateId, probability: 0.6 },
+                { stateId: trueStateId, probability: 0.4 },
+              ],
+            },
+          ],
+          validationIssues: [],
+        },
+      });
+
+      const result = await service.createAnalysisRun(
+        "project-1",
+        MODEL_ID,
+        {
+          schemaVersion: "1.0.0",
+          methodType: "BAYESIAN_NETWORK",
+          modelId: MODEL_ID,
+          revision: 2,
+          requestedBy: "ada",
+          query: { evidence: { observations: [] }, queryNodeIds: [queryNodeId] },
+        },
+        { username: "ada" },
+      );
+
+      expect(result.run).toMatchObject({
+        methodType: "BAYESIAN_NETWORK",
+        status: "SUCCEEDED",
+        engine: { name: "PRAXIS", version: "0.1.0" },
+      });
+      expect(praetorAnalysisClientMock.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ methodType: "BAYESIAN_NETWORK" }),
+          modelSnapshots: [model],
+        }),
+      );
+      expect(MethodModelExecuteResultSchema.safeParse(result).success).toBe(true);
+    });
+
     it("resolves an HCL execution top gate from the preserved FT snapshot", async () => {
       projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
       const faultTreeId = "123e4567-e89b-42d3-a456-426614174030";
@@ -742,9 +996,6 @@ describe("MethodModelsService", () => {
             { model: faultTree },
           ]),
       });
-      analysisRunModelMock.create.mockImplementation((run: Record<string, unknown>) =>
-        Promise.resolve(run),
-      );
       const hclRequest = {
         schemaVersion: "1.0.0" as const,
         methodType: "HYBRID_CAUSAL_LOGIC" as const,
@@ -756,13 +1007,50 @@ describe("MethodModelsService", () => {
           entityId: faultTree.topGate.gateId,
         },
       };
+      praetorAnalysisClientMock.execute.mockResolvedValue({
+        schemaVersion: "1.0.0",
+        result: {
+          methodType: "HYBRID_CAUSAL_LOGIC",
+          modelId: MODEL_ID,
+          modelRevision: 2,
+          faultTreeTopGate: hclRequest.faultTreeTopGate,
+          probability: 0.16,
+          bddNodes: 1,
+          bddVariables: 0,
+          variableOrder: [],
+          bridge: {
+            quantifications: 1,
+            bddContextCacheHits: 0,
+            bddContextCacheMisses: 1,
+            bnQueryCacheHits: 0,
+            bnQueryCacheMisses: 1,
+          },
+          junctionTree: {
+            numCliques: 1,
+            maxCliqueSize: 1,
+            treewidth: 0,
+            totalTableEntries: 1,
+          },
+          validationIssues: [],
+        },
+      });
 
       const hclRun = await service.createAnalysisRun("project-1", MODEL_ID, hclRequest, {
         username: "ada",
       });
       expect(hclRun).toMatchObject({
-        run: { methodType: "HYBRID_CAUSAL_LOGIC", status: "QUEUED" },
+        run: {
+          methodType: "HYBRID_CAUSAL_LOGIC",
+          status: "SUCCEEDED",
+          engine: { name: "PRAXIS", version: "0.1.0" },
+        },
       });
+      expect(praetorAnalysisClientMock.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: hclRequest,
+          modelSnapshots: expect.arrayContaining([hcl, bayesianNetwork, faultTree]),
+        }),
+      );
       expect(MethodModelExecuteResultSchema.safeParse(hclRun).success).toBe(true);
 
       await expect(
@@ -989,9 +1277,6 @@ describe("MethodModelsService", () => {
           exec: () =>
             Promise.resolve("id" in query ? [] : [{ model: analysisReadyModel }]),
         }));
-        analysisRunModelMock.create.mockImplementation((run: Record<string, unknown>) =>
-          Promise.resolve(run),
-        );
 
         await expect(
           service.createModel("project-1", createRequest, { username: "ada" }),
@@ -1003,7 +1288,7 @@ describe("MethodModelsService", () => {
           service.createAnalysisRun("project-1", MODEL_ID, executeRequest, {
             username: "ada",
           }),
-        ).resolves.toHaveProperty("run.status", "QUEUED");
+        ).resolves.toHaveProperty("run.status", "SUCCEEDED");
         await expect(
           service.deleteModel("project-1", MODEL_ID, { username: "ada" }),
         ).resolves.toBeUndefined();

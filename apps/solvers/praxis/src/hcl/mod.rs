@@ -4,6 +4,7 @@
 //! here. OpenPRA/Praetor transport integration remains a Phase 5 concern.
 
 mod api;
+mod bayesian;
 mod binding;
 mod input;
 mod model;
@@ -11,6 +12,7 @@ mod quantify;
 mod request;
 
 pub use api::quantify_hcl;
+pub use bayesian::{query_bayesian_network, BayesianMarginal, BayesianStateProbability};
 pub use binding::{HclBaseEvidence, HclEventBinding, HclEventBindings};
 pub use input::{parse_xdsl, CanonicalBayesianNetwork, CanonicalBayesianVariable};
 pub use model::{

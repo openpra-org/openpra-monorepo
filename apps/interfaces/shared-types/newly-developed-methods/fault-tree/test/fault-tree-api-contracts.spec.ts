@@ -1,5 +1,7 @@
 import {
   FaultTreeAnalysisResultSchema,
+  FaultTreeBasicEventCatalogueCreateRequestSchema,
+  FaultTreeBasicEventCataloguePatchRequestSchema,
   FaultTreeCreateRequestSchema,
   FaultTreeCreateResultSchema,
   FaultTreeExecuteRequestSchema,
@@ -17,6 +19,14 @@ const BASIC_EVENT_ID = "123e4567-e89b-42d3-a456-426614174202";
 const INPUT_ID = "123e4567-e89b-42d3-a456-426614174203";
 const LEAF_ID = "123e4567-e89b-42d3-a456-426614174204";
 const RUN_ID = "123e4567-e89b-42d3-a456-426614174205";
+
+const basicEvent = {
+  id: BASIC_EVENT_ID,
+  code: "BE-PUMP-A",
+  name: "Pump A fails",
+  description: "Pump A fails on demand.",
+  probability: { value: 0.1 },
+} as const;
 
 const model = {
   schemaVersion: "1.0.0",
@@ -68,6 +78,40 @@ const queuedRun = {
   completedAt: null,
   engine: null,
 } as const;
+
+describe("fault-tree basic-event catalogue API contracts", () => {
+  const createRequest = {
+    schemaVersion: "1.0.0",
+    projectId: "project-mhtgr",
+    createdBy: "analyst-1",
+    basicEvents: [basicEvent],
+  };
+  const patchRequest = {
+    schemaVersion: "1.0.0",
+    projectId: "project-mhtgr",
+    expectedRevision: 1,
+    updatedBy: "analyst-1",
+    basicEvents: [{ ...basicEvent, probability: { value: 0.2 } }],
+  };
+
+  it("accepts versioned create and revisioned patch requests", () => {
+    expect(FaultTreeBasicEventCatalogueCreateRequestSchema.safeParse(createRequest).success).toBe(true);
+    expect(FaultTreeBasicEventCataloguePatchRequestSchema.safeParse(patchRequest).success).toBe(true);
+  });
+
+  it.each([
+    { ...createRequest, projectId: "" },
+    { ...createRequest, createdBy: "" },
+    { ...createRequest, basicEvents: [{ ...basicEvent, probability: { value: 1.01 } }] },
+    { ...patchRequest, expectedRevision: 0 },
+    { ...patchRequest, updatedBy: "" },
+  ])("rejects malformed catalogue request %#", (candidate) => {
+    const schema = "expectedRevision" in candidate
+      ? FaultTreeBasicEventCataloguePatchRequestSchema
+      : FaultTreeBasicEventCatalogueCreateRequestSchema;
+    expect(schema.safeParse(candidate).success).toBe(false);
+  });
+});
 
 describe("fault-tree model and create contracts", () => {
   const createRequest = {

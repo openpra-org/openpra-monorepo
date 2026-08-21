@@ -60,6 +60,12 @@
     },
     "e2e": {
       "executor": "@nx/jest:jest",
+      "dependsOn": [
+        {
+          "projects": ["solvers-praxis-node"],
+          "target": "build"
+        }
+      ],
       "options": {
         "jestConfig": "apps/backends/web-backend/test/jest.e2e.config.ts",
         "passWithNoTests": false

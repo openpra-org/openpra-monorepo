@@ -4,6 +4,7 @@ import {
   type AnalysisEngineMetadata,
   type AnalysisRunSchemaVersion,
   type AnalysisRunStatus,
+  type AnalysisRunFailure,
   type MethodAnalysisResult,
   type MethodModelExecuteRequest,
   type MethodType,
@@ -52,11 +53,17 @@ class AnalysisRunRecord {
   @Prop({ type: Object, default: null })
   engine!: AnalysisEngineMetadata | null;
 
+  @Prop({ type: Object, default: null })
+  failure!: AnalysisRunFailure | null;
+
   @Prop({ type: Object, required: true })
   request!: MethodModelExecuteRequest;
 
   @Prop({ type: [Object], required: true })
   modelSnapshots!: NewlyDevelopedMethodModel[];
+
+  @Prop({ type: Object, required: true })
+  resources!: Record<string, unknown>;
 
   @Prop({ type: Object, default: null })
   result!: MethodAnalysisResult | null;

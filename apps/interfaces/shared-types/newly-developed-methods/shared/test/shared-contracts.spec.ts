@@ -260,6 +260,12 @@ describe("shared analysis-run contracts", () => {
     requestedAt: "2026-08-20T19:45:00.000Z",
   };
   const engine = { name: "PRAXIS", version: "0.1.0" };
+  const failure = {
+    kind: "SOLVER_ERROR",
+    code: "PRAXIS_LOGIC",
+    message: "The solver rejected the model.",
+    details: { gateId: "G-1" },
+  };
 
   it.each([
     { ...base, status: "QUEUED", startedAt: null, completedAt: null, engine: null },
@@ -276,6 +282,14 @@ describe("shared analysis-run contracts", () => {
       startedAt: "2026-08-20T19:46:00.000Z",
       completedAt: "2026-08-20T19:47:00.000Z",
       engine,
+    },
+    {
+      ...base,
+      status: "FAILED",
+      startedAt: "2026-08-20T19:46:00.000Z",
+      completedAt: "2026-08-20T19:47:00.000Z",
+      engine,
+      failure,
     },
     {
       ...base,
@@ -304,6 +318,22 @@ describe("shared analysis-run contracts", () => {
       startedAt: "2026-08-20T19:46:00.000Z",
       completedAt: "2026-08-20T19:44:00.000Z",
       engine,
+      failure,
+    },
+    {
+      ...base,
+      status: "FAILED",
+      startedAt: "2026-08-20T19:46:00.000Z",
+      completedAt: "2026-08-20T19:47:00.000Z",
+      engine,
+    },
+    {
+      ...base,
+      status: "SUCCEEDED",
+      startedAt: "2026-08-20T19:46:00.000Z",
+      completedAt: "2026-08-20T19:47:00.000Z",
+      engine,
+      failure,
     },
   ])("rejects an invalid $status lifecycle", (run) => {
     expect(AnalysisRunMetadataSchema.safeParse(run).success).toBe(false);

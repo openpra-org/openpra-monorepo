@@ -218,6 +218,22 @@ Complete schemas before frontend or backend implementation.
 - [x] Build and load the addon on Linux.
 - [x] Verify Docker addon packaging.
 
+## Backend-first quantification gate
+
+Do not begin editor frontend implementation until every method can complete a real analysis through API calls and return numerically verified results.
+
+- [x] Connect the PRAXIS native addon worker to a versioned Praetor API endpoint.
+- [x] Persist and expose the project-level FT basic-event catalogue so referenced probabilities are available to validation and execution.
+- [x] Dispatch persisted method-model runs from the web backend to Praetor.
+- [x] Persist `QUEUED`, `RUNNING`, `SUCCEEDED`, and `FAILED` run states and structured failures.
+- [x] Execute an FT through the API and return its exact top-event probability and leading minimal cut sets.
+- [x] Verify FT API results against hand-calculated AND, OR, shared-event, K-of-N, and complemented-event fixtures.
+- [x] Execute a BN query through the API and return exact marginals.
+- [x] Execute an HCL-linked FT through the API and return exact quantified results.
+- [x] Execute independent and HCL ET analyses through the API and return sequence and end-state results.
+- [x] Cover validation, malformed solver responses, permissions, revision conflicts, and result retrieval at API boundaries.
+- [x] Record Windows, Linux, and Docker verification for the complete API-to-worker path.
+
 ## Phase 5 — Fault-tree vertical slice
 
 Preserve the existing FT design and visual language. Use one flat inspector for the selected node; do not introduce a nested sidebar.
@@ -316,12 +332,12 @@ Use OpenPRA styling while adopting only the essential MAAT functionality.
 
 ### HCL FT quantification
 
-- [ ] Run a linked FT in independent Boolean mode.
-- [ ] Run a linked FT in exact HCL mode.
-- [ ] Use TensorBayes conditional probabilities for bound events under the complete BDD path context.
-- [ ] Retain FT probabilities for unbound events.
+- [x] Run a linked FT in independent Boolean mode.
+- [x] Run a linked FT in exact HCL mode.
+- [x] Use TensorBayes conditional probabilities for bound events under the complete BDD path context.
+- [x] Retain FT probabilities for unbound events.
 - [ ] Keep the marginal-only approximation out of the UI.
-- [ ] Add existing HCL equivalence tests to the integrated workflow.
+- [x] Add existing HCL equivalence tests to the integrated workflow.
 
 ### Interchange and BN completion gate
 
@@ -346,30 +362,30 @@ Reuse the existing OpenPRA event-tree presentation under `newly-developed-method
 - [ ] Validate branch completeness.
 - [ ] Select and highlight a sequence.
 - [ ] Implement undo and redo.
-- [ ] Represent the failure branch with the FT formula and the success branch with its Boolean complement.
+- [x] Represent the failure branch with the FT formula and the success branch with its Boolean complement.
 
 ### Independent ET quantification
 
-- [ ] Build the Boolean formula for every sequence.
-- [ ] Preserve shared basic-event identity across FTs.
-- [ ] Build a BDD for each sequence.
-- [ ] Calculate conditional sequence probability.
-- [ ] Apply initiating-event frequency.
-- [ ] Aggregate sequences into end states.
-- [ ] Do not multiply separately calculated branch marginals.
-- [ ] Add ET complement, transfer, shared-event, and dependency tests.
+- [x] Build the Boolean formula for every sequence.
+- [x] Preserve shared basic-event identity across FTs.
+- [x] Build a BDD for each sequence.
+- [x] Calculate conditional sequence probability.
+- [x] Apply initiating-event frequency.
+- [x] Aggregate sequences into end states.
+- [x] Do not multiply separately calculated branch marginals.
+- [x] Add ET complement, transfer, shared-event, and dependency tests.
 
 ### HCL ET quantification
 
-- [ ] Build each sequence formula and BDD.
-- [ ] Apply FT-to-BN HCL bindings.
-- [ ] Reuse the compiled BN across sequences.
-- [ ] Preserve path-context evidence.
-- [ ] Calculate sequence probabilities and frequencies.
-- [ ] Aggregate mutually exclusive sequences by end state.
-- [ ] Return sequence path, conditional probability, annual frequency, and end state.
-- [ ] Return end-state aggregates and leading contributors or cut sets where available.
-- [ ] Add combined FT–BN–ET tests.
+- [x] Build each sequence formula and BDD.
+- [x] Apply FT-to-BN HCL bindings.
+- [x] Reuse the compiled BN across sequences.
+- [x] Preserve path-context evidence.
+- [x] Calculate sequence probabilities and frequencies.
+- [x] Aggregate mutually exclusive sequences by end state.
+- [x] Return sequence path, conditional probability, annual frequency, and end state.
+- [x] Return end-state aggregates and leading contributors or cut sets where available.
+- [x] Add combined FT–BN–ET tests.
 - [ ] The Playwright ET create/edit/reload/validate/run/link workflow passes.
 
 ## Phase 8 — Workbook connections
@@ -396,14 +412,14 @@ Keep editors independent from workbook data structures and store only controlled
 - [ ] Include a discrete dependency BN and complete HCL bindings.
 - [ ] Include a ULOF-style ET with safe and release end states.
 - [ ] Include verified independent and HCL results.
-- [ ] Run shared interface and Zod tests.
+- [x] Run shared interface and Zod tests.
 - [ ] Run save-on-blur, partial-patch, revision-conflict, and backend permission tests.
-- [ ] Run NAPI loading tests on Windows and Linux and verify Docker packaging.
-- [ ] Run FT truth-table, cut-set, and shared-event tests.
-- [ ] Run BN CPT and evidence tests.
-- [ ] Run HCL equivalence tests.
-- [ ] Run ET complement and transfer tests.
-- [ ] Run combined FT–BN–ET tests.
+- [x] Run NAPI loading tests on Windows and Linux and verify Docker packaging.
+- [x] Run FT truth-table, cut-set, and shared-event tests.
+- [x] Run BN CPT and evidence tests.
+- [x] Run HCL equivalence tests.
+- [x] Run ET complement and transfer tests.
+- [x] Run combined FT–BN–ET tests.
 - [ ] Run all Playwright create, edit, reload, validate, run, and link workflows.
 
 ## Future work — MHTGR SAPHIRE import
@@ -522,3 +538,9 @@ The following items are explicitly excluded from the initial implementation:
 | 2026-08-21 | Build and load the addon on Windows | Added repeatable `build:windows` and `test:windows` scripts. The test requires Windows x64, verifies the exact `praxis-node.win32-x64-msvc.node` artifact exists, loads that binary directly rather than through the platform loader, enforces the two-function export surface, and exercises both validation success and structured execution-error paths. The first run corrected only Prettier output; the explicit optimized `x86_64-pc-windows-msvc` build, direct-binary test, dedicated workspace script, all 5 cross-platform addon tests, Prettier, and `git diff --check` then passed | Passed |
 | 2026-08-21 | Build and load the addon on Linux | Added repeatable `build:linux` and `test:linux` scripts plus a Linux-x64-only test that requires the exact `praxis-node.linux-x64-gnu.node` artifact, loads it directly, enforces the two-function surface, and exercises validation success and structured execution-error paths. A clean Node 22 Debian container with Rust 1.93 compiled PRAXIS, TensorBayes, and the addon in release mode and passed the direct GNU-binary test. The first container compilation completed but NAPI-RS's final atomic transaction failed on the Windows bind mount; its remnants were removed and the full build/test was rerun successfully on native ephemeral Linux storage. The regenerated official cross-platform loader and Windows binary then passed all 6 Windows addon/direct-load regressions, with Prettier and `git diff --check` passing | Passed |
 | 2026-08-21 | Verify Docker addon packaging | Updated the existing Praetor multi-stage Dockerfile to install pinned Rust 1.93, pin repository pnpm 10.13.1, build the Linux addon, and copy only its package metadata, generated loader/declarations, and GNU release binary into the runtime image. Tightened `.dockerignore` so local Cargo targets and nested build/module directories are excluded, reducing the context from roughly 405 MB to 242 KB. The first image build exposed and fixed the existing unpinned-Corepack failure where pnpm 11 could not run on Node 20. The complete image then built successfully. Runtime inspection proved the package contains exactly four intended files and directly loads with only `validate`/`execute`; a second clean container invoked the packaged addon through Praetor's compiled worker with default package resolution and returned from worker thread 1 | Passed |
+| 2026-08-21 | Persist the FT catalogue and dispatch durable analysis runs | Added authenticated catalogue create/load/update persistence, immutable catalogue snapshots on runs, web-backend-to-Praetor dispatch, and durable `QUEUED`/`RUNNING`/`SUCCEEDED`/`FAILED` transitions with structured failures. Focused service and persistence tests cover catalogue identity, project permissions, lifecycle transitions, malformed solver responses, stale revisions, result gating, and successful retrieval; the final backend suite passed 339/339 | Passed |
+| 2026-08-21 | Execute exact FT and BN analyses through API calls | Added production FT and BN native adapters. FT versioned API fixtures prove exact AND `0.02`, OR `0.28`, shared-event `0.25`, 2-of-3 `0.5`, NOT/complement `0.8`, cut-set ordering, and complemented literals. The authenticated backend API persists and retrieves OR `0.28` with leading cut sets `[0.2, 0.1]`; BN evidence returns the exact posterior `[0.36, 0.64]` through PRAXIS/TensorBayes | Passed |
+| 2026-08-21 | Execute exact HCL-linked FT analyses through API calls | Added HCL snapshot parsing, FT-to-BN bindings, base evidence, solver settings, and exact PRAXIS HCL dispatch. The authenticated API and the production Docker endpoint both return the correlated AND probability `0.16`, explicitly distinct from independent multiplication `0.048`; the full PRAXIS HCL bridge/equivalence suites also cover complete BDD path context, unbound-event probabilities, evidence changes, multistate bindings, and cache invariance | Passed |
+| 2026-08-21 | Execute independent and HCL event-tree analyses through API calls | Added sequence-formula construction, one BDD per sequence, Boolean success complements, shared basic-event identity, initiating-frequency scaling, end-state aggregation, transfer-chain resolution/loop rejection, and a reusable compiled BN context for HCL sequences. Authenticated API tests return independent `[0.72, 0.28]` with annual frequencies `[0.0072, 0.0028]` and correlated HCL `[0.84, 0, 0, 0.16]` with end-state totals `[0.0084, 0.0016]`; native dependency fixtures prove shared-event sequences `[0.8, 0, 0, 0.2]` rather than multiplied branch marginals | Passed |
+| 2026-08-21 | Complete the backend-first quantification gate | The final authenticated HTTP suite passed 4/4 across FT, BN, independent ET, HCL FT, and HCL ET; the native suite passed 14/14, addon suite 7/7, interface suite 580/580, backend suite 339/339, and the full PRAXIS Cargo suite passed, including 635 library tests and all integration binaries. Interface/backend typechecks and lints, backend build, strict production PRAXIS Clippy, strict all-target native Clippy, scoped Rust formatting, and source-format checks passed | Passed |
+| 2026-08-21 | Verify the complete current path on Windows, Linux, and Docker | Windows authenticated e2e starts the real Praetor native service and worker before executing all methods. A clean production Docker build compiled the current Linux GNU addon and Praetor service; the running packaged `/q/praxis/native/execute` endpoint, backed by the packaged worker, returned FT `0.28`, BN `[0.36, 0.64]`, independent ET `[0.8, 0.2]`, HCL FT `0.16`, and HCL ET `[0.84, 0, 0, 0.16]`. The reproducible HTTP smoke also asserts the AND, shared-event, K-of-N, and complemented FT fixtures. Temporary verification containers and their network were removed afterward | Passed |

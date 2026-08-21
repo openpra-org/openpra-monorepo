@@ -17,6 +17,9 @@ function computeInitials(name: string): string {
 
 function docsUrl(): string {
   const { protocol, hostname } = window.location;
+  if (hostname === "main-dev.openpra.org") {
+    return "https://docs-dev.openpra.org";
+  }
   if (hostname.endsWith("-dev.openpra.org")) {
     return `${protocol}//${hostname.replace("-dev.openpra.org", "-docs-dev.openpra.org")}`;
   }

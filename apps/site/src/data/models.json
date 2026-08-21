@@ -31,7 +31,7 @@
       "provenance": "generated",
       "scope": "Internal events, through event sequence quantification; seismic example",
       "blurb": "Built from published MHTGR design detail by the model generator. Useful for exercising the platform and for teaching. It has not been reviewed against a reference solution.",
-      "href": "https://revamp-dev.openpra.org"
+      "href": "https://main-dev.openpra.org"
     },
     {
       "name": "EBR-II",
@@ -39,7 +39,7 @@
       "provenance": "generated",
       "scope": "Internal events, through event sequence quantification",
       "blurb": "Built from published EBR-II design detail by the model generator. Same caveat: unreviewed, and not a substitute for a plant model.",
-      "href": "https://revamp-dev.openpra.org"
+      "href": "https://main-dev.openpra.org"
     },
     {
       "name": "MHTGR (SAPHIRE)",

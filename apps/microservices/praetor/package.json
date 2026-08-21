@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "interfaces-shared-types": "workspace:*",
+    "praxis-node": "workspace:*",
     "scram-node": "workspace:*"
   }
 }

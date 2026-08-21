@@ -8,11 +8,14 @@ import { getModelToken } from "@nestjs/mongoose";
 import { Test } from "@nestjs/testing";
 import {
   MethodAnalysisRunResultSchema,
+  MethodModelDependenciesResponseSchema,
   MethodModelExecuteResultSchema,
   MethodModelListResponseSchema,
   NewlyDevelopedMethodModelSchema,
 } from "interfaces-shared-types/newly-developed-methods";
 import { ProjectsService } from "../../../projects/projects.service";
+import { WorkbookElementRegistry } from "../../../workbooks/workbook-element-registry";
+import { Workbook } from "../../../workbooks/workbook.schema";
 import { AnalysisRunRecord } from "../analysis-run-record.schema";
 import { MethodModelRecord } from "../method-model-record.schema";
 import { MethodModelsService } from "../method-models.service";
@@ -171,6 +174,8 @@ describe("MethodModelsService", () => {
     findOne: jest.Mock;
     create: jest.Mock;
   };
+  let workbookModelMock: { find: jest.Mock };
+  let workbookElementRegistryMock: { tryGet: jest.Mock };
 
   beforeEach(async () => {
     methodModelMock = {
@@ -183,6 +188,12 @@ describe("MethodModelsService", () => {
       findOne: jest.fn(),
       create: jest.fn(),
     };
+    workbookModelMock = {
+      find: jest.fn().mockReturnValue({ exec: () => Promise.resolve([]) }),
+    };
+    workbookElementRegistryMock = {
+      tryGet: jest.fn().mockReturnValue(undefined),
+    };
     projectsServiceMock = {
       resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "viewer" }),
     };
@@ -192,7 +203,9 @@ describe("MethodModelsService", () => {
         MethodModelsService,
         { provide: getModelToken(MethodModelRecord.name), useValue: methodModelMock },
         { provide: getModelToken(AnalysisRunRecord.name), useValue: analysisRunModelMock },
+        { provide: getModelToken(Workbook.name), useValue: workbookModelMock },
         { provide: ProjectsService, useValue: projectsServiceMock },
+        { provide: WorkbookElementRegistry, useValue: workbookElementRegistryMock },
       ],
     }).compile();
 
@@ -825,48 +838,371 @@ describe("MethodModelsService", () => {
     });
   });
 
+  describe("project permissions", () => {
+    const createRequest = {
+      schemaVersion: "1.0.0" as const,
+      projectId: "project-1",
+      methodType: "FAULT_TREE" as const,
+      code: "FT-PERMISSIONS",
+      name: "Permission model",
+      description: "Permission matrix fixture.",
+      createdBy: "ada",
+    };
+    const patchRequest = {
+      schemaVersion: "1.0.0" as const,
+      methodType: "FAULT_TREE" as const,
+      modelId: MODEL_ID,
+      expectedRevision: 2,
+      updatedBy: "ada",
+      changes: { name: "Permission model updated" },
+    };
+    const validateRequest = {
+      schemaVersion: "1.0.0" as const,
+      methodType: "FAULT_TREE" as const,
+      modelId: MODEL_ID,
+      revision: 2,
+      mode: "DRAFT" as const,
+      requestedBy: "ada",
+    };
+    const executeRequest = {
+      schemaVersion: "1.0.0" as const,
+      methodType: "FAULT_TREE" as const,
+      modelId: MODEL_ID,
+      revision: 2,
+      requestedBy: "ada",
+    };
+
+    it("allows viewers to use every read-only operation", async () => {
+      const record = makeRecord();
+      methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(record) });
+      methodModelMock.find.mockImplementation((query: Record<string, unknown>) =>
+        "methodType" in query
+          ? {
+              sort: jest.fn().mockReturnValue({
+                exec: () => Promise.resolve([record]),
+              }),
+            }
+          : { exec: () => Promise.resolve([record]) },
+      );
+      const completedAt = new Date("2026-08-20T20:01:00.000Z");
+      analysisRunModelMock.findOne.mockReturnValue({
+        exec: () =>
+          Promise.resolve(
+            makeRunRecord({
+              status: "SUCCEEDED",
+              startedAt: new Date("2026-08-20T20:00:01.000Z"),
+              completedAt,
+              engine: { name: "PRAXIS", version: "0.1.0" },
+              result: {
+                schemaVersion: "1.0.0",
+                runId: RUN_ID,
+                modelId: MODEL_ID,
+                modelRevision: 2,
+                topGateId: "123e4567-e89b-42d3-a456-426614174020",
+                topEventProbability: 0.01,
+                minimalCutSetCount: 0,
+                leadingCutSets: [],
+                validationIssues: [],
+                completedAt: completedAt.toISOString(),
+              },
+            }),
+          ),
+      });
+
+      await expect(
+        service.listProjectModels("project-1", "FAULT_TREE", { username: "viewer" }),
+      ).resolves.toHaveProperty("models");
+      await expect(
+        service.loadModel("project-1", MODEL_ID, { username: "viewer" }),
+      ).resolves.toHaveProperty("id", MODEL_ID);
+      await expect(
+        service.validateModel(
+          "project-1",
+          MODEL_ID,
+          { ...validateRequest, requestedBy: "viewer" },
+          { username: "viewer" },
+        ),
+      ).resolves.toHaveProperty("saveAllowed", true);
+      await expect(
+        service.findModelDependencies("project-1", MODEL_ID, { username: "viewer" }),
+      ).resolves.toEqual({ modelId: MODEL_ID, models: [], workbooks: [] });
+      await expect(
+        service.getAnalysisRun("project-1", MODEL_ID, RUN_ID, { username: "viewer" }),
+      ).resolves.toHaveProperty("status", "SUCCEEDED");
+      await expect(
+        service.getAnalysisRunResult("project-1", MODEL_ID, RUN_ID, {
+          username: "viewer",
+        }),
+      ).resolves.toHaveProperty("result.topEventProbability", 0.01);
+    });
+
+    it("forbids viewers from every write operation before touching storage", async () => {
+      await expect(
+        service.createModel("project-1", createRequest, { username: "ada" }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.patchModel("project-1", MODEL_ID, patchRequest, { username: "ada" }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.createAnalysisRun("project-1", MODEL_ID, executeRequest, {
+          username: "ada",
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.deleteModel("project-1", MODEL_ID, { username: "ada" }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(methodModelMock.create).not.toHaveBeenCalled();
+      expect(methodModelMock.findOne).not.toHaveBeenCalled();
+      expect(methodModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(methodModelMock.find).not.toHaveBeenCalled();
+      expect(analysisRunModelMock.create).not.toHaveBeenCalled();
+      expect(workbookModelMock.find).not.toHaveBeenCalled();
+    });
+
+    it.each(["owner", "editor"] as const)(
+      "allows a project %s to use every write operation",
+      async (role) => {
+        projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role });
+        const stored = makeRecord();
+        const analysisReadyModel = makeAnalysisReadyFaultTree();
+        methodModelMock.create.mockImplementation((record: Record<string, unknown>) =>
+          Promise.resolve(record),
+        );
+        methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(stored) });
+        methodModelMock.findOneAndUpdate.mockReturnValue({
+          exec: () =>
+            Promise.resolve(
+              makeRecord({
+                name: "Permission model updated",
+                revision: 3,
+                model: makeFaultTree({
+                  name: "Permission model updated",
+                  revision: 3,
+                  updatedBy: "ada",
+                  updatedAt: "2026-08-20T21:00:00.000Z",
+                }),
+              }),
+            ),
+        });
+        methodModelMock.find.mockImplementation((query: Record<string, unknown>) => ({
+          exec: () =>
+            Promise.resolve("id" in query ? [] : [{ model: analysisReadyModel }]),
+        }));
+        analysisRunModelMock.create.mockImplementation((run: Record<string, unknown>) =>
+          Promise.resolve(run),
+        );
+
+        await expect(
+          service.createModel("project-1", createRequest, { username: "ada" }),
+        ).resolves.toHaveProperty("revision", 1);
+        await expect(
+          service.patchModel("project-1", MODEL_ID, patchRequest, { username: "ada" }),
+        ).resolves.toHaveProperty("revision", 3);
+        await expect(
+          service.createAnalysisRun("project-1", MODEL_ID, executeRequest, {
+            username: "ada",
+          }),
+        ).resolves.toHaveProperty("run.status", "QUEUED");
+        await expect(
+          service.deleteModel("project-1", MODEL_ID, { username: "ada" }),
+        ).resolves.toBeUndefined();
+      },
+    );
+
+    it("conceals project resources from users without project access", async () => {
+      projectsServiceMock.resolveAccess.mockRejectedValue(
+        new NotFoundException("Project not found"),
+      );
+      const calls = [
+        () => service.listProjectModels("project-1", "FAULT_TREE", { username: "mallory" }),
+        () => service.createModel("project-1", createRequest, { username: "ada" }),
+        () => service.loadModel("project-1", MODEL_ID, { username: "mallory" }),
+        () => service.patchModel("project-1", MODEL_ID, patchRequest, { username: "ada" }),
+        () =>
+          service.validateModel("project-1", MODEL_ID, validateRequest, {
+            username: "ada",
+          }),
+        () =>
+          service.createAnalysisRun("project-1", MODEL_ID, executeRequest, {
+            username: "ada",
+          }),
+        () => service.getAnalysisRun("project-1", MODEL_ID, RUN_ID, { username: "mallory" }),
+        () =>
+          service.getAnalysisRunResult("project-1", MODEL_ID, RUN_ID, {
+            username: "mallory",
+          }),
+        () => service.findModelDependencies("project-1", MODEL_ID, { username: "mallory" }),
+        () => service.deleteModel("project-1", MODEL_ID, { username: "mallory" }),
+      ];
+
+      for (const call of calls) {
+        await expect(call()).rejects.toBeInstanceOf(NotFoundException);
+      }
+
+      expect(projectsServiceMock.resolveAccess).toHaveBeenCalledTimes(calls.length);
+      expect(methodModelMock.create).not.toHaveBeenCalled();
+      expect(methodModelMock.findOne).not.toHaveBeenCalled();
+      expect(methodModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(methodModelMock.find).not.toHaveBeenCalled();
+      expect(analysisRunModelMock.findOne).not.toHaveBeenCalled();
+      expect(analysisRunModelMock.create).not.toHaveBeenCalled();
+      expect(workbookModelMock.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findModelDependencies", () => {
+    it("finds every project model and workbook containing a controlled model reference", async () => {
+      const target = makeRecord();
+      const dependent = makeRecord({
+        id: "123e4567-e89b-42d3-a456-426614174099",
+        methodType: "EVENT_TREE",
+        code: "ET-001",
+        model: {
+          hclConfiguration: { configuration: { modelId: MODEL_ID } },
+          repeated: [{ modelId: MODEL_ID }],
+        },
+      });
+      const unrelated = makeRecord({
+        id: "123e4567-e89b-42d3-a456-426614174098",
+        code: "FT-002",
+        model: { linkedModel: { modelId: BN_MODEL_ID } },
+      });
+      methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(target) });
+      methodModelMock.find.mockReturnValue({
+        exec: () => Promise.resolve([unrelated, dependent]),
+      });
+      workbookModelMock.find.mockReturnValue({
+        exec: () =>
+          Promise.resolve([
+            {
+              _id: "workbook-1",
+              projectId: "project-1",
+              elementCode: "SY",
+              name: "Systems analysis",
+            },
+          ]),
+      });
+      workbookElementRegistryMock.tryGet.mockReturnValue({
+        load: jest.fn().mockResolvedValue({
+          projectId: "project-1",
+          ownerUsername: "ada",
+          mef: { systems: [{ faultTree: { modelId: MODEL_ID } }] },
+        }),
+      });
+
+      const result = await service.findModelDependencies("project-1", MODEL_ID, {
+        username: "ada",
+      });
+
+      expect(methodModelMock.find).toHaveBeenCalledWith({
+        projectId: "project-1",
+        id: { $ne: MODEL_ID },
+      });
+      expect(workbookModelMock.find).toHaveBeenCalledWith({ projectId: "project-1" });
+      expect(result).toEqual({
+        modelId: MODEL_ID,
+        models: [
+          expect.objectContaining({
+            id: dependent.id,
+            referencePaths: [
+              "/hclConfiguration/configuration/modelId",
+              "/repeated/0/modelId",
+            ],
+          }),
+        ],
+        workbooks: [
+          {
+            id: "workbook-1",
+            projectId: "project-1",
+            elementCode: "SY",
+            name: "Systems analysis",
+            referencePaths: ["/systems/0/faultTree/modelId"],
+          },
+        ],
+      });
+      expect(MethodModelDependenciesResponseSchema.safeParse(result).success).toBe(true);
+    });
+
+    it("skips workbooks without a registered or project-scoped element document", async () => {
+      methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(makeRecord()) });
+      methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([]) });
+      workbookModelMock.find.mockReturnValue({
+        exec: () =>
+          Promise.resolve([
+            { _id: "unknown", projectId: "project-1", elementCode: "XX", name: "Unknown" },
+            { _id: "foreign", projectId: "project-1", elementCode: "SY", name: "Foreign" },
+          ]),
+      });
+      workbookElementRegistryMock.tryGet.mockImplementation((elementCode: string) =>
+        elementCode === "SY"
+          ? {
+              load: jest.fn().mockResolvedValue({
+                projectId: "project-2",
+                ownerUsername: "ada",
+                mef: { modelId: MODEL_ID },
+              }),
+            }
+          : undefined,
+      );
+
+      await expect(
+        service.findModelDependencies("project-1", MODEL_ID, { username: "ada" }),
+      ).resolves.toEqual({ modelId: MODEL_ID, models: [], workbooks: [] });
+    });
+  });
+
   describe("deleteModel", () => {
     it("deletes an unreferenced model for an editor", async () => {
       projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "editor" });
       const record = makeRecord();
-      methodModelMock.findOne
-        .mockReturnValueOnce({ exec: () => Promise.resolve(record) })
-        .mockReturnValueOnce({ exec: () => Promise.resolve(null) });
+      methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(record) });
+      methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([]) });
 
       await service.deleteModel("project-1", MODEL_ID, { username: "ada" });
 
       expect(record.deleteOne).toHaveBeenCalledTimes(1);
-      const dependencyQuery = methodModelMock.findOne.mock.calls[1][0] as {
-        $or: Record<string, string>[];
-      };
-      expect(dependencyQuery.$or).toContainEqual({
-        "model.faultTrees.faultTree.modelId": MODEL_ID,
-      });
-      expect(dependencyQuery.$or).toContainEqual({
-        "model.sequences.result.target.modelId": MODEL_ID,
-      });
     });
 
-    it("blocks deletion and identifies the dependent model", async () => {
+    it("blocks deletion and returns all model and workbook dependencies", async () => {
       projectsServiceMock.resolveAccess.mockResolvedValue({ doc: {}, role: "owner" });
       const target = makeRecord();
       const dependent = makeRecord({
         id: "123e4567-e89b-42d3-a456-426614174099",
         methodType: "EVENT_TREE",
         code: "ET-001",
+        model: { transfer: { modelId: MODEL_ID } },
       });
-      methodModelMock.findOne
-        .mockReturnValueOnce({ exec: () => Promise.resolve(target) })
-        .mockReturnValueOnce({ exec: () => Promise.resolve(dependent) });
+      methodModelMock.findOne.mockReturnValue({ exec: () => Promise.resolve(target) });
+      methodModelMock.find.mockReturnValue({ exec: () => Promise.resolve([dependent]) });
+      workbookModelMock.find.mockReturnValue({
+        exec: () =>
+          Promise.resolve([
+            {
+              _id: "workbook-1",
+              projectId: "project-1",
+              elementCode: "SY",
+              name: "Systems analysis",
+            },
+          ]),
+      });
+      workbookElementRegistryMock.tryGet.mockReturnValue({
+        load: jest.fn().mockResolvedValue({
+          projectId: "project-1",
+          ownerUsername: "ada",
+          mef: { linkedModel: { modelId: MODEL_ID } },
+        }),
+      });
 
       await expect(
         service.deleteModel("project-1", MODEL_ID, { username: "ada" }),
       ).rejects.toMatchObject({
         response: {
-          dependency: {
-            id: dependent.id,
-            methodType: "EVENT_TREE",
-            code: "ET-001",
+          message: "Model cannot be deleted while models or workbooks reference it",
+          dependencies: {
+            modelId: MODEL_ID,
+            models: [expect.objectContaining({ id: dependent.id })],
+            workbooks: [expect.objectContaining({ id: "workbook-1" })],
           },
         },
       });

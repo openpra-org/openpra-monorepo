@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ProjectsModule } from "../../projects/projects.module";
+import { WorkbooksModule } from "../../workbooks/workbooks.module";
 import { AnalysisRunRecord, AnalysisRunRecordSchema } from "./analysis-run-record.schema";
 import { MethodModelRecord, MethodModelRecordSchema } from "./method-model-record.schema";
 import { MethodModelsController } from "./method-models.controller";
@@ -12,6 +13,7 @@ import { MethodModelsService } from "./method-models.service";
     MongooseModule.forFeature([{ name: MethodModelRecord.name, schema: MethodModelRecordSchema }]),
     MongooseModule.forFeature([{ name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema }]),
     ProjectsModule,
+    WorkbooksModule,
   ],
   controllers: [MethodModelsController],
   providers: [MethodModelsService],

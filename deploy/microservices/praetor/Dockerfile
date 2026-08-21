@@ -15,17 +15,35 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install the pinned Rust toolchain used by the PRAXIS Node addon.
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+
 # Enable pnpm
 RUN corepack enable
+RUN corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /usr/src/app
 
 # --- 1. Copy All Workspace Files ---
 COPY . .
 
-# Install workspace dependencies, then build the native SCRAM addon explicitly.
+# Install workspace dependencies, then build both native addons explicitly.
 RUN pnpm install
 RUN pnpm --filter scram-node build
+RUN pnpm --filter praxis-node build:linux
+
+# Stage only the runtime PRAXIS package files; Rust targets and sources stay in
+# the builder image.
+RUN mkdir -p /tmp/praxis-node-package \
+    && cp apps/solvers/praxis-node/package.json \
+        apps/solvers/praxis-node/index.js \
+        apps/solvers/praxis-node/index.d.ts \
+        apps/solvers/praxis-node/praxis-node.linux-x64-gnu.node \
+        /tmp/praxis-node-package/
 
 # Build the App via Nx
 RUN npx nx run praetor:build
@@ -54,6 +72,7 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/node_modules ./node_modules  
 COPY --from=builder /usr/src/app/apps/microservices/praetor/dist ./dist
 COPY --from=builder /usr/src/app/apps/solvers/scram ./node_modules/scram-node
+COPY --from=builder /tmp/praxis-node-package ./node_modules/praxis-node
 
 # Ensure the library paths are set for scram-node
 ENV LD_LIBRARY_PATH="/root/.local/lib/scram:/root/.local/lib"

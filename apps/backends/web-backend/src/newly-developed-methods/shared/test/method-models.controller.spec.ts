@@ -1,4 +1,10 @@
-import type { CanActivate, ExecutionContext, INestApplication } from "@nestjs/common";
+import {
+  ForbiddenException,
+  type CanActivate,
+  type ExecutionContext,
+  type INestApplication,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 import { JwtAuthGuard } from "../../../auth/jwt-auth.guard";
@@ -16,8 +22,10 @@ describe("MethodModelsController", () => {
     createAnalysisRun: jest.Mock;
     getAnalysisRun: jest.Mock;
     getAnalysisRunResult: jest.Mock;
+    findModelDependencies: jest.Mock;
     deleteModel: jest.Mock;
   };
+  let authGuardMock: { canActivate: jest.Mock };
 
   beforeEach(async () => {
     methodModelsServiceMock = {
@@ -41,13 +49,18 @@ describe("MethodModelsController", () => {
         run: { id: "123e4567-e89b-42d3-a456-426614174010", status: "SUCCEEDED" },
         result: { topEventProbability: 0.01 },
       }),
+      findModelDependencies: jest.fn().mockResolvedValue({
+        modelId: "model-1",
+        models: [],
+        workbooks: [],
+      }),
       deleteModel: jest.fn().mockResolvedValue(undefined),
     };
-    const authenticatedGuard: CanActivate = {
-      canActivate(context: ExecutionContext): boolean {
+    authGuardMock = {
+      canActivate: jest.fn((context: ExecutionContext): boolean => {
         context.switchToHttp().getRequest().user = { username: "ada" };
         return true;
-      },
+      }),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -55,7 +68,7 @@ describe("MethodModelsController", () => {
       providers: [{ provide: MethodModelsService, useValue: methodModelsServiceMock }],
     })
       .overrideGuard(JwtAuthGuard)
-      .useValue(authenticatedGuard)
+      .useValue(authGuardMock satisfies CanActivate)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -130,6 +143,54 @@ describe("MethodModelsController", () => {
     expect(methodModelsServiceMock.deleteModel).toHaveBeenCalledWith("project-1", "model-1", {
       username: "ada",
     });
+  });
+
+  it("rejects an unauthenticated method-model request with 401 before delegation", async () => {
+    authGuardMock.canActivate.mockImplementationOnce(() => {
+      throw new UnauthorizedException();
+    });
+
+    const response = await request(app.getHttpServer()).get(
+      "/api/projects/project-1/method-models?methodType=FAULT_TREE",
+    );
+
+    expect(response.status).toBe(401);
+    expect(methodModelsServiceMock.listProjectModels).not.toHaveBeenCalled();
+  });
+
+  it("maps a project-role write rejection to 403", async () => {
+    methodModelsServiceMock.createModel.mockRejectedValueOnce(
+      new ForbiddenException("You cannot create method models in this project"),
+    );
+    const body = {
+      schemaVersion: "1.0.0",
+      projectId: "project-1",
+      methodType: "FAULT_TREE",
+      code: "FT-001",
+      name: "Reactor trip failure",
+      description: "Fails to trip when demanded.",
+      createdBy: "ada",
+    };
+
+    const response = await request(app.getHttpServer())
+      .post("/api/projects/project-1/method-models")
+      .send(body);
+
+    expect(response.status).toBe(403);
+  });
+
+  it("delegates project-scoped dependency discovery", async () => {
+    const response = await request(app.getHttpServer()).get(
+      "/api/projects/project-1/method-models/model-1/dependencies",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ modelId: "model-1", models: [], workbooks: [] });
+    expect(methodModelsServiceMock.findModelDependencies).toHaveBeenCalledWith(
+      "project-1",
+      "model-1",
+      { username: "ada" },
+    );
   });
 
   it("validates and delegates a partial patch", async () => {

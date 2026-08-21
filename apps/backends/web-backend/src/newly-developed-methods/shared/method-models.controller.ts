@@ -16,6 +16,7 @@ import {
   type MethodModelCreateRequest,
   type MethodModelExecuteRequest,
   type MethodModelExecuteResult,
+  type MethodModelDependenciesResponse,
   type MethodAnalysisRunResult,
   type MethodModelListResponse,
   type MethodModelPatchRequest,
@@ -72,6 +73,18 @@ class MethodModelsController {
     @Req() request: AuthenticatedRequest,
   ): Promise<NewlyDevelopedMethodModel> {
     return this.methodModelsService.loadModel(projectId, modelId, {
+      username: request.user!.username,
+    });
+  }
+
+  @Get(":modelId/dependencies")
+  @HttpCode(HttpStatus.OK)
+  findDependencies(
+    @Param("projectId") projectId: string,
+    @Param("modelId") modelId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<MethodModelDependenciesResponse> {
+    return this.methodModelsService.findModelDependencies(projectId, modelId, {
       username: request.user!.username,
     });
   }

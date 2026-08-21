@@ -3,6 +3,12 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import type { Model } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { ProjectsService } from "../../../projects/projects.service";
+import { WorkbookElementRegistry } from "../../../workbooks/workbook-element-registry";
+import {
+  Workbook,
+  WorkbookSchema,
+  type WorkbookDocument,
+} from "../../../workbooks/workbook.schema";
 import {
   AnalysisRunRecord,
   AnalysisRunRecordSchema,
@@ -24,16 +30,20 @@ describe("MethodModelsService Mongo persistence", () => {
   let mongo: MongoMemoryServer;
   let service: MethodModelsService;
   let analysisRunModel: Model<AnalysisRunRecordDocument>;
+  let workbookModel: Model<WorkbookDocument>;
+  let workbookElementRegistry: { tryGet: jest.Mock };
   let moduleRef: TestingModule;
 
   beforeAll(async () => {
     mongo = await MongoMemoryServer.create();
+    workbookElementRegistry = { tryGet: jest.fn().mockReturnValue(undefined) };
     moduleRef = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongo.getUri()),
         MongooseModule.forFeature([
           { name: MethodModelRecord.name, schema: MethodModelRecordSchema },
           { name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema },
+          { name: Workbook.name, schema: WorkbookSchema },
         ]),
       ],
       providers: [
@@ -44,10 +54,15 @@ describe("MethodModelsService Mongo persistence", () => {
             resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "editor" }),
           },
         },
+        {
+          provide: WorkbookElementRegistry,
+          useValue: workbookElementRegistry,
+        },
       ],
     }).compile();
     service = moduleRef.get(MethodModelsService);
     analysisRunModel = moduleRef.get(getModelToken(AnalysisRunRecord.name));
+    workbookModel = moduleRef.get(getModelToken(Workbook.name));
   }, 90_000);
 
   afterAll(async () => {
@@ -157,20 +172,91 @@ describe("MethodModelsService Mongo persistence", () => {
     });
 
     await expect(
-      service.deleteModel("project-1", bayesianNetwork.id, acting),
-    ).rejects.toMatchObject({
-      response: {
-        message: "Model cannot be deleted while another model references it",
-        dependency: {
+      service.findModelDependencies("project-1", bayesianNetwork.id, acting),
+    ).resolves.toMatchObject({
+      modelId: bayesianNetwork.id,
+      models: [
+        {
           id: hcl.id,
           methodType: "HYBRID_CAUSAL_LOGIC",
           code: "HCL-DEPENDENCY",
+          referencePaths: ["/bayesianNetwork/modelId"],
+        },
+      ],
+      workbooks: [],
+    });
+
+    await expect(
+      service.deleteModel("project-1", bayesianNetwork.id, acting),
+    ).rejects.toMatchObject({
+      response: {
+        message: "Model cannot be deleted while models or workbooks reference it",
+        dependencies: {
+          models: [
+            {
+              id: hcl.id,
+              methodType: "HYBRID_CAUSAL_LOGIC",
+              code: "HCL-DEPENDENCY",
+            },
+          ],
         },
       },
     });
 
     await service.deleteModel("project-1", hcl.id, acting);
     await expect(service.deleteModel("project-1", bayesianNetwork.id, acting)).resolves.toBeUndefined();
+  });
+
+  it("finds a controlled reference in a persisted project workbook", async () => {
+    const projectId = "project-workbook-dependency";
+    const target = await service.createModel(
+      projectId,
+      { ...requestMetadata, projectId, methodType: "FAULT_TREE", code: "FT-WORKBOOK" },
+      acting,
+    );
+    const workbook = await workbookModel.create({
+      projectId,
+      elementCode: "SY",
+      name: "Systems dependency",
+      status: "draft",
+      version: 1,
+      ownerUsername: "ada",
+      ownerFullName: "Ada Lovelace",
+    });
+    workbookElementRegistry.tryGet.mockReturnValue({
+      load: jest.fn().mockResolvedValue({
+        projectId,
+        ownerUsername: "ada",
+        mef: { systems: [{ faultTree: { modelId: target.id } }] },
+      }),
+    });
+
+    await expect(
+      service.findModelDependencies(projectId, target.id, acting),
+    ).resolves.toMatchObject({
+      modelId: target.id,
+      models: [],
+      workbooks: [
+        {
+          id: String(workbook._id),
+          projectId,
+          elementCode: "SY",
+          name: "Systems dependency",
+          referencePaths: ["/systems/0/faultTree/modelId"],
+        },
+      ],
+    });
+    await expect(service.deleteModel(projectId, target.id, acting)).rejects.toMatchObject({
+      response: {
+        dependencies: {
+          workbooks: [{ id: String(workbook._id) }],
+        },
+      },
+    });
+
+    await workbook.deleteOne();
+    workbookElementRegistry.tryGet.mockReturnValue(undefined);
+    await expect(service.deleteModel(projectId, target.id, acting)).resolves.toBeUndefined();
   });
 
   it("dispatches stored BN and ET models to their method validators", async () => {

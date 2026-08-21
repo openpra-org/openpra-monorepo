@@ -37,6 +37,30 @@ const MethodModelListResponseSchema = z
   })
   .strict();
 
+const MethodModelReferencePathSchema = z.string().startsWith("/", "Reference path must be a JSON pointer");
+
+const ReferencingMethodModelSchema = MethodModelMetadataSchema.extend({
+  referencePaths: z.array(MethodModelReferencePathSchema).min(1),
+}).strict();
+
+const ReferencingWorkbookSchema = z
+  .object({
+    id: z.string().trim().min(1, "Workbook id is required"),
+    projectId: z.string().trim().min(1, "Project id is required"),
+    elementCode: z.string().trim().min(1, "Element code is required"),
+    name: z.string().trim().min(1, "Workbook name is required"),
+    referencePaths: z.array(MethodModelReferencePathSchema).min(1),
+  })
+  .strict();
+
+const MethodModelDependenciesResponseSchema = z
+  .object({
+    modelId: MethodModelIdSchema,
+    models: z.array(ReferencingMethodModelSchema),
+    workbooks: z.array(ReferencingWorkbookSchema),
+  })
+  .strict();
+
 const CanvasPositionSchema = z.object({
   x: z.number(),
   y: z.number(),
@@ -77,6 +101,10 @@ type MethodModelRevision = z.infer<typeof MethodModelRevisionSchema>;
 type MethodModelAudit = z.infer<typeof MethodModelAuditSchema>;
 type MethodModelMetadata = z.infer<typeof MethodModelMetadataSchema>;
 type MethodModelListResponse = z.infer<typeof MethodModelListResponseSchema>;
+type MethodModelReferencePath = z.infer<typeof MethodModelReferencePathSchema>;
+type ReferencingMethodModel = z.infer<typeof ReferencingMethodModelSchema>;
+type ReferencingWorkbook = z.infer<typeof ReferencingWorkbookSchema>;
+type MethodModelDependenciesResponse = z.infer<typeof MethodModelDependenciesResponseSchema>;
 type CanvasPosition = z.infer<typeof CanvasPositionSchema>;
 type CanvasViewport = z.infer<typeof CanvasViewportSchema>;
 type CanvasLayoutMode = z.infer<typeof CanvasLayoutModeSchema>;
@@ -96,6 +124,10 @@ export {
   MethodModelAuditSchema,
   MethodModelMetadataSchema,
   MethodModelListResponseSchema,
+  MethodModelReferencePathSchema,
+  ReferencingMethodModelSchema,
+  ReferencingWorkbookSchema,
+  MethodModelDependenciesResponseSchema,
   CanvasPositionSchema,
   CanvasViewportSchema,
   CanvasLayoutModeSchema,
@@ -114,6 +146,10 @@ export type {
   MethodModelAudit,
   MethodModelMetadata,
   MethodModelListResponse,
+  MethodModelReferencePath,
+  ReferencingMethodModel,
+  ReferencingWorkbook,
+  MethodModelDependenciesResponse,
   CanvasPosition,
   CanvasViewport,
   CanvasLayoutMode,

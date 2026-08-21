@@ -1,5 +1,6 @@
 import {
   MethodAnalysisRunResultSchema,
+  MethodModelDependenciesResponseSchema,
   MethodModelCreateRequestSchema,
   MethodModelExecuteRequestSchema,
   MethodModelExecuteResultSchema,
@@ -20,6 +21,46 @@ const baseRequest = {
 };
 
 describe("method-model persistence API contracts", () => {
+  it("accepts model and workbook dependencies with addressable reference paths", () => {
+    const dependency = {
+      modelId: BN_MODEL_ID,
+      models: [
+        {
+          id: "123e4567-e89b-42d3-a456-426614174701",
+          projectId: "project-1",
+          methodType: "HYBRID_CAUSAL_LOGIC",
+          code: "HCL-001",
+          name: "Hybrid model",
+          description: "Uses the dependency network.",
+          schemaVersion: "1.0.0",
+          revision: 1,
+          createdBy: "ada",
+          createdAt: "2026-08-20T20:00:00.000Z",
+          updatedBy: "ada",
+          updatedAt: "2026-08-20T20:00:00.000Z",
+          referencePaths: ["/bayesianNetwork/modelId"],
+        },
+      ],
+      workbooks: [
+        {
+          id: "workbook-1",
+          projectId: "project-1",
+          elementCode: "SY",
+          name: "Systems analysis",
+          referencePaths: ["/systems/0/faultTree/modelId"],
+        },
+      ],
+    };
+
+    expect(MethodModelDependenciesResponseSchema.safeParse(dependency).success).toBe(true);
+    expect(
+      MethodModelDependenciesResponseSchema.safeParse({
+        ...dependency,
+        workbooks: [{ ...dependency.workbooks[0], referencePaths: ["systems.0.modelId"] }],
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
     { ...baseRequest, methodType: "FAULT_TREE" },
     { ...baseRequest, methodType: "BAYESIAN_NETWORK" },

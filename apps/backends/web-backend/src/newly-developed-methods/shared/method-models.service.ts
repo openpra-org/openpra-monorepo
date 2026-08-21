@@ -17,6 +17,7 @@ import type {
   MethodModelExecuteResult,
   MethodAnalysisRunResult,
   AnalysisRunMetadata,
+  MethodModelDependenciesResponse,
   MethodModelListResponse,
   MethodModelMetadata,
   MethodModelPatchRequest,
@@ -33,6 +34,7 @@ import {
   AnalysisRunMetadataSchema,
   CURRENT_ANALYSIS_RUN_SCHEMA_VERSION,
   MethodAnalysisRunResultSchema,
+  MethodModelDependenciesResponseSchema,
   NewlyDevelopedMethodModelSchema,
   validateBayesianNetworkAnalysisReady,
   validateBayesianNetworkDraft,
@@ -44,24 +46,14 @@ import {
   validateHclDraft,
 } from "interfaces-shared-types/newly-developed-methods";
 import { ProjectsService } from "../../projects/projects.service";
+import { WorkbookElementRegistry } from "../../workbooks/workbook-element-registry";
+import { Workbook, type WorkbookDocument } from "../../workbooks/workbook.schema";
 import { AnalysisRunRecord, type AnalysisRunRecordDocument } from "./analysis-run-record.schema";
 import { MethodModelRecord, type MethodModelRecordDocument } from "./method-model-record.schema";
 
 interface ActingUser {
   username: string;
 }
-
-const MODEL_REFERENCE_PATHS = [
-  "model.leafNodes.target.modelId",
-  "model.initiatingEvent.target.modelId",
-  "model.functionalEventFaultTreeLinks.faultTreeTopGate.modelId",
-  "model.sequences.result.target.modelId",
-  "model.hclConfiguration.configuration.modelId",
-  "model.bayesianNetwork.modelId",
-  "model.faultTrees.faultTree.modelId",
-  "model.bindings.faultTreeBasicEvent.modelId",
-  "model.bindings.bayesianNetworkNode.modelId",
-] as const;
 
 function defaultLayout(direction: CanvasLayoutMetadata["direction"]): CanvasLayoutMetadata {
   return {
@@ -153,6 +145,38 @@ function isDuplicateKeyError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === 11_000;
 }
 
+function escapeJsonPointerSegment(segment: string | number): string {
+  return String(segment).replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+function findModelReferencePaths(
+  value: unknown,
+  targetModelId: string,
+  path: (string | number)[] = [],
+  ancestors = new WeakSet<object>(),
+): string[] {
+  if (typeof value !== "object" || value === null || ancestors.has(value)) {
+    return [];
+  }
+
+  ancestors.add(value);
+  const entries: [string | number, unknown][] = Array.isArray(value)
+    ? value.map((entry, index) => [index, entry])
+    : Object.entries(value);
+  const referencePaths: string[] = [];
+
+  for (const [key, entry] of entries) {
+    const nextPath = [...path, key];
+    if (key === "modelId" && entry === targetModelId) {
+      referencePaths.push(`/${nextPath.map(escapeJsonPointerSegment).join("/")}`);
+    }
+    referencePaths.push(...findModelReferencePaths(entry, targetModelId, nextPath, ancestors));
+  }
+
+  ancestors.delete(value);
+  return referencePaths;
+}
+
 function toMetadata(doc: MethodModelRecordDocument): MethodModelMetadata {
   return {
     id: doc.id,
@@ -193,7 +217,10 @@ class MethodModelsService {
     private readonly methodModel: Model<MethodModelRecordDocument>,
     @InjectModel(AnalysisRunRecord.name)
     private readonly analysisRunModel: Model<AnalysisRunRecordDocument>,
+    @InjectModel(Workbook.name)
+    private readonly workbookModel: Model<WorkbookDocument>,
     private readonly projectsService: ProjectsService,
+    private readonly workbookElementRegistry: WorkbookElementRegistry,
   ) {}
 
   async listProjectModels(
@@ -462,6 +489,16 @@ class MethodModelsService {
     return MethodAnalysisRunResultSchema.parse({ run, result: doc.result });
   }
 
+  async findModelDependencies(
+    projectId: string,
+    modelId: string,
+    acting: ActingUser,
+  ): Promise<MethodModelDependenciesResponse> {
+    await this.projectsService.resolveAccess(projectId, acting);
+    await this.findScoped(projectId, modelId);
+    return this.collectModelDependencies(projectId, modelId);
+  }
+
   async deleteModel(projectId: string, modelId: string, acting: ActingUser): Promise<void> {
     const { role } = await this.projectsService.resolveAccess(projectId, acting);
     if (role === "viewer") {
@@ -469,21 +506,12 @@ class MethodModelsService {
     }
 
     const doc = await this.findScoped(projectId, modelId);
-    const dependent = await this.methodModel
-      .findOne({
-        id: { $ne: modelId },
-        $or: MODEL_REFERENCE_PATHS.map((path) => ({ [path]: modelId })),
-      })
-      .exec();
+    const dependencies = await this.collectModelDependencies(projectId, modelId);
 
-    if (dependent !== null) {
+    if (dependencies.models.length > 0 || dependencies.workbooks.length > 0) {
       throw new ConflictException({
-        message: "Model cannot be deleted while another model references it",
-        dependency: {
-          id: dependent.id,
-          methodType: dependent.methodType,
-          code: dependent.code,
-        },
+        message: "Model cannot be deleted while models or workbooks reference it",
+        dependencies,
       });
     }
 
@@ -496,6 +524,61 @@ class MethodModelsService {
       throw new NotFoundException("Method model not found");
     }
     return doc;
+  }
+
+  private async collectModelDependencies(
+    projectId: string,
+    modelId: string,
+  ): Promise<MethodModelDependenciesResponse> {
+    const [modelDocs, workbookDocs] = await Promise.all([
+      this.methodModel.find({ projectId, id: { $ne: modelId } }).exec(),
+      this.workbookModel.find({ projectId }).exec(),
+    ]);
+
+    const models = modelDocs
+      .map((doc) => ({
+        ...toMetadata(doc),
+        referencePaths: findModelReferencePaths(doc.model, modelId),
+      }))
+      .filter((model) => model.referencePaths.length > 0)
+      .sort((left, right) =>
+        left.methodType.localeCompare(right.methodType) ||
+        left.code.localeCompare(right.code) ||
+        left.id.localeCompare(right.id),
+      );
+
+    const workbooks = (
+      await Promise.all(
+        workbookDocs.map(async (workbook) => {
+          const adapter = this.workbookElementRegistry.tryGet(workbook.elementCode);
+          if (adapter === undefined) {
+            return null;
+          }
+          const element = await adapter.load(String(workbook._id));
+          if (element === null || element.projectId !== projectId) {
+            return null;
+          }
+          const referencePaths = findModelReferencePaths(element.mef, modelId);
+          return referencePaths.length === 0
+            ? null
+            : {
+                id: String(workbook._id),
+                projectId: workbook.projectId,
+                elementCode: workbook.elementCode,
+                name: workbook.name,
+                referencePaths,
+              };
+        }),
+      )
+    )
+      .filter((workbook): workbook is NonNullable<typeof workbook> => workbook !== null)
+      .sort((left, right) =>
+        left.elementCode.localeCompare(right.elementCode) ||
+        left.name.localeCompare(right.name) ||
+        left.id.localeCompare(right.id),
+      );
+
+    return MethodModelDependenciesResponseSchema.parse({ modelId, models, workbooks });
   }
 
   private async findRunScoped(

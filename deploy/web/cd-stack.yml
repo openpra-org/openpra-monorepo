@@ -92,7 +92,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "8000"
-      MONGO_URI: "mongodb://mongodb:27017/openpra"
+      MONGO_URI: "mongodb://mongodb:27017/${MONGO_DATABASE?Variable not set}"
       JWT_SECRET: "${JWT_SECRET?Variable not set}"
       JWT_EXPIRES_IN: "7d"
       APP_BASE_URL: "https://${HOST_URL?Variable not set}"
@@ -113,7 +113,7 @@ services:
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
-      MINIO_BUCKET: "openpra-web"
+      MINIO_BUCKET: "${MINIO_BUCKET?Variable not set}"
       MINIO_PUBLIC_URL: "https://minio-${HOST_URL?Variable not set}"
     deploy:
       <<: *shared-replicated

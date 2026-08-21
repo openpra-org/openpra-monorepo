@@ -20,7 +20,7 @@ No CMS, no database, no backend.
 | `/about/` | `about.astro` | The non-profit, principles, ways in |
 | `/404/` | `404.astro` | |
 
-Docs is a nav link out to `revamp-docs-dev.openpra.org`, not a page here.
+Docs is a nav link out to `docs-dev.openpra.org`, not a page here.
 
 ## Content lives in data files
 
@@ -61,8 +61,8 @@ the nginx image to `registry.openpra.org/openpra-apps-site`, and deploys the
 `openpra.org` with TLS from the existing `cloudflare` resolver. The
 Astro site setting and `CNAME` marker use the same hostname.
 
-The current application is at `revamp-dev.openpra.org`, current documentation
-is at `revamp-docs-dev.openpra.org`, and `app.openpra.org` is the legacy
+The current application is at `main-dev.openpra.org`, current documentation
+is at `docs-dev.openpra.org`, and `app.openpra.org` is the legacy
 application.
 
 ## Still to do

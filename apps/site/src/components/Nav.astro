@@ -6,7 +6,7 @@ const links = [
   ['/schema/', 'Schema'],
   ['/research/', 'Research'],
   ['/about/', 'About'],
-  ['https://revamp-docs-dev.openpra.org', 'Docs'],
+  ['https://docs-dev.openpra.org', 'Docs'],
 ];
 ---
 <header class="nav">
@@ -20,7 +20,7 @@ const links = [
         {links.map(([href, label]) => (
           <li><a href={href} aria-current={path === href ? 'page' : undefined}>{label}</a></li>
         ))}
-        <li><a class="btn" href="https://revamp-dev.openpra.org">Open the app</a></li>
+        <li><a class="btn" href="https://main-dev.openpra.org">Open the app</a></li>
       </ul>
     </nav>
     <button class="nav__toggle btn btn--ghost" aria-expanded="false" aria-label="Menu">Menu</button>

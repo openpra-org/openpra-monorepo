@@ -240,6 +240,8 @@ jobs:
           IMAGE_FRONTEND: ${{ env.REGISTRY }}/openpra-apps-web-frontend:${{ steps.vars.outputs.short_sha }}
           IMAGE_MONGO: mongo:latest
           IMAGE_MINIO: minio/minio:latest
+          MONGO_DATABASE: openpra_main_20260821t001435z
+          MINIO_BUCKET: openpra-main-20260821t001435z
           DOCS_HASH: ${{ needs.build-and-push.outputs.docs_hash }}
           JWT_SECRET: ${{ secrets.APPS_JWT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.APPS_GOOGLE_CLIENT_ID }}

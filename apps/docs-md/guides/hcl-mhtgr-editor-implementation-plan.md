@@ -11,6 +11,28 @@ This checklist governs the staged implementation of the fault-tree (FT), Bayesia
 - Do not implement a batch of unrelated features and test them only afterward.
 - Incomplete models must remain saveable; strict validation gates analysis, not drafting.
 
+## Canonical editor architecture
+
+- The canonical FT, BN, ET, and HCL frontend implementations live under `apps/frontends/web-frontend/src/newly-developed-methods`.
+- `newly-developed-methods` is the shared implementation location, not a separate project-level model library or a second set of editors.
+- Move the approved FT presentation and styling from SY Step 02 System Models into `newly-developed-methods/fault-tree`.
+- Move the approved workbook ET presentation and styling into `newly-developed-methods/event-tree`.
+- Keep those workbook screens visually and behaviorally continuous by having them import the canonical newly-developed-method components after extraction.
+- Replace every other FT or ET renderer/editor with an import of the corresponding canonical component, then remove the superseded implementation. Do not preserve alternate FT or ET editors.
+- Add the new BN implementation only under `newly-developed-methods/bayesian-network`; workbook screens import and host it in the same way.
+- Editor source-code location and model-data ownership are separate concerns: editor code lives in `newly-developed-methods`, while saved analysis data remains owned by the workbook MEF that hosts it.
+- Do not create a standalone model-library page, standalone project-level FT/ET/BN records, or project-level basic-event catalogue.
+- Cross-workbook relationships use stable, typed workbook/entity references; they do not copy a second model into the consuming workbook.
+
+Canonical source and host map:
+
+| Method | Approved visual source | Canonical implementation | Workbook hosts |
+| --- | --- | --- | --- |
+| FT | SY Step 02 System Models | `newly-developed-methods/fault-tree` | SY Step 02 authors it; every other FT surface imports the same implementation |
+| ET | Approved existing workbook ET presentation and ESQ integration views | `newly-developed-methods/event-tree` | ES authors event sequences; ESQ and other ET surfaces import the same implementation |
+| BN | New OpenPRA editor | `newly-developed-methods/bayesian-network` | ESQ Step 05 Dependencies |
+| HCL | Existing verified FT–BN–ET workflow | `newly-developed-methods/hybrid-causal-logic` | ESQ Step 05 configures bindings; ESQ Step 02 Integrate & Quantify executes them |
+
 ## Planned repository structure
 
 ```text
@@ -51,7 +73,6 @@ apps/interfaces/shared-types/newly-developed-methods/
 ```text
 apps/frontends/web-frontend/src/newly-developed-methods/
 ├── shared/
-├── model-library/
 ├── fault-tree/
 ├── bayesian-network/
 ├── event-tree/
@@ -67,7 +88,7 @@ apps/backends/web-backend/src/newly-developed-methods/
 └── hybrid-causal-logic/
 ```
 
-The solver binding will live at `apps/solvers/praxis-node` as a NAPI-RS Node addon connecting the TypeScript services to PRAXIS and TensorBayes. Existing cross-cutting newly developed method metadata remains separate from the editor, transport, validation, and solver contracts above.
+The solver binding lives at `apps/solvers/praxis-node` as a NAPI-RS Node addon connecting the TypeScript services to PRAXIS and TensorBayes. Reusable editor, transport, validation, and solver contracts remain grouped by method under `newly-developed-methods`; workbook MEF schemas own persisted model data and analysis-run records own immutable execution snapshots.
 
 ## Phase 0 — Branch preparation and baseline
 
@@ -84,6 +105,24 @@ Editor delivery order:
 3. Event Tree.
 4. Combined FT–BN–ET quantification.
 
+## Architecture-remediation gate
+
+Do not begin editor feature work until this correction is complete and the workbook-owned API gate below passes.
+
+- [ ] Inventory every current FT and ET implementation and record its workbook screen, data source, and callers.
+- [ ] Designate the SY Step 02 FT presentation as the only FT visual standard.
+- [ ] Designate the approved workbook ET presentation as the only ET visual standard.
+- [ ] Define one canonical public component contract for each editor under `newly-developed-methods`.
+- [ ] Separate reusable method schemas from workbook-owned MEF persistence wrappers.
+- [ ] Replace standalone project/model identity with workbook ID, workbook revision, and workbook-local model/entity IDs.
+- [ ] Define typed cross-workbook references for FT top events, FT basic events, ET functional events, BN nodes, and HCL bindings.
+- [ ] Make the SY workbook basic-event collection the canonical catalogue for SY fault trees and remove duplicated event payloads from tree nodes/model-local catalogues.
+- [ ] Extend the existing ES event-tree MEF instead of persisting a parallel standalone ET model.
+- [ ] Add BN and HCL data to their hosting workbook MEF rather than to a project-level model collection.
+- [ ] Remove the frontend model-library concept from the active architecture.
+- [ ] Add migration tests for existing SY fault trees and ES event trees before changing stored shapes.
+- [ ] Verify the corrected interface and migration tests before changing backend ownership.
+
 ## Phase 1 — Shared method schemas
 
 Complete schemas before frontend or backend implementation.
@@ -91,11 +130,11 @@ Complete schemas before frontend or backend implementation.
 ### Shared contracts
 
 - [x] Create the `newly-developed-methods/shared` interface module and barrel exports.
-- [x] Define stable model UUID, project ID, method type, analyst-facing code and name, and description.
-- [x] Define schema version, model revision, ownership, and timestamps.
+- [ ] Refactor stable identities so persisted models use workbook ID plus workbook-local model/entity IDs instead of standalone project-model identity.
+- [ ] Refactor schema version, revision, ownership, and timestamps around workbook MEF ownership and immutable analysis runs.
 - [x] Define canvas layout metadata.
 - [x] Define validation result contracts.
-- [x] Define analysis-run metadata.
+- [ ] Refactor analysis-run metadata to capture the owner workbook and every contributing workbook revision.
 - [x] Enforce stable UUID references so renaming models or events does not break connections.
 - [x] Add interface and Zod tests for shared contracts.
 
@@ -106,8 +145,8 @@ Complete schemas before frontend or backend implementation.
 - [x] Define basic-event references, house events, undeveloped events, and transfer references.
 - [x] Define gate-to-child relationships and display positions.
 - [x] Define basic-event probability and optional controlled data-source references.
-- [x] Define a project-level basic-event catalogue that preserves shared event identity across FTs.
-- [x] Define versioned FT create, patch, validate, execute, and result contracts.
+- [ ] Replace the project-level basic-event catalogue contract with workbook-owned catalogues and typed cross-workbook parameter references.
+- [ ] Refactor FT create, patch, validate, execute, and result contracts around workbook routes and workbook-local identities.
 - [x] Add interface and Zod tests for FT contracts.
 
 ### Bayesian-network contracts
@@ -117,7 +156,7 @@ Complete schemas before frontend or backend implementation.
 - [x] Define ordered parent references, directed edges, CPT values, and canvas positions.
 - [x] Define evidence configurations, query requests, and marginal results.
 - [x] Exclude decision, utility, deterministic, continuous, and dynamic nodes from the initial schema.
-- [x] Define versioned BN create, patch, validate, execute, and result contracts.
+- [ ] Refactor BN create, patch, validate, execute, and result contracts around its hosting workbook and workbook-local identities.
 - [x] Add interface and Zod tests for BN contracts.
 
 ### Event-tree contracts
@@ -127,13 +166,13 @@ Complete schemas before frontend or backend implementation.
 - [x] Define ordered functional events and FT top-event references.
 - [x] Define success/failure paths, end states, and sequence identifiers.
 - [x] Define event-tree transfers, HCL configuration references, and canvas layout.
-- [x] Define versioned ET create, patch, validate, execute, and result contracts.
+- [ ] Refactor ET create, patch, validate, execute, and result contracts around ES workbook ownership and workbook-local identities.
 - [x] Add interface and Zod tests for ET contracts.
 
 ### HCL contracts
 
 - [x] Create the `newly-developed-methods/hybrid-causal-logic` interface module and barrel exports.
-- [x] Define BN and FT references.
+- [ ] Refactor BN and FT references into typed workbook/entity references.
 - [x] Define FT basic-event to BN-node bindings.
 - [x] Define non-empty BN true-state selections and base evidence.
 - [x] Define solver settings supported by the current PRAXIS HCL API.
@@ -181,16 +220,32 @@ Complete schemas before frontend or backend implementation.
 - [x] Require unique, traceable sequences.
 - [x] Add focused tests for every ET validation rule.
 
-## Phase 3 — Backend services
+## Phase 3 — Backend services and ownership correction
+
+The first backend pass proved the service, validation, revision, permission, dependency, and run-lifecycle mechanics, but its standalone project-model ownership is superseded. Preserve the verified mechanics while replacing their ownership and routes.
+
+### Existing verified mechanics
 
 - [x] Mirror the method-by-method structure under the backend `newly-developed-methods` directory.
-- [x] List project models by method type.
-- [x] Create, load, and delete models; gate deletion with dependency checks.
-- [x] Patch only a changed field or structure.
+- [x] Patch only a changed field or structure with atomic revision protection.
 - [x] Validate drafts and analysis readiness.
 - [x] Create an analysis run and retrieve its status and results.
-- [x] Find models and workbooks that reference another model.
+- [x] Find model and workbook references.
 - [x] Add backend permission tests.
+
+### Required workbook-ownership remediation
+
+- [ ] Remove the `method_models` project-model persistence path and its project CRUD routes.
+- [ ] Remove the project-level FT basic-event catalogue persistence path and routes.
+- [ ] Load and patch FT, ET, BN, and HCL data through their owning workbook services and MEF documents.
+- [ ] Reuse workbook authorization and workflow checks for model edits and executions.
+- [ ] Add workbook revision and expected-revision handling to method-related patches.
+- [ ] Preserve HTTP `409` behavior for stale workbook edits and racing updates.
+- [ ] Refactor dependency discovery to resolve typed workbook/entity references rather than project models.
+- [ ] Refactor analysis runs to record the owner workbook, workbook-local model ID, source workbook revisions, and immutable snapshots.
+- [ ] Build pure workbook-MEF-to-PRAXIS snapshot adapters for FT, BN, ET, and HCL execution.
+- [ ] Delete a workbook-owned model only after checking typed references from other workbooks.
+- [ ] Add corrected permission, persistence, revision, dependency, and analysis-run tests.
 
 ### Save behavior
 
@@ -202,7 +257,7 @@ Complete schemas before frontend or backend implementation.
 - [ ] Return HTTP `409` for revision conflicts.
 - [ ] Show `Saving`, `Saved`, or `Save failed` in the editor.
 - [ ] Ensure no request is sent for every keystroke.
-- [ ] Keep save logic method-local; do not introduce a shared save coordinator.
+- [ ] Reuse the established workbook save-on-deactivation behavior while keeping each method's structural operations local.
 - [ ] Add save-on-blur, partial-patch, revision-conflict, and failure-state tests.
 
 ## Phase 4 — PRAXIS Node addon
@@ -220,11 +275,11 @@ Complete schemas before frontend or backend implementation.
 
 ## Backend-first quantification gate
 
-Do not begin editor frontend implementation until every method can complete a real analysis through API calls and return numerically verified results.
+Do not begin editor frontend implementation until every method can complete a real analysis through workbook-owned API calls and return numerically verified results. The solver results below remain valid evidence for the numerical core, but the API and persistence gate is reopened because the verified first pass used superseded project-model routes.
+
+### Numerically verified solver capability
 
 - [x] Connect the PRAXIS native addon worker to a versioned Praetor API endpoint.
-- [x] Persist and expose the project-level FT basic-event catalogue so referenced probabilities are available to validation and execution.
-- [x] Dispatch persisted method-model runs from the web backend to Praetor.
 - [x] Persist `QUEUED`, `RUNNING`, `SUCCEEDED`, and `FAILED` run states and structured failures.
 - [x] Execute an FT through the API and return its exact top-event probability and leading minimal cut sets.
 - [x] Verify FT API results against hand-calculated AND, OR, shared-event, K-of-N, and complemented-event fixtures.
@@ -234,9 +289,30 @@ Do not begin editor frontend implementation until every method can complete a re
 - [x] Cover validation, malformed solver responses, permissions, revision conflicts, and result retrieval at API boundaries.
 - [x] Record Windows, Linux, and Docker verification for the complete API-to-worker path.
 
+### Workbook-owned API gate
+
+- [ ] Execute an SY-owned FT through an SY workbook API using the workbook's basic-event catalogue.
+- [ ] Execute a workbook-owned BN query through its hosting workbook API.
+- [ ] Execute an ES-owned ET through an ES workbook API using typed references to SY FT top events.
+- [ ] Execute an HCL-linked FT and ET through the integration workbook API.
+- [ ] Persist and retrieve workbook-owned immutable run records with every contributing workbook revision.
+- [ ] Re-run the hand-calculated FT, BN, independent ET, HCL FT, and HCL ET numerical fixtures through the corrected APIs.
+- [ ] Cover workbook permissions, stale revisions, missing cross-workbook references, malformed solver responses, and result retrieval.
+- [ ] Record the corrected Windows, Linux, and Docker API-to-worker verification.
+
 ## Phase 5 — Fault-tree vertical slice
 
-Preserve the existing FT design and visual language. Use one flat inspector for the selected node; do not introduce a nested sidebar.
+The one canonical FT implementation lives under `newly-developed-methods/fault-tree`. Its visual foundation is the existing SY Step 02 System Models fault-tree presentation. After extraction, SY and every other workbook FT surface import this component, so their in-workbook appearance remains continuous while the implementation is shared. Use one flat inspector for the selected node; do not introduce a nested sidebar.
+
+### Canonical extraction and consolidation
+
+- [ ] Identify the exact SY Step 02 FT components, styles, interaction state, and MEF selectors that establish the approved presentation.
+- [ ] Move or refactor the approved presentation into `newly-developed-methods/fault-tree` without changing its appearance.
+- [ ] Define the canonical FT component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
+- [ ] Change SY Step 02 to import the canonical FT component and verify visual and interaction parity.
+- [ ] Replace every other FT renderer/editor with an import of the canonical FT component.
+- [ ] Remove each superseded FT implementation only after its importing workbook has passed automated and manual parity checks.
+- [ ] Prove by repository search that only one FT renderer/editor implementation remains.
 
 ### Editing and viewing
 
@@ -255,9 +331,9 @@ Preserve the existing FT design and visual language. Use one flat inspector for 
 - [ ] Implement pan, zoom, and fit.
 - [ ] Implement read-only viewer mode.
 
-### Prototype limitations
+### Functional limitations to remove
 
-- [ ] Replace local-only state with persistence.
+- [ ] Connect canonical editor state to workbook persistence.
 - [ ] Connect the editor to the solver.
 - [ ] Add strict validation.
 - [ ] Remove invalid single-parent assumptions.
@@ -287,14 +363,23 @@ Preserve the existing FT design and visual language. Use one flat inspector for 
 - [ ] A user can validate it.
 - [ ] A user can quantify it.
 - [ ] A user can review cut sets.
-- [ ] A workbook can link to it without copying the model.
+- [ ] A consuming workbook can reference its workbook-owned FT entities without copying the tree.
+- [ ] SY and every other FT host import the same canonical newly-developed-method component.
+- [ ] No alternate FT renderer/editor implementation remains.
 - [ ] The Playwright FT create/edit/reload/validate/run/link workflow passes.
 
 Do not begin the BN vertical slice until every FT completion-gate item has passed verification.
 
 ## Phase 6 — Bayesian-network vertical slice
 
-Use OpenPRA styling while adopting only the essential MAAT functionality.
+Create the only BN implementation under `newly-developed-methods/bayesian-network`. ESQ Step 05 Dependencies imports and hosts it; do not add a project model library or a second workbook-local BN editor. Use OpenPRA styling while adopting only the essential MAAT functionality.
+
+### Canonical component and workbook host
+
+- [ ] Define the canonical BN editor component contract under `newly-developed-methods/bayesian-network`.
+- [ ] Add BN data to the ESQ workbook MEF and persist it through the ESQ workbook patch service.
+- [ ] Import the canonical BN editor into ESQ Step 05 Dependencies.
+- [ ] Prove by repository search that only one BN renderer/editor implementation exists.
 
 ### Editing
 
@@ -348,7 +433,17 @@ Use OpenPRA styling while adopting only the essential MAAT functionality.
 
 ## Phase 7 — Event-tree vertical slice
 
-Reuse the existing OpenPRA event-tree presentation under `newly-developed-methods/event-tree`.
+The one canonical ET implementation lives under `newly-developed-methods/event-tree`. Move or refactor the approved workbook ET presentation into that folder, then have ES, ESQ, and every other ET surface import it so the workbook experience remains visually continuous.
+
+### Canonical extraction and consolidation
+
+- [ ] Identify the exact approved workbook ET components, styles, interaction state, selectors, and ESQ result integrations that establish the standard presentation.
+- [ ] Move or refactor that presentation into `newly-developed-methods/event-tree` without changing its appearance.
+- [ ] Define the canonical ET component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
+- [ ] Change the source workbook screen to import the canonical ET component and verify visual and interaction parity.
+- [ ] Replace every other ET renderer/editor with an import of the canonical ET component.
+- [ ] Remove each superseded ET implementation only after its importing workbook has passed automated and manual parity checks.
+- [ ] Prove by repository search that only one ET renderer/editor implementation remains.
 
 ### Editing
 
@@ -386,24 +481,29 @@ Reuse the existing OpenPRA event-tree presentation under `newly-developed-method
 - [x] Return sequence path, conditional probability, annual frequency, and end state.
 - [x] Return end-state aggregates and leading contributors or cut sets where available.
 - [x] Add combined FT–BN–ET tests.
+- [ ] ES, ESQ, and every other ET host import the same canonical newly-developed-method component.
+- [ ] No alternate ET renderer/editor implementation remains.
 - [ ] The Playwright ET create/edit/reload/validate/run/link workflow passes.
 
 ## Phase 8 — Workbook connections
 
-Keep editors independent from workbook data structures and store only controlled references.
+Keep editor implementations reusable under `newly-developed-methods`, but keep model instances embedded in and persisted by their owning workbooks. Workbook screens import the canonical editors; cross-workbook consumers store controlled typed references.
 
-- [ ] Link SY workbooks to system FTs and top events.
-- [ ] Link IE workbooks to initiating-event FTs.
+- [ ] Host system FTs in SY Step 02 by importing `newly-developed-methods/fault-tree`.
+- [ ] Replace IE FT presentations with the same canonical FT import and connect them to their controlled workbook data or typed SY references.
 - [ ] Link DA workbooks to basic-event parameters and probabilities.
 - [ ] Link HRA workbooks to human-failure events and HEPs.
-- [ ] Link ES workbooks to ETs and sequence definitions.
-- [ ] Link ESQ workbooks to specific analysis runs.
+- [ ] Host ETs and sequence definitions in ES by importing `newly-developed-methods/event-tree`.
+- [ ] Use the same canonical ET import for ESQ ET views and result overlays.
+- [ ] Host BNs and HCL binding UI from their workbook screen by importing the canonical newly-developed-method components.
+- [ ] Link ESQ workbooks to the exact contributing workbooks, model entities, revisions, and immutable analysis runs.
 - [ ] Link RC/RI workbooks to end-state and risk results.
 - [ ] Link hazard PRA workbooks to hazard-conditioned models.
-- [ ] Add **Open linked fault tree** and equivalent dedicated-editor actions.
+- [ ] Add **Open linked fault tree** and equivalent actions that navigate to the owning workbook host rather than a standalone model page.
 - [ ] Add explicit **Use this run** actions for controlled workbook results.
 - [ ] Ensure rerunning a model never silently overwrites controlled workbook results.
 - [ ] Add workbook reference and run-selection tests.
+- [ ] Remove obsolete FT/ET routes, components, styles, adapters, and model-library code after every host has migrated.
 
 ## Phase 9 — Seeded example and hardening
 
@@ -454,6 +554,7 @@ The following items are explicitly excluded from the initial implementation:
 | 2026-08-20 | Fetch latest `origin/main` | `git fetch origin main`; branch base resolved to `f6afbce0` (`docs: refine branding and disclosures (#166)`) | Passed |
 | 2026-08-20 | Create feature branch | `git worktree add -b hcl_implementation_mhtgr_model_import ... origin/main`; branch tracks `origin/main` | Passed |
 | 2026-08-20 | Create implementation checklist | `prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md` | Passed |
+| 2026-08-21 | Revise canonical editor architecture | Recorded `newly-developed-methods` as the sole FT/ET/BN/HCL implementation location, workbook screens as importing hosts, SY FT and approved workbook ET visuals as the standards, duplicate-editor removal after parity testing, workbook-owned persistence, and the reopened workbook API gate; `pnpm exec prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md` and `git diff --check` passed | Passed |
 | 2026-08-20 | Verify existing FT presentation | Frontend type check passed; browser check opened the MLD FT, confirmed node detail interaction, and confirmed zoom changed the React Flow viewport transform | Passed |
 | 2026-08-20 | Verify existing ET presentation | `esSelectors.spec.ts` passed 7/7; browser check opened the ET view and selected EHP-3, which displayed the RT-success/SCS-failure/RCCS-failure/CONF-success path and RC-2 outcome | Passed |
 | 2026-08-20 | Create shared interface module and barrels | Prettier check, `interfaces-shared-types:typecheck`, and `interfaces-shared-types:lint` | Passed |

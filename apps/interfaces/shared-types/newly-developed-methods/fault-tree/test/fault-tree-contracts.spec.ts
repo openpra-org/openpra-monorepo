@@ -158,29 +158,28 @@ describe("fault-tree probability contracts", () => {
   });
 
   it("accepts an optional UUID-keyed controlled data source", () => {
-    const controlledDataSource = { workbookId: "da-workbook-1", parameterId: PARAMETER_ID };
+    const controlledDataSource = {
+      referenceType: "WORKBOOK_PARAMETER",
+      workbookId: "da-workbook-1",
+      entityId: PARAMETER_ID,
+    };
     expect(FaultTreeControlledDataSourceReferenceSchema.safeParse(controlledDataSource).success).toBe(true);
     expect(FaultTreeBasicEventProbabilitySchema.safeParse({ value: 0.02, controlledDataSource }).success).toBe(true);
   });
 
   it.each([
-    { workbookId: "", parameterId: PARAMETER_ID },
-    { workbookId: "da-workbook-1", parameterId: "DA-PUMP-FAIL" },
-    { workbookId: "da-workbook-1", parameterId: PARAMETER_ID, parameterName: "Pump failure" },
+    { referenceType: "WORKBOOK_PARAMETER", workbookId: "", entityId: PARAMETER_ID },
+    { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook-1", entityId: "DA-PUMP-FAIL" },
+    { referenceType: "BASIC_EVENT", workbookId: "da-workbook-1", entityId: PARAMETER_ID },
+    { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook-1", entityId: PARAMETER_ID, parameterName: "Pump failure" },
   ])("rejects malformed controlled source %#", (controlledDataSource) => {
     expect(FaultTreeControlledDataSourceReferenceSchema.safeParse(controlledDataSource).success).toBe(false);
   });
 });
 
-describe("project basic-event catalogue contracts", () => {
+describe("workbook basic-event catalogue contracts", () => {
   const catalogue = {
-    schemaVersion: "1.0.0",
-    projectId: "project-mhtgr",
-    revision: 1,
-    createdBy: "analyst-1",
-    createdAt: "2026-08-20T12:00:00.000Z",
-    updatedBy: "analyst-1",
-    updatedAt: "2026-08-20T12:00:00.000Z",
+    workbookId: "sy-workbook",
     basicEvents: [
       {
         id: BASIC_EVENT_ID,
@@ -192,7 +191,7 @@ describe("project basic-event catalogue contracts", () => {
     ],
   };
 
-  it("accepts an empty project catalogue", () => {
+  it("accepts an empty workbook catalogue", () => {
     expect(FaultTreeBasicEventCatalogueSchema.safeParse({ ...catalogue, basicEvents: [] }).success).toBe(true);
   });
 
@@ -217,13 +216,13 @@ describe("project basic-event catalogue contracts", () => {
   });
 
   it.each([
-    { ...catalogue, schemaVersion: "2.0.0" },
-    { ...catalogue, projectId: "   " },
-    { ...catalogue, revision: 0 },
+    { ...catalogue, workbookId: "   " },
+    { ...catalogue, projectId: "project-mhtgr" },
+    { ...catalogue, revision: 1 },
     { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], id: "BE-PUMP-A" }] },
     { ...catalogue, basicEvents: [{ ...catalogue.basicEvents[0], probability: { value: 1.01 } }] },
     { ...catalogue, faultTreeId: TARGET_MODEL_ID },
-  ])("rejects malformed project catalogue %#", (candidate) => {
+  ])("rejects malformed workbook catalogue %#", (candidate) => {
     expect(FaultTreeBasicEventCatalogueSchema.safeParse(candidate).success).toBe(false);
   });
 });

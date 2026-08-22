@@ -15,9 +15,19 @@ const WorkbookPatchBodySchema = z.object({
   operations: z.array(WorkbookPatchOperationSchema).min(1).max(10_000),
 });
 
+const WorkbookRevisionSchema = z.number().int().positive();
+
+const RevisionedWorkbookPatchBodySchema = z
+  .object({
+    expectedRevision: WorkbookRevisionSchema,
+    operations: z.array(WorkbookPatchOperationSchema).min(1).max(10_000),
+  })
+  .strict();
+
 type WorkbookPatchPathSegment = z.infer<typeof WorkbookPatchPathSegmentSchema>;
 type WorkbookPatchOperation = z.infer<typeof WorkbookPatchOperationSchema>;
 type WorkbookPatchBody = z.infer<typeof WorkbookPatchBodySchema>;
+type RevisionedWorkbookPatchBody = z.infer<typeof RevisionedWorkbookPatchBodySchema>;
 
 const BLOCKED_PATH_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
 
@@ -125,8 +135,10 @@ function applyWorkbookPatch<T>(current: T, rawOperations: unknown): T {
 export {
   WorkbookPatchBodySchema,
   WorkbookPatchOperationSchema,
+  RevisionedWorkbookPatchBodySchema,
   applyWorkbookPatch,
   createWorkbookPatch,
+  type RevisionedWorkbookPatchBody,
   type WorkbookPatchBody,
   type WorkbookPatchOperation,
   type WorkbookPatchPathSegment,

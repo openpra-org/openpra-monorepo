@@ -4,6 +4,7 @@ import type {
   DraftValidationOutcome,
   MethodEntityReference,
   ValidationIssue,
+  WorkbookModelSnapshotIdentity,
 } from "../shared";
 import type { EventTreeModel } from "./event-tree-model";
 
@@ -24,7 +25,7 @@ const validateEventTreeStartingNodeAndPaths = (
       code: "ET_INITIATING_EVENT_REQUIRED",
       severity: "ERROR",
       message: "The event tree must define an initiating event",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["initiatingEvent"],
     });
   } else if (context.availableInitiatingEvents !== undefined) {
@@ -51,7 +52,7 @@ const validateEventTreeStartingNodeAndPaths = (
       code: "ET_FUNCTIONAL_EVENT_REQUIRED",
       severity: "ERROR",
       message: "The event tree must define at least one functional event",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["functionalEvents"],
     });
     return issues;
@@ -64,7 +65,7 @@ const validateEventTreeStartingNodeAndPaths = (
       code: "ET_FUNCTIONAL_EVENT_ORDER_INVALID",
       severity: "ERROR",
       message: "Functional-event order must be unique and contiguous from zero",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["functionalEvents"],
     });
     return issues;
@@ -105,7 +106,7 @@ const validateEventTreeStartingNodeAndPaths = (
       code: "ET_BRANCH_COVERAGE_INCOMPLETE",
       severity: "ERROR",
       message: `The event tree must define all ${expectedPathCount} complete success/failure paths`,
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["sequences"],
     });
   }
@@ -165,7 +166,7 @@ const validateEventTreeFaultTreeLinksAndFrequency = (
       code: "ET_INITIATING_EVENT_FREQUENCY_REQUIRED",
       severity: "ERROR",
       message: "The event tree must define an initiating-event frequency",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["initiatingEventFrequency"],
     });
   } else if (!Number.isFinite(model.initiatingEventFrequency.value) || model.initiatingEventFrequency.value < 0) {
@@ -173,7 +174,7 @@ const validateEventTreeFaultTreeLinksAndFrequency = (
       code: "ET_INITIATING_EVENT_FREQUENCY_INVALID",
       severity: "ERROR",
       message: "The initiating-event frequency must be a finite, non-negative value",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["initiatingEventFrequency", "value"],
     });
   }
@@ -259,9 +260,9 @@ const validateEventTreeTransfers = (
   const availableModels = [model, ...(context.eventTreeModels ?? [])];
   const modelsById = new Map<string, EventTreeModel[]>();
   availableModels.forEach((availableModel) => {
-    const matches = modelsById.get(availableModel.id) ?? [];
+    const matches = modelsById.get(availableModel.modelId) ?? [];
     matches.push(availableModel);
-    modelsById.set(availableModel.id, matches);
+    modelsById.set(availableModel.modelId, matches);
   });
 
   model.sequences.forEach((sequence, sequenceIndex) => {
@@ -310,8 +311,8 @@ const validateEventTreeTransfers = (
       );
       if (targetSequences.length !== 1) return;
       transferEdges.push({
-        sourceKey: `${availableModel.id}:${sequence.id}`,
-        targetKey: `${targetModels[0].id}:${targetSequences[0].id}`,
+        sourceKey: `${availableModel.modelId}:${sequence.id}`,
+        targetKey: `${targetModels[0].modelId}:${targetSequences[0].id}`,
         sequenceId: sequence.id,
         sequenceIndex,
       });
@@ -359,7 +360,7 @@ const validateEventTreeTransfers = (
   };
 
   model.sequences.forEach((sequence) => {
-    const sequenceKey = `${model.id}:${sequence.id}`;
+    const sequenceKey = `${model.modelId}:${sequence.id}`;
     if (!visitState.has(sequenceKey)) visit(sequenceKey);
   });
 
@@ -412,24 +413,24 @@ const validateEventTreeModel = (
 
 const validateEventTreeDraft = (
   model: EventTreeModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: EventTreeValidationContext = {},
 ): DraftValidationOutcome =>
   createDraftValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
+    owner,
     issues: validateEventTreeModel(model, context),
     validatedAt,
   });
 
 const validateEventTreeAnalysisReady = (
   model: EventTreeModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: EventTreeValidationContext = {},
 ): AnalysisReadyValidationOutcome =>
   createAnalysisReadyValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
+    owner,
     issues: validateEventTreeModel(model, context),
     validatedAt,
   });

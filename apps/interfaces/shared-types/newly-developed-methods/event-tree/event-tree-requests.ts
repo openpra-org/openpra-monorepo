@@ -1,14 +1,14 @@
 import { z } from "zod";
 import {
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookModelIdSchema,
+  WorkbookRevisionSchema,
   ValidationModeSchema,
 } from "../shared";
 import type {
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  WorkbookMethodSchemaVersion,
+  WorkbookModelId,
+  WorkbookRevision,
   ValidationMode,
 } from "../shared";
 import type {
@@ -35,12 +35,11 @@ import {
 type EventTreeExecutionMode = "INDEPENDENT" | "HYBRID_CAUSAL_LOGIC";
 
 interface EventTreeCreateRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  projectId: string;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
   code: string;
   name: string;
   description: string;
-  createdBy: string;
 }
 
 interface EventTreePatchChanges {
@@ -58,39 +57,35 @@ interface EventTreePatchChanges {
 }
 
 interface EventTreePatchRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  expectedRevision: MethodModelRevision;
-  updatedBy: string;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  expectedWorkbookRevision: WorkbookRevision;
   changes: EventTreePatchChanges;
 }
 
 interface EventTreeValidateRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  revision: MethodModelRevision;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
   mode: ValidationMode;
-  requestedBy: string;
 }
 
 interface EventTreeExecuteRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  revision: MethodModelRevision;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
   mode: EventTreeExecutionMode;
-  requestedBy: string;
 }
 
 const EventTreeExecutionModeSchema = z.enum(["INDEPENDENT", "HYBRID_CAUSAL_LOGIC"]);
 
 const EventTreeCreateRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    projectId: z.string().trim().min(1, "Project id is required"),
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
     code: z.string().trim().min(1, "Model code is required").max(64, "Model code must be 64 characters or fewer"),
     name: z.string().trim().min(1, "Model name is required").max(200, "Model name must be 200 characters or fewer"),
     description: z.string().max(10_000, "Description must be 10,000 characters or fewer"),
-    createdBy: z.string().trim().min(1, "Creator id is required"),
   })
   .strict();
 
@@ -113,31 +108,28 @@ const EventTreePatchChangesSchema = z
 
 const EventTreePatchRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    expectedRevision: MethodModelRevisionSchema,
-    updatedBy: z.string().trim().min(1, "Updater id is required"),
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    expectedWorkbookRevision: WorkbookRevisionSchema,
     changes: EventTreePatchChangesSchema,
   })
   .strict();
 
 const EventTreeValidateRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    revision: MethodModelRevisionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
     mode: ValidationModeSchema,
-    requestedBy: z.string().trim().min(1, "Requester id is required"),
   })
   .strict();
 
 const EventTreeExecuteRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    revision: MethodModelRevisionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
     mode: EventTreeExecutionModeSchema,
-    requestedBy: z.string().trim().min(1, "Requester id is required"),
   })
   .strict();
 

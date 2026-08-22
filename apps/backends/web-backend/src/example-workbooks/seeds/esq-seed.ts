@@ -923,6 +923,8 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope event sequence quantification for the Generic-1 SFR, pre-operational stage, capability category CC-II.",
+  bayesianNetworks: [],
+  hclConfigurations: [],
   familyQuantifications,
   modelIntegration,
   quantificationMethods,

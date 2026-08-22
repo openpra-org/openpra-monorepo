@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
@@ -12,12 +13,22 @@ import { createBlankSy } from "./blank-sy";
 import { stripNulls } from "../pos-workbooks/mef-normalize";
 import { healMef } from "../pos-workbooks/mef-heal";
 import { mergeWorkbookPatch } from "../workbooks/workbook-mef-patch";
+import { WorkbookModelAccessService } from "../workbooks/workbook-model-access.service";
+import {
+  assertExpectedWorkbookRevision,
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
+import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
+import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
 
 export interface SyWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
-  mef: unknown;
+  revision: number;
+  mef: SystemsAnalysis;
   myRoles: WorkbookRoleName[];
   hasPreviousMef: boolean;
   updatedAt: string;
@@ -28,11 +39,14 @@ interface ActingUser {
 }
 
 function toResponse(doc: SyWorkbookDocument, myRoles: WorkbookRoleName[]): SyWorkbookResponse {
+  const parsed = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
+  if (!parsed.success) throw new BadRequestException(`Stored SY workbook failed validation: ${parsed.error.message}`);
   return {
     workbookId: doc.workbookId,
     projectId: doc.projectId,
     ownerUsername: doc.ownerUsername,
-    mef: doc.mef,
+    revision: readWorkbookRevision(doc),
+    mef: parsed.data,
     myRoles,
     hasPreviousMef: typeof doc.previousMefJson === "string" && doc.previousMefJson.length > 0,
     updatedAt: doc.updatedAt.toISOString(),
@@ -48,6 +62,8 @@ export class SyWorkbooksService {
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
     private readonly rolesService: WorkbookRolesService,
     private readonly syDocumentsService: SyDocumentsService,
+    private readonly modelAccessService: WorkbookModelAccessService,
+    private readonly dependencyDiscoveryService: WorkbookDependencyDiscoveryService,
   ) {}
 
   private async loadMyRoles(workbookId: string, username: string): Promise<WorkbookRoleName[]> {
@@ -62,24 +78,80 @@ export class SyWorkbooksService {
     return toResponse(doc, myRoles);
   }
 
-  async patchMef(workbookId: string, operations: unknown, acting: ActingUser): Promise<SyWorkbookResponse> {
+  async patchMef(
+    workbookId: string,
+    patch: RevisionedWorkbookPatchBody,
+    acting: ActingUser,
+  ): Promise<SyWorkbookResponse> {
     const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SY workbook not found");
-    const { role } = await this.projectsService.resolveAccess(doc.projectId, acting);
-    if (role === "viewer") throw new ForbiddenException("You cannot edit this SY workbook");
-    const parsed = SystemsAnalysisSchema.safeParse(stripNulls(mergeWorkbookPatch(doc.mef, operations)));
+    const { workbookRoles } = await this.modelAccessService.requireEdit({
+      workbookId,
+      projectId: doc.projectId,
+      mef: doc.mef,
+      acting,
+    });
+    assertExpectedWorkbookRevision(doc, patch.expectedRevision);
+    const parsed = SystemsAnalysisSchema.safeParse(
+      stripNulls(mergeWorkbookPatch(doc.mef, patch.operations)),
+    );
     if (!parsed.success) {
       throw new ForbiddenException(`Invalid SY workbook payload: ${parsed.error.message}`);
     }
-    doc.mef = parsed.data;
-    await doc.save();
-    const myRoles = await this.loadMyRoles(workbookId, acting.username);
-    return toResponse(doc, myRoles);
+    const updatedDoc = await this.syWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, patch.expectedRevision),
+        { $set: { mef: parsed.data, revision: patch.expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(patch.expectedRevision);
+    return toResponse(updatedDoc, workbookRoles);
+  }
+
+  async deleteFaultTree(
+    workbookId: string,
+    modelId: string,
+    expectedRevision: number,
+    acting: ActingUser,
+  ): Promise<SyWorkbookResponse> {
+    const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("SY workbook not found");
+    const { workbookRoles } = await this.modelAccessService.requireEdit({
+      workbookId,
+      projectId: doc.projectId,
+      mef: doc.mef,
+      acting,
+    });
+    assertExpectedWorkbookRevision(doc, expectedRevision);
+    const mef = SystemsAnalysisSchema.parse(stripNulls(doc.mef));
+    const index = mef.systemLogicModels.findIndex(
+      (model) => model.uuid === modelId && model.faultTree !== undefined,
+    );
+    if (index < 0) throw new NotFoundException("SY fault tree not found");
+    await this.dependencyDiscoveryService.assertModelCanBeDeleted(
+      { workbookId, modelId },
+      { ignoredSourcePathPrefixes: [`/systemLogicModels/${index}`] },
+    );
+    const nextMef = {
+      ...mef,
+      systemLogicModels: mef.systemLogicModels.filter((_, candidateIndex) => candidateIndex !== index),
+    };
+    const updatedDoc = await this.syWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        { $set: { mef: nextMef, revision: expectedRevision + 1 } },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    return toResponse(updatedDoc, workbookRoles);
   }
 
   async loadExample(workbookId: string, acting: ActingUser, exampleId?: string): Promise<SyWorkbookResponse> {
     const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SY workbook not found");
+    const expectedRevision = readWorkbookRevision(doc);
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can load the example");
@@ -95,17 +167,29 @@ export class SyWorkbooksService {
       workflowState: "DRAFT",
       workflowHistory: [{ state: "DRAFT", enteredAt: new Date().toISOString(), actor: acting.username, note: "Loaded from example workbook" }],
     };
-    doc.previousMefJson = JSON.stringify(doc.mef);
-    doc.mef = cleaned;
-    await doc.save();
+    const updatedDoc = await this.syWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            previousMefJson: JSON.stringify(doc.mef),
+            mef: cleaned,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
     await this.signoffModel.deleteMany({ workbookId }).exec();
     await this.syDocumentsService.removeAllForWorkbook(workbookId);
-    return toResponse(doc, myRoles);
+    return toResponse(updatedDoc, myRoles);
   }
 
   async unloadExample(workbookId: string, acting: ActingUser): Promise<SyWorkbookResponse> {
     const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
     if (!doc) throw new NotFoundException("SY workbook not found");
+    const expectedRevision = readWorkbookRevision(doc);
     await this.projectsService.resolveAccess(doc.projectId, acting);
     const myRoles = await this.loadMyRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unload the example");
@@ -122,9 +206,20 @@ export class SyWorkbooksService {
     const healed = healMef(restored, template);
     const parsed = SystemsAnalysisSchema.safeParse(healed);
     if (!parsed.success) throw new ForbiddenException(`Stored prior MEF failed validation: ${parsed.error.message}`);
-    doc.mef = parsed.data;
-    doc.previousMefJson = null;
-    await doc.save();
-    return toResponse(doc, myRoles);
+    const updatedDoc = await this.syWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: parsed.data,
+            previousMefJson: null,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updatedDoc) throw workbookRevisionConflict(expectedRevision);
+    return toResponse(updatedDoc, myRoles);
   }
 }

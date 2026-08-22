@@ -13,6 +13,7 @@ import { FrequencySchema, FrequencyWithDistributionSchema, ParameterDistribution
 import { ImportanceLevelSchema, SensitivityStudySchema, BaseUncertaintyAnalysisSchema } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { EsqBayesianNetworkSchema, EsqHclConfigurationSchema } from "./workbook-models";
 
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const TruncationMethodSchema = z.enum(TruncationMethod);
@@ -567,65 +568,84 @@ export const EsqDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const EventSequenceQuantificationSchema = z.object({
-  ...technicalElementSchema(TechnicalElementTypes.EVENT_SEQUENCE_QUANTIFICATION).shape,
-  praScope: z.string(),
-  familyQuantifications: z.array(EventSequenceFamilyQuantificationSchema),
-  sequenceFrequencyEstimates: z.array(SequenceFrequencyEstimateSchema).optional(),
-  modelIntegration: ModelIntegrationSchema,
-  quantificationMethods: QuantificationMethodsSchema,
-  parameterConsistency: ParameterConsistencyAttestationSchema,
-  phenomenaParameterBases: z.array(PhenomenaParameterBasisSchema).optional(),
-  recoveryActionApplications: z.array(RecoveryActionApplicationSchema).optional(),
-  circularLogicResolutions: z.array(CircularLogicResolutionSchema).optional(),
-  systemSuccessTreatment: SystemSuccessTreatmentSchema,
-  mutuallyExclusiveEventRules: z.array(MutuallyExclusiveEventRuleSchema).optional(),
-  flagEventSettings: z.array(FlagEventSettingSchema).optional(),
-  moduleUsageRecords: z.array(ModuleUsageRecordSchema).optional(),
-  dependencyTreatment: DependencyTreatmentSchema,
-  multiHfeCutsetIdentifications: z.array(MultiHfeCutsetIdentificationSchema).optional(),
-  hfeDependencyApplications: z.array(HfeDependencyApplicationSchema).optional(),
-  linkingTransferRecords: z.array(LinkingTransferRecordSchema).optional(),
-  phenomenaDependencyAssessments: z.array(PhenomenaDependencyAssessmentSchema).optional(),
-  barrierQuantifications: z.array(RadionuclideBarrierQuantificationSchema),
-  phenomenaModelLogic: PhenomenaModelLogicSchema.optional(),
-  postReleaseHfeTreatments: z.array(PostReleaseHfeTreatmentSchema).optional(),
-  equipmentSurvivabilityAssessments: z.array(EquipmentSurvivabilityAssessmentSchema).optional(),
-  cutsetLogicReviews: z.array(CutsetLogicReviewRecordSchema),
-  consistencyReviews: z.array(ConsistencyReviewRecordSchema),
-  ruleLogicReviews: z.array(RuleLogicReviewRecordSchema),
-  similarPlantComparisons: z.array(SimilarPlantComparisonSchema).optional(),
-  nonSignificantSampleReviews: z.array(NonSignificantSampleReviewSchema),
-  riskSignificantContributors: z.array(RiskSignificantContributorSchema),
-  importanceAnalyses: z.array(ImportanceAnalysisRecordSchema).optional(),
-  importanceReviews: z.array(ImportanceReviewRecordSchema).optional(),
-  screenedEventCumulativeAssessment: ScreenedEventCumulativeAssessmentSchema.optional(),
-  modelUncertaintySourceAssessments: z.array(ModelUncertaintySourceAssessmentSchema).optional(),
-  uncertaintyPropagation: UncertaintyPropagationSchema,
-  sensitivityStudies: z.array(SensitivityStudySchema).optional(),
-  quantificationRequestRefs: z.array(z.number()).optional(),
-  quantificationResultRefs: z.array(z.number()).optional(),
-  riskIntegrationFeedback: RiskIntegrationFeedbackSchema.optional(),
-  modelUncertainty: BaseModelUncertaintyDocumentationSchema,
-  preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
-  documentation: EsqDocumentationSchema,
-  configurationControlRecordId: z.string().optional(),
-  exampleDocuments: z
-    .array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        kind: z.enum(["doc", "sheet", "image"]),
-        sizeLabel: z.string(),
-        uploadedLabel: z.string(),
-        extracted: z.string(),
-        linked: z.number(),
-        url: z.string().optional(),
-      }),
-    )
-    .optional(),
-  newlyDevelopedMethodIds: z.array(z.string()).optional(),
-});
+export const EventSequenceQuantificationSchema = z
+  .object({
+    ...technicalElementSchema(TechnicalElementTypes.EVENT_SEQUENCE_QUANTIFICATION).shape,
+    praScope: z.string(),
+    bayesianNetworks: z.array(EsqBayesianNetworkSchema).default([]),
+    hclConfigurations: z.array(EsqHclConfigurationSchema).default([]),
+    familyQuantifications: z.array(EventSequenceFamilyQuantificationSchema),
+    sequenceFrequencyEstimates: z.array(SequenceFrequencyEstimateSchema).optional(),
+    modelIntegration: ModelIntegrationSchema,
+    quantificationMethods: QuantificationMethodsSchema,
+    parameterConsistency: ParameterConsistencyAttestationSchema,
+    phenomenaParameterBases: z.array(PhenomenaParameterBasisSchema).optional(),
+    recoveryActionApplications: z.array(RecoveryActionApplicationSchema).optional(),
+    circularLogicResolutions: z.array(CircularLogicResolutionSchema).optional(),
+    systemSuccessTreatment: SystemSuccessTreatmentSchema,
+    mutuallyExclusiveEventRules: z.array(MutuallyExclusiveEventRuleSchema).optional(),
+    flagEventSettings: z.array(FlagEventSettingSchema).optional(),
+    moduleUsageRecords: z.array(ModuleUsageRecordSchema).optional(),
+    dependencyTreatment: DependencyTreatmentSchema,
+    multiHfeCutsetIdentifications: z.array(MultiHfeCutsetIdentificationSchema).optional(),
+    hfeDependencyApplications: z.array(HfeDependencyApplicationSchema).optional(),
+    linkingTransferRecords: z.array(LinkingTransferRecordSchema).optional(),
+    phenomenaDependencyAssessments: z.array(PhenomenaDependencyAssessmentSchema).optional(),
+    barrierQuantifications: z.array(RadionuclideBarrierQuantificationSchema),
+    phenomenaModelLogic: PhenomenaModelLogicSchema.optional(),
+    postReleaseHfeTreatments: z.array(PostReleaseHfeTreatmentSchema).optional(),
+    equipmentSurvivabilityAssessments: z.array(EquipmentSurvivabilityAssessmentSchema).optional(),
+    cutsetLogicReviews: z.array(CutsetLogicReviewRecordSchema),
+    consistencyReviews: z.array(ConsistencyReviewRecordSchema),
+    ruleLogicReviews: z.array(RuleLogicReviewRecordSchema),
+    similarPlantComparisons: z.array(SimilarPlantComparisonSchema).optional(),
+    nonSignificantSampleReviews: z.array(NonSignificantSampleReviewSchema),
+    riskSignificantContributors: z.array(RiskSignificantContributorSchema),
+    importanceAnalyses: z.array(ImportanceAnalysisRecordSchema).optional(),
+    importanceReviews: z.array(ImportanceReviewRecordSchema).optional(),
+    screenedEventCumulativeAssessment: ScreenedEventCumulativeAssessmentSchema.optional(),
+    modelUncertaintySourceAssessments: z.array(ModelUncertaintySourceAssessmentSchema).optional(),
+    uncertaintyPropagation: UncertaintyPropagationSchema,
+    sensitivityStudies: z.array(SensitivityStudySchema).optional(),
+    quantificationRequestRefs: z.array(z.number()).optional(),
+    quantificationResultRefs: z.array(z.number()).optional(),
+    riskIntegrationFeedback: RiskIntegrationFeedbackSchema.optional(),
+    modelUncertainty: BaseModelUncertaintyDocumentationSchema,
+    preOperationalAssumptions: z.array(PreOperationalAssumptionSchema).optional(),
+    documentation: EsqDocumentationSchema,
+    configurationControlRecordId: z.string().optional(),
+    exampleDocuments: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          kind: z.enum(["doc", "sheet", "image"]),
+          sizeLabel: z.string(),
+          uploadedLabel: z.string(),
+          extracted: z.string(),
+          linked: z.number(),
+          url: z.string().optional(),
+        }),
+      )
+      .optional(),
+    newlyDevelopedMethodIds: z.array(z.string()).optional(),
+  })
+  .superRefine((mef, context) => {
+    const seenModelIds = new Set<string>();
+
+    for (const collection of ["bayesianNetworks", "hclConfigurations"] as const) {
+      mef[collection].forEach((model, index) => {
+        if (seenModelIds.has(model.modelId)) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [collection, index, "modelId"],
+            message: "Model IDs must be unique across workbook-owned model collections",
+          });
+        }
+        seenModelIds.add(model.modelId);
+      });
+    }
+  });
 
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;

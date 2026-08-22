@@ -16,6 +16,7 @@ import {
   getSyExampleOptions,
   loadSyExample,
   unloadSyExample,
+  type SyWorkbookResponse,
   type SyWorkbookRoleName,
   type SyExampleOption,
 } from "./syWorkbookApi";
@@ -86,6 +87,7 @@ function SyWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<SyWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<SyWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -115,6 +117,7 @@ function SyWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -153,9 +156,29 @@ function SyWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, sy }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useSyMefPatch(id ?? "", data?.sy ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: SyWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, sy: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const refreshWorkbook = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    handleSaveResync(await getSyWorkbook(id));
+  }, [handleSaveResync, id]);
+  const { patch } = useSyMefPatch(
+    id ?? "",
+    data?.sy ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateSy = useCallback((mutator: (sy: SystemsAnalysis) => SystemsAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, sy: mutator(prev.sy) }));
     void patch(mutator);
@@ -165,23 +188,23 @@ function SyWorkbookPage(): JSX.Element {
     if (id === undefined) return undefined;
     return {
       postComment: async (text, severity, stepId): Promise<void> => {
-        const sy = await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] }) as SystemsAnalysis;
-        updateSy(sy);
+        await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] });
+        await refreshWorkbook();
       },
       toggleResolve: async (commentId, nextResolved): Promise<void> => {
-        const sy = await patchWorkbookComment(id, commentId, { resolved: nextResolved }) as SystemsAnalysis;
-        updateSy(sy);
+        await patchWorkbookComment(id, commentId, { resolved: nextResolved });
+        await refreshWorkbook();
       },
       submitForReview: async (): Promise<void> => {
-        const sy = await submitWorkbookForReview(id) as SystemsAnalysis;
-        updateSy(sy);
+        await submitWorkbookForReview(id);
+        await refreshWorkbook();
       },
       requestRevision: async (note): Promise<void> => {
-        const sy = await requestWorkbookRevision(id, note) as SystemsAnalysis;
-        updateSy(sy);
+        await requestWorkbookRevision(id, note);
+        await refreshWorkbook();
       },
     };
-  }, [id, updateSy]);
+  }, [id, refreshWorkbook]);
 
   const availablePersonas = useMemo<SyPersona[]>(() => {
     const out: SyPersona[] = [];
@@ -243,7 +266,12 @@ function SyWorkbookPage(): JSX.Element {
             currentPersona={persona}
             myOpenComments={data.sy.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
-            onSigned={() => setApprovalRefresh((n) => n + 1)}
+            onSigned={() => {
+              setApprovalRefresh((n) => n + 1);
+              void refreshWorkbook().catch((refreshError: unknown) => {
+                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this SY workbook");
+              });
+            }}
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
@@ -264,6 +292,7 @@ function SyWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadSyExample(id, exampleId);
             updateSy(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -275,6 +304,7 @@ function SyWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadSyExample(id);
             updateSy(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

@@ -220,6 +220,12 @@ export interface SystemDefinition extends Unique, Named {
 
 export type SystemFaultTreeNode =
   | { id: string; type: "OR" | "AND" | "KN"; name: string; k?: number; children: SystemFaultTreeNode[] }
+  | { id: string; type: "BE"; basicEventId: string }
+  | { id: string; type: "TR"; name: string; transfer: string };
+
+/** @deprecated Accepted only while migrating workbooks saved before the workbook catalogue became canonical. */
+export type LegacySystemFaultTreeNode =
+  | { id: string; type: "OR" | "AND" | "KN"; name: string; k?: number; children: LegacySystemFaultTreeNode[] }
   | { id: string; type: "BE"; name: string; be: string; mode: string; source: string; prob: string; ccf?: boolean }
   | { id: string; type: "TR"; name: string; transfer: string };
 
@@ -228,7 +234,6 @@ export interface SystemLogicModel extends Unique {
   description: string;
   modelRepresentation: string;
   faultTree?: SystemFaultTreeNode;
-  basicEvents: SystemBasicEvent[];
   nonDetailedModelJustification?: string;
   logicLoopResolutions?: {
     loopId: string;
@@ -526,7 +531,7 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
   systemDefinitions: SystemDefinition[];
   systemToSafetyFunctionMappings: SystemToSafetyFunctionMapping[];
   systemLogicModels: SystemLogicModel[];
-  systemBasicEvents?: SystemBasicEvent[];
+  systemBasicEvents: SystemBasicEvent[];
 
   variableSuccessCriteria?: VariableSuccessCriterion[];
   systemConfirmationRecords?: SystemConfirmationRecord[];

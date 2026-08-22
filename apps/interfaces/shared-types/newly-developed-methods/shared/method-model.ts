@@ -1,11 +1,91 @@
 import { z } from "zod";
-
-const MethodModelIdSchema = z.string().uuid("Model id must be a UUID");
-const MethodEntityIdSchema = z.string().uuid("Entity id must be a UUID");
+import {
+  CanvasLayoutDirectionSchema,
+  CanvasLayoutMetadataSchema,
+  CanvasLayoutModeSchema,
+  CanvasPositionSchema,
+  CanvasViewportSchema,
+  MethodEntityIdSchema,
+  MethodEntityReferenceSchema,
+  MethodModelIdSchema,
+  MethodModelReferenceSchema,
+  BayesianNetworkNodeReferenceSchema,
+  EventTreeFunctionalEventReferenceSchema,
+  FaultTreeBasicEventCatalogueReferenceSchema,
+  FaultTreeTopEventReferenceSchema,
+  HclBindingReferenceSchema,
+  WorkbookAddressSchema,
+  WorkbookCrossReferenceSchema,
+  WorkbookCrossReferenceTypeSchema,
+  WorkbookEntityAddressSchema,
+  WorkbookEntityIdSchema,
+  WorkbookEntityIdentitySchema,
+  WorkbookIdSchema,
+  WorkbookModelAddressSchema,
+  WorkbookModelEntityAddressSchema,
+  WorkbookModelEntitySnapshotIdentitySchema,
+  WorkbookModelIdSchema,
+  WorkbookModelIdentitySchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookRevisionSchema,
+  WorkbookSnapshotIdentitySchema,
+  WorkbookParameterReferenceSchema,
+} from "interfaces-mef-types/zod/modeling";
+import type {
+  BayesianNetworkNodeReference,
+  CanvasLayoutDirection,
+  CanvasLayoutMetadata,
+  CanvasLayoutMode,
+  CanvasPosition,
+  CanvasViewport,
+  EventTreeFunctionalEventReference,
+  FaultTreeBasicEventCatalogueReference,
+  FaultTreeTopEventReference,
+  HclBindingReference,
+  MethodEntityId,
+  MethodEntityReference,
+  MethodModelId,
+  MethodModelReference,
+  WorkbookAddress,
+  WorkbookCrossReference,
+  WorkbookCrossReferenceType,
+  WorkbookEntityAddress,
+  WorkbookEntityId,
+  WorkbookEntityIdentity,
+  WorkbookId,
+  WorkbookModelAddress,
+  WorkbookModelEntityAddress,
+  WorkbookModelEntitySnapshotIdentity,
+  WorkbookModelId,
+  WorkbookModelIdentity,
+  WorkbookModelSnapshotIdentity,
+  WorkbookRevision,
+  WorkbookSnapshotIdentity,
+  WorkbookParameterReference,
+} from "interfaces-mef-types/modeling";
 
 const MethodTypeSchema = z.enum(["FAULT_TREE", "BAYESIAN_NETWORK", "EVENT_TREE", "HYBRID_CAUSAL_LOGIC"]);
 
-const MethodModelIdentitySchema = z.object({
+const CURRENT_WORKBOOK_METHOD_SCHEMA_VERSION = "1.0.0" as const;
+const WorkbookMethodSchemaVersionSchema = z.literal(CURRENT_WORKBOOK_METHOD_SCHEMA_VERSION);
+
+const WorkbookOwnershipMetadataSchema = z
+  .object({
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookId: WorkbookIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
+    ownerUsername: z.string().trim().min(1, "Workbook owner is required"),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+
+const WorkbookOwnedModelMetadataSchema = WorkbookOwnershipMetadataSchema.extend({
+  modelId: WorkbookModelIdSchema,
+  methodType: MethodTypeSchema,
+}).strict();
+
+const LegacyProjectMethodModelIdentitySchema = z.object({
   id: MethodModelIdSchema,
   projectId: z.string().trim().min(1, "Project id is required"),
   methodType: MethodTypeSchema,
@@ -13,6 +93,9 @@ const MethodModelIdentitySchema = z.object({
   name: z.string().trim().min(1, "Model name is required").max(200, "Model name must be 200 characters or fewer"),
   description: z.string().max(10_000, "Description must be 10,000 characters or fewer"),
 });
+
+/** @deprecated Standalone project models are retained only until workbook ownership migration is complete. */
+const MethodModelIdentitySchema = LegacyProjectMethodModelIdentitySchema;
 
 const CURRENT_METHOD_MODEL_SCHEMA_VERSION = "1.0.0" as const;
 const MethodModelSchemaVersionSchema = z.literal(CURRENT_METHOD_MODEL_SCHEMA_VERSION);
@@ -25,11 +108,14 @@ const MethodModelAuditSchema = z.object({
   updatedAt: z.string().datetime({ offset: true }),
 });
 
-const MethodModelMetadataSchema = MethodModelIdentitySchema.extend({
+const LegacyProjectMethodModelMetadataSchema = LegacyProjectMethodModelIdentitySchema.extend({
   schemaVersion: MethodModelSchemaVersionSchema,
   revision: MethodModelRevisionSchema,
   ...MethodModelAuditSchema.shape,
 });
+
+/** @deprecated Standalone project models are retained only until workbook ownership migration is complete. */
+const MethodModelMetadataSchema = LegacyProjectMethodModelMetadataSchema;
 
 const MethodModelListResponseSchema = z
   .object({
@@ -61,67 +147,61 @@ const MethodModelDependenciesResponseSchema = z
   })
   .strict();
 
-const CanvasPositionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-});
-
-const CanvasViewportSchema = CanvasPositionSchema.extend({
-  zoom: z.number().min(0.05, "Canvas zoom is too small").max(8, "Canvas zoom is too large"),
-});
-
-const CanvasLayoutModeSchema = z.enum(["MANUAL", "AUTOMATIC"]);
-const CanvasLayoutDirectionSchema = z.enum(["TOP_TO_BOTTOM", "LEFT_TO_RIGHT"]);
-
-const CanvasLayoutMetadataSchema = z.object({
-  viewport: CanvasViewportSchema,
-  mode: CanvasLayoutModeSchema,
-  direction: CanvasLayoutDirectionSchema,
-});
-
-const MethodModelReferenceSchema = z
-  .object({
-    modelId: MethodModelIdSchema,
-  })
-  .strict();
-
-const MethodEntityReferenceSchema = z
-  .object({
-    modelId: MethodModelIdSchema,
-    entityId: MethodEntityIdSchema,
-  })
-  .strict();
-
-type MethodModelId = z.infer<typeof MethodModelIdSchema>;
-type MethodEntityId = z.infer<typeof MethodEntityIdSchema>;
 type MethodType = z.infer<typeof MethodTypeSchema>;
-type MethodModelIdentity = z.infer<typeof MethodModelIdentitySchema>;
+type WorkbookMethodSchemaVersion = z.infer<typeof WorkbookMethodSchemaVersionSchema>;
+type WorkbookOwnershipMetadata = z.infer<typeof WorkbookOwnershipMetadataSchema>;
+type WorkbookOwnedModelMetadata = z.infer<typeof WorkbookOwnedModelMetadataSchema>;
+type LegacyProjectMethodModelIdentity = z.infer<typeof LegacyProjectMethodModelIdentitySchema>;
+/** @deprecated Standalone project models are retained only until workbook ownership migration is complete. */
+type MethodModelIdentity = LegacyProjectMethodModelIdentity;
 type MethodModelSchemaVersion = z.infer<typeof MethodModelSchemaVersionSchema>;
 type MethodModelRevision = z.infer<typeof MethodModelRevisionSchema>;
 type MethodModelAudit = z.infer<typeof MethodModelAuditSchema>;
-type MethodModelMetadata = z.infer<typeof MethodModelMetadataSchema>;
+type LegacyProjectMethodModelMetadata = z.infer<typeof LegacyProjectMethodModelMetadataSchema>;
+/** @deprecated Standalone project models are retained only until workbook ownership migration is complete. */
+type MethodModelMetadata = LegacyProjectMethodModelMetadata;
 type MethodModelListResponse = z.infer<typeof MethodModelListResponseSchema>;
 type MethodModelReferencePath = z.infer<typeof MethodModelReferencePathSchema>;
 type ReferencingMethodModel = z.infer<typeof ReferencingMethodModelSchema>;
 type ReferencingWorkbook = z.infer<typeof ReferencingWorkbookSchema>;
 type MethodModelDependenciesResponse = z.infer<typeof MethodModelDependenciesResponseSchema>;
-type CanvasPosition = z.infer<typeof CanvasPositionSchema>;
-type CanvasViewport = z.infer<typeof CanvasViewportSchema>;
-type CanvasLayoutMode = z.infer<typeof CanvasLayoutModeSchema>;
-type CanvasLayoutDirection = z.infer<typeof CanvasLayoutDirectionSchema>;
-type CanvasLayoutMetadata = z.infer<typeof CanvasLayoutMetadataSchema>;
-type MethodModelReference = z.infer<typeof MethodModelReferenceSchema>;
-type MethodEntityReference = z.infer<typeof MethodEntityReferenceSchema>;
 
 export {
+  CURRENT_WORKBOOK_METHOD_SCHEMA_VERSION,
   CURRENT_METHOD_MODEL_SCHEMA_VERSION,
+  WorkbookIdSchema,
+  WorkbookRevisionSchema,
+  WorkbookModelIdSchema,
+  WorkbookEntityIdSchema,
+  WorkbookAddressSchema,
+  WorkbookModelAddressSchema,
+  WorkbookEntityAddressSchema,
+  WorkbookModelEntityAddressSchema,
+  WorkbookSnapshotIdentitySchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookModelEntitySnapshotIdentitySchema,
+  WorkbookModelIdentitySchema,
+  WorkbookEntityIdentitySchema,
+  WorkbookCrossReferenceTypeSchema,
+  FaultTreeTopEventReferenceSchema,
+  FaultTreeBasicEventCatalogueReferenceSchema,
+  EventTreeFunctionalEventReferenceSchema,
+  BayesianNetworkNodeReferenceSchema,
+  HclBindingReferenceSchema,
+  WorkbookCrossReferenceSchema,
+  WorkbookParameterReferenceSchema,
   MethodModelIdSchema,
   MethodEntityIdSchema,
   MethodTypeSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookOwnershipMetadataSchema,
+  WorkbookOwnedModelMetadataSchema,
+  LegacyProjectMethodModelIdentitySchema,
   MethodModelIdentitySchema,
   MethodModelSchemaVersionSchema,
   MethodModelRevisionSchema,
   MethodModelAuditSchema,
+  LegacyProjectMethodModelMetadataSchema,
   MethodModelMetadataSchema,
   MethodModelListResponseSchema,
   MethodModelReferencePathSchema,
@@ -137,13 +217,39 @@ export {
   MethodEntityReferenceSchema,
 };
 export type {
+  WorkbookId,
+  WorkbookRevision,
+  WorkbookModelId,
+  WorkbookEntityId,
+  WorkbookAddress,
+  WorkbookModelAddress,
+  WorkbookEntityAddress,
+  WorkbookModelEntityAddress,
+  WorkbookSnapshotIdentity,
+  WorkbookModelSnapshotIdentity,
+  WorkbookModelEntitySnapshotIdentity,
+  WorkbookModelIdentity,
+  WorkbookEntityIdentity,
+  WorkbookCrossReferenceType,
+  FaultTreeTopEventReference,
+  FaultTreeBasicEventCatalogueReference,
+  EventTreeFunctionalEventReference,
+  BayesianNetworkNodeReference,
+  HclBindingReference,
+  WorkbookCrossReference,
+  WorkbookParameterReference,
   MethodModelId,
   MethodEntityId,
   MethodType,
+  WorkbookMethodSchemaVersion,
+  WorkbookOwnershipMetadata,
+  WorkbookOwnedModelMetadata,
+  LegacyProjectMethodModelIdentity,
   MethodModelIdentity,
   MethodModelSchemaVersion,
   MethodModelRevision,
   MethodModelAudit,
+  LegacyProjectMethodModelMetadata,
   MethodModelMetadata,
   MethodModelListResponse,
   MethodModelReferencePath,

@@ -1,5 +1,7 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { seismicPraVariant, type SeismicPraLinkedInputs, type SeismicPraVariant } from "./seismicPraWorkbookContext";
 
@@ -57,18 +59,9 @@ interface LinkedScMef {
   }[];
 }
 
-interface LinkedSyMef {
-  systemDefinitions?: {
-    uuid: string;
-    name: string;
-    missionTimeHours?: number;
-    applicablePlantOperatingStates?: string[];
-  }[];
-  systemLogicModels?: {
-    systemReference: string;
-    basicEvents?: unknown[];
-  }[];
-}
+type LinkedSyMef = Partial<
+  Pick<SystemsAnalysis, "systemDefinitions" | "systemLogicModels" | "systemBasicEvents">
+>;
 
 interface LinkedHrMef {
   humanFailureEvents?: {
@@ -114,8 +107,9 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
   const screenedOut = new Set(
     (posBundle.pos.mef.screeningRecords ?? []).filter((record) => !record.retained).map((record) => record.posId),
   );
+  const syMef = syBundle.sy.mef;
   const logicBySystem = new Map(
-    (syBundle.sy.mef.systemLogicModels ?? []).map((logic) => [logic.systemReference, logic]),
+    (syMef.systemLogicModels ?? []).map((logic) => [logic.systemReference, logic]),
   );
   const hepByAction = new Map(
     (hrBundle.hr.mef.hepQuantifications ?? [])
@@ -153,13 +147,22 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
       hours: mission.missionTimeHours,
       riskSignificant: mission.isRiskSignificant,
     })),
-    sySystems: (syBundle.sy.mef.systemDefinitions ?? []).map((system) => ({
-      id: system.uuid,
-      name: system.name,
-      missionTimeHours: system.missionTimeHours,
-      applicableStates: system.applicablePlantOperatingStates ?? [],
-      basicEventCount: logicBySystem.get(system.uuid)?.basicEvents?.length,
-    })),
+    sySystems: (syMef.systemDefinitions ?? []).map((system) => {
+      const logic = logicBySystem.get(system.uuid);
+      return {
+        id: system.uuid,
+        name: system.name,
+        missionTimeHours: system.missionTimeHours,
+        applicableStates: system.applicablePlantOperatingStates ?? [],
+        basicEventCount:
+          logic === undefined
+            ? undefined
+            : systemLogicModelBasicEvents(
+                { systemBasicEvents: syMef.systemBasicEvents ?? [] },
+                logic,
+              ).length,
+      };
+    }),
     hrActions: (hrBundle.hr.mef.humanFailureEvents ?? []).map((action) => ({
       id: action.uuid,
       name: action.name,

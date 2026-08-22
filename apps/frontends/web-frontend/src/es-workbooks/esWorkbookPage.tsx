@@ -21,6 +21,7 @@ import {
   loadEsExample,
   unloadEsExample,
   type EsExampleOption,
+  type EsWorkbookResponse,
   type EsWorkbookRoleName,
   type EsPosLinkStatus,
   type EsIeLinkStatus,
@@ -62,6 +63,7 @@ function EsWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<EsWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<EsWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -96,6 +98,7 @@ function EsWorkbookPage(): JSX.Element {
           ieLink,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -123,9 +126,29 @@ function EsWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, es }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useEsMefPatch(id ?? "", data?.es ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: EsWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, es: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const refreshWorkbook = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    handleSaveResync(await getEsWorkbook(id));
+  }, [handleSaveResync, id]);
+  const { patch } = useEsMefPatch(
+    id ?? "",
+    data?.es ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateEs = useCallback((mutator: (es: EventSequenceAnalysis) => EventSequenceAnalysis): void => {
     setData((prev) => (prev === null ? prev : { ...prev, es: mutator(prev.es) }));
     void patch(mutator);
@@ -141,23 +164,23 @@ function EsWorkbookPage(): JSX.Element {
     if (id === undefined) return undefined;
     return {
       postComment: async (text, severity, stepId): Promise<void> => {
-        const es = await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] }) as EventSequenceAnalysis;
-        updateEs(es);
+        await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] });
+        await refreshWorkbook();
       },
       toggleResolve: async (commentId, nextResolved): Promise<void> => {
-        const es = await patchWorkbookComment(id, commentId, { resolved: nextResolved }) as EventSequenceAnalysis;
-        updateEs(es);
+        await patchWorkbookComment(id, commentId, { resolved: nextResolved });
+        await refreshWorkbook();
       },
       submitForReview: async (): Promise<void> => {
-        const es = await submitWorkbookForReview(id) as EventSequenceAnalysis;
-        updateEs(es);
+        await submitWorkbookForReview(id);
+        await refreshWorkbook();
       },
       requestRevision: async (note): Promise<void> => {
-        const es = await requestWorkbookRevision(id, note) as EventSequenceAnalysis;
-        updateEs(es);
+        await requestWorkbookRevision(id, note);
+        await refreshWorkbook();
       },
     };
-  }, [id, updateEs]);
+  }, [id, refreshWorkbook]);
 
   const availablePersonas = useMemo<EsPersona[]>(() => {
     const out: EsPersona[] = [];
@@ -221,7 +244,12 @@ function EsWorkbookPage(): JSX.Element {
             currentPersona={persona}
             myOpenComments={data.es.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
-            onSigned={() => setApprovalRefresh((n) => n + 1)}
+            onSigned={() => {
+              setApprovalRefresh((n) => n + 1);
+              void refreshWorkbook().catch((refreshError: unknown) => {
+                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this ES workbook");
+              });
+            }}
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
@@ -244,6 +272,7 @@ function EsWorkbookPage(): JSX.Element {
             setData((prev) => (prev === null ? prev : { ...prev, posLink }));
             const wb = await getEsWorkbook(id);
             updateEs(wb.mef);
+            setRevision(wb.revision);
             setPosLinkOpen(false);
           }}
         />
@@ -258,6 +287,7 @@ function EsWorkbookPage(): JSX.Element {
             setData((prev) => (prev === null ? prev : { ...prev, ieLink }));
             const wb = await getEsWorkbook(id);
             updateEs(wb.mef);
+            setRevision(wb.revision);
             setIeLinkOpen(false);
           }}
         />
@@ -270,6 +300,7 @@ function EsWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadEsExample(id, exampleId);
             updateEs(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             await refreshLinks();
             setLoadExOpen(false);
@@ -282,6 +313,7 @@ function EsWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadEsExample(id);
             updateEs(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             await refreshLinks();
             setUnloadExOpen(false);

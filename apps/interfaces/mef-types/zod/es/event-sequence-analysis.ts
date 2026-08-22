@@ -17,6 +17,12 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import {
+  EventTreeCanvasLayoutSchema,
+  EventTreeInitiatingEventFrequencySchema,
+  FaultTreeTopEventReferenceSchema,
+  WorkbookEntityIdSchema,
+} from "../modeling";
 
 export const EndStateSchema = z.enum(EndState);
 export const DependencyTypeSchema = z.enum(DependencyType);
@@ -272,16 +278,28 @@ export const DependencyModelsSchema = z.object({
   systemInterfaces: z.array(SystemInterfaceDependencySchema).optional(),
 });
 
-export const FunctionalEventSchema = z.object({
-  uuid: z.string(),
-  name: z.string(),
-  label: z.string().optional(),
-  order: z.number().optional(),
-  description: z.string().optional(),
-  systemReference: z.string().optional(),
-  humanActionReference: z.string().optional(),
-  faultTreeId: z.string().optional(),
-});
+export const FunctionalEventSchema = z
+  .object({
+    uuid: z.string(),
+    name: z.string(),
+    label: z.string().optional(),
+    order: z.number().optional(),
+    description: z.string().optional(),
+    systemReference: z.string().optional(),
+    humanActionReference: z.string().optional(),
+    faultTreeTopEvent: FaultTreeTopEventReferenceSchema.optional(),
+    faultTreeId: z.string().optional(),
+  })
+  .strict()
+  .superRefine((functionalEvent, context) => {
+    if (functionalEvent.faultTreeTopEvent !== undefined && functionalEvent.faultTreeId !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Use the typed faultTreeTopEvent reference instead of storing both FT link forms",
+        path: ["faultTreeId"],
+      });
+    }
+  });
 
 export const EventTreePathSchema = z.object({
   state: EsSystemStatusSchema,
@@ -317,25 +335,36 @@ export const EventTreeTransferSchema = z.object({
   preservedDependencies: z.array(z.string()).optional(),
 });
 
-export const EventTreeSchema = z.object({
-  uuid: z.string(),
-  name: z.string(),
-  description: z.string().optional(),
-  mitigationStrategy: z.string().optional(),
-  label: z.string().optional(),
-  initiatingEventId: z.string(),
-  plantOperatingStateId: z.string().optional(),
-  functionalEvents: z.record(z.string(), FunctionalEventSchema),
-  sequences: z.record(z.string(), EventTreeSequenceSchema),
-  branches: z.record(z.string(), EventTreeBranchSchema),
-  initialState: z.object({
-    branchId: z.string(),
-  }),
-  transfers: z.record(z.string(), EventTreeTransferSchema).optional(),
-  missionTime: z.number().optional(),
-  missionTimeUnits: z.string().optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
+export const EventTreeSchema = z
+  .object({
+    uuid: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    mitigationStrategy: z.string().optional(),
+    label: z.string().optional(),
+    initiatingEventId: z.string(),
+    initiatingEventFrequency: EventTreeInitiatingEventFrequencySchema.optional(),
+    plantOperatingStateId: z.string().optional(),
+    functionalEvents: z.record(z.string(), FunctionalEventSchema),
+    sequences: z.record(z.string(), EventTreeSequenceSchema),
+    endStateIds: z
+      .object({
+        SUCCESSFUL_MITIGATION: WorkbookEntityIdSchema.optional(),
+        RADIONUCLIDE_RELEASE: WorkbookEntityIdSchema.optional(),
+      })
+      .strict()
+      .optional(),
+    branches: z.record(z.string(), EventTreeBranchSchema),
+    initialState: z.object({
+      branchId: z.string(),
+    }),
+    transfers: z.record(z.string(), EventTreeTransferSchema).optional(),
+    missionTime: z.number().optional(),
+    missionTimeUnits: z.string().optional(),
+    canvas: EventTreeCanvasLayoutSchema.optional(),
+    implementsSrs: z.array(SRReferenceSchema),
+  })
+  .strict();
 
 export const RepairCreditRecordSchema = z.object({
   uuid: z.string(),

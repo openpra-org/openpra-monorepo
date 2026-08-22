@@ -7,6 +7,11 @@ import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { PosWorkbook, type PosWorkbookDocument } from "../pos-workbooks/pos-workbook.schema";
 import { EsWorkbook, type EsWorkbookDocument } from "./es-workbook.schema";
+import {
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
 
 const EXAMPLE_SENTINEL = "example";
 
@@ -149,6 +154,7 @@ export class EsPosLinkService {
 
   async link(workbookId: string, posWorkbookId: string, acting: ActingUser): Promise<EsPosLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
+    const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can link a POS workbook");
     const pos = await this.posWorkbookModel.findOne({ workbookId: posWorkbookId }).exec();
@@ -157,33 +163,62 @@ export class EsPosLinkService {
     const mef = pos.mef as PosMefShape;
     const { states, sources } = this.collectImported(mef);
     const barriers = Array.from(new Set(sources.flatMap((src) => src.barriers)));
-    const esMef = es.mef as EsScopeShape;
-    esMef.scopeDefinition = {
-      ...esMef.scopeDefinition,
-      plantOperatingStateIds: states.map((s) => s.id),
-      radioactiveMaterialSources: sources.map((s) => s.name),
-      radionuclideBarriers: barriers,
+    const currentMef = es.mef as EsScopeShape;
+    const nextMef = {
+      ...currentMef,
+      scopeDefinition: {
+        ...currentMef.scopeDefinition,
+        plantOperatingStateIds: states.map((s) => s.id),
+        radioactiveMaterialSources: sources.map((s) => s.name),
+        radionuclideBarriers: barriers,
+      },
     };
-    es.mef = esMef;
-    es.linkedPosWorkbookId = posWorkbookId;
-    await es.save();
+    const updated = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: nextMef,
+            linkedPosWorkbookId: posWorkbookId,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return this.status(workbookId, acting);
   }
 
   async unlink(workbookId: string, acting: ActingUser): Promise<EsPosLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
+    const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink a POS workbook");
-    es.linkedPosWorkbookId = null;
-    const esMef = es.mef as EsScopeShape;
-    esMef.scopeDefinition = {
-      ...esMef.scopeDefinition,
-      plantOperatingStateIds: [],
-      radioactiveMaterialSources: [],
-      radionuclideBarriers: [],
+    const currentMef = es.mef as EsScopeShape;
+    const nextMef = {
+      ...currentMef,
+      scopeDefinition: {
+        ...currentMef.scopeDefinition,
+        plantOperatingStateIds: [],
+        radioactiveMaterialSources: [],
+        radionuclideBarriers: [],
+      },
     };
-    es.mef = esMef;
-    await es.save();
+    const updated = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: nextMef,
+            linkedPosWorkbookId: null,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return { linkedPosWorkbookId: null, linkedName: null, states: [], sources: [] };
   }
 }

@@ -4,6 +4,7 @@ import { Frequency, FrequencyWithDistribution, ParameterDistribution } from "../
 import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
 
 export type EventSequenceReference = string;
 export type EventSequenceFamilyReference = string;
@@ -552,6 +553,9 @@ export interface EsqDocumentation {
 export interface EventSequenceQuantification
   extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_QUANTIFICATION> {
   praScope: string;
+
+  bayesianNetworks: EsqBayesianNetwork[];
+  hclConfigurations: EsqHclConfiguration[];
 
   familyQuantifications: EventSequenceFamilyQuantification[];
   sequenceFrequencyEstimates?: SequenceFrequencyEstimate[];

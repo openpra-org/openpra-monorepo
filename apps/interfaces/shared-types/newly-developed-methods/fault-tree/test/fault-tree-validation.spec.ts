@@ -38,20 +38,13 @@ const OTHER_MODEL_ID = "123e4567-e89b-42d3-a456-426614174136";
 const OTHER_TRANSFER_ID = "123e4567-e89b-42d3-a456-426614174137";
 const THIRD_MODEL_ID = "123e4567-e89b-42d3-a456-426614174138";
 const THIRD_GATE_ID = "123e4567-e89b-42d3-a456-426614174139";
+const owner = { workbookId: "sy-workbook", workbookRevision: 1, modelId: MODEL_ID } as const;
 
 const model: FaultTreeModel = {
-  schemaVersion: "1.0.0",
-  id: MODEL_ID,
-  projectId: "project-mhtgr",
-  methodType: "FAULT_TREE",
+  modelId: MODEL_ID,
   code: "FT-RT",
   name: "Reactor trip failure",
   description: "Fault tree used to test analysis-ready validation.",
-  revision: 1,
-  createdBy: "analyst@example.com",
-  createdAt: "2026-08-20T16:00:00.000Z",
-  updatedBy: "analyst@example.com",
-  updatedAt: "2026-08-20T16:00:00.000Z",
   topGate: { gateId: GATE_ID },
   gates: [
     {
@@ -560,13 +553,7 @@ describe("fault-tree probability and transfer-target validation", () => {
     target: { modelId: TARGET_MODEL_ID, entityId: TARGET_GATE_ID },
   };
   const catalogue = {
-    schemaVersion: "1.0.0" as const,
-    projectId: model.projectId,
-    revision: 1,
-    createdBy: "analyst@example.com",
-    createdAt: "2026-08-20T16:00:00.000Z",
-    updatedBy: "analyst@example.com",
-    updatedAt: "2026-08-20T16:00:00.000Z",
+    workbookId: owner.workbookId,
     basicEvents: [
       {
         id: BASIC_EVENT_ID,
@@ -609,13 +596,13 @@ describe("fault-tree probability and transfer-target validation", () => {
     ).toEqual([expect.objectContaining({ code: "FT_BASIC_EVENT_AMBIGUOUS" })]);
   });
 
-  it("rejects a catalogue from another project", () => {
+  it("rejects a catalogue from another workbook", () => {
     expect(
       validateFaultTreeProbabilitiesAndTransfers(
         { ...model, leafNodes: [basicEventReference] },
-        { basicEventCatalogue: { ...catalogue, projectId: "other-project" } },
+        { workbookId: owner.workbookId, basicEventCatalogue: { ...catalogue, workbookId: "other-workbook" } },
       ),
-    ).toEqual([expect.objectContaining({ code: "FT_BASIC_EVENT_CATALOGUE_PROJECT_MISMATCH" })]);
+    ).toEqual([expect.objectContaining({ code: "FT_BASIC_EVENT_CATALOGUE_WORKBOOK_MISMATCH" })]);
   });
 
   it.each([-0.01, 1.01, Number.NaN, Number.POSITIVE_INFINITY])(
@@ -696,7 +683,7 @@ describe("fault-tree transfer-cycle validation", () => {
   });
   const otherModel: FaultTreeModel = {
     ...model,
-    id: OTHER_MODEL_ID,
+    modelId: OTHER_MODEL_ID,
     code: "FT-OTHER",
     topGate: { gateId: OTHER_GATE_ID },
     gates: [{ ...model.gates[0], id: OTHER_GATE_ID, code: "TOP-OTHER" }],
@@ -704,7 +691,7 @@ describe("fault-tree transfer-cycle validation", () => {
   };
   const thirdModel: FaultTreeModel = {
     ...model,
-    id: THIRD_MODEL_ID,
+    modelId: THIRD_MODEL_ID,
     code: "FT-THIRD",
     topGate: { gateId: THIRD_GATE_ID },
     gates: [{ ...model.gates[0], id: THIRD_GATE_ID, code: "TOP-THIRD" }],
@@ -866,12 +853,11 @@ describe("fault-tree validation policy integration", () => {
   const validatedAt = "2026-08-20T17:00:00.000Z";
 
   it("reports an incomplete FT but keeps its draft saveable", () => {
-    const outcome = validateFaultTreeDraft({ ...model, topGate: null }, validatedAt);
+    const outcome = validateFaultTreeDraft({ ...model, topGate: null }, owner, validatedAt);
 
     expect(outcome.saveAllowed).toBe(true);
     expect(outcome.validation).toMatchObject({
-      modelId: MODEL_ID,
-      revision: 1,
+      owner,
       mode: "DRAFT",
       valid: false,
       issues: [expect.objectContaining({ code: "FT_TOP_GATE_REQUIRED" })],
@@ -880,7 +866,7 @@ describe("fault-tree validation policy integration", () => {
   });
 
   it("blocks quantification for the same incomplete FT", () => {
-    const outcome = validateFaultTreeAnalysisReady({ ...model, topGate: null }, validatedAt);
+    const outcome = validateFaultTreeAnalysisReady({ ...model, topGate: null }, owner, validatedAt);
 
     expect(outcome.quantificationAllowed).toBe(false);
     expect(outcome.validation).toMatchObject({
@@ -892,7 +878,7 @@ describe("fault-tree validation policy integration", () => {
   });
 
   it("allows quantification for a clean, reachable FT", () => {
-    const outcome = validateFaultTreeAnalysisReady(model, validatedAt);
+    const outcome = validateFaultTreeAnalysisReady(model, owner, validatedAt);
 
     expect(outcome.quantificationAllowed).toBe(true);
     expect(outcome.validation.valid).toBe(true);
@@ -912,13 +898,7 @@ describe("fault-tree validation policy integration", () => {
     };
     const validContext = {
       basicEventCatalogue: {
-        schemaVersion: "1.0.0" as const,
-        projectId: model.projectId,
-        revision: 1,
-        createdBy: "analyst@example.com",
-        createdAt: "2026-08-20T16:00:00.000Z",
-        updatedBy: "analyst@example.com",
-        updatedAt: "2026-08-20T16:00:00.000Z",
+        workbookId: owner.workbookId,
         basicEvents: [
           {
             id: BASIC_EVENT_ID,
@@ -931,7 +911,7 @@ describe("fault-tree validation policy integration", () => {
       },
     };
 
-    expect(validateFaultTreeAnalysisReady(contextModel, validatedAt).quantificationAllowed).toBe(false);
-    expect(validateFaultTreeAnalysisReady(contextModel, validatedAt, validContext).quantificationAllowed).toBe(true);
+    expect(validateFaultTreeAnalysisReady(contextModel, owner, validatedAt).quantificationAllowed).toBe(false);
+    expect(validateFaultTreeAnalysisReady(contextModel, owner, validatedAt, validContext).quantificationAllowed).toBe(true);
   });
 });

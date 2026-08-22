@@ -1,18 +1,18 @@
 import { z } from "zod";
 import {
   CanvasLayoutMetadataSchema,
-  MethodEntityIdSchema,
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  WorkbookEntityIdSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookModelIdSchema,
+  WorkbookRevisionSchema,
   ValidationModeSchema,
 } from "../shared";
 import type {
   CanvasLayoutMetadata,
-  MethodEntityId,
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  WorkbookEntityId,
+  WorkbookMethodSchemaVersion,
+  WorkbookModelId,
+  WorkbookRevision,
   ValidationMode,
 } from "../shared";
 import type {
@@ -32,16 +32,15 @@ import {
 
 interface BayesianNetworkQueryRequest {
   evidence: BayesianNetworkEvidenceConfiguration;
-  queryNodeIds: MethodEntityId[];
+  queryNodeIds: WorkbookEntityId[];
 }
 
 interface BayesianNetworkCreateRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  projectId: string;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
   code: string;
   name: string;
   description: string;
-  createdBy: string;
 }
 
 interface BayesianNetworkPatchChanges {
@@ -56,33 +55,30 @@ interface BayesianNetworkPatchChanges {
 }
 
 interface BayesianNetworkPatchRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  expectedRevision: MethodModelRevision;
-  updatedBy: string;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  expectedWorkbookRevision: WorkbookRevision;
   changes: BayesianNetworkPatchChanges;
 }
 
 interface BayesianNetworkValidateRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  revision: MethodModelRevision;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
   mode: ValidationMode;
-  requestedBy: string;
 }
 
 interface BayesianNetworkExecuteRequest {
-  schemaVersion: MethodModelSchemaVersion;
-  modelId: MethodModelId;
-  revision: MethodModelRevision;
-  requestedBy: string;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  modelId: WorkbookModelId;
+  workbookRevision: WorkbookRevision;
   query: BayesianNetworkQueryRequest;
 }
 
 const BayesianNetworkQueryRequestSchema = z
   .object({
     evidence: BayesianNetworkEvidenceConfigurationSchema,
-    queryNodeIds: z.array(MethodEntityIdSchema).min(1, "At least one query node is required"),
+    queryNodeIds: z.array(WorkbookEntityIdSchema).min(1, "At least one query node is required"),
   })
   .strict()
   .superRefine((request, context) => {
@@ -98,12 +94,11 @@ const BayesianNetworkQueryRequestSchema = z
 
 const BayesianNetworkCreateRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    projectId: z.string().trim().min(1, "Project id is required"),
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
     code: z.string().trim().min(1, "Model code is required").max(64, "Model code must be 64 characters or fewer"),
     name: z.string().trim().min(1, "Model name is required").max(200, "Model name must be 200 characters or fewer"),
     description: z.string().max(10_000, "Description must be 10,000 characters or fewer"),
-    createdBy: z.string().trim().min(1, "Creator id is required"),
   })
   .strict();
 
@@ -123,30 +118,27 @@ const BayesianNetworkPatchChangesSchema = z
 
 const BayesianNetworkPatchRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    expectedRevision: MethodModelRevisionSchema,
-    updatedBy: z.string().trim().min(1, "Updater id is required"),
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    expectedWorkbookRevision: WorkbookRevisionSchema,
     changes: BayesianNetworkPatchChangesSchema,
   })
   .strict();
 
 const BayesianNetworkValidateRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    revision: MethodModelRevisionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
     mode: ValidationModeSchema,
-    requestedBy: z.string().trim().min(1, "Requester id is required"),
   })
   .strict();
 
 const BayesianNetworkExecuteRequestSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
-    modelId: MethodModelIdSchema,
-    revision: MethodModelRevisionSchema,
-    requestedBy: z.string().trim().min(1, "Requester id is required"),
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    modelId: WorkbookModelIdSchema,
+    workbookRevision: WorkbookRevisionSchema,
     query: BayesianNetworkQueryRequestSchema,
   })
   .strict();

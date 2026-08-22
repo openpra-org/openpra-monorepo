@@ -36,23 +36,15 @@ const EFFECT_CAUSE_FALSE_ROW_ID = "123e4567-e89b-42d3-a456-426614174515";
 const EFFECT_CAUSE_TRUE_ROW_ID = "123e4567-e89b-42d3-a456-426614174516";
 const MISSING_STATE_ID = "123e4567-e89b-42d3-a456-426614174517";
 const HCL_BINDING_ID = "123e4567-e89b-42d3-a456-426614174518";
-const FT_MODEL_ID = "123e4567-e89b-42d3-a456-426614174519";
 const FT_BASIC_EVENT_ID = "123e4567-e89b-42d3-a456-426614174520";
 const OTHER_BN_MODEL_ID = "123e4567-e89b-42d3-a456-426614174521";
+const owner = { workbookId: "esq-workbook", workbookRevision: 1, modelId: MODEL_ID } as const;
 
 const model: BayesianNetworkModel = {
-  schemaVersion: "1.0.0",
-  id: MODEL_ID,
-  projectId: "project-mhtgr",
-  methodType: "BAYESIAN_NETWORK",
+  modelId: MODEL_ID,
   code: "BN-HCL",
   name: "HCL Bayesian network",
   description: "Bayesian network used to test identity validation.",
-  revision: 1,
-  createdBy: "analyst@example.com",
-  createdAt: "2026-08-20T16:00:00.000Z",
-  updatedBy: "analyst@example.com",
-  updatedAt: "2026-08-20T16:00:00.000Z",
   nodes: [
     {
       id: CAUSE_NODE_ID,
@@ -899,8 +891,17 @@ describe("Bayesian-network evidence validation", () => {
 describe("Bayesian-network HCL true-state validation", () => {
   const binding: HclEventBinding = {
     id: HCL_BINDING_ID,
-    faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: FT_BASIC_EVENT_ID },
-    bayesianNetworkNode: { modelId: MODEL_ID, entityId: CAUSE_NODE_ID },
+    faultTreeBasicEvent: {
+      referenceType: "FAULT_TREE_BASIC_EVENT",
+      workbookId: "sy-workbook",
+      entityId: FT_BASIC_EVENT_ID,
+    },
+    bayesianNetworkNode: {
+      referenceType: "BAYESIAN_NETWORK_NODE",
+      workbookId: owner.workbookId,
+      modelId: MODEL_ID,
+      entityId: CAUSE_NODE_ID,
+    },
     trueStateIds: [CAUSE_TRUE_STATE_ID],
   };
 
@@ -945,7 +946,7 @@ describe("Bayesian-network HCL true-state validation", () => {
   it("reports dangling and ambiguous bound-node references", () => {
     expect(
       validateBayesianNetworkHclBindings(model, [
-        { ...binding, bayesianNetworkNode: { modelId: MODEL_ID, entityId: MISSING_NODE_ID } },
+        { ...binding, bayesianNetworkNode: { ...binding.bayesianNetworkNode, entityId: MISSING_NODE_ID } },
       ]),
     ).toEqual([
       expect.objectContaining({
@@ -1042,7 +1043,7 @@ describe("Bayesian-network validation policy integration", () => {
   const incompleteModel: BayesianNetworkModel = { ...model, conditionalProbabilityTables: [] };
 
   it("reports an incomplete BN draft without preventing it from being saved", () => {
-    const outcome = validateBayesianNetworkDraft(incompleteModel, validatedAt);
+    const outcome = validateBayesianNetworkDraft(incompleteModel, owner, validatedAt);
     expect(outcome.saveAllowed).toBe(true);
     expect(outcome.validation.valid).toBe(false);
     expect(outcome.validation.issues.map((issue) => issue.code)).toEqual(["BN_CPT_REQUIRED", "BN_CPT_REQUIRED"]);
@@ -1050,7 +1051,7 @@ describe("Bayesian-network validation policy integration", () => {
   });
 
   it("blocks analysis-ready quantification for the same incomplete BN", () => {
-    const outcome = validateBayesianNetworkAnalysisReady(incompleteModel, validatedAt);
+    const outcome = validateBayesianNetworkAnalysisReady(incompleteModel, owner, validatedAt);
     expect(outcome.quantificationAllowed).toBe(false);
     expect(outcome.validation.valid).toBe(false);
     expect(outcome.validation.issues.map((issue) => issue.code)).toEqual(["BN_CPT_REQUIRED", "BN_CPT_REQUIRED"]);
@@ -1058,7 +1059,7 @@ describe("Bayesian-network validation policy integration", () => {
   });
 
   it("allows analysis-ready quantification for a complete valid BN", () => {
-    const outcome = validateBayesianNetworkAnalysisReady(model, validatedAt);
+    const outcome = validateBayesianNetworkAnalysisReady(model, owner, validatedAt);
     expect(outcome.quantificationAllowed).toBe(true);
     expect(outcome.validation.valid).toBe(true);
     expect(outcome.validation.issues).toEqual([]);
@@ -1067,11 +1068,20 @@ describe("Bayesian-network validation policy integration", () => {
   it("applies evidence and HCL binding context to policy decisions", () => {
     const binding: HclEventBinding = {
       id: HCL_BINDING_ID,
-      faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: FT_BASIC_EVENT_ID },
-      bayesianNetworkNode: { modelId: MODEL_ID, entityId: CAUSE_NODE_ID },
+      faultTreeBasicEvent: {
+        referenceType: "FAULT_TREE_BASIC_EVENT",
+        workbookId: "sy-workbook",
+        entityId: FT_BASIC_EVENT_ID,
+      },
+      bayesianNetworkNode: {
+        referenceType: "BAYESIAN_NETWORK_NODE",
+        workbookId: owner.workbookId,
+        modelId: MODEL_ID,
+        entityId: CAUSE_NODE_ID,
+      },
       trueStateIds: [CAUSE_FALSE_STATE_ID, CAUSE_TRUE_STATE_ID],
     };
-    const outcome = validateBayesianNetworkAnalysisReady(model, validatedAt, {
+    const outcome = validateBayesianNetworkAnalysisReady(model, owner, validatedAt, {
       evidence: { observations: [{ nodeId: EFFECT_NODE_ID, stateId: MISSING_STATE_ID }] },
       hclBindings: [binding],
     });
@@ -1081,5 +1091,36 @@ describe("Bayesian-network validation policy integration", () => {
       "BN_EVIDENCE_STATE_NOT_FOUND",
       "BN_HCL_TRUE_STATES_CANNOT_INCLUDE_ALL",
     ]);
+  });
+
+  it("uses the owner workbook when validating HCL bindings through either policy", () => {
+    const crossWorkbookBinding: HclEventBinding = {
+      id: HCL_BINDING_ID,
+      faultTreeBasicEvent: {
+        referenceType: "FAULT_TREE_BASIC_EVENT",
+        workbookId: "sy-workbook",
+        entityId: FT_BASIC_EVENT_ID,
+      },
+      bayesianNetworkNode: {
+        referenceType: "BAYESIAN_NETWORK_NODE",
+        workbookId: "different-esq-workbook",
+        modelId: MODEL_ID,
+        entityId: CAUSE_NODE_ID,
+      },
+      trueStateIds: [CAUSE_TRUE_STATE_ID],
+    };
+
+    for (const outcome of [
+      validateBayesianNetworkDraft(model, owner, validatedAt, {
+        hclBindings: [crossWorkbookBinding],
+      }),
+      validateBayesianNetworkAnalysisReady(model, owner, validatedAt, {
+        hclBindings: [crossWorkbookBinding],
+      }),
+    ]) {
+      expect(outcome.validation.issues).toEqual([
+        expect.objectContaining({ code: "BN_HCL_MODEL_MISMATCH" }),
+      ]);
+    }
   });
 });

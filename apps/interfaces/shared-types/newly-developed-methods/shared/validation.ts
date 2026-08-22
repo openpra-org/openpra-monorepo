@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { MethodEntityIdSchema, MethodModelIdSchema, MethodModelRevisionSchema } from "./method-model";
+import {
+  MethodEntityIdSchema,
+  WorkbookModelSnapshotIdentitySchema,
+} from "./method-model";
 
 const CURRENT_VALIDATION_RESULT_SCHEMA_VERSION = "1.0.0" as const;
 const ValidationResultSchemaVersionSchema = z.literal(CURRENT_VALIDATION_RESULT_SCHEMA_VERSION);
@@ -25,8 +28,7 @@ const ValidationIssueSchema = z
 
 const ValidationResultFields = {
   schemaVersion: ValidationResultSchemaVersionSchema,
-  modelId: MethodModelIdSchema,
-  revision: MethodModelRevisionSchema,
+  owner: WorkbookModelSnapshotIdentitySchema,
   mode: ValidationModeSchema,
   valid: z.boolean(),
   issues: z.array(ValidationIssueSchema),
@@ -99,21 +101,20 @@ type DraftValidationResult = z.infer<typeof DraftValidationResultSchema>;
 type DraftValidationOutcome = z.infer<typeof DraftValidationOutcomeSchema>;
 type CreateDraftValidationOutcomeInput = Pick<
   DraftValidationResult,
-  "modelId" | "revision" | "issues" | "validatedAt"
+  "owner" | "issues" | "validatedAt"
 >;
 type AnalysisReadyValidationResult = z.infer<typeof AnalysisReadyValidationResultSchema>;
 type AnalysisReadyValidationOutcome = z.infer<typeof AnalysisReadyValidationOutcomeSchema>;
 type CreateAnalysisReadyValidationOutcomeInput = Pick<
   AnalysisReadyValidationResult,
-  "modelId" | "revision" | "issues" | "validatedAt"
+  "owner" | "issues" | "validatedAt"
 >;
 
 const createDraftValidationOutcome = (input: CreateDraftValidationOutcomeInput): DraftValidationOutcome =>
   DraftValidationOutcomeSchema.parse({
     validation: {
       schemaVersion: CURRENT_VALIDATION_RESULT_SCHEMA_VERSION,
-      modelId: input.modelId,
-      revision: input.revision,
+      owner: input.owner,
       mode: "DRAFT",
       valid: !input.issues.some((issue) => issue.severity === "ERROR"),
       issues: input.issues,
@@ -130,8 +131,7 @@ const createAnalysisReadyValidationOutcome = (
   return AnalysisReadyValidationOutcomeSchema.parse({
     validation: {
       schemaVersion: CURRENT_VALIDATION_RESULT_SCHEMA_VERSION,
-      modelId: input.modelId,
-      revision: input.revision,
+      owner: input.owner,
       mode: "ANALYSIS_READY",
       valid,
       issues: input.issues,

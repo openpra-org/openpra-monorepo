@@ -35,20 +35,13 @@ const SECOND_FAULT_TREE_TOP_GATE_ID = "123e4567-e89b-42d3-a456-426614174616";
 const TARGET_EVENT_TREE_ID = "123e4567-e89b-42d3-a456-426614174617";
 const TARGET_SEQUENCE_ID = "123e4567-e89b-42d3-a456-426614174618";
 const MISSING_TRANSFER_SEQUENCE_ID = "123e4567-e89b-42d3-a456-426614174619";
+const owner = { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID } as const;
 
 const model: EventTreeModel = {
-  schemaVersion: "1.0.0",
-  id: MODEL_ID,
-  projectId: "project-mhtgr",
-  methodType: "EVENT_TREE",
+  modelId: MODEL_ID,
   code: "ET-ULOF",
   name: "Unprotected loss of flow",
   description: "Event tree used to test path validation.",
-  revision: 1,
-  createdBy: "analyst@example.com",
-  createdAt: "2026-08-20T16:00:00.000Z",
-  updatedBy: "analyst@example.com",
-  updatedAt: "2026-08-20T16:00:00.000Z",
   initiatingEvent: {
     target: { modelId: INITIATING_EVENT_MODEL_ID, entityId: INITIATING_EVENT_ID },
   },
@@ -474,7 +467,7 @@ describe("event-tree transfer validation", () => {
   };
   const targetModel: EventTreeModel = {
     ...model,
-    id: TARGET_EVENT_TREE_ID,
+    modelId: TARGET_EVENT_TREE_ID,
     code: "ET-TARGET",
     name: "Target event tree",
     sequences: [targetSequence],
@@ -666,7 +659,7 @@ describe("event-tree validation policy integration", () => {
   const incompleteModel: EventTreeModel = { ...model, initiatingEvent: null };
 
   it("reports an incomplete ET draft without preventing it from being saved", () => {
-    const outcome = validateEventTreeDraft(incompleteModel, validatedAt);
+    const outcome = validateEventTreeDraft(incompleteModel, owner, validatedAt);
     expect(outcome.saveAllowed).toBe(true);
     expect(outcome.validation.valid).toBe(false);
     expect(outcome.validation.issues.map((issue) => issue.code)).toEqual(["ET_INITIATING_EVENT_REQUIRED"]);
@@ -674,7 +667,7 @@ describe("event-tree validation policy integration", () => {
   });
 
   it("blocks analysis-ready quantification for the same incomplete ET", () => {
-    const outcome = validateEventTreeAnalysisReady(incompleteModel, validatedAt);
+    const outcome = validateEventTreeAnalysisReady(incompleteModel, owner, validatedAt);
     expect(outcome.quantificationAllowed).toBe(false);
     expect(outcome.validation.valid).toBe(false);
     expect(outcome.validation.issues.map((issue) => issue.code)).toEqual(["ET_INITIATING_EVENT_REQUIRED"]);
@@ -682,14 +675,14 @@ describe("event-tree validation policy integration", () => {
   });
 
   it("allows analysis-ready quantification for a complete valid ET", () => {
-    const outcome = validateEventTreeAnalysisReady(model, validatedAt);
+    const outcome = validateEventTreeAnalysisReady(model, owner, validatedAt);
     expect(outcome.quantificationAllowed).toBe(true);
     expect(outcome.validation.valid).toBe(true);
     expect(outcome.validation.issues).toEqual([]);
   });
 
   it("applies reference catalogues to policy decisions", () => {
-    const outcome = validateEventTreeAnalysisReady(model, validatedAt, {
+    const outcome = validateEventTreeAnalysisReady(model, owner, validatedAt, {
       availableInitiatingEvents: [],
       availableFaultTreeTopGates: [],
     });

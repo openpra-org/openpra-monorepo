@@ -16,6 +16,7 @@ import { EsIeLinkController } from "./es-ie-link.controller";
 import { EsIeLinkService } from "./es-ie-link.service";
 import { EsDocumentsController } from "./es-documents.controller";
 import { EsDocumentsService } from "./es-documents.service";
+import { NewlyDevelopedMethodsSharedModule } from "../newly-developed-methods/shared/newly-developed-methods-shared.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { EsDocumentsService } from "./es-documents.service";
     WorkbooksModule,
     PosWorkbooksModule,
     IeWorkbooksModule,
+    NewlyDevelopedMethodsSharedModule,
   ],
   controllers: [EsWorkbooksController, EsPosLinkController, EsIeLinkController, EsDocumentsController],
   providers: [EsWorkbooksService, EsMefAdapter, EsPosLinkService, EsIeLinkService, EsDocumentsService],

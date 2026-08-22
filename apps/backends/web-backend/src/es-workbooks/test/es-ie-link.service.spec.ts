@@ -1,6 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { getModelToken } from "@nestjs/mongoose";
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { EsIeLinkService } from "../es-ie-link.service";
 import { ExampleWorkbooksService } from "../../example-workbooks/example-workbooks.service";
 import { ProjectsService } from "../../projects/projects.service";
@@ -28,7 +28,7 @@ describe("EsIeLinkService", () => {
   let rolesService: { resolveEffectiveRoles: jest.Mock };
 
   beforeEach(async () => {
-    esModel = { findOne: jest.fn() };
+    esModel = { findOne: jest.fn(), findOneAndUpdate: jest.fn() };
     workbookModel = { find: jest.fn(), findById: jest.fn() };
     ieModel = { findOne: jest.fn() };
     projectsService = { resolveAccess: jest.fn().mockResolvedValue({ doc: {}, role: "editor" }) };
@@ -55,9 +55,12 @@ describe("EsIeLinkService", () => {
   });
 
   it("links an IE workbook and imports initiator ids into the ES scopeDefinition", async () => {
-    const save = jest.fn().mockResolvedValue(undefined);
-    const esDoc = { workbookId: "es-1", projectId: "p-1", mef: { scopeDefinition: { plantOperatingStateIds: ["POS-01"], initiatingEventIds: [], radioactiveMaterialSources: [], radionuclideBarriers: [] } }, linkedIeWorkbookId: null, save };
+    const esDoc = { workbookId: "es-1", projectId: "p-1", revision: 1, mef: { scopeDefinition: { plantOperatingStateIds: ["POS-01"], initiatingEventIds: [], radioactiveMaterialSources: [], radionuclideBarriers: [] } }, linkedIeWorkbookId: null };
     esModel.findOne.mockReturnValue(query(esDoc));
+    esModel.findOneAndUpdate.mockImplementation((_filter, update) => {
+      Object.assign(esDoc, update.$set);
+      return query(esDoc);
+    });
     ieModel.findOne.mockReturnValue(query({ workbookId: "ie-1", projectId: "p-1", mef: IE_MEF, updatedAt: new Date() }));
     workbookModel.findById.mockReturnValue(query({ id: "ie-1", name: "IE Workbook Example" }));
 
@@ -67,7 +70,57 @@ describe("EsIeLinkService", () => {
     expect(scope.initiatingEventIds).toEqual(["IEG-LOHS", "IEG-RCB"]);
     expect(scope.plantOperatingStateIds).toEqual(["POS-01"]);
     expect(status.initiators).toHaveLength(2);
-    expect(save).toHaveBeenCalled();
+    expect(esDoc.revision).toBe(2);
+    expect(esModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { workbookId: "es-1", $or: [{ revision: 1 }, { revision: { $exists: false } }] },
+      expect.objectContaining({ $set: expect.objectContaining({ revision: 2 }) }),
+      { new: true, runValidators: true },
+    );
+  });
+
+  it("rejects a stale IE link without overwriting the ES workbook", async () => {
+    const originalMef = { scopeDefinition: { initiatingEventIds: [] } };
+    const esDoc = {
+      workbookId: "es-1",
+      projectId: "p-1",
+      revision: 1,
+      mef: originalMef,
+      linkedIeWorkbookId: null,
+    };
+    esModel.findOne.mockReturnValue(query(esDoc));
+    esModel.findOneAndUpdate.mockReturnValue(query(null));
+    ieModel.findOne.mockReturnValue(
+      query({ workbookId: "ie-1", projectId: "p-1", mef: IE_MEF }),
+    );
+
+    await expect(service.link("es-1", "ie-1", { username: "alice" })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(esDoc).toMatchObject({ revision: 1, mef: originalMef, linkedIeWorkbookId: null });
+  });
+
+  it("atomically advances the revision when unlinking an IE workbook", async () => {
+    const esDoc = {
+      workbookId: "es-1",
+      projectId: "p-1",
+      revision: 3,
+      mef: { scopeDefinition: { initiatingEventIds: ["IEG-LOHS"] } },
+      linkedIeWorkbookId: "ie-1",
+    };
+    esModel.findOne.mockReturnValue(query(esDoc));
+    esModel.findOneAndUpdate.mockImplementation((_filter, update) => {
+      Object.assign(esDoc, update.$set);
+      return query(esDoc);
+    });
+
+    await service.unlink("es-1", { username: "alice" });
+
+    expect(esDoc).toMatchObject({ revision: 4, linkedIeWorkbookId: null });
+    expect(esModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { workbookId: "es-1", revision: 3 },
+      expect.objectContaining({ $set: expect.objectContaining({ revision: 4 }) }),
+      { new: true, runValidators: true },
+    );
   });
 
   it("rejects link from a non-preparer", async () => {

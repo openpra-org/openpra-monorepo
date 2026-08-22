@@ -2,33 +2,31 @@ import { z } from "zod";
 import {
   AnalysisRunIdSchema,
   AnalysisRunMetadataSchema,
-  MethodEntityIdSchema,
-  MethodEntityReferenceSchema,
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  FaultTreeTopEventReferenceSchema,
+  WorkbookEntityIdSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookModelSnapshotIdentitySchema,
   ValidationIssueSchema,
   ValidationResultSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
   AnalysisRunMetadata,
-  MethodEntityId,
-  MethodEntityReference,
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  FaultTreeTopEventReference,
+  WorkbookEntityId,
+  WorkbookMethodSchemaVersion,
+  WorkbookModelSnapshotIdentity,
   ValidationIssue,
   ValidationResult,
 } from "../shared";
 
 interface HclValidationResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   validation: ValidationResult;
 }
 
 interface HclExecuteResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   run: AnalysisRunMetadata;
 }
 
@@ -48,15 +46,14 @@ interface HclJunctionTreeStats {
 }
 
 interface HclQuantificationResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
-  modelId: MethodModelId;
-  modelRevision: MethodModelRevision;
-  faultTreeTopGate: MethodEntityReference;
+  owner: WorkbookModelSnapshotIdentity;
+  faultTreeTopGate: FaultTreeTopEventReference;
   probability: number;
   bddNodes: number;
   bddVariables: number;
-  variableOrder: MethodEntityId[];
+  variableOrder: WorkbookEntityId[];
   bridge: HclBridgeStats;
   junctionTree: HclJunctionTreeStats;
   validationIssues: ValidationIssue[];
@@ -67,14 +64,14 @@ const NonnegativeCounterSchema = z.number().int().nonnegative();
 
 const HclValidationResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     validation: ValidationResultSchema,
   })
   .strict();
 
 const HclExecuteResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     run: AnalysisRunMetadataSchema,
   })
   .strict()
@@ -109,15 +106,14 @@ const HclJunctionTreeStatsSchema = z
 
 const HclQuantificationResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     runId: AnalysisRunIdSchema,
-    modelId: MethodModelIdSchema,
-    modelRevision: MethodModelRevisionSchema,
-    faultTreeTopGate: MethodEntityReferenceSchema,
+    owner: WorkbookModelSnapshotIdentitySchema,
+    faultTreeTopGate: FaultTreeTopEventReferenceSchema,
     probability: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
     bddNodes: NonnegativeCounterSchema,
     bddVariables: NonnegativeCounterSchema,
-    variableOrder: z.array(MethodEntityIdSchema),
+    variableOrder: z.array(WorkbookEntityIdSchema),
     bridge: HclBridgeStatsSchema,
     junctionTree: HclJunctionTreeStatsSchema,
     validationIssues: z.array(ValidationIssueSchema),

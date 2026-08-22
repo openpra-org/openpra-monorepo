@@ -38,6 +38,7 @@ interface EsqWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
+  revision: number;
   mef: EventSequenceQuantification;
   myRoles: EsqWorkbookRoleName[];
   hasPreviousMef: boolean;
@@ -48,8 +49,16 @@ async function getEsqWorkbook(workbookId: string): Promise<EsqWorkbookResponse> 
   return fetchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`);
 }
 
-async function patchEsqWorkbook(workbookId: string, current: EventSequenceQuantification, mef: EventSequenceQuantification): Promise<EsqWorkbookResponse> {
-  return patchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+async function patchEsqWorkbook(
+  workbookId: string,
+  expectedRevision: number,
+  current: EventSequenceQuantification,
+  mef: EventSequenceQuantification,
+): Promise<EsqWorkbookResponse> {
+  return patchJson<EsqWorkbookResponse>(`/api/esq-workbooks/${workbookId}`, {
+    expectedRevision,
+    operations: createWorkbookPatch(current, mef),
+  });
 }
 
 interface EsqExampleOption {

@@ -21,13 +21,8 @@ import { useSyWorkbook } from "./syWorkbookContext";
 import { generateSyReport } from "./syDocx";
 import { type SyDrawerContext } from "./syScreens";
 import { type SystemFaultTreeNode, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
-
-function syncTreeBe(node: SystemFaultTreeNode, beId: string, fields: { name?: string; mode?: string; prob?: string }): SystemFaultTreeNode {
-  if (node.type === "BE") return node.be === beId ? { ...node, ...fields } : node;
-  if (node.type === "TR") return node;
-  return { ...node, children: node.children.map((c) => syncTreeBe(c, beId, fields)) };
-}
 
 function DepsScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void }): JSX.Element {
   const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
@@ -316,7 +311,7 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
     }));
     openDrawer({ kind: "confirm", id: uuid });
   }
-  const events = sy.systemLogicModels.flatMap((m) => m.basicEvents);
+  const events = sy.systemBasicEvents;
   const modeRows = Array.from(new Set(events.map((e) => e.failureMode ?? ""))).filter((m) => m.length > 0).map((mode) => {
     const of = events.filter((e) => e.failureMode === mode);
     return { mode, label: FAILURE_MODE_LABELS[mode] ?? mode, count: of.length, example: of[0]?.uuid ?? "" };
@@ -446,9 +441,10 @@ function UncertScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => vo
     ...(sy.sensitivityStudies ?? []).map((st) => ({ id: st.uuid, kind: "sens" as const, type: "Sensitivity", tone: undefined as BadgeKind | undefined, item: (st.name ?? "").length > 0 ? st.name ?? "" : st.description, detail: st.results ?? "", ok: (st.results ?? "").length > 0, status: (st.results ?? "").length > 0 ? "Run" : "Pending" })),
   ];
   const repairRows = sy.systemLogicModels.map((m) => {
-    const credited = m.basicEvents.filter((b) => b.repairModeled === true);
+    const modelEvents = systemLogicModelBasicEvents(sy, m);
+    const credited = modelEvents.filter((b) => b.repairModeled === true);
     const justified = credited.every((b) => (b.repairJustification ?? "").length > 0);
-    return { id: m.uuid, system: m.systemReference, events: m.basicEvents.length, credited: credited.length, ok: credited.length === 0 || justified };
+    return { id: m.uuid, system: m.systemReference, events: modelEvents.length, credited: credited.length, ok: credited.length === 0 || justified };
   });
   const totalEvents = repairRows.reduce((acc, r) => acc + r.events, 0);
   const totalCredited = repairRows.reduce((acc, r) => acc + r.credited, 0);
@@ -784,7 +780,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
           <div className="posfield-grid">
             <div className="posfield"><label className="posfield__label">Mission time</label><div className="posmono">{sysDef.missionTimeHours !== undefined ? `${sysDef.missionTimeHours} h` : "—"}</div></div>
             <div className="posfield"><label className="posfield__label">Modeled components</label><div className="posmono">{Object.keys(sysDef.modeledComponentsAndFailures).length}</div></div>
-            <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic?.basicEvents.length ?? 0}</div></div>
+            <div className="posfield"><label className="posfield__label">Basic events</label><div className="posmono">{logic === undefined ? 0 : systemLogicModelBasicEvents(sy, logic).length}</div></div>
           </div>
           <div>
             <WorkbookCueLabel workbook="SY" title="Model boundary" className="essec" />
@@ -821,7 +817,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
     const alpha = g.modelSpecificParameters?.alphaFactorParameters;
     const qt = beta?.totalFailureProbability ?? alpha?.totalFailureProbability ?? 0;
     const par = ccfParams(g);
-    const check = ccfModelCheck(g, sy.systemLogicModels);
+    const check = ccfModelCheck(g, sy);
     const num = (v: string): number => {
       const n = Number(v);
       return Number.isFinite(n) ? n : 0;
@@ -1578,23 +1574,15 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
   }
 
   if (context.kind === "be") {
-    const hit = sy.systemLogicModels.map((m) => ({ ref: m.systemReference, b: m.basicEvents.find((x) => x.uuid === context.id) })).find((x) => x.b !== undefined);
-    const be: SystemBasicEvent | undefined = hit?.b;
-    if (be === undefined || hit === undefined) return null;
-    const ownerRef = hit.ref;
+    const be: SystemBasicEvent | undefined = sy.systemBasicEvents.find((event) => event.uuid === context.id);
+    if (be === undefined) return null;
+    const ownerRef = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model.faultTree).includes(be.uuid))?.systemReference;
     const beId = be.uuid;
-    const patch = (beFields: Partial<SystemBasicEvent>, treeFields?: { name?: string; mode?: string; prob?: string }): void => {
+    const patch = (beFields: Partial<SystemBasicEvent>): void => {
       if (!editable) return;
       mutateSy((draft) => ({
         ...draft,
-        systemLogicModels: draft.systemLogicModels.map((m) => {
-          if (m.systemReference !== ownerRef) return m;
-          return {
-            ...m,
-            basicEvents: m.basicEvents.map((b) => (b.uuid === beId ? { ...b, ...beFields } : b)),
-            faultTree: treeFields !== undefined && m.faultTree !== undefined ? syncTreeBe(m.faultTree, beId, treeFields) : m.faultTree,
-          };
-        }),
+        systemBasicEvents: draft.systemBasicEvents.map((event) => (event.uuid === beId ? { ...event, ...beFields } : event)),
       }));
     };
     const num = (v: string): number => {
@@ -1607,25 +1595,25 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
       <>
         <div className="posdrawer__head posdrawer__head--bare">
           <div>
-            <div className="posdrawer__cap">Basic event · {shortOf(ownerRef)}</div>
+            <div className="posdrawer__cap">Basic event · {ownerRef === undefined ? "Workbook catalogue" : shortOf(ownerRef)}</div>
           </div>
           <button type="button" className="posdrawer__close" onClick={onClose}><SYIcon.Close /></button>
         </div>
         <div className="posdrawer__body">
-          <div className="posfield-grid">
+            <div className="posfield-grid">
             <div className="posfield posfield-grid--span2"><label className="posfield__label">Name</label>
-              {editable ? <WorkbookInput className="posfield__input" value={be.name} onChange={(e) => patch({ name: e.target.value }, { name: e.target.value })} /> : <div>{be.name}</div>}
+              {editable ? <WorkbookInput className="posfield__input" value={be.name} onChange={(e) => patch({ name: e.target.value })} /> : <div>{be.name}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Identifier</label><div className="posmono">{be.uuid}</div></div>
             <div className="posfield"><label className="posfield__label">Failure mode</label>
               {editable ? (
-                <select className="posfield__select" value={be.failureMode ?? ""} onChange={(e) => patch({ failureMode: e.target.value }, { mode: e.target.value })}>
+                <select className="posfield__select" value={be.failureMode ?? ""} onChange={(e) => patch({ failureMode: e.target.value })}>
                   {Object.entries(FAILURE_MODE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Probability</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) }, { prob: toExp(num(e.target.value)) })} /> : <div className="posmono">{toExp(prob)}</div>}
+              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) })} /> : <div className="posmono">{toExp(prob)}</div>}
             </div>
             <div className="posfield"><label className="posfield__label">Data Analysis reference</label>
               {editable ? <WorkbookInput className="posfield__input posmono" value={be.dataAnalysisBasicEventRef ?? ""} onChange={(e) => patch({ dataAnalysisBasicEventRef: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{be.dataAnalysisBasicEventRef ?? "—"}</div>}

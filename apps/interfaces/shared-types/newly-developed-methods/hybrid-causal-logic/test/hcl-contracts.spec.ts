@@ -3,6 +3,7 @@ import {
   HclBayesianNetworkReferenceSchema,
   HclConfigurationModelSchema,
   HclEventBindingSchema,
+  HclEventTreeExecuteRequestSchema,
   HclFaultTreeReferenceSchema,
   HclQuantificationResultSchema,
   HclSolverSettingsSchema,
@@ -22,41 +23,85 @@ const TOP_GATE_ID = "123e4567-e89b-42d3-a456-426614174709";
 const OTHER_BASIC_EVENT_ID = "123e4567-e89b-42d3-a456-426614174710";
 const CONFIGURATION_ID = "123e4567-e89b-42d3-a456-426614174711";
 const OTHER_CONFIGURATION_ID = "123e4567-e89b-42d3-a456-426614174712";
+const BN_WORKBOOK_ID = "esq-workbook";
+const FT_WORKBOOK_ID = "sy-workbook";
+const OTHER_FT_WORKBOOK_ID = "other-sy-workbook";
+const EVENT_TREE_MODEL_ID = "123e4567-e89b-42d3-a456-426614174713";
 
 describe("HCL model-reference contracts", () => {
-  it("accepts a UUID-only Bayesian-network reference", () => {
-    expect(HclBayesianNetworkReferenceSchema.safeParse({ bayesianNetwork: { modelId: BN_MODEL_ID } }).success).toBe(
-      true,
-    );
+  it("accepts a workbook-qualified Bayesian-network reference", () => {
+    expect(HclBayesianNetworkReferenceSchema.safeParse({ workbookId: BN_WORKBOOK_ID, modelId: BN_MODEL_ID }).success).toBe(true);
   });
 
-  it("accepts independent UUID-only references for multiple fault trees", () => {
-    expect(HclFaultTreeReferenceSchema.safeParse({ faultTree: { modelId: FT_MODEL_ID } }).success).toBe(true);
-    expect(HclFaultTreeReferenceSchema.safeParse({ faultTree: { modelId: OTHER_FT_MODEL_ID } }).success).toBe(true);
+  it("accepts independent workbook-qualified references for multiple fault trees", () => {
+    expect(HclFaultTreeReferenceSchema.safeParse({ workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID }).success).toBe(true);
+    expect(HclFaultTreeReferenceSchema.safeParse({ workbookId: OTHER_FT_WORKBOOK_ID, modelId: OTHER_FT_MODEL_ID }).success).toBe(true);
   });
 
   it.each([
-    { bayesianNetwork: { modelId: "BN-MHTGR" } },
-    { bayesianNetwork: { modelId: BN_MODEL_ID, name: "MHTGR causal network" } },
+    { workbookId: BN_WORKBOOK_ID, modelId: "BN-MHTGR" },
+    { modelId: BN_MODEL_ID },
+    { workbookId: BN_WORKBOOK_ID, modelId: BN_MODEL_ID, name: "MHTGR causal network" },
     { modelId: BN_MODEL_ID },
   ])("rejects malformed BN reference %#", (candidate) => {
     expect(HclBayesianNetworkReferenceSchema.safeParse(candidate).success).toBe(false);
   });
 
   it.each([
-    { faultTree: { modelId: "FT-RT" } },
-    { faultTree: { modelId: FT_MODEL_ID, code: "FT-RT" } },
+    { workbookId: FT_WORKBOOK_ID, modelId: "FT-RT" },
+    { modelId: FT_MODEL_ID },
+    { workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID, code: "FT-RT" },
     { faultTreeId: FT_MODEL_ID },
   ])("rejects malformed FT reference %#", (candidate) => {
     expect(HclFaultTreeReferenceSchema.safeParse(candidate).success).toBe(false);
   });
 });
 
+describe("HCL integration-workbook event-tree execution", () => {
+  it("accepts a revisioned HCL owner and typed ES event-tree address", () => {
+    expect(
+      HclEventTreeExecuteRequestSchema.safeParse({
+        schemaVersion: "1.0.0",
+        modelId: CONFIGURATION_ID,
+        workbookRevision: 3,
+        eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    { schemaVersion: "1.0.0", modelId: CONFIGURATION_ID, workbookRevision: 3 },
+    {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 0,
+      eventTree: { workbookId: "es-workbook", modelId: EVENT_TREE_MODEL_ID },
+    },
+    {
+      schemaVersion: "1.0.0",
+      modelId: CONFIGURATION_ID,
+      workbookRevision: 3,
+      eventTree: { workbookId: "es-workbook", modelId: "ET-1" },
+    },
+  ])("rejects malformed integration ET request %#", (candidate) => {
+    expect(HclEventTreeExecuteRequestSchema.safeParse(candidate).success).toBe(false);
+  });
+});
+
 describe("HCL event binding identity", () => {
   const binding = {
     id: BINDING_ID,
-    faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: BASIC_EVENT_ID },
-    bayesianNetworkNode: { modelId: BN_MODEL_ID, entityId: BN_NODE_ID },
+    faultTreeBasicEvent: {
+      referenceType: "FAULT_TREE_BASIC_EVENT",
+      workbookId: FT_WORKBOOK_ID,
+      entityId: BASIC_EVENT_ID,
+    },
+    bayesianNetworkNode: {
+      referenceType: "BAYESIAN_NETWORK_NODE",
+      workbookId: BN_WORKBOOK_ID,
+      modelId: BN_MODEL_ID,
+      entityId: BN_NODE_ID,
+    },
     trueStateIds: [TRUE_STATE_ID],
   };
 
@@ -66,13 +111,13 @@ describe("HCL event binding identity", () => {
 
   it.each([
     { ...binding, id: "BINDING-1" },
-    { ...binding, faultTreeBasicEvent: { modelId: "FT-RT", entityId: BASIC_EVENT_ID } },
-    { ...binding, faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: "BE-PUMP" } },
-    { ...binding, bayesianNetworkNode: { modelId: "BN-MHTGR", entityId: BN_NODE_ID } },
-    { ...binding, bayesianNetworkNode: { modelId: BN_MODEL_ID, entityId: "N-PUMP" } },
+    { ...binding, faultTreeBasicEvent: { ...binding.faultTreeBasicEvent, workbookId: "" } },
+    { ...binding, faultTreeBasicEvent: { ...binding.faultTreeBasicEvent, entityId: "BE-PUMP" } },
+    { ...binding, bayesianNetworkNode: { ...binding.bayesianNetworkNode, modelId: "BN-MHTGR" } },
+    { ...binding, bayesianNetworkNode: { ...binding.bayesianNetworkNode, entityId: "N-PUMP" } },
     {
       ...binding,
-      faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: BASIC_EVENT_ID, basicEventCode: "BE-PUMP" },
+      faultTreeBasicEvent: { ...binding.faultTreeBasicEvent, basicEventCode: "BE-PUMP" },
     },
   ])("rejects malformed binding fields %#", (candidate) => {
     expect(HclEventBindingSchema.safeParse(candidate).success).toBe(false);
@@ -156,8 +201,7 @@ describe("PRAXIS HCL solver settings", () => {
 describe("HCL validation and quantification results", () => {
   const validation = {
     schemaVersion: "1.0.0",
-    modelId: FT_MODEL_ID,
-    revision: 3,
+    owner: { workbookId: "esq-workbook", workbookRevision: 3, modelId: CONFIGURATION_ID },
     mode: "ANALYSIS_READY",
     valid: true,
     issues: [],
@@ -167,9 +211,13 @@ describe("HCL validation and quantification results", () => {
   const quantification = {
     schemaVersion: "1.0.0",
     runId: RUN_ID,
-    modelId: FT_MODEL_ID,
-    modelRevision: 3,
-    faultTreeTopGate: { modelId: FT_MODEL_ID, entityId: TOP_GATE_ID },
+    owner: { workbookId: "esq-workbook", workbookRevision: 3, modelId: CONFIGURATION_ID },
+    faultTreeTopGate: {
+      referenceType: "FAULT_TREE_TOP_EVENT",
+      workbookId: FT_WORKBOOK_ID,
+      modelId: FT_MODEL_ID,
+      entityId: TOP_GATE_ID,
+    },
     probability: 0.015,
     bddNodes: 7,
     bddVariables: 2,
@@ -216,18 +264,10 @@ describe("HCL validation and quantification results", () => {
 
 describe("independent HCL mapping model", () => {
   const metadata = {
-    schemaVersion: "1.0.0",
-    id: CONFIGURATION_ID,
-    projectId: "project-mhtgr",
-    methodType: "HYBRID_CAUSAL_LOGIC",
+    modelId: CONFIGURATION_ID,
     code: "HCL-MHTGR",
     name: "MHTGR HCL mapping",
     description: "Reusable BN-to-FT event bindings.",
-    revision: 1,
-    createdBy: "analyst@example.com",
-    createdAt: "2026-08-20T15:00:00.000Z",
-    updatedBy: "analyst@example.com",
-    updatedAt: "2026-08-20T15:00:00.000Z",
   };
   const solverSettings = {
     variableOrder: null,
@@ -236,20 +276,36 @@ describe("independent HCL mapping model", () => {
   };
   const binding = {
     id: BINDING_ID,
-    faultTreeBasicEvent: { modelId: FT_MODEL_ID, entityId: BASIC_EVENT_ID },
-    bayesianNetworkNode: { modelId: BN_MODEL_ID, entityId: BN_NODE_ID },
+    faultTreeBasicEvent: {
+      referenceType: "FAULT_TREE_BASIC_EVENT",
+      workbookId: FT_WORKBOOK_ID,
+      entityId: BASIC_EVENT_ID,
+    },
+    bayesianNetworkNode: {
+      referenceType: "BAYESIAN_NETWORK_NODE",
+      workbookId: BN_WORKBOOK_ID,
+      modelId: BN_MODEL_ID,
+      entityId: BN_NODE_ID,
+    },
     trueStateIds: [TRUE_STATE_ID],
   };
   const configuration = {
     ...metadata,
-    bayesianNetwork: { modelId: BN_MODEL_ID },
-    faultTrees: [{ faultTree: { modelId: FT_MODEL_ID } }, { faultTree: { modelId: OTHER_FT_MODEL_ID } }],
+    bayesianNetwork: { workbookId: BN_WORKBOOK_ID, modelId: BN_MODEL_ID },
+    faultTrees: [
+      { workbookId: FT_WORKBOOK_ID, modelId: FT_MODEL_ID },
+      { workbookId: OTHER_FT_WORKBOOK_ID, modelId: OTHER_FT_MODEL_ID },
+    ],
     bindings: [
       binding,
       {
         ...binding,
         id: "123e4567-e89b-42d3-a456-426614174713",
-        faultTreeBasicEvent: { modelId: OTHER_FT_MODEL_ID, entityId: OTHER_BASIC_EVENT_ID },
+        faultTreeBasicEvent: {
+          referenceType: "FAULT_TREE_BASIC_EVENT",
+          workbookId: OTHER_FT_WORKBOOK_ID,
+          entityId: OTHER_BASIC_EVENT_ID,
+        },
       },
     ],
     baseEvidence: { observations: [] },
@@ -263,9 +319,9 @@ describe("independent HCL mapping model", () => {
   it("allows the same BN reference to be reused by independent HCL configurations", () => {
     const otherConfiguration = {
       ...configuration,
-      id: OTHER_CONFIGURATION_ID,
+      modelId: OTHER_CONFIGURATION_ID,
       code: "HCL-MHTGR-OTHER",
-      faultTrees: [{ faultTree: { modelId: OTHER_FT_MODEL_ID } }],
+      faultTrees: [{ workbookId: OTHER_FT_WORKBOOK_ID, modelId: OTHER_FT_MODEL_ID }],
       bindings: [configuration.bindings[1]],
     };
 
@@ -285,7 +341,7 @@ describe("independent HCL mapping model", () => {
   });
 
   it.each([
-    { ...configuration, methodType: "FAULT_TREE" },
+    { ...configuration, methodType: "HYBRID_CAUSAL_LOGIC" },
     { ...configuration, faultTrees: [configuration.faultTrees[0], configuration.faultTrees[0]] },
     { ...configuration, bindings: [binding, binding] },
     {
@@ -293,7 +349,10 @@ describe("independent HCL mapping model", () => {
       bindings: [
         {
           ...binding,
-          faultTreeBasicEvent: { modelId: "123e4567-e89b-42d3-a456-426614174714", entityId: BASIC_EVENT_ID },
+          faultTreeBasicEvent: {
+            ...binding.faultTreeBasicEvent,
+            workbookId: "undeclared-sy-workbook",
+          },
         },
       ],
     },
@@ -302,7 +361,10 @@ describe("independent HCL mapping model", () => {
       bindings: [
         {
           ...binding,
-          bayesianNetworkNode: { modelId: "123e4567-e89b-42d3-a456-426614174715", entityId: BN_NODE_ID },
+          bayesianNetworkNode: {
+            ...binding.bayesianNetworkNode,
+            modelId: "123e4567-e89b-42d3-a456-426614174715",
+          },
         },
       ],
     },

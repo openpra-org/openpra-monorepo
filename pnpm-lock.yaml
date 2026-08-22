@@ -502,6 +502,9 @@ importers:
 
   apps/interfaces/shared-types:
     dependencies:
+      interfaces-mef-types:
+        specifier: workspace:*
+        version: link:../mef-types
       zod:
         specifier: 4.3.6
         version: 4.3.6

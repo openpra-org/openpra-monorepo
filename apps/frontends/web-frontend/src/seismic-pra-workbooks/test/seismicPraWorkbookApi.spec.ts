@@ -33,7 +33,24 @@ function mockLinkedBundles(variant: "htgr" | "sfr"): void {
     } } });
     if (path.includes("/sy-bundle")) return Promise.resolve({ sy: { mef: {
       systemDefinitions: [{ uuid: "SYS-01", name: isSfr ? "DRACS" : "RCCS", missionTimeHours: 24, applicablePlantOperatingStates: ["POS-01"] }],
-      systemLogicModels: [{ systemReference: "SYS-01", basicEvents: [{}, {}, {}] }],
+      systemBasicEvents: [
+        { uuid: "BE-01", name: "Pump failure" },
+        { uuid: "BE-02", name: "Valve failure" },
+        { uuid: "BE-03", name: "Power failure" },
+      ],
+      systemLogicModels: [{
+        systemReference: "SYS-01",
+        faultTree: {
+          id: "GATE-01",
+          type: "OR",
+          name: "System unavailable",
+          children: [
+            { id: "REF-01", type: "BE", basicEventId: "BE-01" },
+            { id: "REF-02", type: "BE", basicEventId: "BE-02" },
+            { id: "REF-03", type: "BE", basicEventId: "BE-03" },
+          ],
+        },
+      }],
     } } });
     if (path.includes("/hr-bundle")) return Promise.resolve({ hr: { mef: {
       humanFailureEvents: [{ uuid: "HFE-01", name: "Local action", hfeTiming: "POST_INITIATOR", affectedSystems: ["SYS-01"] }],

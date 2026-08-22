@@ -6,6 +6,8 @@ import type {
   AnalysisReadyValidationOutcome,
   DraftValidationOutcome,
   ValidationIssue,
+  WorkbookId,
+  WorkbookModelSnapshotIdentity,
 } from "../shared";
 import {
   validateBayesianNetworkModel,
@@ -22,8 +24,8 @@ import {
 import type { HclConfigurationModel } from "./hcl-configuration";
 
 interface HclValidationContext {
-  bayesianNetworks?: BayesianNetworkModel[];
-  faultTrees?: FaultTreeModel[];
+  bayesianNetworks?: Array<{ workbookId: WorkbookId; model: BayesianNetworkModel }>;
+  faultTrees?: Array<{ workbookId: WorkbookId; model: FaultTreeModel }>;
 }
 
 const validateHclConfigurationModel = (
@@ -34,7 +36,9 @@ const validateHclConfigurationModel = (
   const bayesianNetworks = context.bayesianNetworks ?? [];
   const faultTrees = context.faultTrees ?? [];
   const matchingBayesianNetworks = bayesianNetworks.filter(
-    (candidate) => candidate.id === model.bayesianNetwork.modelId,
+    (candidate) =>
+      candidate.workbookId === model.bayesianNetwork.workbookId &&
+      candidate.model.modelId === model.bayesianNetwork.modelId,
   );
 
   if (matchingBayesianNetworks.length !== 1) {
@@ -48,14 +52,14 @@ const validateHclConfigurationModel = (
         matchingBayesianNetworks.length === 0
           ? "The HCL Bayesian-network reference does not resolve"
           : "The HCL Bayesian-network reference must resolve exactly once",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["bayesianNetwork", "modelId"],
     });
   } else {
     issues.push(
       ...validateBayesianNetworkModel(
-        matchingBayesianNetworks[0],
-        { hclBindings: model.bindings },
+        matchingBayesianNetworks[0].model,
+        { hclBindings: model.bindings, workbookId: matchingBayesianNetworks[0].workbookId },
       ),
     );
   }
@@ -65,19 +69,21 @@ const validateHclConfigurationModel = (
       code: "HCL_FAULT_TREE_REQUIRED",
       severity: "ERROR",
       message: "An HCL configuration must reference at least one fault tree",
-      entityId: model.id,
+      entityId: model.modelId,
       fieldPath: ["faultTrees"],
     });
   }
 
-  const resolvedFaultTrees = new Map<string, FaultTreeModel>();
+  const resolvedFaultTrees: Array<{ workbookId: WorkbookId; model: FaultTreeModel }> = [];
   model.faultTrees.forEach((reference, referenceIndex) => {
     const matches = faultTrees.filter(
-      (candidate) => candidate.id === reference.faultTree.modelId,
+      (candidate) =>
+        candidate.workbookId === reference.workbookId &&
+        candidate.model.modelId === reference.modelId,
     );
     if (matches.length === 1) {
-      const faultTree = matches[0];
-      resolvedFaultTrees.set(reference.faultTree.modelId, faultTree);
+      const faultTree = matches[0].model;
+      resolvedFaultTrees.push(matches[0]);
       issues.push(
         ...validateFaultTreeTopGate(faultTree),
         ...validateFaultTreeGateInputs(faultTree),
@@ -97,30 +103,26 @@ const validateHclConfigurationModel = (
         matches.length === 0
           ? "An HCL fault-tree reference does not resolve"
           : "An HCL fault-tree reference must resolve exactly once",
-      entityId: reference.faultTree.modelId,
-      fieldPath: ["faultTrees", referenceIndex, "faultTree", "modelId"],
+      entityId: reference.modelId,
+      fieldPath: ["faultTrees", referenceIndex, "modelId"],
     });
   });
 
   model.bindings.forEach((binding, bindingIndex) => {
-    const faultTree = resolvedFaultTrees.get(binding.faultTreeBasicEvent.modelId);
-    if (faultTree === undefined) return;
-    const matches = faultTree.leafNodes.filter(
-      (leaf) =>
-        leaf.kind === "BASIC_EVENT_REFERENCE" &&
-        leaf.basicEventId === binding.faultTreeBasicEvent.entityId,
+    const matches = resolvedFaultTrees.flatMap((resolved) =>
+      resolved.workbookId === binding.faultTreeBasicEvent.workbookId
+        ? resolved.model.leafNodes.filter(
+            (leaf) =>
+              leaf.kind === "BASIC_EVENT_REFERENCE" &&
+              leaf.basicEventId === binding.faultTreeBasicEvent.entityId,
+          )
+        : [],
     );
-    if (matches.length === 1) return;
+    if (matches.length > 0) return;
     issues.push({
-      code:
-        matches.length === 0
-          ? "HCL_FAULT_TREE_BASIC_EVENT_NOT_FOUND"
-          : "HCL_FAULT_TREE_BASIC_EVENT_AMBIGUOUS",
+      code: "HCL_FAULT_TREE_BASIC_EVENT_NOT_FOUND",
       severity: "ERROR",
-      message:
-        matches.length === 0
-          ? "The bound basic event does not resolve in its fault tree"
-          : "The bound basic event must resolve exactly once in its fault tree",
+      message: "The bound basic event does not resolve in a declared fault tree",
       entityId: binding.id,
       fieldPath: ["bindings", bindingIndex, "faultTreeBasicEvent"],
     });
@@ -131,24 +133,24 @@ const validateHclConfigurationModel = (
 
 const validateHclDraft = (
   model: HclConfigurationModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: HclValidationContext = {},
 ): DraftValidationOutcome =>
   createDraftValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
+    owner,
     issues: validateHclConfigurationModel(model, context),
     validatedAt,
   });
 
 const validateHclAnalysisReady = (
   model: HclConfigurationModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: HclValidationContext = {},
 ): AnalysisReadyValidationOutcome =>
   createAnalysisReadyValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
+    owner,
     issues: validateHclConfigurationModel(model, context),
     validatedAt,
   });

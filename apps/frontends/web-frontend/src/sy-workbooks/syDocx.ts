@@ -11,6 +11,7 @@ import {
   BorderStyle,
 } from "docx";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 
 type ReportKind = "methodology" | "system";
 
@@ -134,6 +135,7 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean)
   const stageLabel = a.plantStage === "PRE_OPERATIONAL" ? "Pre-operational" : "Operational";
   const sysDef = a.systemDefinitions.find((s) => s.uuid === systemId) ?? a.systemDefinitions[0];
   const logic = a.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
+  const logicBasicEvents = logic === undefined ? [] : systemLogicModelBasicEvents(a, logic);
   const ccfGroups = a.commonCauseFailureGroups.filter((g) => g.affectedSystems.includes(sysDef.uuid));
   const deps = a.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid);
 
@@ -169,8 +171,8 @@ function buildSystemReport(a: SystemsAnalysis, systemId: string, final: boolean)
   out.push(heading("Basic event data", HeadingLevel.HEADING_2));
   out.push(dataTable(
     ["Basic event", "Failure mode", "Probability"],
-    (logic?.basicEvents ?? []).length > 0
-      ? (logic?.basicEvents ?? []).map((e) => [e.uuid, String(e.failureMode ?? "—"), e.probability !== undefined ? e.probability.toExponential(1) : "—"])
+    logicBasicEvents.length > 0
+      ? logicBasicEvents.map((e) => [e.uuid, String(e.failureMode ?? "—"), e.probability !== undefined ? e.probability.toExponential(1) : "—"])
       : [["None", "—", "—"]],
   ));
 

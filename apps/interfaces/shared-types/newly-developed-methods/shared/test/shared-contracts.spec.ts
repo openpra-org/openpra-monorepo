@@ -100,8 +100,7 @@ describe("shared validation contracts", () => {
   };
   const result = {
     schemaVersion: "1.0.0",
-    modelId: MODEL_ID,
-    revision: 2,
+    owner: { workbookId: "sy-workbook", workbookRevision: 2, modelId: MODEL_ID },
     mode: "DRAFT",
     valid: true,
     issues: [warning],
@@ -160,8 +159,7 @@ describe("shared validation contracts", () => {
   it("reports draft errors without preventing the model from being saved", () => {
     const error = { ...warning, severity: "ERROR" as const };
     const outcome = createDraftValidationOutcome({
-      modelId: MODEL_ID,
-      revision: 2,
+      owner: result.owner,
       issues: [error],
       validatedAt: "2026-08-20T19:45:00.000Z",
     });
@@ -178,8 +176,7 @@ describe("shared validation contracts", () => {
   it("keeps warning-only and issue-free drafts valid and saveable", () => {
     for (const issues of [[warning], []]) {
       const outcome = createDraftValidationOutcome({
-        modelId: MODEL_ID,
-        revision: 2,
+        owner: result.owner,
         issues,
         validatedAt: "2026-08-20T19:45:00.000Z",
       });
@@ -200,8 +197,7 @@ describe("shared validation contracts", () => {
   it("blocks quantification when strict analysis-ready validation reports an error", () => {
     const error = { ...warning, severity: "ERROR" as const };
     const outcome = createAnalysisReadyValidationOutcome({
-      modelId: MODEL_ID,
-      revision: 2,
+      owner: result.owner,
       issues: [error],
       validatedAt: "2026-08-20T19:46:00.000Z",
     });
@@ -218,8 +214,7 @@ describe("shared validation contracts", () => {
   it("allows quantification after warning-only or clean analysis-ready validation", () => {
     for (const issues of [[warning], []]) {
       const outcome = createAnalysisReadyValidationOutcome({
-        modelId: MODEL_ID,
-        revision: 2,
+        owner: result.owner,
         issues,
         validatedAt: "2026-08-20T19:46:00.000Z",
       });
@@ -253,8 +248,8 @@ describe("shared analysis-run contracts", () => {
   const base = {
     schemaVersion: "1.0.0",
     id: RUN_ID,
-    modelId: MODEL_ID,
-    modelRevision: 3,
+    owner: { workbookId: "sy-workbook", workbookRevision: 3, modelId: MODEL_ID },
+    sourceWorkbooks: [{ workbookId: "sy-workbook", workbookRevision: 3 }],
     methodType: "FAULT_TREE",
     requestedBy: "analyst-1",
     requestedAt: "2026-08-20T19:45:00.000Z",
@@ -337,5 +332,33 @@ describe("shared analysis-run contracts", () => {
     },
   ])("rejects an invalid $status lifecycle", (run) => {
     expect(AnalysisRunMetadataSchema.safeParse(run).success).toBe(false);
+  });
+
+  it("requires one immutable source revision per contributing workbook including the owner", () => {
+    const queued = {
+      ...base,
+      status: "QUEUED",
+      startedAt: null,
+      completedAt: null,
+      engine: null,
+    };
+    expect(
+      AnalysisRunMetadataSchema.safeParse({ ...queued, sourceWorkbooks: [] }).success,
+    ).toBe(false);
+    expect(
+      AnalysisRunMetadataSchema.safeParse({
+        ...queued,
+        sourceWorkbooks: [{ workbookId: "other", workbookRevision: 1 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      AnalysisRunMetadataSchema.safeParse({
+        ...queued,
+        sourceWorkbooks: [
+          { workbookId: "sy-workbook", workbookRevision: 3 },
+          { workbookId: "sy-workbook", workbookRevision: 3 },
+        ],
+      }).success,
+    ).toBe(false);
   });
 });

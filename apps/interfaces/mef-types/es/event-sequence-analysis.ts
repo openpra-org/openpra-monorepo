@@ -4,6 +4,12 @@ import { ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId }
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type {
+  EventTreeCanvasLayout,
+  EventTreeInitiatingEventFrequency,
+  FaultTreeTopEventReference,
+  WorkbookEntityId,
+} from "../modeling";
 
 export type PlantOperatingStateReference = string;
 export type InitiatingEventReference = string;
@@ -262,6 +268,8 @@ export interface FunctionalEvent extends Unique, Named {
   description?: string;
   systemReference?: SystemReference;
   humanActionReference?: HumanActionReference;
+  faultTreeTopEvent?: FaultTreeTopEventReference;
+  /** @deprecated Retained only until the ES event-tree migration TODO resolves legacy links. */
   faultTreeId?: string;
 }
 
@@ -296,9 +304,11 @@ export interface EventTreeTransfer {
 export interface EventTree extends Unique, Named {
   label?: string;
   initiatingEventId: InitiatingEventReference;
+  initiatingEventFrequency?: EventTreeInitiatingEventFrequency;
   plantOperatingStateId?: PlantOperatingStateReference;
   functionalEvents: Record<string, FunctionalEvent>;
   sequences: Record<string, EventTreeSequence>;
+  endStateIds?: Partial<Record<EndState, WorkbookEntityId>>;
   branches: Record<string, EventTreeBranch>;
   initialState: {
     branchId: string;
@@ -308,6 +318,7 @@ export interface EventTree extends Unique, Named {
   mitigationStrategy?: string;
   missionTime?: number;
   missionTimeUnits?: string;
+  canvas?: EventTreeCanvasLayout;
   implementsSrs: SRReference[];
 }
 

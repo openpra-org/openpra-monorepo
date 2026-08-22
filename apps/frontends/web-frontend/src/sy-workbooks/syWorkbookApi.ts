@@ -8,6 +8,7 @@ interface SyWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
+  revision: number;
   mef: SystemsAnalysis;
   myRoles: SyWorkbookRoleName[];
   hasPreviousMef: boolean;
@@ -18,8 +19,16 @@ async function getSyWorkbook(workbookId: string): Promise<SyWorkbookResponse> {
   return fetchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`);
 }
 
-async function patchSyWorkbook(workbookId: string, current: SystemsAnalysis, mef: SystemsAnalysis): Promise<SyWorkbookResponse> {
-  return patchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+async function patchSyWorkbook(
+  workbookId: string,
+  expectedRevision: number,
+  current: SystemsAnalysis,
+  mef: SystemsAnalysis,
+): Promise<SyWorkbookResponse> {
+  return patchJson<SyWorkbookResponse>(`/api/sy-workbooks/${workbookId}`, {
+    expectedRevision,
+    operations: createWorkbookPatch(current, mef),
+  });
 }
 
 interface SyExampleOption {

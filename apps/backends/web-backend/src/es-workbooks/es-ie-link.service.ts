@@ -7,6 +7,11 @@ import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.
 import { Workbook, type WorkbookDocument } from "../workbooks/workbook.schema";
 import { IeWorkbook, type IeWorkbookDocument } from "../ie-workbooks/ie-workbook.schema";
 import { EsWorkbook, type EsWorkbookDocument } from "./es-workbook.schema";
+import {
+  createWorkbookRevisionFilter,
+  readWorkbookRevision,
+  workbookRevisionConflict,
+} from "../workbooks/workbook-revision";
 
 const EXAMPLE_SENTINEL = "example";
 
@@ -110,35 +115,65 @@ export class EsIeLinkService {
 
   async link(workbookId: string, ieWorkbookId: string, acting: ActingUser): Promise<EsIeLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
+    const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can link an IE workbook");
     const ie = await this.ieWorkbookModel.findOne({ workbookId: ieWorkbookId }).exec();
     if (!ie) throw new NotFoundException("IE workbook not found");
     if (ie.projectId !== es.projectId) throw new BadRequestException("IE workbook is in a different project");
     const initiators = this.collectImported(ie.mef as IeMefShape);
-    const esMef = es.mef as EsScopeShape;
-    esMef.scopeDefinition = {
-      ...esMef.scopeDefinition,
-      initiatingEventIds: initiators.map((i) => i.id),
+    const currentMef = es.mef as EsScopeShape;
+    const nextMef = {
+      ...currentMef,
+      scopeDefinition: {
+        ...currentMef.scopeDefinition,
+        initiatingEventIds: initiators.map((i) => i.id),
+      },
     };
-    es.mef = esMef;
-    es.linkedIeWorkbookId = ieWorkbookId;
-    await es.save();
+    const updated = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: nextMef,
+            linkedIeWorkbookId: ieWorkbookId,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return this.status(workbookId, acting);
   }
 
   async unlink(workbookId: string, acting: ActingUser): Promise<EsIeLinkStatus> {
     const es = await this.requireEs(workbookId, acting);
+    const expectedRevision = readWorkbookRevision(es);
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only preparers can unlink an IE workbook");
-    es.linkedIeWorkbookId = null;
-    const esMef = es.mef as EsScopeShape;
-    esMef.scopeDefinition = {
-      ...esMef.scopeDefinition,
-      initiatingEventIds: [],
+    const currentMef = es.mef as EsScopeShape;
+    const nextMef = {
+      ...currentMef,
+      scopeDefinition: {
+        ...currentMef.scopeDefinition,
+        initiatingEventIds: [],
+      },
     };
-    es.mef = esMef;
-    await es.save();
+    const updated = await this.esWorkbookModel
+      .findOneAndUpdate(
+        createWorkbookRevisionFilter(workbookId, expectedRevision),
+        {
+          $set: {
+            mef: nextMef,
+            linkedIeWorkbookId: null,
+            revision: expectedRevision + 1,
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw workbookRevisionConflict(expectedRevision);
     return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
   }
 }

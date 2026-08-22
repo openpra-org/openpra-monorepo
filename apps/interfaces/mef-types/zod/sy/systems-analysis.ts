@@ -12,6 +12,10 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import {
+  normalizeSystemsAnalysisBasicEventCatalogue,
+  systemFaultTreeBasicEventIds,
+} from "../../sy/system-models";
 
 export const SyDependencyTypeSchema = z.enum(DependencyType);
 export const SyFailureModeTypeSchema = z.enum(FailureModeType);
@@ -168,33 +172,42 @@ export const SystemConfirmationRecordSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(() =>
+export const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(() =>
   z.union([
-    z.object({ id: z.string(), type: z.enum(["OR", "AND", "KN"]), name: z.string(), k: z.number().optional(), children: z.array(SystemFaultTreeNodeSchema) }),
-    z.object({ id: z.string(), type: z.literal("BE"), name: z.string(), be: z.string(), mode: z.string(), source: z.string(), prob: z.string(), ccf: z.boolean().optional() }),
-    z.object({ id: z.string(), type: z.literal("TR"), name: z.string(), transfer: z.string() }),
+    z
+      .object({
+        id: z.string(),
+        type: z.enum(["OR", "AND", "KN"]),
+        name: z.string(),
+        k: z.number().optional(),
+        children: z.array(SystemFaultTreeNodeSchema),
+      })
+      .strict(),
+    z.object({ id: z.string(), type: z.literal("BE"), basicEventId: z.string() }).strict(),
+    z.object({ id: z.string(), type: z.literal("TR"), name: z.string(), transfer: z.string() }).strict(),
   ]),
 );
 
-export const SystemLogicModelSchema = z.object({
-  uuid: z.string(),
-  systemReference: z.string(),
-  description: z.string(),
-  modelRepresentation: z.string(),
-  faultTree: SystemFaultTreeNodeSchema.optional(),
-  basicEvents: z.array(SystemBasicEventSchema),
-  nonDetailedModelJustification: z.string().optional(),
-  logicLoopResolutions: z
-    .array(
-      z.object({
-        loopId: z.string(),
-        resolution: z.string(),
-      }),
-    )
-    .optional(),
-  nomenclature: z.record(z.string(), z.string()).optional(),
-  implementsSrs: z.array(SRReferenceSchema),
-});
+export const SystemLogicModelSchema = z
+  .object({
+    uuid: z.string(),
+    systemReference: z.string(),
+    description: z.string(),
+    modelRepresentation: z.string(),
+    faultTree: SystemFaultTreeNodeSchema.optional(),
+    nonDetailedModelJustification: z.string().optional(),
+    logicLoopResolutions: z
+      .array(
+        z.object({
+          loopId: z.string(),
+          resolution: z.string(),
+        }),
+      )
+      .optional(),
+    nomenclature: z.record(z.string(), z.string()).optional(),
+    implementsSrs: z.array(SRReferenceSchema),
+  })
+  .strict();
 
 export const DigitalInstrumentationAndControlSchema = z.object({
   uuid: z.string(),
@@ -624,13 +637,13 @@ export const SyDocumentationSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
-export const SystemsAnalysisSchema = z.object({
+const CanonicalSystemsAnalysisSchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.SYSTEMS_ANALYSIS).shape,
   praScope: z.string(),
   systemDefinitions: z.array(SystemDefinitionSchema),
   systemToSafetyFunctionMappings: z.array(SystemToSafetyFunctionMappingSchema),
   systemLogicModels: z.array(SystemLogicModelSchema),
-  systemBasicEvents: z.array(SystemBasicEventSchema).optional(),
+  systemBasicEvents: z.array(SystemBasicEventSchema),
   variableSuccessCriteria: z.array(VariableSuccessCriterionSchema).optional(),
   systemConfirmationRecords: z.array(SystemConfirmationRecordSchema).optional(),
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
@@ -693,7 +706,35 @@ export const SystemsAnalysisSchema = z.object({
     linked: z.number(),
     url: z.string().optional(),
   })).optional(),
+}).superRefine((analysis, context) => {
+  const catalogueIds = new Set<string>();
+  analysis.systemBasicEvents.forEach((event, eventIndex) => {
+    if (catalogueIds.has(event.uuid)) {
+      context.addIssue({
+        code: "custom",
+        path: ["systemBasicEvents", eventIndex, "uuid"],
+        message: `Basic-event id ${event.uuid} is duplicated in the workbook catalogue`,
+      });
+    }
+    catalogueIds.add(event.uuid);
+  });
+
+  analysis.systemLogicModels.forEach((model, modelIndex) => {
+    systemFaultTreeBasicEventIds(model.faultTree).forEach((basicEventId) => {
+      if (catalogueIds.has(basicEventId)) return;
+      context.addIssue({
+        code: "custom",
+        path: ["systemLogicModels", modelIndex, "faultTree"],
+        message: `Fault-tree basic-event reference ${basicEventId} does not resolve in systemBasicEvents`,
+      });
+    });
+  });
 });
+
+export const SystemsAnalysisSchema = z.preprocess(
+  normalizeSystemsAnalysisBasicEventCatalogue,
+  CanonicalSystemsAnalysisSchema,
+);
 
 type Expect<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;

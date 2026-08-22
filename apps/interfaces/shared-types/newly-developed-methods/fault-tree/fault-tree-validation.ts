@@ -7,10 +7,13 @@ import type {
   DraftValidationOutcome,
   MethodEntityReference,
   ValidationIssue,
+  WorkbookId,
+  WorkbookModelSnapshotIdentity,
 } from "../shared";
 import type { FaultTreeBasicEventCatalogue, FaultTreeModel } from "./fault-tree-model";
 
 interface FaultTreeValidationContext {
+  workbookId?: WorkbookId;
   basicEventCatalogue?: FaultTreeBasicEventCatalogue;
   availableTransferTargets?: MethodEntityReference[];
   faultTreeModels?: FaultTreeModel[];
@@ -23,7 +26,7 @@ const validateFaultTreeTopGate = (model: FaultTreeModel): ValidationIssue[] => {
         code: "FT_TOP_GATE_REQUIRED",
         severity: "ERROR",
         message: "The fault tree must define one top gate",
-        entityId: model.id,
+        entityId: model.modelId,
         fieldPath: ["topGate"],
       },
     ];
@@ -310,7 +313,7 @@ const validateFaultTreeProbabilitiesAndTransfers = (
           severity: "ERROR",
           message:
             matches.length === 0
-              ? "Basic-event reference does not resolve in the project catalogue"
+              ? "Basic-event reference does not resolve in the workbook catalogue"
               : "Basic-event reference resolves to more than one catalogue entry",
           entityId: leaf.id,
           fieldPath: ["leafNodes", leafIndex, "basicEventId"],
@@ -318,11 +321,11 @@ const validateFaultTreeProbabilitiesAndTransfers = (
         return;
       }
 
-      if (catalogue?.projectId !== model.projectId) {
+      if (context.workbookId !== undefined && catalogue?.workbookId !== context.workbookId) {
         issues.push({
-          code: "FT_BASIC_EVENT_CATALOGUE_PROJECT_MISMATCH",
+          code: "FT_BASIC_EVENT_CATALOGUE_WORKBOOK_MISMATCH",
           severity: "ERROR",
-          message: "Basic-event catalogue must belong to the same project as the fault tree",
+          message: "Basic-event catalogue must belong to the fault tree's workbook",
           entityId: leaf.id,
           fieldPath: ["leafNodes", leafIndex, "basicEventId"],
         });
@@ -381,22 +384,22 @@ const validateFaultTreeTransferCycles = (
   const issueTransferIds = new Set<string>();
   const modelsById = new Map<string, FaultTreeModel>();
   for (const availableModel of context.faultTreeModels ?? []) {
-    modelsById.set(availableModel.id, availableModel);
+    modelsById.set(availableModel.modelId, availableModel);
   }
-  modelsById.set(model.id, model);
+  modelsById.set(model.modelId, model);
 
   const outgoingByModel = new Map<string, FaultTreeTransferEdge[]>();
   for (const availableModel of modelsById.values()) {
     availableModel.leafNodes.forEach((leaf, leafIndex) => {
       if (leaf.kind !== "TRANSFER_REFERENCE" || !modelsById.has(leaf.target.modelId)) return;
-      const edges = outgoingByModel.get(availableModel.id) ?? [];
+      const edges = outgoingByModel.get(availableModel.modelId) ?? [];
       edges.push({
-        sourceModelId: availableModel.id,
+        sourceModelId: availableModel.modelId,
         targetModelId: leaf.target.modelId,
         transferId: leaf.id,
         leafIndex,
       });
-      outgoingByModel.set(availableModel.id, edges);
+      outgoingByModel.set(availableModel.modelId, edges);
     });
   }
 
@@ -434,7 +437,7 @@ const validateFaultTreeTransferCycles = (
     state.set(modelId, "VISITED");
   };
 
-  visit(model.id);
+  visit(model.modelId);
   return issues;
 };
 
@@ -497,25 +500,25 @@ const validateFaultTreeModel = (
 
 const validateFaultTreeDraft = (
   model: FaultTreeModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: FaultTreeValidationContext = {},
 ): DraftValidationOutcome =>
   createDraftValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
-    issues: validateFaultTreeModel(model, context),
+    owner,
+    issues: validateFaultTreeModel(model, { ...context, workbookId: owner.workbookId }),
     validatedAt,
   });
 
 const validateFaultTreeAnalysisReady = (
   model: FaultTreeModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: FaultTreeValidationContext = {},
 ): AnalysisReadyValidationOutcome =>
   createAnalysisReadyValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
-    issues: validateFaultTreeModel(model, context),
+    owner,
+    issues: validateFaultTreeModel(model, { ...context, workbookId: owner.workbookId }),
     validatedAt,
   });
 

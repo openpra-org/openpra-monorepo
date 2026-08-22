@@ -1,11 +1,18 @@
 import { createAnalysisReadyValidationOutcome, createDraftValidationOutcome } from "../shared";
-import type { AnalysisReadyValidationOutcome, DraftValidationOutcome, ValidationIssue } from "../shared";
+import type {
+  AnalysisReadyValidationOutcome,
+  DraftValidationOutcome,
+  ValidationIssue,
+  WorkbookId,
+  WorkbookModelSnapshotIdentity,
+} from "../shared";
 import type { HclEventBinding } from "../hybrid-causal-logic/hcl-bindings";
 import type { BayesianNetworkEvidenceConfiguration, BayesianNetworkModel } from "./bayesian-network-model";
 
 interface BayesianNetworkValidationContext {
   evidence?: BayesianNetworkEvidenceConfiguration;
   hclBindings?: HclEventBinding[];
+  workbookId?: WorkbookId;
 }
 
 const validateBayesianNetworkIdentity = (model: BayesianNetworkModel): ValidationIssue[] => {
@@ -488,11 +495,15 @@ const validateBayesianNetworkEvidence = (
 const validateBayesianNetworkHclBindings = (
   model: BayesianNetworkModel,
   bindings: HclEventBinding[],
+  workbookId?: WorkbookId,
 ): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
 
   bindings.forEach((binding, bindingIndex) => {
-    if (binding.bayesianNetworkNode.modelId !== model.id) {
+    if (
+      binding.bayesianNetworkNode.modelId !== model.modelId ||
+      (workbookId !== undefined && binding.bayesianNetworkNode.workbookId !== workbookId)
+    ) {
       issues.push({
         code: "BN_HCL_MODEL_MISMATCH",
         severity: "ERROR",
@@ -584,30 +595,32 @@ const validateBayesianNetworkModel = (
   ...validateBayesianNetworkGraph(model),
   ...validateBayesianNetworkCpts(model),
   ...(context.evidence === undefined ? [] : validateBayesianNetworkEvidence(model, context.evidence)),
-  ...(context.hclBindings === undefined ? [] : validateBayesianNetworkHclBindings(model, context.hclBindings)),
+  ...(context.hclBindings === undefined
+    ? []
+    : validateBayesianNetworkHclBindings(model, context.hclBindings, context.workbookId)),
 ];
 
 const validateBayesianNetworkDraft = (
   model: BayesianNetworkModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: BayesianNetworkValidationContext = {},
 ): DraftValidationOutcome =>
   createDraftValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
-    issues: validateBayesianNetworkModel(model, context),
+    owner,
+    issues: validateBayesianNetworkModel(model, { ...context, workbookId: owner.workbookId }),
     validatedAt,
   });
 
 const validateBayesianNetworkAnalysisReady = (
   model: BayesianNetworkModel,
+  owner: WorkbookModelSnapshotIdentity,
   validatedAt: string,
   context: BayesianNetworkValidationContext = {},
 ): AnalysisReadyValidationOutcome =>
   createAnalysisReadyValidationOutcome({
-    modelId: model.id,
-    revision: model.revision,
-    issues: validateBayesianNetworkModel(model, context),
+    owner,
+    issues: validateBayesianNetworkModel(model, { ...context, workbookId: owner.workbookId }),
     validatedAt,
   });
 

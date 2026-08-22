@@ -61,21 +61,33 @@ export class WorkbookWorkflowService {
     return wb;
   }
 
-  private async loadAuthorize(workbookId: string, acting: ActingUser): Promise<{ wb: WorkbookDocument; mef: MefShape; myRoles: WorkbookRoleName[] }> {
+  private async loadAuthorize(workbookId: string, acting: ActingUser): Promise<{
+    wb: WorkbookDocument;
+    mef: MefShape;
+    myRoles: WorkbookRoleName[];
+    revision?: number;
+  }> {
     const wb = await this.requireWorkbook(workbookId);
     await this.projectsService.resolveAccess(wb.projectId, acting);
     const adapter = this.registry.get(wb.elementCode);
     const loaded = await adapter.load(workbookId);
     if (loaded === null) throw new NotFoundException("Workbook content not found");
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    return { wb, mef: loaded.mef as MefShape, myRoles };
+    return { wb, mef: loaded.mef as MefShape, myRoles, revision: loaded.revision };
   }
 
   private async assignedUsernames(workbookId: string, role: WorkbookRoleName): Promise<string[]> {
     return this.rolesService.assignedUsernamesFor(workbookId, role);
   }
 
-  private async transition(wb: WorkbookDocument, mef: MefShape, nextState: string, actor: string, note: string): Promise<unknown> {
+  private async transition(
+    wb: WorkbookDocument,
+    mef: MefShape,
+    nextState: string,
+    actor: string,
+    note: string,
+    expectedRevision?: number,
+  ): Promise<unknown> {
     const now = new Date().toISOString();
     const history = mef.workflowHistory ?? [];
     if (history.length > 0) {
@@ -85,7 +97,7 @@ export class WorkbookWorkflowService {
     history.push({ state: nextState, enteredAt: now, actor, note });
     mef.workflowState = nextState;
     mef.workflowHistory = history;
-    return this.registry.get(wb.elementCode).save(wb.id, mef);
+    return this.registry.get(wb.elementCode).save(wb.id, mef, expectedRevision);
   }
 
   async status(workbookId: string, acting: ActingUser): Promise<WorkbookWorkflowStatus> {
@@ -147,7 +159,13 @@ export class WorkbookWorkflowService {
     return comments.filter((c) => c.authorId === username && c.resolved !== true).length;
   }
 
-  private async maybeAdvanceFromInternalApproval(wb: WorkbookDocument, mef: MefShape, workbookId: string, actor: string): Promise<unknown> {
+  private async maybeAdvanceFromInternalApproval(
+    wb: WorkbookDocument,
+    mef: MefShape,
+    workbookId: string,
+    actor: string,
+    expectedRevision?: number,
+  ): Promise<unknown> {
     const approvers = await this.assignedUsernames(workbookId, "approver");
     const preparers = await this.assignedUsernames(workbookId, "preparer");
     const coPreparers = await this.assignedUsernames(workbookId, "co_preparer");
@@ -156,7 +174,14 @@ export class WorkbookWorkflowService {
     const allPreparersSigned = preparers.every((u) => signoffs.some((s) => s.username === u && s.role === "preparer"));
     const allCoPreparersSigned = coPreparers.every((u) => signoffs.some((s) => s.username === u && s.role === "co_preparer"));
     if (allApproversSigned && allPreparersSigned && allCoPreparersSigned) {
-      return this.transition(wb, mef, "FINAL", actor, "All signoffs collected; workbook finalized");
+      return this.transition(
+        wb,
+        mef,
+        "FINAL",
+        actor,
+        "All signoffs collected; workbook finalized",
+        expectedRevision,
+      );
     }
     return mef;
   }
@@ -164,18 +189,19 @@ export class WorkbookWorkflowService {
   async signAs(workbookId: string, role: WorkbookSignoffRole, acting: ActingUser, signatureDataUrl?: string): Promise<unknown> {
     if (role === "reviewer") return this.signReview(workbookId, acting, signatureDataUrl);
     if (role === "approver") return this.signApproval(workbookId, acting, signatureDataUrl);
-    const { wb, mef, myRoles } = await this.loadAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAuthorize(workbookId, acting);
     if (role === "preparer" && !myRoles.includes("preparer")) throw new ForbiddenException("You are not a preparer on this workbook");
     if (role === "co_preparer" && !myRoles.includes("co_preparer")) throw new ForbiddenException("You are not a co-preparer on this workbook");
     if (mef.workflowState !== "INTERNAL_APPROVAL") throw new BadRequestException("Preparer signoffs are collected during internal approval");
     const existing = await this.signoffModel.findOne({ workbookId, username: acting.username, role }).exec();
-    if (existing) throw new BadRequestException(`You already signed off as ${role}`);
-    await this.signoffModel.create({ workbookId, username: acting.username, role, workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
-    return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username);
+    if (!existing) {
+      await this.signoffModel.create({ workbookId, username: acting.username, role, workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
+    }
+    return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username, revision);
   }
 
   async submitForReview(workbookId: string, acting: ActingUser): Promise<unknown> {
-    const { wb, mef, myRoles } = await this.loadAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAuthorize(workbookId, acting);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only a preparer can submit the workbook for review");
     if (mef.workflowState !== "DRAFT" && mef.workflowState !== "REVISION_REQUIRED") {
       throw new BadRequestException(`Cannot submit for review from state ${mef.workflowState}`);
@@ -187,7 +213,14 @@ export class WorkbookWorkflowService {
     const reviewers = await this.assignedUsernames(workbookId, "reviewer");
     if (reviewers.length === 0) throw new BadRequestException("Assign at least one reviewer before submitting");
     await this.signoffModel.deleteMany({ workbookId }).exec();
-    return this.transition(wb, mef, "INTERNAL_TECHNICAL_REVIEW", acting.username, "Submitted for internal technical review");
+    return this.transition(
+      wb,
+      mef,
+      "INTERNAL_TECHNICAL_REVIEW",
+      acting.username,
+      "Submitted for internal technical review",
+      revision,
+    );
   }
 
   async signReview(workbookId: string, acting: ActingUser, signatureDataUrl?: string): Promise<unknown> {
@@ -203,19 +236,20 @@ export class WorkbookWorkflowService {
   }
 
   async signApproval(workbookId: string, acting: ActingUser, signatureDataUrl?: string): Promise<unknown> {
-    const { wb, mef, myRoles } = await this.loadAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAuthorize(workbookId, acting);
     if (!myRoles.includes("approver")) throw new ForbiddenException("You are not an approver on this workbook");
     if (mef.workflowState !== "INTERNAL_APPROVAL") throw new BadRequestException("Approver signoff is collected during internal approval");
     const openMine = this.unresolvedCommentsAuthoredBy(mef, acting.username);
     if (openMine > 0) throw new BadRequestException(`You have ${openMine} unresolved comment${openMine === 1 ? "" : "s"} to address before signing`);
     const existing = await this.signoffModel.findOne({ workbookId, username: acting.username, role: "approver" }).exec();
-    if (existing) throw new BadRequestException("You already signed off as an approver");
-    await this.signoffModel.create({ workbookId, username: acting.username, role: "approver", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
-    return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username);
+    if (!existing) {
+      await this.signoffModel.create({ workbookId, username: acting.username, role: "approver", workflowState: mef.workflowState, signatureDataUrl: signatureDataUrl ?? null });
+    }
+    return this.maybeAdvanceFromInternalApproval(wb, mef, workbookId, acting.username, revision);
   }
 
   async submitToApprover(workbookId: string, acting: ActingUser): Promise<unknown> {
-    const { wb, mef, myRoles } = await this.loadAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAuthorize(workbookId, acting);
     if (!myRoles.includes("preparer") && !myRoles.includes("co_preparer")) throw new ForbiddenException("Only a preparer can submit to the approver");
     if (mef.workflowState !== "INTERNAL_TECHNICAL_REVIEW") throw new BadRequestException("Can only submit to approver during internal technical review");
     const reviewers = await this.assignedUsernames(workbookId, "reviewer");
@@ -225,11 +259,18 @@ export class WorkbookWorkflowService {
     if (!allReviewersSigned) throw new BadRequestException("All reviewers must sign before submitting to the approver");
     const approvers = await this.assignedUsernames(workbookId, "approver");
     if (approvers.length === 0) throw new BadRequestException("Assign at least one approver before submitting");
-    return this.transition(wb, mef, "INTERNAL_APPROVAL", acting.username, "All reviewers signed; submitted to approver for final approval");
+    return this.transition(
+      wb,
+      mef,
+      "INTERNAL_APPROVAL",
+      acting.username,
+      "All reviewers signed; submitted to approver for final approval",
+      revision,
+    );
   }
 
   async requestRevision(workbookId: string, note: string, acting: ActingUser): Promise<unknown> {
-    const { wb, mef, myRoles } = await this.loadAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAuthorize(workbookId, acting);
     if (!myRoles.includes("reviewer") && !myRoles.includes("approver")) {
       throw new ForbiddenException("Only reviewers or approvers can request revision");
     }
@@ -237,7 +278,14 @@ export class WorkbookWorkflowService {
       throw new BadRequestException("Revision can only be requested during review or approval");
     }
     await this.signoffModel.deleteMany({ workbookId }).exec();
-    return this.transition(wb, mef, "REVISION_REQUIRED", acting.username, note.length > 0 ? note : "Revision requested");
+    return this.transition(
+      wb,
+      mef,
+      "REVISION_REQUIRED",
+      acting.username,
+      note.length > 0 ? note : "Revision requested",
+      revision,
+    );
   }
 
   async awaitingMe(acting: ActingUser): Promise<{ workbookId: string; projectId: string; workflowState: string; pendingAction: string }[]> {

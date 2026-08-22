@@ -39,18 +39,10 @@ const sequence = {
 } as const;
 
 const model = {
-  schemaVersion: "1.0.0",
-  id: MODEL_ID,
-  projectId: "project-mhtgr",
-  methodType: "EVENT_TREE",
+  modelId: MODEL_ID,
   code: "ET-EHP",
   name: "Event tree EHP",
   description: "Event-tree model.",
-  revision: 1,
-  createdBy: "analyst-1",
-  createdAt: "2026-08-20T14:00:00.000Z",
-  updatedBy: "analyst-1",
-  updatedAt: "2026-08-20T14:00:00.000Z",
   initiatingEvent: {
     target: { modelId: INITIATING_MODEL_ID, entityId: INITIATING_EVENT_ID },
   },
@@ -85,8 +77,8 @@ const model = {
 const queuedRun = {
   schemaVersion: "1.0.0",
   id: RUN_ID,
-  modelId: MODEL_ID,
-  modelRevision: 1,
+  owner: { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID },
+  sourceWorkbooks: [{ workbookId: "es-workbook", workbookRevision: 1 }],
   methodType: "EVENT_TREE",
   status: "QUEUED",
   requestedBy: "analyst-1",
@@ -99,17 +91,18 @@ const queuedRun = {
 describe("Event-tree model and create contracts", () => {
   const createRequest = {
     schemaVersion: "1.0.0",
-    projectId: "project-mhtgr",
+    modelId: MODEL_ID,
     code: "ET-EHP",
     name: "Event tree EHP",
     description: "Event-tree model.",
-    createdBy: "analyst-1",
   };
 
   it("accepts a versioned Event Tree model and create request/result", () => {
     expect(EventTreeModelSchema.safeParse(model).success).toBe(true);
     expect(EventTreeCreateRequestSchema.safeParse(createRequest).success).toBe(true);
-    expect(EventTreeCreateResultSchema.safeParse({ schemaVersion: "1.0.0", model }).success).toBe(true);
+    expect(
+      EventTreeCreateResultSchema.safeParse({ schemaVersion: "1.0.0", workbookRevision: 2, model }).success,
+    ).toBe(true);
   });
 
   it("allows a draft without an initiating event or frequency", () => {
@@ -124,18 +117,21 @@ describe("Event-tree model and create contracts", () => {
 
   it.each([
     { ...createRequest, schemaVersion: "2.0.0" },
-    { ...createRequest, projectId: "" },
+    { ...createRequest, modelId: "ET-1" },
     { ...createRequest, code: "" },
-    { ...createRequest, createdBy: "   " },
+    { ...createRequest, projectId: "project-mhtgr" },
+    { ...createRequest, createdBy: "analyst-1" },
     { ...createRequest, id: MODEL_ID },
   ])("rejects malformed create request %#", (candidate) => {
     expect(EventTreeCreateRequestSchema.safeParse(candidate).success).toBe(false);
   });
 
   it.each([
-    { ...model, methodType: "FAULT_TREE" },
+    { ...model, methodType: "EVENT_TREE" },
     { ...model, schemaVersion: "2.0.0" },
     { ...model, revision: 0 },
+    { ...model, id: MODEL_ID },
+    { ...model, projectId: "project-mhtgr" },
     { ...model, initiatingEventFrequency: { value: -0.001 } },
     { ...model, localState: true },
   ])("rejects malformed model %#", (candidate) => {
@@ -147,8 +143,7 @@ describe("Event-tree patch contract", () => {
   const patchRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    expectedRevision: 1,
-    updatedBy: "analyst-2",
+    expectedWorkbookRevision: 1,
     changes: { name: "Renamed event tree" },
   };
 
@@ -157,7 +152,8 @@ describe("Event-tree patch contract", () => {
     expect(
       EventTreePatchResultSchema.safeParse({
         schemaVersion: "1.0.0",
-        model: { ...model, revision: 2, name: patchRequest.changes.name },
+        workbookRevision: 2,
+        model: { ...model, name: patchRequest.changes.name },
       }).success,
     ).toBe(true);
   });
@@ -171,8 +167,9 @@ describe("Event-tree patch contract", () => {
   it.each([
     { ...patchRequest, schemaVersion: "2.0.0" },
     { ...patchRequest, modelId: "ET-1" },
-    { ...patchRequest, expectedRevision: 0 },
-    { ...patchRequest, updatedBy: "" },
+    { ...patchRequest, expectedWorkbookRevision: 0 },
+    { ...patchRequest, expectedRevision: 1 },
+    { ...patchRequest, updatedBy: "analyst-2" },
     { ...patchRequest, changes: {} },
     { ...patchRequest, changes: { unknownField: true } },
   ])("rejects malformed patch %#", (candidate) => {
@@ -184,14 +181,12 @@ describe("Event-tree validation contracts", () => {
   const validateRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    revision: 1,
+    workbookRevision: 1,
     mode: "ANALYSIS_READY",
-    requestedBy: "analyst-1",
   };
   const validation = {
     schemaVersion: "1.0.0",
-    modelId: MODEL_ID,
-    revision: 1,
+    owner: { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID },
     mode: "ANALYSIS_READY",
     valid: true,
     issues: [],
@@ -205,9 +200,10 @@ describe("Event-tree validation contracts", () => {
 
   it.each([
     { ...validateRequest, schemaVersion: "2.0.0" },
-    { ...validateRequest, revision: 0 },
+    { ...validateRequest, workbookRevision: 0 },
+    { ...validateRequest, revision: 1 },
     { ...validateRequest, mode: "PUBLISH" },
-    { ...validateRequest, requestedBy: "" },
+    { ...validateRequest, requestedBy: "analyst-1" },
   ])("rejects malformed validate request %#", (candidate) => {
     expect(EventTreeValidateRequestSchema.safeParse(candidate).success).toBe(false);
   });
@@ -217,15 +213,13 @@ describe("Event-tree execution and analysis-result contracts", () => {
   const executeRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    revision: 1,
+    workbookRevision: 1,
     mode: "INDEPENDENT",
-    requestedBy: "analyst-1",
   };
   const analysisResult = {
     schemaVersion: "1.0.0",
     runId: RUN_ID,
-    modelId: MODEL_ID,
-    modelRevision: 1,
+    owner: { workbookId: "es-workbook", workbookRevision: 1, modelId: MODEL_ID },
     mode: "INDEPENDENT",
     sequences: [
       {
@@ -253,9 +247,10 @@ describe("Event-tree execution and analysis-result contracts", () => {
   it.each([
     { ...executeRequest, schemaVersion: "2.0.0" },
     { ...executeRequest, modelId: "ET-1" },
-    { ...executeRequest, revision: 0 },
+    { ...executeRequest, workbookRevision: 0 },
+    { ...executeRequest, revision: 1 },
     { ...executeRequest, mode: "MARGINAL_ONLY" },
-    { ...executeRequest, requestedBy: "" },
+    { ...executeRequest, requestedBy: "analyst-1" },
     { ...executeRequest, solverBackend: "PRAXIS" },
   ])("rejects malformed execute request %#", (candidate) => {
     expect(EventTreeExecuteRequestSchema.safeParse(candidate).success).toBe(false);
@@ -272,7 +267,7 @@ describe("Event-tree execution and analysis-result contracts", () => {
 
   it.each([
     { ...analysisResult, schemaVersion: "2.0.0" },
-    { ...analysisResult, modelRevision: 0 },
+    { ...analysisResult, owner: { ...analysisResult.owner, workbookRevision: 0 } },
     { ...analysisResult, mode: "MARGINAL_ONLY" },
     {
       ...analysisResult,

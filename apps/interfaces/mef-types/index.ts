@@ -10,3 +10,4 @@ export * from "./cross-cutting/pra-configuration-control";
 export * from "./cross-cutting/newly-developed-methods";
 export * from "./workflows/peer-review";
 export * from "./workflows/audit";
+export * from "./modeling";

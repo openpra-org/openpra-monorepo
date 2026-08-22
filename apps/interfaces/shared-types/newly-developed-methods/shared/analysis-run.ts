@@ -1,9 +1,10 @@
 import { z } from "zod";
 import {
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
   MethodTypeSchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookSnapshotIdentitySchema,
 } from "./method-model";
+import { WorkbookMethodHostTypeSchema } from "./workbook-dependencies";
 
 const CURRENT_ANALYSIS_RUN_SCHEMA_VERSION = "1.0.0" as const;
 const AnalysisRunSchemaVersionSchema = z.literal(CURRENT_ANALYSIS_RUN_SCHEMA_VERSION);
@@ -26,12 +27,83 @@ const AnalysisRunFailureSchema = z
 
 const OptionalRunTimestampSchema = z.string().datetime({ offset: true }).nullable();
 
+const AnalysisRunWorkbookSnapshotSchema = z
+  .object({
+    hostType: WorkbookMethodHostTypeSchema,
+    identity: WorkbookSnapshotIdentitySchema,
+    mef: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+
+const AnalysisRunWorkbookSnapshotsSchema = z
+  .array(AnalysisRunWorkbookSnapshotSchema)
+  .min(1, "At least one immutable workbook snapshot is required")
+  .superRefine((snapshots, context) => {
+    const workbookIds = new Set<string>();
+    snapshots.forEach((snapshot, index) => {
+      if (workbookIds.has(snapshot.identity.workbookId)) {
+        context.addIssue({
+          code: "custom",
+          path: [index, "identity", "workbookId"],
+          message: "Each workbook can have only one immutable run snapshot",
+        });
+      }
+      workbookIds.add(snapshot.identity.workbookId);
+    });
+  });
+
+const ImmutableAnalysisRunContextSchema = z
+  .object({
+    owner: WorkbookModelSnapshotIdentitySchema,
+    sourceWorkbooks: z.array(WorkbookSnapshotIdentitySchema).min(1),
+    workbookSnapshots: AnalysisRunWorkbookSnapshotsSchema,
+  })
+  .strict()
+  .superRefine((context, refinement) => {
+    const sourceRevisions = new Map(
+      context.sourceWorkbooks.map((source) => [source.workbookId, source.workbookRevision]),
+    );
+    if (sourceRevisions.size !== context.sourceWorkbooks.length) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["sourceWorkbooks"],
+        message: "Contributing workbook identities must be unique",
+      });
+    }
+    if (sourceRevisions.get(context.owner.workbookId) !== context.owner.workbookRevision) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["owner"],
+        message: "Owner workbook revision must be included in the contributing sources",
+      });
+    }
+
+    const snapshotRevisions = new Map(
+      context.workbookSnapshots.map((snapshot) => [
+        snapshot.identity.workbookId,
+        snapshot.identity.workbookRevision,
+      ]),
+    );
+    if (
+      sourceRevisions.size !== snapshotRevisions.size ||
+      [...sourceRevisions].some(
+        ([workbookId, workbookRevision]) => snapshotRevisions.get(workbookId) !== workbookRevision,
+      )
+    ) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["workbookSnapshots"],
+        message: "Immutable snapshots must exactly match all contributing workbook revisions",
+      });
+    }
+  });
+
 const AnalysisRunMetadataSchema = z
   .object({
     schemaVersion: AnalysisRunSchemaVersionSchema,
     id: AnalysisRunIdSchema,
-    modelId: MethodModelIdSchema,
-    modelRevision: MethodModelRevisionSchema,
+    owner: WorkbookModelSnapshotIdentitySchema,
+    sourceWorkbooks: z.array(WorkbookSnapshotIdentitySchema).min(1),
     methodType: MethodTypeSchema,
     status: AnalysisRunStatusSchema,
     requestedBy: z.string().trim().min(1, "Requester id is required"),
@@ -42,6 +114,27 @@ const AnalysisRunMetadataSchema = z
     failure: AnalysisRunFailureSchema.nullable().optional(),
   })
   .superRefine((run, context) => {
+    const sourceRevisions = new Map<string, number>();
+    run.sourceWorkbooks.forEach((source, index) => {
+      const priorRevision = sourceRevisions.get(source.workbookId);
+      if (priorRevision !== undefined) {
+        context.addIssue({
+          code: "custom",
+          path: ["sourceWorkbooks", index, "workbookId"],
+          message: "Each contributing workbook must appear exactly once",
+        });
+      } else {
+        sourceRevisions.set(source.workbookId, source.workbookRevision);
+      }
+    });
+    if (sourceRevisions.get(run.owner.workbookId) !== run.owner.workbookRevision) {
+      context.addIssue({
+        code: "custom",
+        path: ["sourceWorkbooks"],
+        message: "Source workbooks must include the owner workbook snapshot",
+      });
+    }
+
     if (run.status === "QUEUED" && (run.startedAt !== null || run.completedAt !== null || run.engine !== null)) {
       context.addIssue({
         code: "custom",
@@ -113,7 +206,21 @@ type AnalysisRunId = z.infer<typeof AnalysisRunIdSchema>;
 type AnalysisRunStatus = z.infer<typeof AnalysisRunStatusSchema>;
 type AnalysisEngineMetadata = z.infer<typeof AnalysisEngineMetadataSchema>;
 type AnalysisRunFailure = z.infer<typeof AnalysisRunFailureSchema>;
+type AnalysisRunWorkbookSnapshot = z.infer<typeof AnalysisRunWorkbookSnapshotSchema>;
+type AnalysisRunWorkbookSnapshots = z.infer<typeof AnalysisRunWorkbookSnapshotsSchema>;
+type ImmutableAnalysisRunContext = z.infer<typeof ImmutableAnalysisRunContextSchema>;
 type AnalysisRunMetadata = z.infer<typeof AnalysisRunMetadataSchema>;
+
+const freezeRecursively = <T>(value: T): T => {
+  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
+  Object.values(value).forEach((entry) => freezeRecursively(entry));
+  return Object.freeze(value);
+};
+
+const createImmutableAnalysisRunContext = (
+  input: ImmutableAnalysisRunContext,
+): ImmutableAnalysisRunContext =>
+  freezeRecursively(ImmutableAnalysisRunContextSchema.parse(input));
 
 export {
   CURRENT_ANALYSIS_RUN_SCHEMA_VERSION,
@@ -122,7 +229,11 @@ export {
   AnalysisRunStatusSchema,
   AnalysisEngineMetadataSchema,
   AnalysisRunFailureSchema,
+  AnalysisRunWorkbookSnapshotSchema,
+  AnalysisRunWorkbookSnapshotsSchema,
+  ImmutableAnalysisRunContextSchema,
   AnalysisRunMetadataSchema,
+  createImmutableAnalysisRunContext,
 };
 export type {
   AnalysisRunSchemaVersion,
@@ -130,5 +241,8 @@ export type {
   AnalysisRunStatus,
   AnalysisEngineMetadata,
   AnalysisRunFailure,
+  AnalysisRunWorkbookSnapshot,
+  AnalysisRunWorkbookSnapshots,
+  ImmutableAnalysisRunContext,
   AnalysisRunMetadata,
 };

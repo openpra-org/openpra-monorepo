@@ -3,42 +3,44 @@ import {
   AnalysisRunIdSchema,
   AnalysisRunMetadataSchema,
   MethodEntityIdSchema,
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  WorkbookMethodSchemaVersionSchema,
   ValidationIssueSchema,
   ValidationResultSchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookRevisionSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
   AnalysisRunMetadata,
   MethodEntityId,
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  WorkbookMethodSchemaVersion,
   ValidationIssue,
   ValidationResult,
+  WorkbookModelSnapshotIdentity,
+  WorkbookRevision,
 } from "../shared";
 import type { FaultTreeModel } from "./fault-tree-model";
 import { FaultTreeModelSchema } from "./fault-tree-schemas";
 
 interface FaultTreeCreateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: FaultTreeModel;
 }
 
 interface FaultTreePatchResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: FaultTreeModel;
 }
 
 interface FaultTreeValidateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   validation: ValidationResult;
 }
 
 interface FaultTreeExecuteResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   run: AnalysisRunMetadata;
 }
 
@@ -56,10 +58,9 @@ interface FaultTreeCutSet {
 }
 
 interface FaultTreeAnalysisResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
-  modelId: MethodModelId;
-  modelRevision: MethodModelRevision;
+  owner: WorkbookModelSnapshotIdentity;
   topGateId: MethodEntityId;
   topEventProbability: number;
   minimalCutSetCount: number;
@@ -70,28 +71,30 @@ interface FaultTreeAnalysisResult {
 
 const FaultTreeCreateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: FaultTreeModelSchema,
   })
   .strict();
 
 const FaultTreePatchResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: FaultTreeModelSchema,
   })
   .strict();
 
 const FaultTreeValidateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     validation: ValidationResultSchema,
   })
   .strict();
 
 const FaultTreeExecuteResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     run: AnalysisRunMetadataSchema,
   })
   .strict()
@@ -135,10 +138,9 @@ const FaultTreeCutSetSchema = z
 
 const FaultTreeAnalysisResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     runId: AnalysisRunIdSchema,
-    modelId: MethodModelIdSchema,
-    modelRevision: MethodModelRevisionSchema,
+    owner: WorkbookModelSnapshotIdentitySchema,
     topGateId: MethodEntityIdSchema,
     topEventProbability: ProbabilitySchema,
     minimalCutSetCount: z.number().int().nonnegative(),

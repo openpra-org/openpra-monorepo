@@ -35,6 +35,7 @@ export function createBlankSy(name: string, owner: string): SystemsAnalysis {
     systemDefinitions: [],
     systemToSafetyFunctionMappings: [],
     systemLogicModels: [],
+    systemBasicEvents: [],
     plantRepresentationAccuracy: {
       scope: "PRE_OPERATIONAL",
       accuracy: ImportanceLevel.MEDIUM,

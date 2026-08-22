@@ -2,20 +2,20 @@ import { z } from "zod";
 import {
   AnalysisRunIdSchema,
   AnalysisRunMetadataSchema,
-  MethodEntityIdSchema,
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  WorkbookEntityIdSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookRevisionSchema,
   ValidationIssueSchema,
   ValidationResultSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
   AnalysisRunMetadata,
-  MethodEntityId,
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  WorkbookEntityId,
+  WorkbookMethodSchemaVersion,
+  WorkbookModelSnapshotIdentity,
+  WorkbookRevision,
   ValidationIssue,
   ValidationResult,
 } from "../shared";
@@ -23,7 +23,7 @@ import type { BayesianNetworkEvidenceConfiguration, BayesianNetworkModel } from 
 import { BayesianNetworkEvidenceConfigurationSchema, BayesianNetworkModelSchema } from "./bayesian-network-schemas";
 
 interface BayesianNetworkMarginalValue {
-  stateId: MethodEntityId;
+  stateId: WorkbookEntityId;
   probability: number;
 }
 
@@ -34,35 +34,36 @@ type BayesianNetworkMarginalValues = [
 ];
 
 interface BayesianNetworkMarginalResult {
-  nodeId: MethodEntityId;
+  nodeId: WorkbookEntityId;
   values: BayesianNetworkMarginalValues;
 }
 
 interface BayesianNetworkCreateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: BayesianNetworkModel;
 }
 
 interface BayesianNetworkPatchResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: BayesianNetworkModel;
 }
 
 interface BayesianNetworkValidateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   validation: ValidationResult;
 }
 
 interface BayesianNetworkExecuteResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   run: AnalysisRunMetadata;
 }
 
 interface BayesianNetworkAnalysisResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
-  modelId: MethodModelId;
-  modelRevision: MethodModelRevision;
+  owner: WorkbookModelSnapshotIdentity;
   evidence: BayesianNetworkEvidenceConfiguration;
   marginals: BayesianNetworkMarginalResult[];
   validationIssues: ValidationIssue[];
@@ -71,7 +72,7 @@ interface BayesianNetworkAnalysisResult {
 
 const BayesianNetworkMarginalValueSchema = z
   .object({
-    stateId: MethodEntityIdSchema,
+    stateId: WorkbookEntityIdSchema,
     probability: z.number().min(0, "Probability cannot be less than zero").max(1, "Probability cannot exceed one"),
   })
   .strict();
@@ -82,7 +83,7 @@ const BayesianNetworkMarginalValuesSchema = z
 
 const BayesianNetworkMarginalResultSchema = z
   .object({
-    nodeId: MethodEntityIdSchema,
+    nodeId: WorkbookEntityIdSchema,
     values: BayesianNetworkMarginalValuesSchema,
   })
   .strict()
@@ -99,28 +100,30 @@ const BayesianNetworkMarginalResultSchema = z
 
 const BayesianNetworkCreateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: BayesianNetworkModelSchema,
   })
   .strict();
 
 const BayesianNetworkPatchResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: BayesianNetworkModelSchema,
   })
   .strict();
 
 const BayesianNetworkValidateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     validation: ValidationResultSchema,
   })
   .strict();
 
 const BayesianNetworkExecuteResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     run: AnalysisRunMetadataSchema,
   })
   .strict()
@@ -136,10 +139,9 @@ const BayesianNetworkExecuteResultSchema = z
 
 const BayesianNetworkAnalysisResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     runId: AnalysisRunIdSchema,
-    modelId: MethodModelIdSchema,
-    modelRevision: MethodModelRevisionSchema,
+    owner: WorkbookModelSnapshotIdentitySchema,
     evidence: BayesianNetworkEvidenceConfigurationSchema,
     marginals: z.array(BayesianNetworkMarginalResultSchema),
     validationIssues: z.array(ValidationIssueSchema),

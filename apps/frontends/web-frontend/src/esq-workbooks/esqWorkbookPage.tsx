@@ -18,6 +18,7 @@ import {
   loadEsqExample,
   unloadEsqExample,
   type EsqExampleOption,
+  type EsqWorkbookResponse,
   type EsqWorkbookRoleName,
 } from "./esqWorkbookApi";
 import { EsqWorkbench, type EsqWorkbenchActions } from "./esqWorkbench";
@@ -56,6 +57,7 @@ function EsqWorkbookPage(): JSX.Element {
   const { user } = useAuth();
   const actingUsername = user?.username ?? "";
   const [data, setData] = useState<EsqWorkbookData | null>(null);
+  const [revision, setRevision] = useState<number | null>(null);
   const [myRoles, setMyRoles] = useState<EsqWorkbookRoleName[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -85,6 +87,7 @@ function EsqWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
           const project = await getProject(workbook.projectId);
@@ -123,9 +126,29 @@ function EsqWorkbookPage(): JSX.Element {
     setData((prev) => (prev === null ? prev : { ...prev, esq }));
   }, []);
 
-  const handleSaveOk = useCallback((): void => { setSaveError(null); }, []);
+  const handleSaveOk = useCallback((nextRevision: number): void => {
+    setRevision(nextRevision);
+    setSaveError(null);
+  }, []);
   const handleSaveErr = useCallback((message: string): void => { setSaveError(message); }, []);
-  const { patch } = useEsqMefPatch(id ?? "", data?.esq ?? null, handleSaveOk, handleSaveErr);
+  const handleSaveResync = useCallback((latest: EsqWorkbookResponse): void => {
+    setData((previous) => (previous === null ? previous : { ...previous, esq: latest.mef }));
+    setRevision(latest.revision);
+    setMyRoles(latest.myRoles);
+    setHasPreviousMef(latest.hasPreviousMef);
+  }, []);
+  const refreshWorkbook = useCallback(async (): Promise<void> => {
+    if (id === undefined) return;
+    handleSaveResync(await getEsqWorkbook(id));
+  }, [handleSaveResync, id]);
+  const { patch } = useEsqMefPatch(
+    id ?? "",
+    data?.esq ?? null,
+    revision,
+    handleSaveOk,
+    handleSaveErr,
+    handleSaveResync,
+  );
   const mutateEsq = useCallback((mutator: (esq: EventSequenceQuantification) => EventSequenceQuantification): void => {
     setData((prev) => (prev === null ? prev : { ...prev, esq: mutator(prev.esq) }));
     void patch(mutator);
@@ -135,23 +158,23 @@ function EsqWorkbookPage(): JSX.Element {
     if (id === undefined) return undefined;
     return {
       postComment: async (text, severity, stepId): Promise<void> => {
-        const esq = await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] }) as EventSequenceQuantification;
-        updateEsq(esq);
+        await postWorkbookComment(id, { text, severity, associatedSr: STEP_SR_HINT[stepId] });
+        await refreshWorkbook();
       },
       toggleResolve: async (commentId, nextResolved): Promise<void> => {
-        const esq = await patchWorkbookComment(id, commentId, { resolved: nextResolved }) as EventSequenceQuantification;
-        updateEsq(esq);
+        await patchWorkbookComment(id, commentId, { resolved: nextResolved });
+        await refreshWorkbook();
       },
       submitForReview: async (): Promise<void> => {
-        const esq = await submitWorkbookForReview(id) as EventSequenceQuantification;
-        updateEsq(esq);
+        await submitWorkbookForReview(id);
+        await refreshWorkbook();
       },
       requestRevision: async (note): Promise<void> => {
-        const esq = await requestWorkbookRevision(id, note) as EventSequenceQuantification;
-        updateEsq(esq);
+        await requestWorkbookRevision(id, note);
+        await refreshWorkbook();
       },
     };
-  }, [id, updateEsq]);
+  }, [id, refreshWorkbook]);
 
   const availablePersonas = useMemo<EsqPersona[]>(() => {
     const out: EsqPersona[] = [];
@@ -213,7 +236,12 @@ function EsqWorkbookPage(): JSX.Element {
             currentPersona={persona}
             myOpenComments={data.esq.internalReviewComments.comments.filter((c) => c.authorId === actingUsername && !c.resolved).length}
             refreshSignal={approvalRefresh}
-            onSigned={() => setApprovalRefresh((n) => n + 1)}
+            onSigned={() => {
+              setApprovalRefresh((n) => n + 1);
+              void refreshWorkbook().catch((refreshError: unknown) => {
+                handleSaveErr((refreshError as { message?: string }).message ?? "Could not refresh this ESQ workbook");
+              });
+            }}
           />
         )}
         renderRoster={() => <WorkbookRoster workbookId={id} refreshSignal={approvalRefresh} />}
@@ -234,6 +262,7 @@ function EsqWorkbookPage(): JSX.Element {
           onConfirm={async (exampleId) => {
             const res = await loadEsqExample(id, exampleId);
             updateEsq(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setLoadExOpen(false);
           }}
@@ -245,6 +274,7 @@ function EsqWorkbookPage(): JSX.Element {
           onConfirm={async () => {
             const res = await unloadEsqExample(id);
             updateEsq(res.mef);
+            setRevision(res.revision);
             setHasPreviousMef(res.hasPreviousMef);
             setUnloadExOpen(false);
           }}

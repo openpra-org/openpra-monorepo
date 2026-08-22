@@ -10,6 +10,7 @@ import { SyWorkbooksService } from "./sy-workbooks.service";
 import { SyMefAdapter } from "./sy-mef-adapter";
 import { SyDocumentsController } from "./sy-documents.controller";
 import { SyDocumentsService } from "./sy-documents.service";
+import { NewlyDevelopedMethodsSharedModule } from "../newly-developed-methods/shared/newly-developed-methods-shared.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SyDocumentsService } from "./sy-documents.service";
     ProjectsModule,
     ExampleWorkbooksModule,
     WorkbooksModule,
+    NewlyDevelopedMethodsSharedModule,
   ],
   controllers: [SyWorkbooksController, SyDocumentsController],
   providers: [SyWorkbooksService, SyMefAdapter, SyDocumentsService],

@@ -1,4 +1,5 @@
-import { type SystemsAnalysis, type SystemBasicEvent, type SystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemsAnalysis, type SystemBasicEvent, type LegacySystemFaultTreeNode } from "interfaces-mef-types/sy/systems-analysis";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
@@ -276,7 +277,7 @@ const systemToSafetyFunctionMappings = SYSTEMS.map((s) => ({
   implementsSrs: srs("SY-A1"),
 }));
 
-const FAULT_TREES: Record<string, SystemFaultTreeNode> = {
+const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
   "SYS-DRACS": {
     id: "DRC-TOP", type: "OR", name: "DRACS fails to remove decay heat",
     children: [
@@ -491,7 +492,6 @@ const systemLogicModels = SYSTEMS.map((s) => ({
   description: s.topEvent,
   modelRepresentation: s.modelRep,
   faultTree: FAULT_TREES[s.id],
-  basicEvents: s.events,
   nonDetailedModelJustification: s.detailed ? undefined : "System-level data sufficient, no internal redundancy.",
   logicLoopResolutions: s.loops,
   implementsSrs: srs("SY-A7", "SY-A14"),
@@ -769,7 +769,7 @@ const variableSuccessCriteria = [
   { uuid: "VSC-DRACS-OTHER", systemReference: "SYS-DRACS", scenarioCondition: "Operating states other than full power (POS-02 to POS-09)", successCriteriaIds: ["SC-SYS-DRACS"], basis: "One of three DRACS loops removes decay heat for the sequence mission time, since the lower decay load sits within a single loop capability.", implementsSrs: srs("SY-A5", "SY-B5") },
 ];
 
-export const SY_ANALYSIS: SystemsAnalysis = {
+export const SY_ANALYSIS: SystemsAnalysis = SystemsAnalysisSchema.parse({
   uuid: "sy-generic-1",
   name: "SY Workbook 2",
   type: TechnicalElementTypes.SYSTEMS_ANALYSIS,
@@ -896,4 +896,4 @@ export const SY_ANALYSIS: SystemsAnalysis = {
   },
   configurationControlRecordId: "cc-2026.04.18-001",
   newlyDevelopedMethodIds: ["NM-072", "NM-055", "NM-061"],
-};
+});

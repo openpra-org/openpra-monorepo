@@ -1,13 +1,18 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { SyWorkbooksService, type SyWorkbookResponse } from "./sy-workbooks.service";
-import { parseWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
-
+import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
+import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
+import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
+import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
 
 @Controller("sy-workbooks")
 @UseGuards(JwtAuthGuard)
 export class SyWorkbooksController {
-  constructor(private readonly syWorkbooksService: SyWorkbooksService) {}
+  constructor(
+    private readonly syWorkbooksService: SyWorkbooksService,
+    private readonly analysisRunsService: WorkbookAnalysisRunsService,
+  ) {}
 
   @Get(":id")
   @HttpCode(HttpStatus.OK)
@@ -22,7 +27,67 @@ export class SyWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<SyWorkbookResponse> {
-    return this.syWorkbooksService.patchMef(id, parseWorkbookPatchBody(body), { username: req.user!.username });
+    return this.syWorkbooksService.patchMef(id, parseRevisionedWorkbookPatchBody(body), {
+      username: req.user!.username,
+    });
+  }
+
+  @Delete(":id/fault-trees/:modelId")
+  @HttpCode(HttpStatus.OK)
+  deleteFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Query("expectedRevision") expectedRevision: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SyWorkbookResponse> {
+    return this.syWorkbooksService.deleteFaultTree(
+      id,
+      modelId,
+      parseExpectedWorkbookRevision(expectedRevision),
+      { username: req.user!.username },
+    );
+  }
+
+  @Post(":id/fault-trees/:modelId/runs")
+  @HttpCode(HttpStatus.OK)
+  async runFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ schemaVersion: "1.0.0"; run: AnalysisRunMetadata }> {
+    return {
+      schemaVersion: "1.0.0",
+      run: await this.analysisRunsService.executeFaultTree(id, modelId, body, {
+        username: req.user!.username,
+      }),
+    };
+  }
+
+  @Get(":id/fault-trees/:modelId/runs/:runId")
+  @HttpCode(HttpStatus.OK)
+  getFaultTreeRun(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<AnalysisRunMetadata> {
+    return this.analysisRunsService.getRun("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
+  }
+
+  @Get(":id/fault-trees/:modelId/runs/:runId/result")
+  @HttpCode(HttpStatus.OK)
+  getFaultTreeResult(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Param("runId") runId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.analysisRunsService.getResult("SY", id, modelId, runId, {
+      username: req.user!.username,
+    });
   }
 
   @Post(":id/load-example")

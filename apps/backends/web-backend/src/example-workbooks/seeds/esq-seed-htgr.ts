@@ -901,6 +901,8 @@ export const ESQ_ANALYSIS_HTGR: EventSequenceQuantification = {
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope event sequence quantification for the Generic HTGR, pre-operational stage, capability category CC-II.",
+  bayesianNetworks: [],
+  hclConfigurations: [],
   familyQuantifications,
   modelIntegration,
   quantificationMethods,

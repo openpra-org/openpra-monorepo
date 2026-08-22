@@ -2,20 +2,20 @@ import { z } from "zod";
 import {
   AnalysisRunIdSchema,
   AnalysisRunMetadataSchema,
-  MethodEntityIdSchema,
-  MethodModelIdSchema,
-  MethodModelRevisionSchema,
-  MethodModelSchemaVersionSchema,
+  WorkbookEntityIdSchema,
+  WorkbookMethodSchemaVersionSchema,
+  WorkbookModelSnapshotIdentitySchema,
+  WorkbookRevisionSchema,
   ValidationIssueSchema,
   ValidationResultSchema,
 } from "../shared";
 import type {
   AnalysisRunId,
   AnalysisRunMetadata,
-  MethodEntityId,
-  MethodModelId,
-  MethodModelRevision,
-  MethodModelSchemaVersion,
+  WorkbookEntityId,
+  WorkbookMethodSchemaVersion,
+  WorkbookModelSnapshotIdentity,
+  WorkbookRevision,
   ValidationIssue,
   ValidationResult,
 } from "../shared";
@@ -29,27 +29,29 @@ import { EventTreeExecutionModeSchema } from "./event-tree-requests";
 import type { EventTreeExecutionMode } from "./event-tree-requests";
 
 interface EventTreeCreateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: EventTreeModel;
 }
 
 interface EventTreePatchResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
+  workbookRevision: WorkbookRevision;
   model: EventTreeModel;
 }
 
 interface EventTreeValidateResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   validation: ValidationResult;
 }
 
 interface EventTreeExecuteResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   run: AnalysisRunMetadata;
 }
 
 interface EventTreeSequenceAnalysisResult {
-  sequenceId: MethodEntityId;
+  sequenceId: WorkbookEntityId;
   path: EventTreeSequencePathStep[];
   result: EventTreeBranchResult;
   conditionalProbability: number;
@@ -57,15 +59,14 @@ interface EventTreeSequenceAnalysisResult {
 }
 
 interface EventTreeEndStateAggregate {
-  endStateId: MethodEntityId;
+  endStateId: WorkbookEntityId;
   annualFrequency: number;
 }
 
 interface EventTreeAnalysisResult {
-  schemaVersion: MethodModelSchemaVersion;
+  schemaVersion: WorkbookMethodSchemaVersion;
   runId: AnalysisRunId;
-  modelId: MethodModelId;
-  modelRevision: MethodModelRevision;
+  owner: WorkbookModelSnapshotIdentity;
   mode: EventTreeExecutionMode;
   sequences: EventTreeSequenceAnalysisResult[];
   endStateAggregates: EventTreeEndStateAggregate[];
@@ -75,28 +76,30 @@ interface EventTreeAnalysisResult {
 
 const EventTreeCreateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: EventTreeModelSchema,
   })
   .strict();
 
 const EventTreePatchResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
+    workbookRevision: WorkbookRevisionSchema,
     model: EventTreeModelSchema,
   })
   .strict();
 
 const EventTreeValidateResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     validation: ValidationResultSchema,
   })
   .strict();
 
 const EventTreeExecuteResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     run: AnalysisRunMetadataSchema,
   })
   .strict()
@@ -114,7 +117,7 @@ const ProbabilitySchema = z.number().min(0, "Probability cannot be less than zer
 
 const EventTreeSequenceAnalysisResultSchema = z
   .object({
-    sequenceId: MethodEntityIdSchema,
+    sequenceId: WorkbookEntityIdSchema,
     path: z.array(EventTreeSequencePathStepSchema),
     result: EventTreeBranchResultSchema,
     conditionalProbability: ProbabilitySchema,
@@ -124,17 +127,16 @@ const EventTreeSequenceAnalysisResultSchema = z
 
 const EventTreeEndStateAggregateSchema = z
   .object({
-    endStateId: MethodEntityIdSchema,
+    endStateId: WorkbookEntityIdSchema,
     annualFrequency: z.number().nonnegative("Annual frequency cannot be negative"),
   })
   .strict();
 
 const EventTreeAnalysisResultSchema = z
   .object({
-    schemaVersion: MethodModelSchemaVersionSchema,
+    schemaVersion: WorkbookMethodSchemaVersionSchema,
     runId: AnalysisRunIdSchema,
-    modelId: MethodModelIdSchema,
-    modelRevision: MethodModelRevisionSchema,
+    owner: WorkbookModelSnapshotIdentitySchema,
     mode: EventTreeExecutionModeSchema,
     sequences: z.array(EventTreeSequenceAnalysisResultSchema),
     endStateAggregates: z.array(EventTreeEndStateAggregateSchema),

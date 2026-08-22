@@ -61,7 +61,12 @@ export class WorkbookCommentsService {
     private readonly registry: WorkbookElementRegistry,
   ) {}
 
-  private async loadAndAuthorize(workbookId: string, acting: ActingUser): Promise<{ wb: WorkbookDocument; mef: MefShape; myRoles: WorkbookRoleName[] }> {
+  private async loadAndAuthorize(workbookId: string, acting: ActingUser): Promise<{
+    wb: WorkbookDocument;
+    mef: MefShape;
+    myRoles: WorkbookRoleName[];
+    revision?: number;
+  }> {
     if (!isValidObjectId(workbookId)) throw new NotFoundException("Workbook not found");
     const wb = await this.workbookModel.findById(workbookId).exec();
     if (!wb) throw new NotFoundException("Workbook not found");
@@ -69,7 +74,7 @@ export class WorkbookCommentsService {
     const loaded = await this.registry.get(wb.elementCode).load(workbookId);
     if (loaded === null) throw new NotFoundException("Workbook content not found");
     const myRoles = await this.rolesService.resolveEffectiveRoles(workbookId, acting.username);
-    return { wb, mef: loaded.mef as MefShape, myRoles };
+    return { wb, mef: loaded.mef as MefShape, myRoles, revision: loaded.revision };
   }
 
   private recount(mef: MefShape): void {
@@ -85,7 +90,7 @@ export class WorkbookCommentsService {
 
   async addComment(workbookId: string, body: AddCommentBody, acting: ActingUser): Promise<unknown> {
     if (typeof body.text !== "string" || body.text.trim().length === 0) throw new BadRequestException("Comment text is required");
-    const { wb, mef, myRoles } = await this.loadAndAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAndAuthorize(workbookId, acting);
     if (!myRoles.includes("reviewer") && !myRoles.includes("approver")) {
       throw new ForbiddenException("Only reviewers and approvers can post comments");
     }
@@ -104,11 +109,11 @@ export class WorkbookCommentsService {
       associatedField: body.associatedField,
     });
     this.recount(mef);
-    return this.registry.get(wb.elementCode).save(workbookId, mef);
+    return this.registry.get(wb.elementCode).save(workbookId, mef, revision);
   }
 
   async updateComment(workbookId: string, commentUuid: string, body: UpdateCommentBody, acting: ActingUser): Promise<unknown> {
-    const { wb, mef, myRoles } = await this.loadAndAuthorize(workbookId, acting);
+    const { wb, mef, myRoles, revision } = await this.loadAndAuthorize(workbookId, acting);
     if (!myRoles.includes("reviewer") && !myRoles.includes("approver")) {
       throw new ForbiddenException("Only reviewers and approvers can update comments");
     }
@@ -128,6 +133,6 @@ export class WorkbookCommentsService {
       target.resolution = body.resolution;
     }
     this.recount(mef);
-    return this.registry.get(wb.elementCode).save(workbookId, mef);
+    return this.registry.get(wb.elementCode).save(workbookId, mef, revision);
   }
 }

@@ -17,6 +17,10 @@ export default {
       },
     ],
   },
+  moduleNameMapper: {
+    "^interfaces-mef-types$": "<rootDir>/../mef-types/index.ts",
+    "^interfaces-mef-types/(.*)$": "<rootDir>/../mef-types/$1",
+  },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   testMatch: ["<rootDir>/**/test/*.spec.ts"],
   collectCoverage: false,

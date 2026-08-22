@@ -29,7 +29,7 @@ Canonical source and host map:
 | Method | Approved visual source | Canonical implementation | Workbook hosts |
 | --- | --- | --- | --- |
 | FT | SY Step 02 System Models | `newly-developed-methods/fault-tree` | SY Step 02 authors it; every other FT surface imports the same implementation |
-| ET | Approved existing workbook ET presentation and ESQ integration views | `newly-developed-methods/event-tree` | ES authors event sequences; ESQ and other ET surfaces import the same implementation |
+| ET | ES Step 02 Event Sequences | `newly-developed-methods/event-tree` | ES authors event sequences; ESQ and other ET surfaces import the same implementation |
 | BN | New OpenPRA editor | `newly-developed-methods/bayesian-network` | ESQ Step 05 Dependencies |
 | HCL | Existing verified FT–BN–ET workflow | `newly-developed-methods/hybrid-causal-logic` | ESQ Step 05 configures bindings; ESQ Step 02 Integrate & Quantify executes them |
 
@@ -109,19 +109,253 @@ Editor delivery order:
 
 Do not begin editor feature work until this correction is complete and the workbook-owned API gate below passes.
 
-- [ ] Inventory every current FT and ET implementation and record its workbook screen, data source, and callers.
-- [ ] Designate the SY Step 02 FT presentation as the only FT visual standard.
-- [ ] Designate the approved workbook ET presentation as the only ET visual standard.
-- [ ] Define one canonical public component contract for each editor under `newly-developed-methods`.
-- [ ] Separate reusable method schemas from workbook-owned MEF persistence wrappers.
-- [ ] Replace standalone project/model identity with workbook ID, workbook revision, and workbook-local model/entity IDs.
-- [ ] Define typed cross-workbook references for FT top events, FT basic events, ET functional events, BN nodes, and HCL bindings.
-- [ ] Make the SY workbook basic-event collection the canonical catalogue for SY fault trees and remove duplicated event payloads from tree nodes/model-local catalogues.
-- [ ] Extend the existing ES event-tree MEF instead of persisting a parallel standalone ET model.
-- [ ] Add BN and HCL data to their hosting workbook MEF rather than to a project-level model collection.
-- [ ] Remove the frontend model-library concept from the active architecture.
-- [ ] Add migration tests for existing SY fault trees and ES event trees before changing stored shapes.
-- [ ] Verify the corrected interface and migration tests before changing backend ownership.
+- [x] Inventory every current FT and ET implementation and record its workbook screen, data source, and callers.
+- [x] Designate the SY Step 02 FT presentation as the only FT visual standard.
+- [x] Designate the ES Step 02 ET presentation as the only ET visual standard.
+- [x] Define one canonical public component contract for each editor under `newly-developed-methods`.
+- [x] Separate reusable method schemas from workbook-owned MEF persistence wrappers.
+- [x] Replace standalone project/model identity with workbook-scoped durable addresses, snapshot revisions, and workbook-local model/entity IDs.
+- [x] Define typed cross-workbook references for FT top events, FT basic events, ET functional events, BN nodes, and HCL bindings.
+- [x] Make the SY workbook basic-event collection the canonical catalogue for SY fault trees and remove duplicated event payloads from tree nodes/model-local catalogues.
+- [x] Extend the existing ES event-tree MEF instead of persisting a parallel standalone ET model.
+- [x] Add BN and HCL data to their hosting workbook MEF rather than to a project-level model collection.
+- [x] Remove the frontend model-library concept from the active architecture.
+- [x] Add migration tests for existing SY fault trees and ES event trees before changing stored shapes.
+- [x] Verify the corrected interface and migration tests before changing backend ownership.
+
+### Verified FT and ET implementation inventory
+
+This inventory records the pre-remediation baseline and its actual render callers; the completed canonical ownership sections below describe the current implementation. Text-only mentions, reference fields, reports, and ordinary tables are not classified as separate editors.
+
+#### Frontend renderers, hosts, data, and styles
+
+| Current implementation or surface | Workbook host and callers | Current data source | Styling | Required disposition |
+| --- | --- | --- | --- | --- |
+| SY `FaultTree`, `LogicModelTree`, layout, symbols, boxes, and legend in `sy-workbooks/syScreens.tsx` | `ModelsScreen` → `syWorkbench.tsx` → SY Step 02 System Models | `SystemsAnalysis.systemLogicModels[].faultTree`; basic-event display also reads `SystemLogicModel.basicEvents` | FT selectors in `sy-workbooks/css/syScreens.css` | Approved FT visual source. Move/refactor into `newly-developed-methods/fault-tree`, then make SY import it with visual parity |
+| ReactFlow `FaultTreeEditor`, node, icon, layout, rules, types, and CSS already in `newly-developed-methods/fault-tree` | Called only by IE Step 02 MLD/HBFT and the IE frequency-quantification component | Receives `FtInputNode[]`, copies it into component-local ReactFlow state, and exposes no persistence callback | `newly-developed-methods/fault-tree/css/faultTree.css` | Keep the folder, replace the alternate implementation and appearance with the extracted SY standard, and retain only reusable behavior that survives the canonical contract |
+| IE MLD/HBFT adapter surface in `ie-workbooks/ieScreens.tsx` and `faultTreeAdapters.ts` | IE Step 02 Search Methods | Adapts `masterLogicDiagrams` or `heatBalanceFaultTrees` to `FtInputNode[]` | Full-screen host shell in `ie-workbooks/css/ieScreens.css`; renderer styling comes from the current ReactFlow editor | Replace its renderer call with the canonical FT import; retain an adapter only if the source MEF cannot directly satisfy the canonical contract |
+| IE initiating-frequency FT surface in `newly-developed-methods/ie-frequency-quantification/ieFrequencyQuantificationEditor.tsx` | IE Step 08 Frequency & Quantification through `ie-workbooks/ieScreens.tsx` | Adapts `FrequencyDataSource.faultTree` (`FrequencyFaultTreeNode[]`) to `FtInputNode[]`; the surrounding frequency form persists through `onChange`, but current FT edits never flow back to it | Frequency shell in `ie-frequency-quantification/css/ieFrequencyQuantification.css`; renderer styling comes from the current ReactFlow editor | Replace its renderer call with the canonical FT import and connect canonical structural edits to IE workbook persistence |
+| ES `EventSeqDiagram`, `EventTreeDiagram`, `DynamicEsdTree`, sequence table, shared layout helpers, drawers, and representation selector in `es-workbooks/esScreens.tsx` | `SequencesScreen` → `esWorkbench.tsx` → ES Step 02 Event Sequences | `eventTreesView(es.eventTrees)`; dynamic ESD representation additionally reads `es.dynamicRuns` | `es-workbooks/css/esScreens.css` (`estree`, `esdg`, and dynamic-ESD selectors) | Approved ET presentation bundle. Move/refactor it into `newly-developed-methods/event-tree`, then make ES import it with visual parity. Its diagram/table modes remain views of one canonical ET implementation, not separate editors |
+| ESQ dependency and transfer surfaces in `esq-workbooks/esqScreens2.tsx` | ESQ dependency/integration steps | ESQ dependency treatments and event-tree transfer records | ESQ workbook table/card styling | Not a graphical ET implementation. Preserve the records, and later import the canonical ET component only where ESQ needs a linked-tree view or result overlay |
+| HR, SC, external-flood, high-winds, internal-fire, and other-hazards FT/ET matches | Their existing workbook screens | Reference fields, descriptive text, or tabular hazard/event-sequence records | Their workbook styling | Not duplicate renderers. Convert applicable navigation/view actions to the canonical FT or ET import later; do not delete domain records merely because they mention a tree |
+
+#### Data, persistence, validation, and execution implementations
+
+| Layer | Current source | Inventory finding | Required disposition |
+| --- | --- | --- | --- |
+| SY FT MEF | `interfaces/mef-types/sy/systems-analysis.ts` and its Zod schema | Recursive `SystemFaultTreeNode`; `SystemLogicModel.basicEvents` plus `SystemsAnalysis.systemBasicEvents` duplicate catalogue ownership, and tree leaves also duplicate event display fields | Migrate to the canonical workbook-owned FT representation and one canonical SY basic-event catalogue before removing legacy fields |
+| IE FT MEF | `FrequencyFaultTreeNode[]` embedded in `FrequencyDataSource` plus MLD/HBFT method schemas | Flat parent-linked IE frequency trees and adapted method diagrams are workbook-owned but use shapes different from SY | Add migration/adaptation to the one canonical FT contract; do not create another editor |
+| ES ET MEF | `interfaces/mef-types/es/event-sequence-analysis.ts` and its Zod schema | `EventTree` already owns normalized functional-event, branch, sequence, initial-state, and transfer records; `FunctionalEvent.faultTreeId` is not workbook-qualified | Extend this workbook-owned model and replace unqualified links with typed workbook/entity references; do not persist a parallel ET model |
+| Frontend workbook persistence | SY, IE, and ES workbook APIs and `use*MefPatch` hooks | Each workbook already diffs its MEF and sends path operations to its own workbook PATCH route | Canonical editors receive workbook callbacks and continue through these services, with revision conflict support added separately |
+| Newly-developed method contracts | `interfaces/shared-types/newly-developed-methods/{fault-tree,event-tree,shared}` | Validation and solver DTOs are reusable, but create/patch contracts and identity wrappers currently describe standalone project models | Preserve reusable domain, validation, request, and result logic while refactoring persistence identity around workbook MEF |
+| Newly-developed method backend | `web-backend/src/newly-developed-methods` | `method_models`, project method-model routes, the project FT catalogue, dependency discovery, and run dispatch implement the superseded ownership | Remove/refactor project persistence and routes; reuse validation, revision, dependency, permission, snapshot, and run-lifecycle mechanics under workbook ownership |
+| PRAXIS and native adapters | `apps/solvers/praxis` and `apps/solvers/praxis-node/src/{fault_tree,event_tree,hybrid_causal_logic}.rs` | Numerical FT/ET/HCL algorithms and normalized snapshot adapters are independent of editor appearance | Keep them; add pure workbook-MEF-to-solver snapshot adapters and re-run the numerical API fixtures |
+
+#### Baseline gaps and migration hazards
+
+- The current newly-developed FT component is editable only in local ReactFlow state; it has no `onChange`, save, validation, or run interface.
+- The IE Step 02 title override is also local-only and is not a persisted FT rename.
+- The IE Step 08 frequency form persists source fields, but its nested FT editor cannot persist node changes.
+- The SY basic-event drawer updates `SystemLogicModel.basicEvents` and duplicated recursive tree fields, but not the separate `SystemsAnalysis.systemBasicEvents` collection.
+- ES Step 02 reads topology through `eventTreesView`; it can select sequences and switch representations, but it does not edit functional-event or branch topology.
+- No `newly-developed-methods/event-tree` frontend folder or graphical ESQ event-tree renderer exists yet.
+- The only focused frontend ET test currently verifies `eventTreesView`; no direct FT renderer/editor tests or ET visual-component tests exist.
+
+### Canonical public component contracts
+
+These contracts define the public boundary before files move. Exact persisted types are completed by the schema-separation TODO; the behavioral boundary is fixed here.
+
+#### Rules shared by every canonical editor
+
+- Each method folder exports one canonical editor from its `index.ts`: `FaultTreeEditor`, `EventTreeEditor`, `BayesianNetworkEditor`, or `HclBindingEditor`.
+- Workbook code imports only from the method folder's public `index.ts`, never an internal renderer, node, layout, popup, or stylesheet.
+- A canonical editor is controlled: the host passes the current model and reference catalogues; committed model changes return through callbacks. The editor does not own a second durable copy.
+- Local state is limited to uncommitted text, selection, open panels, hover, viewport, and undo/redo drafts. When a commit succeeds, the workbook-provided model remains authoritative.
+- Editors never import a workbook context, workbook route, persistence client, or project-model service. The host translates editor operations into its workbook MEF patch and displays save state.
+- One callback emits one domain operation at a time so field, structural, and position changes can become minimal workbook path patches.
+- Every editor supports author, read-only, and reference-selection capabilities through one component; quantification and result overlays extend that component instead of creating another renderer.
+- Validation issues, save state, stale-result state, and immutable run results are supplied inputs. Execution is requested through a host callback.
+- Typed `WorkbookCrossReference` values are used for cross-workbook navigation and selection. Editors never infer targets from display names.
+- Method-specific subviews are private implementation details. For example, ET diagram, derived-tree, dynamic, and table representations are modes of `EventTreeEditor`, not separate public editors.
+- Canonical styles live with the method under `newly-developed-methods`; source workbook styles are removed only after every importing host passes visual parity.
+
+#### `FaultTreeEditor` public contract
+
+| Input or callback | Responsibility |
+| --- | --- |
+| `model` | Current workbook-owned FT definition, including stable nodes, gate inputs, top gate, and positions |
+| `basicEvents` | Resolved catalogue entries available to leaves without duplicating their values in the tree |
+| `capabilities` | Author, read-only, reference selection, quantification, and result-overlay flags |
+| `selection`, `validation`, `saveState`, `analysisResult`, `resultIsStale` | Controlled presentation state |
+| `onOperation(operation)` | Commit one add, update, connect, reparent, delete, move, layout, transfer, or top-gate operation |
+| `onSelectionChange(entityId)` | Synchronize selection with drawers, validation issues, and consuming workbooks |
+| `onOpenReference(reference)` | Navigate to a transfer target or linked workbook entity |
+| `onRun(request)` | Ask the owning workbook host to validate and start quantification |
+
+The SY-derived box, gate-symbol, connector, legend, spacing, colors, and typography are mandatory. The current alternate ReactFlow node renderer and its styling are not part of this contract and are removed after caller migration.
+
+#### `EventTreeEditor` public contract
+
+| Input or callback | Responsibility |
+| --- | --- |
+| `model` | Current ES-workbook-owned ET definition with initiating state, functional events, branches, sequences, transfers, and positions |
+| `resolvedFaultTrees` | Typed, resolved FT top-event references used by functional events |
+| `dynamicRun` | Optional dynamic-ESD information displayed as another representation of the same tree |
+| `representation` | Controlled `event-sequence-diagram`, `event-tree`, `table`, or `dynamic` view |
+| `capabilities`, `selection`, `validation`, `saveState`, `analysisResult`, `resultIsStale` | Controlled presentation state |
+| `onOperation(operation)` | Commit one initiating-event, functional-event, branch, sequence, end-state, transfer, move, or layout operation |
+| `onRepresentationChange`, `onSelectionChange` | Synchronize the selected view and entity with the workbook host |
+| `onOpenReference(reference)` | Navigate to linked FT top events, initiating events, transfers, or results |
+| `onRun(request)` | Ask the owning/integration workbook host to validate and start ET quantification |
+
+The ES Step 02 representation selector, event-sequence diagram, derived event-tree view, dynamic view, sequence table, path highlighting, end-state treatment, drawers, legends, colors, and typography move together as one canonical implementation.
+
+#### `BayesianNetworkEditor` public contract
+
+| Input or callback | Responsibility |
+| --- | --- |
+| `model` | Current ESQ-workbook-owned BN definition with stable nodes, states, ordered parents, edges, CPTs, and positions |
+| `evidence`, `queryNodeId`, `validation`, `saveState`, `analysisResult`, `resultIsStale` | Controlled inference and presentation state |
+| `capabilities` | Author, read-only, reference selection, query, and result-overlay flags |
+| `onOperation(operation)` | Commit one node, state, edge, CPT, evidence, position, or layout operation |
+| `onEvidenceChange`, `onQueryNodeChange`, `onSelectionChange` | Synchronize inference and selection state |
+| `onRun(request)` | Ask ESQ to validate and run exact inference |
+
+#### `HclBindingEditor` public contract
+
+| Input or callback | Responsibility |
+| --- | --- |
+| `configuration` | Current ESQ-workbook-owned HCL bindings and solver settings |
+| `availableFaultTrees`, `availableBayesianNetworks`, `availableEventTrees` | Typed reference catalogues resolved by ESQ |
+| `validation`, `saveState`, `analysisResult`, `resultIsStale` | Controlled binding and result state |
+| `onOperation(operation)` | Commit one model reference, basic-event binding, true-state selection, evidence, or solver-setting operation |
+| `onOpenReference(reference)` | Navigate to the canonical FT, BN, or ET host |
+| `onRun(request)` | Ask ESQ Step 02 Integrate & Quantify to validate and run HCL |
+
+### Canonical workbook identity contract
+
+- Durable addresses do not contain a revision: `WorkbookAddress` is `{ workbookId }`, `WorkbookModelAddress` is `{ workbookId, modelId }`, and `WorkbookModelEntityAddress` is `{ workbookId, modelId, entityId }`.
+- `WorkbookEntityAddress` is the separate `{ workbookId, entityId }` address for entities owned directly by a workbook, including the canonical SY basic-event catalogue. Its missing `modelId` is deliberate.
+- Snapshot identities add the positive optimistic-concurrency token `workbookRevision` to the corresponding durable address. The existing workbook `version` field supplies that concept until the dedicated revision-handling TODO updates the persistence and API naming.
+- `modelId` and `entityId` are stable UUIDs whose uniqueness is scoped to the owning workbook and, for model entities, the owning model. They are not independent project-level resources and are never resolved without workbook scope.
+- Canonical address and snapshot schemas are strict and reject `projectId`, standalone `id`, and model-level `revision` fields. Durable addresses also reject `workbookRevision` so links do not become stale merely because a workbook changes.
+- Reusable FT, BN, ET, and HCL MEF definitions now use the explicit `WorkbookEntityId` vocabulary. The older `MethodModelId` and `MethodEntityId` names are deprecated aliases only for verified compatibility consumers.
+- `WorkbookModelIdentity` and `WorkbookEntityIdentity` remain deprecated aliases for snapshot compatibility only. The former project-model identity and metadata schemas are exported explicitly as `LegacyProjectMethodModelIdentitySchema` and `LegacyProjectMethodModelMetadataSchema`. Existing project-route tests may use them until backend ownership removal, but new workbook persistence must not.
+
+### Typed cross-workbook reference contract
+
+Every durable reference has a `referenceType` discriminator and the minimum address needed to resolve its target:
+
+| Target | `referenceType` | Durable address |
+| --- | --- | --- |
+| FT top event | `FAULT_TREE_TOP_EVENT` | `{ workbookId, modelId, entityId }` |
+| FT basic event in the workbook catalogue | `FAULT_TREE_BASIC_EVENT` | `{ workbookId, entityId }` |
+| ET functional event | `EVENT_TREE_FUNCTIONAL_EVENT` | `{ workbookId, modelId, entityId }` |
+| BN node | `BAYESIAN_NETWORK_NODE` | `{ workbookId, modelId, entityId }` |
+| HCL binding | `HCL_BINDING` | `{ workbookId, modelId, entityId }` |
+
+- Durable references deliberately exclude `workbookRevision`, `projectId`, display names, codes, and copied target payloads. Callers resolve current target data through the typed address; immutable analysis snapshots record contributing revisions separately.
+- `WorkbookCrossReference` is a discriminated union of the five reference types, so a reference for one entity kind cannot silently impersonate another.
+- The old unqualified `MethodModelReference` and `MethodEntityReference` shapes remain deprecated compatibility contracts. Their persisted FT, ET, BN, and HCL fields migrate to these typed references in the following workbook-MEF migration TODOs rather than through an unverified bulk shape change.
+
+### Canonical SY basic-event ownership
+
+Implementation and the focused SY workbook interaction below are complete.
+
+- `SystemsAnalysis.systemBasicEvents` is required and is the only persisted catalogue of SY basic-event definitions.
+- `SystemLogicModel` no longer contains a model-local `basicEvents` collection. A model's event membership is derived from the basic-event references reachable from its fault tree.
+- An SY fault-tree `BE` leaf persists only `{ id, type: "BE", basicEventId }`. Names, failure modes, probabilities, controlled-data references, repair fields, and common-cause presentation are resolved from the workbook catalogue.
+- Canonical schemas reject model-local catalogues, descriptive payloads on direct leaf parses, duplicate catalogue IDs, and leaf references that do not resolve in the workbook catalogue.
+- Legacy workbook parsing moves model-local events into the workbook catalogue, gives the model-local copy precedence over a stale root copy, carries a legacy leaf's data-analysis source into the catalogue when needed, strips duplicated tree payloads, and supports workbooks whose optional root catalogue was absent.
+- SY workbook API and generic MEF reads normalize legacy stored MEF before returning it. The next accepted patch/save persists the canonical shape.
+- SY Step 02 cards, the basic-event drawer, integrity summaries, CCF checks, and generated system reports resolve through the canonical catalogue. Editing a basic event now changes one catalogue record and no longer synchronizes copied tree fields.
+
+Manual completion gate:
+
+1. Open an SY example workbook at Step 02 System Models and select a basic-event card in a fault tree.
+2. Confirm its name, identifier, failure mode, probability, data-analysis reference, and repair state appear in the drawer and still match the card.
+3. As a preparer, change the event name and probability, commit each field, close and reopen the drawer, and refresh the page.
+4. Confirm the card and drawer both show the saved values after refresh, and confirm another system fault tree still renders normally.
+
+Manual result (2026-08-21): passed. A blank SY workbook now shows the guarded Step 02 empty state, and the seeded-example basic-event drawer, edits, persistence after refresh, card synchronization, and other-system rendering were confirmed by the user.
+
+### Canonical ES event-tree ownership
+
+- `EventSequenceAnalysis.eventTrees[]` remains the only workbook-persisted event-tree collection. Its existing functional-event, branch, sequence, initial-state, and transfer records remain the canonical topology used by ES Step 02.
+- The existing `EventTree` record now also owns optional initiating-event frequency, canvas layout, and typed FT top-event references on its functional events. These additions support the future canonical editor without introducing a nested definition or standalone method-model envelope.
+- Typed functional-event links carry the target SY workbook, fault-tree model, and top-event entity identity through `FaultTreeTopEventReference`.
+- Direct ES event-tree parsing is strict and rejects standalone `projectId`, `methodType`, revision, or other parallel persistence metadata.
+- A functional event cannot store both `faultTreeTopEvent` and the deprecated unqualified `faultTreeId`. Legacy-only links remain parseable until the dedicated ES migration TODO can resolve them with workbook context.
+- The shared interface package now declares its MEF dependency and maps that dependency to the active workspace source during tests, preventing contract tests from resolving a stale package through the shared installation cache.
+
+Automated completion gate:
+
+1. Parse an existing ES event-tree topology carrying the new frequency, typed FT link, and layout fields.
+2. Reject a standalone method-model persistence envelope on the ES tree.
+3. Reject simultaneous typed and legacy FT links while retaining legacy-only compatibility for the migration TODO.
+4. Round-trip the extended tree through the complete `EventSequenceAnalysisSchema` used by ES workbook APIs.
+
+### Canonical ESQ Bayesian-network and HCL ownership
+
+- `EventSequenceQuantification.bayesianNetworks[]` is the required workbook-owned BN collection, and `EventSequenceQuantification.hclConfigurations[]` is the required workbook-owned HCL configuration collection.
+- Each ESQ-owned model has a stable workbook-local `modelId`, code, name, and description directly beside its reusable definition. It does not carry a project ID, standalone method type, model revision, owner, or timestamp envelope.
+- HCL bindings persist typed `FaultTreeBasicEventCatalogueReference` and `BayesianNetworkNodeReference` values. Declared whole-model dependencies use durable workbook/model addresses.
+- HCL structural validation rejects duplicate declared FT targets and binding IDs, bindings to undeclared FT workbooks, BN-node targets outside the configured BN address, and duplicate bindings for one FT basic event.
+- Blank and seeded ESQ workbooks initialize both collections. Older ESQ payloads that predate these fields parse with empty collections so they remain loadable and become canonical on their next save.
+- The existing ESQ save, patch, example-load, and MEF-adapter paths already parse and persist the complete `EventSequenceQuantificationSchema`; therefore the new collections use workbook persistence without separate database collections or project-model routes.
+- Unknown root-level `methodModels` payloads are not retained by the ESQ schema, and strict BN/HCL records reject project-model metadata. The legacy project-model backend remains untouched until the later backend-ownership migration gate.
+
+Automated completion gate:
+
+1. Accept strict ESQ-owned BN and typed HCL records and reject standalone project-model metadata.
+2. Reject legacy unqualified HCL entity references and typed bindings whose targets disagree with the configured models.
+3. Initialize both collections in a blank ESQ workbook and heal older payloads that omit them.
+4. Round-trip populated BN and HCL collections through the complete `EventSequenceQuantificationSchema` used by ESQ workbook APIs without retaining a project-level model collection.
+
+### Frontend editor source boundary
+
+- A repository-wide frontend audit found no standalone model-library page, route, navigation action, `ModelLibrary` component, `/method-models` API caller, or project-model persistence client to retain or migrate.
+- `apps/frontends/web-frontend/src/newly-developed-methods` is explicitly documented as a reusable source-code boundary. It is not routable and does not own navigation, persistence, permissions, or analysis requests.
+- Canonical editor implementations remain independent of project APIs, workbook APIs, and workbook contexts. Workbook hosts supply current MEF data and accept controlled editor operations.
+- Existing `NewlyDevelopedMethod` MEF records and workbook review references are methodology documentation, not FT/ET/BN/HCL model storage. They remain intact rather than being incorrectly removed as a model library.
+- An architecture test scans production frontend TypeScript and fails if a project method-model endpoint, standalone model-library route/component, or persistence coupling inside the canonical editor directory is introduced.
+
+Automated completion gate:
+
+1. Scan production frontend sources and prove there is no standalone project-model endpoint, model-library route, or `ModelLibrary` component.
+2. Scan canonical method-editor sources and prove they do not import project persistence, workbook persistence, or workbook contexts.
+3. Run the complete frontend test, typecheck, lint, and production-build gates.
+
+### Legacy SY fault-tree and ES event-tree migration characterization
+
+- Independent frozen fixtures now capture the stored shapes that predate the workbook-ownership corrections; they are not derived from current canonical seeds and therefore cannot silently drift with those seeds.
+- The SY fixture includes nested gates, payload-bearing basic-event leaves, a transfer node, a model-local basic-event catalogue, repair data, a data-analysis source, loop resolution, and nomenclature.
+- The SY migration assertion proves gate and transfer topology is preserved, model-local and leaf-only basic events move into the workbook catalogue without losing values, leaves become reference-only, the input fixture is not mutated, and reparsing the canonical result is idempotent.
+- The ES fixture includes ordered functional events, legacy unqualified FT IDs, branch paths, success and release sequences, functional-event states, an event-tree transfer, mission time, descriptions, and instructions.
+- The ES characterization assertion proves the complete normalized topology and legacy FT IDs survive full-workbook parsing unchanged and reparsing is idempotent. It deliberately does not invent typed FT workbook/model/entity addresses before a later migration has the workbook context required to resolve them.
+- Existing generated SFR and HTGR seed tests continue to validate all 54 and 96 event trees respectively against the complete ES schema.
+
+Automated completion gate:
+
+1. Migrate the frozen legacy SY fixture through `SystemsAnalysisSchema` and compare the complete canonical model and catalogue output.
+2. Parse the frozen legacy ES fixture through `EventSequenceAnalysisSchema` and compare its complete topology and legacy-reference output.
+3. Reparse both outputs to prove migration/compatibility behavior is idempotent.
+4. Run the complete shared-interface and backend suites plus all relevant typecheck and lint gates.
+
+### Corrected interface and migration verification baseline
+
+- The architecture-remediation contracts and workbook migrations have passed one consolidated gate before any backend-ownership code is changed.
+- Focused verification covers strict workbook-owned model definitions, workbook-scoped identities, typed cross-workbook references, SY basic-event catalogue migration, ES event-tree compatibility, and ESQ BN/HCL ownership together rather than only as isolated implementation steps.
+- Complete shared-interface, backend, and frontend suites establish the consumer baseline that the backend-ownership refactor must preserve.
+- Typecheck and lint gates cover `interfaces-mef-types`, `interfaces-shared-types`, `backends-web-backend`, and `frontends-web-frontend`.
+- The legacy project-model backend remains present at this boundary by design; this verification TODO changes no stored shape, route, or ownership behavior.
+
+Automated completion gate:
+
+1. Run the corrected shared-contract tests and workbook ownership/migration tests as one focused gate.
+2. Run the complete shared-interface, backend, and frontend test suites.
+3. Run typecheck and lint for both interface packages and both web applications.
+4. Record a fully passing baseline before starting removal of project-model persistence and routes.
 
 ## Phase 1 — Shared method schemas
 
@@ -130,11 +364,11 @@ Complete schemas before frontend or backend implementation.
 ### Shared contracts
 
 - [x] Create the `newly-developed-methods/shared` interface module and barrel exports.
-- [ ] Refactor stable identities so persisted models use workbook ID plus workbook-local model/entity IDs instead of standalone project-model identity.
-- [ ] Refactor schema version, revision, ownership, and timestamps around workbook MEF ownership and immutable analysis runs.
+- [x] Refactor stable identities so persisted models use workbook ID plus workbook-local model/entity IDs instead of standalone project-model identity.
+- [x] Refactor schema version, revision, ownership, and timestamps around workbook MEF ownership and immutable analysis runs.
 - [x] Define canvas layout metadata.
 - [x] Define validation result contracts.
-- [ ] Refactor analysis-run metadata to capture the owner workbook and every contributing workbook revision.
+- [x] Refactor analysis-run metadata to capture the owner workbook and every contributing workbook revision.
 - [x] Enforce stable UUID references so renaming models or events does not break connections.
 - [x] Add interface and Zod tests for shared contracts.
 
@@ -145,8 +379,8 @@ Complete schemas before frontend or backend implementation.
 - [x] Define basic-event references, house events, undeveloped events, and transfer references.
 - [x] Define gate-to-child relationships and display positions.
 - [x] Define basic-event probability and optional controlled data-source references.
-- [ ] Replace the project-level basic-event catalogue contract with workbook-owned catalogues and typed cross-workbook parameter references.
-- [ ] Refactor FT create, patch, validate, execute, and result contracts around workbook routes and workbook-local identities.
+- [x] Replace the project-level basic-event catalogue contract with workbook-owned catalogues and typed cross-workbook parameter references.
+- [x] Refactor FT create, patch, validate, execute, and result contracts around workbook routes and workbook-local identities.
 - [x] Add interface and Zod tests for FT contracts.
 
 ### Bayesian-network contracts
@@ -156,7 +390,7 @@ Complete schemas before frontend or backend implementation.
 - [x] Define ordered parent references, directed edges, CPT values, and canvas positions.
 - [x] Define evidence configurations, query requests, and marginal results.
 - [x] Exclude decision, utility, deterministic, continuous, and dynamic nodes from the initial schema.
-- [ ] Refactor BN create, patch, validate, execute, and result contracts around its hosting workbook and workbook-local identities.
+- [x] Refactor BN create, patch, validate, execute, and result contracts around its hosting workbook and workbook-local identities.
 - [x] Add interface and Zod tests for BN contracts.
 
 ### Event-tree contracts
@@ -166,13 +400,13 @@ Complete schemas before frontend or backend implementation.
 - [x] Define ordered functional events and FT top-event references.
 - [x] Define success/failure paths, end states, and sequence identifiers.
 - [x] Define event-tree transfers, HCL configuration references, and canvas layout.
-- [ ] Refactor ET create, patch, validate, execute, and result contracts around ES workbook ownership and workbook-local identities.
+- [x] Refactor ET create, patch, validate, execute, and result contracts around ES workbook ownership and workbook-local identities.
 - [x] Add interface and Zod tests for ET contracts.
 
 ### HCL contracts
 
 - [x] Create the `newly-developed-methods/hybrid-causal-logic` interface module and barrel exports.
-- [ ] Refactor BN and FT references into typed workbook/entity references.
+- [x] Refactor BN and FT references into typed workbook/entity references.
 - [x] Define FT basic-event to BN-node bindings.
 - [x] Define non-empty BN true-state selections and base evidence.
 - [x] Define solver settings supported by the current PRAXIS HCL API.
@@ -235,17 +469,108 @@ The first backend pass proved the service, validation, revision, permission, dep
 
 ### Required workbook-ownership remediation
 
-- [ ] Remove the `method_models` project-model persistence path and its project CRUD routes.
-- [ ] Remove the project-level FT basic-event catalogue persistence path and routes.
-- [ ] Load and patch FT, ET, BN, and HCL data through their owning workbook services and MEF documents.
-- [ ] Reuse workbook authorization and workflow checks for model edits and executions.
-- [ ] Add workbook revision and expected-revision handling to method-related patches.
-- [ ] Preserve HTTP `409` behavior for stale workbook edits and racing updates.
-- [ ] Refactor dependency discovery to resolve typed workbook/entity references rather than project models.
-- [ ] Refactor analysis runs to record the owner workbook, workbook-local model ID, source workbook revisions, and immutable snapshots.
-- [ ] Build pure workbook-MEF-to-PRAXIS snapshot adapters for FT, BN, ET, and HCL execution.
-- [ ] Delete a workbook-owned model only after checking typed references from other workbooks.
-- [ ] Add corrected permission, persistence, revision, dependency, and analysis-run tests.
+- [x] Remove the `method_models` project-model persistence path and its project CRUD routes.
+- [x] Remove the project-level FT basic-event catalogue persistence path and routes.
+- [x] Load and patch FT, ET, BN, and HCL data through their owning workbook services and MEF documents.
+- [x] Reuse workbook authorization and workflow checks for model edits and executions.
+- [x] Add workbook revision and expected-revision handling to method-related patches.
+- [x] Preserve HTTP `409` behavior for stale workbook edits and racing updates.
+- [x] Refactor dependency discovery to resolve typed workbook/entity references rather than project models.
+- [x] Refactor analysis runs to record the owner workbook, workbook-local model ID, source workbook revisions, and immutable snapshots.
+- [x] Build pure workbook-MEF-to-PRAXIS snapshot adapters for FT, BN, ET, and HCL execution.
+- [x] Delete a workbook-owned model only after checking typed references from other workbooks.
+- [x] Add corrected permission, persistence, revision, dependency, and analysis-run tests.
+
+### Removed project-level method-model path
+
+- The `method_models` Mongo record, project-model service, and project-scoped controller have been removed from production code and from the shared method backend module.
+- The complete `/projects/:projectId/method-models` endpoint family is retired, including list, create, load, patch, delete, dependency, validation, run creation, run status, and run-result routes.
+- Tests that existed solely to exercise the retired project-model persistence and endpoint family have been removed with that implementation. The recorded numerical fixtures remain evidence for the solver core and will be restored through corrected workbook-owned APIs at the workbook API gate.
+- The PRAXIS client, method analysis-run record, and separately scheduled project-level FT basic-event catalogue remain unchanged in this TODO.
+- A production-source architecture guard rejects the old route, `method_models` collection, controller, or service if any is reintroduced.
+
+Automated completion gate:
+
+1. Prove the backend module still composes every method area but registers no project-model controller or service.
+2. Scan production method-backend sources for the retired route, collection, controller, and service.
+3. Verify every retired endpoint variant returns HTTP `404` from the running backend while an unrelated protected API remains registered.
+4. Run the complete backend test, typecheck, lint, production-build, Prettier, and diff-integrity gates.
+
+### Removed project-level FT basic-event catalogue path
+
+- The project-keyed `fault_tree_basic_event_catalogues` Mongo record, its project-authorized service, and its project controller have been removed from production code and module registration.
+- Create, load, and patch operations under `/projects/:projectId/fault-tree-basic-event-catalogue` are retired; their implementation-specific tests were removed with the obsolete path.
+- `FaultTreeModule` remains as the backend composition boundary for later workbook-owned FT services but no longer imports project authorization or registers project catalogue providers.
+- The canonical `SystemsAnalysis.systemBasicEvents` catalogue and its SY workbook persistence, normalization, and migration behavior are unchanged.
+- The backend architecture guard rejects the old route, collection, record, controller, or service if any is reintroduced.
+
+Automated completion gate:
+
+1. Prove the backend method module contains no project FT catalogue persistence, route, or provider registration.
+2. Run the canonical SY basic-event catalogue and frozen workbook migration tests with the removal guard.
+3. Verify the retired project catalogue GET, POST, and PATCH routes return HTTP `404` while the SY workbook API remains registered.
+4. Run the complete backend test, typecheck, lint, production-build, Prettier, and diff-integrity gates.
+
+### Workbook-owned method-model load and patch path
+
+- The authenticated `GET /sy-workbooks/:id`, `GET /es-workbooks/:id`, and `GET /esq-workbooks/:id` routes return schema-parsed, typed MEF documents from their existing workbook services. No replacement method-model read route was added.
+- The corresponding workbook `PATCH /:id` routes remain the only editor persistence transport. Path operations update `systemLogicModels` and the canonical `systemBasicEvents` catalogue in SY, `eventTrees` in ES, and `bayesianNetworks` or `hclConfigurations` in ESQ before the complete owner MEF is validated and saved.
+- Workbook services and the generic workbook adapters preserve the ESQ HCL contract's required `variableOrder: null` value for automatic ordering while continuing to normalize unrelated legacy nulls before complete MEF validation.
+- SY, ES, and ESQ workbook responses expose their concrete MEF types, and invalid stored ES/ESQ payloads fail at the API boundary instead of being returned as untyped data.
+- A focused authenticated HTTP integration suite loads and patches all four model kinds through their owning workbook controllers, verifies independent BN and HCL patches, preserves unrelated collections, and proves the saved document remains the workbook MEF.
+
+Automated completion gate:
+
+1. Load FT, ET, BN, and HCL data through the existing authenticated owner-workbook GET routes.
+2. Patch only model-owned paths through the corresponding workbook PATCH routes and verify unrelated MEF collections remain unchanged.
+3. Preserve HCL automatic variable ordering through controller services and generic workbook adapters while retaining legacy null normalization.
+4. Run the focused HTTP persistence suite plus complete shared-interface and backend suites, typechecks, lints, production build, Prettier, and diff-integrity gates.
+
+### Workbook model authorization and workflow gate
+
+- `WorkbookModelAccessService` is the single authorization boundary for workbook-owned method edits and analysis execution. It resolves project access first, then the actor's effective workbook roles, then the owner MEF's workflow state.
+- Edits and executions require project `owner` or `editor` access, a workbook `preparer` or `co_preparer` role, and workflow state `DRAFT` or `REVISION_REQUIRED`. Legacy MEFs without a workflow state continue to behave as `DRAFT`.
+- Project viewers are rejected before workbook-role lookup, preserving the existing concealed project-access boundary. Reviewers, approvers, unassigned users, and preparers in review, approval, or final states cannot mutate or execute method analyses.
+- SY, ES, and ESQ PATCH services call the shared edit gate before parsing, mutating, or saving their workbook MEFs and reuse its resolved effective roles in the response.
+- `WorkbooksModule` exports the shared gate and the newly-developed-method shared backend imports it for the forthcoming workbook-owned run service. No premature execution route or replacement run persistence was added; the separate analysis-run refactor TODO will invoke `requireExecution` before snapshot creation.
+
+Automated completion gate:
+
+1. Exercise every allowed project-role, workbook-author-role, editable-state, and edit/execute combination.
+2. Reject project viewers, non-author workbook roles, absent roles, and locked workflow states before persistence or execution.
+3. Prove authenticated SY, ES, and ESQ owner routes use the edit gate and that the method backend imports the execution boundary.
+4. Run the complete backend test, typecheck, lint, production-build, Prettier, and diff-integrity gates.
+
+### Workbook revision and expected-revision contract
+
+- SY, ES, and ESQ owner documents persist a positive workbook-level `revision`, defaulting to `1`. Existing documents that predate the field are read as revision `1` and persist their first accepted method patch as revision `2`.
+- Authenticated GET responses expose the current revision beside the workbook-owned MEF. Method-related PATCH payloads use the strict `{ expectedRevision, operations }` contract, while unrelated workbook APIs retain their existing operations-only payload.
+- Each accepted FT, ET, BN, or HCL patch compares the supplied positive integer with the loaded owner-workbook revision, applies and validates the requested MEF path operations, advances the workbook revision exactly once, persists it with the MEF, and returns the new revision.
+- Missing, zero, fractional, or unexpected revision-contract fields are rejected before service mutation. Authorized stale requests are rejected without changing the MEF or revision and without calling save.
+- The initial revision-contract pass established persistence and request/response behavior. The atomic revision gate below replaces its load-check-save window while preserving the same client-visible stale-edit behavior.
+
+Automated completion gate:
+
+1. Validate the strict revisioned-patch schema and prove unrelated workbook PATCH contracts remain unchanged.
+2. Prove all three owner schemas default to revision `1` and that a legacy revision-less document migrates on its first accepted patch.
+3. Load and patch SY FT, ES ET, ESQ BN, and ESQ HCL data through authenticated APIs, verifying revision `1` to `2` and sequential `2` to `3` persistence and responses.
+4. Reject missing and stale expected revisions without persistence while preserving workbook authorization denials.
+5. Run complete shared-interface and backend suites, typechecks, lints, production build, Prettier, and diff-integrity gates.
+
+### Atomic workbook revision-conflict gate
+
+- SY, ES, and ESQ method patches perform their final write with one `findOneAndUpdate` operation whose filter contains both the owner workbook ID and the caller's expected revision. The validated MEF and next revision are written together and the updated owner document is returned.
+- Expected revision `1` atomically matches either a stored revision `1` or a legacy document with no revision field. Its accepted update writes revision `2`, preventing MongoDB's missing-field increment behavior from assigning the wrong logical revision.
+- A request that is already stale after authorization receives HTTP `409` before persistence. If two authorized requests load the same revision, their conditional writes compete at the database boundary: exactly one matches and advances the revision, while the losing update matches no document and receives HTTP `409`.
+- Method patches no longer use document `save()` after the initial read, so no unqualified write can overwrite the winning MEF between the revision check and persistence. Authorization, workflow checks, full-MEF validation, and the revision-bearing response contract remain unchanged.
+
+Automated completion gate:
+
+1. Verify successful SY FT, ES ET, ESQ BN, and ESQ HCL patches use revision-qualified atomic updates and return the atomically updated document.
+2. Verify legacy revision-less owners atomically match logical revision `1` and persist revision `2`.
+3. Reject an already stale request with HTTP `409` without issuing an update.
+4. Synchronize two authenticated API requests so both load revision `1`, then prove statuses `200` and `409`, one stored MEF, one revision advance, and no document `save()` call.
+5. Run the complete backend suite, typecheck, lint, production build, Prettier, and diff-integrity gates.
 
 ### Save behavior
 
@@ -291,14 +616,14 @@ Do not begin editor frontend implementation until every method can complete a re
 
 ### Workbook-owned API gate
 
-- [ ] Execute an SY-owned FT through an SY workbook API using the workbook's basic-event catalogue.
-- [ ] Execute a workbook-owned BN query through its hosting workbook API.
-- [ ] Execute an ES-owned ET through an ES workbook API using typed references to SY FT top events.
-- [ ] Execute an HCL-linked FT and ET through the integration workbook API.
-- [ ] Persist and retrieve workbook-owned immutable run records with every contributing workbook revision.
-- [ ] Re-run the hand-calculated FT, BN, independent ET, HCL FT, and HCL ET numerical fixtures through the corrected APIs.
-- [ ] Cover workbook permissions, stale revisions, missing cross-workbook references, malformed solver responses, and result retrieval.
-- [ ] Record the corrected Windows, Linux, and Docker API-to-worker verification.
+- [x] Execute an SY-owned FT through an SY workbook API using the workbook's basic-event catalogue.
+- [x] Execute a workbook-owned BN query through its hosting workbook API.
+- [x] Execute an ES-owned ET through an ES workbook API using typed references to SY FT top events.
+- [x] Execute an HCL-linked FT and ET through the integration workbook API.
+- [x] Persist and retrieve workbook-owned immutable run records with every contributing workbook revision.
+- [x] Re-run the hand-calculated FT, BN, independent ET, HCL FT, and HCL ET numerical fixtures through the corrected APIs.
+- [x] Cover workbook permissions, stale revisions, missing cross-workbook references, malformed solver responses, and result retrieval.
+- [x] Record the corrected Windows, Linux, and Docker API-to-worker verification.
 
 ## Phase 5 — Fault-tree vertical slice
 
@@ -555,6 +880,37 @@ The following items are explicitly excluded from the initial implementation:
 | 2026-08-20 | Create feature branch | `git worktree add -b hcl_implementation_mhtgr_model_import ... origin/main`; branch tracks `origin/main` | Passed |
 | 2026-08-20 | Create implementation checklist | `prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md` | Passed |
 | 2026-08-21 | Revise canonical editor architecture | Recorded `newly-developed-methods` as the sole FT/ET/BN/HCL implementation location, workbook screens as importing hosts, SY FT and approved workbook ET visuals as the standards, duplicate-editor removal after parity testing, workbook-owned persistence, and the reopened workbook API gate; `pnpm exec prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md` and `git diff --check` passed | Passed |
+| 2026-08-21 | Inventory current FT and ET implementations | Repository-wide TSX, import, call-site, CSS, MEF, backend, and solver searches identified two FT renderer implementations (SY standard and the alternate newly-developed ReactFlow internals), their IE Step 02 and Step 08 callers, and one ES Step 02 ET presentation bundle with three coordinated representations; searches also confirmed ESQ has transfer/dependency records but no graphical ET renderer, other workbook matches are references rather than editors, and direct frontend renderer coverage is absent except for the ES selector test. The canonical definition/call-site search, `pnpm exec prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md`, and `git diff --check` passed | Passed |
+| 2026-08-21 | Designate the sole FT and ET visual standards | User direction and the verified inventory designate SY Step 02 System Models as the sole FT visual source and ES Step 02 Event Sequences as the sole ET visual source. The alternate ReactFlow FT implementation is explicitly scheduled for removal after every current caller imports the SY-based canonical implementation and passes parity testing | Passed |
+| 2026-08-21 | Define canonical public editor contracts | Defined one controlled public component per method folder, one-operation-at-a-time workbook callbacks, author/read/reference/quantification capabilities, typed cross-workbook navigation, host-owned persistence and execution, private ET representations, mandatory SY/ES visual parity, and explicit removal of the alternate ReactFlow renderer after migration. Contract assertions, Prettier, and `git diff --check` passed | Passed |
+| 2026-08-21 | Separate reusable method schemas from workbook-owned MEF persistence wrappers | Moved strict FT, BN, ET, and HCL definition bodies and their Zod schemas into `interfaces-mef-types/modeling`, where they reject project, audit, revision, and method-type persistence metadata; retained the existing `shared-types` standalone shapes only as compatibility wrappers for later migration TODOs. Focused definition/wrapper tests passed 8/8; the complete shared-interface suite passed 588/588; the backend suite passed 339/339; the frontend suite passed 475/475; MEF/shared-interface and backend/frontend typechecks passed; both interface lint targets passed | Passed |
+| 2026-08-21 | Replace standalone identity with workbook-scoped identity | Added strict durable workbook/model/entity addresses, separate workbook-catalogue and model-entity addresses, and revision-bearing snapshot identities; migrated reusable MEF definitions to explicit workbook-local entity IDs; rejected project ID, standalone ID, model revision, analyst code, and invalid local-ID forms; and marked old method IDs and project-model identity/metadata as deprecated compatibility contracts. Focused identity/definition tests passed 13/13; the full interface suite passed 593/593; backend passed 339/339; frontend passed 475/475; all four interface/application typechecks and both interface lint targets passed; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Define typed cross-workbook references | Added strict discriminated references for FT top events, workbook-catalogue FT basic events, ET functional events, BN nodes, and HCL bindings; required workbook/model/entity scope appropriate to each target; excluded revision, project, display, and copied-target metadata from durable links; and retained old generic references only as deprecated compatibility contracts for the following MEF migrations. Focused identity/reference tests passed 32/32; the full shared-interface suite passed 612/612; backend passed 339/339; frontend passed 475/475; all four interface/application typechecks and both interface lint targets passed | Passed |
+| 2026-08-21 | Make the SY workbook basic-event collection canonical | Implemented required workbook-level catalogue ownership, reference-only FT leaves, derived per-model membership, legacy migration with model-local edit precedence, canonical API reads, and catalogue-backed SY screens/reports. Initial manual verification found that blank SY Step 02 assumed a system definition; Step 02 now renders a guarded empty state, with a focused regression test. Focused migration/schema tests passed 7/7; shared interfaces passed 612/612; backend passed 346/346; frontend passed 476/476; all four interface/application typechecks and MEF/backend/frontend lint targets passed. Frontend and backend services respond locally on ports 4201 and 8000. The user confirmed the blank state, seeded-event drawer values, name/probability edits, persistence after refresh, card synchronization, and other-system rendering | Passed |
+| 2026-08-21 | Extend the existing ES event-tree MEF | Kept `EventSequenceAnalysis.eventTrees[]` as the only persisted topology and extended each existing tree with initiating-event frequency, typed cross-workbook FT top-event links, and canvas layout. Direct tree parsing rejects standalone method-model metadata and ambiguous dual legacy/typed FT links while retaining legacy-only links for the dedicated migration TODO. Focused contract tests passed 4/4 and the ES workbook-schema round-trip passed 1/1; shared interfaces passed 616/616; backend passed 347/347; frontend passed 476/476; all four interface/application typechecks and lint targets passed; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Add BN and HCL data to the hosting ESQ workbook MEF | Added required ESQ-owned BN and HCL collections, strict workbook-local model wrappers, typed HCL FT-basic-event and BN-node bindings, declared-target integrity checks, blank/seed initialization, and default healing for older ESQ payloads. The complete ESQ schema round-trips both collections and drops an unknown project-level `methodModels` collection, while the later legacy backend-migration gate remains undisturbed. Focused contract tests passed 4/4 and focused backend round-trip tests passed 3/3; the full shared-interface suite passed 620/620 and backend suite passed 350/350; MEF/shared/backend typechecks and all three lint targets passed; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Remove the frontend model-library concept | Verified that the rejected standalone frontend had never been exposed: no model-library route, navigation entry, component, or project method-model API caller exists. Documented `newly-developed-methods` as a reusable source boundary, preserved the distinct methodology-documentation MEFs, and added a production-source architecture guard against model-library endpoints/routes/components and editor persistence coupling. Focused architecture tests passed 2/2; the complete frontend suite passed 478/478; frontend typecheck, lint, and production build passed; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Add SY fault-tree and ES event-tree migration tests | Added independent frozen legacy fixtures and full-workbook characterization tests. SY migration preserves nested gate/transfer topology and event metadata while consolidating model-local and leaf-only events into reference-only leaves plus the workbook catalogue; ES compatibility preserves branches, paths, sequences, transfers, mission data, and unqualified FT IDs until a context-aware resolver is implemented. Both results reparse idempotently and neither test mutates its fixture. Focused migration tests passed 2/2; shared interfaces passed 620/620 and backend passed 352/352; MEF/shared/backend typechecks and all three lint targets passed; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Verify corrected interfaces and migrations before backend ownership changes | Ran the accumulated workbook-owned contracts and migrations as a consolidated pre-refactor gate without changing production schemas, stored shapes, routes, or ownership. Focused corrected interface tests passed 40/40 and focused workbook ownership/migration tests passed 13/13. Complete suites passed 620/620 shared-interface, 352/352 backend, and 478/478 frontend tests. Typecheck and lint passed for MEF types, shared types, backend, and frontend; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Remove project-level method-model persistence and routes | Deleted the `method_models` schema, project-model service/controller, their module registration, and tests coupled exclusively to the retired API. Added a production-source and module-metadata regression guard while preserving the PRAXIS client, analysis-run record, and separately scheduled FT catalogue. The focused guard passed 2/2; the complete remaining backend suite passed 299/299; backend typecheck, lint, and production build passed. Runtime checks confirmed all ten former CRUD/dependency/validation/run endpoint variants return HTTP `404`, while the protected projects API remains registered; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Remove project-level FT basic-event catalogue persistence and routes | Deleted the `fault_tree_basic_event_catalogues` schema, project catalogue service/controller, module registration, and obsolete focused tests. Left `FaultTreeModule` as an empty composition boundary and preserved the canonical SY workbook catalogue. The combined removal/SY/migration gate passed 12/12 and the complete remaining backend suite passed 291/291; backend typecheck, lint, and production build passed. Runtime checks confirmed the retired GET/POST/PATCH routes return HTTP `404` while the protected SY workbook API remains registered; Prettier and `git diff --check` passed | Passed |
+| 2026-08-21 | Load and patch FT, ET, BN, and HCL through owning workbooks | Kept the existing authenticated SY, ES, and ESQ workbook GET/PATCH APIs as the sole persistence transport; made all three responses return schema-parsed concrete MEF types; validated path-operation patches against the complete owner MEF; and preserved HCL automatic `variableOrder: null` through ESQ service and adapter normalization. A focused HTTP integration suite passed 3/3 across SY FT, ES ET, ESQ BN, and ESQ HCL loads and independent patches; the complete shared-interface suite passed 620/620 and backend suite passed 294/294; MEF/shared/backend typechecks and lints plus the production backend build passed | Passed |
+| 2026-08-21 | Reuse workbook authorization and workflow checks for edits and executions | Added one exported workbook model-access boundary that checks project access, effective workbook author roles, and editable workflow state in order for both edits and execution. SY, ES, and ESQ PATCH services now use the edit gate before mutation; the method shared backend imports the execution gate for its separately scheduled workbook-run refactor. A focused 44/44 matrix, HTTP, and architecture suite covered owner/editor, preparer/co-preparer, draft/revision, viewer, reviewer, approver, no-role, review/approval/final, concealed access, and all three owner routes; the complete backend suite passed 332/332; backend typecheck, lint, and production build passed | Passed |
+| 2026-08-21 | Add workbook revision and expected-revision handling to method patches | Added persisted positive revisions to SY, ES, and ESQ owner documents; strict expected-revision PATCH payloads; revision-bearing GET/PATCH responses; legacy revision-less reads as revision 1; and exactly-once successful increments across FT, ET, BN, and HCL path patches. Contract/API tests cover required positive revisions, schema defaults, legacy migration, sequential increments, authorization preservation, and no-save stale rejection. Complete suites passed 622/622 shared-interface and 336/336 backend tests; shared/backend typechecks and lints plus the production backend build passed | Passed |
+| 2026-08-21 | Preserve HTTP 409 for stale and racing workbook edits | Replaced SY, ES, and ESQ method-patch document saves with revision-qualified atomic `findOneAndUpdate` operations that write the validated MEF and next revision together, including the legacy revision-less-to-2 transition. A synchronized two-request API regression proves both requests load revision 1, exactly one returns 200/revision 2, the loser returns 409, and only the winning MEF is stored. Focused revision tests passed 13/13 and the complete backend suite passed 337/337; backend typecheck, lint, and production build passed | Passed |
+| 2026-08-21 | Resolve typed workbook dependencies | Added strict cross-reference and workbook-model-address discovery across SY, ES, and ESQ MEFs with escaped JSON-pointer paths, deterministic sorting, and rejection of legacy lookalikes. Focused interface/backend tests passed 10/10 | Passed |
+| 2026-08-21 | Store immutable workbook-owned analysis contexts | Replaced project/model run snapshots with owner identity, unique contributing workbook revisions, and exact immutable MEF snapshots. Focused interface/backend schema tests passed 10/10 and both production typechecks passed | Passed |
+| 2026-08-21 | Adapt workbook MEFs to PRAXIS | Added pure SY FT, ESQ BN, ES ET, and ESQ HCL snapshot adapters, including canonical SY catalogue resolution, deterministic ES end-state IDs, and typed-reference normalization without source mutation. Focused adapter tests passed 5/5 and backend typecheck passed | Passed |
+| 2026-08-21 | Gate workbook-model deletion by typed references | Added revisioned owner routes for SY FTs, ES ETs, ESQ BNs, and ESQ HCL configurations; typed dependencies block deletion with `409`, while references inside the removed model are ignored. Focused dependency tests passed 5/5 and owner-route tests passed | Passed |
+| 2026-08-21 | Correct the backend ownership test matrix | Updated module and HTTP matrices for new dependency/run providers and all four deletion routes. The complete backend suite passed 354/354 across 40 suites; backend typecheck and lint passed | Passed |
+| 2026-08-21 | Execute an SY-owned FT through its workbook API | A real HTTP request traversed the SY route, immutable run storage, Praetor worker, and native PRAXIS addon. The OR fixture returned exact probability `0.28` and leading cut-set probabilities `[0.2, 0.1]` | Passed |
+| 2026-08-21 | Execute a workbook-owned BN query | A real ESQ workbook API call reached TensorBayes through PRAXIS and returned the exact posterior `[0.36, 0.64]` | Passed |
+| 2026-08-21 | Execute an ES-owned ET through typed SY references | The ES API resolved its typed SY FT top-event reference, recorded ES revision 5 plus SY revision 3, and returned sequence probabilities `0.72/0.28` with annual frequencies `0.0072/0.0028` | Passed |
+| 2026-08-21 | Execute integration-workbook HCL FT and ET runs | ESQ HCL routes assembled immutable ESQ/ES/SY snapshots and executed exact HCL. FT returned `0.16` rather than independent `0.02`; ET returned `0.84/0/0/0.16`, preserving complete path context | Passed |
+| 2026-08-21 | Persist and retrieve every contributing revision | A real Mongo run recorded owner identity, request, ES and SY source revisions, both complete immutable MEF snapshots, result, and lifecycle fields; status and result routes returned the same identities | Passed |
+| 2026-08-21 | Re-run corrected numerical fixtures | One combined real API-to-worker run passed FT `0.28`, BN `0.64`, independent ET `0.72/0.28`, HCL FT `0.16`, and HCL ET `0.84/0/0/0.16` | Passed |
+| 2026-08-21 | Cover corrected API boundaries | Focused HTTP tests returned `403` for execution permission denial, `409` for stale revision, `404` for missing model references, `502` for malformed native results with durable structured failure, and `409` for unavailable failed-run results | Passed |
+| 2026-08-21 | Verify corrected Windows, Linux, and Docker paths | Windows direct-addon and all 6 corrected API tests passed. A clean Debian builder loaded the Linux GNU addon and passed the same 6 tests. The final runtime image contains only the four intended addon files, and its packaged Praetor worker returned FT `0.28` from worker thread 1 | Passed |
 | 2026-08-20 | Verify existing FT presentation | Frontend type check passed; browser check opened the MLD FT, confirmed node detail interaction, and confirmed zoom changed the React Flow viewport transform | Passed |
 | 2026-08-20 | Verify existing ET presentation | `esSelectors.spec.ts` passed 7/7; browser check opened the ET view and selected EHP-3, which displayed the RT-success/SCS-failure/RCCS-failure/CONF-success path and RC-2 outcome | Passed |
 | 2026-08-20 | Create shared interface module and barrels | Prettier check, `interfaces-shared-types:typecheck`, and `interfaces-shared-types:lint` | Passed |

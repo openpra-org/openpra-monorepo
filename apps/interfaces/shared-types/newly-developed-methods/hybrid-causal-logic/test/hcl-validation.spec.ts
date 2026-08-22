@@ -18,15 +18,10 @@ const LEAF_ID = "123e4567-e89b-42d3-a456-426614174707";
 const BASIC_EVENT_ID = "123e4567-e89b-42d3-a456-426614174708";
 const BINDING_ID = "123e4567-e89b-42d3-a456-426614174709";
 
-const metadata = {
-  schemaVersion: "1.0.0",
-  projectId: "project-1",
-  revision: 1,
-  createdBy: "ada",
-  createdAt: "2026-08-20T20:00:00.000Z",
-  updatedBy: "ada",
-  updatedAt: "2026-08-20T20:00:00.000Z",
-};
+const BN_WORKBOOK_ID = "esq-workbook";
+const FT_WORKBOOK_ID = "sy-workbook";
+const HCL_WORKBOOK_ID = "esq-workbook";
+const owner = { workbookId: HCL_WORKBOOK_ID, workbookRevision: 1, modelId: HCL_ID } as const;
 const layout = {
   viewport: { x: 0, y: 0, zoom: 1 },
   mode: "MANUAL",
@@ -34,9 +29,7 @@ const layout = {
 };
 
 const bayesianNetwork = BayesianNetworkModelSchema.parse({
-  ...metadata,
-  id: BN_ID,
-  methodType: "BAYESIAN_NETWORK",
+  modelId: BN_ID,
   code: "BN-001",
   name: "Dependency BN",
   description: "",
@@ -75,9 +68,7 @@ const bayesianNetwork = BayesianNetworkModelSchema.parse({
 });
 
 const faultTree = FaultTreeModelSchema.parse({
-  ...metadata,
-  id: FT_ID,
-  methodType: "FAULT_TREE",
+  modelId: FT_ID,
   code: "FT-001",
   name: "Pump failure",
   description: "",
@@ -112,19 +103,26 @@ const faultTree = FaultTreeModelSchema.parse({
 });
 
 const configuration = HclConfigurationModelSchema.parse({
-  ...metadata,
-  id: HCL_ID,
-  methodType: "HYBRID_CAUSAL_LOGIC",
+  modelId: HCL_ID,
   code: "HCL-001",
   name: "Pump dependency mapping",
   description: "",
-  bayesianNetwork: { modelId: BN_ID },
-  faultTrees: [{ faultTree: { modelId: FT_ID } }],
+  bayesianNetwork: { workbookId: BN_WORKBOOK_ID, modelId: BN_ID },
+  faultTrees: [{ workbookId: FT_WORKBOOK_ID, modelId: FT_ID }],
   bindings: [
     {
       id: BINDING_ID,
-      faultTreeBasicEvent: { modelId: FT_ID, entityId: BASIC_EVENT_ID },
-      bayesianNetworkNode: { modelId: BN_ID, entityId: NODE_ID },
+      faultTreeBasicEvent: {
+        referenceType: "FAULT_TREE_BASIC_EVENT",
+        workbookId: FT_WORKBOOK_ID,
+        entityId: BASIC_EVENT_ID,
+      },
+      bayesianNetworkNode: {
+        referenceType: "BAYESIAN_NETWORK_NODE",
+        workbookId: BN_WORKBOOK_ID,
+        modelId: BN_ID,
+        entityId: NODE_ID,
+      },
       trueStateIds: [TRUE_STATE_ID],
     },
   ],
@@ -140,8 +138,8 @@ describe("HCL semantic validation", () => {
   it("accepts resolved BN, FT, bound event, node, and true-state references", () => {
     expect(
       validateHclConfigurationModel(configuration, {
-        bayesianNetworks: [bayesianNetwork],
-        faultTrees: [faultTree],
+        bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }],
+        faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }],
       }),
     ).toEqual([]);
   });
@@ -167,7 +165,7 @@ describe("HCL semantic validation", () => {
         {
           ...configuration.bindings[0],
           faultTreeBasicEvent: {
-            modelId: FT_ID,
+            ...configuration.bindings[0].faultTreeBasicEvent,
             entityId: "123e4567-e89b-42d3-a456-426614174799",
           },
           trueStateIds: [FALSE_STATE_ID, TRUE_STATE_ID],
@@ -176,8 +174,8 @@ describe("HCL semantic validation", () => {
     });
     expect(
       validateHclConfigurationModel(invalid, {
-        bayesianNetworks: [bayesianNetwork],
-        faultTrees: [faultTree],
+        bayesianNetworks: [{ workbookId: BN_WORKBOOK_ID, model: bayesianNetwork }],
+        faultTrees: [{ workbookId: FT_WORKBOOK_ID, model: faultTree }],
       }).map((issue) => issue.code),
     ).toEqual(
       expect.arrayContaining([
@@ -189,9 +187,10 @@ describe("HCL semantic validation", () => {
 
   it("keeps invalid drafts saveable but blocks the same analysis-ready model", () => {
     const context = { bayesianNetworks: [], faultTrees: [] };
-    const draft = validateHclDraft(configuration, "2026-08-20T21:00:00.000Z", context);
+    const draft = validateHclDraft(configuration, owner, "2026-08-20T21:00:00.000Z", context);
     const analysis = validateHclAnalysisReady(
       configuration,
+      owner,
       "2026-08-20T21:00:00.000Z",
       context,
     );

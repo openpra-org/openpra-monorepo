@@ -66,6 +66,7 @@ function computeFtLayout(root: SyTreeNode): { nodes: PositionedNode[]; width: nu
 }
 
 function FtSymbol({ node, cx, top }: { node: SyTreeNode; cx: number; top: number }): JSX.Element | null {
+  const { sy } = useSyWorkbook();
   const symTop = top + FT.NODE_H + FT.SYM_GAP;
   const gw = 44;
   const gh = FT.SYM_H;
@@ -89,11 +90,13 @@ function FtSymbol({ node, cx, top }: { node: SyTreeNode; cx: number; top: number
     return <path d={d} className="ftsym ftsym--tr" />;
   }
   if (node.type !== "BE") return null;
+  const basicEvent = sy.systemBasicEvents.find((event) => event.uuid === node.basicEventId);
+  const isCcf = basicEvent?.failureMode === "COMMON_CAUSE_FAILURE";
   const r = gh * 0.5;
   return (
     <g>
-      <circle cx={cx} cy={T + r} r={r} className={`ftsym ftsym--be${node.ccf === true ? " ftsym--ccf" : ""}`} />
-      {node.ccf === true && <circle cx={cx} cy={T + r} r={r - 3.5} className="ftsym ftsym--ccf-inner" />}
+      <circle cx={cx} cy={T + r} r={r} className={`ftsym ftsym--be${isCcf ? " ftsym--ccf" : ""}`} />
+      {isCcf && <circle cx={cx} cy={T + r} r={r - 3.5} className="ftsym ftsym--ccf-inner" />}
     </g>
   );
 }
@@ -122,16 +125,18 @@ function FtBox({ node, cx, top, onTransfer, onSelectBe }: { node: SyTreeNode; cx
     );
   }
   const be = node as SyBeNode;
-  const fm = FAILURE_MODE_TYPES[be.mode];
-  const beData = sy.systemLogicModels.flatMap((m) => m.basicEvents).find((b) => b.uuid === be.be);
+  const beData = sy.systemBasicEvents.find((event) => event.uuid === be.basicEventId);
+  const failureMode = beData?.failureMode ?? "";
+  const fm = FAILURE_MODE_TYPES[failureMode];
+  const isCcf = failureMode === "COMMON_CAUSE_FAILURE";
   const repair = beData?.repairModeled === true;
   return (
-    <div className={`ftbox ftbox--be${be.ccf === true ? " ftbox--ccf" : ""}`} style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }} title="Open the basic event" onClick={() => onSelectBe(be.be)}>
-      <span className="ftbox__name">{be.name}</span>
+    <div className={`ftbox ftbox--be${isCcf ? " ftbox--ccf" : ""}`} style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }} title="Open the basic event" onClick={() => onSelectBe(be.basicEventId)}>
+      <span className="ftbox__name">{beData?.name ?? be.basicEventId}</span>
       <span className="ftbox__be-meta">
-        <span className="ftbox__id">{be.be}</span>
-        <span className={`ftbox__fm ftbox__fm--${(fm?.short ?? "x").toLowerCase()}`}>{fm?.short ?? be.mode}</span>
-        <span className="ftbox__prob">{be.prob}</span>
+        <span className="ftbox__id">{be.basicEventId}</span>
+        <span className={`ftbox__fm ftbox__fm--${(fm?.short ?? "x").toLowerCase()}`}>{(fm?.short ?? failureMode) || "—"}</span>
+        <span className="ftbox__prob">{beData?.probability === undefined ? "—" : toExp(beData.probability)}</span>
       </span>
       {repair && <span className="ftbox__repair">Repair credited</span>}
     </div>
@@ -362,6 +367,22 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
 }): JSX.Element {
   const { sy, shortOf } = useSyWorkbook();
   const sysDef = sy.systemDefinitions.find((s) => s.uuid === sysId) ?? sy.systemDefinitions[0];
+
+  if (sysDef === undefined) {
+    return (
+      <div className="poscard">
+        <div className="poscard__head">
+          <WorkbookSectionHeading workbook="SY" title="System" level={3} />
+          <span className="possubtle">0 systems · SY-A1, A7, A8</span>
+        </div>
+        <p className="poscard__sub">No systems have been added to this workbook yet.</p>
+        <div className="eswarn">
+          <span>Add or import a system definition before building its fault-tree logic model.</span>
+        </div>
+      </div>
+    );
+  }
+
   const logic = sy.systemLogicModels.find((m) => m.systemReference === sysDef.uuid);
   const faultTree = logic?.faultTree as SyTreeNode | undefined;
   const supportSystems = sy.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid).map((d) => d.supportingSystem);
@@ -672,7 +693,7 @@ function CcfScreen({ openDrawer }: { openDrawer: (ctx: SyDrawerContext) => void 
           <tbody>
             {groups.map((g) => {
               const par = ccfParams(g);
-              const check = ccfModelCheck(g, sy.systemLogicModels);
+              const check = ccfModelCheck(g, sy);
               return (
                 <tr key={g.uuid}>
                   <td style={{ fontWeight: 600 }}>{g.name.length > 0 ? g.name : "New group"}</td>

@@ -1,33 +1,37 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ProjectsModule } from "../../projects/projects.module";
-import { WorkbooksModule } from "../../workbooks/workbooks.module";
-import {
-  FaultTreeBasicEventCatalogueRecord,
-  FaultTreeBasicEventCatalogueRecordSchema,
-} from "../fault-tree/fault-tree-basic-event-catalogue-record.schema";
 import { AnalysisRunRecord, AnalysisRunRecordSchema } from "./analysis-run-record.schema";
-import { MethodModelRecord, MethodModelRecordSchema } from "./method-model-record.schema";
-import { MethodModelsController } from "./method-models.controller";
-import { MethodModelsService } from "./method-models.service";
 import { PraetorAnalysisClient } from "./praetor-analysis.client";
+import { WorkbooksModule } from "../../workbooks/workbooks.module";
+import { SyWorkbook, SyWorkbookSchema } from "../../sy-workbooks/sy-workbook.schema";
+import { EsWorkbook, EsWorkbookSchema } from "../../es-workbooks/es-workbook.schema";
+import { EsqWorkbook, EsqWorkbookSchema } from "../../esq-workbooks/esq-workbook.schema";
+import { WorkbookDependencyDiscoveryService } from "./workbook-dependency-discovery.service";
+import { WorkbookAnalysisRunsService } from "./workbook-analysis-runs.service";
+import { ProjectsModule } from "../../projects/projects.module";
 
 /** Shared backend infrastructure for the method editors belongs in this module. */
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: MethodModelRecord.name, schema: MethodModelRecordSchema }]),
-    MongooseModule.forFeature([{ name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema }]),
     MongooseModule.forFeature([
-      {
-        name: FaultTreeBasicEventCatalogueRecord.name,
-        schema: FaultTreeBasicEventCatalogueRecordSchema,
-      },
+      { name: AnalysisRunRecord.name, schema: AnalysisRunRecordSchema },
+      { name: SyWorkbook.name, schema: SyWorkbookSchema },
+      { name: EsWorkbook.name, schema: EsWorkbookSchema },
+      { name: EsqWorkbook.name, schema: EsqWorkbookSchema },
     ]),
-    ProjectsModule,
     WorkbooksModule,
+    ProjectsModule,
   ],
-  controllers: [MethodModelsController],
-  providers: [MethodModelsService, PraetorAnalysisClient],
-  exports: [MongooseModule, MethodModelsService, PraetorAnalysisClient],
+  providers: [
+    PraetorAnalysisClient,
+    WorkbookDependencyDiscoveryService,
+    WorkbookAnalysisRunsService,
+  ],
+  exports: [
+    MongooseModule,
+    PraetorAnalysisClient,
+    WorkbookDependencyDiscoveryService,
+    WorkbookAnalysisRunsService,
+  ],
 })
 export class NewlyDevelopedMethodsSharedModule {}

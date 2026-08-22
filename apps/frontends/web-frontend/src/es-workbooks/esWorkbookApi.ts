@@ -8,6 +8,7 @@ interface EsWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
+  revision: number;
   mef: EventSequenceAnalysis;
   myRoles: EsWorkbookRoleName[];
   hasPreviousMef: boolean;
@@ -20,8 +21,16 @@ async function getEsWorkbook(workbookId: string): Promise<EsWorkbookResponse> {
   return fetchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`);
 }
 
-async function patchEsWorkbook(workbookId: string, current: EventSequenceAnalysis, mef: EventSequenceAnalysis): Promise<EsWorkbookResponse> {
-  return patchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+async function patchEsWorkbook(
+  workbookId: string,
+  expectedRevision: number,
+  current: EventSequenceAnalysis,
+  mef: EventSequenceAnalysis,
+): Promise<EsWorkbookResponse> {
+  return patchJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}`, {
+    expectedRevision,
+    operations: createWorkbookPatch(current, mef),
+  });
 }
 
 interface EsExampleOption {

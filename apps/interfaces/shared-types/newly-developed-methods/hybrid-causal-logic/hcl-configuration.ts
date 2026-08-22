@@ -1,29 +1,11 @@
-import type { MethodEntityId, MethodModelMetadata, MethodModelReference } from "../shared";
-import type { BayesianNetworkEvidenceConfiguration } from "../bayesian-network";
-import type { HclEventBinding } from "./hcl-bindings";
+import type { HclConfigurationDefinition } from "interfaces-mef-types/modeling";
+import type { WorkbookModelId } from "../shared";
 
-interface HclBayesianNetworkReference {
-  bayesianNetwork: MethodModelReference;
-}
-
-interface HclFaultTreeReference {
-  faultTree: MethodModelReference;
-}
-
-type HclBaseEvidence = BayesianNetworkEvidenceConfiguration;
-
-interface HclSolverSettings {
-  variableOrder: MethodEntityId[] | null;
-  foldConstants: boolean;
-  spliceNullGates: boolean;
-}
-
-interface HclConfigurationModel extends Omit<MethodModelMetadata, "methodType">, HclBayesianNetworkReference {
-  methodType: "HYBRID_CAUSAL_LOGIC";
-  faultTrees: HclFaultTreeReference[];
-  bindings: HclEventBinding[];
-  baseEvidence: HclBaseEvidence;
-  solverSettings: HclSolverSettings;
+interface HclConfigurationModel extends HclConfigurationDefinition {
+  modelId: WorkbookModelId;
+  code: string;
+  name: string;
+  description: string;
 }
 
 export type {
@@ -31,5 +13,6 @@ export type {
   HclFaultTreeReference,
   HclBaseEvidence,
   HclSolverSettings,
-  HclConfigurationModel,
-};
+  HclConfigurationDefinition,
+} from "interfaces-mef-types/modeling";
+export type { HclConfigurationModel };

@@ -31,18 +31,10 @@ const node = {
 } as const;
 
 const model = {
-  schemaVersion: "1.0.0",
-  id: MODEL_ID,
-  projectId: "project-mhtgr",
-  methodType: "BAYESIAN_NETWORK",
+  modelId: MODEL_ID,
   code: "BN-PUMP",
   name: "Pump Bayesian network",
   description: "Pump causal model.",
-  revision: 1,
-  createdBy: "analyst-1",
-  createdAt: "2026-08-20T13:00:00.000Z",
-  updatedBy: "analyst-1",
-  updatedAt: "2026-08-20T13:00:00.000Z",
   nodes: [node],
   edges: [],
   conditionalProbabilityTables: [
@@ -77,8 +69,8 @@ const query = {
 const queuedRun = {
   schemaVersion: "1.0.0",
   id: RUN_ID,
-  modelId: MODEL_ID,
-  modelRevision: 1,
+  owner: { workbookId: "esq-workbook", workbookRevision: 1, modelId: MODEL_ID },
+  sourceWorkbooks: [{ workbookId: "esq-workbook", workbookRevision: 1 }],
   methodType: "BAYESIAN_NETWORK",
   status: "QUEUED",
   requestedBy: "analyst-1",
@@ -91,17 +83,18 @@ const queuedRun = {
 describe("Bayesian-network model and create contracts", () => {
   const createRequest = {
     schemaVersion: "1.0.0",
-    projectId: "project-mhtgr",
+    modelId: MODEL_ID,
     code: "BN-PUMP",
     name: "Pump Bayesian network",
     description: "Pump causal model.",
-    createdBy: "analyst-1",
   };
 
   it("accepts a versioned Bayesian-network model and create request/result", () => {
     expect(BayesianNetworkModelSchema.safeParse(model).success).toBe(true);
     expect(BayesianNetworkCreateRequestSchema.safeParse(createRequest).success).toBe(true);
-    expect(BayesianNetworkCreateResultSchema.safeParse({ schemaVersion: "1.0.0", model }).success).toBe(true);
+    expect(
+      BayesianNetworkCreateResultSchema.safeParse({ schemaVersion: "1.0.0", workbookRevision: 2, model }).success,
+    ).toBe(true);
   });
 
   it("allows an empty draft network", () => {
@@ -117,18 +110,21 @@ describe("Bayesian-network model and create contracts", () => {
 
   it.each([
     { ...createRequest, schemaVersion: "2.0.0" },
-    { ...createRequest, projectId: "" },
+    { ...createRequest, modelId: "BN-1" },
     { ...createRequest, name: "" },
-    { ...createRequest, createdBy: "   " },
+    { ...createRequest, projectId: "project-mhtgr" },
+    { ...createRequest, createdBy: "analyst-1" },
     { ...createRequest, id: MODEL_ID },
   ])("rejects malformed create request %#", (candidate) => {
     expect(BayesianNetworkCreateRequestSchema.safeParse(candidate).success).toBe(false);
   });
 
   it.each([
-    { ...model, methodType: "FAULT_TREE" },
+    { ...model, methodType: "BAYESIAN_NETWORK" },
     { ...model, schemaVersion: "2.0.0" },
     { ...model, revision: 0 },
+    { ...model, id: MODEL_ID },
+    { ...model, projectId: "project-mhtgr" },
     { ...model, nodes: [{ ...node, kind: "UTILITY_NODE" }] },
     { ...model, localState: true },
   ])("rejects malformed model %#", (candidate) => {
@@ -140,8 +136,7 @@ describe("Bayesian-network patch contract", () => {
   const patchRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    expectedRevision: 1,
-    updatedBy: "analyst-2",
+    expectedWorkbookRevision: 1,
     changes: { name: "Renamed pump network" },
   };
 
@@ -150,7 +145,8 @@ describe("Bayesian-network patch contract", () => {
     expect(
       BayesianNetworkPatchResultSchema.safeParse({
         schemaVersion: "1.0.0",
-        model: { ...model, revision: 2, name: patchRequest.changes.name },
+        workbookRevision: 2,
+        model: { ...model, name: patchRequest.changes.name },
       }).success,
     ).toBe(true);
   });
@@ -158,8 +154,9 @@ describe("Bayesian-network patch contract", () => {
   it.each([
     { ...patchRequest, schemaVersion: "2.0.0" },
     { ...patchRequest, modelId: "BN-1" },
-    { ...patchRequest, expectedRevision: 0 },
-    { ...patchRequest, updatedBy: "" },
+    { ...patchRequest, expectedWorkbookRevision: 0 },
+    { ...patchRequest, expectedRevision: 1 },
+    { ...patchRequest, updatedBy: "analyst-2" },
     { ...patchRequest, changes: {} },
     { ...patchRequest, changes: { unknownField: true } },
   ])("rejects malformed patch %#", (candidate) => {
@@ -171,14 +168,12 @@ describe("Bayesian-network validation contracts", () => {
   const validateRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    revision: 1,
+    workbookRevision: 1,
     mode: "ANALYSIS_READY",
-    requestedBy: "analyst-1",
   };
   const validation = {
     schemaVersion: "1.0.0",
-    modelId: MODEL_ID,
-    revision: 1,
+    owner: { workbookId: "esq-workbook", workbookRevision: 1, modelId: MODEL_ID },
     mode: "ANALYSIS_READY",
     valid: true,
     issues: [],
@@ -192,9 +187,10 @@ describe("Bayesian-network validation contracts", () => {
 
   it.each([
     { ...validateRequest, schemaVersion: "2.0.0" },
-    { ...validateRequest, revision: 0 },
+    { ...validateRequest, workbookRevision: 0 },
+    { ...validateRequest, revision: 1 },
     { ...validateRequest, mode: "PUBLISH" },
-    { ...validateRequest, requestedBy: "" },
+    { ...validateRequest, requestedBy: "analyst-1" },
   ])("rejects malformed validate request %#", (candidate) => {
     expect(BayesianNetworkValidateRequestSchema.safeParse(candidate).success).toBe(false);
   });
@@ -204,15 +200,13 @@ describe("Bayesian-network execution and completed-result contracts", () => {
   const executeRequest = {
     schemaVersion: "1.0.0",
     modelId: MODEL_ID,
-    revision: 1,
-    requestedBy: "analyst-1",
+    workbookRevision: 1,
     query,
   };
   const analysisResult = {
     schemaVersion: "1.0.0",
     runId: RUN_ID,
-    modelId: MODEL_ID,
-    modelRevision: 1,
+    owner: { workbookId: "esq-workbook", workbookRevision: 1, modelId: MODEL_ID },
     evidence: query.evidence,
     marginals: [
       {
@@ -241,8 +235,9 @@ describe("Bayesian-network execution and completed-result contracts", () => {
   it.each([
     { ...executeRequest, schemaVersion: "2.0.0" },
     { ...executeRequest, modelId: "BN-1" },
-    { ...executeRequest, revision: 0 },
-    { ...executeRequest, requestedBy: "" },
+    { ...executeRequest, workbookRevision: 0 },
+    { ...executeRequest, revision: 1 },
+    { ...executeRequest, requestedBy: "analyst-1" },
     { ...executeRequest, query: { ...query, queryNodeIds: [] } },
     { ...executeRequest, backend: "TENSORBAYES" },
   ])("rejects malformed execute request %#", (candidate) => {
@@ -260,7 +255,7 @@ describe("Bayesian-network execution and completed-result contracts", () => {
 
   it.each([
     { ...analysisResult, schemaVersion: "2.0.0" },
-    { ...analysisResult, modelRevision: 0 },
+    { ...analysisResult, owner: { ...analysisResult.owner, workbookRevision: 0 } },
     { ...analysisResult, completedAt: "today" },
     {
       ...analysisResult,

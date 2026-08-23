@@ -26,6 +26,29 @@ function deferred<T>(): {
 }
 
 describe("revisioned MEF patch queue", () => {
+  test("does not enqueue or report saving for a structurally empty mutation", async () => {
+    const patchWorkbook = jest.fn<Promise<TestResponse>, [string, number, TestMef, TestMef]>();
+    const { result } = renderHook(() =>
+      useRevisionedMefPatch(
+        "workbook-1",
+        { value: "unchanged" },
+        1,
+        patchWorkbook,
+        jest.fn(),
+        jest.fn(),
+        jest.fn(),
+        jest.fn(),
+      ),
+    );
+
+    await act(async () => {
+      await result.current.patch((current) => ({ ...current }));
+    });
+
+    expect(patchWorkbook).not.toHaveBeenCalled();
+    expect(result.current.saveStatus).toBe("saved");
+  });
+
   test("serializes rapid edits and advances the expected revision", async () => {
     const first = deferred<TestResponse>();
     const second = deferred<TestResponse>();

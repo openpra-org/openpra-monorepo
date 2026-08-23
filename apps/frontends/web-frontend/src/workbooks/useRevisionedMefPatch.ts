@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 
 interface RevisionedWorkbookResponse<TMef> {
   revision: number;
@@ -58,6 +59,7 @@ function useRevisionedMefPatch<TMef, TResponse extends RevisionedWorkbookRespons
       if (current === null || currentRevision === null) return Promise.resolve();
       const before = current;
       const next = mutator(current);
+      if (createWorkbookPatch(before, next).length === 0) return Promise.resolve();
       const generation = generationRef.current;
       let batch = batchRef.current;
       if (batch.pending === 0) {

@@ -862,17 +862,39 @@ The one canonical ET implementation lives under `newly-developed-methods/event-t
 - [x] No alternate ET renderer/editor implementation remains.
 - [x] The Playwright ET create/edit/reload/validate/run/link workflow passes.
 
+## Editor acceptance gate — required before Phase 8
+
+Phases 5–7 established one canonical implementation and a verified vertical slice for each editor. Those scoped completion checks do not substitute for final product acceptance. Do not begin workbook-connection work until the remaining FT, BN, and ET discrepancies have been reproduced, corrected, and accepted together.
+
+### Cross-editor acceptance
+
+- [ ] Audit the FT, BN, and ET editors in the Docker-backed application with representative saved models, results, read-only views, and wide and narrow viewports; record every reproducible functional and visual discrepancy.
+- [ ] Make editor structure and control placement coherent: file actions, primary actions, canvas navigation, contextual authoring, inspectors, and results must appear in predictable locations appropriate to their function.
+- [ ] Keep each editor workspace stable and usable without horizontal page or sidebar scrolling, clipped models, hidden controls, overlapping overlays, or content disappearing when selection changes.
+- [ ] Verify mouse and touchpad selection, dragging, panning, zooming, fitting, connection creation or editing where applicable, context menus, keyboard access, and responsive behavior.
+- [ ] Verify create/edit, save/reload, undo/redo, validation, analysis, stale-result, failure, and read-only workflows without placeholder controls or unexplained status messages.
+
+### Editor-specific acceptance
+
+- [ ] Reproduce and resolve every remaining fault-tree editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
+- [ ] Reproduce and resolve every remaining Bayesian-network editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
+- [ ] Reproduce and resolve every remaining event-tree editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
+- [ ] Run the complete frontend, backend, shared-interface, typecheck, lint, build, and Docker-backed Playwright gates after all three editors are corrected.
+- [ ] Obtain final acceptance for all three editors before checking or implementing any remaining Phase 8 workbook-connection TODO.
+
 ## Phase 8 — Workbook connections
 
 Keep editor implementations reusable under `newly-developed-methods`, but keep model instances embedded in and persisted by their owning workbooks. Workbook screens import the canonical editors; cross-workbook consumers store controlled typed references.
 
-- [ ] Host system FTs in SY Step 02 by importing `newly-developed-methods/fault-tree`.
-- [ ] Replace IE FT presentations with the same canonical FT import and connect them to their controlled workbook data or typed SY references.
+- [x] Host system FTs in SY Step 02 by importing `newly-developed-methods/fault-tree`.
+- [x] Replace IE FT presentations with the same canonical FT import.
+- [ ] Connect IE FT views to their controlled workbook data or typed SY references.
 - [ ] Link DA workbooks to basic-event parameters and probabilities.
 - [ ] Link HRA workbooks to human-failure events and HEPs.
-- [ ] Host ETs and sequence definitions in ES by importing `newly-developed-methods/event-tree`.
-- [ ] Use the same canonical ET import for ESQ ET views and result overlays.
-- [ ] Host BNs and HCL binding UI from their workbook screen by importing the canonical newly-developed-method components.
+- [x] Host ETs and sequence definitions in ES by importing `newly-developed-methods/event-tree`.
+- [x] Use the same canonical ET import for ESQ ET views and result overlays.
+- [x] Host BNs and the current HCL binding workflow from ESQ Step 05 through the canonical Bayesian-network component.
+- [ ] Extract the HCL binding UI into `newly-developed-methods/hybrid-causal-logic` and have ESQ import the canonical component.
 - [ ] Link ESQ workbooks to the exact contributing workbooks, model entities, revisions, and immutable analysis runs.
 - [ ] Link RC/RI workbooks to end-state and risk results.
 - [ ] Link hazard PRA workbooks to hazard-conditioned models.
@@ -928,6 +950,7 @@ The following items are explicitly excluded from the initial implementation:
 
 | Date | TODO | Verification | Result |
 | --- | --- | --- | --- |
+| 2026-08-23 | Reconcile completed editor hosts and pause Phase 8 behind final editor acceptance | Repository inspection confirmed that SY and IE import the sole canonical FT editor, ES and ESQ import the sole canonical ET editor, and ESQ Step 05 hosts the canonical BN editor with its current HCL binding workflow. Split those completed presentation migrations from the still-open typed-reference and dedicated HCL-component work. Added an explicit Docker-backed functional, visual, regression, and manual-acceptance gate for FT, BN, and ET before any remaining Phase 8 TODO may begin. The focused architecture, host, and editor suite passed 7 suites/30 tests; Prettier and `git diff --check` passed | Passed |
 | 2026-08-22 | Complete the Phase 5 fixed-canvas and node-local interaction follow-up | Replaced palette authoring with child creation on every logic-gate menu while keeping leaf menus free of authoring commands; unified event attachment behind one **Add basic event** action with a searchable existing-event chooser and a create-new path; moved deletion into node menus; removed the legend and additional-parent action; made ordinary touchpad/wheel input pan while pinch zooms; overlaid one inspector without resizing the 480 px workspace; and automatically refit content on load/resize/topology/inspector changes. Frontend Jest passed 91 suites/549 tests, both frontend and E2E typechecks passed, both persistent Chromium scenarios passed, generated wide/narrow/HTGR images were reviewed, and `git diff --check` passed | Passed |
 | 2026-08-22 | Complete Phase 5 fault-tree UX and API remediation | Consolidated editor controls and inspection, restored full-size visible connectors, reconciled SFR topology and non-detailed models, added workbook-owned server validation and correct failure/staleness/permission handling, and expanded canonical unit and persistent SFR/HTGR browser coverage. Complete frontend, backend, shared, Playwright, Rust, native-addon, typecheck, lint, build, format, and diff gates passed | Passed |
 | 2026-08-20 | Fetch latest `origin/main` | `git fetch origin main`; branch base resolved to `f6afbce0` (`docs: refine branding and disclosures (#166)`) | Passed |

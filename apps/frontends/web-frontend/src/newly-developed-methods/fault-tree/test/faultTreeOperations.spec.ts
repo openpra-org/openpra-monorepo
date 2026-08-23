@@ -221,4 +221,145 @@ describe("fault-tree domain operations", () => {
     });
     expect(operation.nodePositions).toHaveLength(positions.length);
   });
+
+  it("stacks each gate's basic events within that gate's recursive subtree", () => {
+    const secondLeaf = "20000000-0000-4000-8000-000000000001";
+    const thirdLeaf = "20000000-0000-4000-8000-000000000002";
+    const before: FaultTreeEditorModel = {
+      ...model(),
+      leafNodes: [
+        ...model().leafNodes,
+        { id: secondLeaf, kind: "BASIC_EVENT_REFERENCE", basicEventId: ID.basic },
+        { id: thirdLeaf, kind: "BASIC_EVENT_REFERENCE", basicEventId: ID.basic },
+      ],
+      gateInputs: [
+        ...model().gateInputs,
+        { id: "30000000-0000-4000-8000-000000000001", gateId: ID.left, childId: secondLeaf, order: 1 },
+        { id: "30000000-0000-4000-8000-000000000002", gateId: ID.left, childId: thirdLeaf, order: 2 },
+      ],
+    };
+
+    const positions = new Map(computeFaultTreeAutoLayout(before).map(({ nodeId, position }) => [nodeId, position]));
+    const leaves = [ID.shared, secondLeaf, thirdLeaf].map((id) => positions.get(id)!);
+
+    expect(new Set(leaves.map(({ x }) => x)).size).toBe(1);
+    expect(leaves.map(({ y }) => y)).toEqual([...leaves.map(({ y }) => y)].sort((left, right) => left - right));
+    expect(leaves[1].y - leaves[0].y).toBeGreaterThanOrEqual(192);
+    expect(leaves[2].y - leaves[1].y).toBeGreaterThanOrEqual(192);
+    expect(leaves.every(({ y }) => y > positions.get(ID.left)!.y)).toBe(true);
+    expect(positions.get(ID.left)!.y).toBeGreaterThan(positions.get(ID.top)!.y);
+    expect(positions.get(ID.right)!.y).toBeGreaterThan(positions.get(ID.top)!.y);
+  });
+
+  it("keeps non-basic terminals horizontal and puts transfers last within their parent subtree", () => {
+    const houseId = "20000000-0000-4000-8000-000000000003";
+    const undevelopedId = "20000000-0000-4000-8000-000000000004";
+    const transferId = "20000000-0000-4000-8000-000000000005";
+    const before: FaultTreeEditorModel = {
+      ...model(),
+      leafNodes: [
+        ...model().leafNodes,
+        { id: houseId, kind: "HOUSE_EVENT", code: "HE", name: "House", description: "", state: true },
+        { id: undevelopedId, kind: "UNDEVELOPED_EVENT", code: "UE", name: "Undeveloped", description: "" },
+        {
+          id: transferId,
+          kind: "TRANSFER_REFERENCE",
+          code: "TR",
+          name: "Transfer",
+          description: "",
+          target: {
+            modelId: "40000000-0000-4000-8000-000000000001",
+            entityId: "40000000-0000-4000-8000-000000000002",
+          },
+        },
+      ],
+      gateInputs: [
+        ...model().gateInputs,
+        { id: "30000000-0000-4000-8000-000000000003", gateId: ID.left, childId: houseId, order: 1 },
+        { id: "30000000-0000-4000-8000-000000000004", gateId: ID.left, childId: undevelopedId, order: 2 },
+        { id: "30000000-0000-4000-8000-000000000005", gateId: ID.left, childId: transferId, order: 3 },
+      ],
+    };
+
+    const positions = new Map(computeFaultTreeAutoLayout(before).map(({ nodeId, position }) => [nodeId, position]));
+    const horizontalNodes = [houseId, undevelopedId].map((id) => positions.get(id)!);
+    const transfer = positions.get(transferId)!;
+
+    expect(new Set(horizontalNodes.map(({ y }) => y)).size).toBe(1);
+    expect(new Set(horizontalNodes.map(({ x }) => x)).size).toBe(horizontalNodes.length);
+    expect(horizontalNodes.map(({ x }) => x)).toEqual(
+      [...horizontalNodes.map(({ x }) => x)].sort((left, right) => left - right),
+    );
+    expect(transfer.x).toBeGreaterThan(Math.max(...horizontalNodes.map(({ x }) => x)));
+    expect(transfer.y).toBe(positions.get(ID.left)!.y + 150);
+  });
+
+  it("keeps the captured six-gate, sixteen-basic-event, one-transfer shape collision free", () => {
+    const gateIds = Array.from({ length: 6 }, (_, index) => `gate-${index}`);
+    const basicIds = Array.from({ length: 16 }, (_, index) => `basic-${index}`);
+    const transferId = "transfer-0";
+    const gates: FaultTreeEditorModel["gates"] = gateIds.map((id, index) => ({
+      id,
+      kind: "GATE",
+      gateType: index === 1 ? "K_OF_N" : "OR",
+      ...(index === 1 ? { k: 2 } : {}),
+      code: `G-${index}`,
+      name: `Gate ${index}`,
+      description: "",
+    }));
+    const leafNodes: FaultTreeEditorModel["leafNodes"] = [
+      ...basicIds.map((id) => ({ id, kind: "BASIC_EVENT_REFERENCE" as const, basicEventId: ID.basic })),
+      {
+        id: transferId,
+        kind: "TRANSFER_REFERENCE",
+        code: "TR-DC",
+        name: "Loss of DC",
+        description: "",
+        target: {
+          modelId: "target-model",
+          entityId: "target-gate",
+        },
+      },
+    ];
+    const gateInputs: FaultTreeEditorModel["gateInputs"] = [];
+    const connect = (gateId: string, childId: string, order: number): void => {
+      gateInputs.push({ id: `edge-${gateInputs.length}`, gateId, childId, order });
+    };
+    connect(gateIds[0], gateIds[1], 0);
+    connect(gateIds[0], gateIds[5], 1);
+    connect(gateIds[0], basicIds[15], 2);
+    connect(gateIds[0], transferId, 3);
+    [2, 3, 4].forEach((gateIndex, order) => connect(gateIds[1], gateIds[gateIndex], order));
+    basicIds.slice(0, 12).forEach((basicId, index) => connect(gateIds[2 + Math.floor(index / 4)], basicId, index % 4));
+    basicIds.slice(12, 15).forEach((basicId, order) => connect(gateIds[5], basicId, order));
+    const before: FaultTreeEditorModel = {
+      ...model(),
+      topGate: { gateId: gateIds[0] },
+      gates,
+      leafNodes,
+      gateInputs,
+      nodePositions: [],
+    };
+
+    const positions = new Map(computeFaultTreeAutoLayout(before).map(({ nodeId, position }) => [nodeId, position]));
+    const basicPositions = basicIds.map((id) => positions.get(id)!);
+    const gatePositions = gateIds.map((id) => positions.get(id)!);
+    const transferPosition = positions.get(transferId)!;
+    const allPositions = [...basicPositions, ...gatePositions, transferPosition];
+
+    expect(new Set(basicPositions.map(({ x }) => x)).size).toBeGreaterThan(1);
+    expect(transferPosition.y).toBeGreaterThan(positions.get(gateIds[0])!.y);
+    expect(basicPositions[15].x).toBeLessThan(positions.get(gateIds[1])!.x);
+    expect(positions.get(gateIds[1])!.x).toBeLessThan(transferPosition.x);
+    expect(positions.get(gateIds[5])!.x).toBeLessThan(transferPosition.x);
+    expect(positions.get(gateIds[2])!.y).toBeGreaterThan(positions.get(gateIds[1])!.y);
+    expect(basicPositions[0].y).toBeGreaterThan(positions.get(gateIds[2])!.y);
+    for (let left = 0; left < allPositions.length; left += 1) {
+      for (let right = left + 1; right < allPositions.length; right += 1) {
+        const xSeparated = Math.abs(allPositions[left].x - allPositions[right].x) >= 184;
+        const ySeparated = Math.abs(allPositions[left].y - allPositions[right].y) >= 66;
+        expect(xSeparated || ySeparated).toBe(true);
+      }
+    }
+  });
 });

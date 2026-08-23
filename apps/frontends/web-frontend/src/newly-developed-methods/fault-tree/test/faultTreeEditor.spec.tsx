@@ -162,7 +162,7 @@ describe("FaultTreeEditor", () => {
 
     const topGate = screen.getByRole("button", { name: /Loss of cooling/i });
     expect(topGate).toHaveClass("ftbox", "ftbox--gate");
-    expect(topGate).toHaveStyle({ width: "184px", minHeight: "66px" });
+    expect(topGate).toHaveStyle({ width: "184px", height: "66px" });
     expect(screen.getByRole("button", { name: /Shared pump failure/i })).toHaveClass(
       "ftbox--be",
       "ftbox--ccf",
@@ -173,6 +173,26 @@ describe("FaultTreeEditor", () => {
     expect(container.querySelectorAll(".sytree .ftline").length).toBeGreaterThan(0);
 
     expect(screen.queryByLabelText("Fault-tree legend")).not.toBeInTheDocument();
+  });
+
+  it("shows names above a consistent bottom-left code row without type headings or a name toggle", () => {
+    render(<FaultTreeEditor {...editorProps()} />);
+
+    const topGate = screen.getByRole("button", { name: /Loss of cooling/i });
+    const basicEvent = screen.getByRole("button", { name: /Shared pump failure/i });
+    const topGateMeta = topGate.querySelector(".ftbox__be-meta");
+    const basicEventMeta = basicEvent.querySelector(".ftbox__be-meta");
+    expect(within(topGate).getByText("Loss of cooling")).toHaveClass("ftbox__name");
+    expect(within(topGate).getByText("TOP")).toBeInTheDocument();
+    expect(topGateMeta?.firstElementChild).toHaveTextContent("TOP");
+    expect(within(topGate).queryByText("OR gate")).not.toBeInTheDocument();
+    expect(within(basicEvent).getByText("Shared pump failure")).toHaveClass("ftbox__name");
+    expect(within(basicEvent).getByText("BE-PUMP")).toBeInTheDocument();
+    expect(basicEventMeta?.firstElementChild).toHaveTextContent("BE-PUMP");
+    expect(within(basicEvent).getByText("FTS")).toBeInTheDocument();
+    expect(within(basicEvent).getByText("2.0e-2")).toBeInTheDocument();
+    expect(within(basicEvent).queryByText("Repair credited")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /(?:Show|Hide) names/ })).not.toBeInTheDocument();
   });
 
   it("keeps navigation controls on the canvas and authoring actions on node context menus", () => {
@@ -199,16 +219,19 @@ describe("FaultTreeEditor", () => {
     expect(within(menu).getByRole("menuitem", { name: "Delete node" })).toBeInTheDocument();
   });
 
-  it("uses an ordinary two-axis wheel gesture to pan and a pinch gesture to zoom", () => {
-    const { container } = render(<FaultTreeEditor {...editorProps()} />);
+  it("lets an ordinary wheel gesture scroll the workbook and reserves wheel zoom for pinch gestures", () => {
+    const onPageWheel = jest.fn();
+    const { container } = render(<div onWheel={onPageWheel}><FaultTreeEditor {...editorProps()} /></div>);
     const viewport = container.querySelector<HTMLElement>(".fteditor__viewport");
     const stage = container.querySelector<HTMLElement>(".fteditor__stage");
     expect(viewport).not.toBeNull();
     expect(stage).not.toBeNull();
+    const initialTransform = stage!.style.transform;
 
     fireEvent.wheel(viewport!, { deltaX: 25, deltaY: 80 });
     expect(screen.getByLabelText("Zoom level")).toHaveTextContent("100%");
-    expect(stage).toHaveStyle({ transform: "translate(-25px, -80px) scale(1)" });
+    expect(stage!.style.transform).toBe(initialTransform);
+    expect(onPageWheel).toHaveBeenCalledTimes(1);
 
     fireEvent.wheel(viewport!, {
       ctrlKey: true,
@@ -217,6 +240,17 @@ describe("FaultTreeEditor", () => {
       deltaY: -60,
     });
     expect(screen.getByLabelText("Zoom level")).not.toHaveTextContent("100%");
+  });
+
+  it("does not emit a layout operation when the blank canvas is only clicked", () => {
+    const onOperation = jest.fn<void, [FaultTreeOperation]>();
+    const { container } = render(<FaultTreeEditor {...editorProps({ onOperation })} />);
+    const viewport = container.querySelector<HTMLElement>(".fteditor__viewport")!;
+
+    fireEvent.pointerDown(viewport, { button: 0, pointerId: 7, clientX: 140, clientY: 120 });
+    fireEvent.pointerUp(viewport, { button: 0, pointerId: 7, clientX: 140, clientY: 120 });
+
+    expect(onOperation).not.toHaveBeenCalled();
   });
 
   it("renders visible, addressable edges and highlights the selected path", () => {
@@ -239,6 +273,61 @@ describe("FaultTreeEditor", () => {
     expect(edges.some((edge) => edge.classList.contains("ftline--selected"))).toBe(true);
     expect(edges.some((edge) => edge.classList.contains("ftline--invalid"))).toBe(true);
     expect(container.querySelector(".ftsvg")).toBeInTheDocument();
+  });
+
+  it("renders automatic trees top to bottom with a shared straight trunk and straight relationship branches", () => {
+    const automaticModel: FaultTreeEditorModel = {
+      ...model,
+      nodePositions: [],
+      layout: { ...model.layout, mode: "AUTOMATIC", direction: "TOP_TO_BOTTOM" },
+    };
+    const { container } = render(<FaultTreeEditor {...editorProps({ model: automaticModel })} />);
+
+    const edges = screen.getAllByTestId("fault-tree-edge");
+    const basicEventTop = Number.parseFloat(screen.getByRole("button", { name: /Shared pump failure/i }).style.top);
+    const branchTop = Number.parseFloat(screen.getByRole("button", { name: /^AND gate Train unavailable$/i }).style.top);
+    const topEventTop = Number.parseFloat(screen.getByRole("button", { name: /Loss of cooling/i }).style.top);
+
+    expect(edges.every((edge) => edge.tagName.toLowerCase() === "line")).toBe(true);
+    expect(container.querySelectorAll(".ftline--trunk")).toHaveLength(2);
+    expect(container.querySelectorAll("path.ftedge")).toHaveLength(0);
+    expect(topEventTop).toBeLessThan(branchTop);
+    expect(branchTop).toBeLessThan(basicEventTop);
+  });
+
+  it("uses one gate trunk and one rail to branch to stacked basic events", () => {
+    const secondLeafId = "99999999-9999-4999-8999-999999999991";
+    const thirdLeafId = "99999999-9999-4999-8999-999999999992";
+    const threeBasicEventsModel: FaultTreeEditorModel = {
+      ...model,
+      gates: [model.gates[0]],
+      leafNodes: [
+        model.leafNodes[0],
+        { ...model.leafNodes[0], id: secondLeafId },
+        { ...model.leafNodes[0], id: thirdLeafId },
+      ],
+      gateInputs: [
+        { ...model.gateInputs[0], childId: LEAF_ID },
+        { ...model.gateInputs[0], id: "99999999-9999-4999-8999-999999999993", childId: secondLeafId, order: 1 },
+        { ...model.gateInputs[0], id: "99999999-9999-4999-8999-999999999994", childId: thirdLeafId, order: 2 },
+      ],
+      nodePositions: [],
+      layout: { ...model.layout, mode: "AUTOMATIC", direction: "TOP_TO_BOTTOM" },
+    };
+    const { container } = render(<FaultTreeEditor {...editorProps({ model: threeBasicEventsModel })} />);
+
+    const trunks = screen.getAllByTestId("fault-tree-trunk");
+    const rails = screen.getAllByTestId("fault-tree-basic-event-rail");
+    const edges = screen.getAllByTestId("fault-tree-edge");
+
+    expect(trunks).toHaveLength(1);
+    expect(rails).toHaveLength(1);
+    expect(edges).toHaveLength(3);
+    expect(trunks[0]).toHaveAttribute("x1", trunks[0]?.getAttribute("x2"));
+    expect(rails[0]).toHaveAttribute("x1", rails[0]?.getAttribute("x2"));
+    expect(edges.every((edge) => edge.tagName.toLowerCase() === "line")).toBe(true);
+    expect(edges.every((edge) => edge.getAttribute("y1") === edge.getAttribute("y2"))).toBe(true);
+    expect(container.querySelectorAll("path.ftedge")).toHaveLength(0);
   });
 
   it("renders every supported leaf-node symbol through the canonical editor", () => {
@@ -308,14 +397,15 @@ describe("FaultTreeEditor", () => {
     );
 
     expect(screen.getByRole("button", { name: /Shared pump failure/i })).toHaveClass("ftbox--be");
-    expect(screen.getByRole("button", { name: /Bypass enabled/i })).toHaveTextContent("House event · TRUE");
-    expect(screen.getByRole("button", { name: /Support failure/i })).toHaveTextContent("Undeveloped event");
+    expect(screen.getByRole("button", { name: /Bypass enabled/i })).toHaveTextContent("HE-BYPASS");
+    expect(screen.getByRole("button", { name: /Support failure/i })).toHaveTextContent("UE-SUPPORT");
     expect(screen.getByRole("button", { name: /Loss of power/i })).toHaveClass("ftbox--tr");
     expect(container.querySelector(".ftsym--be")).toBeInTheDocument();
     expect(container.querySelector(".ftsym--house")).toBeInTheDocument();
     expect(container.querySelector(".ftsym--undeveloped")).toBeInTheDocument();
     expect(container.querySelector(".ftsym--tr")).toBeInTheDocument();
     expect(screen.getAllByTestId("fault-tree-edge")).toHaveLength(4);
+    expect(container.querySelector('line[data-edge-id="ffffffff-ffff-4fff-8fff-fffffffffff3"]')).toBeInTheDocument();
   });
 
   it("opens an external record only from the explicit inspector action", async () => {
@@ -506,6 +596,8 @@ describe("FaultTreeEditor", () => {
     const rendered = render(<FaultTreeEditor {...editorProps()} />);
     const workspace = rendered.container.querySelector(".fteditor__workspace");
     const viewport = rendered.container.querySelector(".fteditor__viewport");
+    const stage = rendered.container.querySelector<HTMLElement>(".fteditor__stage")!;
+    const transform = stage.style.transform;
 
     rendered.rerender(
       <FaultTreeEditor
@@ -517,6 +609,17 @@ describe("FaultTreeEditor", () => {
     expect(rendered.container.querySelector(".fteditor__viewport")).toBe(viewport);
     expect(workspace).toHaveClass("fteditor__workspace--inspecting");
     expect(screen.getByLabelText("Selected fault-tree node inspector")).toBeInTheDocument();
+    expect(stage.style.transform).toBe(transform);
+  });
+
+  it("uses icon-only document and canvas controls with accessible names", () => {
+    render(<FaultTreeEditor {...editorProps({ capabilities: { ...authorCapabilities, canImport: true, canExport: true } })} />);
+
+    for (const name of ["Undo", "Redo", "File", "Zoom out", "Zoom in", "Fit", "Auto layout"]) {
+      const control = screen.getByRole("button", { name });
+      expect(control.querySelector("svg")).toBeInTheDocument();
+    }
+    expect(screen.queryByText("Auto layout")).not.toBeInTheDocument();
   });
 
   it("emits a catalogue operation for a basic-event probability", async () => {
@@ -728,6 +831,6 @@ describe("FaultTreeEditor", () => {
     expect(screen.getAllByText("Shared pump failure")).toHaveLength(1);
     expect(container.querySelectorAll(".ftbox")).toHaveLength(3);
     expect(container.querySelectorAll(".ftbox--be")).toHaveLength(1);
-    expect(container.querySelectorAll(".sytree .ftline")).toHaveLength(9);
+    expect(screen.getAllByTestId("fault-tree-edge")).toHaveLength(2);
   });
 });

@@ -117,8 +117,12 @@ export class SyWorkbooksService {
       acting,
     });
     assertExpectedWorkbookRevision(doc, patch.expectedRevision);
+    const current = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
+    if (!current.success) {
+      throw new BadRequestException(`Stored SY workbook failed validation: ${current.error.message}`);
+    }
     const parsed = SystemsAnalysisSchema.safeParse(
-      stripNulls(mergeWorkbookPatch(doc.mef, patch.operations)),
+      stripNulls(mergeWorkbookPatch(current.data, patch.operations)),
     );
     if (!parsed.success) {
       throw new BadRequestException(`Invalid SY workbook payload: ${parsed.error.message}`);

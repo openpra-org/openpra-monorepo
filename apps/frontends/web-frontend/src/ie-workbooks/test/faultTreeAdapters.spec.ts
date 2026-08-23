@@ -39,6 +39,7 @@ describe("IE canonical fault-tree adapters", () => {
     expect(snapshot.model.topGate).toEqual({ gateId: "TOP" });
     expect(snapshot.model.gates.map(({ id }) => id)).toEqual(["TOP", "BRANCH"]);
     expect(snapshot.model.gateInputs).toHaveLength(2);
+    expect(snapshot.model.layout.direction).toBe("TOP_TO_BOTTOM");
     expect(snapshot.catalogue.basicEvents[0]).toMatchObject({
       code: "EVENT",
       name: "Loss of support",
@@ -72,6 +73,7 @@ describe("IE canonical fault-tree adapters", () => {
     expect(snapshot.model.topGate).toEqual({ gateId: "IE-HBFT-ROOT" });
     expect(snapshot.model.gates).toHaveLength(2);
     expect(snapshot.model.leafNodes).toHaveLength(1);
+    expect(snapshot.model.layout.direction).toBe("TOP_TO_BOTTOM");
     expect(snapshot.catalogue.basicEvents[0]).toMatchObject({
       code: "CAUSE-1",
       name: "Pump trip",

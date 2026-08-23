@@ -509,6 +509,40 @@ describe("workbook-owned method-model APIs", () => {
     expect(syDocument.save).not.toHaveBeenCalled();
   });
 
+  it("applies editor patches to the normalized SY fault tree returned to the client", async () => {
+    const legacy = structuredClone(createBlankSy("Legacy SY", "analyst")) as unknown as Record<string, unknown>;
+    legacy.systemLogicModels = [{
+      uuid: "MODEL-A",
+      systemReference: "SYS-A",
+      description: "Legacy fault tree",
+      modelRepresentation: "Fault tree",
+      faultTree: { id: "TOP-A", type: "OR", name: "Legacy top gate", children: [] },
+      implementsSrs: [],
+    }];
+    legacy.systemBasicEvents = [];
+    syDocument.mef = legacy;
+
+    const loaded = await request(app.getHttpServer()).get("/api/sy-workbooks/sy-workbook");
+    expect(loaded.status).toBe(200);
+    expect(loaded.body.mef.systemLogicModels[0].layout.viewport.x).toBe(0);
+    expect((syDocument.mef as Record<string, unknown>).systemLogicModels).toEqual(legacy.systemLogicModels);
+
+    const patched = await request(app.getHttpServer())
+      .patch("/api/sy-workbooks/sy-workbook")
+      .send({
+        expectedRevision: 1,
+        operations: [{
+          op: "replace",
+          path: ["systemLogicModels", 0, "layout", "viewport", "x"],
+          value: 48,
+        }],
+      });
+
+    expect(patched.status).toBe(200);
+    expect(patched.body.mef.systemLogicModels[0].layout.viewport.x).toBe(48);
+    expect(syDocument.revision).toBe(2);
+  });
+
   it("loads and patches an ES-owned event tree inside the ES MEF", async () => {
     const loaded = await request(app.getHttpServer()).get("/api/es-workbooks/es-workbook");
     expect(loaded.status).toBe(200);

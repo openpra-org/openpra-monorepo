@@ -766,32 +766,258 @@ function computeFaultTreeAutoLayout(
     if (!visited.has(nodeId)) depths.set(nodeId, ++fallbackDepth);
   }
 
-  const layers = new Map<number, string[]>();
-  for (const nodeId of nodeIds) {
-    const depth = depths.get(nodeId) ?? 0;
-    const layer = layers.get(depth) ?? [];
-    layer.push(nodeId);
-    layers.set(depth, layer);
-  }
-
   const columnStep = nodeWidth + horizontalGap;
   const rowStep = nodeHeight + verticalGap;
-  const positions: FaultTreeNodePosition[] = [];
-  for (const [depth, layer] of [...layers.entries()].sort(([left], [right]) => left - right)) {
-    layer.sort(compareStable);
-    layer.forEach((nodeId, index) => {
-      const crossAxis = (index - (layer.length - 1) / 2) * columnStep;
-      const depthAxis = depth * rowStep;
-      positions.push({
-        nodeId,
-        position:
-          direction === "TOP_TO_BOTTOM"
-            ? { x: origin.x + crossAxis, y: origin.y + depthAxis }
-            : { x: origin.x + depthAxis, y: origin.y + crossAxis },
-      });
+  const gateIds = new Set(model.gates.map(({ id }) => id));
+
+  if (direction === "TOP_TO_BOTTOM") {
+    interface LayoutBlock {
+      positions: Map<string, FaultTreeNodePosition["position"]>;
+      width: number;
+      height: number;
+    }
+    const nodeById = new Map<string, FaultTreeGate | FaultTreeLeafNode>([
+      ...model.gates.map((gate) => [gate.id, gate] as const),
+      ...model.leafNodes.map((leaf) => [leaf.id, leaf] as const),
+    ]);
+    const incomingByChild = new Map<string, FaultTreeGateInput[]>();
+    for (const input of model.gateInputs) {
+      if (!nodeById.has(input.childId) || !gateIds.has(input.gateId)) continue;
+      const incoming = incomingByChild.get(input.childId) ?? [];
+      incoming.push(input);
+      incomingByChild.set(input.childId, incoming);
+    }
+    const primaryInputByChild = new Map<string, FaultTreeGateInput>();
+    for (const [childId, incoming] of incomingByChild) {
+      const primary = [...incoming].sort((left, right) => {
+        const depthDifference = (depths.get(right.gateId) ?? 0) - (depths.get(left.gateId) ?? 0);
+        return depthDifference
+          || compareStable(left.gateId, right.gateId)
+          || left.order - right.order
+          || left.id.localeCompare(right.id);
+      })[0];
+      if (primary !== undefined) primaryInputByChild.set(childId, primary);
+    }
+
+    const leafStackStep = rowStep + 48;
+    const blockGap = horizontalGap + 48;
+    const visitingGates = new Set<string>();
+    const blockByGate = new Map<string, LayoutBlock>();
+    const terminalBlock = (nodeId: string): LayoutBlock => ({
+      positions: new Map([[nodeId, { x: 0, y: 0 }]]),
+      width: nodeWidth,
+      height: nodeHeight,
     });
+    const basicEventBlock = (nodeIds: string[]): LayoutBlock => {
+      const railSpace = 16;
+      return {
+        positions: new Map(nodeIds.map((nodeId, index) => [
+          nodeId,
+          { x: railSpace, y: index * leafStackStep },
+        ])),
+        width: railSpace + nodeWidth,
+        height: nodeHeight + Math.max(0, nodeIds.length - 1) * leafStackStep,
+      };
+    };
+    const gateBlock = (gateId: string): LayoutBlock => {
+      const cached = blockByGate.get(gateId);
+      if (cached !== undefined) return cached;
+      if (visitingGates.has(gateId)) return terminalBlock(gateId);
+      visitingGates.add(gateId);
+
+      const ownedChildren = (outgoing.get(gateId) ?? []).flatMap((input) => {
+        const child = nodeById.get(input.childId);
+        return child !== undefined && primaryInputByChild.get(child.id)?.id === input.id ? [child] : [];
+      });
+      const basicEvents = ownedChildren.filter(({ kind }) => kind === "BASIC_EVENT_REFERENCE");
+      const childGates = ownedChildren.filter(({ kind }) => kind === "GATE");
+      const otherEvents = ownedChildren.filter(({ kind }) =>
+        kind !== "BASIC_EVENT_REFERENCE" && kind !== "GATE" && kind !== "TRANSFER_REFERENCE");
+      const transfers = ownedChildren.filter(({ kind }) => kind === "TRANSFER_REFERENCE");
+      const childBlocks: LayoutBlock[] = [
+        ...(basicEvents.length === 0 ? [] : [basicEventBlock(basicEvents.map(({ id }) => id))]),
+        ...otherEvents.map(({ id }) => terminalBlock(id)),
+        ...childGates.flatMap(({ id }) => visitingGates.has(id) ? [] : [gateBlock(id)]),
+        ...transfers.map(({ id }) => terminalBlock(id)),
+      ];
+
+      const contentWidth = childBlocks.reduce((total, block) => total + block.width, 0)
+        + Math.max(0, childBlocks.length - 1) * blockGap;
+      const width = Math.max(nodeWidth, contentWidth);
+      const positionsInBlock = new Map<string, FaultTreeNodePosition["position"]>([
+        [gateId, { x: (width - nodeWidth) / 2, y: 0 }],
+      ]);
+      let cursorX = (width - contentWidth) / 2;
+      let childHeight = 0;
+      childBlocks.forEach((block) => {
+        block.positions.forEach((position, nodeId) => {
+          positionsInBlock.set(nodeId, {
+            x: cursorX + position.x,
+            y: rowStep + position.y,
+          });
+        });
+        childHeight = Math.max(childHeight, block.height);
+        cursorX += block.width + blockGap;
+      });
+      visitingGates.delete(gateId);
+      const block = {
+        positions: positionsInBlock,
+        width,
+        height: childBlocks.length === 0 ? nodeHeight : rowStep + childHeight,
+      };
+      blockByGate.set(gateId, block);
+      return block;
+    };
+
+    const positioned = new Map<string, FaultTreeNodePosition["position"]>();
+    let forestX = origin.x;
+    let forestHeight = 0;
+    const placeBlock = (block: LayoutBlock): void => {
+      block.positions.forEach((position, nodeId) => {
+        if (!positioned.has(nodeId)) {
+          positioned.set(nodeId, { x: forestX + position.x, y: origin.y + position.y });
+        }
+      });
+      forestX += block.width + blockGap;
+      forestHeight = Math.max(forestHeight, block.height);
+    };
+
+    if (model.topGate !== null && gateIds.has(model.topGate.gateId)) {
+      placeBlock(gateBlock(model.topGate.gateId));
+    }
+    model.gates.map(({ id }) => id).sort(compareStable).forEach((gateId) => {
+      if (!positioned.has(gateId)) placeBlock(gateBlock(gateId));
+    });
+
+    const unpositionedLeaves = model.leafNodes.filter(({ id }) => !positioned.has(id));
+    const orphanY = origin.y + forestHeight + rowStep;
+    let orphanX = origin.x;
+    unpositionedLeaves.forEach(({ id }) => {
+      positioned.set(id, { x: orphanX, y: orphanY });
+      orphanX += columnStep;
+    });
+
+    return nodeIds.map((nodeId) => ({
+      nodeId,
+      position: positioned.get(nodeId) ?? { x: origin.x, y: origin.y },
+    }));
   }
-  return positions;
+
+  const nodeById = new Map<string, FaultTreeGate | FaultTreeLeafNode>([
+    ...model.gates.map((gate) => [gate.id, gate] as const),
+    ...model.leafNodes.map((leaf) => [leaf.id, leaf] as const),
+  ]);
+  const transferIds = new Set(
+    model.leafNodes.flatMap((leaf) => leaf.kind === "TRANSFER_REFERENCE" ? [leaf.id] : []),
+  );
+  const terminalOrder: string[] = [];
+  const orderedTerminals = new Set<string>();
+  const visitedGates = new Set<string>();
+  const visitingGates = new Set<string>();
+  const addTerminal = (nodeId: string): void => {
+    if (orderedTerminals.has(nodeId) || transferIds.has(nodeId)) return;
+    orderedTerminals.add(nodeId);
+    terminalOrder.push(nodeId);
+  };
+  const visitGate = (gateId: string): void => {
+    if (visitedGates.has(gateId) || visitingGates.has(gateId)) return;
+    visitingGates.add(gateId);
+    for (const input of outgoing.get(gateId) ?? []) {
+      const child = nodeById.get(input.childId);
+      if (child?.kind === "GATE") visitGate(child.id);
+      else if (child !== undefined) addTerminal(child.id);
+    }
+    visitingGates.delete(gateId);
+    visitedGates.add(gateId);
+  };
+
+  if (model.topGate !== null) visitGate(model.topGate.gateId);
+  model.gates.map(({ id }) => id).sort(compareStable).forEach(visitGate);
+  model.leafNodes.map(({ id }) => id).sort(compareStable).forEach(addTerminal);
+
+  const laneStep = rowStep + 48;
+  const positionById = new Map<string, FaultTreeNodePosition["position"]>();
+  const basicEventIds = new Set(
+    model.leafNodes.flatMap((leaf) => leaf.kind === "BASIC_EVENT_REFERENCE" ? [leaf.id] : []),
+  );
+  const stackedBasicEvents = terminalOrder.filter((nodeId) => basicEventIds.has(nodeId));
+  const horizontalTerminals = terminalOrder.filter((nodeId) => !basicEventIds.has(nodeId));
+  stackedBasicEvents.forEach((nodeId, index) => {
+    positionById.set(nodeId, { x: origin.x, y: origin.y + index * laneStep });
+  });
+  const horizontalTerminalY = origin.y + stackedBasicEvents.length * laneStep;
+  horizontalTerminals.forEach((nodeId, index) => {
+    positionById.set(nodeId, { x: origin.x + index * columnStep, y: horizontalTerminalY });
+  });
+
+  const deepestGateDepth = Math.max(0, ...model.gates.map(({ id }) => depths.get(id) ?? 0));
+  const inputBandColumns = Math.max(1, horizontalTerminals.length);
+  const gateLayers = new Map<number, string[]>();
+  for (const gate of model.gates) {
+    const depth = depths.get(gate.id) ?? 0;
+    const layer = gateLayers.get(depth) ?? [];
+    layer.push(gate.id);
+    gateLayers.set(depth, layer);
+  }
+  const desiredGateY = (gateId: string): number => {
+    const childYs = (outgoing.get(gateId) ?? [])
+      .filter(({ childId }) => !transferIds.has(childId))
+      .flatMap(({ childId }) => {
+        const position = positionById.get(childId);
+        return position === undefined ? [] : [position.y];
+      });
+    if (childYs.length === 0) return origin.y + (stableIndex.get(gateId) ?? 0) * laneStep;
+    return (Math.min(...childYs) + Math.max(...childYs)) / 2;
+  };
+
+  for (const [depth, gateLayer] of [...gateLayers.entries()].sort(([left], [right]) => right - left)) {
+    const ranked = gateLayer
+      .map((nodeId) => ({ nodeId, desiredY: desiredGateY(nodeId) }))
+      .sort((left, right) => left.desiredY - right.desiredY || compareStable(left.nodeId, right.nodeId));
+    let previousY = Number.NEGATIVE_INFINITY;
+    for (const { nodeId, desiredY } of ranked) {
+      const y = Math.max(desiredY, previousY + laneStep);
+      positionById.set(nodeId, {
+        x: origin.x + (inputBandColumns + deepestGateDepth - depth) * columnStep,
+        y,
+      });
+      previousY = y;
+    }
+  }
+
+  const incomingByChild = new Map<string, FaultTreeGateInput[]>();
+  for (const input of model.gateInputs) {
+    const incoming = incomingByChild.get(input.childId) ?? [];
+    incoming.push(input);
+    incomingByChild.set(input.childId, incoming);
+  }
+  const transferX = origin.x + (inputBandColumns + deepestGateDepth + 1) * columnStep;
+  const rankedTransfers = model.leafNodes
+    .filter((leaf) => leaf.kind === "TRANSFER_REFERENCE")
+    .map((leaf) => {
+      const parentYs = (incomingByChild.get(leaf.id) ?? []).flatMap(({ gateId }) => {
+        const position = positionById.get(gateId);
+        return position === undefined ? [] : [position.y];
+      });
+      return {
+        nodeId: leaf.id,
+        desiredY: parentYs.length === 0
+          ? origin.y + (stableIndex.get(leaf.id) ?? 0) * laneStep
+          : parentYs.reduce((total, y) => total + y, 0) / parentYs.length,
+      };
+    })
+    .sort((left, right) => left.desiredY - right.desiredY || compareStable(left.nodeId, right.nodeId));
+  let previousTransferY = Number.NEGATIVE_INFINITY;
+  for (const { nodeId, desiredY } of rankedTransfers) {
+    const y = Math.max(desiredY, previousTransferY + laneStep);
+    positionById.set(nodeId, { x: transferX, y });
+    previousTransferY = y;
+  }
+
+  return nodeIds.map((nodeId) => ({
+    nodeId,
+    position: positionById.get(nodeId) ?? { x: origin.x, y: origin.y },
+  }));
 }
 
 function createFaultTreeAutoLayoutOperation(

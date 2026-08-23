@@ -45,6 +45,7 @@ const FT = {
   PAD: 70,
 };
 const FT_ROW = FT.NODE_H + FT.SYM_GAP + FT.SYM_H + FT.LEVEL_GAP;
+const FT_INSPECTOR_W = 320;
 
 type TreeNode = FaultTreeGate | FaultTreeLeafNode;
 
@@ -106,8 +107,36 @@ function clampZoom(zoom: number): number {
   return Math.max(0.2, Math.min(2.4, zoom));
 }
 
+function EditorIcon({
+  name,
+}: {
+  name: "undo" | "redo" | "file" | "zoom-out" | "zoom-in" | "fit" | "auto-layout";
+}): JSX.Element {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8,
+  };
+  return (
+    <svg className="fteditor__button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      {name === "undo" && <><path {...common} d="M9 7H4V2" /><path {...common} d="M4.5 7A9 9 0 1 1 7 19.5" /></>}
+      {name === "redo" && <><path {...common} d="M15 7h5V2" /><path {...common} d="M19.5 7A9 9 0 1 0 17 19.5" /></>}
+      {name === "file" && <><path {...common} d="M6 3h8l4 4v14H6z" /><path {...common} d="M14 3v5h4" /><path {...common} d="M9 13h6M9 17h6" /></>}
+      {(name === "zoom-out" || name === "zoom-in") && <><circle {...common} cx="10.5" cy="10.5" r="6.5" /><path {...common} d="m15.5 15.5 5 5M7.5 10.5h6" />{name === "zoom-in" && <path {...common} d="M10.5 7.5v6" />}</>}
+      {name === "fit" && <><path {...common} d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /><rect {...common} x="8" y="8" width="8" height="8" rx="1" /></>}
+      {name === "auto-layout" && <><rect {...common} x="9" y="3" width="6" height="5" rx="1" /><rect {...common} x="3" y="16" width="6" height="5" rx="1" /><rect {...common} x="15" y="16" width="6" height="5" rx="1" /><path {...common} d="M12 8v4M6 12h12M6 12v4M18 12v4" /></>}
+    </svg>
+  );
+}
+
 function formatProbability(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? "—" : value.toExponential(2);
+}
+
+function formatNodeProbability(value: number | undefined): string {
+  return value === undefined || !Number.isFinite(value) ? "—" : value.toExponential(1);
 }
 
 function uniqueCode(prefix: string, existing: readonly string[]): string {
@@ -117,17 +146,27 @@ function uniqueCode(prefix: string, existing: readonly string[]): string {
   return `${prefix}-${index}`;
 }
 
+function effectiveLayoutDirection(model: FaultTreeEditorModel): FaultTreeEditorModel["layout"]["direction"] {
+  const nodeIds = new Set([...model.gates.map(({ id }) => id), ...model.leafNodes.map(({ id }) => id)]);
+  const savedIds = new Set(model.nodePositions.flatMap(({ nodeId }) => nodeIds.has(nodeId) ? [nodeId] : []));
+  return model.layout.mode === "MANUAL" && savedIds.size === nodeIds.size
+    ? model.layout.direction
+    : "TOP_TO_BOTTOM";
+}
+
 function nodePositions(model: FaultTreeEditorModel): FaultTreeNodePosition[] {
   const ids = new Set([...model.gates.map(({ id }) => id), ...model.leafNodes.map(({ id }) => id)]);
   const saved = model.nodePositions.filter(({ nodeId }) => ids.has(nodeId));
-  if (saved.length === ids.size) return saved;
+  if (model.layout.mode === "MANUAL" && saved.length === ids.size) return saved;
   const automatic = normalizeAutomaticPositions(computeFaultTreeAutoLayout(model, {
+    direction: effectiveLayoutDirection(model),
     nodeWidth: FT.NODE_W,
     nodeHeight: FT.NODE_H,
     horizontalGap: FT.H_GAP,
     verticalGap: FT.SYM_GAP + FT.SYM_H + FT.LEVEL_GAP,
     origin: { x: FT.PAD, y: FT.PAD },
   }));
+  if (model.layout.mode === "AUTOMATIC") return automatic;
   const savedById = new Map(saved.map((position) => [position.nodeId, position]));
   return automatic.map((position) => savedById.get(position.nodeId) ?? position);
 }
@@ -166,7 +205,7 @@ function fittedViewport(
   geometry: { width: number; height: number },
   inspectorOpen: boolean,
 ): ViewportState {
-  const inspectorWidth = inspectorOpen ? Math.min(270, element.clientWidth * 0.48) : 0;
+  const inspectorWidth = inspectorOpen ? Math.min(FT_INSPECTOR_W, element.clientWidth) : 0;
   const availableWidth = Math.max(1, element.clientWidth - inspectorWidth);
   const availableHeight = Math.max(1, element.clientHeight);
   const zoom = clampZoom(
@@ -374,14 +413,17 @@ function FtBox({
       <button
         type="button"
         className={`ftbox ftbox--gate${node.gateType === "K_OF_N" ? " ftbox--votegate" : ""}${selectedClass}${invalidClass}`}
-        style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }}
+        style={{ left, top, width: FT.NODE_W, height: FT.NODE_H }}
+        aria-label={`${gateKind(node, inputCount)} ${node.name}`}
         onClick={onSelect}
         onContextMenu={onContextMenu}
         {...dragProps}
       >
-        <span className="ftbox__kind">{gateKind(node, inputCount)}</span>
         <span className="ftbox__name">{node.name}</span>
-        {resultProbability !== undefined && <span className="ftbox__prob">P = {formatProbability(resultProbability)}</span>}
+        <span className="ftbox__be-meta">
+          <span className="ftbox__id">{node.code}</span>
+          {resultProbability !== undefined && <span className="ftbox__prob">P = {formatNodeProbability(resultProbability)}</span>}
+        </span>
       </button>
     );
   }
@@ -394,15 +436,18 @@ function FtBox({
       <button
         type="button"
         className={`ftbox ftbox--tr${selectedClass}${invalidClass}`}
-        style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }}
+        style={{ left, top, width: FT.NODE_W, height: FT.NODE_H }}
+        aria-label={`Transfer ${node.name}`}
         title="Open the transferred tree"
         onClick={onSelect}
         onContextMenu={onContextMenu}
         {...dragProps}
       >
-        <span className="ftbox__kind">Transfer</span>
         <span className="ftbox__name">{node.name}</span>
-        <span className="ftbox__to">To {target?.code ?? node.target.modelId}</span>
+        <span className="ftbox__be-meta">
+          <span className="ftbox__id">{node.code}</span>
+          <span className="ftbox__to">To {target?.code ?? node.target.modelId}</span>
+        </span>
       </button>
     );
   }
@@ -415,7 +460,8 @@ function FtBox({
       <button
         type="button"
         className={`ftbox ftbox--be${presentation?.commonCause === true ? " ftbox--ccf" : ""}${selectedClass}${invalidClass}`}
-        style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }}
+        style={{ left, top, width: FT.NODE_W, height: FT.NODE_H }}
+        aria-label={basicEvent?.name ?? node.basicEventId}
         title="Open the basic event"
         onClick={onSelect}
         onContextMenu={onContextMenu}
@@ -425,9 +471,8 @@ function FtBox({
         <span className="ftbox__be-meta">
           <span className="ftbox__id">{basicEvent?.code ?? node.basicEventId}</span>
           <span className={`ftbox__fm${presentation?.commonCause === true ? " ftbox__fm--ccf" : ""}`}>{short}</span>
-          <span className="ftbox__prob">{formatProbability(basicEvent?.probability.value)}</span>
+          <span className="ftbox__prob">{formatNodeProbability(basicEvent?.probability.value)}</span>
         </span>
-        {presentation?.repairCredited === true && <span className="ftbox__repair">Repair credited</span>}
       </button>
     );
   }
@@ -436,14 +481,16 @@ function FtBox({
     <button
       type="button"
       className={`ftbox ftbox--be${selectedClass}${invalidClass}`}
-      style={{ left, top, width: FT.NODE_W, minHeight: FT.NODE_H }}
+      style={{ left, top, width: FT.NODE_W, height: FT.NODE_H }}
+      aria-label={node.name}
       onClick={onSelect}
       onContextMenu={onContextMenu}
       {...dragProps}
     >
-      <span className="ftbox__kind">{node.kind === "HOUSE_EVENT" ? `House event · ${node.state ? "TRUE" : "FALSE"}` : "Undeveloped event"}</span>
       <span className="ftbox__name">{node.name}</span>
-      <span className="ftbox__id">{node.code}</span>
+      <span className="ftbox__be-meta">
+        <span className="ftbox__id">{node.code}</span>
+      </span>
     </button>
   );
 }
@@ -717,6 +764,8 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const editable = capabilities.mode === "AUTHOR";
   const viewportRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const geometryRef = useRef({ width: 0, height: 0 });
+  const inspectorOpenRef = useRef(false);
   const history = useRef<Snapshot[]>([]);
   const future = useRef<Snapshot[]>([]);
   const modelIdRef = useRef(model.modelId);
@@ -765,6 +814,8 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     || (selection.kind === "LEAF" && model.leafNodes.some(({ id }) => id === selection.leafId))
     || (selection.kind === "BASIC_EVENT" && catalogue.basicEvents.some(({ id }) => id === selection.basicEventId))
   );
+  geometryRef.current = { width: geometry.width, height: geometry.height };
+  inspectorOpenRef.current = inspectedSelectionExists;
   const contextNode = contextMenu === null
     ? undefined
     : [...model.gates, ...model.leafNodes].find(({ id }) => id === contextMenu.nodeId);
@@ -789,17 +840,17 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   }, [contextMenu, contextNode]);
   useEffect(() => {
     const element = viewportRef.current;
-    if (element === null || geometry.nodes.length === 0) return undefined;
+    if (element === null) return undefined;
     const refit = (): void => {
       if (element.clientWidth === 0 || element.clientHeight === 0) return;
-      setViewport(fittedViewport(element, geometry, inspectedSelectionExists));
+      setViewport(fittedViewport(element, geometryRef.current, inspectorOpenRef.current));
     };
     refit();
     if (typeof ResizeObserver === "undefined") return undefined;
     const observer = new ResizeObserver(refit);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [geometry.height, geometry.width, inspectedSelectionExists, model.modelId]);
+  }, [model.modelId]);
 
   const emit = (operation: FaultTreeOperation, recordHistory = true): void => {
     try {
@@ -852,30 +903,22 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     commitViewport(next);
   };
   const onWheel = (event: WheelEvent<HTMLDivElement>): void => {
+    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
-    setContextMenu(null);
     const lineMultiplier = event.deltaMode === 1 ? 16 : 1;
     const pageMultiplier = event.deltaMode === 2 ? event.currentTarget.clientHeight : 1;
     const multiplier = lineMultiplier * pageMultiplier;
-    if (event.ctrlKey || event.metaKey) {
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const px = event.clientX - bounds.left;
-      const py = event.clientY - bounds.top;
-      setViewport((current) => {
-        const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002));
-        return {
-          zoom,
-          x: px - ((px - current.x) / current.zoom) * zoom,
-          y: py - ((py - current.y) / current.zoom) * zoom,
-        };
-      });
-      return;
-    }
-    setViewport((current) => ({
-      ...current,
-      x: current.x - (event.shiftKey && event.deltaX === 0 ? event.deltaY : event.deltaX) * multiplier,
-      y: current.y - (event.shiftKey ? 0 : event.deltaY * multiplier),
-    }));
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - bounds.left;
+    const py = event.clientY - bounds.top;
+    setViewport((current) => {
+      const zoom = clampZoom(current.zoom * Math.exp(-event.deltaY * multiplier * 0.002));
+      return {
+        zoom,
+        x: px - ((px - current.x) / current.zoom) * zoom,
+        y: py - ((py - current.y) / current.zoom) * zoom,
+      };
+    });
   };
   const beginPan = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) return;
@@ -883,7 +926,6 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     event.currentTarget.setPointerCapture?.(event.pointerId);
     setPan({ pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, origin: viewport });
     setContextMenu(null);
-    onSelectionChange(null);
   };
   const movePan = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (pan === null || pan.pointerId !== event.pointerId) return;
@@ -892,7 +934,16 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const endPan = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (pan === null || pan.pointerId !== event.pointerId) return;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    commitViewport(viewport);
+    const deltaX = event.clientX - pan.startX;
+    const deltaY = event.clientY - pan.startY;
+    if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+      const next = { ...pan.origin, x: pan.origin.x + deltaX, y: pan.origin.y + deltaY };
+      setViewport(next);
+      commitViewport(next);
+    } else {
+      setViewport(pan.origin);
+      onSelectionChange(null);
+    }
     setPan(null);
   };
 
@@ -911,7 +962,18 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     event.stopPropagation();
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     if (drag.current.x !== drag.origin.x || drag.current.y !== drag.origin.y) {
-      emit({ type: "SET_NODE_POSITION", nodeId: drag.nodeId, position: drag.current });
+      if (model.layout.mode === "AUTOMATIC") {
+        emit({
+          type: "SET_LAYOUT",
+          layout: { ...model.layout, mode: "MANUAL", direction: "TOP_TO_BOTTOM" },
+          nodePositions: geometry.nodes.map(({ node, left, top }) => ({
+            nodeId: node.id,
+            position: node.id === drag.nodeId ? drag.current : { x: left, y: top },
+          })),
+        });
+      } else {
+        emit({ type: "SET_NODE_POSITION", nodeId: drag.nodeId, position: drag.current });
+      }
     }
     setDrag(null);
   };
@@ -1039,38 +1101,217 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   geometry.nodes.forEach((positioned) => {
     const symTop = positioned.top + FT.NODE_H + FT.SYM_GAP;
     lines.push(<line key={`${positioned.node.id}-symbol-line`} x1={positioned.cx} y1={positioned.top + FT.NODE_H} x2={positioned.cx} y2={symTop} className="ftline" />);
-    if (positioned.node.kind !== "GATE") return;
-    const children = model.gateInputs
-      .filter(({ gateId }) => gateId === positioned.node.id)
-      .sort((left, right) => left.order - right.order)
-      .flatMap((input) => {
-        const child = positionedById.get(input.childId);
-        return child === undefined ? [] : [{ input, child }];
+  });
+
+  const connectedChildren = (gateId: string): Array<{
+    input: FaultTreeEditorModel["gateInputs"][number];
+    child: PositionedNode;
+  }> => model.gateInputs
+    .filter(({ gateId: candidateId }) => candidateId === gateId)
+    .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))
+    .flatMap((input) => {
+      const child = positionedById.get(input.childId);
+      return child === undefined ? [] : [{ input, child }];
+    });
+  const portOffset = (index: number, count: number): number => {
+    if (count <= 1) return 0;
+    const usableHeight = FT.NODE_H - 20;
+    return (index / (count - 1) - 0.5) * usableHeight;
+  };
+  const horizontalPortOffset = (index: number, count: number): number => {
+    if (count <= 1) return 0;
+    const usableWidth = FT.NODE_W - 40;
+    return (index / (count - 1) - 0.5) * usableWidth;
+  };
+
+  if (effectiveLayoutDirection(model) === "LEFT_TO_RIGHT") {
+    const incomingByChild = new Map<string, FaultTreeEditorModel["gateInputs"]>();
+    for (const input of model.gateInputs) {
+      const incoming = incomingByChild.get(input.childId) ?? [];
+      incoming.push(input);
+      incomingByChild.set(input.childId, incoming);
+    }
+    for (const incoming of incomingByChild.values()) {
+      incoming.sort((left, right) => left.gateId.localeCompare(right.gateId) || left.order - right.order);
+    }
+
+    geometry.nodes.filter(({ node }) => node.kind === "GATE").forEach((positioned) => {
+      const children = connectedChildren(positioned.node.id);
+      const leftChildren = children.filter(({ child }) => child.left < positioned.left);
+      const rightChildren = children.filter(({ child }) => child.left >= positioned.left);
+      children.forEach(({ input, child }) => {
+        const childIsLeft = child.left < positioned.left;
+        const siblings = childIsLeft ? leftChildren : rightChildren;
+        const parentPortIndex = siblings.findIndex(({ input: sibling }) => sibling.id === input.id);
+        const incoming = incomingByChild.get(child.node.id) ?? [];
+        const childPortIndex = incoming.findIndex(({ id }) => id === input.id);
+        const parentDockY = positioned.top + FT.NODE_H / 2 + portOffset(parentPortIndex, siblings.length);
+        const childDockY = child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incoming.length);
+        const startX = childIsLeft ? child.left + FT.NODE_W : positioned.left + FT.NODE_W;
+        const startY = childIsLeft ? childDockY : parentDockY;
+        const endX = childIsLeft ? positioned.left : child.left;
+        const endY = childIsLeft ? parentDockY : childDockY;
+        const selected = selectedId === positioned.node.id || selectedId === child.node.id;
+        const invalid = invalidIds.has(input.id);
+        lines.push(
+          <line
+            key={input.id}
+            x1={startX}
+            y1={startY}
+            x2={endX}
+            y2={endY}
+            className={`ftline ftedge${selected ? " ftline--selected" : ""}${invalid ? " ftline--invalid" : ""}`}
+            vectorEffect="non-scaling-stroke"
+            data-testid="fault-tree-edge"
+            data-edge-id={input.id}
+          />,
+        );
       });
-    if (children.length === 0) return;
-    const childTop = Math.min(...children.map(({ child }) => child.top));
-    const busY = childTop - FT.BUS_GAP;
-    const symBottom = symTop + FT.SYM_H;
-    lines.push(<line key={`${positioned.node.id}-drop`} x1={positioned.cx} y1={symBottom} x2={positioned.cx} y2={busY} className="ftline ftline--trunk" vectorEffect="non-scaling-stroke" />);
-    lines.push(<line key={`${positioned.node.id}-bus`} x1={Math.min(positioned.cx, ...children.map(({ child }) => child.cx))} y1={busY} x2={Math.max(positioned.cx, ...children.map(({ child }) => child.cx))} y2={busY} className="ftline ftline--trunk" vectorEffect="non-scaling-stroke" />);
-    children.forEach(({ input, child }) => {
-      const selected = selectedId === positioned.node.id || selectedId === child.node.id;
-      const invalid = invalidIds.has(input.id);
+    });
+  } else {
+    const incomingByChild = new Map<string, FaultTreeEditorModel["gateInputs"]>();
+    for (const input of model.gateInputs) {
+      const incoming = incomingByChild.get(input.childId) ?? [];
+      incoming.push(input);
+      incomingByChild.set(input.childId, incoming);
+    }
+    for (const incoming of incomingByChild.values()) {
+      incoming.sort((left, right) => left.gateId.localeCompare(right.gateId) || left.order - right.order);
+    }
+
+    geometry.nodes.filter(({ node }) => node.kind === "GATE").forEach((positioned) => {
+      const category = (node: TreeNode): number => {
+        if (node.kind === "BASIC_EVENT_REFERENCE") return 0;
+        if (node.kind === "HOUSE_EVENT" || node.kind === "UNDEVELOPED_EVENT") return 1;
+        if (node.kind === "GATE") return 2;
+        return 3;
+      };
+      const children = connectedChildren(positioned.node.id).sort((left, right) =>
+        category(left.child.node) - category(right.child.node)
+        || left.child.left - right.child.left
+        || left.child.top - right.child.top);
+      if (children.length === 0) return;
+      const symBottom = positioned.top + FT.NODE_H + FT.SYM_GAP + FT.SYM_H;
+      const basicEvents = children.filter(({ child }) => child.node.kind === "BASIC_EVENT_REFERENCE");
+      const nonBasicEvents = children.filter(({ child }) => child.node.kind !== "BASIC_EVENT_REFERENCE");
+      const childConnections = children.map(({ input, child }) => {
+        const incoming = incomingByChild.get(child.node.id) ?? [];
+        const childPortIndex = incoming.findIndex(({ id }) => id === input.id);
+        return {
+          input,
+          child,
+          childPortIndex,
+          incomingCount: incoming.length,
+        };
+      });
+      const basicEventRailX = basicEvents.length === 0
+        ? null
+        : Math.min(...basicEvents.map(({ child }) => child.left)) - FT.BUS_GAP;
+      const firstChildY = Math.min(...childConnections.map(({ child, childPortIndex, incomingCount }) =>
+        child.node.kind === "BASIC_EVENT_REFERENCE"
+          ? child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount)
+          : child.top));
+      const availableTrunkHeight = firstChildY - symBottom;
+      const branchY = symBottom + (availableTrunkHeight > 0
+        ? Math.min(FT.BUS_GAP, availableTrunkHeight / 2)
+        : FT.BUS_GAP);
+      const nonBasicDockXs = nonBasicEvents.map(({ input, child }) => {
+        const incoming = incomingByChild.get(child.node.id) ?? [];
+        const childPortIndex = incoming.findIndex(({ id }) => id === input.id);
+        return child.cx + horizontalPortOffset(childPortIndex, incoming.length);
+      });
+      const busXs = [
+        positioned.cx,
+        ...nonBasicDockXs,
+        ...(basicEventRailX === null ? [] : [basicEventRailX]),
+      ];
+      const sharedSelected = selectedId === positioned.node.id;
+      const sharedInvalid = children.some(({ input }) => invalidIds.has(input.id));
+      const sharedClass = `ftline ftline--trunk${sharedSelected ? " ftline--selected" : ""}${sharedInvalid ? " ftline--invalid" : ""}`;
       lines.push(
         <line
-          key={input.id}
-          x1={child.cx}
-          y1={busY}
-          x2={child.cx}
-          y2={child.top}
-          className={`ftline ftedge${selected ? " ftline--selected" : ""}${invalid ? " ftline--invalid" : ""}`}
+          key={`${positioned.node.id}-connector-trunk`}
+          x1={positioned.cx}
+          y1={symBottom}
+          x2={positioned.cx}
+          y2={branchY}
+          className={sharedClass}
           vectorEffect="non-scaling-stroke"
-          data-testid="fault-tree-edge"
-          data-edge-id={input.id}
+          data-testid="fault-tree-trunk"
+          data-gate-id={positioned.node.id}
         />,
       );
+      const busStartX = Math.min(...busXs);
+      const busEndX = Math.max(...busXs);
+      if (busStartX !== busEndX) {
+        lines.push(
+          <line
+            key={`${positioned.node.id}-connector-bus`}
+            x1={busStartX}
+            y1={branchY}
+            x2={busEndX}
+            y2={branchY}
+            className="ftline ftline--bus"
+            vectorEffect="non-scaling-stroke"
+            data-testid="fault-tree-bus"
+            data-gate-id={positioned.node.id}
+          />,
+        );
+      }
+      if (basicEventRailX !== null) {
+        const lastBasicEventY = Math.max(...childConnections.flatMap(({ child, childPortIndex, incomingCount }) =>
+          child.node.kind === "BASIC_EVENT_REFERENCE"
+            ? [child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount)]
+            : []));
+        lines.push(
+          <line
+            key={`${positioned.node.id}-basic-event-rail`}
+            x1={basicEventRailX}
+            y1={branchY}
+            x2={basicEventRailX}
+            y2={lastBasicEventY}
+            className="ftline ftline--bus ftline--basic-event-rail"
+            vectorEffect="non-scaling-stroke"
+            data-testid="fault-tree-basic-event-rail"
+            data-gate-id={positioned.node.id}
+          />,
+        );
+      }
+      childConnections.forEach(({ input, child, childPortIndex, incomingCount }) => {
+        const selected = selectedId === positioned.node.id || selectedId === child.node.id;
+        const invalid = invalidIds.has(input.id);
+        let x1: number;
+        let y1: number;
+        let x2: number;
+        let y2: number;
+        if (child.node.kind === "BASIC_EVENT_REFERENCE") {
+          const dockY = child.top + FT.NODE_H / 2 + portOffset(childPortIndex, incomingCount);
+          x1 = basicEventRailX ?? child.left - FT.BUS_GAP;
+          y1 = dockY;
+          x2 = child.left;
+          y2 = dockY;
+        } else {
+          x1 = child.cx + horizontalPortOffset(childPortIndex, incomingCount);
+          y1 = branchY;
+          x2 = x1;
+          y2 = child.top;
+        }
+        lines.push(
+          <line
+            key={input.id}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            className={`ftline ftedge${selected ? " ftline--selected" : ""}${invalid ? " ftline--invalid" : ""}`}
+            vectorEffect="non-scaling-stroke"
+            data-testid="fault-tree-edge"
+            data-edge-id={input.id}
+          />,
+        );
+      });
     });
-  });
+  }
 
   return (
     <div className="fteditor" data-testid="fault-tree-editor">
@@ -1092,13 +1333,13 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       <div className="fteditor__commandbar" aria-label="Fault-tree document commands">
         {editable && (
           <>
-            <button type="button" className="fteditor__btn" disabled={history.current.length === 0} onClick={undo}>Undo</button>
-            <button type="button" className="fteditor__btn" disabled={future.current.length === 0} onClick={redo}>Redo</button>
+            <button type="button" className="fteditor__icon-btn" aria-label="Undo" title="Undo" disabled={history.current.length === 0} onClick={undo}><EditorIcon name="undo" /></button>
+            <button type="button" className="fteditor__icon-btn" aria-label="Redo" title="Redo" disabled={future.current.length === 0} onClick={redo}><EditorIcon name="redo" /></button>
           </>
         )}
         {(capabilities.canImport || capabilities.canExport) && (
           <details className="fteditor__menu">
-            <summary className="fteditor__btn" role="button" aria-haspopup="menu">File</summary>
+            <summary className="fteditor__icon-btn" role="button" aria-label="File" title="File" aria-haspopup="menu"><EditorIcon name="file" /></summary>
             <div className="fteditor__menu-popover" role="menu">
               {capabilities.canImport && <button type="button" className="fteditor__menu-item" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); importRef.current?.click(); }}>Import OpenPSA XML</button>}
               {capabilities.canExport && <button type="button" className="fteditor__menu-item" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); exportXml(); }}>Export OpenPSA XML</button>}
@@ -1121,12 +1362,13 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
           onPointerCancel={endPan}
         >
           <div className="fteditor__canvas-controls" aria-label="Fault-tree canvas controls" onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" className="fteditor__icon-btn" onClick={() => zoomBy(1 / 1.15)} aria-label="Zoom out">−</button>
+            <button type="button" className="fteditor__icon-btn" onClick={() => zoomBy(1 / 1.15)} aria-label="Zoom out" title="Zoom out"><EditorIcon name="zoom-out" /></button>
             <output className="fteditor__zoom" aria-label="Zoom level">{Math.round(viewport.zoom * 100)}%</output>
-            <button type="button" className="fteditor__icon-btn" onClick={() => zoomBy(1.15)} aria-label="Zoom in">+</button>
-            <button type="button" className="fteditor__btn" onClick={fit}>Fit</button>
-            {editable && capabilities.canEditLayout && <button type="button" className="fteditor__btn" onClick={() => {
+            <button type="button" className="fteditor__icon-btn" onClick={() => zoomBy(1.15)} aria-label="Zoom in" title="Zoom in"><EditorIcon name="zoom-in" /></button>
+            <button type="button" className="fteditor__icon-btn" aria-label="Fit" title="Fit to screen" onClick={fit}><EditorIcon name="fit" /></button>
+            {editable && capabilities.canEditLayout && <button type="button" className="fteditor__icon-btn" aria-label="Auto layout" title="Auto layout" onClick={() => {
               const operation = createFaultTreeAutoLayoutOperation(model, {
+                direction: "TOP_TO_BOTTOM",
                 nodeWidth: FT.NODE_W,
                 nodeHeight: FT.NODE_H,
                 horizontalGap: FT.H_GAP,
@@ -1134,7 +1376,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
                 origin: { x: FT.PAD, y: FT.PAD },
               });
               emit({ ...operation, nodePositions: normalizeAutomaticPositions(operation.nodePositions ?? []) });
-            }}>Auto layout</button>}
+            }}><EditorIcon name="auto-layout" /></button>}
           </div>
           {contextMenu !== null && contextNode !== undefined && (
             <div
@@ -1297,16 +1539,18 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
               <span>Properties</span>
               <button type="button" className="fteditor__close" aria-label="Close inspector" onClick={() => onSelectionChange(null)}>×</button>
             </div>
-            <NodeInspector
-              model={model}
-              catalogue={catalogue}
-              selection={selection}
-              transferTargets={transferTargets}
-              editable={editable}
-              canEditBasicEvents={editable && capabilities.canEditBasicEvents}
-              commit={emit}
-              onOpenReference={onOpenReference}
-            />
+            <div className="fteditor__inspector-body">
+              <NodeInspector
+                model={model}
+                catalogue={catalogue}
+                selection={selection}
+                transferTargets={transferTargets}
+                editable={editable}
+                canEditBasicEvents={editable && capabilities.canEditBasicEvents}
+                commit={emit}
+                onOpenReference={onOpenReference}
+              />
+            </div>
           </aside>
         )}
       </div>

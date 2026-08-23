@@ -2,6 +2,11 @@ import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { type EsqLinkedInputs } from "./esqWorkbookContext";
+import type {
+  BayesianNetworkAnalysisResult,
+  BayesianNetworkExecuteResult,
+} from "interfaces-shared-types/newly-developed-methods/bayesian-network";
+import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling";
 
 interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
 interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
@@ -105,6 +110,34 @@ async function getEsqDocumentDownload(workbookId: string, documentId: string): P
   return fetchJson<{ url: string; filename: string }>(`/api/esq-workbooks/${workbookId}/documents/${documentId}/download`);
 }
 
+async function runEsqBayesianNetwork(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+  evidence: BayesianNetworkEvidenceConfiguration,
+  queryNodeId: string,
+): Promise<BayesianNetworkExecuteResult> {
+  return postJson<BayesianNetworkExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId,
+      workbookRevision,
+      query: { evidence, queryNodeIds: [queryNodeId] },
+    },
+  );
+}
+
+async function getEsqBayesianNetworkResult(
+  workbookId: string,
+  modelId: string,
+  runId: string,
+): Promise<BayesianNetworkAnalysisResult> {
+  return fetchJson<BayesianNetworkAnalysisResult>(
+    `/api/esq-workbooks/${workbookId}/bayesian-networks/${modelId}/runs/${runId}/result`,
+  );
+}
+
 export {
   fetchEsqLinkedInputs,
   getEsqExampleOptions,
@@ -116,6 +149,8 @@ export {
   uploadEsqDocument,
   deleteEsqDocument,
   getEsqDocumentDownload,
+  runEsqBayesianNetwork,
+  getEsqBayesianNetworkResult,
   type EsqWorkbookResponse,
   type EsqWorkbookRoleName,
   type EsqExampleOption,

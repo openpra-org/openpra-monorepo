@@ -20,24 +20,37 @@ interface EsqWorkbookData {
   links: EsqLinkedInputs | null;
 }
 
+interface EsqWorkbookRuntime {
+  workbookId: string | null;
+  projectId: string | null;
+  revision: number | null;
+}
+
 type EsqMutator = (esq: EventSequenceQuantification) => EventSequenceQuantification;
 
 interface EsqWorkbookContextValue extends EsqWorkbookData {
   editable: boolean;
+  runtime: EsqWorkbookRuntime;
   mutateEsq: (mutator: EsqMutator) => void;
 }
 
 const EsqWorkbookContext = createContext<EsqWorkbookContextValue | null>(null);
 
-function EsqWorkbookProvider({ data, editable, mutateEsq, children }: {
+function EsqWorkbookProvider({ data, editable, runtime, mutateEsq, children }: {
   data: EsqWorkbookData;
   editable: boolean;
+  runtime?: EsqWorkbookRuntime;
   mutateEsq: (mutator: EsqMutator) => void;
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<EsqWorkbookContextValue>(
-    () => ({ ...data, editable, mutateEsq }),
-    [data, editable, mutateEsq],
+    () => ({
+      ...data,
+      editable,
+      runtime: runtime ?? { workbookId: null, projectId: null, revision: null },
+      mutateEsq,
+    }),
+    [data, editable, mutateEsq, runtime],
   );
   return <EsqWorkbookContext.Provider value={value}>{children}</EsqWorkbookContext.Provider>;
 }
@@ -48,4 +61,11 @@ function useEsqWorkbook(): EsqWorkbookContextValue {
   return ctx;
 }
 
-export { EsqWorkbookProvider, useEsqWorkbook, type EsqWorkbookData, type EsqLinkedInputs, type EsqMutator };
+export {
+  EsqWorkbookProvider,
+  useEsqWorkbook,
+  type EsqWorkbookData,
+  type EsqLinkedInputs,
+  type EsqMutator,
+  type EsqWorkbookRuntime,
+};

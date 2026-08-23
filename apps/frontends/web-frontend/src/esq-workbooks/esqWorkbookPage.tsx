@@ -67,6 +67,7 @@ function EsqWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [exampleOptions, setExampleOptions] = useState<EsqExampleOption[]>([]);
   const workbookName = data?.esq.name ?? "";
   const workbookVersion = data?.esq.version ?? "1";
@@ -87,6 +88,7 @@ function EsqWorkbookPage(): JSX.Element {
           links: null,
         });
         setMyRoles(workbook.myRoles);
+        setProjectId(workbook.projectId);
         setRevision(workbook.revision);
         setHasPreviousMef(workbook.hasPreviousMef);
         try {
@@ -216,7 +218,12 @@ function EsqWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <EsqWorkbookProvider data={data} editable={editable} mutateEsq={mutateEsq}>
+    <EsqWorkbookProvider
+      data={data}
+      editable={editable}
+      runtime={{ workbookId: id, projectId, revision }}
+      mutateEsq={mutateEsq}
+    >
       <EsqWorkbench
         data={data}
         persona={persona}

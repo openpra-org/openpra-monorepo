@@ -24,6 +24,7 @@ import {
   type CapabilityCategory,
 } from "./esqViewData";
 import { familyMeanFrequency, type CcScore } from "./esqSelectors";
+import { EsqBayesianNetworkWorkspace } from "./esqBayesianNetworkWorkspace";
 
 // ─── 05 — Dependencies (HLR-C) ─────────────────────────────────────────────
 function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
@@ -63,6 +64,8 @@ function DependScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => v
   }
   return (
     <>
+      <EsqBayesianNetworkWorkspace />
+
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="ESQ" title="Dependency treatment" level={3} />

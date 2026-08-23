@@ -753,44 +753,44 @@ Create the only BN implementation under `newly-developed-methods/bayesian-networ
 
 ### Canonical component and workbook host
 
-- [ ] Define the canonical BN editor component contract under `newly-developed-methods/bayesian-network`.
-- [ ] Add BN data to the ESQ workbook MEF and persist it through the ESQ workbook patch service.
-- [ ] Import the canonical BN editor into ESQ Step 05 Dependencies.
-- [ ] Prove by repository search that only one BN renderer/editor implementation exists.
+- [x] Define the canonical BN editor component contract under `newly-developed-methods/bayesian-network`.
+- [x] Add BN data to the ESQ workbook MEF and persist it through the ESQ workbook patch service.
+- [x] Import the canonical BN editor into ESQ Step 05 Dependencies.
+- [x] Prove by repository search that only one BN renderer/editor implementation exists.
 
 ### Editing
 
-- [ ] Add and rename a discrete node.
-- [ ] Add, remove, and reorder node states.
-- [ ] Connect parent and child nodes and prevent cycles.
-- [ ] Edit CPT rows.
-- [ ] Normalize a selected CPT row.
-- [ ] Identify invalid CPT rows.
-- [ ] Move and automatically arrange nodes.
-- [ ] Delete nodes with impact confirmation.
-- [ ] Implement undo and redo.
-- [ ] Warn that the CPT must be rebuilt after parent or state changes.
-- [ ] Never silently reinterpret existing CPT values.
-- [ ] Add BN CPT and graph-editing tests.
+- [x] Add and rename a discrete node.
+- [x] Add, remove, and reorder node states.
+- [x] Connect parent and child nodes and prevent cycles.
+- [x] Edit CPT rows.
+- [x] Normalize a selected CPT row.
+- [x] Identify invalid CPT rows.
+- [x] Move and automatically arrange nodes.
+- [x] Delete nodes with impact confirmation.
+- [x] Implement undo and redo.
+- [x] Warn that the CPT must be rebuilt after parent or state changes.
+- [x] Never silently reinterpret existing CPT values.
+- [x] Add BN CPT and graph-editing tests.
 
 ### Evidence and querying
 
-- [ ] Apply and clear evidence.
-- [ ] Select a query node.
-- [ ] Run exact inference through TensorBayes.
-- [ ] Display the posterior distribution.
-- [ ] Keep backend and approximation selectors out of the initial UI.
-- [ ] Add BN evidence and exact-inference tests.
+- [x] Apply and clear evidence.
+- [x] Select a query node.
+- [x] Run exact inference through TensorBayes.
+- [x] Display the posterior distribution.
+- [x] Keep backend and approximation selectors out of the initial UI.
+- [x] Add BN evidence and exact-inference tests.
 
 ### HCL binding workflow
 
-- [ ] Select an FT and an FT basic event.
-- [ ] Select a BN node and one or more BN true states.
-- [ ] Reject an empty true-state selection.
-- [ ] Reject a selection containing every BN state.
-- [ ] Display missing or invalid bindings.
-- [ ] Display the models that use the BN.
-- [ ] Add HCL binding validation tests.
+- [x] Select an FT and an FT basic event.
+- [x] Select a BN node and one or more BN true states.
+- [x] Reject an empty true-state selection.
+- [x] Reject a selection containing every BN state.
+- [x] Display missing or invalid bindings.
+- [x] Display the models that use the BN.
+- [x] Add HCL binding validation tests.
 
 ### HCL FT quantification
 
@@ -798,15 +798,15 @@ Create the only BN implementation under `newly-developed-methods/bayesian-networ
 - [x] Run a linked FT in exact HCL mode.
 - [x] Use TensorBayes conditional probabilities for bound events under the complete BDD path context.
 - [x] Retain FT probabilities for unbound events.
-- [ ] Keep the marginal-only approximation out of the UI.
+- [x] Keep the marginal-only approximation out of the UI.
 - [x] Add existing HCL equivalence tests to the integrated workflow.
 
 ### Interchange and BN completion gate
 
-- [ ] Import XDSL.
-- [ ] Export XDSL.
-- [ ] Use canonical OpenPRA JSON internally.
-- [ ] The Playwright BN create/edit/reload/validate/query/link workflow passes.
+- [x] Import XDSL.
+- [x] Export XDSL.
+- [x] Use canonical OpenPRA JSON internally.
+- [x] The Playwright BN create/edit/reload/validate/query/link workflow passes.
 
 ## Phase 7 — Event-tree vertical slice
 

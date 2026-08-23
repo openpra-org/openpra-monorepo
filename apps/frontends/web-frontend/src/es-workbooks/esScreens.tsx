@@ -8,15 +8,13 @@ import {
   ES_END_STATES,
   ES_RELEASE_CATEGORIES,
   FEASIBILITY_CRITERIA,
-  ES_REPRESENTATIONS,
   ES_DEPENDENCY_TYPES,
   ES_LBE_CLASSES,
-  feActor,
-  ES_FE_ACTOR_META,
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
-import { type KeySafetyFunction, type DynamicRun, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type KeySafetyFunction, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { EndState } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 import { useEsWorkbook } from "./esWorkbookContext";
@@ -32,15 +30,21 @@ import {
   freqValue,
   lbeView,
   type EventTreeView,
-  type TreeNodeView,
-  type SeqLeafRef,
-  type SeqLeafView,
   type DependencyView,
   type CcScore,
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
 import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
 import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
+import { getEsEventTreeResult, runEsEventTree } from "./esWorkbookApi";
+import {
+  EventTreeEditor,
+  applyEventTreeOperation,
+  createEmptyEventTree,
+  validateEventTree,
+  type EventTreeOperation,
+  type EventTreeRepresentation,
+} from "../newly-developed-methods/event-tree";
 import "./css/esScreens.css";
 
 function fmtExp(n: number | undefined): string {
@@ -66,269 +70,6 @@ function EsEmpty({ title, hint }: { title: string; hint: string }): JSX.Element 
   );
 }
 
-function collectSeqs(node: TreeNodeView | SeqLeafRef): string[] {
-  if ("seq" in node) return node.seq.length > 0 ? [node.seq] : [];
-  return [...collectSeqs(node.S), ...collectSeqs(node.F)];
-}
-
-interface Seg { x1: number; y1: number; x2: number; y2: number; seqs: string[]; }
-interface Dot { x: number; y: number; }
-interface BranchLab { x: number; y: number; key: "S" | "F"; }
-interface Leaf { seq: string; y: number; }
-interface Layout {
-  segs: Seg[];
-  dots: Dot[];
-  branchLabs: BranchLab[];
-  leaves: Leaf[];
-  xCol: (c: number) => number;
-  xEnd: number;
-  rootY: number;
-  width: number;
-  height: number;
-}
-
-function layoutTree(view: EventTreeView): Layout {
-  const COL_W = 152;
-  const ROW_H = 58;
-  const LEFT = 112;
-  const TOP = 98;
-  const PANEL = 224;
-  const PAD_R = 18;
-  const numCols = view.functionalEvents.length;
-  const xCol = (c: number): number => LEFT + c * COL_W;
-  const xEnd = LEFT + numCols * COL_W;
-  const segs: Seg[] = [];
-  const dots: Dot[] = [];
-  const branchLabs: BranchLab[] = [];
-  const leaves: Leaf[] = [];
-  const yOf = new Map<TreeNodeView, number>();
-  const leafY = new Map<string, number>();
-  let row = 0;
-  function assign(node: TreeNodeView | SeqLeafRef): number {
-    if ("seq" in node) {
-      const y = TOP + (row + 0.5) * ROW_H;
-      row++;
-      leaves.push({ seq: node.seq, y });
-      leafY.set(node.seq, y);
-      return y;
-    }
-    const sy = assign(node.S);
-    const fy = assign(node.F);
-    const y = (sy + fy) / 2;
-    yOf.set(node, y);
-    return y;
-  }
-  const rootY = assign(view.node);
-  function yOfChild(child: TreeNodeView | SeqLeafRef): number {
-    return "seq" in child ? (leafY.get(child.seq) ?? 0) : (yOf.get(child) ?? 0);
-  }
-  function draw(node: TreeNodeView, enterX: number, nodeY: number): void {
-    const nx = xCol(node.fe);
-    const here = collectSeqs(node);
-    segs.push({ x1: enterX, y1: nodeY, x2: nx, y2: nodeY, seqs: here });
-    const sy = yOfChild(node.S);
-    const fy = yOfChild(node.F);
-    segs.push({ x1: nx, y1: sy, x2: nx, y2: fy, seqs: here });
-    dots.push({ x: nx, y: nodeY });
-    const kids: [("S" | "F"), TreeNodeView | SeqLeafRef, number][] = [["S", node.S, sy], ["F", node.F, fy]];
-    for (const [key, child, cy] of kids) {
-      branchLabs.push({ x: nx + 6, y: cy + (key === "S" ? -6 : 14), key });
-      if ("seq" in child) segs.push({ x1: nx, y1: cy, x2: xEnd, y2: cy, seqs: child.seq.length > 0 ? [child.seq] : [] });
-      else draw(child, nx, cy);
-    }
-  }
-  if (!("seq" in view.node)) draw(view.node, LEFT - 58, rootY);
-  return { segs, dots, branchLabs, leaves, xCol, xEnd, rootY, width: xEnd + PANEL + PAD_R, height: TOP + leaves.length * ROW_H + 20 };
-}
-
-function EventTreeDiagram({ view, showFreq, activeSeq, onHover, onSelect }: {
-  view: EventTreeView;
-  showFreq: boolean;
-  activeSeq: string | null;
-  onHover: (id: string | null) => void;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const L = useMemo(() => layoutTree(view), [view]);
-  const seqLeaf = new Map(view.sequences.map((s) => [s.id, s] as const));
-  const isHot = (seqs: string[]): boolean => activeSeq !== null && seqs.includes(activeSeq);
-  return (
-    <div className="estree__scroll">
-      <div className="estree__canvas" style={{ width: L.width, height: L.height }}>
-        {view.functionalEvents.map((fe, c) => (
-          <div key={fe.id} className="estree__head" style={{ left: L.xCol(c) }}>
-            <div className="estree__head-bar" />
-            <div className="estree__head-fe">FE{c + 1}</div>
-            <div className="estree__head-label">{fe.label}</div>
-            <div className="estree__head-sub">{fe.sub}</div>
-            {fe.scId !== undefined && <span className="estree__head-sc">{fe.scId}</span>}
-          </div>
-        ))}
-        <div className="estree__ie" style={{ top: L.rootY }}>
-          <div className="estree__ie-cap">Initiator</div>
-          <div className="estree__ie-id">{view.initiatingEventId}</div>
-          {showFreq && view.ieFreq !== undefined && <div className="estree__ie-freq">{fmtExp(view.ieFreq)}/yr</div>}
-        </div>
-        <svg className="estree__svg" width={L.width} height={L.height}>
-          {L.segs.map((s, i) => (
-            <line key={i} className={`estree__seg${isHot(s.seqs) ? " estree__seg--hot" : ""}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
-          ))}
-          {L.dots.map((d, i) => (<circle key={i} className="estree__node-dot" cx={d.x} cy={d.y} r="3.4" />))}
-          {L.branchLabs.map((b, i) => (<text key={i} className={`estree__branch-lab estree__branch-lab--${b.key.toLowerCase()}`} x={b.x} y={b.y}>{b.key}</text>))}
-        </svg>
-        {L.leaves.map((leaf) => {
-          const s = seqLeaf.get(leaf.seq);
-          if (s === undefined) return null;
-          const tone = s.endState === "SUCCESSFUL_MITIGATION" ? "ok" : "block";
-          const rcLabel = s.releaseCategoryId === undefined ? "Safe state" : s.releaseCategoryId;
-          return (
-            <button key={s.id} type="button" className={`estree__seq${activeSeq === s.id ? " estree__seq--active" : ""}`}
-              style={{ left: L.xEnd + 6, top: leaf.y }}
-              onMouseEnter={() => onHover(s.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(s.id)}>
-              <span className={`estree__seq-end estree__seq-end--${tone}`} />
-              <span className="estree__seq-main">
-                <span className="estree__seq-id">{s.id}</span>
-                <span className="estree__seq-rc"> · {rcLabel}</span>
-              </span>
-              {showFreq && <span className="estree__seq-freq">{fmtExp(s.meanFrequency)}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-interface EsdBox { x: number; y: number; feIndex: number; seqs: string[]; }
-interface EsdLink { startX: number; startY: number; midX: number; endX: number; endY: number; kind: "S" | "F"; seqs: string[]; }
-interface EsdLabel { x: number; y: number; kind: "S" | "F"; }
-interface EsdPill { seq: string; y: number; }
-interface EsdLayout { boxes: EsdBox[]; links: EsdLink[]; labels: EsdLabel[]; pills: EsdPill[]; ieY: number; xEnd: number; boxW: number; width: number; height: number; }
-
-function layoutESD(view: EventTreeView): EsdLayout {
-  const COLW = 172;
-  const ROWH = 82;
-  const LEFT = 92;
-  const BOXW = 124;
-  const TOP = 40;
-  const PILLW = 150;
-  const PAD = 26;
-  const numCols = view.functionalEvents.length;
-  const cx = (fe: number): number => LEFT + 78 + fe * COLW;
-  const xEnd = LEFT + 78 + numCols * COLW;
-  const leaves: { seq: string; y: number }[] = [];
-  const leafY = new Map<string, number>();
-  const yOf = new Map<TreeNodeView, number>();
-  let row = 0;
-  function assign(n: TreeNodeView | SeqLeafRef): number {
-    if ("seq" in n) {
-      const y = TOP + (row + 0.5) * ROWH;
-      row++;
-      leaves.push({ seq: n.seq, y });
-      leafY.set(n.seq, y);
-      return y;
-    }
-    const sy = assign(n.S);
-    const fy = assign(n.F);
-    const y = (sy + fy) / 2;
-    yOf.set(n, y);
-    return y;
-  }
-  const ieY = assign(view.node);
-  const boxes: EsdBox[] = [];
-  const links: EsdLink[] = [];
-  const labels: EsdLabel[] = [];
-  const pills: EsdPill[] = [];
-  function yOfChild(child: TreeNodeView | SeqLeafRef): number {
-    return "seq" in child ? (leafY.get(child.seq) ?? 0) : (yOf.get(child) ?? 0);
-  }
-  function walk(node: TreeNodeView, nodeY: number): void {
-    const bx = cx(node.fe);
-    boxes.push({ x: bx, y: nodeY, feIndex: node.fe, seqs: collectSeqs(node) });
-    const kids: [("S" | "F"), TreeNodeView | SeqLeafRef][] = [["S", node.S], ["F", node.F]];
-    for (const [k, ch] of kids) {
-      const startX = bx + BOXW / 2;
-      const startY = nodeY;
-      const cs = collectSeqs(ch);
-      const endY = yOfChild(ch);
-      let endX: number;
-      if ("seq" in ch) {
-        endX = xEnd;
-        if (ch.seq.length > 0) pills.push({ seq: ch.seq, y: endY });
-      } else {
-        endX = cx(ch.fe) - BOXW / 2;
-      }
-      const midX = startX + (endX - startX) * 0.5;
-      links.push({ startX, startY, midX, endX, endY, kind: k, seqs: cs });
-      labels.push({ x: startX + 9, y: startY + (endY < startY ? -7 : 15), kind: k });
-      if (!("seq" in ch)) walk(ch, endY);
-    }
-  }
-  if (!("seq" in view.node)) walk(view.node, ieY);
-  return { boxes, links, labels, pills, ieY, xEnd, boxW: BOXW, width: xEnd + PILLW + PAD, height: TOP + leaves.length * ROWH + 18 };
-}
-
-function EventSeqDiagram({ view, showFreq, activeSeq, onHover, onSelect }: {
-  view: EventTreeView;
-  showFreq: boolean;
-  activeSeq: string | null;
-  onHover: (id: string | null) => void;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const L = useMemo(() => layoutESD(view), [view]);
-  const seqLeaf = new Map(view.sequences.map((s) => [s.id, s] as const));
-  const isHot = (seqs: string[]): boolean => activeSeq !== null && seqs.includes(activeSeq);
-  return (
-    <div className="estree__scroll">
-      <div className="esdg" style={{ width: L.width, height: L.height }}>
-        <svg className="estree__svg" width={L.width} height={L.height}>
-          <defs>
-            <marker id="esdg-s" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--c-complete)" /></marker>
-            <marker id="esdg-f" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#c44d4d" /></marker>
-          </defs>
-          {L.links.map((l, i) => (
-            <path key={i} className={`esdg__link esdg__link--${l.kind.toLowerCase()}${isHot(l.seqs) ? " esdg__link--hot" : ""}`}
-              d={`M ${l.startX} ${l.startY} H ${l.midX} V ${l.endY} H ${l.endX}`} markerEnd={`url(#esdg-${l.kind.toLowerCase()})`} />
-          ))}
-          {L.labels.map((b, i) => (
-            <text key={i} className={`estree__branch-lab estree__branch-lab--${b.kind.toLowerCase()}`} x={b.x} y={b.y}>{b.kind}</text>
-          ))}
-        </svg>
-        <div className="esdg__ie" style={{ left: 6, top: L.ieY }}>
-          <div className="esdg__ie-cap">Initiator</div>
-          <div className="esdg__ie-id">{view.initiatingEventId}</div>
-        </div>
-        {L.boxes.map((b, i) => {
-          const fe = view.functionalEvents[b.feIndex];
-          const actor = fe !== undefined ? feActor(fe.id) : "auto";
-          return (
-            <div key={i} className={`esdg__box esdg__box--${actor}${isHot(b.seqs) ? " esdg__box--hot" : ""}`} style={{ left: b.x, top: b.y, width: L.boxW }}>
-              <div className="esdg__box-fe">{fe?.id}</div>
-              <div className="esdg__box-label">{fe?.label}?</div>
-              <div className="esdg__box-actor">{ES_FE_ACTOR_META[actor].short}</div>
-            </div>
-          );
-        })}
-        {L.pills.map((p) => {
-          const s = seqLeaf.get(p.seq);
-          if (s === undefined) return null;
-          const tone = s.endState === "SUCCESSFUL_MITIGATION" ? "ok" : "block";
-          return (
-            <button key={p.seq} type="button" className={`esdg__end esdg__end--${tone}${activeSeq === s.id ? " esdg__end--active" : ""}`}
-              style={{ left: L.xEnd + 6, top: p.y }}
-              onMouseEnter={() => onHover(s.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(s.id)}>
-              <span className={`estree__seq-end estree__seq-end--${tone}`} />
-              <span className="esdg__end-main">
-                <span className="esdg__end-id">{s.id}</span>
-                <span className="esdg__end-rc">{s.endState === "SUCCESSFUL_MITIGATION" ? "Safe state" : s.releaseCategoryId}</span>
-              </span>
-              {showFreq && <span className="esdg__end-freq">{fmtExp(s.meanFrequency)}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 type DrawerCtx = { kind: "sequence"; id: string } | { kind: "dependency"; id: string } | { kind: "operatorAction"; id: string } | { kind: "phenomenon"; id: string } | { kind: "releaseCategory"; id: string } | { kind: "family"; id: string } | { kind: "screening"; id: string } | { kind: "safetyFn"; id: string };
 
@@ -1305,472 +1046,138 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
   );
 }
 
-function fmtEsdProb(p: number): string {
-  if (p >= 0.1) return `${(p * 100).toFixed(1)}%`;
-  if (p >= 0.01) return `${(p * 100).toFixed(2)}%`;
-  return p.toExponential(1);
-}
 
-interface DynEsdNodeBox { key: string; x: number; y: number; fn?: string; condition: string; seqs: string[]; }
-interface DynEsdLink { startX: number; startY: number; splitX: number; endX: number; endY: number; kind: "S" | "F"; seqs: string[]; }
-interface DynEsdBLab { x: number; y: number; kind: "S" | "F"; text: string; }
-interface DynEsdLeafPos { seqId: string; y: number; timing?: string; }
-interface DynEsdLayout {
-  nodes: DynEsdNodeBox[]; links: DynEsdLink[]; labels: DynEsdBLab[]; leaves: DynEsdLeafPos[];
-  initX: number; initW: number; initRight: number; rootX: number; rootY: number;
-  xEnd: number; boxW: number; leafW: number; width: number; height: number;
-}
-
-function layoutDynEsd(run: DynamicRun, availW: number): DynEsdLayout {
-  const INITX = 10;
-  const INITW = 84;
-  const LEFT = 128;
-  const BOXW = 196;
-  const ROWH = 108;
-  const TOP = 48;
-  const SPLIT = 28;
-  const NAT_COLW = 312;
-  const PW = 200;
-  const LEAFGAP = 6;
-  const RIGHTPAD = 10;
-  const reserved = LEAFGAP + PW + RIGHTPAD;
-
-  const depthOf = new Map<string, number>();
-  const yOfNode = new Map<string, number>();
-  const yOfLeaf = new Map<string, number>();
-  const leafOrder: DynEsdLeafPos[] = [];
-  let row = 0;
-  let maxDepth = 0;
-
-  function assignY(nodeId: string, depth: number): number {
-    const node = run.esdNodes[nodeId];
-    if (node === undefined) {
-      const y = TOP + (row + 0.5) * ROWH;
-      row += 1;
-      return y;
-    }
-    depthOf.set(nodeId, depth);
-    if (depth > maxDepth) maxDepth = depth;
-    const ys: number[] = [];
-    for (const b of node.branches) {
-      if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) {
-        ys.push(assignY(b.targetNodeId, depth + 1));
-      } else if (b.sequenceId !== undefined) {
-        const y = TOP + (row + 0.5) * ROWH;
-        row += 1;
-        yOfLeaf.set(b.sequenceId, y);
-        leafOrder.push({ seqId: b.sequenceId, y, timing: b.timing });
-        ys.push(y);
-      }
-    }
-    const y = ys.length > 0 ? ((ys[0] ?? 0) + (ys[ys.length - 1] ?? 0)) / 2 : TOP + (row + 0.5) * ROWH;
-    yOfNode.set(nodeId, y);
-    return y;
-  }
-  const rootY = assignY(run.rootNodeId, 0);
-  const spans = maxDepth + 1;
-  const naturalWidth = LEFT + spans * NAT_COLW + reserved;
-  const width = availW > naturalWidth ? availW : naturalWidth;
-  const COLW = (width - LEFT - reserved) / spans;
-  const xOfDepth = (d: number): number => LEFT + d * COLW;
-  const xEnd = width - reserved;
-
-  const leafCache = new Map<string, string[]>();
-  function leafSeqs(nodeId: string): string[] {
-    const cached = leafCache.get(nodeId);
-    if (cached !== undefined) return cached;
-    const node = run.esdNodes[nodeId];
-    const acc: string[] = [];
-    if (node !== undefined) {
-      for (const b of node.branches) {
-        if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) acc.push(...leafSeqs(b.targetNodeId));
-        else if (b.sequenceId !== undefined) acc.push(b.sequenceId);
-      }
-    }
-    leafCache.set(nodeId, acc);
-    return acc;
-  }
-
-  const nodes: DynEsdNodeBox[] = [];
-  const links: DynEsdLink[] = [];
-  const labels: DynEsdBLab[] = [];
-  function build(nodeId: string): void {
-    const node = run.esdNodes[nodeId];
-    if (node === undefined) return;
-    const depth = depthOf.get(nodeId) ?? 0;
-    const ny = yOfNode.get(nodeId) ?? 0;
-    const bx = xOfDepth(depth);
-    nodes.push({ key: nodeId, x: bx, y: ny, fn: node.challengedFunctionId, condition: node.condition, seqs: leafSeqs(nodeId) });
-    for (const b of node.branches) {
-      const kind: "S" | "F" = b.outcome === "Success" ? "S" : "F";
-      const startX = bx + BOXW;
-      const startY = ny;
-      let endX: number;
-      let endY: number;
-      let seqs: string[];
-      if (b.targetNodeId !== undefined && run.esdNodes[b.targetNodeId] !== undefined) {
-        endY = yOfNode.get(b.targetNodeId) ?? 0;
-        endX = xOfDepth(depthOf.get(b.targetNodeId) ?? depth + 1);
-        seqs = leafSeqs(b.targetNodeId);
-        build(b.targetNodeId);
-      } else if (b.sequenceId !== undefined) {
-        endY = yOfLeaf.get(b.sequenceId) ?? 0;
-        endX = xEnd;
-        seqs = [b.sequenceId];
-      } else {
-        endY = startY;
-        endX = xEnd;
-        seqs = [];
-      }
-      const splitX = startX + SPLIT;
-      links.push({ startX, startY, splitX, endX, endY, kind, seqs });
-      const probTxt = b.probability !== undefined ? fmtEsdProb(b.probability) : "";
-      labels.push({ x: splitX + 5, y: (startY + endY) / 2, kind, text: `${kind === "S" ? "✓" : "✗"} ${probTxt}`.trim() });
-    }
-  }
-  build(run.rootNodeId);
-
-  return {
-    nodes, links, labels, leaves: leafOrder,
-    initX: INITX, initW: INITW, initRight: INITX + INITW, rootX: LEFT, rootY,
-    xEnd, boxW: BOXW, leafW: PW, width, height: TOP + row * ROWH + 20,
-  };
-}
-
-function DynamicEsdTree({ run, leaves, activeSeq, onHover, onSelect }: {
-  run: DynamicRun;
-  leaves: Map<string, SeqLeafView>;
-  activeSeq: string | null;
-  onHover: (id: string | null) => void;
-  onSelect: (id: string) => void;
-}): JSX.Element {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [availW, setAvailW] = useState<number>(0);
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (el === null) return;
-    const measure = (): void => setAvailW(el.clientWidth);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => { ro.disconnect(); };
-  }, []);
-  const L = useMemo(() => layoutDynEsd(run, availW), [run, availW]);
-  const isHot = (seqs: string[]): boolean => activeSeq !== null && seqs.includes(activeSeq);
-  return (
-    <div className="estree__scroll" ref={scrollRef}>
-      <div className="esdt" style={{ width: L.width, height: L.height }}>
-        <svg className="estree__svg" width={L.width} height={L.height}>
-          <defs>
-            <marker id="esdt-s" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--c-complete)" /></marker>
-            <marker id="esdt-f" markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#c44d4d" /></marker>
-          </defs>
-          <path className="esdt__trunk" d={`M ${L.initRight} ${L.rootY} H ${L.rootX}`} />
-          {L.links.map((l, i) => (
-            <path key={i} className={`esdt__link esdt__link--${l.kind.toLowerCase()}${isHot(l.seqs) ? " esdt__link--hot" : ""}`}
-              d={`M ${l.startX} ${l.startY} H ${l.splitX} V ${l.endY} H ${l.endX}`} markerEnd={`url(#esdt-${l.kind.toLowerCase()})`} />
-          ))}
-        </svg>
-        <div className="esdt__ie" style={{ left: L.initX, top: L.rootY, width: L.initW }}>
-          <div className="esdt__ie-cap">Initiator</div>
-          <div className="esdt__ie-id">{run.initiatingEventId}</div>
-        </div>
-        {L.nodes.map((n) => (
-          <div key={n.key} className={`esdt__node${isHot(n.seqs) ? " esdt__node--hot" : ""}`} style={{ left: n.x, top: n.y, width: L.boxW }}>
-            {n.fn !== undefined && <span className="esdt__fn">{n.fn}</span>}
-            <span className="esdt__cond" title={n.condition}>{n.condition}</span>
-          </div>
-        ))}
-        {L.labels.map((b, i) => (
-          <div key={i} className={`esdt__blab esdt__blab--${b.kind.toLowerCase()}`} style={{ left: b.x, top: b.y }}>
-            {b.text}
-          </div>
-        ))}
-        {L.leaves.map((lf) => {
-          const s = leaves.get(lf.seqId);
-          const ok = s?.endState === "SUCCESSFUL_MITIGATION";
-          const label = ok ? "Safe stable state" : s?.releaseCategoryId !== undefined ? `Release · ${s.releaseCategoryId}` : "Release";
-          return (
-            <button key={lf.seqId} type="button"
-              className={`esdt__leaf esdt__leaf--${ok ? "ok" : "rel"}${activeSeq === lf.seqId ? " esdt__leaf--active" : ""}`}
-              style={{ left: L.xEnd + 6, top: lf.y, width: L.leafW }}
-              onMouseEnter={() => onHover(lf.seqId)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(lf.seqId)}>
-              <span className={`estree__seq-end estree__seq-end--${ok ? "ok" : "block"}`} />
-              <span className="esdt__leaf-main">
-                <span className="esdt__leaf-end">{label}</span>
-                <span className="esdt__leaf-id posmono">{lf.seqId}{s?.meanFrequency !== undefined ? ` · ${fmtExp(s.meanFrequency)}/yr` : ""}</span>
-                {lf.timing !== undefined && lf.timing.length > 0 && <span className="esdt__leaf-time">{lf.timing}</span>}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function SequencesScreen(): JSX.Element {
-  const { es, posLink, projectId, editable, mutateEs } = useEsWorkbook();
-  const trees = useMemo(() => eventTreesView(es), [es]);
+  const { es, posLink, ieLink, projectId, editable, mutateEs, runtime } = useEsWorkbook();
   const coverage = useMemo(() => coverageView(es, posLink), [es, posLink]);
-  const [treeId, setTreeId] = useState<string>(trees[0]?.id ?? "");
-  const [posId, setPosId] = useState<string>("all");
-  const [repr, setRepr] = useState<string>("esd");
-  const [hovered, setHovered] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
-  const [faultTreeLink, setFaultTreeLink] = useState<{
-    eventTreeId: string;
-    functionalEventId: string;
-    functionalEventName: string;
-  } | null>(null);
-  const tree = trees.find((t) => t.id === treeId) ?? trees[0];
-  const showFreq = false;
+  const [treeId, setTreeId] = useState<string>(es.eventTrees?.[0]?.uuid ?? "");
+  const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-sequence-diagram");
+  const [selection, setSelection] = useState<string | null>(null);
+  const [faultTreeLink, setFaultTreeLink] = useState<{ eventTreeId: string; functionalEventId: string; functionalEventName: string } | null>(null);
+  const [results, setResults] = useState<Record<string, EventTreeAnalysisResult>>({});
+  const [runningTreeId, setRunningTreeId] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
+  const trees = es.eventTrees ?? [];
+  const model = trees.find((tree) => tree.uuid === treeId) ?? trees[0];
+  const activeTreeId = model?.uuid ?? "";
+  const dynamicRun = (es.dynamicRuns ?? []).find((run) => run.eventTreeId === activeTreeId);
+  const result = model === undefined ? undefined : results[model.uuid];
 
-  if (tree === undefined) {
-    return (
-      <div className="poscard">
-        <EsEmpty title="No event sequences yet" hint="Link an IE workbook and lay out a sequence set for each operating-state × initiating-event pair to populate this step (ES-A7)." />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (model !== undefined && treeId !== model.uuid) setTreeId(model.uuid);
+  }, [model, treeId]);
 
-  const okN = tree.sequences.filter((s) => s.endState === "SUCCESSFUL_MITIGATION").length;
-  const relN = tree.sequences.length - okN;
-  const reprMeta = ES_REPRESENTATIONS.find((r) => r.id === repr) ?? ES_REPRESENTATIONS[0];
-  const run = (es.dynamicRuns ?? []).find((r) => r.eventTreeId === tree.id);
-  const persistedTree = (es.eventTrees ?? []).find(({ uuid }) => uuid === tree.id);
-  const functionalEvents = Object.values(persistedTree?.functionalEvents ?? {})
-    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
-  const linkingTree = (es.eventTrees ?? []).find(({ uuid }) => uuid === faultTreeLink?.eventTreeId);
-  const linkingFunctionalEvent = Object.values(linkingTree?.functionalEvents ?? {}).find(
-    ({ uuid }) => uuid === faultTreeLink?.functionalEventId,
-  );
+  const createTree = (initiatingEventId?: string, plantOperatingStateId?: string): void => {
+    if (!editable) return;
+    const initiator = initiatingEventId ?? ieLink.initiators[0]?.id ?? es.scopeDefinition.initiatingEventIds[0] ?? "IE-1";
+    const operatingState = plantOperatingStateId ?? posLink.states[0]?.id ?? es.scopeDefinition.plantOperatingStateIds[0];
+    const created = createEmptyEventTree(initiator, operatingState);
+    mutateEs((draft) => ({ ...draft, eventTrees: [...(draft.eventTrees ?? []), created] }));
+    setTreeId(created.uuid);
+    setSelection(null);
+  };
+
+  const applyOperation = (operation: EventTreeOperation): void => {
+    if (model === undefined) return;
+    mutateEs((draft) => ({
+      ...draft,
+      eventTrees: (draft.eventTrees ?? []).map((candidate) => candidate.uuid === model.uuid ? applyEventTreeOperation(candidate, operation) : candidate),
+    }));
+  };
+
+  const run = async (): Promise<void> => {
+    if (model === undefined || runtime.workbookId === null || runtime.revision === null) {
+      setRunError("Save this ES workbook before running the event tree.");
+      return;
+    }
+    const validation = validateEventTree(model, trees);
+    const blocking = validation.find((finding) => finding.severity === "ERROR");
+    if (blocking !== undefined) {
+      setRunError(blocking.message);
+      return;
+    }
+    setRunningTreeId(model.uuid);
+    setRunError(null);
+    try {
+      const execution = await runEsEventTree(runtime.workbookId, model.uuid, runtime.revision);
+      if (execution.run.status === "FAILED") throw new Error(execution.run.failure?.message ?? "Event-tree quantification failed.");
+      if (execution.run.status !== "SUCCEEDED") throw new Error(`Event-tree run did not complete (status: ${execution.run.status}).`);
+      const analysis = await getEsEventTreeResult(runtime.workbookId, model.uuid, execution.run.id);
+      setResults((current) => ({ ...current, [model.uuid]: analysis }));
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : "Event-tree quantification failed.");
+    } finally {
+      setRunningTreeId(null);
+    }
+  };
+
+  const linkingTree = trees.find((tree) => tree.uuid === faultTreeLink?.eventTreeId);
+  const linkingFunctionalEvent = Object.values(linkingTree?.functionalEvents ?? {}).find((event) => event.uuid === faultTreeLink?.functionalEventId);
 
   return (
     <>
       <div className="poscard">
         <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title="Coverage" level={3} />
-        </div>
-        <p className="poscard__sub">ES lays out a sequence set for every operating-state and initiating-event pair, where a filled cell means a set exists that you can click to open. Empty cells are pairs that have not been laid out yet.</p>
-        <div className="esmatrix-wrap">
-          <table className="esmatrix">
-            <thead>
-              <tr>
-                <th className="esmatrix__corner">Operating state</th>
-                {coverage.ies.map((ie) => (
-                  <th key={ie.id} className={`esmatrix__col${tree.initiatingEventId === ie.id ? " esmatrix__col--active" : ""}`}>{ie.id}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {coverage.states.map((st) => (
-                <tr key={st.id}>
-                  <th className={`esmatrix__rowh${st.id === posId ? " esmatrix__rowh--active" : ""}`}>
-                    <span className="esmatrix__rowh-id">{st.id}</span>
-                    {st.name.length > 0 && <span className="esmatrix__rowh-name">{st.name}</span>}
-                  </th>
-                  {coverage.ies.map((ie) => {
-                    const cellTreeId = coverage.cellTree[`${ie.id}|${st.id}`];
-                    const on = cellTreeId !== undefined;
-                    const sel = on && cellTreeId === treeId;
-                    return (
-                      <td key={ie.id}
-                        className={`esmatrix__cell${on ? " esmatrix__cell--on" : ""}${sel ? " esmatrix__cell--sel" : ""}`}
-                        onClick={on ? () => { setTreeId(cellTreeId); setPosId(st.id); } : undefined}
-                        title={on ? `${ie.id} in ${st.id}` : `${ie.id} not laid out in ${st.id}`}>
-                        {on ? <span className="esmatrix__dot" /> : <span className="esmatrix__na">·</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="estree__legend" style={{ borderTop: "none", padding: "10px 0 0", background: "none" }}>
-          <span className="estree__legend-item"><span className="esmatrix__dot" /> Event sequences laid out</span>
-          <span className="estree__legend-item"><span className="esmatrix__na" style={{ fontWeight: 700 }}>·</span> Not laid out yet</span>
-          <span className="estree__legend-item">{coverage.ies.length} initiating events from IE · {coverage.states.length} operating states from POS</span>
-        </div>
-      </div>
-
-      <div className="poscard">
-        <div className="poscard__head">
-          <WorkbookSectionHeading workbook="ES" title={tree.name} cueKey="Event tree" />
-          <ESProvenanceChip kind="es">{tree.initiatingEventId}</ESProvenanceChip>
-        </div>
-        {tree.description !== undefined && <p className="poscard__sub">{tree.description}</p>}
-        <div className="posrow posrow--wrap" style={{ gap: 6, marginBottom: 12 }}>
-          <span className="possubtle" style={{ fontSize: 12, marginRight: 2 }}>Operating state</span>
-          {tree.applicableStates.map((p) => (
-            <button key={p} type="button" className={`poschip${posId === p ? " poschip--primary" : ""}`} onClick={() => setPosId(p)}>{p}</button>
-          ))}
-        </div>
-        <div className="posrow posrow--wrap" style={{ gap: 18, fontSize: 12.5 }}>
-          <span><span className="possubtle">IE frequency</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{fmtExp(tree.ieFreq)}/plant-yr</strong></span>
-          <span><span className="possubtle">Mission time</span> <strong className="posmono" style={{ color: "var(--color-text)" }}>{tree.missionTime ?? "—"} {tree.missionTimeUnits ?? ""}</strong></span>
-          <span><span className="possubtle">Sequences</span> <strong style={{ color: "var(--color-text)" }}>{tree.sequences.length}</strong> <span className="possubtle">({okN} safe · {relN} release)</span></span>
-        </div>
-      </div>
-
-      {functionalEvents.length > 0 && (
-        <div className="poscard" data-testid="es-fault-tree-links">
-          <div className="poscard__head">
-            <WorkbookSectionHeading workbook="ES" title="Functional-event fault-tree links" level={3} />
-            <Badge kind={functionalEvents.every(({ faultTreeTopEvent }) => faultTreeTopEvent !== undefined) ? "ok" : "progress"}>
-              {functionalEvents.filter(({ faultTreeTopEvent }) => faultTreeTopEvent !== undefined).length} of {functionalEvents.length} linked
-            </Badge>
+          <div>
+            <WorkbookSectionHeading workbook="ES" title="Event-tree coverage" level={3} />
+            <p className="poscard__sub">Open an existing operating-state and initiating-event pair, or create the missing tree directly from the matrix.</p>
           </div>
-          <p className="poscard__sub">Each branch question keeps a stable reference to a workbook-owned fault-tree top event. The source tree remains owned by Systems Analysis and is not copied into this event tree.</p>
-          <table className="postable postable--mid">
-            <thead><tr><th>Functional event</th><th>Fault-tree top event</th><th>Action</th></tr></thead>
-            <tbody>
-              {functionalEvents.map((functionalEvent) => {
-                const reference = functionalEvent.faultTreeTopEvent;
-                const displayName = functionalEvent.label ?? functionalEvent.name;
-                return (
-                  <tr key={functionalEvent.uuid}>
-                    <td>
-                      <div className="postable__name">{displayName}</div>
-                      <div className="possubtle posmono">{functionalEvent.uuid}</div>
-                    </td>
-                    <td>
-                      {reference === undefined ? (
-                        <span className="possubtle">Not linked</span>
-                      ) : (
-                        <div title={`${reference.workbookId} · ${reference.modelId} · ${reference.entityId}`}>
-                          <Badge kind="ok">Linked</Badge>
-                          <div className="possubtle posmono" style={{ marginTop: 4 }}>{reference.modelId} · {reference.entityId}</div>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {editable && projectId !== undefined ? (
-                        <div className="posrow posrow--wrap" style={{ gap: 6 }}>
-                          <button
-                            type="button"
-                            className="posnav__btn posnav__btn--sm posnav__btn--primary"
-                            aria-label={`${reference === undefined ? "Select" : "Change"} fault-tree top event for ${displayName}`}
-                            onClick={() => setFaultTreeLink({
-                              eventTreeId: tree.id,
-                              functionalEventId: functionalEvent.uuid,
-                              functionalEventName: displayName,
-                            })}
-                          >
-                            <ESIcon.Link /> {reference === undefined ? "Select top event" : "Change link"}
-                          </button>
-                          {reference !== undefined && (
-                            <button
-                              type="button"
-                              className="posnav__btn posnav__btn--sm"
-                              aria-label={`Remove fault-tree link for ${displayName}`}
-                              onClick={() => mutateEs((draft) => setFunctionalEventFaultTreeReference(
-                                draft,
-                                tree.id,
-                                functionalEvent.uuid,
-                                undefined,
-                              ))}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      ) : <span className="possubtle">{reference === undefined ? "—" : "View only"}</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-
-      <div className="estree">
-        <div className="estree__bar">
-          <span className="estree__bar-title">{reprMeta.label}</span>
-          <span className={`poschip${reprMeta.primary === true ? " poschip--primary" : ""}`}>{reprMeta.order}</span>
-          <div className="estree__selector">
-            {ES_REPRESENTATIONS.map((r) => (
-              <button key={r.id} type="button" className={`estree__selector-opt${r.id === repr ? " estree__selector-opt--active" : ""}`} onClick={() => setRepr(r.id)}>{r.label}</button>
-            ))}
+          <div className="posrow" style={{ gap: 8 }}>
+            {model !== undefined && (
+              <select aria-label="Event tree" className="posfield__select" value={model.uuid} onChange={(event) => { setTreeId(event.target.value); setSelection(null); }}>
+                {trees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name} · {tree.initiatingEventId}{tree.plantOperatingStateId === undefined ? "" : ` · ${tree.plantOperatingStateId}`}</option>)}
+              </select>
+            )}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" onClick={() => createTree()}>Add event tree</button>}
           </div>
-          <span className="estree__bar-spacer" />
-          {reprMeta.method !== undefined
-            ? <span className="poschip poschip--method">Method {reprMeta.method}</span>
-            : <span className="poschip poschip--primary">Main record</span>}
         </div>
-
-        {repr === "table" && (
-          <div style={{ overflowX: "auto" }}>
-            <table className="postable" style={{ border: "none", borderRadius: 0 }}>
-              <thead><tr><th>Sequence</th><th>Path</th><th>End state</th><th>Release</th><th>Risk</th></tr></thead>
-              <tbody>
-                {tree.sequences.map((s) => {
-                  const imp = fmtImportance(s.importance);
-                  return (
-                    <tr key={s.id} className="postable__row--clickable" onClick={() => setDrawer({ kind: "sequence", id: s.id })}>
-                      <td><div className="postable__name">{s.id}</div></td>
-                      <td><div className="posrow posrow--wrap" style={{ gap: 4 }}>
-                        {tree.functionalEvents.map((fe) => {
-                          const st = s.path[fe.id];
-                          if (st === undefined) return null;
-                          const ok = st === "SUCCESS";
-                          return <span key={fe.id} className="poschip" style={{ borderColor: ok ? "rgba(46,125,79,0.3)" : "rgba(196,77,77,0.3)", color: ok ? "var(--c-complete)" : "#b73b3b" }}>{fe.id} {ok ? "S" : "F"}</span>;
-                        })}
-                      </div></td>
-                      <td>{s.endState === "SUCCESSFUL_MITIGATION" ? <Badge kind="ok">Safe state</Badge> : <Badge kind="block">Release</Badge>}</td>
-                      <td className="mono">{s.releaseCategoryId ?? "—"}</td>
-                      <td>{imp.label === "—" ? <span className="possubtle">—</span> : <Badge kind={imp.kind}>{imp.label}</Badge>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+        {coverage.ies.length > 0 && coverage.states.length > 0 && (
+          <div className="esmatrix-wrap">
+            <table className="esmatrix">
+              <thead><tr><th className="esmatrix__corner">Operating state</th>{coverage.ies.map((initiator) => <th key={initiator.id} className={`esmatrix__col${model?.initiatingEventId === initiator.id ? " esmatrix__col--active" : ""}`}>{initiator.id}</th>)}</tr></thead>
+              <tbody>{coverage.states.map((state) => <tr key={state.id}><th className="esmatrix__rowh"><span className="esmatrix__rowh-id">{state.id}</span>{state.name.length > 0 && <span className="esmatrix__rowh-name">{state.name}</span>}</th>{coverage.ies.map((initiator) => {
+                const cellTreeId = coverage.cellTree[`${initiator.id}|${state.id}`];
+                const selected = cellTreeId === model?.uuid;
+                return <td key={initiator.id} className={`esmatrix__cell${cellTreeId === undefined ? "" : " esmatrix__cell--on"}${selected ? " esmatrix__cell--sel" : ""}`} title={cellTreeId === undefined ? `Create ${initiator.id} in ${state.id}` : `Open ${initiator.id} in ${state.id}`} onClick={() => { if (cellTreeId === undefined) createTree(initiator.id, state.id); else { setTreeId(cellTreeId); setSelection(null); } }}>{cellTreeId === undefined ? (editable ? <span className="esmatrix__add">+</span> : <span className="esmatrix__na">·</span>) : <span className="esmatrix__dot" />}</td>;
+              })}</tr>)}</tbody>
             </table>
           </div>
         )}
-
-        {repr === "tree" && (
-          <>
-            <div className="esderived">Derived from the event-sequence diagram. Each question becomes a branch heading, kept in the same order the operators meet it.</div>
-            <div className="possubtle" style={{ textAlign: "right", fontSize: 11.5, padding: "6px 16px 0" }}>Click on any end state to see its path</div>
-            <EventTreeDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
-            <div className="estree__legend" style={{ justifyContent: "center" }}>
-              <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "var(--c-complete)" }} /> Safe stable state</span>
-              <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "#c44d4d" }} /> Radionuclide release</span>
-              <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>S</strong> mitigating function succeeds</span>
-              <span className="estree__legend-item"><strong style={{ color: "#b73b3b" }}>F</strong> function fails</span>
-            </div>
-          </>
-        )}
-
-        {repr === "esd" && (
-          <>
-            {run !== undefined ? (
-              <DynamicEsdTree run={run} leaves={new Map(tree.sequences.map((s) => [s.id, s]))} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
-            ) : (
-              <EventSeqDiagram view={tree} showFreq={showFreq} activeSeq={hovered} onHover={setHovered} onSelect={(id) => setDrawer({ kind: "sequence", id })} />
-            )}
-            <div className="estree__legend" style={{ justifyContent: "center" }}>
-              {run !== undefined ? (
-                <>
-                  <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>✓</strong> heat removed / boundary holds · <strong style={{ color: "#b73b3b" }}>✗</strong> function fails</span>
-                  <span className="estree__legend-item"><span className="estree__legend-dot" style={{ background: "var(--c-complete)" }} /> safe stable state · <span className="estree__legend-dot" style={{ background: "#c44d4d" }} /> release category</span>
-                </>
-              ) : (
-                <>
-                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--operator" /> Operator action / decision</span>
-                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--auto" /> Automatic actuation</span>
-                  <span className="estree__legend-item"><span className="esdg-swatch esdg-swatch--passive" /> Passive / inherent</span>
-                  <span className="estree__legend-item"><strong style={{ color: "var(--c-complete)" }}>S</strong> succeeds · <strong style={{ color: "#b73b3b" }}>F</strong> fails</span>
-                  <span className="estree__legend-item">Each block is a question, in the order the operators meet it</span>
-                </>
-              )}
-            </div>
-          </>
-        )}
       </div>
+
+      {model === undefined ? (
+        <div className="poscard"><EsEmpty title="No event trees yet" hint="Create the first event tree to define initiating frequency, functional events, complete paths, end states, and transfers." />{editable && <div className="posrow" style={{ justifyContent: "center" }}><button type="button" className="posnav__btn posnav__btn--primary" onClick={() => createTree()}>Create event tree</button></div>}</div>
+      ) : (
+        <EventTreeEditor
+          model={model}
+          eventSequences={es.eventSequences}
+          availableInitiatingEvents={ieLink.initiators.map((initiator) => ({ id: initiator.id, name: initiator.name }))}
+          availableTransfers={trees.filter((tree) => tree.uuid !== model.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
+          dynamicRun={dynamicRun}
+          representation={dynamicRun === undefined && representation === "dynamic" ? "event-sequence-diagram" : representation}
+          capabilities={{ author: editable, quantification: runtime.workbookId !== null, linkSelection: true, resultOverlay: true }}
+          selection={selection}
+          validation={validateEventTree(model, trees)}
+          saveState={runtime.saveState}
+          analysisResult={result ?? null}
+          resultIsStale={result !== undefined && (result.owner.workbookRevision !== runtime.revision || runtime.saveState === "saving")}
+          running={runningTreeId === model.uuid}
+          runError={runError}
+          onOperation={applyOperation}
+          onRepresentationChange={setRepresentation}
+          onSelectionChange={setSelection}
+          onSelectFaultTreeLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
+          onOpenReference={(reference) => {
+            if ("targetEventTreeId" in reference) {
+              setTreeId(reference.targetEventTreeId);
+              setSelection(null);
+            }
+          }}
+          onRun={() => { void run(); }}
+        />
+      )}
+
       {faultTreeLink !== null && projectId !== undefined && (
         <EsFaultTreeReferencePicker
           projectId={projectId}
@@ -1778,17 +1185,11 @@ function SequencesScreen(): JSX.Element {
           currentReference={linkingFunctionalEvent?.faultTreeTopEvent}
           onClose={() => setFaultTreeLink(null)}
           onConfirm={(reference) => {
-            mutateEs((draft) => setFunctionalEventFaultTreeReference(
-              draft,
-              faultTreeLink.eventTreeId,
-              faultTreeLink.functionalEventId,
-              reference,
-            ));
+            mutateEs((draft) => setFunctionalEventFaultTreeReference(draft, faultTreeLink.eventTreeId, faultTreeLink.functionalEventId, reference));
             setFaultTreeLink(null);
           }}
         />
       )}
-      {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );
 }

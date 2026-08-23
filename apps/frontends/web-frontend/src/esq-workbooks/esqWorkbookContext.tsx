@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type {
+  DynamicRun,
+  EventSequence,
+  EventTree,
+} from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 
@@ -7,6 +12,9 @@ interface EsqLinkedInputs {
   posStates: { id: string; name: string; mode: string; durationHours: number }[];
   ieGroups: { id: string; name: string; frequency: number }[];
   esFamilies: { id: string; name: string }[];
+  eventTrees: EventTree[];
+  eventSequences: EventSequence[];
+  dynamicRuns: DynamicRun[];
   scMissionTimes: { id: string; sequence: string; hours: number }[];
   sySystems: { id: string; name: string }[];
   hrActions: { id: string; hfe: string; mean: number }[];

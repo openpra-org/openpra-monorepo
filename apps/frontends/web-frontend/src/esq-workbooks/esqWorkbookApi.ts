@@ -1,6 +1,11 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type {
+  DynamicRun,
+  EventSequence,
+  EventTree,
+} from "interfaces-mef-types/es/event-sequence-analysis";
 import { type EsqLinkedInputs } from "./esqWorkbookContext";
 import type {
   BayesianNetworkAnalysisResult,
@@ -10,7 +15,12 @@ import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/
 
 interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
 interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
-interface LinkedEsMef { eventSequenceFamilies?: { uuid: string; name: string }[] }
+interface LinkedEsMef {
+  eventSequenceFamilies?: { uuid: string; name: string }[];
+  eventTrees?: EventTree[];
+  eventSequences?: EventSequence[];
+  dynamicRuns?: DynamicRun[];
+}
 interface LinkedScMef { missionTimes?: { uuid: string; eventSequenceReference: string; missionTimeHours: number }[] }
 interface LinkedSyMef { systemDefinitions?: { uuid: string; name: string }[] }
 interface LinkedHrMef { hepQuantifications?: { uuid: string; hfeId?: string; meanHep?: number; pointEstimateHep?: number }[] }
@@ -30,6 +40,9 @@ async function fetchEsqLinkedInputs(variant: string): Promise<EsqLinkedInputs> {
     posStates: (posB.pos.mef.plantOperatingStates ?? []).map((s) => ({ id: s.uuid, name: s.name, mode: s.operatingMode ?? "—", durationHours: s.meanDurationHours })),
     ieGroups: (ieB.ie.mef.initiatingEventGroups ?? []).filter((g) => g.meanFrequency !== undefined).map((g) => ({ id: g.uuid, name: g.name, frequency: g.meanFrequency?.value ?? 0 })),
     esFamilies: (esB.es.mef.eventSequenceFamilies ?? []).map((f) => ({ id: f.uuid, name: f.name })),
+    eventTrees: esB.es.mef.eventTrees ?? [],
+    eventSequences: esB.es.mef.eventSequences ?? [],
+    dynamicRuns: esB.es.mef.dynamicRuns ?? [],
     scMissionTimes: (scB.sc.mef.missionTimes ?? []).map((m) => ({ id: m.uuid, sequence: m.eventSequenceReference, hours: m.missionTimeHours })),
     sySystems: (syB.sy.mef.systemDefinitions ?? []).map((s) => ({ id: s.uuid, name: s.name })),
     hrActions: (hrB.hr.mef.hepQuantifications ?? []).map((h) => ({ id: h.uuid, hfe: h.hfeId ?? "—", mean: h.meanHep ?? h.pointEstimateHep ?? 0 })),

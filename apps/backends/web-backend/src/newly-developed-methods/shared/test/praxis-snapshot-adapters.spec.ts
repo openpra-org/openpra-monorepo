@@ -610,6 +610,35 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     );
   });
 
+  it("normalizes workbook-owned event-tree transfers to solver target sequences", () => {
+    const transferringMef = structuredClone(esMef);
+    const tree = transferringMef.eventTrees?.[0];
+    expect(tree).toBeDefined();
+    const sequence = Object.values(tree!.sequences)[0]!;
+    sequence.endState = undefined;
+    tree!.transfers = {
+      [sequence.uuid]: {
+        targetEventTreeId: "target-tree",
+        targetSequenceId: "target-sequence",
+      },
+    };
+
+    const adapted = adaptEsEventTreeSnapshot(
+      { workbookId: "es-1", workbookRevision: 3, mef: transferringMef },
+      tree!.uuid,
+    );
+
+    expect(adapted["sequences"]).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: sequence.uuid,
+        result: {
+          kind: "TRANSFER",
+          target: { modelId: "target-tree", entityId: "target-sequence" },
+        },
+      }),
+    ]));
+  });
+
   it("normalizes workbook-scoped HCL targets for each declared fault tree", () => {
     const adapted = adaptEsqHclSnapshot(
       { workbookId: "esq-1", workbookRevision: 9, mef: esqMef },

@@ -1,6 +1,10 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type {
+  EventTreeAnalysisResult,
+  EventTreeExecuteResult,
+} from "interfaces-shared-types/newly-developed-methods/event-tree";
 
 type EsWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -48,6 +52,27 @@ async function loadEsExample(workbookId: string, exampleId?: string): Promise<Es
 
 async function unloadEsExample(workbookId: string): Promise<EsWorkbookResponse> {
   return postJson<EsWorkbookResponse>(`/api/es-workbooks/${workbookId}/unload-example`, {});
+}
+
+async function runEsEventTree(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+): Promise<EventTreeExecuteResult> {
+  return postJson<EventTreeExecuteResult>(`/api/es-workbooks/${workbookId}/event-trees/${modelId}/runs`, {
+    schemaVersion: "1.0.0",
+    modelId,
+    workbookRevision,
+    mode: "INDEPENDENT",
+  });
+}
+
+async function getEsEventTreeResult(
+  workbookId: string,
+  modelId: string,
+  runId: string,
+): Promise<EventTreeAnalysisResult> {
+  return fetchJson<EventTreeAnalysisResult>(`/api/es-workbooks/${workbookId}/event-trees/${modelId}/runs/${runId}/result`);
 }
 
 interface ImportedPosState {
@@ -140,6 +165,8 @@ export {
   getEsExampleOptions,
   loadEsExample,
   unloadEsExample,
+  runEsEventTree,
+  getEsEventTreeResult,
   type EsExampleOption,
   getEsPosLink,
   getAvailablePosWorkbooks,

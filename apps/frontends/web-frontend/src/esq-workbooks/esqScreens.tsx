@@ -18,6 +18,10 @@ import {
 } from "./esqViewData";
 import { type CircularLogicResolution } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { familyMeanFrequency, familyIsRiskSignificant, familyIsWarn } from "./esqSelectors";
+import {
+  EventTreeEditor,
+  type EventTreeRepresentation,
+} from "../newly-developed-methods/event-tree";
 
 interface EsqDrawerContext {
   kind: "family" | "barrier" | "code" | "truncation" | "solution" | "flag" | "mutex" | "circular" | "module" | "success" | "dependency" | "multihfe" | "transfer" | "phenomena" | "phenomodel" | "survivability" | "contributor" | "importance" | "cutsetreview" | "screening" | "consistency" | "funnel" | "sokc";
@@ -183,7 +187,12 @@ function ScopeScreen({ ccId, setCcId, stage, setStage }: { ccId: string; setCcId
 
 // ─── 02 — Integrate & Quantify (HLR-A) ─────────────────────────────────────
 function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) => void }): JSX.Element {
-  const { esq, editable, mutateEsq } = useEsqWorkbook();
+  const { esq, editable, links, mutateEsq } = useEsqWorkbook();
+  const [eventTreeId, setEventTreeId] = useState("");
+  const [eventTreeRepresentation, setEventTreeRepresentation] = useState<EventTreeRepresentation>("event-sequence-diagram");
+  const [eventTreeSelection, setEventTreeSelection] = useState<string | null>(null);
+  const eventTrees = links?.eventTrees ?? [];
+  const eventTree = eventTrees.find((tree) => tree.uuid === eventTreeId) ?? eventTrees[0];
   function addFamily(): void {
     const next = esq.familyQuantifications.reduce((m, x) => { const nm = Number(x.uuid.split("-")[1]); return Number.isNaN(nm) ? m : Math.max(m, nm); }, 0) + 1;
     const uuid = `EFQ-${String(next)}`;
@@ -192,6 +201,34 @@ function IntegrateScreen({ openDrawer }: { openDrawer: (ctx: EsqDrawerContext) =
   }
   return (
     <>
+      {eventTree !== undefined && (
+        <div className="poscard">
+          <div className="poscard__head">
+            <WorkbookSectionHeading workbook="ESQ" title="Linked event-tree model" level={3} />
+            <label className="posfield" style={{ minWidth: 240 }}>
+              <span className="posfield__label">Event tree</span>
+              <select className="posfield__select" aria-label="Linked event tree" value={eventTree.uuid} onChange={(event) => { setEventTreeId(event.target.value); setEventTreeSelection(null); }}>
+                {eventTrees.map((tree) => <option key={tree.uuid} value={tree.uuid}>{tree.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <p className="poscard__sub">The controlled ES model is presented here with the same canonical component used by its owning workbook.</p>
+          <EventTreeEditor
+            model={eventTree}
+            eventSequences={links?.eventSequences ?? []}
+            availableInitiatingEvents={(links?.ieGroups ?? []).map((initiator) => ({ id: initiator.id, name: initiator.name, frequency: initiator.frequency }))}
+            availableTransfers={eventTrees.filter((tree) => tree.uuid !== eventTree.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
+            dynamicRun={(links?.dynamicRuns ?? []).find((run) => run.eventTreeId === eventTree.uuid)}
+            representation={eventTreeRepresentation}
+            capabilities={{ author: false, resultOverlay: true }}
+            selection={eventTreeSelection}
+            validation={[]}
+            onOperation={(_operation) => undefined}
+            onRepresentationChange={setEventTreeRepresentation}
+            onSelectionChange={setEventTreeSelection}
+          />
+        </div>
+      )}
       <div className="poscard">
         <div className="poscard__head">
           <WorkbookSectionHeading workbook="ESQ" title="Event sequence families" level={3} />

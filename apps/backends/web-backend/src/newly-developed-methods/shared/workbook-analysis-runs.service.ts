@@ -540,6 +540,27 @@ export class WorkbookAnalysisRunsService {
     );
   }
 
+  private eventTreeModelIds(
+    source: LoadedWorkbook<EventSequenceAnalysis>,
+    modelId: string,
+  ): string[] {
+    const ids: string[] = [];
+    const pending = [modelId];
+    const seen = new Set<string>();
+    while (pending.length > 0) {
+      const currentId = pending.shift()!;
+      if (seen.has(currentId)) continue;
+      const tree = source.mef.eventTrees?.find((candidate) => candidate.uuid === currentId);
+      if (!tree) throw new NotFoundException(`ES event tree '${currentId}' was not found`);
+      seen.add(currentId);
+      ids.push(currentId);
+      for (const transfer of Object.values(tree.transfers ?? {})) {
+        if (!seen.has(transfer.targetEventTreeId)) pending.push(transfer.targetEventTreeId);
+      }
+    }
+    return ids;
+  }
+
   private eventTreeFaultTreeReferences(
     source: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
@@ -564,14 +585,21 @@ export class WorkbookAnalysisRunsService {
     eventTree: LoadedWorkbook<EventSequenceAnalysis>,
     modelId: string,
   ): Promise<Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>> {
-    const references = this.eventTreeFaultTreeReferences(eventTree, modelId);
+    const references = this.eventTreeModelIds(eventTree, modelId).flatMap((eventTreeModelId) =>
+      this.eventTreeFaultTreeReferences(eventTree, eventTreeModelId),
+    );
+    const uniqueReferences = [
+      ...new Map(
+        references.map((reference) => [`${reference.workbookId}:${reference.modelId}`, reference]),
+      ).values(),
+    ];
     const workbooks = new Map<string, LoadedWorkbook<SystemsAnalysis>>();
-    for (const reference of references) {
+    for (const reference of uniqueReferences) {
       if (!workbooks.has(reference.workbookId)) {
         workbooks.set(reference.workbookId, await this.loadSy(reference.workbookId));
       }
     }
-    return references.map((reference) => ({
+    return uniqueReferences.map((reference) => ({
       source: workbooks.get(reference.workbookId)!,
       modelId: reference.modelId,
     }));
@@ -590,6 +618,7 @@ export class WorkbookAnalysisRunsService {
     }
     const owner = await this.loadEs(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
+    const eventTreeModelIds = this.eventTreeModelIds(owner, request.modelId);
     const linked = await this.loadEventTreeFaultTrees(owner, request.modelId);
     await this.authorizeSources(linked.map(({ source }) => source), owner.workbookId, acting);
     const runId = randomUUID();
@@ -617,7 +646,9 @@ export class WorkbookAnalysisRunsService {
           requestedBy: acting.username,
         },
         modelSnapshots: [
-          adaptOrThrow(() => adaptEsEventTreeSnapshot(owner, request.modelId)),
+          ...eventTreeModelIds.map((eventTreeModelId) =>
+            adaptOrThrow(() => adaptEsEventTreeSnapshot(owner, eventTreeModelId)),
+          ),
           ...faultTrees.modelSnapshots,
         ],
         resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
@@ -732,6 +763,7 @@ export class WorkbookAnalysisRunsService {
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const hcl = await this.loadHclSources(owner, request.modelId);
     const eventTree = await this.loadEs(request.eventTree.workbookId);
+    const eventTreeModelIds = this.eventTreeModelIds(eventTree, request.eventTree.modelId);
     const linked = await this.loadEventTreeFaultTrees(eventTree, request.eventTree.modelId);
     const declared = new Set(
       hcl.configuration.faultTrees.map((reference) => `${reference.workbookId}:${reference.modelId}`),
@@ -775,11 +807,13 @@ export class WorkbookAnalysisRunsService {
           requestedBy: acting.username,
         },
         modelSnapshots: [
-          adaptOrThrow(() =>
-            adaptEsEventTreeSnapshot(eventTree, request.eventTree.modelId, {
-              workbookId: owner.workbookId,
-              modelId: request.modelId,
-            }),
+          ...eventTreeModelIds.map((eventTreeModelId) =>
+            adaptOrThrow(() =>
+              adaptEsEventTreeSnapshot(eventTree, eventTreeModelId, {
+                workbookId: owner.workbookId,
+                modelId: request.modelId,
+              }),
+            ),
           ),
           ...faultTrees.modelSnapshots,
           adaptOrThrow(() =>

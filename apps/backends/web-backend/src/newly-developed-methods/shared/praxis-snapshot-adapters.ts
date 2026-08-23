@@ -449,13 +449,15 @@ const adaptEsEventTreeSnapshot = (
   });
   const endStateIds = new Set<string>();
   const sequences = Object.values(tree.sequences).map((sequence) => {
-    if (sequence.endState === undefined) {
+    const transfer = tree.transfers?.[sequence.uuid];
+    if (transfer === undefined && sequence.endState === undefined) {
       throw new WorkbookPraxisAdapterError(`ES sequence '${sequence.uuid}' has no end state`);
     }
-    const endStateId =
-      tree.endStateIds?.[sequence.endState] ??
-      stableUuid(`${source.workbookId}:${tree.uuid}:end-state:${sequence.endState}`);
-    endStateIds.add(endStateId);
+    if (transfer !== undefined && transfer.targetSequenceId === undefined) {
+      throw new WorkbookPraxisAdapterError(
+        `ES sequence '${sequence.uuid}' transfer has no target sequence`,
+      );
+    }
     const states = sequence.functionalEventStates;
     if (states === undefined) {
       throw new WorkbookPraxisAdapterError(
@@ -473,7 +475,23 @@ const adaptEsEventTreeSnapshot = (
         }
         return { functionalEventId: event.id, outcome };
       }),
-      result: { kind: "END_STATE", endStateId },
+      result:
+        transfer === undefined
+          ? (() => {
+              const endState = sequence.endState!;
+              const endStateId =
+                tree.endStateIds?.[endState] ??
+                stableUuid(`${source.workbookId}:${tree.uuid}:end-state:${endState}`);
+              endStateIds.add(endStateId);
+              return { kind: "END_STATE" as const, endStateId };
+            })()
+          : {
+              kind: "TRANSFER" as const,
+              target: {
+                modelId: transfer.targetEventTreeId,
+                entityId: transfer.targetSequenceId!,
+              },
+            },
     };
   });
 

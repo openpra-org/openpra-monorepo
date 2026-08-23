@@ -223,7 +223,12 @@ function EsWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <EsWorkbookProvider data={data} editable={editable} mutateEs={mutateEs}>
+    <EsWorkbookProvider
+      data={data}
+      editable={editable}
+      runtime={{ workbookId: id, revision, saveState: saveStatus }}
+      mutateEs={mutateEs}
+    >
       <EsWorkbench
         data={data}
         persona={persona}

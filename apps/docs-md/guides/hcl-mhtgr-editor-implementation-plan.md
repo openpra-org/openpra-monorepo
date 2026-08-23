@@ -814,26 +814,26 @@ The one canonical ET implementation lives under `newly-developed-methods/event-t
 
 ### Canonical extraction and consolidation
 
-- [ ] Identify the exact approved workbook ET components, styles, interaction state, selectors, and ESQ result integrations that establish the standard presentation.
-- [ ] Move or refactor that presentation into `newly-developed-methods/event-tree` without changing its appearance.
-- [ ] Define the canonical ET component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
-- [ ] Change the source workbook screen to import the canonical ET component and verify visual and interaction parity.
-- [ ] Replace every other ET renderer/editor with an import of the canonical ET component.
-- [ ] Remove each superseded ET implementation only after its importing workbook has passed automated and manual parity checks.
-- [ ] Prove by repository search that only one ET renderer/editor implementation remains.
+- [x] Identify the exact approved workbook ET components, styles, interaction state, selectors, and ESQ result integrations that establish the standard presentation.
+- [x] Move or refactor that presentation into `newly-developed-methods/event-tree` without changing its appearance.
+- [x] Define the canonical ET component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
+- [x] Change the source workbook screen to import the canonical ET component and verify visual and interaction parity.
+- [x] Replace every other ET renderer/editor with an import of the canonical ET component.
+- [x] Remove each superseded ET implementation only after its importing workbook has passed automated and manual parity checks.
+- [x] Prove by repository search that only one ET renderer/editor implementation remains.
 
 ### Editing
 
-- [ ] Create an ET.
-- [ ] Select or enter an initiating-event frequency.
-- [ ] Add ordered functional events.
-- [ ] Link functional events to FT top events.
-- [ ] Build success and failure paths.
-- [ ] Add end states and event-tree transfers.
-- [ ] Generate sequence paths.
-- [ ] Validate branch completeness.
-- [ ] Select and highlight a sequence.
-- [ ] Implement undo and redo.
+- [x] Create an ET.
+- [x] Select or enter an initiating-event frequency.
+- [x] Add ordered functional events.
+- [x] Link functional events to FT top events.
+- [x] Build success and failure paths.
+- [x] Add end states and event-tree transfers.
+- [x] Generate sequence paths.
+- [x] Validate branch completeness.
+- [x] Select and highlight a sequence.
+- [x] Implement undo and redo.
 - [x] Represent the failure branch with the FT formula and the success branch with its Boolean complement.
 
 ### Independent ET quantification
@@ -858,9 +858,9 @@ The one canonical ET implementation lives under `newly-developed-methods/event-t
 - [x] Return sequence path, conditional probability, annual frequency, and end state.
 - [x] Return end-state aggregates and leading contributors or cut sets where available.
 - [x] Add combined FT–BN–ET tests.
-- [ ] ES, ESQ, and every other ET host import the same canonical newly-developed-method component.
-- [ ] No alternate ET renderer/editor implementation remains.
-- [ ] The Playwright ET create/edit/reload/validate/run/link workflow passes.
+- [x] ES, ESQ, and every other ET host import the same canonical newly-developed-method component.
+- [x] No alternate ET renderer/editor implementation remains.
+- [x] The Playwright ET create/edit/reload/validate/run/link workflow passes.
 
 ## Phase 8 — Workbook connections
 

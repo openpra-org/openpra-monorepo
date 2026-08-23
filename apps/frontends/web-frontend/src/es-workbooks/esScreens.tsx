@@ -39,6 +39,8 @@ import {
   type CcScore,
 } from "./esSelectors";
 import { generateEsReport } from "./esDocx";
+import { EsFaultTreeReferencePicker } from "./esFaultTreeReferencePicker";
+import { setFunctionalEventFaultTreeReference } from "./esFaultTreeReferences";
 import "./css/esScreens.css";
 
 function fmtExp(n: number | undefined): string {
@@ -1508,7 +1510,7 @@ function DynamicEsdTree({ run, leaves, activeSeq, onHover, onSelect }: {
 }
 
 function SequencesScreen(): JSX.Element {
-  const { es, posLink } = useEsWorkbook();
+  const { es, posLink, projectId, editable, mutateEs } = useEsWorkbook();
   const trees = useMemo(() => eventTreesView(es), [es]);
   const coverage = useMemo(() => coverageView(es, posLink), [es, posLink]);
   const [treeId, setTreeId] = useState<string>(trees[0]?.id ?? "");
@@ -1516,6 +1518,11 @@ function SequencesScreen(): JSX.Element {
   const [repr, setRepr] = useState<string>("esd");
   const [hovered, setHovered] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<DrawerCtx | null>(null);
+  const [faultTreeLink, setFaultTreeLink] = useState<{
+    eventTreeId: string;
+    functionalEventId: string;
+    functionalEventName: string;
+  } | null>(null);
   const tree = trees.find((t) => t.id === treeId) ?? trees[0];
   const showFreq = false;
 
@@ -1531,6 +1538,13 @@ function SequencesScreen(): JSX.Element {
   const relN = tree.sequences.length - okN;
   const reprMeta = ES_REPRESENTATIONS.find((r) => r.id === repr) ?? ES_REPRESENTATIONS[0];
   const run = (es.dynamicRuns ?? []).find((r) => r.eventTreeId === tree.id);
+  const persistedTree = (es.eventTrees ?? []).find(({ uuid }) => uuid === tree.id);
+  const functionalEvents = Object.values(persistedTree?.functionalEvents ?? {})
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+  const linkingTree = (es.eventTrees ?? []).find(({ uuid }) => uuid === faultTreeLink?.eventTreeId);
+  const linkingFunctionalEvent = Object.values(linkingTree?.functionalEvents ?? {}).find(
+    ({ uuid }) => uuid === faultTreeLink?.functionalEventId,
+  );
 
   return (
     <>
@@ -1599,6 +1613,78 @@ function SequencesScreen(): JSX.Element {
           <span><span className="possubtle">Sequences</span> <strong style={{ color: "var(--color-text)" }}>{tree.sequences.length}</strong> <span className="possubtle">({okN} safe · {relN} release)</span></span>
         </div>
       </div>
+
+      {functionalEvents.length > 0 && (
+        <div className="poscard" data-testid="es-fault-tree-links">
+          <div className="poscard__head">
+            <WorkbookSectionHeading workbook="ES" title="Functional-event fault-tree links" level={3} />
+            <Badge kind={functionalEvents.every(({ faultTreeTopEvent }) => faultTreeTopEvent !== undefined) ? "ok" : "progress"}>
+              {functionalEvents.filter(({ faultTreeTopEvent }) => faultTreeTopEvent !== undefined).length} of {functionalEvents.length} linked
+            </Badge>
+          </div>
+          <p className="poscard__sub">Each branch question keeps a stable reference to a workbook-owned fault-tree top event. The source tree remains owned by Systems Analysis and is not copied into this event tree.</p>
+          <table className="postable postable--mid">
+            <thead><tr><th>Functional event</th><th>Fault-tree top event</th><th>Action</th></tr></thead>
+            <tbody>
+              {functionalEvents.map((functionalEvent) => {
+                const reference = functionalEvent.faultTreeTopEvent;
+                const displayName = functionalEvent.label ?? functionalEvent.name;
+                return (
+                  <tr key={functionalEvent.uuid}>
+                    <td>
+                      <div className="postable__name">{displayName}</div>
+                      <div className="possubtle posmono">{functionalEvent.uuid}</div>
+                    </td>
+                    <td>
+                      {reference === undefined ? (
+                        <span className="possubtle">Not linked</span>
+                      ) : (
+                        <div title={`${reference.workbookId} · ${reference.modelId} · ${reference.entityId}`}>
+                          <Badge kind="ok">Linked</Badge>
+                          <div className="possubtle posmono" style={{ marginTop: 4 }}>{reference.modelId} · {reference.entityId}</div>
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      {editable && projectId !== undefined ? (
+                        <div className="posrow posrow--wrap" style={{ gap: 6 }}>
+                          <button
+                            type="button"
+                            className="posnav__btn posnav__btn--sm posnav__btn--primary"
+                            aria-label={`${reference === undefined ? "Select" : "Change"} fault-tree top event for ${displayName}`}
+                            onClick={() => setFaultTreeLink({
+                              eventTreeId: tree.id,
+                              functionalEventId: functionalEvent.uuid,
+                              functionalEventName: displayName,
+                            })}
+                          >
+                            <ESIcon.Link /> {reference === undefined ? "Select top event" : "Change link"}
+                          </button>
+                          {reference !== undefined && (
+                            <button
+                              type="button"
+                              className="posnav__btn posnav__btn--sm"
+                              aria-label={`Remove fault-tree link for ${displayName}`}
+                              onClick={() => mutateEs((draft) => setFunctionalEventFaultTreeReference(
+                                draft,
+                                tree.id,
+                                functionalEvent.uuid,
+                                undefined,
+                              ))}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ) : <span className="possubtle">{reference === undefined ? "—" : "View only"}</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
 
       <div className="estree">
@@ -1685,6 +1771,23 @@ function SequencesScreen(): JSX.Element {
           </>
         )}
       </div>
+      {faultTreeLink !== null && projectId !== undefined && (
+        <EsFaultTreeReferencePicker
+          projectId={projectId}
+          functionalEventName={faultTreeLink.functionalEventName}
+          currentReference={linkingFunctionalEvent?.faultTreeTopEvent}
+          onClose={() => setFaultTreeLink(null)}
+          onConfirm={(reference) => {
+            mutateEs((draft) => setFunctionalEventFaultTreeReference(
+              draft,
+              faultTreeLink.eventTreeId,
+              faultTreeLink.functionalEventId,
+              reference,
+            ));
+            setFaultTreeLink(null);
+          }}
+        />
+      )}
       {drawer !== null && <DrawerHost ctx={drawer} onClose={() => setDrawer(null)} />}
     </>
   );

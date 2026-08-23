@@ -286,9 +286,9 @@ describe("fault-tree gate-input validation", () => {
       field: "childId",
     },
   ])("reports a dangling $field reference", ({ candidate, code, field }) => {
-    expect(validateFaultTreeGateInputs({ ...model, gateInputs: [candidate] })).toEqual([
+    expect(validateFaultTreeGateInputs({ ...model, gateInputs: [candidate] })).toContainEqual(
       expect.objectContaining({ code, entityId: INPUT_ID, fieldPath: ["gateInputs", 0, field] }),
-    ]);
+    );
   });
 
   it("reports ambiguous parent and child references", () => {
@@ -325,11 +325,23 @@ describe("fault-tree gate-input validation", () => {
       gateInputs: [{ ...input, order: 1 }],
     });
 
-    expect(issues).toEqual([
+    expect(issues).toContainEqual(
       expect.objectContaining({
         code: "FT_GATE_INPUT_ORDER_GAP",
         entityId: INPUT_ID,
         fieldPath: ["gateInputs", 0, "order"],
+      }),
+    );
+  });
+
+  it.each(["AND", "OR"] as const)("rejects an empty %s gate", (gateType) => {
+    const emptyGate = { ...model.gates[0], gateType };
+
+    expect(validateFaultTreeGateInputs({ ...model, gates: [emptyGate], gateInputs: [] })).toEqual([
+      expect.objectContaining({
+        code: "FT_GATE_CHILD_REQUIRED",
+        entityId: GATE_ID,
+        fieldPath: ["gates", 0, "gateType"],
       }),
     ]);
   });
@@ -844,7 +856,9 @@ describe("fault-tree reachability validation", () => {
   it("includes unreachable nodes in aggregate validation as addressable issues", () => {
     const issues = validateFaultTreeModel({ ...model, gates: [...model.gates, otherGate] });
 
-    expect(issues).toEqual([expect.objectContaining({ code: "FT_NODE_UNREACHABLE", entityId: OTHER_GATE_ID })]);
+    expect(issues).toContainEqual(
+      expect.objectContaining({ code: "FT_NODE_UNREACHABLE", entityId: OTHER_GATE_ID }),
+    );
     expect(issues.every((issue) => ValidationIssueSchema.safeParse(issue).success)).toBe(true);
   });
 });

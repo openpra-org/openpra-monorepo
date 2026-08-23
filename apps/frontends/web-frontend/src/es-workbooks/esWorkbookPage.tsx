@@ -91,6 +91,7 @@ function EsWorkbookPage(): JSX.Element {
       .then(async ([workbook, bundle, posLink, ieLink]) => {
         if (cancelled) return;
         setData({
+          projectId: workbook.projectId,
           es: workbook.mef,
           cc: bundle.configurationControl.mef as PRAConfigurationControl,
           nms: bundle.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
@@ -141,7 +142,7 @@ function EsWorkbookPage(): JSX.Element {
     if (id === undefined) return;
     handleSaveResync(await getEsWorkbook(id));
   }, [handleSaveResync, id]);
-  const { patch } = useEsMefPatch(
+  const { patch, saveStatus } = useEsMefPatch(
     id ?? "",
     data?.es ?? null,
     revision,
@@ -235,7 +236,7 @@ function EsWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard

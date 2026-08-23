@@ -1,6 +1,11 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { fetchJson, patchJson, postJson, postMultipart, deleteJson } from "../api/client";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type {
+  FaultTreeAnalysisResult,
+  FaultTreeExecuteResult,
+  FaultTreeValidateResult,
+} from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
 type SyWorkbookRoleName = "preparer" | "co_preparer" | "reviewer" | "approver";
 
@@ -75,6 +80,38 @@ async function getSyDocumentDownload(workbookId: string, documentId: string): Pr
   return fetchJson<{ url: string; filename: string }>(`/api/sy-workbooks/${workbookId}/documents/${documentId}/download`);
 }
 
+async function runSyFaultTree(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+): Promise<FaultTreeExecuteResult> {
+  return postJson<FaultTreeExecuteResult>(
+    `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs`,
+    { schemaVersion: "1.0.0", modelId, workbookRevision },
+  );
+}
+
+async function validateSyFaultTree(
+  workbookId: string,
+  modelId: string,
+  workbookRevision: number,
+): Promise<FaultTreeValidateResult> {
+  return postJson<FaultTreeValidateResult>(
+    `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/validate`,
+    { schemaVersion: "1.0.0", modelId, workbookRevision, mode: "ANALYSIS_READY" },
+  );
+}
+
+async function getSyFaultTreeResult(
+  workbookId: string,
+  modelId: string,
+  runId: string,
+): Promise<FaultTreeAnalysisResult> {
+  return fetchJson<FaultTreeAnalysisResult>(
+    `/api/sy-workbooks/${workbookId}/fault-trees/${modelId}/runs/${runId}/result`,
+  );
+}
+
 export {
   getSyWorkbook,
   patchSyWorkbook,
@@ -85,6 +122,9 @@ export {
   uploadSyDocument,
   deleteSyDocument,
   getSyDocumentDownload,
+  runSyFaultTree,
+  validateSyFaultTree,
+  getSyFaultTreeResult,
   type SyWorkbookResponse,
   type SyWorkbookRoleName,
   type SyExampleOption,

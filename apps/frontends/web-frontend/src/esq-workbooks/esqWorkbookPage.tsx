@@ -141,7 +141,7 @@ function EsqWorkbookPage(): JSX.Element {
     if (id === undefined) return;
     handleSaveResync(await getEsqWorkbook(id));
   }, [handleSaveResync, id]);
-  const { patch } = useEsqMefPatch(
+  const { patch, saveStatus } = useEsqMefPatch(
     id ?? "",
     data?.esq ?? null,
     revision,
@@ -227,7 +227,7 @@ function EsqWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard

@@ -171,7 +171,7 @@ function SyWorkbookPage(): JSX.Element {
     if (id === undefined) return;
     handleSaveResync(await getSyWorkbook(id));
   }, [handleSaveResync, id]);
-  const { patch } = useSyMefPatch(
+  const { patch, saveStatus } = useSyMefPatch(
     id ?? "",
     data?.sy ?? null,
     revision,
@@ -246,7 +246,12 @@ function SyWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <SyWorkbookProvider data={data} editable={editable} mutateSy={mutateSy}>
+    <SyWorkbookProvider
+      data={data}
+      editable={editable}
+      mutateSy={mutateSy}
+      runtime={{ workbookId: id, revision, saveStatus }}
+    >
       <SyWorkbench
         data={data}
         persona={persona}
@@ -257,7 +262,7 @@ function SyWorkbookPage(): JSX.Element {
         onLoadExample={canLoadExample ? () => setLoadExOpen(true) : undefined}
         onUnloadExample={canUnloadExample ? () => setUnloadExOpen(true) : undefined}
         actions={actions}
-        headerMeta={{ projectName, workbookName, workbookVersion }}
+        headerMeta={{ projectName, workbookName, workbookVersion, saveStatus }}
         renderApprovalTable={() => <WorkbookApprovalTable workbookId={id} refreshSignal={approvalRefresh} />}
         renderSignCard={() => (
           <WorkbookSignCard

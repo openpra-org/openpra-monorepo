@@ -12,8 +12,10 @@ import {
   PreOperationalAssumptionSchema,
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import { CanvasLayoutMetadataSchema, CanvasPositionSchema } from "../modeling/shared";
 import {
-  normalizeSystemsAnalysisBasicEventCatalogue,
+  normalizeSystemLogicModel,
+  normalizeSystemsAnalysisModels,
   systemFaultTreeBasicEventIds,
 } from "../../sy/system-models";
 
@@ -23,6 +25,7 @@ export const ComponentStateSchema = z.enum(["operational", "degraded", "failed",
 
 export const SystemBasicEventSchema = z.object({
   ...BasicEventSchema.shape,
+  code: z.string().trim().min(1).max(64),
   componentReference: z.string().optional(),
   failureMode: z.string().optional(),
   probability: z.number().optional(),
@@ -188,13 +191,89 @@ export const SystemFaultTreeNodeSchema: z.ZodType<SystemFaultTreeNode> = z.lazy(
   ]),
 );
 
-export const SystemLogicModelSchema = z
+const SystemFaultTreeEntityIdentitySchema = z.object({
+  id: z.string().min(1),
+  code: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(10_000),
+});
+
+export const SystemFaultTreeGateSchema = z.discriminatedUnion("gateType", [
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("AND"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("OR"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("NOT"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("GATE"),
+    gateType: z.literal("K_OF_N"),
+    k: z.number().int().positive(),
+  }).strict(),
+]);
+
+export const SystemFaultTreeLeafNodeSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      id: z.string().min(1),
+      kind: z.literal("BASIC_EVENT_REFERENCE"),
+      basicEventId: z.string().min(1),
+    })
+    .strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("HOUSE_EVENT"),
+    state: z.boolean(),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("UNDEVELOPED_EVENT"),
+  }).strict(),
+  SystemFaultTreeEntityIdentitySchema.extend({
+    kind: z.literal("TRANSFER_REFERENCE"),
+    target: z
+      .object({
+        modelId: z.string().min(1),
+        entityId: z.string().min(1),
+      })
+      .strict(),
+  }).strict(),
+]);
+
+export const SystemFaultTreeGateInputSchema = z
+  .object({
+    id: z.string().min(1),
+    gateId: z.string().min(1),
+    childId: z.string().min(1),
+    order: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const SystemFaultTreeNodePositionSchema = z
+  .object({
+    nodeId: z.string().min(1),
+    position: CanvasPositionSchema,
+  })
+  .strict();
+
+const CanonicalSystemLogicModelSchema = z
   .object({
     uuid: z.string(),
+    code: z.string().trim().min(1).max(64),
+    name: z.string().trim().min(1).max(200),
     systemReference: z.string(),
     description: z.string(),
     modelRepresentation: z.string(),
-    faultTree: SystemFaultTreeNodeSchema.optional(),
+    topGate: z.object({ gateId: z.string().min(1) }).strict().nullable(),
+    gates: z.array(SystemFaultTreeGateSchema),
+    leafNodes: z.array(SystemFaultTreeLeafNodeSchema),
+    gateInputs: z.array(SystemFaultTreeGateInputSchema),
+    nodePositions: z.array(SystemFaultTreeNodePositionSchema),
+    layout: CanvasLayoutMetadataSchema,
     nonDetailedModelJustification: z.string().optional(),
     logicLoopResolutions: z
       .array(
@@ -208,6 +287,11 @@ export const SystemLogicModelSchema = z
     implementsSrs: z.array(SRReferenceSchema),
   })
   .strict();
+
+export const SystemLogicModelSchema = z.preprocess(
+  normalizeSystemLogicModel,
+  CanonicalSystemLogicModelSchema,
+);
 
 export const DigitalInstrumentationAndControlSchema = z.object({
   uuid: z.string(),
@@ -720,11 +804,11 @@ const CanonicalSystemsAnalysisSchema = z.object({
   });
 
   analysis.systemLogicModels.forEach((model, modelIndex) => {
-    systemFaultTreeBasicEventIds(model.faultTree).forEach((basicEventId) => {
+    systemFaultTreeBasicEventIds(model).forEach((basicEventId) => {
       if (catalogueIds.has(basicEventId)) return;
       context.addIssue({
         code: "custom",
-        path: ["systemLogicModels", modelIndex, "faultTree"],
+        path: ["systemLogicModels", modelIndex, "leafNodes"],
         message: `Fault-tree basic-event reference ${basicEventId} does not resolve in systemBasicEvents`,
       });
     });
@@ -732,7 +816,7 @@ const CanonicalSystemsAnalysisSchema = z.object({
 });
 
 export const SystemsAnalysisSchema = z.preprocess(
-  normalizeSystemsAnalysisBasicEventCatalogue,
+  normalizeSystemsAnalysisModels,
   CanonicalSystemsAnalysisSchema,
 );
 

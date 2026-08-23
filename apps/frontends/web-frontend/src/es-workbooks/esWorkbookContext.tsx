@@ -5,6 +5,7 @@ import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/ne
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
 
 interface EsWorkbookData {
+  projectId?: string;
   es: EventSequenceAnalysis;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];

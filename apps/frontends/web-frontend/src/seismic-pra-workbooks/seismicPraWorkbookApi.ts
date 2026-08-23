@@ -1,7 +1,10 @@
 import { createWorkbookPatch } from "interfaces-shared-types/workbooks";
 import { type SeismicPRA } from "interfaces-mef-types/seismic/seismic-pra";
 import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
-import { systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
+import {
+  normalizeSystemsAnalysisModels,
+  systemLogicModelBasicEvents,
+} from "interfaces-mef-types/sy/system-models";
 import { deleteJson, fetchJson, patchJson, postJson, postMultipart } from "../api/client";
 import { seismicPraVariant, type SeismicPraLinkedInputs, type SeismicPraVariant } from "./seismicPraWorkbookContext";
 
@@ -107,7 +110,7 @@ async function fetchSeismicPraLinkedInputs(variant: SeismicPraVariant): Promise<
   const screenedOut = new Set(
     (posBundle.pos.mef.screeningRecords ?? []).filter((record) => !record.retained).map((record) => record.posId),
   );
-  const syMef = syBundle.sy.mef;
+  const syMef = normalizeSystemsAnalysisModels(syBundle.sy.mef) as LinkedSyMef;
   const logicBySystem = new Map(
     (syMef.systemLogicModels ?? []).map((logic) => [logic.systemReference, logic]),
   );

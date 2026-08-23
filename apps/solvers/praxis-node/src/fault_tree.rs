@@ -519,6 +519,43 @@ mod tests {
     }
 
     #[test]
+    fn matches_boolean_gate_truth_tables_exhaustively() {
+        for a in [0.0, 1.0] {
+            for b in [0.0, 1.0] {
+                let inputs = &[("A", a), ("B", b)];
+                let references = &[("ref-a", "A"), ("ref-b", "B")];
+                let and = execute(&request("AND", None, inputs, references)).unwrap();
+                let or = execute(&request("OR", None, inputs, references)).unwrap();
+                assert_eq!(and["topEventProbability"].as_f64().unwrap(), a * b);
+                assert_eq!(
+                    or["topEventProbability"].as_f64().unwrap(),
+                    if a == 1.0 || b == 1.0 { 1.0 } else { 0.0 }
+                );
+            }
+        }
+
+        for a in [0.0, 1.0] {
+            for b in [0.0, 1.0] {
+                for c in [0.0, 1.0] {
+                    let inputs = &[("A", a), ("B", b), ("C", c)];
+                    let references = &[("ref-a", "A"), ("ref-b", "B"), ("ref-c", "C")];
+                    let voting = execute(&request("K_OF_N", Some(2), inputs, references)).unwrap();
+                    let true_count = [a, b, c].iter().filter(|value| **value == 1.0).count();
+                    assert_eq!(
+                        voting["topEventProbability"].as_f64().unwrap(),
+                        if true_count >= 2 { 1.0 } else { 0.0 }
+                    );
+                }
+            }
+        }
+
+        for a in [0.0, 1.0] {
+            let not = execute(&request("NOT", None, &[("A", a)], &[("ref-a", "A")])).unwrap();
+            assert_eq!(not["topEventProbability"].as_f64().unwrap(), 1.0 - a);
+        }
+    }
+
+    #[test]
     fn preserves_shared_basic_event_identity() {
         let result = execute(&request(
             "OR",

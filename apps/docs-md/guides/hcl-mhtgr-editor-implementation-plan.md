@@ -574,16 +574,24 @@ Automated completion gate:
 
 ### Save behavior
 
-- [ ] Keep typing local and save text on blur.
-- [ ] Send only the changed path and value for field edits.
-- [ ] Send only the structural operation for structural edits.
-- [ ] Send only the new position when a node moves.
-- [ ] Include the current revision in every patch.
-- [ ] Return HTTP `409` for revision conflicts.
-- [ ] Show `Saving`, `Saved`, or `Save failed` in the editor.
-- [ ] Ensure no request is sent for every keystroke.
-- [ ] Reuse the established workbook save-on-deactivation behavior while keeping each method's structural operations local.
-- [ ] Add save-on-blur, partial-patch, revision-conflict, and failure-state tests.
+- [x] Keep typing local and save text on blur.
+- [x] Send only the changed path and value for field edits.
+- [x] Send only the structural operation for structural edits.
+- [x] Send only the new position when a node moves.
+- [x] Include the current revision in every patch.
+- [x] Return HTTP `409` for revision conflicts.
+- [x] Show `Saving`, `Saved`, or `Save failed` in the editor.
+- [x] Ensure no request is sent for every keystroke.
+- [x] Reuse the established workbook save-on-deactivation behavior while keeping each method's structural operations local.
+- [x] Add save-on-blur, partial-patch, revision-conflict, and failure-state tests.
+
+Save-behavior reconciliation:
+
+- `WorkbookInput` and `WorkbookTextarea` retain text drafts locally and notify their workbook mutator only when focus leaves a changed field. Immediate controls such as checkboxes remain immediate, and unchanged blur events emit nothing.
+- `createWorkbookPatch` emits leaf replacements for field and canvas-coordinate changes, omits unchanged model data, and emits one `add` or `remove` operation for a single array insertion or removal. Method editors continue to express structural changes through their owning workbook's local optimistic mutator.
+- SY, ES, and ESQ queue those mutations through the shared revisioned patch hook. Every request carries the latest accepted workbook revision, later edits remain serialized, a failed save invalidates stale queued optimistic edits and reloads the owner workbook, and the header reports the queue as `Saving`, `Saved`, or `Save failed`. If both the save and immediate reload fail, the next attempted edit reloads authoritative state without patching it, remains failed, and asks the user to reapply the edit; this prevents stale optimistic data from overwriting unrelated concurrent server changes.
+- The owner-workbook services enforce the revision comparison at the atomic MongoDB write and return HTTP `409` for stale or racing requests.
+- Focused tests cover local typing and blur commits, exact leaf/structural/position operations, revision advancement and conflict recovery, queue-aware save-state transitions, and the rendered failure state. This section records the persistence transport contract; Phase 5 still owns enabling manual FT positioning and connecting the extracted canonical FT editor to these callbacks.
 
 ## Phase 4 — PRAXIS Node addon
 
@@ -631,69 +639,113 @@ The one canonical FT implementation lives under `newly-developed-methods/fault-t
 
 ### Canonical extraction and consolidation
 
-- [ ] Identify the exact SY Step 02 FT components, styles, interaction state, and MEF selectors that establish the approved presentation.
-- [ ] Move or refactor the approved presentation into `newly-developed-methods/fault-tree` without changing its appearance.
-- [ ] Define the canonical FT component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
-- [ ] Change SY Step 02 to import the canonical FT component and verify visual and interaction parity.
-- [ ] Replace every other FT renderer/editor with an import of the canonical FT component.
-- [ ] Remove each superseded FT implementation only after its importing workbook has passed automated and manual parity checks.
-- [ ] Prove by repository search that only one FT renderer/editor implementation remains.
+- [x] Identify the exact SY Step 02 FT components, styles, interaction state, and MEF selectors that establish the approved presentation.
+- [x] Move or refactor the approved presentation into `newly-developed-methods/fault-tree` without changing its appearance.
+- [x] Define the canonical FT component inputs, workbook persistence callbacks, read-only mode, validation state, result overlay, and link-selection mode.
+- [x] Change SY Step 02 to import the canonical FT component and verify visual and interaction parity.
+- [x] Replace every other FT renderer/editor with an import of the canonical FT component.
+- [x] Remove each superseded FT implementation only after its importing workbook has passed automated and manual parity checks.
+- [x] Prove by repository search that only one FT renderer/editor implementation remains.
 
 ### Editing and viewing
 
-- [ ] Create and rename an FT.
-- [ ] Add gates and events.
-- [ ] Connect and reparent nodes.
-- [ ] Edit gate type safely.
-- [ ] Edit K for K-of-N gates.
-- [ ] Edit basic-event probabilities.
-- [ ] Select an existing shared basic event.
-- [ ] Configure house events.
-- [ ] Add transfer references.
-- [ ] Delete nodes or subtrees safely.
-- [ ] Implement undo and redo.
-- [ ] Implement manual positioning and automatic layout.
-- [ ] Implement pan, zoom, and fit.
-- [ ] Implement read-only viewer mode.
+- [x] Create and rename an FT.
+- [x] Add gates and events.
+- [x] Connect and reparent nodes.
+- [x] Edit gate type safely.
+- [x] Edit K for K-of-N gates.
+- [x] Edit basic-event probabilities.
+- [x] Select an existing basic event.
+- [x] Configure house events.
+- [x] Add transfer references.
+- [x] Delete nodes or subtrees safely.
+- [x] Implement undo and redo.
+- [x] Implement manual positioning and automatic layout.
+- [x] Implement pan, zoom, and fit.
+- [x] Implement read-only viewer mode.
 
 ### Functional limitations to remove
 
-- [ ] Connect canonical editor state to workbook persistence.
-- [ ] Connect the editor to the solver.
-- [ ] Add strict validation.
-- [ ] Remove invalid single-parent assumptions.
-- [ ] Prevent unsafe destructive type changes.
-- [ ] Indicate when displayed results are stale.
+- [x] Connect canonical editor state to workbook persistence.
+- [x] Connect the editor to the solver.
+- [x] Add strict validation.
+- [x] Remove invalid single-parent assumptions.
+- [x] Prevent unsafe destructive type changes.
+- [x] Indicate when displayed results are stale.
 
 ### Quantification and results
 
-- [ ] Add the primary **Run analysis** action.
-- [ ] Return exact top-event probability.
-- [ ] Return minimal-cut-set count and leading cut sets.
-- [ ] Return cut-set order and probability or contribution where valid.
-- [ ] Return validation warnings and run details.
-- [ ] Present results using normal text and tables rather than stat boxes.
-- [ ] Add FT truth-table, cut-set, and shared-event tests.
+- [x] Add the primary **Run analysis** action.
+- [x] Return exact top-event probability.
+- [x] Return minimal-cut-set count and leading cut sets.
+- [x] Return cut-set order and probability or contribution where valid.
+- [x] Return validation warnings and run details.
+- [x] Present results using normal text and tables rather than stat boxes.
+- [x] Add FT truth-table, cut-set, and shared-event tests.
 
 ### Interchange
 
-- [ ] Import OpenPSA XML.
-- [ ] Export OpenPSA XML.
-- [ ] Keep advanced formats and extensive solver controls deferred.
+- [x] Import OpenPSA XML.
+- [x] Export OpenPSA XML.
+- [x] Keep advanced formats and extensive solver controls deferred.
+
+### Phase 5 remediation — UX and API reconciliation
+
+- [x] Place top-level identity, save, validation, and Run actions in a compact editor header.
+- [x] Replace the undifferentiated action toolbar with contextual creation controls attached to the selected gate and a dedicated empty-tree top-gate action.
+- [x] Place zoom, fit, and automatic-layout controls as compact canvas controls and keep undo/redo and interchange actions in appropriate secondary groups.
+- [x] Render clearly visible connecting edges at every supported zoom level, in automatic and manual layouts, and in every supported theme and selection state.
+- [x] Use one editor-local inspector consistently for gates, basic events, house events, undeveloped events, and transfers.
+- [x] Stop automatically opening a second workbook-level drawer when an FT node is selected; expose deliberate navigation to a full shared record or transfer target instead.
+- [x] Collapse or omit the inspector when no node is selected; do not reserve a large panel for an instructional empty state.
+- [x] Reset selection and contextual controls predictably when switching systems or following a transfer.
+- [x] Remove the contradictory SFR DC ↔ HVAC transfer cycle and keep non-detailed system representations outside strict FT validation.
+- [x] Preserve structured solver failures in the frontend, align Run visibility with backend permissions, validate identity fields inline, and use correct client-error status codes.
+- [x] Mark displayed results stale as soon as an edit begins, including while the revisioned save is in flight.
+- [x] Add authoritative backend analysis-ready validation for workbook-owned fault trees.
+- [x] Add visual-regression and interaction coverage for default SFR and HTGR models, every node type, read-only mode, failed runs, and wide and narrow editor layouts.
+
+### Phase 5 interaction follow-up - fixed canvas and node-local authoring
+
+- [x] Make ordinary two-finger and wheel gestures pan vertically and horizontally without changing zoom; reserve touchpad pinch and modified-wheel gestures for cursor-centered zoom.
+- [x] Keep the editor workspace at one fixed height when selection changes and render the inspector as an editor-local overlay for every node type.
+- [x] Refit the tree contents, rather than resizing the editor, on initial load, actual canvas resize, topology-size changes, and inspector open or close.
+- [x] Open the inspector on left-click, expose the same child-creation actions from every logic-gate context menu, and keep basic-event and other leaf-node menus free of authoring actions.
+- [x] Present one **Add basic event** action that opens a second-level chooser for either creating a new event or searching and selecting an existing event, without “shared” labels or duplicate creation commands.
+- [x] Move node deletion into the node context menu and preserve existing-parent reparent/disconnect controls without an add-or-choose-another-parent action.
+- [x] Remove the persistent authoring palette, idle selection prompt, and bottom legend while retaining compact zoom, fit, and automatic-layout canvas controls.
+- [x] Prove fixed viewport dimensions, unobscured transfer selection, full-tree fitting, visible connectors, node-menu containment, wheel panning, and wide/narrow layouts in canonical unit and Docker-backed Chromium coverage.
 
 ### FT completion gate
 
-- [ ] A user can create an FT.
-- [ ] A user can save and reload it.
-- [ ] A user can validate it.
-- [ ] A user can quantify it.
-- [ ] A user can review cut sets.
-- [ ] A consuming workbook can reference its workbook-owned FT entities without copying the tree.
-- [ ] SY and every other FT host import the same canonical newly-developed-method component.
-- [ ] No alternate FT renderer/editor implementation remains.
-- [ ] The Playwright FT create/edit/reload/validate/run/link workflow passes.
+- [x] A user can create an FT.
+- [x] A user can save and reload it.
+- [x] A user can validate it.
+- [x] A user can quantify it.
+- [x] A user can review cut sets.
+- [x] A consuming workbook can reference its workbook-owned FT entities without copying the tree.
+- [x] SY and every other FT host import the same canonical newly-developed-method component.
+- [x] No alternate FT renderer/editor implementation remains.
+- [x] The Playwright FT create/edit/reload/validate/run/link workflow passes.
 
-Do not begin the BN vertical slice until every FT completion-gate item has passed verification.
+### Prior narrow verification evidence (superseded on 2026-08-22)
+
+The earlier completion claim covered one clean authored path but did not exercise the shipped SFR transfer cycle, the non-detailed Guard Vessel representation, consistent inspector ownership, contextual control placement, or visible connector parity. At that point, Phase 5 remained open until the remediation checklist and completion gate passed again.
+
+- Repository searches found one production `FaultTreeEditor` implementation, under `newly-developed-methods/fault-tree`, imported by every FT host; the superseded renderer files and production React Flow dependency were removed. A retained Playwright trace was manually reviewed for visual and interaction parity with the approved SY presentation.
+- Automated verification passed: frontend Jest (91 suites, 533 tests), shared Jest (20 suites, 651 tests), backend Jest (42 suites, 389 tests), Rust fault-tree tests (6 tests, including exhaustive Boolean truth-table coverage), and native solver-boundary tests (7 tests).
+- Relevant frontend, backend, shared, MEF, and E2E typechecks and linters passed; frontend and backend production builds passed; Prettier and `git diff --check` were clean.
+- The persistent Docker-backed Playwright flow passed in Chromium. It creates, edits, saves, reloads, validates, transfers, and quantifies an FT; verifies exact top-event probability `0.006363209690436578`, eight order-one minimal cut sets, and stale-result behavior; then links and reloads the selected top event from an ES workbook and proves the persisted reference contains only the typed workbook, model, entity, and reference-type address.
+
+### Phase 5 remediation verification evidence
+
+- The persistent Docker-backed Chromium flow passed both SFR and HTGR scenarios. It authors an SFR tree, saves and reloads it, invokes authoritative server validation, follows a transfer, quantifies through the native solver, reviews exact cut sets, marks the result stale after an edit, and persists a typed ES top-event reference. The HTGR scenario renders a connected seeded tree through the same canonical editor.
+- Browser assertions prove the editor SVG occupies the canvas rather than inheriting the workbook card's icon dimensions, real connections have visible theme-token strokes of at least two CSS pixels, the viewport dimensions remain identical when the transfer inspector opens, fitted content remains outside the overlay inspector, and node menus remain inside the canvas. Wide and narrow layouts retain the same editor-local inspector, while the initial HTGR tree refits completely inside the fixed workspace. The generated wide, narrow, isolated-SVG, and HTGR images were manually reviewed.
+- Canonical editor tests cover every gate family and leaf-node symbol, non-scaling selected and invalid connectors, wheel-pan versus pinch-zoom behavior, child authoring from every logic gate, leaf menus without authoring commands, the two-level searchable existing-or-new basic-event chooser, atomic new-event attachment, node deletion, the removed legend/palette/additional-parent control, fixed canvas identity, the absent idle inspector, explicit external navigation, read-only behavior, inline identity validation, stale results, immutable cut sets, shared DAG nodes, and contextual controls. SY host tests cover permission-aligned execution, server validation, structured failures, save-in-flight staleness, explicit drawers, and non-detailed representations.
+- Complete verification passed: frontend Jest 91 suites/549 tests, backend Jest 43 suites/391 tests, shared-interface Jest 20 suites/651 tests, Playwright 2 scenarios, Rust library 15 tests, and native Node-API 7 tests. Frontend, backend, shared, MEF, and E2E typechecks; frontend, backend, shared, and MEF lints; frontend and backend production builds; Rust formatting and strict Clippy; scoped Prettier; and `git diff --check` all passed.
+- The backend regression validates every detailed default SFR tree as analysis-ready with no error finding; the intentionally non-detailed Guard Vessel representation stays outside strict FT validation. The documented dependency-loop resolution is enforced by retaining HVAC-to-DC while removing the contradictory DC-to-HVAC transfer.
+
+The FT completion gate is satisfied. Phase 6 may begin.
 
 ## Phase 6 — Bayesian-network vertical slice
 
@@ -876,6 +928,8 @@ The following items are explicitly excluded from the initial implementation:
 
 | Date | TODO | Verification | Result |
 | --- | --- | --- | --- |
+| 2026-08-22 | Complete the Phase 5 fixed-canvas and node-local interaction follow-up | Replaced palette authoring with child creation on every logic-gate menu while keeping leaf menus free of authoring commands; unified event attachment behind one **Add basic event** action with a searchable existing-event chooser and a create-new path; moved deletion into node menus; removed the legend and additional-parent action; made ordinary touchpad/wheel input pan while pinch zooms; overlaid one inspector without resizing the 480 px workspace; and automatically refit content on load/resize/topology/inspector changes. Frontend Jest passed 91 suites/549 tests, both frontend and E2E typechecks passed, both persistent Chromium scenarios passed, generated wide/narrow/HTGR images were reviewed, and `git diff --check` passed | Passed |
+| 2026-08-22 | Complete Phase 5 fault-tree UX and API remediation | Consolidated editor controls and inspection, restored full-size visible connectors, reconciled SFR topology and non-detailed models, added workbook-owned server validation and correct failure/staleness/permission handling, and expanded canonical unit and persistent SFR/HTGR browser coverage. Complete frontend, backend, shared, Playwright, Rust, native-addon, typecheck, lint, build, format, and diff gates passed | Passed |
 | 2026-08-20 | Fetch latest `origin/main` | `git fetch origin main`; branch base resolved to `f6afbce0` (`docs: refine branding and disclosures (#166)`) | Passed |
 | 2026-08-20 | Create feature branch | `git worktree add -b hcl_implementation_mhtgr_model_import ... origin/main`; branch tracks `origin/main` | Passed |
 | 2026-08-20 | Create implementation checklist | `prettier --check apps/docs-md/guides/hcl-mhtgr-editor-implementation-plan.md` | Passed |

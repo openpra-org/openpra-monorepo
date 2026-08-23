@@ -2,7 +2,17 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import {
+  FaultTreeValidateRequestSchema,
+  validateFaultTreeAnalysisReady,
+  validateFaultTreeDraft,
+} from "interfaces-shared-types/newly-developed-methods/fault-tree";
+import type {
+  FaultTreeModel,
+  FaultTreeValidateResult,
+} from "interfaces-shared-types/newly-developed-methods/fault-tree";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
@@ -36,6 +46,21 @@ export interface SyWorkbookResponse {
 
 interface ActingUser {
   username: string;
+}
+
+function toFaultTreeModel(model: SystemsAnalysis["systemLogicModels"][number]): FaultTreeModel {
+  return {
+    modelId: model.uuid,
+    code: model.code,
+    name: model.name,
+    description: model.description,
+    topGate: model.topGate,
+    gates: model.gates,
+    leafNodes: model.leafNodes,
+    gateInputs: model.gateInputs,
+    nodePositions: model.nodePositions,
+    layout: model.layout,
+  };
 }
 
 function toResponse(doc: SyWorkbookDocument, myRoles: WorkbookRoleName[]): SyWorkbookResponse {
@@ -96,7 +121,7 @@ export class SyWorkbooksService {
       stripNulls(mergeWorkbookPatch(doc.mef, patch.operations)),
     );
     if (!parsed.success) {
-      throw new ForbiddenException(`Invalid SY workbook payload: ${parsed.error.message}`);
+      throw new BadRequestException(`Invalid SY workbook payload: ${parsed.error.message}`);
     }
     const updatedDoc = await this.syWorkbookModel
       .findOneAndUpdate(
@@ -107,6 +132,63 @@ export class SyWorkbooksService {
       .exec();
     if (!updatedDoc) throw workbookRevisionConflict(patch.expectedRevision);
     return toResponse(updatedDoc, workbookRoles);
+  }
+
+  async validateFaultTree(
+    workbookId: string,
+    pathModelId: string,
+    body: unknown,
+    acting: ActingUser,
+  ): Promise<FaultTreeValidateResult> {
+    const parsedRequest = FaultTreeValidateRequestSchema.safeParse(body);
+    if (!parsedRequest.success) throw new BadRequestException(parsedRequest.error.message);
+    const request = parsedRequest.data;
+    if (pathModelId !== request.modelId) {
+      throw new BadRequestException("Route model id must match the request modelId");
+    }
+
+    const doc = await this.syWorkbookModel.findOne({ workbookId }).exec();
+    if (!doc) throw new NotFoundException("SY workbook not found");
+    await this.projectsService.resolveAccess(doc.projectId, acting);
+    assertExpectedWorkbookRevision(doc, request.workbookRevision);
+
+    const parsedMef = SystemsAnalysisSchema.safeParse(stripNulls(doc.mef));
+    if (!parsedMef.success) {
+      throw new BadRequestException(`Stored SY workbook failed validation: ${parsedMef.error.message}`);
+    }
+    const logic = parsedMef.data.systemLogicModels.find(({ uuid }) => uuid === request.modelId);
+    if (logic === undefined) throw new NotFoundException("SY fault tree not found");
+    if (logic.nonDetailedModelJustification !== undefined) {
+      throw new BadRequestException("System-level models cannot be validated as decomposed fault trees");
+    }
+
+    const model = toFaultTreeModel(logic);
+    const faultTreeModels = parsedMef.data.systemLogicModels
+      .filter(({ nonDetailedModelJustification }) => nonDetailedModelJustification === undefined)
+      .map(toFaultTreeModel);
+    const context = {
+      basicEventCatalogue: {
+        workbookId,
+        basicEvents: parsedMef.data.systemBasicEvents.map(systemBasicEventToFaultTreeBasicEvent),
+      },
+      availableTransferTargets: parsedMef.data.systemLogicModels.flatMap((candidate) =>
+        candidate.topGate === null
+          ? []
+          : [{ modelId: candidate.uuid, entityId: candidate.topGate.gateId }],
+      ),
+      faultTreeModels,
+    };
+    const owner = {
+      workbookId,
+      modelId: request.modelId,
+      workbookRevision: readWorkbookRevision(doc),
+    };
+    const validatedAt = new Date().toISOString();
+    const outcome = request.mode === "DRAFT"
+      ? validateFaultTreeDraft(model, owner, validatedAt, context)
+      : validateFaultTreeAnalysisReady(model, owner, validatedAt, context);
+
+    return { schemaVersion: "1.0.0", validation: outcome.validation };
   }
 
   async deleteFaultTree(
@@ -125,9 +207,7 @@ export class SyWorkbooksService {
     });
     assertExpectedWorkbookRevision(doc, expectedRevision);
     const mef = SystemsAnalysisSchema.parse(stripNulls(doc.mef));
-    const index = mef.systemLogicModels.findIndex(
-      (model) => model.uuid === modelId && model.faultTree !== undefined,
-    );
+    const index = mef.systemLogicModels.findIndex((model) => model.uuid === modelId);
     if (index < 0) throw new NotFoundException("SY fault tree not found");
     await this.dependencyDiscoveryService.assertModelCanBeDeleted(
       { workbookId, modelId },

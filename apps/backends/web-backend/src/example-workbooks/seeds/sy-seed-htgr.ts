@@ -54,6 +54,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(SY_SR_CATALOG).flatMap((c
 function be(uuid: string, name: string, failureMode: string, probability: number, componentReference?: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     componentReference,
@@ -67,6 +68,7 @@ function be(uuid: string, name: string, failureMode: string, probability: number
 function hfe(uuid: string, name: string, probability: number, hfeRef: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "HUMAN_ERROR",
@@ -80,6 +82,7 @@ function hfe(uuid: string, name: string, probability: number, hfeRef: string): S
 function tm(uuid: string, name: string, probability: number, basis: string, preOperational: boolean): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "TEST_MAINTENANCE",

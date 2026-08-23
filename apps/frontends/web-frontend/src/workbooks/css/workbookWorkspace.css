@@ -110,6 +110,16 @@
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--c-complete);
 }
+.poshd__save-pill--saving {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+.poshd__save-pill--saving .poshd__save-pill-dot { background: var(--color-warning); }
+.poshd__save-pill--failed {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+.poshd__save-pill--failed .poshd__save-pill-dot { background: var(--color-error); }
 
 /* Stage / profile toggles inline in header */
 .poshd__toggle {

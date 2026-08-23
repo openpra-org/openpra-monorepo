@@ -3,6 +3,7 @@ import { useRevisionedMefPatch } from "../useRevisionedMefPatch";
 
 interface TestMef {
   value: string;
+  detail?: string;
 }
 
 interface TestResponse {
@@ -27,10 +28,11 @@ function deferred<T>(): {
 describe("revisioned MEF patch queue", () => {
   test("serializes rapid edits and advances the expected revision", async () => {
     const first = deferred<TestResponse>();
+    const second = deferred<TestResponse>();
     const patchWorkbook = jest
       .fn<Promise<TestResponse>, [string, number, TestMef, TestMef]>()
       .mockImplementationOnce(() => first.promise)
-      .mockResolvedValueOnce({ revision: 3, mef: { value: "second" } });
+      .mockImplementationOnce(() => second.promise);
     const getWorkbook = jest.fn<Promise<TestResponse>, [string]>();
     const onSuccess = jest.fn();
     const onError = jest.fn();
@@ -50,10 +52,13 @@ describe("revisioned MEF patch queue", () => {
       { initialProps: { current: { value: "initial" }, revision: 1 } },
     );
 
+    expect(result.current.saveStatus).toBe("saved");
+
     let firstPatch!: Promise<void>;
     act(() => {
       firstPatch = result.current.patch(() => ({ value: "first" }));
     });
+    expect(result.current.saveStatus).toBe("saving");
     rerender({ current: { value: "first" }, revision: 1 });
     let secondPatch!: Promise<void>;
     act(() => {
@@ -69,15 +74,22 @@ describe("revisioned MEF patch queue", () => {
     await act(async () => {
       first.resolve({ revision: 2, mef: { value: "first" } });
       await firstPatch;
-      await secondPatch;
     });
 
     expect(patchWorkbook).toHaveBeenCalledTimes(2);
     expect(patchWorkbook.mock.calls[1]?.[1]).toBe(2);
     expect(onSuccess).toHaveBeenNthCalledWith(1, 2);
+    expect(result.current.saveStatus).toBe("saving");
+
+    await act(async () => {
+      second.resolve({ revision: 3, mef: { value: "second" } });
+      await secondPatch;
+    });
+
     expect(onSuccess).toHaveBeenNthCalledWith(2, 3);
     expect(onError).not.toHaveBeenCalled();
     expect(getWorkbook).not.toHaveBeenCalled();
+    expect(result.current.saveStatus).toBe("saved");
   });
 
   test("drops queued stale edits and resynchronizes after a failed save", async () => {
@@ -126,6 +138,7 @@ describe("revisioned MEF patch queue", () => {
     expect(getWorkbook).toHaveBeenCalledWith("workbook-1");
     expect(onResync).toHaveBeenCalledWith(latest);
     expect(onSuccess).not.toHaveBeenCalled();
+    expect(result.current.saveStatus).toBe("failed");
   });
 
   test("drops edits made while conflict recovery is reloading the workbook", async () => {
@@ -171,5 +184,133 @@ describe("revisioned MEF patch queue", () => {
 
     expect(patchWorkbook).toHaveBeenCalledTimes(1);
     expect(onResync).toHaveBeenCalledWith(latest);
+    expect(result.current.saveStatus).toBe("failed");
+  });
+
+  test("returns to saving and then saved when an edit is retried after recovery", async () => {
+    const latest = { revision: 4, mef: { value: "server" } };
+    const retry = deferred<TestResponse>();
+    const patchWorkbook = jest
+      .fn<Promise<TestResponse>, [string, number, TestMef, TestMef]>()
+      .mockRejectedValueOnce(new Error("Workbook revision conflict"))
+      .mockImplementationOnce(() => retry.promise);
+    const getWorkbook = jest.fn<Promise<TestResponse>, [string]>().mockResolvedValue(latest);
+    const { result, rerender } = renderHook(
+      ({ current, revision }: { current: TestMef; revision: number }) =>
+        useRevisionedMefPatch(
+          "workbook-1",
+          current,
+          revision,
+          patchWorkbook,
+          getWorkbook,
+          jest.fn(),
+          jest.fn(),
+          jest.fn(),
+        ),
+      { initialProps: { current: { value: "initial" }, revision: 1 } },
+    );
+
+    await act(async () => {
+      await result.current.patch(() => ({ value: "conflicting edit" }));
+    });
+    expect(result.current.saveStatus).toBe("failed");
+
+    rerender({ current: latest.mef, revision: latest.revision });
+    let retryPatch!: Promise<void>;
+    act(() => {
+      retryPatch = result.current.patch(() => ({ value: "retry" }));
+    });
+    expect(result.current.saveStatus).toBe("saving");
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(patchWorkbook.mock.calls[1]?.[1]).toBe(4);
+
+    await act(async () => {
+      retry.resolve({ revision: 5, mef: { value: "retry" } });
+      await retryPatch;
+    });
+    expect(result.current.saveStatus).toBe("saved");
+  });
+
+  test("resynchronizes before retrying after both the save and recovery reload fail", async () => {
+    const initial = { revision: 1, mef: { value: "initial", detail: "original" } };
+    const latest = {
+      revision: 4,
+      mef: { value: "server value", detail: "concurrent server change" },
+    };
+    const saved = {
+      revision: 5,
+      mef: { value: "retried", detail: "concurrent server change" },
+    };
+    const patchWorkbook = jest
+      .fn<Promise<TestResponse>, [string, number, TestMef, TestMef]>()
+      .mockRejectedValueOnce(new Error("Save request failed"))
+      .mockResolvedValueOnce(saved);
+    const getWorkbook = jest
+      .fn<Promise<TestResponse>, [string]>()
+      .mockRejectedValueOnce(new Error("Reload failed"))
+      .mockResolvedValueOnce(latest);
+    const onSuccess = jest.fn();
+    const onError = jest.fn();
+    const onResync = jest.fn();
+    const { result, rerender } = renderHook(
+      ({ current, revision }: { current: TestMef; revision: number }) =>
+        useRevisionedMefPatch(
+          "workbook-1",
+          current,
+          revision,
+          patchWorkbook,
+          getWorkbook,
+          onSuccess,
+          onError,
+          onResync,
+        ),
+      { initialProps: { current: initial.mef, revision: initial.revision } },
+    );
+
+    let failedPatch!: Promise<void>;
+    act(() => {
+      failedPatch = result.current.patch((current) => ({ ...current, value: "first" }));
+    });
+    rerender({ current: { value: "first", detail: "original" }, revision: 1 });
+    await act(async () => {
+      await failedPatch;
+    });
+    expect(result.current.saveStatus).toBe("failed");
+    expect(onResync).not.toHaveBeenCalled();
+
+    let resyncAttempt!: Promise<void>;
+    act(() => {
+      resyncAttempt = result.current.patch((current) => ({ ...current, detail: "local second" }));
+    });
+    expect(result.current.saveStatus).toBe("saving");
+    await act(async () => {
+      await resyncAttempt;
+    });
+
+    expect(getWorkbook).toHaveBeenCalledTimes(2);
+    expect(patchWorkbook).toHaveBeenCalledTimes(1);
+    expect(onResync).toHaveBeenCalledWith(latest);
+    expect(onError).toHaveBeenLastCalledWith(
+      "Workbook reloaded after a save failure. Reapply your changes.",
+    );
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(result.current.saveStatus).toBe("failed");
+
+    rerender({ current: latest.mef, revision: latest.revision });
+    await act(async () => {
+      await result.current.patch((current) => ({ ...current, value: "retried" }));
+    });
+
+    expect(patchWorkbook).toHaveBeenNthCalledWith(
+      2,
+      "workbook-1",
+      4,
+      latest.mef,
+      saved.mef,
+    );
+    expect(onSuccess).toHaveBeenCalledWith(5);
+    expect(result.current.saveStatus).toBe("saved");
   });
 });

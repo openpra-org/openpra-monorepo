@@ -4,6 +4,8 @@ import { createBlankEs } from "../../es-workbooks/blank-es";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
 import { LEGACY_ES_EVENT_TREE, LEGACY_SY_FAULT_TREE_MODEL } from "./legacy-workbook-model-fixtures";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function deepFreeze<T>(value: T): T {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
   Object.values(value).forEach(deepFreeze);
@@ -24,31 +26,85 @@ describe("workbook model migration fixtures", () => {
 
     expect(migrated.systemLogicModels).toEqual([
       {
-        uuid: "SY-LEGACY-MODEL",
+        uuid: expect.stringMatching(UUID_PATTERN),
+        code: "LEGACY-TOP",
+        name: "Both credited cooling paths unavailable",
         systemReference: "SYS-LEGACY-PUMPS",
         description: "Legacy two-train pump fault tree",
         modelRepresentation: "Fault tree",
-        faultTree: {
-          id: "LEGACY-TOP",
-          type: "OR",
-          name: "Both credited cooling paths unavailable",
-          children: [
-            {
-              id: "LEGACY-GATE-A",
-              type: "AND",
-              name: "Train failures",
-              children: [
-                { id: "LEGACY-LEAF-A", type: "BE", basicEventId: "BE-LEGACY-PUMP-A" },
-                { id: "LEGACY-LEAF-B", type: "BE", basicEventId: "BE-LEGACY-PUMP-B" },
-              ],
+        topGate: { gateId: expect.stringMatching(UUID_PATTERN) },
+        gates: [
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            code: "LEGACY-TOP",
+            name: "Both credited cooling paths unavailable",
+            description: "Both credited cooling paths unavailable",
+            kind: "GATE",
+            gateType: "OR",
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            code: "LEGACY-GATE-A",
+            name: "Train failures",
+            description: "Train failures",
+            kind: "GATE",
+            gateType: "AND",
+          },
+        ],
+        leafNodes: [
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            kind: "BASIC_EVENT_REFERENCE",
+            basicEventId: expect.stringMatching(UUID_PATTERN),
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            kind: "BASIC_EVENT_REFERENCE",
+            basicEventId: expect.stringMatching(UUID_PATTERN),
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            code: "LEGACY-TRANSFER",
+            name: "Support cooling unavailable",
+            description: "Transfer to SY-SUPPORT-COOLING",
+            kind: "TRANSFER_REFERENCE",
+            target: {
+              modelId: expect.stringMatching(UUID_PATTERN),
+              entityId: expect.stringMatching(UUID_PATTERN),
             },
-            {
-              id: "LEGACY-TRANSFER",
-              type: "TR",
-              name: "Support cooling unavailable",
-              transfer: "SY-SUPPORT-COOLING",
-            },
-          ],
+          },
+        ],
+        gateInputs: [
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            gateId: expect.stringMatching(UUID_PATTERN),
+            childId: expect.stringMatching(UUID_PATTERN),
+            order: 0,
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            gateId: expect.stringMatching(UUID_PATTERN),
+            childId: expect.stringMatching(UUID_PATTERN),
+            order: 1,
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            gateId: expect.stringMatching(UUID_PATTERN),
+            childId: expect.stringMatching(UUID_PATTERN),
+            order: 0,
+          },
+          {
+            id: expect.stringMatching(UUID_PATTERN),
+            gateId: expect.stringMatching(UUID_PATTERN),
+            childId: expect.stringMatching(UUID_PATTERN),
+            order: 1,
+          },
+        ],
+        nodePositions: [],
+        layout: {
+          viewport: { x: 0, y: 0, zoom: 1 },
+          mode: "AUTOMATIC",
+          direction: "TOP_TO_BOTTOM",
         },
         logicLoopResolutions: [
           { loopId: "LOOP-1", resolution: "Transfer boundary breaks the support loop" },
@@ -59,7 +115,8 @@ describe("workbook model migration fixtures", () => {
     ]);
     expect(migrated.systemBasicEvents).toEqual([
       {
-        uuid: "BE-LEGACY-PUMP-A",
+        uuid: expect.stringMatching(UUID_PATTERN),
+        code: "BE-LEGACY-PUMP-A",
         name: "Pump A fails to start",
         description: "Demand failure retained from the model-local catalogue",
         eventType: "BASIC",
@@ -73,7 +130,8 @@ describe("workbook model migration fixtures", () => {
         implementsSrs: [],
       },
       {
-        uuid: "BE-LEGACY-PUMP-B",
+        uuid: expect.stringMatching(UUID_PATTERN),
+        code: "BE-LEGACY-PUMP-B",
         name: "Pump B fails to run",
         eventType: "BASIC",
         failureMode: "FAILURE_TO_RUN",
@@ -84,6 +142,21 @@ describe("workbook model migration fixtures", () => {
       },
     ]);
     expect(legacyModel).toHaveProperty("basicEvents");
+    expect(migrated.systemLogicModels[0]).not.toHaveProperty("faultTree");
+    const model = migrated.systemLogicModels[0];
+    const topGate = model?.gates.find(({ code }) => code === "LEGACY-TOP");
+    const branchGate = model?.gates.find(({ code }) => code === "LEGACY-GATE-A");
+    const transfer = model?.leafNodes.find((leaf) => leaf.kind === "TRANSFER_REFERENCE");
+    expect(model?.topGate?.gateId).toBe(topGate?.id);
+    expect(model?.gateInputs.map(({ gateId, childId, order }) => ({ gateId, childId, order }))).toEqual([
+      { gateId: branchGate?.id, childId: model?.leafNodes[0]?.id, order: 0 },
+      { gateId: branchGate?.id, childId: model?.leafNodes[1]?.id, order: 1 },
+      { gateId: topGate?.id, childId: branchGate?.id, order: 0 },
+      { gateId: topGate?.id, childId: transfer?.id, order: 1 },
+    ]);
+    expect(model?.leafNodes.slice(0, 2).map((leaf) =>
+      leaf.kind === "BASIC_EVENT_REFERENCE" ? leaf.basicEventId : null,
+    )).toEqual(migrated.systemBasicEvents.map(({ uuid }) => uuid));
     expect((legacyModel.faultTree.children[0] as { children: unknown[] }).children[0]).toHaveProperty(
       "be",
       "BE-LEGACY-PUMP-A",

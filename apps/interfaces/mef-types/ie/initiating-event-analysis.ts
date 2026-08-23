@@ -173,14 +173,39 @@ export type FrequencyDataPedigree =
 
 export type FrequencyDistributionFamily = "POINT" | "GAMMA" | "LOGNORMAL" | "BETA";
 
+export interface FrequencyFaultTreeParentLink {
+  inputId: string;
+  gateId: string;
+  order: number;
+}
+
+export interface FrequencyFaultTreeTransferTarget {
+  modelId: string;
+  entityId: string;
+}
+
 export interface FrequencyFaultTreeNode {
   id: string;
+  /** Legacy single-parent projection. parentLinks is authoritative when present. */
   parentId?: string;
+  /** Complete inbound links preserve shared subgraphs, input identity, and per-gate order. */
+  parentLinks?: FrequencyFaultTreeParentLink[];
   label: string;
+  code?: string;
   nodeType: "GATE" | "BASIC" | "HOUSE" | "TRANSFER" | "UNDEVELOPED";
   gate?: "AND" | "OR" | "NOT" | "ATLEAST";
   k?: number;
   detail?: string;
+  /** Marks an explicitly selected top gate when inference from root gates is insufficient. */
+  isTopGate?: boolean;
+  /** Stable catalogue identity/code for shared basic-event references. */
+  basicEventId?: string;
+  basicEventCode?: string;
+  /** Stores an unreferenced shared basic event without inventing a leaf reference. */
+  catalogueOnly?: boolean;
+  probability?: number;
+  houseState?: boolean;
+  transferTarget?: FrequencyFaultTreeTransferTarget;
 }
 
 export interface FrequencyDataSource {

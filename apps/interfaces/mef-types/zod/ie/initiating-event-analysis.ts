@@ -169,14 +169,34 @@ export const InitiatingEventGroupSchema = z.object({
   implementsSrs: z.array(SRReferenceSchema),
 });
 
+export const FrequencyFaultTreeParentLinkSchema = z.object({
+  inputId: z.string(),
+  gateId: z.string(),
+  order: z.number().int().nonnegative(),
+});
+
+export const FrequencyFaultTreeTransferTargetSchema = z.object({
+  modelId: z.string(),
+  entityId: z.string(),
+});
+
 export const FrequencyFaultTreeNodeSchema = z.object({
   id: z.string(),
   parentId: z.string().optional(),
+  parentLinks: z.array(FrequencyFaultTreeParentLinkSchema).optional(),
   label: z.string(),
+  code: z.string().optional(),
   nodeType: z.enum(["GATE", "BASIC", "HOUSE", "TRANSFER", "UNDEVELOPED"]),
   gate: z.enum(["AND", "OR", "NOT", "ATLEAST"]).optional(),
   k: z.number().optional(),
   detail: z.string().optional(),
+  isTopGate: z.boolean().optional(),
+  basicEventId: z.string().optional(),
+  basicEventCode: z.string().optional(),
+  catalogueOnly: z.boolean().optional(),
+  probability: z.number().min(0).max(1).optional(),
+  houseState: z.boolean().optional(),
+  transferTarget: FrequencyFaultTreeTransferTargetSchema.optional(),
 });
 
 export const FrequencyDataSourceSchema = z.object({

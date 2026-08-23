@@ -220,8 +220,18 @@ const validateFaultTreeGateInputs = (model: FaultTreeModel): ValidationIssue[] =
   }
 
   model.gates.forEach((gate, gateIndex) => {
-    if (gate.gateType !== "NOT") return;
     const childCount = model.gateInputs.filter((input) => input.gateId === gate.id).length;
+    if ((gate.gateType === "AND" || gate.gateType === "OR") && childCount === 0) {
+      issues.push({
+        code: "FT_GATE_CHILD_REQUIRED",
+        severity: "ERROR",
+        message: "An AND or OR gate must have at least one child",
+        entityId: gate.id,
+        fieldPath: ["gates", gateIndex, "gateType"],
+      });
+      return;
+    }
+    if (gate.gateType !== "NOT") return;
     if (childCount === 1) return;
     issues.push({
       code: "FT_NOT_GATE_CHILD_COUNT",

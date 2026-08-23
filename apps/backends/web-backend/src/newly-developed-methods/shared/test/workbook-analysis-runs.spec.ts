@@ -55,6 +55,10 @@ const OR_LEAF_A = "10000000-0000-4000-8000-000000000007";
 const OR_LEAF_B = "10000000-0000-4000-8000-000000000008";
 const AND_LEAF_A = "10000000-0000-4000-8000-000000000009";
 const AND_LEAF_B = "10000000-0000-4000-8000-000000000010";
+const FT_TRANSFER = "10000000-0000-4000-8000-000000000011";
+// Fault-tree entity ids are model-local; these deliberate overlaps exercise transfer flattening.
+const TOP_TRANSFER = TOP_AND;
+const TRANSFER_LEAF = AND_LEAF_A;
 
 const BN = "20000000-0000-4000-8000-000000000001";
 const NODE_A = "20000000-0000-4000-8000-000000000002";
@@ -102,6 +106,7 @@ const createSyMef = () => {
   mef.systemBasicEvents = [
     {
       uuid: EVENT_A,
+      code: "EVENT-A",
       name: "Event A",
       description: "Probability 0.1",
       eventType: "BASIC",
@@ -110,6 +115,7 @@ const createSyMef = () => {
     },
     {
       uuid: EVENT_B,
+      code: "EVENT-B",
       name: "Event B",
       description: "Probability 0.2",
       eventType: "BASIC",
@@ -120,33 +126,113 @@ const createSyMef = () => {
   mef.systemLogicModels = [
     {
       uuid: FT_OR,
+      code: "FT-OR",
+      name: "Top OR",
       systemReference: "SYS-OR",
       description: "A or B",
       modelRepresentation: "Fault tree",
-      faultTree: {
-        id: TOP_OR,
-        type: "OR",
-        name: "Top OR",
-        children: [
-          { id: OR_LEAF_A, type: "BE", basicEventId: EVENT_A },
-          { id: OR_LEAF_B, type: "BE", basicEventId: EVENT_B },
-        ],
+      topGate: { gateId: TOP_OR },
+      gates: [
+        {
+          id: TOP_OR,
+          code: "TOP-OR",
+          name: "Top OR",
+          description: "A or B",
+          kind: "GATE",
+          gateType: "OR",
+        },
+      ],
+      leafNodes: [
+        { id: OR_LEAF_A, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_A },
+        { id: OR_LEAF_B, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_B },
+      ],
+      gateInputs: [
+        { id: `${TOP_OR}:${OR_LEAF_A}:0`, gateId: TOP_OR, childId: OR_LEAF_A, order: 0 },
+        { id: `${TOP_OR}:${OR_LEAF_B}:1`, gateId: TOP_OR, childId: OR_LEAF_B, order: 1 },
+      ],
+      nodePositions: [],
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "AUTOMATIC",
+        direction: "TOP_TO_BOTTOM",
       },
       implementsSrs: [],
     },
     {
       uuid: FT_AND,
+      code: "FT-AND",
+      name: "Top AND",
       systemReference: "SYS-AND",
       description: "A and B",
       modelRepresentation: "Fault tree",
-      faultTree: {
-        id: TOP_AND,
-        type: "AND",
-        name: "Top AND",
-        children: [
-          { id: AND_LEAF_A, type: "BE", basicEventId: EVENT_A },
-          { id: AND_LEAF_B, type: "BE", basicEventId: EVENT_B },
-        ],
+      topGate: { gateId: TOP_AND },
+      gates: [
+        {
+          id: TOP_AND,
+          code: "TOP-AND",
+          name: "Top AND",
+          description: "A and B",
+          kind: "GATE",
+          gateType: "AND",
+        },
+      ],
+      leafNodes: [
+        { id: AND_LEAF_A, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_A },
+        { id: AND_LEAF_B, kind: "BASIC_EVENT_REFERENCE", basicEventId: EVENT_B },
+      ],
+      gateInputs: [
+        { id: `${TOP_AND}:${AND_LEAF_A}:0`, gateId: TOP_AND, childId: AND_LEAF_A, order: 0 },
+        { id: `${TOP_AND}:${AND_LEAF_B}:1`, gateId: TOP_AND, childId: AND_LEAF_B, order: 1 },
+      ],
+      nodePositions: [],
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "AUTOMATIC",
+        direction: "TOP_TO_BOTTOM",
+      },
+      implementsSrs: [],
+    },
+    {
+      uuid: FT_TRANSFER,
+      code: "FT-TRANSFER",
+      name: "Transferred AND",
+      systemReference: "SYS-TRANSFER",
+      description: "Transfer to the shared AND fault tree",
+      modelRepresentation: "Fault tree",
+      topGate: { gateId: TOP_TRANSFER },
+      gates: [
+        {
+          id: TOP_TRANSFER,
+          code: "TOP-TRANSFER",
+          name: "Transferred AND",
+          description: "Delegates to the shared AND top gate",
+          kind: "GATE",
+          gateType: "OR",
+        },
+      ],
+      leafNodes: [
+        {
+          id: TRANSFER_LEAF,
+          code: "TRANSFER-AND",
+          name: "Transfer to AND",
+          description: "Reference to the shared AND model",
+          kind: "TRANSFER_REFERENCE",
+          target: { modelId: FT_AND, entityId: TOP_AND },
+        },
+      ],
+      gateInputs: [
+        {
+          id: `${TOP_TRANSFER}:${TRANSFER_LEAF}:0`,
+          gateId: TOP_TRANSFER,
+          childId: TRANSFER_LEAF,
+          order: 0,
+        },
+      ],
+      nodePositions: [],
+      layout: {
+        viewport: { x: 0, y: 0, zoom: 1 },
+        mode: "AUTOMATIC",
+        direction: "TOP_TO_BOTTOM",
       },
       implementsSrs: [],
     },
@@ -510,6 +596,38 @@ describe("workbook-owned analysis-run APIs", () => {
       0.2,
       0.1,
     ]);
+  }, 120_000);
+
+  it("quantifies an SY transfer reference through the existing fault-tree run API", async () => {
+    const response = await request(api.getHttpServer())
+      .post(`/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_TRANSFER}/runs`)
+      .send({ schemaVersion: "1.0.0", modelId: FT_TRANSFER, workbookRevision: 3 });
+    expect(response.status).toBe(200);
+    expect(response.body.run).toMatchObject({
+      owner: { workbookId: SY_WORKBOOK_ID, modelId: FT_TRANSFER, workbookRevision: 3 },
+      methodType: "FAULT_TREE",
+      status: "SUCCEEDED",
+    });
+
+    const result = await request(api.getHttpServer()).get(
+      `/api/sy-workbooks/${SY_WORKBOOK_ID}/fault-trees/${FT_TRANSFER}/runs/${response.body.run.id}/result`,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      topGateId: TOP_TRANSFER,
+      topEventProbability: expect.closeTo(0.02, 12),
+      minimalCutSetCount: 1,
+      leadingCutSets: [
+        expect.objectContaining({
+          order: 2,
+          probability: expect.closeTo(0.02, 12),
+          events: [
+            { basicEventId: EVENT_A, complemented: false },
+            { basicEventId: EVENT_B, complemented: false },
+          ],
+        }),
+      ],
+    });
   }, 120_000);
 
   it("executes an ESQ-owned BN query and returns the exact 0.64 posterior", async () => {

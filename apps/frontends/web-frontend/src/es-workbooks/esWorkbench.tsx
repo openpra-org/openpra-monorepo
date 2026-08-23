@@ -16,6 +16,8 @@ import { useEsWorkbook, type EsWorkbookData } from "./esWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
+import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/esScreens.css";
 
@@ -45,6 +47,7 @@ interface HeaderMeta {
   projectName: string;
   workbookName: string;
   workbookVersion: string;
+  saveStatus?: RevisionedSaveStatus;
   plantIdentity?: { name: string; type: string; power: string; vendor: string };
 }
 
@@ -127,7 +130,7 @@ function WorkspaceHeader({
         {onUnloadExample !== undefined && (
           <button type="button" className="posnav__btn posnav__btn--sm" onClick={onUnloadExample} title="Restore the contents that existed before the example was loaded"><ESIcon.Close /> Unload example</button>
         )}
-        <span className="poshd__save-pill"><span className="poshd__save-pill-dot" />Autosaved · v{headerMeta.workbookVersion}</span>
+        <WorkbookSaveIndicator status={headerMeta.saveStatus} workbookVersion={headerMeta.workbookVersion} />
         <button type="button" className="posnav__btn" aria-label="History"><ESIcon.History /></button>
         {onToggleDock !== undefined && (
           <button type="button" className="posw__mobile-toggle" onClick={onToggleDock} aria-label="Open conformance"><ESIcon.Eye /> Conformance</button>

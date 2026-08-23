@@ -80,6 +80,37 @@ function createDocument(workbookId: string, mef: unknown): MockWorkbookDocument 
   };
 }
 
+function createFaultTreeModel(name: string): SystemsAnalysis["systemLogicModels"][number] {
+  return {
+    uuid: FT_MODEL_ID,
+    code: "FT-DELETE",
+    name,
+    systemReference: "system-1",
+    description: name,
+    modelRepresentation: "Fault tree",
+    topGate: { gateId: "top-gate" },
+    gates: [
+      {
+        id: "top-gate",
+        code: "TOP",
+        name: "Top",
+        description: "Top",
+        kind: "GATE",
+        gateType: "OR",
+      },
+    ],
+    leafNodes: [],
+    gateInputs: [],
+    nodePositions: [],
+    layout: {
+      viewport: { x: 0, y: 0, zoom: 1 },
+      mode: "AUTOMATIC",
+      direction: "TOP_TO_BOTTOM",
+    },
+    implementsSrs: [],
+  };
+}
+
 function matchesRevision(document: MockWorkbookDocument, filter: MockRevisionFilter): boolean {
   if (filter.revision !== undefined) return document.revision === filter.revision;
   return (
@@ -289,14 +320,7 @@ describe("workbook-owned method-model APIs", () => {
 
   it("deletes an SY fault tree only after the typed dependency gate passes", async () => {
     const mef = syDocument.mef as SystemsAnalysis;
-    mef.systemLogicModels.push({
-      uuid: FT_MODEL_ID,
-      systemReference: "system-1",
-      description: "Deletable FT",
-      modelRepresentation: "Fault tree",
-      faultTree: { id: "top-gate", type: "OR", name: "Top", children: [] },
-      implementsSrs: [],
-    });
+    mef.systemLogicModels.push(createFaultTreeModel("Deletable FT"));
 
     const response = await request(app.getHttpServer()).delete(
       `/api/sy-workbooks/sy-workbook/fault-trees/${FT_MODEL_ID}?expectedRevision=1`,
@@ -317,14 +341,7 @@ describe("workbook-owned method-model APIs", () => {
 
   it("leaves an SY fault tree untouched when a typed dependency blocks deletion", async () => {
     const mef = syDocument.mef as SystemsAnalysis;
-    mef.systemLogicModels.push({
-      uuid: FT_MODEL_ID,
-      systemReference: "system-1",
-      description: "Referenced FT",
-      modelRepresentation: "Fault tree",
-      faultTree: { id: "top-gate", type: "OR", name: "Top", children: [] },
-      implementsSrs: [],
-    });
+    mef.systemLogicModels.push(createFaultTreeModel("Referenced FT"));
     dependencyDiscovery.assertModelCanBeDeleted.mockRejectedValue(
       new ConflictException("Referenced"),
     );
@@ -452,16 +469,19 @@ describe("workbook-owned method-model APIs", () => {
 
   it("loads and patches an SY-owned fault tree without changing the workbook catalogue", async () => {
     const analysis = syDocument.mef as SystemsAnalysis;
-    const modelIndex = analysis.systemLogicModels.findIndex(
-      (model) => model.faultTree !== undefined && "name" in model.faultTree,
-    );
+    const modelIndex = analysis.systemLogicModels.findIndex((model) => model.topGate !== null);
     expect(modelIndex).toBeGreaterThanOrEqual(0);
+    const model = analysis.systemLogicModels[modelIndex];
+    if (model === undefined || model.topGate === null) throw new Error("Expected a fault-tree model");
+    const topGateId = model.topGate.gateId;
+    const gateIndex = model.gates.findIndex((gate) => gate.id === topGateId);
+    expect(gateIndex).toBeGreaterThanOrEqual(0);
     const originalCatalogue = structuredClone(analysis.systemBasicEvents);
 
     const loaded = await request(app.getHttpServer()).get("/api/sy-workbooks/sy-workbook");
     expect(loaded.status).toBe(200);
     expect(loaded.body.revision).toBe(1);
-    expect(loaded.body.mef.systemLogicModels[modelIndex].faultTree).toBeDefined();
+    expect(loaded.body.mef.systemLogicModels[modelIndex].topGate).not.toBeNull();
 
     const patched = await request(app.getHttpServer())
       .patch("/api/sy-workbooks/sy-workbook")
@@ -470,7 +490,7 @@ describe("workbook-owned method-model APIs", () => {
         operations: [
           {
             op: "replace",
-            path: ["systemLogicModels", modelIndex, "faultTree", "name"],
+            path: ["systemLogicModels", modelIndex, "gates", gateIndex, "name"],
             value: "Updated top event",
           },
         ],
@@ -479,9 +499,7 @@ describe("workbook-owned method-model APIs", () => {
     expect(patched.status).toBe(200);
     expect(patched.body.revision).toBe(2);
     expect(syDocument.revision).toBe(2);
-    expect(patched.body.mef.systemLogicModels[modelIndex].faultTree.name).toBe(
-      "Updated top event",
-    );
+    expect(patched.body.mef.systemLogicModels[modelIndex].gates[gateIndex].name).toBe("Updated top event");
     expect((syDocument.mef as SystemsAnalysis).systemBasicEvents).toEqual(originalCatalogue);
     expect(syModel.findOneAndUpdate).toHaveBeenCalledWith(
       { workbookId: "sy-workbook", $or: [{ revision: 1 }, { revision: { $exists: false } }] },

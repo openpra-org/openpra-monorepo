@@ -5,6 +5,7 @@ import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patc
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
 import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import type { FaultTreeValidateResult } from "interfaces-shared-types/newly-developed-methods/fault-tree";
 
 @Controller("sy-workbooks")
 @UseGuards(JwtAuthGuard)
@@ -62,6 +63,19 @@ export class SyWorkbooksController {
         username: req.user!.username,
       }),
     };
+  }
+
+  @Post(":id/fault-trees/:modelId/validate")
+  @HttpCode(HttpStatus.OK)
+  validateFaultTree(
+    @Param("id") id: string,
+    @Param("modelId") modelId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<FaultTreeValidateResult> {
+    return this.syWorkbooksService.validateFaultTree(id, modelId, body, {
+      username: req.user!.username,
+    });
   }
 
   @Get(":id/fault-trees/:modelId/runs/:runId")

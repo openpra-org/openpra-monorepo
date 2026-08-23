@@ -1,0 +1,24 @@
+{
+  "name": "frontends-web-frontend-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/frontends/web-frontend-e2e/src",
+  "projectType": "application",
+  "implicitDependencies": ["frontends-web-frontend", "backends-web-backend"],
+  "tags": ["scope:client"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "outputs": ["{workspaceRoot}/dist/.playwright/{projectRoot}"],
+      "options": {
+        "config": "apps/frontends/web-frontend-e2e/playwright.config.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tsconfig.json",
+        "cwd": "apps/frontends/web-frontend-e2e"
+      }
+    }
+  }
+}

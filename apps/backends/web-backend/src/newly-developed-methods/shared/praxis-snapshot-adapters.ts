@@ -1,7 +1,5 @@
-import type {
-  SystemFaultTreeNode,
-  SystemsAnalysis,
-} from "interfaces-mef-types/sy/systems-analysis";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import type {
   EventSequenceAnalysis,
   EventTree,
@@ -27,10 +25,34 @@ interface AdaptedFaultTreeSnapshot {
   basicEventCatalogue: Record<string, unknown>;
 }
 
+type WorkbookPraxisAdapterErrorCode =
+  | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
+  | "SY_FAULT_TREE_GRAPH_CYCLE"
+  | "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID"
+  | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION"
+  | "SY_FAULT_TREE_NODE_ID_COLLISION"
+  | "SY_FAULT_TREE_NODE_POSITION_COLLISION"
+  | "SY_FAULT_TREE_TOP_GATE_AMBIGUOUS"
+  | "SY_FAULT_TREE_TOP_GATE_NOT_FOUND"
+  | "SY_FAULT_TREE_TRANSFER_CYCLE"
+  | "SY_FAULT_TREE_TRANSFER_GATE_AMBIGUOUS"
+  | "SY_FAULT_TREE_TRANSFER_GATE_NOT_FOUND"
+  | "SY_FAULT_TREE_TRANSFER_MODEL_AMBIGUOUS"
+  | "SY_FAULT_TREE_TRANSFER_MODEL_NOT_FOUND";
+
 class WorkbookPraxisAdapterError extends Error {
-  constructor(message: string) {
+  readonly code: WorkbookPraxisAdapterErrorCode;
+  readonly details: Readonly<Record<string, unknown>>;
+
+  constructor(
+    message: string,
+    code: WorkbookPraxisAdapterErrorCode = "WORKBOOK_PRAXIS_ADAPTER_ERROR",
+    details: Readonly<Record<string, unknown>> = {},
+  ) {
     super(message);
     this.name = "WorkbookPraxisAdapterError";
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -48,77 +70,309 @@ const findByUuid = <T extends { uuid: string }>(
   return matches[0];
 };
 
+const stableUuid = (value: string): string => {
+  const bytes = createHash("sha256").update(value).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
 const adaptSyFaultTreeSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
 ): AdaptedFaultTreeSnapshot => {
   const model = findByUuid(source.mef.systemLogicModels, modelId, "SY fault tree");
-  if (model.faultTree === undefined) {
-    throw new WorkbookPraxisAdapterError(`SY model '${modelId}' has no fault-tree topology`);
+  if (model.topGate === null) {
+    throw new WorkbookPraxisAdapterError(
+      `SY model '${modelId}' has no fault-tree top gate`,
+      "SY_FAULT_TREE_TOP_GATE_NOT_FOUND",
+      { modelId },
+    );
   }
-  if (model.faultTree.type !== "AND" && model.faultTree.type !== "OR" && model.faultTree.type !== "KN") {
-    throw new WorkbookPraxisAdapterError(`SY model '${modelId}' must have a gate at its root`);
+
+  type SyFaultTreeModel = SystemsAnalysis["systemLogicModels"][number];
+  type SyFaultTreeGate = SyFaultTreeModel["gates"][number];
+  type SyFaultTreeLeaf = SyFaultTreeModel["leafNodes"][number];
+
+  interface ClaimedId {
+    modelId: string;
+    kind: string;
+    sourceId: string;
   }
+
+  const modelGate = (
+    candidate: SyFaultTreeModel,
+    gateId: string,
+    target: boolean,
+  ): SyFaultTreeGate => {
+    const matches = candidate.gates.filter((gate) => gate.id === gateId);
+    if (matches.length !== 1) {
+      const subject = target ? "transfer target gate" : "top gate";
+      const code = target
+        ? matches.length === 0
+          ? "SY_FAULT_TREE_TRANSFER_GATE_NOT_FOUND"
+          : "SY_FAULT_TREE_TRANSFER_GATE_AMBIGUOUS"
+        : matches.length === 0
+          ? "SY_FAULT_TREE_TOP_GATE_NOT_FOUND"
+          : "SY_FAULT_TREE_TOP_GATE_AMBIGUOUS";
+      throw new WorkbookPraxisAdapterError(
+        `SY ${subject} '${candidate.uuid}:${gateId}' resolved ${matches.length} times; expected exactly once`,
+        code,
+        { modelId: candidate.uuid, gateId, matchCount: matches.length },
+      );
+    }
+    return matches[0];
+  };
+
+  const transferModel = (sourceModelId: string, targetModelId: string): SyFaultTreeModel => {
+    const matches = source.mef.systemLogicModels.filter(
+      (candidate) => candidate.uuid === targetModelId,
+    );
+    if (matches.length !== 1) {
+      throw new WorkbookPraxisAdapterError(
+        `SY transfer target model '${targetModelId}' from '${sourceModelId}' resolved ${matches.length} times; expected exactly once`,
+        matches.length === 0
+          ? "SY_FAULT_TREE_TRANSFER_MODEL_NOT_FOUND"
+          : "SY_FAULT_TREE_TRANSFER_MODEL_AMBIGUOUS",
+        { sourceModelId, targetModelId, matchCount: matches.length },
+      );
+    }
+    return matches[0];
+  };
+
+  const checkedModels = new Set<string>();
+  const assertLocalIds = (candidate: SyFaultTreeModel): void => {
+    if (checkedModels.has(candidate.uuid)) return;
+    checkedModels.add(candidate.uuid);
+
+    const nodeKinds = new Map<string, string>();
+    for (const node of [...candidate.gates, ...candidate.leafNodes]) {
+      const priorKind = nodeKinds.get(node.id);
+      if (priorKind !== undefined) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains colliding node id '${node.id}'`,
+          "SY_FAULT_TREE_NODE_ID_COLLISION",
+          { modelId: candidate.uuid, id: node.id, kinds: [priorKind, node.kind] },
+        );
+      }
+      nodeKinds.set(node.id, node.kind);
+    }
+
+    const inputIds = new Set<string>();
+    for (const input of candidate.gateInputs) {
+      if (inputIds.has(input.id)) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains colliding gate-input id '${input.id}'`,
+          "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+          { modelId: candidate.uuid, id: input.id },
+        );
+      }
+      inputIds.add(input.id);
+    }
+
+    const positionedNodeIds = new Set<string>();
+    for (const position of candidate.nodePositions) {
+      if (positionedNodeIds.has(position.nodeId)) {
+        throw new WorkbookPraxisAdapterError(
+          `SY model '${candidate.uuid}' contains multiple positions for node '${position.nodeId}'`,
+          "SY_FAULT_TREE_NODE_POSITION_COLLISION",
+          { modelId: candidate.uuid, id: position.nodeId },
+        );
+      }
+      positionedNodeIds.add(position.nodeId);
+    }
+  };
 
   const gates: Array<Record<string, unknown>> = [];
   const leafNodes: Array<Record<string, unknown>> = [];
   const gateInputs: Array<Record<string, unknown>> = [];
+  const nodePositions: Array<Record<string, unknown>> = [];
+  const referencedBasicEventIds = new Set<string>();
+  const claimedNodeIds = new Map<string, ClaimedId>();
+  const claimedInputIds = new Map<string, ClaimedId>();
+  const visitState = new Map<string, "VISITING" | "VISITED">();
+  const visitStack: string[] = [];
 
-  const visit = (node: SystemFaultTreeNode): void => {
-    if (node.type === "BE") {
-      leafNodes.push({ id: node.id, kind: "BASIC_EVENT_REFERENCE", basicEventId: node.basicEventId });
+  const expandedId = (candidate: SyFaultTreeModel, sourceId: string): string =>
+    candidate.uuid === model.uuid
+      ? sourceId
+      : stableUuid(JSON.stringify(["SY_FAULT_TREE_TRANSFER", candidate.uuid, sourceId]));
+
+  const claimId = (
+    claims: Map<string, ClaimedId>,
+    id: string,
+    claim: ClaimedId,
+    collisionCode:
+      | "SY_FAULT_TREE_NODE_ID_COLLISION"
+      | "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+  ): void => {
+    const prior = claims.get(id);
+    if (prior === undefined) {
+      claims.set(id, claim);
       return;
     }
-    if (node.type === "TR") {
-      leafNodes.push({
-        id: node.id,
-        code: node.id,
-        name: node.name,
-        description: `Transfer to ${node.transfer}`,
-        kind: "TRANSFER_REFERENCE",
-        target: { modelId: node.transfer, entityId: node.transfer },
-      });
+    if (
+      prior.modelId === claim.modelId &&
+      prior.kind === claim.kind &&
+      prior.sourceId === claim.sourceId
+    ) {
       return;
     }
+    throw new WorkbookPraxisAdapterError(
+      `SY fault-tree expansion found colliding ${collisionCode === "SY_FAULT_TREE_NODE_ID_COLLISION" ? "node" : "gate-input"} id '${id}' in models '${prior.modelId}' and '${claim.modelId}'`,
+      collisionCode,
+      { id, first: prior, second: claim },
+    );
+  };
 
-    gates.push({
-      id: node.id,
-      code: node.id,
-      name: node.name,
-      description: node.name,
-      kind: "GATE",
-      gateType: node.type === "KN" ? "K_OF_N" : node.type,
-      ...(node.type === "KN" ? { k: node.k } : {}),
-    });
-    node.children.forEach((child, order) => {
-      visit(child);
-      gateInputs.push({
-        id: `${node.id}:${child.id}:${order}`,
-        gateId: node.id,
-        childId: child.id,
-        order,
-      });
+  const copyPosition = (candidate: SyFaultTreeModel, nodeId: string): void => {
+    const position = candidate.nodePositions.find((entry) => entry.nodeId === nodeId);
+    if (position === undefined) return;
+    nodePositions.push({
+      ...position,
+      nodeId: expandedId(candidate, nodeId),
+      position: { ...position.position },
     });
   };
-  visit(model.faultTree);
 
-  const referencedBasicEventIds = new Set(
-    leafNodes
-      .filter((leaf) => leaf["kind"] === "BASIC_EVENT_REFERENCE")
-      .map((leaf) => leaf["basicEventId"] as string),
-  );
+  const includeLeaf = (candidate: SyFaultTreeModel, leaf: SyFaultTreeLeaf): void => {
+    const outputId = expandedId(candidate, leaf.id);
+    const prior = claimedNodeIds.get(outputId);
+    claimId(
+      claimedNodeIds,
+      outputId,
+      { modelId: candidate.uuid, kind: leaf.kind, sourceId: leaf.id },
+      "SY_FAULT_TREE_NODE_ID_COLLISION",
+    );
+    if (prior !== undefined) return;
+    if (leaf.kind === "BASIC_EVENT_REFERENCE") referencedBasicEventIds.add(leaf.basicEventId);
+    leafNodes.push({ ...leaf, id: outputId });
+    copyPosition(candidate, leaf.id);
+  };
+
+  const gateKey = (candidate: SyFaultTreeModel, gateId: string): string =>
+    JSON.stringify([candidate.uuid, gateId]);
+
+  const expandGate = (
+    candidate: SyFaultTreeModel,
+    gateId: string,
+    reachedByTransfer: boolean,
+  ): void => {
+    const key = gateKey(candidate, gateId);
+    const state = visitState.get(key);
+    if (state === "VISITED") return;
+    if (state === "VISITING") {
+      const cycleStart = visitStack.lastIndexOf(key);
+      const cycle = [...visitStack.slice(Math.max(cycleStart, 0)), key].map((entry) =>
+        JSON.parse(entry),
+      ) as Array<[string, string]>;
+      throw new WorkbookPraxisAdapterError(
+        `SY fault-tree ${reachedByTransfer ? "transfer " : ""}cycle detected at '${candidate.uuid}:${gateId}'`,
+        reachedByTransfer ? "SY_FAULT_TREE_TRANSFER_CYCLE" : "SY_FAULT_TREE_GRAPH_CYCLE",
+        { cycle: cycle.map(([cycleModelId, cycleGateId]) => ({ modelId: cycleModelId, gateId: cycleGateId })) },
+      );
+    }
+
+    const gate = modelGate(candidate, gateId, false);
+    assertLocalIds(candidate);
+    const outputGateId = expandedId(candidate, gate.id);
+    claimId(
+      claimedNodeIds,
+      outputGateId,
+      { modelId: candidate.uuid, kind: "GATE", sourceId: gate.id },
+      "SY_FAULT_TREE_NODE_ID_COLLISION",
+    );
+    gates.push({ ...gate, id: outputGateId });
+    copyPosition(candidate, gate.id);
+    visitState.set(key, "VISITING");
+    visitStack.push(key);
+
+    for (const input of candidate.gateInputs.filter((entry) => entry.gateId === gate.id)) {
+      const matchingGates = candidate.gates.filter((child) => child.id === input.childId);
+      const matchingLeaves = candidate.leafNodes.filter((child) => child.id === input.childId);
+      if (matchingGates.length + matchingLeaves.length !== 1) {
+        throw new WorkbookPraxisAdapterError(
+          `SY gate input '${input.id}' in model '${candidate.uuid}' resolves child '${input.childId}' ${matchingGates.length + matchingLeaves.length} times; expected exactly once`,
+          "SY_FAULT_TREE_GRAPH_REFERENCE_INVALID",
+          {
+            modelId: candidate.uuid,
+            gateInputId: input.id,
+            childId: input.childId,
+            matchCount: matchingGates.length + matchingLeaves.length,
+          },
+        );
+      }
+
+      let replacementChildId = expandedId(candidate, input.childId);
+      let childGate: { model: SyFaultTreeModel; gateId: string; viaTransfer: boolean } | undefined;
+      const child = matchingGates[0];
+      if (child !== undefined) {
+        childGate = { model: candidate, gateId: child.id, viaTransfer: false };
+      } else {
+        const leaf = matchingLeaves[0];
+        if (leaf === undefined) continue;
+        if (leaf.kind !== "TRANSFER_REFERENCE") {
+          includeLeaf(candidate, leaf);
+        } else {
+          claimId(
+            claimedNodeIds,
+            expandedId(candidate, leaf.id),
+            { modelId: candidate.uuid, kind: leaf.kind, sourceId: leaf.id },
+            "SY_FAULT_TREE_NODE_ID_COLLISION",
+          );
+          const referencedModel = transferModel(candidate.uuid, leaf.target.modelId);
+          const referencedGate = modelGate(referencedModel, leaf.target.entityId, true);
+          replacementChildId = expandedId(referencedModel, referencedGate.id);
+          childGate = {
+            model: referencedModel,
+            gateId: referencedGate.id,
+            viaTransfer: true,
+          };
+        }
+      }
+
+      claimId(
+        claimedInputIds,
+        expandedId(candidate, input.id),
+        { modelId: candidate.uuid, kind: "GATE_INPUT", sourceId: input.id },
+        "SY_FAULT_TREE_GATE_INPUT_ID_COLLISION",
+      );
+      gateInputs.push({
+        ...input,
+        id: expandedId(candidate, input.id),
+        gateId: outputGateId,
+        childId: replacementChildId,
+      });
+      if (childGate !== undefined) {
+        expandGate(childGate.model, childGate.gateId, childGate.viaTransfer);
+      }
+    }
+
+    visitStack.pop();
+    visitState.set(key, "VISITED");
+  };
+
+  modelGate(model, model.topGate.gateId, false);
+  expandGate(model, model.topGate.gateId, false);
+
+  for (const basicEventId of referencedBasicEventIds) {
+    const nodeClaim = claimedNodeIds.get(basicEventId);
+    if (nodeClaim !== undefined && nodeClaim.kind !== "BASIC_EVENT_REFERENCE") {
+      throw new WorkbookPraxisAdapterError(
+        `SY basic event '${basicEventId}' collides with ${nodeClaim.kind.toLowerCase()} id in model '${nodeClaim.modelId}'`,
+        "SY_FAULT_TREE_NODE_ID_COLLISION",
+        { id: basicEventId, node: nodeClaim, basicEventId },
+      );
+    }
+  }
+
   const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
     if (event.probability === undefined || !Number.isFinite(event.probability)) {
       throw new WorkbookPraxisAdapterError(`SY basic event '${basicEventId}' has no finite probability`);
     }
-    return {
-      id: event.uuid,
-      code: event.uuid,
-      name: event.name,
-      description: event.description ?? "",
-      probability: { value: event.probability },
-    };
+    return systemBasicEventToFaultTreeBasicEvent(event);
   });
 
   return {
@@ -127,15 +381,14 @@ const adaptSyFaultTreeSnapshot = (
       projectId: source.workbookId,
       methodType: "FAULT_TREE",
       revision: source.workbookRevision,
-      topGate: { gateId: model.faultTree.id },
+      topGate: { ...model.topGate },
       gates,
       leafNodes,
       gateInputs,
-      nodePositions: [],
+      nodePositions,
       layout: {
-        viewport: { x: 0, y: 0, zoom: 1 },
-        mode: "AUTOMATIC",
-        direction: "TOP_TO_BOTTOM",
+        ...model.layout,
+        viewport: { ...model.layout.viewport },
       },
     },
     basicEventCatalogue: {
@@ -165,14 +418,6 @@ const orderedFunctionalEvents = (tree: EventTree): EventTree["functionalEvents"]
   Object.values(tree.functionalEvents).sort(
     (left, right) => (left.order ?? Number.MAX_SAFE_INTEGER) - (right.order ?? Number.MAX_SAFE_INTEGER),
   );
-
-const stableUuid = (value: string): string => {
-  const bytes = createHash("sha256").update(value).digest().subarray(0, 16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x50;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-};
 
 const adaptEsEventTreeSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceAnalysis>,

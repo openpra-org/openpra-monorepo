@@ -54,6 +54,7 @@ const conformanceMatrix: SRConformance[] = Object.keys(SY_SR_CATALOG).flatMap((c
 function be(uuid: string, name: string, failureMode: string, probability: number, componentReference?: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     componentReference,
@@ -67,6 +68,7 @@ function be(uuid: string, name: string, failureMode: string, probability: number
 function hfe(uuid: string, name: string, probability: number, hfeRef: string): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "HUMAN_ERROR",
@@ -80,6 +82,7 @@ function hfe(uuid: string, name: string, probability: number, hfeRef: string): S
 function tm(uuid: string, name: string, probability: number, basis: string, preOperational: boolean): SystemBasicEvent {
   return {
     uuid,
+    code: uuid,
     name,
     eventType: "BASIC",
     failureMode: "TEST_MAINTENANCE",
@@ -366,7 +369,6 @@ const FAULT_TREES: Record<string, LegacySystemFaultTreeNode> = {
       ] },
       { id: "be-DC-BAT-CCF", type: "BE", name: "Common cause failure of the station batteries", be: "DC-BAT-CCF", mode: "COMMON_CAUSE_FAILURE", source: "CCF-DC-BATT", prob: "3.0E-4", ccf: true },
       { id: "be-DC-HFE-BNK", type: "BE", name: "Both battery banks held off float after equalization", be: "DC-HFE-BNK", mode: "HUMAN_ERROR", source: "HR-PRE-041", prob: "2.0E-3" },
-      { id: "tr-DC-HVAC", type: "TR", name: "Loss of room cooling to the battery room", transfer: "SYS-HVAC" },
     ],
   },
   "SYS-CONF": {

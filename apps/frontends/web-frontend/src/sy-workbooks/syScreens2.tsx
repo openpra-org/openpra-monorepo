@@ -20,7 +20,7 @@ import { type CcScore } from "./sySelectors";
 import { useSyWorkbook } from "./syWorkbookContext";
 import { generateSyReport } from "./syDocx";
 import { type SyDrawerContext } from "./syScreens";
-import { type SystemFaultTreeNode, type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
+import { type SystemBasicEvent } from "interfaces-mef-types/sy/systems-analysis";
 import { systemFaultTreeBasicEventIds, systemLogicModelBasicEvents } from "interfaces-mef-types/sy/system-models";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
 
@@ -316,15 +316,10 @@ function IntegrityScreen({ stage, openDrawer }: { stage: string; openDrawer: (ct
     const of = events.filter((e) => e.failureMode === mode);
     return { mode, label: FAILURE_MODE_LABELS[mode] ?? mode, count: of.length, example: of[0]?.uuid ?? "" };
   });
-  const gates: string[] = [];
-  const transfers: string[] = [];
-  const walk = (node: SystemFaultTreeNode): void => {
-    if (node.type === "BE") return;
-    if (node.type === "TR") { transfers.push(node.id); return; }
-    gates.push(node.id);
-    node.children.forEach(walk);
-  };
-  sy.systemLogicModels.forEach((m) => { if (m.faultTree !== undefined) walk(m.faultTree); });
+  const gates = sy.systemLogicModels.flatMap((model) => model.gates.map(({ id }) => id));
+  const transfers = sy.systemLogicModels.flatMap((model) =>
+    model.leafNodes.flatMap((leaf) => leaf.kind === "TRANSFER_REFERENCE" ? [leaf.id] : []),
+  );
   const otherRows = [
     { label: "Logic gate", count: gates.length, example: gates[0] ?? "" },
     { label: "Transfer gate", count: transfers.length, example: transfers[0] ?? "" },
@@ -1576,7 +1571,7 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
   if (context.kind === "be") {
     const be: SystemBasicEvent | undefined = sy.systemBasicEvents.find((event) => event.uuid === context.id);
     if (be === undefined) return null;
-    const ownerRef = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model.faultTree).includes(be.uuid))?.systemReference;
+    const ownerRef = sy.systemLogicModels.find((model) => systemFaultTreeBasicEventIds(model).includes(be.uuid))?.systemReference;
     const beId = be.uuid;
     const patch = (beFields: Partial<SystemBasicEvent>): void => {
       if (!editable) return;

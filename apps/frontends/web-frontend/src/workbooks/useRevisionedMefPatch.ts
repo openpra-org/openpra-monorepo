@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface RevisionedWorkbookResponse<TMef> {
   revision: number;
@@ -6,10 +6,16 @@ interface RevisionedWorkbookResponse<TMef> {
 }
 
 type MefMutator<TMef> = (draft: TMef) => TMef;
+type RevisionedSaveStatus = "saving" | "saved" | "failed";
+
+interface SaveBatch {
+  pending: number;
+  failed: boolean;
+}
 
 interface RevisionedMefPatcher<TMef> {
   patch: (mutator: MefMutator<TMef>) => Promise<void>;
-  patchDebounced: (mutator: MefMutator<TMef>) => void;
+  saveStatus: RevisionedSaveStatus;
 }
 
 function useRevisionedMefPatch<TMef, TResponse extends RevisionedWorkbookResponse<TMef>>(
@@ -27,16 +33,22 @@ function useRevisionedMefPatch<TMef, TResponse extends RevisionedWorkbookRespons
   onError: (message: string) => void,
   onResync: (latest: TResponse) => void,
 ): RevisionedMefPatcher<TMef> {
+  const [saveStatus, setSaveStatus] = useState<RevisionedSaveStatus>("saved");
   const revisionRef = useRef(currentRevision);
   const queueRef = useRef<Promise<void>>(Promise.resolve());
   const generationRef = useRef(0);
   const workbookIdRef = useRef(workbookId);
+  const batchRef = useRef<SaveBatch>({ pending: 0, failed: false });
+  const authoritativeReloadRequiredRef = useRef(false);
 
   useEffect(() => {
     if (workbookIdRef.current !== workbookId) {
       workbookIdRef.current = workbookId;
       generationRef.current += 1;
       queueRef.current = Promise.resolve();
+      batchRef.current = { pending: 0, failed: false };
+      authoritativeReloadRequiredRef.current = false;
+      setSaveStatus("saved");
     }
     revisionRef.current = currentRevision;
   }, [workbookId, currentRevision]);
@@ -47,38 +59,80 @@ function useRevisionedMefPatch<TMef, TResponse extends RevisionedWorkbookRespons
       const before = current;
       const next = mutator(current);
       const generation = generationRef.current;
+      let batch = batchRef.current;
+      if (batch.pending === 0) {
+        batch = { pending: 0, failed: false };
+        batchRef.current = batch;
+      }
+      batch.pending += 1;
+      if (!batch.failed) setSaveStatus("saving");
 
       const execute = async (): Promise<void> => {
-        if (generation !== generationRef.current) return;
-        const expectedRevision = revisionRef.current;
-        if (expectedRevision === null) return;
         try {
-          const updated = await patchWorkbook(workbookId, expectedRevision, before, next);
           if (generation !== generationRef.current) return;
-          revisionRef.current = updated.revision;
-          onSuccess(updated.revision);
-        } catch (error: unknown) {
-          if (generation !== generationRef.current) return;
-          const recoveryGeneration = generationRef.current + 1;
-          generationRef.current = recoveryGeneration;
-          onError((error as { message?: string }).message ?? "Save failed");
-          try {
-            const latest = await getWorkbook(workbookId);
-            if (
-              generationRef.current !== recoveryGeneration ||
-              workbookIdRef.current !== workbookId
-            ) {
+          const expectedRevision = revisionRef.current;
+          if (expectedRevision === null) return;
+          if (authoritativeReloadRequiredRef.current) {
+            try {
+              const latest = await getWorkbook(workbookId);
+              if (generation !== generationRef.current || workbookIdRef.current !== workbookId) return;
+              revisionRef.current = latest.revision;
+              authoritativeReloadRequiredRef.current = false;
+              generationRef.current += 1;
+              batch.failed = true;
+              if (batchRef.current === batch) setSaveStatus("failed");
+              onResync(latest);
+              onError("Workbook reloaded after a save failure. Reapply your changes.");
+              return;
+            } catch (error: unknown) {
+              if (generation !== generationRef.current) return;
+              batch.failed = true;
+              authoritativeReloadRequiredRef.current = true;
+              generationRef.current += 1;
+              if (batchRef.current === batch) setSaveStatus("failed");
+              onError((error as { message?: string }).message ?? "Save failed");
               return;
             }
-            revisionRef.current = latest.revision;
-            onResync(latest);
-          } catch {
-            // Keep the original save error visible when the resync request also fails.
-          } finally {
-            if (generationRef.current === recoveryGeneration) {
-              // Drop edits made against optimistic state while the authoritative reload was in flight.
-              generationRef.current += 1;
+          }
+          try {
+            const updated = await patchWorkbook(workbookId, expectedRevision, before, next);
+            if (generation !== generationRef.current) return;
+            revisionRef.current = updated.revision;
+            authoritativeReloadRequiredRef.current = false;
+            onSuccess(updated.revision);
+          } catch (error: unknown) {
+            if (generation !== generationRef.current) return;
+            batch.failed = true;
+            if (batchRef.current === batch) setSaveStatus("failed");
+            const recoveryGeneration = generationRef.current + 1;
+            generationRef.current = recoveryGeneration;
+            onError((error as { message?: string }).message ?? "Save failed");
+            try {
+              const latest = await getWorkbook(workbookId);
+              if (
+                generationRef.current !== recoveryGeneration ||
+                workbookIdRef.current !== workbookId
+              ) {
+                return;
+              }
+              revisionRef.current = latest.revision;
+              authoritativeReloadRequiredRef.current = false;
+              onResync(latest);
+            } catch {
+              authoritativeReloadRequiredRef.current = true;
+              // Keep the original save error visible when the resync request also fails.
+            } finally {
+              if (generationRef.current === recoveryGeneration) {
+                // Drop edits made against optimistic state while the authoritative reload was in flight.
+                generationRef.current += 1;
+              }
             }
+          }
+        } finally {
+          batch.pending = Math.max(0, batch.pending - 1);
+          if (batchRef.current === batch) {
+            if (batch.failed) setSaveStatus("failed");
+            else if (batch.pending === 0) setSaveStatus("saved");
           }
         }
       };
@@ -99,19 +153,13 @@ function useRevisionedMefPatch<TMef, TResponse extends RevisionedWorkbookRespons
     ],
   );
 
-  const patchDebounced = useCallback(
-    (mutator: MefMutator<TMef>): void => {
-      void patch(mutator);
-    },
-    [patch],
-  );
-
-  return { patch, patchDebounced };
+  return { patch, saveStatus };
 }
 
 export {
   useRevisionedMefPatch,
   type MefMutator,
   type RevisionedMefPatcher,
+  type RevisionedSaveStatus,
   type RevisionedWorkbookResponse,
 };

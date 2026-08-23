@@ -39,6 +39,42 @@ function cloneJsonValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((value, index) => jsonValuesEqual(value, right[index]));
+  }
+  if (isRecord(left) && isRecord(right)) {
+    const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
+    const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
+    return (
+      leftKeys.length === rightKeys.length &&
+      leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && jsonValuesEqual(left[key], right[key]))
+    );
+  }
+  return false;
+}
+
+function singleArrayRemovalIndex(before: unknown[], after: unknown[]): number | null {
+  if (before.length !== after.length + 1) return null;
+  let index = 0;
+  while (index < after.length && jsonValuesEqual(before[index], after[index])) index += 1;
+  for (let afterIndex = index; afterIndex < after.length; afterIndex += 1) {
+    if (!jsonValuesEqual(before[afterIndex + 1], after[afterIndex])) return null;
+  }
+  return index;
+}
+
+function singleArrayInsertionIndex(before: unknown[], after: unknown[]): number | null {
+  if (after.length !== before.length + 1) return null;
+  let index = 0;
+  while (index < before.length && jsonValuesEqual(before[index], after[index])) index += 1;
+  for (let beforeIndex = index; beforeIndex < before.length; beforeIndex += 1) {
+    if (!jsonValuesEqual(before[beforeIndex], after[beforeIndex + 1])) return null;
+  }
+  return index;
+}
+
 function createWorkbookPatch<T>(current: T, next: T): WorkbookPatchOperation[] {
   const operations: WorkbookPatchOperation[] = [];
 
@@ -46,6 +82,16 @@ function createWorkbookPatch<T>(current: T, next: T): WorkbookPatchOperation[] {
     if (Object.is(before, after)) return;
 
     if (Array.isArray(before) && Array.isArray(after)) {
+      const removalIndex = singleArrayRemovalIndex(before, after);
+      if (removalIndex !== null) {
+        operations.push({ op: "remove", path: [...path, removalIndex] });
+        return;
+      }
+      const insertionIndex = singleArrayInsertionIndex(before, after);
+      if (insertionIndex !== null) {
+        operations.push({ op: "add", path: [...path, insertionIndex], value: cloneJsonValue(after[insertionIndex]) });
+        return;
+      }
       const sharedLength = Math.min(before.length, after.length);
       for (let index = 0; index < sharedLength; index += 1) visit(before[index], after[index], [...path, index]);
       for (let index = before.length - 1; index >= after.length; index -= 1) operations.push({ op: "remove", path: [...path, index] });

@@ -39,6 +39,7 @@ function mockLinkedBundles(variant: "htgr" | "sfr"): void {
         { uuid: "BE-03", name: "Power failure" },
       ],
       systemLogicModels: [{
+        uuid: "FT-01",
         systemReference: "SYS-01",
         faultTree: {
           id: "GATE-01",

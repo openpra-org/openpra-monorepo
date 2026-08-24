@@ -25,7 +25,7 @@ describe("ES MEF builders", () => {
   });
 
   it("seeds event trees, sequences, and families", () => {
-    expect((ES_ANALYSIS.eventTrees ?? []).length).toBe(54);
+    expect((ES_ANALYSIS.eventTrees ?? []).length).toBe(55);
     expect(ES_ANALYSIS.eventSequences.length).toBe(323);
     expect(ES_ANALYSIS.eventSequenceFamilies.length).toBe(5);
   });
@@ -36,7 +36,7 @@ describe("ES MEF builders", () => {
   });
 
   it("seeds the HTGR example with full IE and POS coverage", () => {
-    expect((ES_ANALYSIS_HTGR.eventTrees ?? []).length).toBe(96);
+    expect((ES_ANALYSIS_HTGR.eventTrees ?? []).length).toBe(97);
     expect(ES_ANALYSIS_HTGR.eventSequences.length).toBe(620);
     expect(ES_ANALYSIS_HTGR.eventSequenceFamilies.length).toBe(5);
     expect(ES_ANALYSIS_HTGR.scopeDefinition.initiatingEventIds).toHaveLength(21);

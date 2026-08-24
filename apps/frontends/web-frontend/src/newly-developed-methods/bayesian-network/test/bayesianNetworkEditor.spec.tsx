@@ -360,6 +360,27 @@ describe("BayesianNetworkEditor", () => {
     expect(workspace?.getBoundingClientRect().height).toBe(heightBefore);
   });
 
+  it("does not automatically enlarge the network beyond its saved zoom", () => {
+    jest.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(900);
+    jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
+
+    render(<Harness />);
+
+    expect(screen.getByLabelText("Zoom level")).toHaveTextContent("100%");
+  });
+
+  it("allows deliberate zooming beyond the automatic fit scale", async () => {
+    const user = userEvent.setup();
+    jest.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(300);
+    jest.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(500);
+
+    render(<Harness />);
+    expect(screen.getByLabelText("Zoom level")).toHaveTextContent("52%");
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    expect(screen.getByLabelText("Zoom level")).toHaveTextContent("62%");
+  });
+
   it("identifies an invalid row and normalizes it only on request", async () => {
     const user = userEvent.setup();
     const initial = testBayesianNetworkModel();
@@ -391,6 +412,14 @@ describe("BayesianNetworkEditor", () => {
     render(<Harness />);
 
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    expect(screen.getByRole("button", { name: "Add binding" })).toHaveClass(
+      "posnav__btn",
+      "posnav__btn--sm",
+      "posnav__btn--primary",
+      "hcleditor__add-binding",
+    );
+    expect(screen.getByRole("button", { name: "Delete configuration" })).toHaveClass("hcleditor__aligned-action");
+    expect(screen.getByRole("button", { name: "Run HCL quantification" })).toHaveClass("hcleditor__aligned-action");
     await user.click(screen.getByRole("checkbox", { name: "FALSE" }));
     await user.click(screen.getByRole("checkbox", { name: "TRUE" }));
     await user.click(screen.getByRole("button", { name: "Add binding" }));

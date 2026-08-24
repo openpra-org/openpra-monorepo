@@ -306,7 +306,18 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
       <div className={`et-editor__workspace${selectedEvent !== undefined || selectedSequence !== undefined ? " et-editor__workspace--inspecting" : ""}`}>
         <div className="et-editor__main">
           {events.length === 0 ? (
-            <div className="et-editor__empty">Add the first functional event to generate complete success and failure paths.</div>
+            <div className="et-editor__empty">
+              <span>Add the first functional event to generate complete success and failure paths.</span>
+              {capabilities.author && (
+                <button
+                  type="button"
+                  className="posnav__btn posnav__btn--sm posnav__btn--primary"
+                  onClick={() => addFunctionalEvent()}
+                >
+                  Add functional event
+                </button>
+              )}
+            </div>
           ) : (
             <div className="estree" onMouseDown={(event) => {
               if (event.button !== 0) return;

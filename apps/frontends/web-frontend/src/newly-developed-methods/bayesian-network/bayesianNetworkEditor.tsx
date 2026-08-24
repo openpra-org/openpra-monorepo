@@ -176,6 +176,8 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     onRun,
   } = props;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
+  const [displayZoom, setDisplayZoom] = useState(() => clampZoom(model.layout.viewport.zoom));
+  const persistedZoomRef = useRef(clampZoom(model.layout.viewport.zoom));
   const [connectionDrag, setConnectionDrag] = useState<ConnectionDragState | null>(null);
   const [edgeContextMenu, setEdgeContextMenu] = useState<EdgeContextMenuState | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
@@ -202,7 +204,13 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     setConnectionDrag(null);
     setEdgeContextMenu(null);
     setSelectedNodeId(model.nodes[0]?.id ?? null);
+    setDisplayZoom(clampZoom(model.layout.viewport.zoom));
   }, [model.modelId, model.nodes]);
+  useEffect(() => {
+    const persistedZoom = clampZoom(model.layout.viewport.zoom);
+    persistedZoomRef.current = persistedZoom;
+    setDisplayZoom(persistedZoom);
+  }, [model.layout.viewport.zoom]);
   useEffect(() => {
     if (selectedNodeId !== null && model.nodes.some((node) => node.id === selectedNodeId)) return;
     setSelectedNodeId(model.nodes[0]?.id ?? null);
@@ -320,7 +328,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     const stage = stageContentRef.current;
     if (stage === null) return null;
     const bounds = stage.getBoundingClientRect();
-    const activeZoom = clampZoom(model.layout.viewport.zoom);
+    const activeZoom = displayZoom;
     return {
       x: (clientX - bounds.left) / activeZoom,
       y: (clientY - bounds.top) / activeZoom,
@@ -507,7 +515,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
   function moveDrag(event: ReactPointerEvent<HTMLButtonElement>): void {
     if (drag === null || drag.pointerId !== event.pointerId) return;
-    const activeZoom = clampZoom(model.layout.viewport.zoom);
+    const activeZoom = displayZoom;
     setDrag({
       ...drag,
       x: Math.max(8, drag.originX + (event.clientX - drag.startX) / activeZoom),
@@ -533,6 +541,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
   function setZoom(zoom: number): void {
     const nextZoom = clampZoom(zoom);
+    setDisplayZoom(nextZoom);
     if (nextZoom === model.layout.viewport.zoom) return;
     commit({
       ...model,
@@ -570,15 +579,35 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       : positionById.get(node.id) ?? { x: 40 + (index % 3) * 230, y: 40 + Math.floor(index / 3) * 140 };
     return [node.id, position] as const;
   }));
-  const graphWidth = Math.max(720, ...[...graphPositions.values()].map(({ x }) => x + NODE_WIDTH + 30));
-  const graphHeight = Math.max(400, ...[...graphPositions.values()].map(({ y }) => y + NODE_HEIGHT + 30));
-  const zoom = clampZoom(model.layout.viewport.zoom);
+  const graphWidth = Math.max(520, ...[...graphPositions.values()].map(({ x }) => x + NODE_WIDTH + 30));
+  const graphHeight = Math.max(320, ...[...graphPositions.values()].map(({ y }) => y + NODE_HEIGHT + 30));
+  const zoom = displayZoom;
   const orderedParents = selectedTable === undefined
     ? []
     : [...selectedTable.parents].sort((left, right) => left.order - right.order);
   const contextEdge = model.edges.find((edge) => edge.id === edgeContextMenu?.edgeId);
   const hclIssues = validation.filter((issue) => issue.code.startsWith("BN_HCL_"));
   const nonHclIssues = validation.filter((issue) => !issue.code.startsWith("BN_HCL_"));
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (viewport === null || model.nodes.length === 0) return undefined;
+    const fit = (): void => {
+      if (viewport.clientWidth === 0 || viewport.clientHeight === 0) return;
+      setDisplayZoom(clampZoom(Math.min(
+        persistedZoomRef.current,
+        (viewport.clientWidth - 32) / graphWidth,
+        (viewport.clientHeight - 32) / graphHeight,
+      )));
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = 0;
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(fit);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [graphHeight, graphWidth, model.modelId, model.nodes.length, selectedNode !== undefined]);
 
   return (
     <div className="bneditor" data-testid="bayesian-network-editor">

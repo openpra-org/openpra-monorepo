@@ -355,6 +355,7 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
     let pdag = Pdag::from_fault_tree(&adapter.fault_tree)?;
     let mut mocus = NonCoherentMocus::new(&pdag, &adapter.fault_tree)?;
     let cut_sets = mocus.analyze_primes();
+    let top_event_probability = analysis.top_event_probability;
 
     let mut leading_cut_sets: Vec<Value> = cut_sets
         .iter()
@@ -375,11 +376,17 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
                     .as_str()
                     .cmp(&right["basicEventId"].as_str())
             });
-            json!({
+            let probability = mocus.cut_set_probability(cut_set);
+            let mut result = json!({
                 "order": cut_set.order(),
-                "probability": mocus.cut_set_probability(cut_set),
+                "probability": probability,
                 "events": events
-            })
+            });
+            if top_event_probability > 0.0 {
+                result["contribution"] =
+                    json!((probability / top_event_probability).clamp(0.0, 1.0));
+            }
+            result
         })
         .collect();
     leading_cut_sets.sort_by(|left, right| {
@@ -398,7 +405,7 @@ pub(crate) fn execute(request: &SolverRequest) -> Result<Value> {
         "modelId": adapter.model_id,
         "modelRevision": adapter.model_revision,
         "topGateId": adapter.top_gate_id,
-        "topEventProbability": analysis.top_event_probability,
+        "topEventProbability": top_event_probability,
         "minimalCutSetCount": leading_cut_sets.len(),
         "leadingCutSets": leading_cut_sets,
         "validationIssues": []
@@ -516,6 +523,10 @@ mod tests {
         assert!((or["topEventProbability"].as_f64().unwrap() - 0.28).abs() < 1e-12);
         assert_eq!(or["minimalCutSetCount"], 2);
         assert_eq!(or["leadingCutSets"][0]["probability"], 0.2);
+        assert!(
+            (or["leadingCutSets"][0]["contribution"].as_f64().unwrap() - (0.2 / 0.28)).abs()
+                < 1e-12
+        );
     }
 
     #[test]

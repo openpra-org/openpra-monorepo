@@ -148,7 +148,6 @@ const analysisResult: FaultTreeAnalysisResult = {
       rank: 1,
       order: 1,
       probability: 0.02,
-      contribution: 1,
       events: [{ basicEventId: BASIC_EVENT_ID, complemented: false }],
     },
   ],
@@ -593,12 +592,16 @@ describe("FaultTreeEditor", () => {
     expect(within(menu).getByRole("menuitem", { name: "Delete node" })).toBeInTheDocument();
   });
 
-  it("keeps the same canvas element when the inspector opens", () => {
+  it("keeps the same canvas element and refits its contents when the inspector opens", () => {
     const rendered = render(<FaultTreeEditor {...editorProps()} />);
     const workspace = rendered.container.querySelector(".fteditor__workspace");
-    const viewport = rendered.container.querySelector(".fteditor__viewport");
+    const viewport = rendered.container.querySelector<HTMLElement>(".fteditor__viewport")!;
     const stage = rendered.container.querySelector<HTMLElement>(".fteditor__stage")!;
     const transform = stage.style.transform;
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 960 },
+      clientHeight: { configurable: true, value: 680 },
+    });
 
     rendered.rerender(
       <FaultTreeEditor
@@ -610,7 +613,8 @@ describe("FaultTreeEditor", () => {
     expect(rendered.container.querySelector(".fteditor__viewport")).toBe(viewport);
     expect(workspace).toHaveClass("fteditor__workspace--inspecting");
     expect(screen.getByLabelText("Selected fault-tree node inspector")).toBeInTheDocument();
-    expect(stage.style.transform).toBe(transform);
+    expect(stage.style.transform).not.toBe(transform);
+    expect(screen.getByLabelText("Zoom level")).not.toHaveTextContent("100%");
   });
 
   it("uses icon-only document and canvas controls with accessible names", () => {
@@ -753,12 +757,13 @@ describe("FaultTreeEditor", () => {
     render(<FaultTreeEditor {...editorProps({ analysisResult })} />);
 
     const results = screen.getByLabelText("Fault-tree analysis results");
-    expect(within(results).getByText(/Exact top-event probability:/)).toHaveTextContent(
-      "Exact top-event probability: 2.00e-2. Minimal cut sets: 1.",
-    );
+    const probabilityMetric = within(results).getByText("Exact top-event probability").parentElement!;
+    expect(within(probabilityMetric).getByLabelText("2.00 times 10 to the power of −2")).toBeInTheDocument();
+    expect(within(results).getByText("Minimal cut sets").parentElement).toHaveTextContent("1");
     const table = within(results).getByRole("table");
-    expect(within(table).getByText(BASIC_EVENT_ID)).toBeInTheDocument();
-    expect(within(table).getByText("1.00e+0")).toBeInTheDocument();
+    expect(within(table).getByText("BE-PUMP")).toHaveAttribute("title", "Shared pump failure");
+    expect(within(table).queryByText(BASIC_EVENT_ID)).not.toBeInTheDocument();
+    expect(within(table).getByText("100%")).toBeInTheDocument();
     expect(within(results).queryByText(/stale/i)).not.toBeInTheDocument();
   });
 

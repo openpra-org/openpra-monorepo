@@ -851,7 +851,8 @@
   .bneditor__inspector {
     width: auto;
     max-width: none;
-    max-height: 420px;
+    max-height: none;
+    overflow-y: visible;
     border-top: 1px solid var(--color-border);
     border-left: 0;
   }

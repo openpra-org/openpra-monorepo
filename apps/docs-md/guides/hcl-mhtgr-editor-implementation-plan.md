@@ -714,7 +714,7 @@ The one canonical FT implementation lives under `newly-developed-methods/fault-t
 - [x] Present one **Add basic event** action that opens a second-level chooser for either creating a new event or searching and selecting an existing event, without “shared” labels or duplicate creation commands.
 - [x] Move node deletion into the node context menu and preserve existing-parent reparent/disconnect controls without an add-or-choose-another-parent action.
 - [x] Remove the persistent authoring palette, idle selection prompt, and bottom legend while retaining compact zoom, fit, and automatic-layout canvas controls.
-- [x] Prove fixed viewport dimensions, unobscured transfer selection, full-tree fitting, visible connectors, node-menu containment, wheel panning, and wide/narrow layouts in canonical unit and Docker-backed Chromium coverage.
+- [x] Prove fixed viewport dimensions, unobscured transfer selection, full-tree fitting, visible connectors, node-menu containment, ordinary wheel pass-through, click-drag panning, pinch zooming, and wide/narrow layouts in canonical unit and Docker-backed Chromium coverage.
 
 ### FT completion gate
 
@@ -868,18 +868,21 @@ Phases 5–7 established one canonical implementation and a verified vertical sl
 
 ### Cross-editor acceptance
 
-- [ ] Audit the FT, BN, and ET editors in the Docker-backed application with representative saved models, results, read-only views, and wide and narrow viewports; record every reproducible functional and visual discrepancy.
-- [ ] Make editor structure and control placement coherent: file actions, primary actions, canvas navigation, contextual authoring, inspectors, and results must appear in predictable locations appropriate to their function.
-- [ ] Keep each editor workspace stable and usable without horizontal page or sidebar scrolling, clipped models, hidden controls, overlapping overlays, or content disappearing when selection changes.
-- [ ] Verify mouse and touchpad selection, dragging, panning, zooming, fitting, connection creation or editing where applicable, context menus, keyboard access, and responsive behavior.
-- [ ] Verify create/edit, save/reload, undo/redo, validation, analysis, stale-result, failure, and read-only workflows without placeholder controls or unexplained status messages.
+- [x] Audit the FT, BN, and ET editors in the Docker-backed application with representative saved models, results, read-only views, and wide and narrow viewports; record every reproducible functional and visual discrepancy.
+- [x] Make editor structure and control placement coherent: file actions, primary actions, canvas navigation, contextual authoring, inspectors, and results must appear in predictable locations appropriate to their function.
+- [x] Keep each editor workspace stable and usable without horizontal page or sidebar scrolling, clipped models, hidden controls, overlapping overlays, or content disappearing when selection changes.
+- [x] Verify mouse and touchpad selection, dragging, panning, zooming, fitting, connection creation or editing where applicable, context menus, keyboard access, and responsive behavior.
+- [x] Verify create/edit, save/reload, undo/redo, validation, analysis, stale-result, failure, and read-only workflows without placeholder controls or unexplained status messages.
 
 ### Editor-specific acceptance
 
-- [ ] Reproduce and resolve every remaining fault-tree editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
-- [ ] Reproduce and resolve every remaining Bayesian-network editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
-- [ ] Reproduce and resolve every remaining event-tree editor issue, add focused regression coverage, and receive manual visual and interaction acceptance.
-- [ ] Run the complete frontend, backend, shared-interface, typecheck, lint, build, and Docker-backed Playwright gates after all three editors are corrected.
+- [x] Reproduce and resolve every remaining fault-tree editor issue and add focused regression coverage.
+- [ ] Receive manual visual and interaction acceptance for the fault-tree editor.
+- [x] Reproduce and resolve every remaining Bayesian-network editor issue and add focused regression coverage.
+- [ ] Receive manual visual and interaction acceptance for the Bayesian-network editor.
+- [x] Reproduce and resolve every remaining event-tree editor issue and add focused regression coverage.
+- [ ] Receive manual visual and interaction acceptance for the event-tree editor.
+- [x] Run the complete frontend, backend, shared-interface, typecheck, lint, build, and Docker-backed Playwright gates after all three editors are corrected.
 - [ ] Obtain final acceptance for all three editors before checking or implementing any remaining Phase 8 workbook-connection TODO.
 
 ## Phase 8 — Workbook connections
@@ -919,7 +922,7 @@ Keep editor implementations reusable under `newly-developed-methods`, but keep m
 - [x] Run HCL equivalence tests.
 - [x] Run ET complement and transfer tests.
 - [x] Run combined FT–BN–ET tests.
-- [ ] Run all Playwright create, edit, reload, validate, run, and link workflows.
+- [x] Run all Playwright create, edit, reload, validate, run, and link workflows.
 
 ## Future work — MHTGR SAPHIRE import
 
@@ -950,9 +953,10 @@ The following items are explicitly excluded from the initial implementation:
 
 | Date | TODO | Verification | Result |
 | --- | --- | --- | --- |
+| 2026-08-24 | Complete the combined FT, BN, and ET technical acceptance gate | Audited saved, result-bearing, read-only, wide, and narrow editor states in the Docker-backed application. Restored empty-tree ET authoring, made FT inspection refit without a persistence mutation, made BN inspection fit the graph without clipping or enlarging beyond its saved zoom, removed narrow inspector overflow, standardized the HCL binding, run, delete, and result presentation, and refreshed browser coverage for current link and touchpad behavior. Frontend, backend, and shared-interface suites passed 612, 398, and 653 tests; focused FT/ET and BN suites passed 44 and 18 tests; five typechecks, four lints, two production builds, and all six Docker-backed Chromium workflows passed | Passed |
 | 2026-08-24 | Complete the functional BN/HCL editor and quantifiable examples | Extracted the HCL authoring and execution UI into its canonical method folder; persisted evidence in HCL configurations; added explicit FT inclusion, typed BN-state/basic-event bindings, FT and ET execution controls, and result displays; connected ESQ to project SY/ES models and the workbook-owned run APIs; and seeded both reactor examples with complete dependency BNs, HCL bindings reconciled to their actual SY identities, and a compact linked ET. Frontend/backend/E2E typechecks and lints passed; 16 focused editor tests, 4 seed/reference tests, 27 BN frontend tests, 225 BN/HCL contract tests, and 7 workbook-run tests passed. Docker-backed Chromium passed both the create/edit/save/reload/inference/link/HCL-FT workflow and a shipped-example API flow that executed its BN, HCL FT, and HCL ET | Passed |
 | 2026-08-23 | Reconcile completed editor hosts and pause Phase 8 behind final editor acceptance | Repository inspection confirmed that SY and IE import the sole canonical FT editor, ES and ESQ import the sole canonical ET editor, and ESQ Step 05 hosts the canonical BN editor with its current HCL binding workflow. Split those completed presentation migrations from the still-open typed-reference and dedicated HCL-component work. Added an explicit Docker-backed functional, visual, regression, and manual-acceptance gate for FT, BN, and ET before any remaining Phase 8 TODO may begin. The focused architecture, host, and editor suite passed 7 suites/30 tests; Prettier and `git diff --check` passed | Passed |
-| 2026-08-22 | Complete the Phase 5 fixed-canvas and node-local interaction follow-up | Replaced palette authoring with child creation on every logic-gate menu while keeping leaf menus free of authoring commands; unified event attachment behind one **Add basic event** action with a searchable existing-event chooser and a create-new path; moved deletion into node menus; removed the legend and additional-parent action; made ordinary touchpad/wheel input pan while pinch zooms; overlaid one inspector without resizing the 480 px workspace; and automatically refit content on load/resize/topology/inspector changes. Frontend Jest passed 91 suites/549 tests, both frontend and E2E typechecks passed, both persistent Chromium scenarios passed, generated wide/narrow/HTGR images were reviewed, and `git diff --check` passed | Passed |
+| 2026-08-22 | Complete the Phase 5 fixed-canvas and node-local interaction follow-up | Replaced palette authoring with child creation on every logic-gate menu while keeping leaf menus free of authoring commands; unified event attachment behind one **Add basic event** action with a searchable existing-event chooser and a create-new path; moved deletion into node menus; removed the legend and additional-parent action; made ordinary touchpad/wheel input pass through to the workbook while click-drag pans and pinch zooms; overlaid one inspector without resizing the 480 px workspace; and automatically refit content on load/resize/topology/inspector changes. Frontend Jest passed 91 suites/549 tests, both frontend and E2E typechecks passed, both persistent Chromium scenarios passed, generated wide/narrow/HTGR images were reviewed, and `git diff --check` passed | Passed |
 | 2026-08-22 | Complete Phase 5 fault-tree UX and API remediation | Consolidated editor controls and inspection, restored full-size visible connectors, reconciled SFR topology and non-detailed models, added workbook-owned server validation and correct failure/staleness/permission handling, and expanded canonical unit and persistent SFR/HTGR browser coverage. Complete frontend, backend, shared, Playwright, Rust, native-addon, typecheck, lint, build, format, and diff gates passed | Passed |
 | 2026-08-20 | Fetch latest `origin/main` | `git fetch origin main`; branch base resolved to `f6afbce0` (`docs: refine branding and disclosures (#166)`) | Passed |
 | 2026-08-20 | Create feature branch | `git worktree add -b hcl_implementation_mhtgr_model_import ... origin/main`; branch tracks `origin/main` | Passed |

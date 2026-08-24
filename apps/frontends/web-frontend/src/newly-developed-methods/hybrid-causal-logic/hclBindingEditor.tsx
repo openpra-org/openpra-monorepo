@@ -257,7 +257,7 @@ function HclBindingEditor({
           <div className="hcleditor__identity">
             <label><span>Code</span><input value={configuration.code} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, code: event.target.value })} /></label>
             <label><span>Name</span><input value={configuration.name} disabled={!editable} onChange={(event) => replaceConfiguration({ ...configuration, name: event.target.value })} /></label>
-            {editable && <button type="button" className="posnav__btn posnav__btn--sm" onClick={deleteConfiguration}><HclIcon name="trash" />Delete configuration</button>}
+            {editable && <button type="button" className="posnav__btn posnav__btn--sm hcleditor__aligned-action" onClick={deleteConfiguration}><HclIcon name="trash" />Delete configuration</button>}
           </div>
           <div className="hcleditor__trees" aria-label="Included HCL fault trees">
             <strong>Included fault trees</strong>
@@ -303,7 +303,7 @@ function HclBindingEditor({
                   </label>
                 ))}
               </fieldset>
-              <button type="button" className="bneditor__btn bneditor__btn--primary" onClick={addBinding}>Add binding</button>
+              <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__add-binding" onClick={addBinding}>Add binding</button>
             </div>
           )}
           <div className="bneditor__binding-list">
@@ -349,14 +349,14 @@ function HclBindingEditor({
                 </select>
               </label>
             )}
-            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || validation.some((issue) => issue.severity === "ERROR")} onClick={run}>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary hcleditor__aligned-action" disabled={running || validation.some((issue) => issue.severity === "ERROR")} onClick={run}>
               <HclIcon name="run" />{running ? "Running…" : "Run HCL quantification"}
             </button>
           </div>
           {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
           {runResult?.kind === "FAULT_TREE" && (
-            <div className="hcleditor__result" aria-label="HCL fault-tree result">
-              <strong>Top-event probability</strong><output>{runResult.result.probability.toExponential(6)}</output>
+            <div className="hcleditor__result hcleditor__result--fault-tree" aria-label="HCL fault-tree result">
+              <strong>Top event probability</strong><output>{runResult.result.probability.toExponential(6)}</output>
             </div>
           )}
           {runResult?.kind === "EVENT_TREE" && (

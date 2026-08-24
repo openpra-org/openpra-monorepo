@@ -81,6 +81,7 @@ interface FaultTreeAnalysisResult {
     rank: number;
     order: number;
     probability: number;
+    contribution: number;
     events: Array<{ basicEventId: string; complemented: boolean }>;
   }>;
 }
@@ -103,7 +104,7 @@ let linkedFunctionalEventId = "";
 let targetModelId = "";
 let targetGateId = "";
 let sharedBasicEventId = "";
-let expectedCutSets: Array<{ basicEventId: string; probability: number }> = [];
+let expectedCutSets: Array<{ basicEventId: string; code: string; probability: number }> = [];
 
 async function json<T>(response: JsonResponse, action: string): Promise<T> {
   const body = await response.text();
@@ -189,13 +190,13 @@ test.beforeAll(async () => {
 
   const eventById = new Map(loaded.mef.systemBasicEvents.map((event) => [event.uuid, event]));
   expectedCutSets = [
-    { basicEventId: sharedBasicEventId, probability: sharedEvent!.probability! },
+    { basicEventId: sharedBasicEventId, code: sharedEvent!.code, probability: sharedEvent!.probability! },
     ...targetModel!.leafNodes.flatMap((leaf) => {
       if (leaf.kind !== "BASIC_EVENT_REFERENCE") return [];
       expect(leaf.basicEventId).toBeDefined();
       const event = eventById.get(leaf.basicEventId!);
       expect(event?.probability, `Target event ${leaf.basicEventId!} must have a probability`).toBeDefined();
-      return [{ basicEventId: leaf.basicEventId!, probability: event!.probability! }];
+      return [{ basicEventId: leaf.basicEventId!, code: event!.code, probability: event!.probability! }];
     }),
   ].sort((left, right) =>
     right.probability - left.probability
@@ -365,7 +366,7 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
   await editor.locator(".fteditor__viewport").dispatchEvent("wheel", { deltaX: 0, deltaY: 60 });
   await expect(editor.getByLabel("Zoom level")).toHaveText(zoomBeforePan!);
   const transformAfterPan = await editor.locator(".fteditor__stage").evaluate((stage) => getComputedStyle(stage).transform);
-  expect(transformAfterPan).not.toBe(transformBeforePan);
+  expect(transformAfterPan).toBe(transformBeforePan);
   await waitForWorkbookSave(page, async () => {
     await editor.getByRole("button", { name: "Fit" }).click();
   });
@@ -373,6 +374,13 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
   await editor.locator(".ftsvg").screenshot({ path: testInfo.outputPath("fault-tree-svg.png") });
 
   await page.setViewportSize({ width: 760, height: 900 });
+  await page.waitForFunction(() => {
+    const rail = document.querySelector<HTMLElement>('[aria-label="SY analysis steps"]');
+    const dock = document.querySelector<HTMLElement>('[aria-label="Conformance checklist"]');
+    return rail !== null && dock !== null
+      && rail.getBoundingClientRect().right <= 1
+      && dock.getBoundingClientRect().left >= window.innerWidth - 1;
+  });
   await expect(editor.getByLabel("Selected fault-tree node inspector")).toBeVisible();
   const narrowViewportBox = await editor.locator(".fteditor__viewport").boundingBox();
   const narrowControlsBox = await editor.getByLabel("Fault-tree canvas controls").boundingBox();
@@ -417,13 +425,21 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
   );
   exactResult.leadingCutSets.forEach((cutSet, index) => {
     expect(cutSet.probability).toBeCloseTo(expectedCutSets[index].probability, 14);
+    expect(cutSet.contribution).toBeCloseTo(
+      expectedCutSets[index].probability / exactResult.topEventProbability,
+      14,
+    );
   });
 
   const results = editor.getByRole("region", { name: "Fault-tree analysis results" });
-  await expect(results).toContainText("Exact top-event probability: 6.36e-3. Minimal cut sets: 8.");
+  await expect(results.getByText("Exact top-event probability").locator("..").getByLabel("6.36 times 10 to the power of −3")).toBeVisible();
+  await expect(results.getByText("Minimal cut sets").locator("..")).toContainText("8");
   await expect(results.locator("tbody tr")).toHaveCount(8);
-  await expect(results.locator("tbody tr").first()).toContainText(expectedCutSets[0].basicEventId);
-  await expect(results.locator("tbody tr").first()).toContainText("1.50e-3");
+  await expect(results.locator("tbody tr").first()).toContainText(expectedCutSets[0].code);
+  await expect(results.locator("tbody tr").first()).not.toContainText(expectedCutSets[0].basicEventId);
+  await expect(results.locator("tbody tr").first().getByLabel("1.50 times 10 to the power of −3")).toBeVisible();
+  await expect(results.locator("tbody tr").first()).toContainText("23.6%");
+  await results.screenshot({ path: testInfo.outputPath("fault-tree-analysis-results.png") });
 
   await waitForWorkbookSave(page, async () => {
     const treeName = editor.getByLabel("Fault-tree name");
@@ -452,17 +468,18 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
 
   await page.goto(`/es-workbooks/${esWorkbookId}`);
   await page.getByRole("button", { name: "Event Sequences", exact: true }).click();
-  let links = page.getByTestId("es-fault-tree-links");
-  await expect(links).toBeVisible();
-  const firstLinkRow = links.locator("tbody tr").first();
-  await firstLinkRow
-    .getByRole("button", { name: /(?:Select|Change) fault-tree top event for/i })
-    .click();
+  await page.getByLabel("Event tree", { exact: true }).selectOption(linkedEventTreeId);
+  let eventTreeEditor = page.getByTestId("event-tree-editor");
+  await eventTreeEditor.locator(".esdg__box").first().click();
+  let eventInspector = eventTreeEditor.getByLabel("Event-tree selection inspector");
+  await eventInspector.getByRole("button", { name: /(?:Link fault tree|Change link)/i }).click();
 
   const picker = page.getByRole("dialog", { name: /Select a fault-tree top event for/i });
   await expect(picker).toBeVisible();
   await picker.getByLabel("Systems workbook").selectOption(workbookId);
-  await picker.getByLabel("Fault tree").selectOption(savedTree!.uuid);
+  const faultTreeSelect = picker.locator("select").nth(1);
+  await expect(faultTreeSelect).toBeEnabled();
+  await faultTreeSelect.selectOption(savedTree!.uuid);
   await picker.locator("button.ftbox--gate").click();
 
   const esSave = page.waitForResponse((response) =>
@@ -472,14 +489,17 @@ test("authors, persists, quantifies, and invalidates a transferred fault tree", 
   await picker.getByRole("button", { name: "Link selected top event" }).click();
   await esSave;
   await expect(page.getByRole("status")).toContainText("Saved");
-  await expect(firstLinkRow).toContainText(savedTree!.uuid);
-  await expect(firstLinkRow).toContainText(savedTree!.topGate!.gateId);
+  await expect(eventInspector).toContainText(savedTree!.uuid);
+  await expect(eventInspector).toContainText(savedTree!.topGate!.gateId);
 
   await page.reload();
   await page.getByRole("button", { name: "Event Sequences", exact: true }).click();
-  links = page.getByTestId("es-fault-tree-links");
-  await expect(links.locator("tbody tr").first()).toContainText(savedTree!.uuid);
-  await expect(links.locator("tbody tr").first()).toContainText(savedTree!.topGate!.gateId);
+  await page.getByLabel("Event tree", { exact: true }).selectOption(linkedEventTreeId);
+  eventTreeEditor = page.getByTestId("event-tree-editor");
+  await eventTreeEditor.locator(".esdg__box").first().click();
+  eventInspector = eventTreeEditor.getByLabel("Event-tree selection inspector");
+  await expect(eventInspector).toContainText(savedTree!.uuid);
+  await expect(eventInspector).toContainText(savedTree!.topGate!.gateId);
 
   const persistedEs = await json<EsWorkbookResponse>(
     await api.get(`/api/es-workbooks/${esWorkbookId}`),

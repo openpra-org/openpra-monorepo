@@ -97,6 +97,23 @@ function classifiedTreeFixture(): { linkedModel: EventTree; eventSequences: Even
 }
 
 describe("EventTreeEditor", () => {
+  it("lets an author add the first functional event without showing a plus icon", () => {
+    const emptyModel: EventTree = {
+      ...model,
+      functionalEvents: {},
+      sequences: {},
+      branches: {},
+      initialState: { branchId: "" },
+    };
+    const { onOperation } = renderEditor({ model: emptyModel });
+
+    const addFunctionalEvent = screen.getByRole("button", { name: "Add functional event" });
+    expect(addFunctionalEvent).toHaveTextContent(/^Add functional event$/);
+    fireEvent.click(addFunctionalEvent);
+
+    expect(onOperation).toHaveBeenCalledWith(expect.objectContaining({ kind: "ADD_FUNCTIONAL_EVENT" }));
+  });
+
   it("places undo and redo inside the diagram toolbar", () => {
     const { container } = renderEditor();
     const diagramToolbar = container.querySelector(".estree__bar");
@@ -187,7 +204,7 @@ describe("EventTreeEditor", () => {
     unmount();
     renderEditor({ capabilities: { author: false, quantification: false } });
     expect(screen.getByTestId("event-tree-editor")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add functional event at end" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add functional event" })).not.toBeInTheDocument();
     expect(screen.queryByText("Ordered functional events")).not.toBeInTheDocument();
   });
 

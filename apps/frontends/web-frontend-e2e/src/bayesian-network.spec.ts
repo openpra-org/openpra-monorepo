@@ -316,7 +316,30 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
   });
   await expect(editor.getByLabel("HCL bindings")).toContainText("N-1");
   await editor.getByRole("button", { name: "Run HCL quantification" }).click();
-  await expect(editor.getByLabel("HCL fault-tree result")).toBeVisible();
+  const hcl = editor.getByLabel("HCL bindings");
+  const hclResult = hcl.getByLabel("HCL fault-tree result");
+  await expect(hclResult).toBeVisible();
+  await expect(hclResult.getByText("Top event probability")).toBeVisible();
+  const addBindingBox = await hcl.getByRole("button", { name: "Add binding" }).boundingBox();
+  const deleteConfigurationBox = await hcl.getByRole("button", { name: "Delete configuration" }).boundingBox();
+  const configurationNameBox = await hcl.getByLabel("Name", { exact: true }).boundingBox();
+  const runHclBox = await hcl.getByRole("button", { name: "Run HCL quantification" }).boundingBox();
+  const hclTargetBox = await hcl.getByLabel("HCL fault-tree target").boundingBox();
+  const hclResultBox = await hclResult.boundingBox();
+  expect(addBindingBox).not.toBeNull();
+  expect(deleteConfigurationBox).not.toBeNull();
+  expect(configurationNameBox).not.toBeNull();
+  expect(runHclBox).not.toBeNull();
+  expect(hclTargetBox).not.toBeNull();
+  expect(hclResultBox).not.toBeNull();
+  expect(addBindingBox!.height).toBeLessThanOrEqual(32);
+  expect(Math.abs(
+    deleteConfigurationBox!.y + deleteConfigurationBox!.height
+      - configurationNameBox!.y - configurationNameBox!.height,
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(runHclBox!.y + runHclBox!.height - hclTargetBox!.y - hclTargetBox!.height)).toBeLessThanOrEqual(1);
+  expect(hclResultBox!.width).toBeLessThanOrEqual(321);
+  await hcl.screenshot({ path: testInfo.outputPath("hcl-editor-actions-and-result.png") });
 
   await page.reload();
   await page.getByRole("button", { name: /Dependencies/ }).click();
@@ -340,7 +363,38 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
   const workspaceHeight = await editor.locator(".bneditor__workspace").evaluate((element) => element.clientHeight);
   await editor.getByRole("button", { name: "BN node Consequence" }).click();
   expect(await editor.locator(".bneditor__workspace").evaluate((element) => element.clientHeight)).toBe(workspaceHeight);
+  const graphViewportBox = await editor.getByLabel("Bayesian-network graph").boundingBox();
+  const graphNodeBoxes = await editor.locator(".bneditor__node-shell").evaluateAll((nodes) => nodes.map((node) => {
+    const bounds = node.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom };
+  }));
+  expect(graphViewportBox).not.toBeNull();
+  for (const nodeBox of graphNodeBoxes) {
+    expect(nodeBox.left).toBeGreaterThanOrEqual(graphViewportBox!.x - 1);
+    expect(nodeBox.right).toBeLessThanOrEqual(graphViewportBox!.x + graphViewportBox!.width + 1);
+    expect(nodeBox.top).toBeGreaterThanOrEqual(graphViewportBox!.y - 1);
+    expect(nodeBox.bottom).toBeLessThanOrEqual(graphViewportBox!.y + graphViewportBox!.height + 1);
+  }
   await editor.screenshot({ path: testInfo.outputPath("bayesian-network-editor.png") });
+
+  await page.setViewportSize({ width: 760, height: 900 });
+  await page.waitForFunction(() => {
+    const rail = document.querySelector<HTMLElement>('[aria-label="ESQ analysis steps"]');
+    const dock = document.querySelector<HTMLElement>('[aria-label="Conformance checklist"]');
+    return rail !== null && dock !== null
+      && rail.getBoundingClientRect().right <= 1
+      && dock.getBoundingClientRect().left >= window.innerWidth - 1;
+  });
+  const narrowInspectorOverflow = await editor.getByLabel("Bayesian-network node inspector").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(narrowInspectorOverflow.scrollWidth).toBeLessThanOrEqual(narrowInspectorOverflow.clientWidth);
+  expect(narrowInspectorOverflow.scrollHeight).toBeLessThanOrEqual(narrowInspectorOverflow.clientHeight);
+  await editor.screenshot({ path: testInfo.outputPath("bayesian-network-narrow.png") });
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   const persisted = await json<EsqWorkbookResponse>(
     await api.get(`/api/esq-workbooks/${esqWorkbookId}`),

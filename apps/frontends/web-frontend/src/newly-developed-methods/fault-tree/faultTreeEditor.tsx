@@ -132,8 +132,28 @@ function EditorIcon({
   );
 }
 
-function formatProbability(value: number | undefined): string {
-  return value === undefined || !Number.isFinite(value) ? "—" : value.toExponential(2);
+function ScientificProbability({ value }: { value: number | undefined }): JSX.Element {
+  if (value === undefined || !Number.isFinite(value)) return <span>—</span>;
+  if (value === 0) return <span className="fteditor__mono">0</span>;
+  const [coefficient = "0", rawExponent = "0"] = value.toExponential(2).split("e");
+  const exponent = String(Number(rawExponent)).replace("-", "−");
+  return (
+    <span
+      className="fteditor__mono fteditor__scientific"
+      aria-label={`${coefficient} times 10 to the power of ${exponent}`}
+    >
+      {coefficient}<span aria-hidden="true"> × 10</span><sup aria-hidden="true">{exponent}</sup>
+    </span>
+  );
+}
+
+function formatContribution(value: number | undefined): string {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  const percentage = value * 100;
+  if (percentage > 0 && percentage < 0.01) return "<0.01%";
+  if (percentage >= 99.995) return `${percentage.toFixed(0)}%`;
+  if (percentage >= 10) return `${percentage.toFixed(1)}%`;
+  return `${percentage.toFixed(2)}%`;
 }
 
 function formatNodeProbability(value: number | undefined): string {
@@ -698,9 +718,11 @@ function NodeInspector({
 function Results({
   analysisResult,
   resultIsStale,
-}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale">): JSX.Element | null {
+  catalogue,
+}: Pick<FaultTreeEditorProps, "analysisResult" | "resultIsStale" | "catalogue">): JSX.Element | null {
   if (analysisResult === null) return null;
   const result = analysisResult;
+  const basicEvents = new Map(catalogue.basicEvents.map((basicEvent) => [basicEvent.id, basicEvent]));
   return (
     <section className="fteditor__results" aria-label="Fault-tree analysis results">
       <div className="fteditor__header">
@@ -710,22 +732,70 @@ function Results({
       <p className="fteditor__run-detail">
         Run <span className="fteditor__mono">{result.runId}</span> · workbook revision {result.owner.workbookRevision} · completed {new Date(result.completedAt).toLocaleString()}
       </p>
-      <p>
-        Exact top-event probability: <strong className="fteditor__mono">{formatProbability(result.topEventProbability)}</strong>. Minimal cut sets: <strong>{result.minimalCutSetCount}</strong>.
-      </p>
+      <div className="fteditor__result-metrics">
+        <div className="fteditor__result-metric">
+          <span>Exact top-event probability</span>
+          <strong><ScientificProbability value={result.topEventProbability} /></strong>
+        </div>
+        <div className="fteditor__result-metric">
+          <span>Minimal cut sets</span>
+          <strong className="fteditor__mono">{result.minimalCutSetCount}</strong>
+        </div>
+      </div>
       <div className="fteditor__table-wrap">
         <table className="fteditor__table">
+          <colgroup>
+            <col className="fteditor__table-rank" />
+            <col className="fteditor__table-order" />
+            <col />
+            <col className="fteditor__table-probability" />
+            <col className="fteditor__table-contribution" />
+          </colgroup>
           <thead><tr><th>Rank</th><th>Order</th><th>Events</th><th>Probability</th><th>Contribution</th></tr></thead>
           <tbody>
-            {result.leadingCutSets.map((cutSet) => (
-              <tr key={cutSet.rank}>
-                <td>{cutSet.rank}</td>
-                <td>{cutSet.order}</td>
-                <td>{cutSet.events.map((event) => `${event.complemented ? "¬" : ""}${event.basicEventId}`).join(" ∩ ")}</td>
-                <td className="fteditor__mono">{formatProbability(cutSet.probability)}</td>
-                <td className="fteditor__mono">{formatProbability(cutSet.contribution)}</td>
-              </tr>
-            ))}
+            {result.leadingCutSets.map((cutSet) => {
+              const contribution = cutSet.contribution ?? (
+                cutSet.probability !== undefined && result.topEventProbability > 0
+                  ? cutSet.probability / result.topEventProbability
+                  : undefined
+              );
+              return (
+                <tr key={cutSet.rank}>
+                  <td><span className="fteditor__cut-set-rank">{cutSet.rank}</span></td>
+                  <td className="fteditor__mono">{cutSet.order}</td>
+                  <td>
+                    <div className="fteditor__cut-set-events">
+                      {cutSet.events.map((event, index) => {
+                        const basicEvent = basicEvents.get(event.basicEventId);
+                        const label = basicEvent?.code || basicEvent?.name || "Unknown basic event";
+                        return (
+                          <span key={`${event.basicEventId}-${index}`} className="fteditor__cut-set-event-wrap">
+                            {index > 0 && <span className="fteditor__intersection" aria-hidden="true">∩</span>}
+                            <span
+                              className={`fteditor__cut-set-event${event.complemented ? " fteditor__cut-set-event--complemented" : ""}`}
+                              title={basicEvent === undefined ? event.basicEventId : basicEvent.name}
+                            >
+                              {event.complemented && <span aria-label="not">¬</span>}{label}
+                            </span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td><ScientificProbability value={cutSet.probability} /></td>
+                  <td>
+                    <div className="fteditor__contribution">
+                      <span className="fteditor__mono">{formatContribution(contribution)}</span>
+                      {contribution !== undefined && Number.isFinite(contribution) && (
+                        <span className="fteditor__contribution-track" aria-hidden="true">
+                          <span style={{ width: `${Math.max(0, Math.min(100, contribution * 100))}%` }} />
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {result.leadingCutSets.length === 0 && <tr><td colSpan={5}>No minimal cut sets were returned.</td></tr>}
           </tbody>
         </table>
@@ -853,6 +923,11 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
     observer.observe(element);
     return () => observer.disconnect();
   }, [model.modelId]);
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (element === null || element.clientWidth === 0 || element.clientHeight === 0) return;
+    setViewport(fittedViewport(element, geometryRef.current, inspectedSelectionExists));
+  }, [inspectedSelectionExists]);
 
   const emit = (operation: FaultTreeOperation, recordHistory = true): void => {
     try {
@@ -1587,7 +1662,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
         </section>
       )}
 
-      <Results analysisResult={analysisResult} resultIsStale={resultIsStale} />
+      <Results analysisResult={analysisResult} resultIsStale={resultIsStale} catalogue={catalogue} />
       {confirmationDialog}
     </div>
   );

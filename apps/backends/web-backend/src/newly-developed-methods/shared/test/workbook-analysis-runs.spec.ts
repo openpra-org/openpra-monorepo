@@ -596,6 +596,10 @@ describe("workbook-owned analysis-run APIs", () => {
       0.2,
       0.1,
     ]);
+    expect(result.body.leadingCutSets.map((set: { contribution: number }) => set.contribution)).toEqual([
+      expect.closeTo(0.2 / 0.28, 12),
+      expect.closeTo(0.1 / 0.28, 12),
+    ]);
   }, 120_000);
 
   it("quantifies an SY transfer reference through the existing fault-tree run API", async () => {

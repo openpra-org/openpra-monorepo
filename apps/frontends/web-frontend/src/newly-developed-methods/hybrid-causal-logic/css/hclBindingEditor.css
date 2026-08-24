@@ -52,6 +52,19 @@
   height: 13px;
 }
 
+.hcleditor__aligned-action {
+  align-self: end;
+  justify-self: end;
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.hcleditor__add-binding {
+  align-self: end;
+  min-height: 30px;
+  white-space: nowrap;
+}
+
 .hcleditor__run {
   grid-template-columns: 150px minmax(240px, 1fr) auto;
   margin: 16px 0 0;
@@ -75,6 +88,29 @@
 .hcleditor__result output {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-weight: 700;
+}
+
+.hcleditor__result--fault-tree {
+  box-sizing: border-box;
+  width: min(100%, 320px);
+  margin-left: auto;
+  border-color: var(--color-border);
+  background: var(--color-surface-low);
+  padding: 8px 10px;
+  color: var(--color-text);
+}
+
+.hcleditor__result--fault-tree strong {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.hcleditor__result--fault-tree output {
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
 }
 
 .hcleditor__result--sequences {

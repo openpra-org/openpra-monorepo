@@ -21,6 +21,7 @@ interface SyWorkbookResponse {
       code: string;
       name: string;
       topGate: { gateId: string } | null;
+      gates: Array<{ id: string; code: string }>;
       leafNodes: Array<{ kind: string }>;
     }>;
   };
@@ -47,6 +48,7 @@ let esWorkbookId = "";
 let esqWorkbookId = "";
 let faultTreeModelId = "";
 let faultTreeTopGateId = "";
+let faultTreeTopGateCode = "";
 let faultTreeTopGateName = "";
 
 async function json<T>(response: JsonResponse, action: string): Promise<T> {
@@ -100,6 +102,7 @@ test.beforeAll(async () => {
   expect(faultTree).toBeDefined();
   faultTreeModelId = faultTree!.uuid;
   faultTreeTopGateId = faultTree!.topGate!.gateId;
+  faultTreeTopGateCode = faultTree!.gates.find(({ id }) => id === faultTreeTopGateId)!.code;
   faultTreeTopGateName = faultTree!.name;
 
   esWorkbookId = (await json<WorkbookResponse>(await api.post(`/api/projects/${projectId}/workbooks`, {
@@ -147,7 +150,7 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
     await editor.getByLabel("Event-tree selection inspector").getByLabel("Name").press("Tab");
   });
 
-  await editor.getByRole("button", { name: "Select top event" }).click();
+  await editor.getByRole("button", { name: "Link fault tree" }).click();
   const picker = page.getByRole("dialog", { name: /Select a fault-tree top event/ });
   await expect(picker).toBeVisible();
   await expect(picker.locator("select").first()).toHaveValue(syWorkbookId);
@@ -155,7 +158,8 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   const topGate = picker.getByRole("button", { name: new RegExp(faultTreeTopGateName, "i") }).first();
   await expect(topGate).toBeVisible();
   await topGate.click();
-  await expect(picker.getByText(`Selected ${faultTreeTopGateId}`)).toBeVisible();
+  await expect(picker.locator(".eslink__selection-summary")).toHaveText(faultTreeTopGateCode);
+  await expect(picker.getByText(faultTreeTopGateId)).toHaveCount(0);
   await waitForEsSave(page, async () => {
     await picker.getByRole("button", { name: "Link selected top event" }).click();
   });
@@ -167,6 +171,25 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   await editor.getByRole("button", { name: "Sequence table" }).click();
   await expect(editor.locator("tbody tr")).toHaveCount(2);
   await editor.screenshot({ path: testInfo.outputPath("event-tree-editor.png") });
+
+  await page.setViewportSize({ width: 760, height: 900 });
+  await page.waitForFunction(() => {
+    const rail = document.querySelector<HTMLElement>('[aria-label="ES analysis steps"]');
+    const dock = document.querySelector<HTMLElement>('[aria-label="Conformance checklist"]');
+    return rail !== null && dock !== null
+      && rail.getBoundingClientRect().right <= 1
+      && dock.getBoundingClientRect().left >= window.innerWidth - 1;
+  });
+  const narrowInspectorOverflow = await editor.getByLabel("Event-tree selection inspector").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(narrowInspectorOverflow.scrollWidth).toBeLessThanOrEqual(narrowInspectorOverflow.clientWidth);
+  expect(narrowInspectorOverflow.scrollHeight).toBeLessThanOrEqual(narrowInspectorOverflow.clientHeight);
+  await editor.screenshot({ path: testInfo.outputPath("event-tree-narrow.png") });
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   await page.reload();
   await page.getByRole("button", { name: "02 Event Sequences" }).click();
@@ -188,7 +211,7 @@ test("creates, edits, reloads, validates, links, and quantifies the canonical ev
   expect(Object.values(tree.branches)[0]?.paths.map((path) => path.state).sort()).toEqual(["FAILURE", "SUCCESS"]);
 });
 
-test("uses the canonical event-tree component for the ESQ read-only host", async ({ page }) => {
+test("uses the canonical event-tree component for the ESQ read-only host", async ({ page }, testInfo) => {
   await page.addInitScript((jwt) => window.localStorage.setItem("id_token", jwt), token);
   await page.goto(`/esq-workbooks/${esqWorkbookId}`);
   await page.getByRole("button", { name: "Integrate & Quantify", exact: true }).click();
@@ -199,4 +222,5 @@ test("uses the canonical event-tree component for the ESQ read-only host", async
   await expect(editor.getByText("Reactor trip?").first()).toBeVisible();
   await expect(editor.getByRole("button", { name: "Add functional event" })).toHaveCount(0);
   await expect(editor.getByRole("button", { name: "Undo event-tree edit" })).toHaveCount(0);
+  await editor.screenshot({ path: testInfo.outputPath("event-tree-read-only.png") });
 });

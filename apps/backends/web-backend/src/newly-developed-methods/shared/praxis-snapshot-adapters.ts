@@ -433,19 +433,24 @@ const adaptEsEventTreeSnapshot = (
     name: event.name,
     order,
   }));
-  const links = orderedFunctionalEvents(tree).map((event) => {
+  const treeSequences = Object.values(tree.sequences);
+  const links = orderedFunctionalEvents(tree).flatMap((event) => {
     if (event.faultTreeTopEvent === undefined) {
+      const bypassedEverywhere =
+        treeSequences.length > 0 &&
+        treeSequences.every((sequence) => sequence.functionalEventStates?.[event.uuid] === "BYPASSED");
+      if (bypassedEverywhere) return [];
       throw new WorkbookPraxisAdapterError(
         `ES functional event '${event.uuid}' has no typed fault-tree top-event reference`,
       );
     }
-    return {
+    return [{
       functionalEventId: event.uuid,
       faultTreeTopGate: {
         modelId: event.faultTreeTopEvent.modelId,
         entityId: event.faultTreeTopEvent.entityId,
       },
-    };
+    }];
   });
   const endStateIds = new Set<string>();
   const sequences = Object.values(tree.sequences).map((sequence) => {
@@ -468,9 +473,9 @@ const adaptEsEventTreeSnapshot = (
       id: sequence.uuid,
       path: functionalEvents.map((event) => {
         const outcome = states[event.id];
-        if (outcome !== "SUCCESS" && outcome !== "FAILURE") {
+        if (outcome !== "SUCCESS" && outcome !== "FAILURE" && outcome !== "BYPASSED") {
           throw new WorkbookPraxisAdapterError(
-            `ES sequence '${sequence.uuid}' is missing outcome for '${event.id}'`,
+            `ES sequence '${sequence.uuid}' is missing a success, failure, or bypassed outcome for '${event.id}'`,
           );
         }
         return { functionalEventId: event.id, outcome };

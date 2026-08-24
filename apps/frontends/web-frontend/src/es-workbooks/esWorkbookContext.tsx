@@ -2,10 +2,18 @@ import React, { createContext, useContext, useMemo } from "react";
 import { type EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { type EsPosLinkStatus, type EsIeLinkStatus } from "./esWorkbookApi";
+
+interface EsFaultTreeSource {
+  workbookId: string;
+  workbookName: string;
+  mef: SystemsAnalysis;
+}
 
 interface EsWorkbookData {
   projectId?: string;
+  faultTreeSource?: EsFaultTreeSource;
   es: EventSequenceAnalysis;
   cc: PRAConfigurationControl;
   nms: NewlyDevelopedMethod[];
@@ -49,4 +57,4 @@ function useEsWorkbook(): EsWorkbookContextValue {
   return ctx;
 }
 
-export { EsWorkbookProvider, useEsWorkbook, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };
+export { EsWorkbookProvider, useEsWorkbook, type EsFaultTreeSource, type EsWorkbookData, type EsMutator, type EsWorkbookRuntime };

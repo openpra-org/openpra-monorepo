@@ -36,11 +36,6 @@ function sequencePathKey(path: Record<string, SystemStatus>, eventIds: string[])
 
 function sequencePathsFromTopology(model: EventTree): Map<string, Record<string, SystemStatus>> {
   const paths = new Map<string, Record<string, SystemStatus>>();
-  for (const sequence of Object.values(model.sequences)) {
-    if (sequence.functionalEventStates !== undefined) {
-      paths.set(sequence.uuid, { ...sequence.functionalEventStates });
-    }
-  }
   const walk = (branchId: string, path: Record<string, SystemStatus>, visited: Set<string>): void => {
     if (visited.has(branchId)) return;
     const branch = model.branches[branchId];
@@ -55,12 +50,24 @@ function sequencePathsFromTopology(model: EventTree): Map<string, Record<string,
     }
   };
   if (model.initialState.branchId.length > 0) walk(model.initialState.branchId, {}, new Set());
+  const eventIds = orderedFunctionalEvents(model).map((event) => event.uuid);
+  for (const sequence of Object.values(model.sequences)) {
+    const path = {
+      ...(paths.get(sequence.uuid) ?? {}),
+      ...(sequence.functionalEventStates ?? {}),
+    };
+    for (const eventId of eventIds) {
+      if (path[eventId] === undefined) path[eventId] = "BYPASSED";
+    }
+    paths.set(sequence.uuid, path);
+  }
   return paths;
 }
 
 function buildCompleteTopology(
   model: EventTree,
   functionalEvents: FunctionalEvent[],
+  expansionEventId?: string,
 ): Pick<EventTree, "functionalEvents" | "branches" | "initialState" | "sequences" | "transfers"> {
   const eventIds = functionalEvents.map((event) => event.uuid);
   const previousPaths = sequencePathsFromTopology(model);
@@ -70,26 +77,42 @@ function buildCompleteTopology(
   }));
   const sequences: Record<string, EventTreeSequence> = {};
   const transfers: NonNullable<EventTree["transfers"]> = {};
+  let desiredPaths: Array<Record<string, SystemStatus>>;
+  if (eventIds.length === 0) {
+    desiredPaths = [];
+  } else if (previousCandidates.length === 0) {
+    desiredPaths = Array.from({ length: 2 ** eventIds.length }, (_, index) => Object.fromEntries(
+      eventIds.map((eventId, eventIndex) => [
+        eventId,
+        ((index >> (eventIds.length - eventIndex - 1)) & 1) === 0 ? "SUCCESS" : "FAILURE",
+      ]),
+    ));
+  } else {
+    const projected = previousCandidates.map(({ path }) => Object.fromEntries(
+      eventIds.map((eventId) => [eventId, path[eventId] ?? "BYPASSED"]),
+    ) as Record<string, SystemStatus>);
+    desiredPaths = expansionEventId === undefined
+      ? projected
+      : projected.flatMap((path) => [
+          { ...path, [expansionEventId]: "SUCCESS" as const },
+          { ...path, [expansionEventId]: "FAILURE" as const },
+        ]);
+    desiredPaths = [...new Map(desiredPaths.map((path) => [sequencePathKey(path, eventIds), path])).values()];
+  }
+
   const paths: Array<{ id: string; path: Record<string, SystemStatus> }> = [];
-  const count = eventIds.length === 0 ? 0 : 2 ** eventIds.length;
-  for (let index = 0; index < count; index += 1) {
-    const path: Record<string, SystemStatus> = {};
-    eventIds.forEach((eventId, eventIndex) => {
-      const success = ((index >> (eventIds.length - eventIndex - 1)) & 1) === 0;
-      path[eventId] = success ? "SUCCESS" : "FAILURE";
-    });
-    const previous = previousCandidates.find((candidate) =>
-      Object.entries(candidate.path).every(([eventId, outcome]) =>
-        path[eventId] === undefined || path[eventId] === outcome,
-      ),
+  desiredPaths.forEach((path, index) => {
+    const key = sequencePathKey(path, eventIds);
+    const previousCandidate = previousCandidates.find((candidate) => sequencePathKey(
+      Object.fromEntries(eventIds.map((eventId) => [eventId, candidate.path[eventId] ?? "BYPASSED"])),
+      eventIds,
+    ) === key);
+    const previous = previousCandidate?.sequence ?? previousCandidates.find((candidate) =>
+      Object.entries(candidate.path).every(([eventId, outcome]) => path[eventId] === undefined || path[eventId] === outcome),
     )?.sequence;
-    const previousPath = previous === undefined ? undefined : previousPaths.get(previous.uuid);
-    const exactPrevious = previousPath !== undefined &&
-      Object.keys(previousPath).length === eventIds.length &&
-      sequencePathKey(previousPath, eventIds) === sequencePathKey(path, eventIds);
-    const id = exactPrevious && previous !== undefined
-      ? previous.uuid
-      : topologyEntityId(`${model.uuid}:sequence:${sequencePathKey(path, eventIds)}`);
+    const id = expansionEventId === undefined && previousCandidate !== undefined
+      ? previousCandidate.sequence.uuid
+      : topologyEntityId(`${model.uuid}:sequence:${key}`);
     sequences[id] = {
       uuid: id,
       name: previous?.name ?? `Sequence ${String(index + 1)}`,
@@ -100,23 +123,22 @@ function buildCompleteTopology(
     const priorTransfer = model.transfers?.[previous?.uuid ?? ""];
     if (priorTransfer !== undefined) transfers[id] = priorTransfer;
     paths.push({ id, path });
-  }
+  });
 
   const branches: Record<string, EventTreeBranch> = {};
   const build = (depth: number, candidates: typeof paths): { target: string; targetType: "BRANCH" | "SEQUENCE" } => {
     if (depth >= eventIds.length) return { target: candidates[0]?.id ?? "", targetType: "SEQUENCE" };
     const functionalEventId = eventIds[depth] ?? "";
     const id = topologyEntityId(`${model.uuid}:branch:${String(depth)}:${candidates.map((candidate) => candidate.id).join(",")}`);
-    const success = build(depth + 1, candidates.filter((candidate) => candidate.path[functionalEventId] === "SUCCESS"));
-    const failure = build(depth + 1, candidates.filter((candidate) => candidate.path[functionalEventId] === "FAILURE"));
+    const outcomes = (["SUCCESS", "FAILURE", "BYPASSED"] as const).flatMap((state) => {
+      const matching = candidates.filter((candidate) => candidate.path[functionalEventId] === state);
+      return matching.length === 0 ? [] : [{ state, ...build(depth + 1, matching) }];
+    });
     branches[id] = {
       uuid: id,
       name: functionalEvents[depth]?.name ?? functionalEventId,
       functionalEventId,
-      paths: [
-        { state: "SUCCESS", ...success },
-        { state: "FAILURE", ...failure },
-      ],
+      paths: outcomes,
     };
     return { target: id, targetType: "BRANCH" };
   };
@@ -199,11 +221,66 @@ function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation
       transfers: Object.keys(transfers).length === 0 ? undefined : transfers,
     };
   }
+  if (operation.kind === "SET_FUNCTIONAL_EVENT_BYPASS") {
+    const events = orderedFunctionalEvents(model);
+    const eventIndex = events.findIndex((event) => event.uuid === operation.functionalEventId);
+    const derivedPaths = sequencePathsFromTopology(model);
+    const selectedPath = derivedPaths.get(operation.sequenceId);
+    if (eventIndex < 0 || selectedPath === undefined) return model;
+    const prefixEventIds = events.slice(0, eventIndex).map((event) => event.uuid);
+    const sharesPrefix = (path: Record<string, SystemStatus>): boolean => prefixEventIds.every(
+      (eventId) => path[eventId] === selectedPath[eventId],
+    );
+    const affected = Object.values(model.sequences).filter((sequence) => sharesPrefix(derivedPaths.get(sequence.uuid) ?? {}));
+    const sequences: Record<string, EventTreeSequence> = { ...model.sequences };
+    const transfers = { ...(model.transfers ?? {}) };
+    if (operation.bypassed) {
+      const retainedOutcome = selectedPath[operation.functionalEventId];
+      if (retainedOutcome === undefined || retainedOutcome === "BYPASSED") return model;
+      for (const sequence of affected) {
+        const path = derivedPaths.get(sequence.uuid) ?? {};
+        if (path[operation.functionalEventId] !== retainedOutcome) {
+          delete sequences[sequence.uuid];
+          delete transfers[sequence.uuid];
+          continue;
+        }
+        sequences[sequence.uuid] = {
+          ...sequence,
+          functionalEventStates: { ...path, [operation.functionalEventId]: "BYPASSED" },
+        };
+      }
+    } else {
+      if (selectedPath[operation.functionalEventId] !== "BYPASSED") return model;
+      for (const sequence of affected) {
+        const path = derivedPaths.get(sequence.uuid) ?? {};
+        if (path[operation.functionalEventId] !== "BYPASSED") continue;
+        const successPath = { ...path, [operation.functionalEventId]: "SUCCESS" as const };
+        const failurePath = { ...path, [operation.functionalEventId]: "FAILURE" as const };
+        sequences[sequence.uuid] = { ...sequence, functionalEventStates: successPath };
+        const failureId = topologyEntityId(`${model.uuid}:sequence:${sequencePathKey(failurePath, events.map((event) => event.uuid))}`);
+        sequences[failureId] = {
+          ...sequence,
+          uuid: failureId,
+          name: `${sequence.name} failure branch`,
+          functionalEventStates: failurePath,
+        };
+        const transfer = model.transfers?.[sequence.uuid];
+        if (transfer !== undefined) transfers[failureId] = transfer;
+      }
+    }
+    const intermediate = {
+      ...model,
+      sequences,
+      transfers: Object.keys(transfers).length === 0 ? undefined : transfers,
+    };
+    return { ...model, ...buildCompleteTopology(intermediate, events) };
+  }
 
   let events = orderedFunctionalEvents(model);
   if (operation.kind === "ADD_FUNCTIONAL_EVENT") {
     if (events.length >= MAX_FUNCTIONAL_EVENTS) return model;
-    events = [...events, operation.functionalEvent];
+    const index = Math.max(0, Math.min(operation.index ?? events.length, events.length));
+    events = [...events.slice(0, index), operation.functionalEvent, ...events.slice(index)];
   } else if (operation.kind === "DELETE_FUNCTIONAL_EVENT") {
     events = events.filter((event) => event.uuid !== operation.functionalEventId);
   } else if (operation.kind === "MOVE_FUNCTIONAL_EVENT") {
@@ -213,8 +290,24 @@ function applyEventTreeOperation(model: EventTree, operation: EventTreeOperation
     const next = [...events];
     [next[from], next[to]] = [next[to]!, next[from]!];
     events = next;
+  } else if (operation.kind === "REORDER_FUNCTIONAL_EVENT") {
+    const from = events.findIndex((event) => event.uuid === operation.functionalEventId);
+    const to = Math.max(0, Math.min(operation.targetIndex, events.length - 1));
+    if (from < 0 || from === to) return model;
+    const next = [...events];
+    const [moved] = next.splice(from, 1);
+    if (moved === undefined) return model;
+    next.splice(to, 0, moved);
+    events = next;
   }
-  return { ...model, ...buildCompleteTopology(model, events) };
+  return {
+    ...model,
+    ...buildCompleteTopology(
+      model,
+      events,
+      operation.kind === "ADD_FUNCTIONAL_EVENT" ? operation.functionalEvent.uuid : undefined,
+    ),
+  };
 }
 
 function createEmptyEventTree(
@@ -263,10 +356,14 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
     error("ET_FREQUENCY_REQUIRED", "Enter a finite, non-negative initiating-event frequency.", model.uuid);
   }
   const events = orderedFunctionalEvents(model);
+  const derivedPaths = sequencePathsFromTopology(model);
   if (events.length === 0) error("ET_FUNCTIONAL_EVENT_REQUIRED", "Add at least one functional event.", model.uuid);
   events.forEach((event, order) => {
     if (event.order !== order) error("ET_ORDER_INVALID", "Functional-event order must be contiguous.", event.uuid);
-    if (event.faultTreeTopEvent === undefined) error("ET_FT_LINK_REQUIRED", `Link ${event.label ?? event.name} to a fault-tree top event.`, event.uuid);
+    const bypassedEverywhere = derivedPaths.size > 0 && [...derivedPaths.values()].every((path) => path[event.uuid] === "BYPASSED");
+    if (event.faultTreeTopEvent === undefined && !bypassedEverywhere) {
+      error("ET_FT_LINK_REQUIRED", `Link ${event.label ?? event.name} to a fault-tree top event.`, event.uuid);
+    }
   });
   const reachableSequences = new Set<string>();
   const visit = (branchId: string, stack: Set<string>): void => {
@@ -279,12 +376,24 @@ function validateEventTree(model: EventTree, allTrees: Array<EventTree | string>
       error("ET_BRANCH_MISSING", `Branch ${branchId} does not exist.`, branchId);
       return;
     }
-    for (const state of ["SUCCESS", "FAILURE"] as const) {
-      const paths = branch.paths.filter((path) => path.state === state);
-      if (paths.length !== 1) error("ET_BRANCH_INCOMPLETE", `${branch.name} needs exactly one ${state.toLowerCase()} path.`, branch.uuid);
-      const path = paths[0];
+    const bypasses = branch.paths.filter((path) => path.state === "BYPASSED");
+    const expectedStates = bypasses.length > 0 ? (["BYPASSED"] as const) : (["SUCCESS", "FAILURE"] as const);
+    if (bypasses.length > 0 && branch.paths.length !== 1) {
+      error("ET_BRANCH_BYPASS_INVALID", `${branch.name} must use either one bypass path or success and failure paths.`, branch.uuid);
+    }
+    for (const state of expectedStates) {
+      const matchingPaths = branch.paths.filter((path) => path.state === state);
+      if (matchingPaths.length !== 1) error("ET_BRANCH_INCOMPLETE", `${branch.name} needs exactly one ${state.toLowerCase()} path.`, branch.uuid);
+      const path = matchingPaths[0];
       if (path?.targetType === "BRANCH") visit(path.target, new Set(stack).add(branchId));
       else if (path?.targetType === "SEQUENCE") reachableSequences.add(path.target);
+    }
+    if (bypasses.length > 0) {
+      for (const state of ["SUCCESS", "FAILURE"] as const) {
+        const path = branch.paths.find((candidate) => candidate.state === state);
+        if (path?.targetType === "BRANCH") visit(path.target, new Set(stack).add(branchId));
+        else if (path?.targetType === "SEQUENCE") reachableSequences.add(path.target);
+      }
     }
   };
   if (model.initialState.branchId.length > 0) visit(model.initialState.branchId, new Set());
@@ -326,12 +435,14 @@ function createEventTreePresentation(
     const nextSeen = new Set(seen).add(branchId);
     const success = branch.paths.find((path) => path.state === "SUCCESS");
     const failure = branch.paths.find((path) => path.state === "FAILURE");
+    const bypassed = branch.paths.find((path) => path.state === "BYPASSED");
     const nextChild = (path: typeof success): EventTreeNodeView | EventTreeLeafReference =>
       path === undefined ? { seq: "" } : path.targetType === "BRANCH" ? node(path.target, nextSeen) : { seq: path.target };
     return {
       fe: eventIndex.get(branch.functionalEventId ?? "") ?? 0,
-      S: nextChild(success),
-      F: nextChild(failure),
+      ...(success === undefined ? {} : { S: nextChild(success) }),
+      ...(failure === undefined ? {} : { F: nextChild(failure) }),
+      ...(bypassed === undefined ? {} : { B: nextChild(bypassed) }),
     };
   };
   const derivedPaths = sequencePathsFromTopology(model);
@@ -345,6 +456,7 @@ function createEventTreePresentation(
       code: event.label ?? event.uuid,
       label: event.name,
       sub: event.description ?? "",
+      linked: event.faultTreeTopEvent !== undefined,
     })),
     node: model.initialState.branchId.length === 0 ? { seq: "" } : node(model.initialState.branchId, new Set()),
     sequences: Object.values(model.sequences).map((sequence) => {
@@ -354,6 +466,7 @@ function createEventTreePresentation(
         id: sequence.uuid,
         name: linked?.name ?? sequence.name,
         endState: String(sequence.endState ?? linked?.endState ?? ""),
+        sequenceFamilyId: linked?.sequenceFamilyId,
         releaseCategoryId: linked?.releaseCategoryId,
         meanFrequency: typeof linked?.meanFrequency === "number" ? linked.meanFrequency : linked?.meanFrequency?.value,
         path: derivedPaths.get(sequence.uuid) ?? {},

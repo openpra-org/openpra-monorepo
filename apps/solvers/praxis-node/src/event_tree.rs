@@ -118,6 +118,7 @@ struct EventTreePathStep {
 enum EventTreeBranchOutcome {
     Success,
     Failure,
+    Bypassed,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -263,34 +264,46 @@ fn build_adapter(request: &SolverRequest) -> Result<EventTreeAdapter> {
     let mut added_fault_trees = HashSet::new();
     let mut core_functional_events = Vec::with_capacity(functional_events.len());
     for functional_event in &functional_events {
-        let link = links.get(functional_event.id.as_str()).ok_or_else(|| {
-            PraxisError::Logic(format!(
+        let link = links.get(functional_event.id.as_str());
+        let bypassed_everywhere = !snapshot.sequences.is_empty()
+            && snapshot.sequences.iter().all(|sequence| {
+                sequence.path.iter().any(|step| {
+                    step.functional_event_id == functional_event.id
+                        && step.outcome == EventTreeBranchOutcome::Bypassed
+                })
+            });
+        if link.is_none() && !bypassed_everywhere {
+            return Err(PraxisError::Logic(format!(
                 "functional event '{}' has no fault-tree top-gate link",
                 functional_event.id
-            ))
-        })?;
-        if added_fault_trees.insert(link.fault_tree_top_gate.model_id.clone()) {
-            let adapter = build_fault_tree_for_model(request, &link.fault_tree_top_gate.model_id)?;
-            if adapter.top_gate_id != link.fault_tree_top_gate.entity_id {
-                return Err(PraxisError::Logic(format!(
+            )));
+        }
+        if let Some(link) = link {
+            if added_fault_trees.insert(link.fault_tree_top_gate.model_id.clone()) {
+                let adapter =
+                    build_fault_tree_for_model(request, &link.fault_tree_top_gate.model_id)?;
+                if adapter.top_gate_id != link.fault_tree_top_gate.entity_id {
+                    return Err(PraxisError::Logic(format!(
                     "functional event '{}' references top gate '{}' but fault tree '{}' uses '{}'",
                     functional_event.id,
                     link.fault_tree_top_gate.entity_id,
                     link.fault_tree_top_gate.model_id,
                     adapter.top_gate_id
                 )));
+                }
+                model.add_fault_tree(adapter.fault_tree)?;
             }
-            model.add_fault_tree(adapter.fault_tree)?;
         }
         let order = i32::try_from(functional_event.order).map_err(|_| {
             PraxisError::Logic("functional-event order exceeds PRAXIS range".to_string())
         })?;
-        core_functional_events.push(
-            FunctionalEvent::new(functional_event.id.clone())
-                .with_name(functional_event.name.clone())
-                .with_order(order)
-                .with_fault_tree(link.fault_tree_top_gate.model_id.clone()),
-        );
+        let core_event = FunctionalEvent::new(functional_event.id.clone())
+            .with_name(functional_event.name.clone())
+            .with_order(order);
+        core_functional_events.push(match link {
+            Some(link) => core_event.with_fault_tree(link.fault_tree_top_gate.model_id.clone()),
+            None => core_event,
+        });
     }
 
     let hcl_context = match execute.mode {
@@ -360,10 +373,11 @@ fn build_branch(
     }
 
     let functional_event_id = ordered_functional_event_ids[depth];
-    let mut paths = Vec::with_capacity(2);
+    let mut paths = Vec::with_capacity(3);
     for outcome in [
         EventTreeBranchOutcome::Success,
         EventTreeBranchOutcome::Failure,
+        EventTreeBranchOutcome::Bypassed,
     ] {
         let matching: Vec<&EventTreeSequenceSnapshot> = candidates
             .iter()
@@ -375,22 +389,29 @@ fn build_branch(
             })
             .collect();
         if matching.is_empty() {
-            return Err(PraxisError::Logic(format!(
-                "event-tree branch coverage is missing {:?} for functional event '{}'",
-                outcome, functional_event_id
-            )));
+            continue;
         }
         let state = match outcome {
             EventTreeBranchOutcome::Success => "success",
             EventTreeBranchOutcome::Failure => "failure",
+            EventTreeBranchOutcome::Bypassed => "bypass",
         };
-        paths.push(
-            Path::new(
-                state.to_string(),
-                build_branch(ordered_functional_event_ids, &matching, depth + 1)?,
-            )?
-            .with_collect_formula_negated(outcome == EventTreeBranchOutcome::Success),
-        );
+        let path = Path::new(
+            state.to_string(),
+            build_branch(ordered_functional_event_ids, &matching, depth + 1)?,
+        )?;
+        paths.push(if outcome == EventTreeBranchOutcome::Bypassed {
+            path.with_probability(1.0)
+        } else {
+            path.with_collect_formula_negated(outcome == EventTreeBranchOutcome::Success)
+        });
+    }
+    let has_bypass = paths.iter().any(|path| path.state == "bypass");
+    if (has_bypass && paths.len() != 1) || (!has_bypass && paths.len() != 2) {
+        return Err(PraxisError::Logic(format!(
+            "functional event '{}' must define success and failure paths or one bypass path",
+            functional_event_id
+        )));
     }
     Ok(Branch::new(BranchTarget::Fork(Fork::new(
         functional_event_id.to_string(),
@@ -613,6 +634,47 @@ mod tests {
                 .abs()
                 < 1e-12
         );
+    }
+
+    #[test]
+    fn quantifies_a_bypassed_functional_event_with_unit_probability() {
+        let request = SolverRequest::from_json(
+            &json!({
+                "schemaVersion": "1.0.0",
+                "request": {
+                    "schemaVersion": "1.0.0",
+                    "methodType": "EVENT_TREE",
+                    "modelId": "ET-BYPASS",
+                    "revision": 1,
+                    "mode": "INDEPENDENT",
+                    "requestedBy": "analyst"
+                },
+                "modelSnapshots": [{
+                    "id": "ET-BYPASS",
+                    "methodType": "EVENT_TREE",
+                    "revision": 1,
+                    "initiatingEvent": { "target": { "modelId": "IE", "entityId": "IE-1" } },
+                    "initiatingEventFrequency": { "value": 0.01 },
+                    "functionalEvents": [{ "id": "FE-A", "name": "A", "order": 0 }],
+                    "functionalEventFaultTreeLinks": [],
+                    "endStates": [{ "id": "SAFE" }],
+                    "sequences": [{
+                        "id": "B",
+                        "path": [{ "functionalEventId": "FE-A", "outcome": "BYPASSED" }],
+                        "result": { "kind": "END_STATE", "endStateId": "SAFE" }
+                    }]
+                }],
+                "resources": {
+                    "faultTreeBasicEventCatalogue": { "projectId": "P", "basicEvents": [] }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let result = execute(&request).unwrap();
+        assert_eq!(result["sequences"][0]["conditionalProbability"], 1.0);
+        assert_eq!(result["sequences"][0]["annualFrequency"], 0.01);
     }
 
     #[test]

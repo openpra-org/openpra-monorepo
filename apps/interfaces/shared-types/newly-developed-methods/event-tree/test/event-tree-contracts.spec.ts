@@ -144,7 +144,7 @@ describe("Event-tree sequence path and end-state contracts", () => {
     result: { kind: "END_STATE", endStateId: END_STATE_ID },
   };
 
-  it.each(["SUCCESS", "FAILURE"])("accepts the %s branch outcome", (outcome) => {
+  it.each(["SUCCESS", "FAILURE", "BYPASSED"])("accepts the %s branch outcome", (outcome) => {
     expect(EventTreeSequencePathStepSchema.safeParse({ functionalEventId: FUNCTIONAL_EVENT_ID, outcome }).success).toBe(
       true,
     );

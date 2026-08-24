@@ -11,16 +11,99 @@ function formatExponential(value: number | undefined): string {
   return value === undefined ? "—" : value.toExponential(2);
 }
 
+function DiagramViewport({ width, height, children }: { width: number; height: number; children: JSX.Element }): JSX.Element {
+  const host = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const [availableWidth, setAvailableWidth] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const viewportHeight = 520;
+
+  const fit = (hostWidth = availableWidth): void => {
+    if (hostWidth <= 0) return;
+    const nextZoom = Math.min(1, (hostWidth - 24) / width, (viewportHeight - 24) / height);
+    setZoom(nextZoom);
+    setPan({
+      x: Math.max(12, (hostWidth - width * nextZoom) / 2),
+      y: Math.max(12, (viewportHeight - height * nextZoom) / 2),
+    });
+  };
+
+  useLayoutEffect(() => {
+    const element = host.current;
+    if (element === null) return;
+    const measure = (): void => {
+      const nextWidth = element.clientWidth;
+      setAvailableWidth(nextWidth);
+      fit(nextWidth);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [height, width]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div
+      ref={host}
+      className="et-editor__diagram-viewport"
+      style={{ height: viewportHeight }}
+      onPointerDown={(event) => {
+        const target = event.target;
+        if (event.button !== 0 || (target instanceof Element && target.closest("button") !== null)) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+        event.currentTarget.classList.add("et-editor__diagram-viewport--dragging");
+      }}
+      onPointerMove={(event) => {
+        if (drag.current === null) return;
+        setPan({
+          x: drag.current.panX + event.clientX - drag.current.x,
+          y: drag.current.panY + event.clientY - drag.current.y,
+        });
+      }}
+      onPointerUp={(event) => {
+        drag.current = null;
+        event.currentTarget.classList.remove("et-editor__diagram-viewport--dragging");
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      }}
+    >
+      <div className="et-editor__diagram-content" style={{ width, height, transform: `translate(${String(pan.x)}px, ${String(pan.y)}px) scale(${String(zoom)})` }}>
+        {children}
+      </div>
+      <div className="et-editor__viewport-controls" aria-label="Diagram viewport controls">
+        <button type="button" onClick={() => setZoom((current) => Math.max(.2, current - .1))} aria-label="Zoom out" title="Zoom out">−</button>
+        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + .1))} aria-label="Zoom in" title="Zoom in">+</button>
+        <button type="button" onClick={() => fit()} aria-label="Fit diagram" title="Fit diagram">⤢</button>
+      </div>
+    </div>
+  );
+}
+
 function collectSequences(node: EventTreeNodeView | EventTreeLeafReference): string[] {
   if ("seq" in node) return node.seq.length === 0 ? [] : [node.seq];
-  return [...collectSequences(node.S), ...collectSequences(node.F)];
+  return outcomeChildren(node).flatMap(([, child]) => collectSequences(child));
+}
+
+type OutcomeKind = "S" | "F" | "B";
+
+function outcomeChildren(node: EventTreeNodeView): Array<[OutcomeKind, EventTreeNodeView | EventTreeLeafReference]> {
+  return ([
+    ["S", node.S],
+    ["F", node.F],
+    ["B", node.B],
+  ] as const).filter((entry): entry is [OutcomeKind, EventTreeNodeView | EventTreeLeafReference] => entry[1] !== undefined);
 }
 
 interface ClassicSegment { x1: number; y1: number; x2: number; y2: number; sequences: string[] }
 interface ClassicLayout {
   segments: ClassicSegment[];
   dots: Array<{ x: number; y: number }>;
-  labels: Array<{ x: number; y: number; kind: "S" | "F" }>;
+  labels: Array<{ x: number; y: number; kind: OutcomeKind }>;
   leaves: Array<{ sequenceId: string; y: number }>;
   columnX: (column: number) => number;
   endX: number;
@@ -38,7 +121,7 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
   const columnX = (column: number): number => left + column * columnWidth;
   const segments: ClassicSegment[] = [];
   const dots: Array<{ x: number; y: number }> = [];
-  const labels: Array<{ x: number; y: number; kind: "S" | "F" }> = [];
+  const labels: Array<{ x: number; y: number; kind: OutcomeKind }> = [];
   const leaves: Array<{ sequenceId: string; y: number }> = [];
   const nodeY = new Map<EventTreeNodeView, number>();
   const leafY = new Map<string, number>();
@@ -51,9 +134,8 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
       leafY.set(node.seq, y);
       return y;
     }
-    const successY = assign(node.S);
-    const failureY = assign(node.F);
-    const y = (successY + failureY) / 2;
+    const childYs = outcomeChildren(node).map(([, child]) => assign(child));
+    const y = childYs.length === 0 ? top + (row + 0.5) * rowHeight : ((childYs[0] ?? 0) + (childYs[childYs.length - 1] ?? 0)) / 2;
     nodeY.set(node, y);
     return y;
   };
@@ -64,58 +146,77 @@ function layoutClassic(view: EventTreePresentationView): ClassicLayout {
     const x = columnX(node.fe);
     const sequences = collectSequences(node);
     segments.push({ x1: enterX, y1: y, x2: x, y2: y, sequences });
-    const successY = childY(node.S);
-    const failureY = childY(node.F);
-    segments.push({ x1: x, y1: successY, x2: x, y2: failureY, sequences });
     dots.push({ x, y });
-    for (const [kind, child, outcomeY] of [["S", node.S, successY], ["F", node.F, failureY]] as const) {
-      labels.push({ x: x + 6, y: outcomeY + (kind === "S" ? -6 : 14), kind });
+    for (const [kind, child] of outcomeChildren(node)) {
+      const outcomeY = childY(child);
+      segments.push({ x1: x, y1: y, x2: x, y2: outcomeY, sequences: collectSequences(child) });
+      labels.push({ x: x + 6, y: outcomeY + (kind === "S" ? -6 : kind === "F" ? 14 : -6), kind });
       if ("seq" in child) segments.push({ x1: x, y1: outcomeY, x2: endX, y2: outcomeY, sequences: child.seq.length === 0 ? [] : [child.seq] });
       else draw(child, x, outcomeY);
     }
   };
   if (!("seq" in view.node)) draw(view.node, left - 58, rootY);
-  return { segments, dots, labels, leaves, columnX, endX, rootY, width: endX + 242, height: top + Math.max(1, row) * rowHeight + 20 };
+  return { segments, dots, labels, leaves, columnX, endX, rootY, width: endX + 172, height: top + Math.max(1, row) * rowHeight + 20 };
 }
 
-function SequenceOutcome({ sequence, showFrequency }: { sequence: EventTreeSequenceView; showFrequency: boolean }): JSX.Element {
+function SequenceOutcome({ sequence }: { sequence: EventTreeSequenceView }): JSX.Element {
   const safe = sequence.endState === "SUCCESSFUL_MITIGATION";
   const label = sequence.transferTargetId !== undefined
     ? `Transfer · ${sequence.transferTargetId}`
-    : safe ? "Safe state" : sequence.releaseCategoryId ?? "Release";
-  const frequency = sequence.annualFrequency ?? sequence.meanFrequency;
+    : safe
+      ? sequence.sequenceFamilyId ?? "Safe state"
+      : sequence.releaseCategoryId ?? sequence.sequenceFamilyId ?? "Release";
   return (
-    <>
-      <span className={`estree__seq-end estree__seq-end--${safe ? "ok" : "block"}`} />
-      <span className="estree__seq-main">
-        <span className="estree__seq-id">{sequence.name}</span>
-        <span className="estree__seq-rc"> · {label}</span>
-      </span>
-      {showFrequency && frequency !== undefined && <span className="estree__seq-freq">{formatExponential(frequency)}</span>}
-    </>
+    <span className="estree__seq-classification">{label}</span>
   );
 }
 
-function ClassicEventTreeDiagram({ view, activeSequenceId, showFrequency, onHover, onSelect }: {
+function ClassicEventTreeDiagram({ view, activeSequenceId, selectedEntityId, showFrequency, canEdit, onHover, onSelect, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext, onReorderFunctionalEvent }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
+  selectedEntityId: string | null;
   showFrequency: boolean;
+  canEdit: boolean;
   onHover: (sequenceId: string | null) => void;
   onSelect: (sequenceId: string) => void;
+  onSelectFunctionalEvent: (functionalEventId: string) => void;
+  onFunctionalEventContext: (functionalEventId: string, x: number, y: number) => void;
+  onSequenceContext: (sequenceId: string, x: number, y: number) => void;
+  onReorderFunctionalEvent: (functionalEventId: string, targetIndex: number) => void;
 }): JSX.Element {
   const layout = useMemo(() => layoutClassic(view), [view]);
   const sequences = new Map(view.sequences.map((sequence) => [sequence.id, sequence]));
   const highlighted = (ids: string[]): boolean => activeSequenceId !== null && ids.includes(activeSequenceId);
   return (
-    <div className="estree__scroll">
+    <DiagramViewport width={layout.width} height={layout.height}>
       <div className="estree__canvas" style={{ width: layout.width, height: layout.height }}>
         {view.functionalEvents.map((event, index) => (
-          <div key={event.id} className="estree__head" style={{ left: layout.columnX(index) }}>
+          <button
+            key={event.id}
+            type="button"
+            className={`estree__head${selectedEntityId === event.id ? " estree__head--selected" : ""}`}
+            style={{ left: layout.columnX(index) }}
+            draggable={canEdit}
+            onDragStart={(dragEvent) => dragEvent.dataTransfer.setData("application/x-event-tree-functional-event", event.id)}
+            onDragOver={(dragEvent) => { if (canEdit) dragEvent.preventDefault(); }}
+            onDrop={(dragEvent) => {
+              dragEvent.preventDefault();
+              const functionalEventId = dragEvent.dataTransfer.getData("application/x-event-tree-functional-event");
+              if (functionalEventId.length > 0) onReorderFunctionalEvent(functionalEventId, index);
+            }}
+            onClick={() => onSelectFunctionalEvent(event.id)}
+            onContextMenu={(contextEvent) => {
+              contextEvent.preventDefault();
+              contextEvent.stopPropagation();
+              onFunctionalEventContext(event.id, contextEvent.clientX, contextEvent.clientY);
+            }}
+          >
             <div className="estree__head-bar" />
             <div className="estree__head-fe">FE{String(index + 1)}</div>
             <div className="estree__head-label">{event.label}</div>
             <div className="estree__head-sub">{event.sub}</div>
-          </div>
+            <span className={`estree__link-state${event.linked ? " estree__link-state--linked" : ""}`}>{event.linked ? "Linked" : "Unlinked"}</span>
+          </button>
         ))}
         <div className="estree__ie" style={{ top: layout.rootY }}>
           <div className="estree__ie-cap">Initiator</div>
@@ -130,20 +231,20 @@ function ClassicEventTreeDiagram({ view, activeSequenceId, showFrequency, onHove
         {layout.leaves.map((leaf) => {
           const sequence = sequences.get(leaf.sequenceId);
           return sequence === undefined ? null : (
-            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`estree__seq${activeSequenceId === sequence.id ? " estree__seq--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(sequence.id)}>
-              <SequenceOutcome sequence={sequence} showFrequency={showFrequency} />
+            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`estree__seq${activeSequenceId === sequence.id ? " estree__seq--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); onSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}>
+              <SequenceOutcome sequence={sequence} />
             </button>
           );
         })}
       </div>
-    </div>
+    </DiagramViewport>
   );
 }
 
 interface EsdLayout {
   boxes: Array<{ x: number; y: number; eventIndex: number; sequences: string[] }>;
-  links: Array<{ startX: number; startY: number; middleX: number; endX: number; endY: number; kind: "S" | "F"; sequences: string[] }>;
-  labels: Array<{ x: number; y: number; kind: "S" | "F" }>;
+  links: Array<{ startX: number; startY: number; middleX: number; endX: number; endY: number; kind: OutcomeKind; sequences: string[] }>;
+  labels: Array<{ x: number; y: number; kind: OutcomeKind }>;
   leaves: Array<{ sequenceId: string; y: number }>;
   rootY: number;
   endX: number;
@@ -172,7 +273,8 @@ function layoutEventSequenceDiagram(view: EventTreePresentationView): EsdLayout 
       leafY.set(node.seq, y);
       return y;
     }
-    const y = (assign(node.S) + assign(node.F)) / 2;
+    const childYs = outcomeChildren(node).map(([, child]) => assign(child));
+    const y = childYs.length === 0 ? top + (row + 0.5) * rowHeight : ((childYs[0] ?? 0) + (childYs[childYs.length - 1] ?? 0)) / 2;
     nodeY.set(node, y);
     return y;
   };
@@ -184,7 +286,7 @@ function layoutEventSequenceDiagram(view: EventTreePresentationView): EsdLayout 
   const walk = (node: EventTreeNodeView, y: number): void => {
     const x = centerX(node.fe);
     boxes.push({ x, y, eventIndex: node.fe, sequences: collectSequences(node) });
-    for (const [kind, child] of [["S", node.S], ["F", node.F]] as const) {
+    for (const [kind, child] of outcomeChildren(node)) {
       const endY = childY(child);
       const nextX = "seq" in child ? endX : centerX(child.fe) - boxWidth / 2;
       const startX = x + boxWidth / 2;
@@ -203,26 +305,28 @@ function actorFor(eventId: string): "operator" | "auto" | "passive" {
   return "auto";
 }
 
-function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, showFrequency, onHover, onSelectSequence, onSelectFunctionalEvent }: {
+function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, onHover, onSelectSequence, onSelectFunctionalEvent, onFunctionalEventContext, onSequenceContext }: {
   view: EventTreePresentationView;
   activeSequenceId: string | null;
   selectedEntityId: string | null;
-  showFrequency: boolean;
   onHover: (sequenceId: string | null) => void;
   onSelectSequence: (sequenceId: string) => void;
   onSelectFunctionalEvent: (functionalEventId: string) => void;
+  onFunctionalEventContext: (functionalEventId: string, x: number, y: number) => void;
+  onSequenceContext: (sequenceId: string, x: number, y: number) => void;
 }): JSX.Element {
   const layout = useMemo(() => layoutEventSequenceDiagram(view), [view]);
   const sequences = new Map(view.sequences.map((sequence) => [sequence.id, sequence]));
   const highlighted = (ids: string[]): boolean => activeSequenceId !== null && ids.includes(activeSequenceId);
   const markerSuffix = view.id.replace(/[^a-zA-Z0-9_-]/g, "");
   return (
-    <div className="estree__scroll">
+    <DiagramViewport width={layout.width} height={layout.height}>
       <div className="esdg" style={{ width: layout.width, height: layout.height }}>
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           <defs>
             <marker id={`esdg-s-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--c-complete)" /></marker>
             <marker id={`esdg-f-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#c44d4d" /></marker>
+            <marker id={`esdg-b-${markerSuffix}`} markerWidth="8" markerHeight="8" refX="6.5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--color-text-subtle)" /></marker>
           </defs>
           {layout.links.map((link, index) => <path key={index} className={`esdg__link esdg__link--${link.kind.toLowerCase()}${highlighted(link.sequences) ? " esdg__link--hot" : ""}`} d={`M ${link.startX} ${link.startY} H ${link.middleX} V ${link.endY} H ${link.endX}`} markerEnd={`url(#esdg-${link.kind.toLowerCase()}-${markerSuffix})`} />)}
           {layout.labels.map((label, index) => <text key={index} className={`estree__branch-lab estree__branch-lab--${label.kind.toLowerCase()}`} x={label.x} y={label.y}>{label.kind}</text>)}
@@ -233,10 +337,11 @@ function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, showFr
           if (event === undefined) return null;
           const actor = actorFor(event.code);
           return (
-            <button key={`${event.id}-${String(index)}`} type="button" className={`esdg__box esdg__box--${actor}${highlighted(box.sequences) || selectedEntityId === event.id ? " esdg__box--hot" : ""}`} style={{ left: box.x, top: box.y, width: layout.boxWidth }} onClick={() => onSelectFunctionalEvent(event.id)}>
+            <button key={`${event.id}-${String(index)}`} type="button" className={`esdg__box esdg__box--${actor}${highlighted(box.sequences) || selectedEntityId === event.id ? " esdg__box--hot" : ""}`} style={{ left: box.x, top: box.y, width: layout.boxWidth }} onClick={() => onSelectFunctionalEvent(event.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); onFunctionalEventContext(event.id, contextEvent.clientX, contextEvent.clientY); }}>
               <span className="esdg__box-fe">{event.code}</span>
               <span className="esdg__box-label">{event.label}?</span>
               <span className="esdg__box-actor">{actor === "operator" ? "Operator" : actor === "passive" ? "Passive" : "Automatic"}</span>
+              <span className={`estree__link-state${event.linked ? " estree__link-state--linked" : ""}`}>{event.linked ? "Linked" : "Unlinked"}</span>
             </button>
           );
         })}
@@ -245,20 +350,20 @@ function EventSequenceDiagram({ view, activeSequenceId, selectedEntityId, showFr
           if (sequence === undefined) return null;
           const safe = sequence.endState === "SUCCESSFUL_MITIGATION";
           return (
-            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`esdg__end esdg__end--${safe ? "ok" : "block"}${activeSequenceId === sequence.id ? " esdg__end--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelectSequence(sequence.id)}>
-              <SequenceOutcome sequence={sequence} showFrequency={showFrequency} />
+            <button key={sequence.id} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`esdg__end esdg__end--${safe ? "ok" : "block"}${activeSequenceId === sequence.id ? " esdg__end--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y }} onMouseEnter={() => onHover(sequence.id)} onMouseLeave={() => onHover(null)} onClick={() => onSelectSequence(sequence.id)} onContextMenu={(contextEvent) => { contextEvent.preventDefault(); contextEvent.stopPropagation(); onSequenceContext(sequence.id, contextEvent.clientX, contextEvent.clientY); }}>
+              <SequenceOutcome sequence={sequence} />
             </button>
           );
         })}
       </div>
-    </div>
+    </DiagramViewport>
   );
 }
 
 interface DynamicLayout {
   nodes: Array<{ id: string; x: number; y: number; challengedFunctionId?: string; condition: string; sequences: string[] }>;
-  links: Array<{ startX: number; startY: number; splitX: number; endX: number; endY: number; kind: "S" | "F"; sequences: string[] }>;
-  labels: Array<{ x: number; y: number; kind: "S" | "F"; text: string }>;
+  links: Array<{ startX: number; startY: number; splitX: number; endX: number; endY: number; kind: OutcomeKind; sequences: string[] }>;
+  labels: Array<{ x: number; y: number; kind: OutcomeKind; text: string }>;
   leaves: Array<{ sequenceId: string; y: number; timing?: string }>;
   rootY: number; endX: number; width: number; height: number;
 }
@@ -316,7 +421,10 @@ function layoutDynamic(run: DynamicRun, availableWidth: number): DynamicLayout {
     const y = nodeY.get(nodeId) ?? 0;
     nodes.push({ id: nodeId, x: x(depth), y, condition: node.condition, sequences: leafIds(nodeId), ...(node.challengedFunctionId === undefined ? {} : { challengedFunctionId: node.challengedFunctionId }) });
     for (const branch of node.branches) {
-      const kind = branch.outcome.toLowerCase().startsWith("s") ? "S" : "F";
+      const normalizedOutcome = branch.outcome.trim().toLowerCase();
+      const kind: OutcomeKind = normalizedOutcome.startsWith("s")
+        ? "S"
+        : /^(bypass|skip|not[ _-]?applicable|n\/a)/.test(normalizedOutcome) ? "B" : "F";
       const startX = x(depth) + boxWidth;
       const targetNode = branch.targetNodeId === undefined ? undefined : run.esdNodes[branch.targetNodeId];
       const endY = targetNode === undefined ? (leafY.get(branch.sequenceId ?? "") ?? y) : (nodeY.get(branch.targetNodeId ?? "") ?? y);
@@ -338,21 +446,10 @@ function DynamicEventSequenceDiagram({ run, sequences, activeSequenceId, onHover
   onHover: (sequenceId: string | null) => void;
   onSelect: (sequenceId: string) => void;
 }): JSX.Element {
-  const host = useRef<HTMLDivElement>(null);
-  const [availableWidth, setAvailableWidth] = useState(0);
-  useLayoutEffect(() => {
-    const element = host.current;
-    if (element === null) return;
-    const measure = (): void => setAvailableWidth(element.clientWidth);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  const layout = useMemo(() => layoutDynamic(run, availableWidth), [availableWidth, run]);
+  const layout = useMemo(() => layoutDynamic(run, 900), [run]);
   const highlighted = (ids: string[]): boolean => activeSequenceId !== null && ids.includes(activeSequenceId);
   return (
-    <div className="estree__scroll" ref={host}>
+    <DiagramViewport width={layout.width} height={layout.height}>
       <div className="esdt" style={{ width: layout.width, height: layout.height }}>
         <svg className="estree__svg" width={layout.width} height={layout.height} aria-hidden="true">
           <path className="esdt__trunk" d={`M 94 ${layout.rootY} H 128`} />
@@ -365,10 +462,10 @@ function DynamicEventSequenceDiagram({ run, sequences, activeSequenceId, onHover
           const sequence = sequences.get(leaf.sequenceId);
           if (sequence === undefined) return null;
           const safe = sequence.endState === "SUCCESSFUL_MITIGATION";
-          return <button key={leaf.sequenceId} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`esdt__leaf esdt__leaf--${safe ? "ok" : "rel"}${activeSequenceId === leaf.sequenceId ? " esdt__leaf--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y, width: 200 }} onMouseEnter={() => onHover(leaf.sequenceId)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(leaf.sequenceId)}><SequenceOutcome sequence={sequence} showFrequency />{leaf.timing !== undefined && <span className="esdt__leaf-time">{leaf.timing}</span>}</button>;
+          return <button key={leaf.sequenceId} type="button" aria-label={`${sequence.name} ${sequence.id}`} className={`esdt__leaf esdt__leaf--${safe ? "ok" : "rel"}${activeSequenceId === leaf.sequenceId ? " esdt__leaf--active" : ""}`} style={{ left: layout.endX + 6, top: leaf.y, width: 142 }} onMouseEnter={() => onHover(leaf.sequenceId)} onMouseLeave={() => onHover(null)} onClick={() => onSelect(leaf.sequenceId)}><SequenceOutcome sequence={sequence} /></button>;
         })}
       </div>
-    </div>
+    </DiagramViewport>
   );
 }
 

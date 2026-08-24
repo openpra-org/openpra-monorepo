@@ -36,7 +36,7 @@ interface EventTreeFunctionalEventFaultTreeLink {
   faultTreeTopGate: MethodEntityReference;
 }
 
-type EventTreeBranchOutcome = "SUCCESS" | "FAILURE";
+type EventTreeBranchOutcome = "SUCCESS" | "FAILURE" | "BYPASSED";
 
 interface EventTreeSequencePathStep {
   functionalEventId: WorkbookEntityId;

@@ -80,7 +80,7 @@ const validateEventTreeStartingNodeAndPaths = (
       issues.push({
         code: "ET_SEQUENCE_PATH_INCOMPLETE",
         severity: "ERROR",
-        message: "Each sequence must select success or failure for every ordered functional event",
+        message: "Each sequence must select success, failure, or bypassed for every ordered functional event",
         entityId: sequence.id,
         fieldPath: ["sequences", sequenceIndex, "path"],
       });
@@ -92,7 +92,7 @@ const validateEventTreeStartingNodeAndPaths = (
       issues.push({
         code: "ET_SEQUENCE_PATH_DUPLICATE",
         severity: "ERROR",
-        message: "Each success/failure path can be defined only once",
+        message: "Each event-tree path can be defined only once",
         entityId: sequence.id,
         fieldPath: ["sequences", sequenceIndex, "path"],
       });
@@ -100,12 +100,23 @@ const validateEventTreeStartingNodeAndPaths = (
     pathKeys.add(pathKey);
   });
 
-  const expectedPathCount = 2 ** orderedFunctionalEvents.length;
-  if (pathKeys.size !== expectedPathCount) {
+  const completePaths = model.sequences.filter((sequence) => sequence.path.length === orderedFunctionalEvents.length);
+  const hasCompleteCoverage = (depth: number, candidates: typeof completePaths): boolean => {
+    if (depth === orderedFunctionalEvents.length) return candidates.length === 1;
+    const states = new Set(candidates.map((sequence) => sequence.path[depth]?.outcome));
+    const binary = states.size === 2 && states.has("SUCCESS") && states.has("FAILURE");
+    const bypassed = states.size === 1 && states.has("BYPASSED");
+    if (!binary && !bypassed) return false;
+    return [...states].every((state) => hasCompleteCoverage(
+      depth + 1,
+      candidates.filter((sequence) => sequence.path[depth]?.outcome === state),
+    ));
+  };
+  if (!hasCompleteCoverage(0, completePaths)) {
     issues.push({
       code: "ET_BRANCH_COVERAGE_INCOMPLETE",
       severity: "ERROR",
-      message: `The event tree must define all ${expectedPathCount} complete success/failure paths`,
+      message: "Every applicable functional event must define both success and failure; a bypassed event must define one bypass path",
       entityId: model.modelId,
       fieldPath: ["sequences"],
     });
@@ -233,6 +244,13 @@ const validateEventTreeFaultTreeLinksAndFrequency = (
 
   model.functionalEvents.forEach((functionalEvent, functionalEventIndex) => {
     if (linkedFunctionalEventIds.has(functionalEvent.id)) return;
+    const bypassedEverywhere =
+      model.sequences.length > 0 &&
+      model.sequences.every(
+        (sequence) =>
+          sequence.path.find((step) => step.functionalEventId === functionalEvent.id)?.outcome === "BYPASSED",
+      );
+    if (bypassedEverywhere) return;
     issues.push({
       code: "ET_FT_LINK_REQUIRED",
       severity: "ERROR",

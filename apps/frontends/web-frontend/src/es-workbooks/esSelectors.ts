@@ -1,4 +1,4 @@
-import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type EventSequenceAnalysis, type KeySafetyFunction, type EventTreeBranch, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
 import {
@@ -422,7 +422,7 @@ interface SeqLeafView {
   familyId?: string;
   meanFrequency?: number;
   importance?: string;
-  path: Record<string, "SUCCESS" | "FAILURE">;
+  path: Record<string, SystemStatus>;
 }
 
 interface SeqLeafRef {
@@ -431,8 +431,9 @@ interface SeqLeafRef {
 
 interface TreeNodeView {
   fe: number;
-  S: TreeNodeView | SeqLeafRef;
-  F: TreeNodeView | SeqLeafRef;
+  S?: TreeNodeView | SeqLeafRef;
+  F?: TreeNodeView | SeqLeafRef;
+  B?: TreeNodeView | SeqLeafRef;
 }
 
 interface EventTreeView {
@@ -470,14 +471,16 @@ function eventTreesView(es: EventSequenceAnalysis): EventTreeView[] {
       const b = tree.branches[branchId];
       const s = b.paths.find((p) => p.state === "SUCCESS");
       const f = b.paths.find((p) => p.state === "FAILURE");
+      const bypassed = b.paths.find((p) => p.state === "BYPASSED");
       return {
         fe: feIndex.get(b.functionalEventId ?? "") ?? 0,
-        S: s !== undefined ? childOf(s.target, s.targetType) : { seq: "" },
-        F: f !== undefined ? childOf(f.target, f.targetType) : { seq: "" },
+        ...(s === undefined ? {} : { S: childOf(s.target, s.targetType) }),
+        ...(f === undefined ? {} : { F: childOf(f.target, f.targetType) }),
+        ...(bypassed === undefined ? {} : { B: childOf(bypassed.target, bypassed.targetType) }),
       };
     }
-    const paths = new Map<string, Record<string, "SUCCESS" | "FAILURE">>();
-    function walkPaths(branchId: string, acc: Record<string, "SUCCESS" | "FAILURE">): void {
+    const paths = new Map<string, Record<string, SystemStatus>>();
+    function walkPaths(branchId: string, acc: Record<string, SystemStatus>): void {
       const b = tree.branches[branchId];
       if (b === undefined) return;
       const feId = b.functionalEventId;

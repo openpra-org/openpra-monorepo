@@ -610,6 +610,32 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     );
   });
 
+  it("preserves bypassed functional-event outcomes in the solver snapshot", () => {
+    const bypassedMef = structuredClone(esMef);
+    const tree = bypassedMef.eventTrees?.[0];
+    expect(tree).toBeDefined();
+    Object.values(tree!.sequences).forEach((sequence) => {
+      sequence.functionalEventStates = {
+        ...sequence.functionalEventStates,
+        "fe-1": "BYPASSED",
+      };
+    });
+    const bypassedEvent = Object.values(tree!.functionalEvents).find((event) => event.uuid === "fe-1");
+    expect(bypassedEvent).toBeDefined();
+    delete bypassedEvent!.faultTreeTopEvent;
+
+    const adapted = adaptEsEventTreeSnapshot(
+      { workbookId: "es-1", workbookRevision: 3, mef: bypassedMef },
+      "et-1",
+    );
+
+    expect(adapted["functionalEventFaultTreeLinks"]).toEqual([
+      { functionalEventId: "fe-2", faultTreeTopGate: { modelId: "ft-2", entityId: "top-2" } },
+    ]);
+    expect((adapted["sequences"] as Array<{ path: Array<{ functionalEventId: string; outcome: string }> }>)
+      .every((candidate) => candidate.path[0]?.outcome === "BYPASSED")).toBe(true);
+  });
+
   it("normalizes workbook-owned event-tree transfers to solver target sequences", () => {
     const transferringMef = structuredClone(esMef);
     const tree = transferringMef.eventTrees?.[0];

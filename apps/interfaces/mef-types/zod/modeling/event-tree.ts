@@ -64,7 +64,7 @@ const EventTreeFunctionalEventFaultTreeLinkSchema = z
   })
   .strict();
 
-const EventTreeBranchOutcomeSchema = z.enum(["SUCCESS", "FAILURE"]);
+const EventTreeBranchOutcomeSchema = z.enum(["SUCCESS", "FAILURE", "BYPASSED"]);
 
 const EventTreeSequencePathStepSchema = z
   .object({

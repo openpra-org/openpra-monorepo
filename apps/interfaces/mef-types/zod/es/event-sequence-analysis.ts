@@ -27,7 +27,7 @@ import {
 export const EndStateSchema = z.enum(EndState);
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const EsBarrierImpactStateSchema = z.enum(BarrierImpactState);
-export const EsSystemStatusSchema = z.enum(["SUCCESS", "FAILURE"]);
+export const EsSystemStatusSchema = z.enum(["SUCCESS", "FAILURE", "BYPASSED"]);
 
 const FrequencyValueSchema = z.union([FrequencySchema, FrequencyWithDistributionSchema]);
 

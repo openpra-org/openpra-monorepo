@@ -148,6 +148,25 @@ describe("event-tree starting-node and path validation", () => {
     expect(validateEventTreeModel(model, initiatingEventContext)).toEqual([]);
   });
 
+  it("accepts a bypassed functional event without treating it as a failed branch", () => {
+    const bypassed: EventTreeModel = {
+      ...model,
+      sequences: model.sequences.slice(0, 2).map((sequence, index) => ({
+        ...sequence,
+        path: [
+          { functionalEventId: FIRST_FUNCTIONAL_EVENT_ID, outcome: "BYPASSED" as const },
+          { functionalEventId: SECOND_FUNCTIONAL_EVENT_ID, outcome: index === 0 ? "SUCCESS" as const : "FAILURE" as const },
+        ],
+      })),
+    };
+
+    expect(validateEventTreeStartingNodeAndPaths(bypassed, initiatingEventContext)).toEqual([]);
+    expect(validateEventTreeFaultTreeLinksAndFrequency({
+      ...bypassed,
+      functionalEventFaultTreeLinks: [model.functionalEventFaultTreeLinks[1]],
+    })).toEqual([]);
+  });
+
   it("requires an initiating event", () => {
     expect(validateEventTreeStartingNodeAndPaths({ ...model, initiatingEvent: null })).toEqual([
       expect.objectContaining({

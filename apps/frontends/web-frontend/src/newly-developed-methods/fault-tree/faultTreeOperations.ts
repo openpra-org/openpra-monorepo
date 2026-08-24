@@ -799,7 +799,7 @@ function computeFaultTreeAutoLayout(
       if (primary !== undefined) primaryInputByChild.set(childId, primary);
     }
 
-    const leafStackStep = rowStep + 48;
+    const leafStackStep = rowStep;
     const blockGap = horizontalGap + 48;
     const visitingGates = new Set<string>();
     const blockByGate = new Map<string, LayoutBlock>();

@@ -23,7 +23,7 @@ export type EventSequenceReference = string;
 export type EventSequenceFamilyReference = string;
 export type SequenceDesignatorId = string;
 
-export type SystemStatus = "SUCCESS" | "FAILURE";
+export type SystemStatus = "SUCCESS" | "FAILURE" | "BYPASSED";
 
 export enum DependencyType {
   FUNCTIONAL = "FUNCTIONAL",

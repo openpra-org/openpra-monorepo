@@ -13,7 +13,7 @@ import {
   type Stage,
   type CapabilityCategory,
 } from "./esViewData";
-import { type KeySafetyFunction, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord } from "interfaces-mef-types/es/event-sequence-analysis";
+import { type KeySafetyFunction, type Dependency, DependencyType, type OperatorActionWindow, type FeasibilityState, type PhenomenologicalDependencyModel, type ReleaseCategoryMapping, type EventSequenceFamily, type EventSequenceScreeningRecord, type SystemStatus } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 import { EndState } from "interfaces-mef-types/core/events";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
@@ -49,6 +49,12 @@ import "./css/esScreens.css";
 
 function fmtExp(n: number | undefined): string {
   return n === undefined ? "—" : n.toExponential(1);
+}
+
+function eventPathState(state: SystemStatus): { label: string; tone: "s" | "f" | "b" } {
+  if (state === "SUCCESS") return { label: "Success", tone: "s" };
+  if (state === "FAILURE") return { label: "Failure", tone: "f" };
+  return { label: "Bypassed", tone: "b" };
 }
 
 function fmtDur(h: number): string {
@@ -104,9 +110,9 @@ function SequenceDrawerBody({ seqId, trees, deps, onClose }: { seqId: string; tr
               return (
                 <Fragment key={fe.id}>
                   <span className="espath__arrow"><ESIcon.ArrowR /></span>
-                  <div className={`espath__node espath__node--${st === "SUCCESS" ? "s" : "f"}`} title={fe.label}>
+                  <div className={`espath__node espath__node--${eventPathState(st).tone}`} title={fe.label}>
                     <span className="espath__node-fe">{fe.id}</span>
-                    <span className="espath__node-state"><span className={`esqlight__dot esqlight__dot--${st === "SUCCESS" ? "s" : "f"}`} />{st === "SUCCESS" ? "Success" : "Failure"}</span>
+                    <span className="espath__node-state"><span className={`esqlight__dot esqlight__dot--${eventPathState(st).tone}`} />{eventPathState(st).label}</span>
                   </div>
                 </Fragment>
               );
@@ -1049,7 +1055,7 @@ function EsScopeScreen({ ccId, setCcId, stage, setStage, onOpenPosLink, onOpenIe
 
 
 function SequencesScreen(): JSX.Element {
-  const { es, posLink, ieLink, projectId, editable, mutateEs, runtime } = useEsWorkbook();
+  const { es, posLink, ieLink, projectId, faultTreeSource, editable, mutateEs, runtime } = useEsWorkbook();
   const coverage = useMemo(() => coverageView(es, posLink), [es, posLink]);
   const [treeId, setTreeId] = useState<string>(es.eventTrees?.[0]?.uuid ?? "");
   const [representation, setRepresentation] = useState<EventTreeRepresentation>("event-sequence-diagram");
@@ -1154,6 +1160,8 @@ function SequencesScreen(): JSX.Element {
           eventSequences={es.eventSequences}
           availableInitiatingEvents={ieLink.initiators.map((initiator) => ({ id: initiator.id, name: initiator.name }))}
           availableTransfers={trees.filter((tree) => tree.uuid !== model.uuid).map((tree) => ({ id: tree.uuid, name: tree.name, sequenceIds: Object.keys(tree.sequences) }))}
+          sequenceFamilyOptions={es.eventSequenceFamilies.map((family) => ({ id: family.uuid, name: family.name }))}
+          releaseCategoryOptions={ES_RELEASE_CATEGORIES.map((category) => ({ id: category.id, name: category.name }))}
           dynamicRun={dynamicRun}
           representation={dynamicRun === undefined && representation === "dynamic" ? "event-sequence-diagram" : representation}
           capabilities={{ author: editable, quantification: runtime.workbookId !== null, linkSelection: true, resultOverlay: true }}
@@ -1168,19 +1176,26 @@ function SequencesScreen(): JSX.Element {
           onRepresentationChange={setRepresentation}
           onSelectionChange={setSelection}
           onSelectFaultTreeLink={(functionalEvent) => setFaultTreeLink({ eventTreeId: model.uuid, functionalEventId: functionalEvent.uuid, functionalEventName: functionalEvent.label ?? functionalEvent.name })}
+          onUpdateEventSequence={(eventSequenceId, changes) => mutateEs((draft) => ({
+            ...draft,
+            eventSequences: draft.eventSequences.map((sequence) => sequence.uuid === eventSequenceId ? { ...sequence, ...changes } : sequence),
+          }))}
           onOpenReference={(reference) => {
             if ("targetEventTreeId" in reference) {
               setTreeId(reference.targetEventTreeId);
               setSelection(null);
+            } else {
+              window.open(`/sy-workbooks/${reference.workbookId}`, "_blank", "noopener,noreferrer");
             }
           }}
           onRun={() => { void run(); }}
         />
       )}
 
-      {faultTreeLink !== null && projectId !== undefined && (
+      {faultTreeLink !== null && (projectId !== undefined || faultTreeSource !== undefined) && (
         <EsFaultTreeReferencePicker
-          projectId={projectId}
+          {...(projectId === undefined ? {} : { projectId })}
+          {...(faultTreeSource === undefined ? {} : { embeddedSource: faultTreeSource })}
           functionalEventName={faultTreeLink.functionalEventName}
           currentReference={linkingFunctionalEvent?.faultTreeTopEvent}
           onClose={() => setFaultTreeLink(null)}
@@ -2003,8 +2018,8 @@ function QuantScreen(): JSX.Element {
                         const st = leaf.path[fe.id];
                         if (st === undefined) return null;
                         return (
-                          <span key={fe.id} className="esqlight posmono" title={`${fe.label}: ${st === "SUCCESS" ? "success" : "failure"}`}>
-                            <span className={`esqlight__dot esqlight__dot--${st === "SUCCESS" ? "s" : "f"}`} />{fe.id}
+                          <span key={fe.id} className="esqlight posmono" title={`${fe.label}: ${eventPathState(st).label.toLowerCase()}`}>
+                            <span className={`esqlight__dot esqlight__dot--${eventPathState(st).tone}`} />{fe.id}
                           </span>
                         );
                       })}

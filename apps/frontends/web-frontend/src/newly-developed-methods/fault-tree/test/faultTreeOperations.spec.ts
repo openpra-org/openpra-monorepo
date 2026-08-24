@@ -244,8 +244,8 @@ describe("fault-tree domain operations", () => {
 
     expect(new Set(leaves.map(({ x }) => x)).size).toBe(1);
     expect(leaves.map(({ y }) => y)).toEqual([...leaves.map(({ y }) => y)].sort((left, right) => left - right));
-    expect(leaves[1].y - leaves[0].y).toBeGreaterThanOrEqual(192);
-    expect(leaves[2].y - leaves[1].y).toBeGreaterThanOrEqual(192);
+    expect(leaves[1].y - leaves[0].y).toBe(150);
+    expect(leaves[2].y - leaves[1].y).toBe(150);
     expect(leaves.every(({ y }) => y > positions.get(ID.left)!.y)).toBe(true);
     expect(positions.get(ID.left)!.y).toBeGreaterThan(positions.get(ID.top)!.y);
     expect(positions.get(ID.right)!.y).toBeGreaterThan(positions.get(ID.top)!.y);

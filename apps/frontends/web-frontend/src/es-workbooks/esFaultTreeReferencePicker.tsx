@@ -3,7 +3,6 @@ import type { FaultTreeTopEventReference, MethodEntityReference } from "interfac
 import type { SystemLogicModel } from "interfaces-mef-types/sy/systems-analysis";
 import { systemBasicEventToFaultTreeBasicEvent } from "interfaces-mef-types/sy/system-models";
 import { validateFaultTreeModel } from "interfaces-shared-types/newly-developed-methods/fault-tree";
-import type { Workbook } from "interfaces-shared-types";
 import {
   FaultTreeEditor,
   type FaultTreeEditorCatalogue,
@@ -12,12 +11,13 @@ import {
 } from "../newly-developed-methods/fault-tree";
 import { getSyWorkbook, type SyWorkbookResponse } from "../sy-workbooks/syWorkbookApi";
 import { listWorkbooks } from "../workbooks/workbookApi";
-import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { ESIcon } from "./esIcons";
+import type { EsFaultTreeSource } from "./esWorkbookContext";
 import "./css/esLinkModal.css";
 
 interface EsFaultTreeReferencePickerProps {
-  projectId: string;
+  projectId?: string;
+  embeddedSource?: EsFaultTreeSource;
   functionalEventName: string;
   currentReference?: FaultTreeTopEventReference;
   onClose: () => void;
@@ -34,6 +34,8 @@ const REFERENCE_SELECTION_CAPABILITIES = {
 };
 
 function toEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
+  const minX = model.nodePositions.length === 0 ? 0 : Math.min(...model.nodePositions.map(({ position }) => position.x));
+  const minY = model.nodePositions.length === 0 ? 0 : Math.min(...model.nodePositions.map(({ position }) => position.y));
   return {
     modelId: model.uuid,
     code: model.code,
@@ -43,22 +45,27 @@ function toEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
     gates: model.gates,
     leafNodes: model.leafNodes,
     gateInputs: model.gateInputs,
-    nodePositions: model.nodePositions,
-    layout: model.layout,
+    nodePositions: model.nodePositions.map(({ nodeId, position }) => ({
+      nodeId,
+      position: { x: position.x - minX + 24, y: position.y - minY + 24 },
+    })),
+    layout: { ...model.layout, viewport: { x: 0, y: 0, zoom: 1 } },
   };
 }
 
 function EsFaultTreeReferencePicker({
   projectId,
+  embeddedSource,
   functionalEventName,
   currentReference,
   onClose,
   onConfirm,
 }: EsFaultTreeReferencePickerProps): JSX.Element {
-  const [workbooks, setWorkbooks] = useState<Workbook[] | null>(null);
+  const [workbooks, setWorkbooks] = useState<Array<{ id: string; name: string }> | null>(null);
   const [selectedWorkbookId, setSelectedWorkbookId] = useState("");
-  const [source, setSource] = useState<SyWorkbookResponse | null>(null);
+  const [source, setSource] = useState<Pick<SyWorkbookResponse, "workbookId" | "mef"> | null>(null);
   const [selectedModelId, setSelectedModelId] = useState("");
+  const [modelQuery, setModelQuery] = useState("");
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const [selectedTarget, setSelectedTarget] = useState<MethodEntityReference | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +75,16 @@ function EsFaultTreeReferencePicker({
     let cancelled = false;
     setWorkbooks(null);
     setError(null);
+    if (embeddedSource !== undefined) {
+      setWorkbooks([{ id: embeddedSource.workbookId, name: embeddedSource.workbookName }]);
+      setSelectedWorkbookId(embeddedSource.workbookId);
+      return () => { cancelled = true; };
+    }
+    if (projectId === undefined) {
+      setWorkbooks([]);
+      setError("No Systems Analysis source is available for fault-tree linking.");
+      return () => { cancelled = true; };
+    }
     listWorkbooks(projectId, "SY")
       .then(({ workbooks: available }) => {
         if (cancelled) return;
@@ -82,38 +99,38 @@ function EsFaultTreeReferencePicker({
         }
       });
     return () => { cancelled = true; };
-  }, [currentReference?.workbookId, projectId]);
+  }, [currentReference?.workbookId, embeddedSource, projectId]);
 
   useEffect(() => {
     let cancelled = false;
     setSource(null);
     setSelectedModelId("");
+    setModelQuery("");
     setSelection(null);
     setSelectedTarget(null);
     setSelectionHint(null);
     if (selectedWorkbookId.length === 0) return () => { cancelled = true; };
 
     setError(null);
+    const receiveSource = (response: Pick<SyWorkbookResponse, "workbookId" | "mef">): void => {
+      if (cancelled) return;
+      const availableModels = response.mef.systemLogicModels.filter(({ topGate }) => topGate !== null);
+      const preferred = availableModels.find(
+        ({ uuid }) => selectedWorkbookId === currentReference?.workbookId && uuid === currentReference.modelId,
+      ) ?? availableModels[0];
+      setSource(response);
+      setSelectedModelId(preferred?.uuid ?? "");
+      if (preferred !== undefined && preferred.topGate !== null) {
+        setSelection({ kind: "GATE", gateId: preferred.topGate.gateId });
+        setSelectedTarget({ modelId: preferred.uuid, entityId: preferred.topGate.gateId });
+      }
+    };
+    if (embeddedSource !== undefined && selectedWorkbookId === embeddedSource.workbookId) {
+      receiveSource(embeddedSource);
+      return () => { cancelled = true; };
+    }
     getSyWorkbook(selectedWorkbookId)
-      .then((response) => {
-        if (cancelled) return;
-        const availableModels = response.mef.systemLogicModels.filter(({ topGate }) => topGate !== null);
-        const preferred = availableModels.find(
-          ({ uuid }) => selectedWorkbookId === currentReference?.workbookId && uuid === currentReference.modelId,
-        ) ?? availableModels[0];
-        setSource(response);
-        setSelectedModelId(preferred?.uuid ?? "");
-        if (
-          preferred !== undefined
-          && preferred.topGate !== null
-          && selectedWorkbookId === currentReference?.workbookId
-          && preferred.uuid === currentReference.modelId
-          && preferred.topGate.gateId === currentReference.entityId
-        ) {
-          setSelection({ kind: "GATE", gateId: currentReference.entityId });
-          setSelectedTarget({ modelId: currentReference.modelId, entityId: currentReference.entityId });
-        }
-      })
+      .then(receiveSource)
       .catch((loadError: unknown) => {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Could not load the Systems Analysis workbook.");
@@ -124,6 +141,7 @@ function EsFaultTreeReferencePicker({
     currentReference?.entityId,
     currentReference?.modelId,
     currentReference?.workbookId,
+    embeddedSource,
     selectedWorkbookId,
   ]);
 
@@ -141,8 +159,25 @@ function EsFaultTreeReferencePicker({
   }, [onClose]);
 
   const availableModels = source?.mef.systemLogicModels.filter(({ topGate }) => topGate !== null) ?? [];
+  const normalizedQuery = modelQuery.trim().toLowerCase();
+  const filteredModels = normalizedQuery.length === 0 ? availableModels : availableModels.filter((model) => {
+    const topGate = model.topGate === null ? undefined : model.gates.find((gate) => gate.id === model.topGate?.gateId);
+    return [model.code, model.name, model.systemReference, topGate?.code, topGate?.name]
+      .filter((value): value is string => typeof value === "string")
+      .some((value) => value.toLowerCase().includes(normalizedQuery));
+  });
   const selectedModel = availableModels.find(({ uuid }) => uuid === selectedModelId);
   const editorModel = selectedModel === undefined ? null : toEditorModel(selectedModel);
+  const transferTargets = availableModels.flatMap((candidate) =>
+    candidate.topGate === null || candidate.uuid === selectedModelId
+      ? []
+      : [{
+          target: { modelId: candidate.uuid, entityId: candidate.topGate.gateId },
+          code: candidate.code,
+          name: candidate.name,
+          description: candidate.description,
+        }],
+  );
   const catalogue = useMemo<FaultTreeEditorCatalogue>(
     () => ({
       basicEvents: (source?.mef.systemBasicEvents ?? []).map(systemBasicEventToFaultTreeBasicEvent),
@@ -153,16 +188,19 @@ function EsFaultTreeReferencePicker({
     ? []
     : validateFaultTreeModel(editorModel, {
         basicEventCatalogue: { workbookId: selectedWorkbookId, basicEvents: catalogue.basicEvents },
-        availableTransferTargets: availableModels.flatMap((model) =>
-          model.topGate === null ? [] : [{ modelId: model.uuid, entityId: model.topGate.gateId }],
-        ),
+        availableTransferTargets: transferTargets.map(({ target }) => target),
         faultTreeModels: availableModels.map(toEditorModel),
       });
 
   function selectModel(modelId: string): void {
+    const nextModel = availableModels.find((model) => model.uuid === modelId);
     setSelectedModelId(modelId);
-    setSelection(null);
-    setSelectedTarget(null);
+    setSelection(nextModel?.topGate === null || nextModel?.topGate === undefined
+      ? null
+      : { kind: "GATE", gateId: nextModel.topGate.gateId });
+    setSelectedTarget(nextModel?.topGate === null || nextModel?.topGate === undefined
+      ? null
+      : { modelId: nextModel.uuid, entityId: nextModel.topGate.gateId });
     setSelectionHint(null);
   }
 
@@ -186,8 +224,14 @@ function EsFaultTreeReferencePicker({
     });
   }
 
+  const selectedTargetCode = selectedTarget === null
+    ? null
+    : availableModels
+      .find((model) => model.uuid === selectedTarget.modelId)
+      ?.gates.find((gate) => gate.id === selectedTarget.entityId)?.code ?? null;
+
   return (
-    <div className="eslink-backdrop" onClick={onClose}>
+    <div className="eslink-backdrop eslink-backdrop--fault-tree" onClick={onClose}>
       <div
         className="eslink eslink--fault-tree"
         role="dialog"
@@ -195,38 +239,58 @@ function EsFaultTreeReferencePicker({
         aria-label={`Select a fault-tree top event for ${functionalEventName}`}
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="eslink__head">
-          <div>
-            <div className="eslink__eyebrow"><ESIcon.Link /> Stable workbook reference</div>
-            <WorkbookSectionHeading workbook="ES" title={`Link ${functionalEventName}`} level={2} className="eslink__title" />
-          </div>
-          <button type="button" className="eslink__close" onClick={onClose} aria-label="Close"><ESIcon.Close /></button>
-        </header>
-
         <div className="eslink__body eslink__body--fault-tree">
-          <div className="eslink__ft-selectors">
-            <label className="posfield">
-              <span className="posfield__label">Systems workbook</span>
-              <select
-                className="posfield__select"
-                value={selectedWorkbookId}
-                disabled={workbooks === null || workbooks.length === 0}
-                onChange={(event) => setSelectedWorkbookId(event.target.value)}
+          <div className="eslink__ft-toolbar">
+            <div className="eslink__ft-selectors">
+              <label className="posfield">
+                <span className="posfield__label">Systems workbook</span>
+                <select
+                  className="posfield__select"
+                  value={selectedWorkbookId}
+                  disabled={workbooks === null || workbooks.length === 0}
+                  onChange={(event) => setSelectedWorkbookId(event.target.value)}
+                >
+                  {(workbooks ?? []).map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
+                </select>
+              </label>
+              <label className="posfield">
+                <span className="posfield__label">Search fault trees</span>
+                <input
+                  className="posfield__input"
+                  type="search"
+                  value={modelQuery}
+                  placeholder="Tree code, name, top gate, or system"
+                  onChange={(event) => setModelQuery(event.target.value)}
+                />
+              </label>
+              <label className="posfield">
+                <span className="posfield__label">Fault tree</span>
+                <select
+                  className="posfield__select"
+                  value={selectedModelId}
+                  disabled={source === null || availableModels.length === 0}
+                  onChange={(event) => selectModel(event.target.value)}
+                >
+                  {filteredModels.length === 0 && <option value="">No matching fault tree</option>}
+                  {filteredModels.map((model) => {
+                    const topGate = model.topGate === null ? undefined : model.gates.find((gate) => gate.id === model.topGate?.gateId);
+                    return <option key={model.uuid} value={model.uuid}>{model.code} · {model.name}{topGate?.code === undefined ? "" : ` · ${topGate.code}`}</option>;
+                  })}
+                </select>
+              </label>
+            </div>
+            <div className="eslink__ft-actions">
+              {selectedTargetCode !== null && <span className="eslink__selection-summary">{selectedTargetCode}</span>}
+              <button
+                type="button"
+                className="posnav__btn posnav__btn--primary"
+                disabled={selectedTarget === null}
+                onClick={confirm}
               >
-                {(workbooks ?? []).map((workbook) => <option key={workbook.id} value={workbook.id}>{workbook.name}</option>)}
-              </select>
-            </label>
-            <label className="posfield">
-              <span className="posfield__label">Fault tree</span>
-              <select
-                className="posfield__select"
-                value={selectedModelId}
-                disabled={source === null || availableModels.length === 0}
-                onChange={(event) => selectModel(event.target.value)}
-              >
-                {availableModels.map((model) => <option key={model.uuid} value={model.uuid}>{model.code} · {model.name}</option>)}
-              </select>
-            </label>
+                <ESIcon.Link /> Link selected top event
+              </button>
+              <button type="button" className="eslink__close" onClick={onClose} aria-label="Close"><ESIcon.Close /></button>
+            </div>
           </div>
 
           {workbooks === null && <p className="pws-status">Loading Systems Analysis workbooks…</p>}
@@ -243,7 +307,6 @@ function EsFaultTreeReferencePicker({
 
           {editorModel !== null && (
             <div className="eslink__ft-editor">
-              <p className="possubtle">Select the top gate in the canonical fault-tree viewer, then confirm the stable reference.</p>
               {selectionHint !== null && <p className="eslink__error" role="alert">{selectionHint}</p>}
               <FaultTreeEditor
                 key={`${selectedWorkbookId}:${editorModel.modelId}`}
@@ -255,6 +318,7 @@ function EsFaultTreeReferencePicker({
                 saveState="saved"
                 analysisResult={null}
                 resultIsStale={false}
+                transferTargets={transferTargets}
                 onOperation={() => undefined}
                 onSelectionChange={(nextSelection) => {
                   setSelection(nextSelection);
@@ -262,6 +326,7 @@ function EsFaultTreeReferencePicker({
                 }}
                 onOpenReference={(request) => {
                   if (request.kind === "GATE") receiveReference(request.target);
+                  if (request.kind === "TRANSFER") selectModel(request.target.modelId);
                 }}
                 onRun={() => undefined}
               />
@@ -269,20 +334,6 @@ function EsFaultTreeReferencePicker({
           )}
         </div>
 
-        <footer className="eslink__foot">
-          <span className="eslink__selection-summary">
-            {selectedTarget === null ? "No top event selected" : `Selected ${selectedTarget.entityId}`}
-          </span>
-          <button type="button" className="posnav__btn" onClick={onClose}>Cancel</button>
-          <button
-            type="button"
-            className="posnav__btn posnav__btn--primary"
-            disabled={selectedTarget === null}
-            onClick={confirm}
-          >
-            <ESIcon.Link /> Link selected top event
-          </button>
-        </footer>
       </div>
     </div>
   );

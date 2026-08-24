@@ -124,4 +124,79 @@ describe("canonical event-tree operations", () => {
       "ET_BRANCH_INCOMPLETE",
     ]));
   });
+
+  it("keeps bypassed functional events distinct from failures across presentation and structural edits", () => {
+    const bypassed: EventTree = {
+      ...emptyTree(),
+      functionalEvents: {
+        "FE-1": { uuid: "FE-1", name: "First", order: 0 },
+      },
+      sequences: {
+        "SEQ-B": {
+          uuid: "SEQ-B",
+          name: "Bypassed path",
+          endState: EndState.SUCCESSFUL_MITIGATION,
+          functionalEventStates: { "FE-1": "BYPASSED" },
+        },
+      },
+      branches: {
+        "BRANCH-B": {
+          uuid: "BRANCH-B",
+          name: "First",
+          functionalEventId: "FE-1",
+          paths: [{ state: "BYPASSED", target: "SEQ-B", targetType: "SEQUENCE" }],
+        },
+      },
+      initialState: { branchId: "BRANCH-B" },
+    };
+
+    expect(validateEventTree(bypassed, [bypassed])).toEqual([]);
+    expect(createEventTreePresentation(bypassed, []).sequences[0]?.path["FE-1"]).toBe("BYPASSED");
+
+    const expanded = applyEventTreeOperation(bypassed, {
+      kind: "ADD_FUNCTIONAL_EVENT",
+      functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
+    });
+    expect(Object.values(expanded.sequences)).toHaveLength(2);
+    expect(Object.values(expanded.sequences).every((sequence) => sequence.functionalEventStates?.["FE-1"] === "BYPASSED")).toBe(true);
+    expect(new Set(Object.values(expanded.sequences).map((sequence) => sequence.functionalEventStates?.["FE-2"]))).toEqual(new Set(["SUCCESS", "FAILURE"]));
+
+    const restored = applyEventTreeOperation(bypassed, {
+      kind: "SET_FUNCTIONAL_EVENT_BYPASS",
+      sequenceId: "SEQ-B",
+      functionalEventId: "FE-1",
+      bypassed: false,
+    });
+    expect(Object.values(restored.sequences)).toHaveLength(2);
+    expect(new Set(Object.values(restored.sequences).map((sequence) => sequence.functionalEventStates?.["FE-1"]))).toEqual(new Set(["SUCCESS", "FAILURE"]));
+
+    const rebypassed = applyEventTreeOperation(restored, {
+      kind: "SET_FUNCTIONAL_EVENT_BYPASS",
+      sequenceId: Object.values(restored.sequences).find((sequence) => sequence.functionalEventStates?.["FE-1"] === "SUCCESS")!.uuid,
+      functionalEventId: "FE-1",
+      bypassed: true,
+    });
+    expect(Object.values(rebypassed.sequences)).toHaveLength(1);
+    expect(Object.values(rebypassed.sequences)[0]?.functionalEventStates?.["FE-1"]).toBe("BYPASSED");
+  });
+
+  it("inserts and reorders functional events without changing unaffected sequence identities", () => {
+    const first = applyEventTreeOperation(emptyTree(), {
+      kind: "ADD_FUNCTIONAL_EVENT",
+      functionalEvent: { uuid: "FE-1", name: "First", order: 0, faultTreeTopEvent: reference },
+    });
+    const second = applyEventTreeOperation(first, {
+      kind: "ADD_FUNCTIONAL_EVENT",
+      functionalEvent: { uuid: "FE-2", name: "Second", order: 1, faultTreeTopEvent: reference },
+    });
+    const beforeIds = Object.keys(second.sequences).sort();
+    const reordered = applyEventTreeOperation(second, {
+      kind: "REORDER_FUNCTIONAL_EVENT",
+      functionalEventId: "FE-2",
+      targetIndex: 0,
+    });
+
+    expect(Object.values(reordered.functionalEvents).sort((left, right) => (left.order ?? 0) - (right.order ?? 0)).map((event) => event.uuid)).toEqual(["FE-2", "FE-1"]);
+    expect(Object.keys(reordered.sequences).sort()).toEqual(beforeIds);
+  });
 });

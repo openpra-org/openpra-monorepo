@@ -4,6 +4,7 @@ import { type PlantOperatingStatesAnalysis } from "interfaces-mef-types/pos/plan
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 import { type PRAConfigurationControl } from "interfaces-mef-types/cross-cutting/pra-configuration-control";
 import { type NewlyDevelopedMethod } from "interfaces-mef-types/cross-cutting/newly-developed-methods";
+import { type SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
 import { fetchJson } from "../api/client";
 import { EsWorkbench } from "./esWorkbench";
 import { EsWorkbookProvider, type EsWorkbookData } from "./esWorkbookContext";
@@ -30,6 +31,10 @@ interface PosBundleResponse {
 
 interface IeBundleResponse {
   ie: { mef: unknown };
+}
+
+interface SyBundleResponse {
+  sy: { mef: unknown };
 }
 
 function buildDemoPosLink(pos: PlantOperatingStatesAnalysis): EsPosLinkStatus {
@@ -76,9 +81,10 @@ function EsDemoPage(): JSX.Element {
       .then(async (res) => {
         const es = res.es.mef as EventSequenceAnalysis;
         const variant = es.uuid === "es-generic-2" ? "htgr" : "sfr";
-        const [posRes, ieRes] = await Promise.all([
+        const [posRes, ieRes, syRes] = await Promise.all([
           fetchJson<PosBundleResponse>(`/api/example-workbooks/pos-bundle?example=${variant}`).catch((): PosBundleResponse | null => null),
           fetchJson<IeBundleResponse>(`/api/example-workbooks/ie-bundle?example=${variant}`).catch((): IeBundleResponse | null => null),
+          fetchJson<SyBundleResponse>(`/api/example-workbooks/sy-bundle?example=${variant}`).catch((): SyBundleResponse | null => null),
         ]);
         if (cancelled) return;
         setData({
@@ -87,6 +93,13 @@ function EsDemoPage(): JSX.Element {
           nms: res.newlyDevelopedMethods.map((nm) => nm.mef as NewlyDevelopedMethod),
           posLink: posRes !== null ? buildDemoPosLink(posRes.pos.mef as PlantOperatingStatesAnalysis) : EMPTY_POS_LINK,
           ieLink: ieRes !== null ? buildDemoIeLink(ieRes.ie.mef as InitiatingEventsAnalysis) : EMPTY_IE_LINK,
+          ...(syRes === null ? {} : {
+            faultTreeSource: {
+              workbookId: `example-sy-${variant}`,
+              workbookName: `${variant.toUpperCase()} Systems Analysis example`,
+              mef: syRes.sy.mef as SystemsAnalysis,
+            },
+          }),
         });
       })
       .catch((err: unknown) => {

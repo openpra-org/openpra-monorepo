@@ -1,0 +1,162 @@
+.editor-confirm__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24px;
+  background: rgb(18 20 29 / 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.editor-confirm {
+  width: min(100%, 460px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 24px 64px rgb(18 20 29 / 0.28);
+}
+
+.editor-confirm__header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 30px;
+  align-items: start;
+  gap: 11px;
+  padding: 18px 18px 12px;
+}
+
+.editor-confirm__icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.editor-confirm--warning .editor-confirm__icon {
+  background: color-mix(in srgb, var(--color-warning) 13%, transparent);
+  color: var(--color-warning);
+}
+
+.editor-confirm--danger .editor-confirm__icon {
+  background: color-mix(in srgb, var(--color-error) 11%, transparent);
+  color: var(--color-error);
+}
+
+.editor-confirm__icon svg,
+.editor-confirm__close svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.editor-confirm__heading {
+  min-width: 0;
+}
+
+.editor-confirm__eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-text-subtle);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.editor-confirm__heading h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.editor-confirm__close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.editor-confirm__close:hover {
+  background: var(--color-surface-low);
+  color: var(--color-text);
+}
+
+.editor-confirm__body {
+  display: grid;
+  gap: 8px;
+  padding: 0 18px 17px 67px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.editor-confirm__body p {
+  margin: 0;
+}
+
+.editor-confirm__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding: 12px 18px;
+  background: var(--color-surface-subtle);
+}
+
+.editor-confirm__button {
+  min-height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.editor-confirm__button--cancel {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.editor-confirm__button--warning {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+}
+
+.editor-confirm__button--danger {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: white;
+}
+
+.editor-confirm__button:hover {
+  filter: brightness(0.96);
+}
+
+@media (max-width: 520px) {
+  .editor-confirm__backdrop {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .editor-confirm__body {
+    padding-left: 18px;
+  }
+}

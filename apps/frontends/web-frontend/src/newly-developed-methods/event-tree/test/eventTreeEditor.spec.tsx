@@ -243,6 +243,18 @@ describe("EventTreeEditor", () => {
     });
   });
 
+  it("confirms destructive structural changes in the shared editor dialog", () => {
+    const { onOperation } = renderEditor();
+    fireEvent.contextMenu(screen.getByRole("button", { name: /RT Reactor trip/i }), { clientX: 100, clientY: 100 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete functional event…" }));
+
+    expect(screen.getByRole("alertdialog", { name: "Delete RT?" })).toBeInTheDocument();
+    expect(onOperation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete functional event" }));
+
+    expect(onOperation).toHaveBeenCalledWith({ kind: "DELETE_FUNCTIONAL_EVENT", functionalEventId: "FE-1" });
+  });
+
   it("labels an absent functional-event state as bypassed rather than failed", () => {
     const sequenceId = Object.keys(model.sequences)[0]!;
     const bypassedModel: EventTree = {

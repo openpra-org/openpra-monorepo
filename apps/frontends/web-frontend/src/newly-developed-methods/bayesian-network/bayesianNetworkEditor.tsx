@@ -12,7 +12,6 @@ import type {
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkNode,
 } from "interfaces-mef-types/modeling";
-import type { EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
 import type { BayesianNetworkModel } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import {
   addNode,
@@ -34,10 +33,9 @@ import {
   importBayesianNetworkJson,
   importBayesianNetworkXdsl,
 } from "./bayesianNetworkInterchange";
-import type {
-  BayesianNetworkEditorProps,
-  BayesianNetworkFaultTreeOption,
-} from "./bayesianNetworkTypes";
+import type { BayesianNetworkEditorProps } from "./bayesianNetworkTypes";
+import { useEditorConfirmation } from "../shared";
+import { HclBindingEditor } from "../hybrid-causal-logic";
 import "./css/bayesianNetwork.css";
 
 interface DragState {
@@ -75,6 +73,34 @@ const NODE_HEIGHT = 84;
 const DOCK_REVEAL_MARGIN = 28;
 const DOCK_RADIUS = 22;
 const CONNECTION_SIDES = ["top", "right", "bottom", "left"] as const;
+
+function EditorIcon({
+  name,
+}: {
+  name: "undo" | "redo" | "file" | "add-node" | "zoom-out" | "zoom-in" | "fit" | "auto-layout" | "trash" | "run" | "configuration";
+}): JSX.Element {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8,
+  };
+  return (
+    <svg className="bneditor__button-icon" viewBox="0 0 24 24" aria-hidden="true">
+      {name === "undo" && <><path {...common} d="M9 7H4V2" /><path {...common} d="M4.5 7A9 9 0 1 1 7 19.5" /></>}
+      {name === "redo" && <><path {...common} d="M15 7h5V2" /><path {...common} d="M19.5 7A9 9 0 1 0 17 19.5" /></>}
+      {name === "file" && <><path {...common} d="M6 3h8l4 4v14H6z" /><path {...common} d="M14 3v5h4" /><path {...common} d="M9 13h6M9 17h6" /></>}
+      {name === "add-node" && <><rect {...common} x="4" y="4" width="16" height="16" rx="3" /><path {...common} d="M12 8v8M8 12h8" /></>}
+      {name === "trash" && <><path {...common} d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></>}
+      {name === "run" && <><circle {...common} cx="12" cy="12" r="9" /><path {...common} d="m10 8.5 6 3.5-6 3.5z" /></>}
+      {name === "configuration" && <><circle {...common} cx="6" cy="12" r="3" /><circle {...common} cx="18" cy="6" r="3" /><circle {...common} cx="18" cy="18" r="3" /><path {...common} d="m9 11 6-4M9 13l6 4" /></>}
+      {(name === "zoom-out" || name === "zoom-in") && <><circle {...common} cx="10.5" cy="10.5" r="6.5" /><path {...common} d="m15.5 15.5 5 5M7.5 10.5h6" />{name === "zoom-in" && <path {...common} d="M10.5 7.5v6" />}</>}
+      {name === "fit" && <><path {...common} d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /><rect {...common} x="8" y="8" width="8" height="8" rx="1" /></>}
+      {name === "auto-layout" && <><rect {...common} x="9" y="3" width="6" height="5" rx="1" /><rect {...common} x="3" y="16" width="6" height="5" rx="1" /><rect {...common} x="15" y="16" width="6" height="5" rx="1" /><path {...common} d="M12 8v4M6 12h12M6 12v4M18 12v4" /></>}
+    </svg>
+  );
+}
 
 function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
@@ -123,244 +149,6 @@ function rowTotal(row: BayesianNetworkCptRow): number {
   return row.values.reduce((sum, value) => sum + value.probability, 0);
 }
 
-function HclBindingsPanel({
-  model,
-  editable,
-  workbookId,
-  configurations,
-  faultTreeOptions,
-  validationMessages,
-  onChange,
-}: {
-  model: BayesianNetworkModel;
-  editable: boolean;
-  workbookId: string | null;
-  configurations: EsqHclConfiguration[];
-  faultTreeOptions: BayesianNetworkFaultTreeOption[];
-  validationMessages: string[];
-  onChange: (configurations: EsqHclConfiguration[]) => void;
-}): JSX.Element {
-  const configuration = configurations.find(
-    (candidate) =>
-      candidate.bayesianNetwork.modelId === model.modelId &&
-      (workbookId === null || candidate.bayesianNetwork.workbookId === workbookId),
-  );
-  const [faultTreeKey, setFaultTreeKey] = useState("");
-  const [basicEventId, setBasicEventId] = useState("");
-  const [nodeId, setNodeId] = useState(model.nodes[0]?.id ?? "");
-  const [trueStateIds, setTrueStateIds] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const selectedTree = faultTreeOptions.find(
-    (option) => `${option.workbookId}:${option.modelId}` === faultTreeKey,
-  );
-  const selectedNode = model.nodes.find((node) => node.id === nodeId);
-
-  useEffect(() => {
-    if (faultTreeOptions.some((option) => `${option.workbookId}:${option.modelId}` === faultTreeKey)) {
-      return;
-    }
-    const first = faultTreeOptions[0];
-    setFaultTreeKey(first === undefined ? "" : `${first.workbookId}:${first.modelId}`);
-  }, [faultTreeKey, faultTreeOptions]);
-  useEffect(() => {
-    if (selectedTree?.basicEvents.some((event) => event.id === basicEventId) === true) return;
-    setBasicEventId(selectedTree?.basicEvents[0]?.id ?? "");
-  }, [basicEventId, selectedTree]);
-  useEffect(() => {
-    if (model.nodes.some((node) => node.id === nodeId)) return;
-    setNodeId(model.nodes[0]?.id ?? "");
-    setTrueStateIds([]);
-  }, [model.nodes, nodeId]);
-
-  function createConfiguration(): void {
-    if (workbookId === null) {
-      setError("Save this ESQ workbook before creating an HCL configuration.");
-      return;
-    }
-    const created: EsqHclConfiguration = {
-      modelId: newId(),
-      code: uniqueCode("HCL", configurations.map((candidate) => candidate.code)),
-      name: `${model.name} HCL bindings`,
-      description: "Fault-tree events bound to Bayesian-network states.",
-      bayesianNetwork: { workbookId, modelId: model.modelId },
-      faultTrees: [],
-      bindings: [],
-      baseEvidence: { observations: [] },
-      solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
-    };
-    onChange([...configurations, created]);
-    setError(null);
-  }
-
-  function replaceConfiguration(next: EsqHclConfiguration): void {
-    onChange(configurations.map((candidate) =>
-      candidate.modelId === next.modelId ? next : candidate,
-    ));
-  }
-
-  function addBinding(): void {
-    if (configuration === undefined || selectedTree === undefined || selectedNode === undefined) {
-      setError("Choose a fault tree, basic event, and Bayesian-network node.");
-      return;
-    }
-    if (basicEventId === "") {
-      setError("Choose a basic event.");
-      return;
-    }
-    if (trueStateIds.length === 0) {
-      setError("Select at least one true state.");
-      return;
-    }
-    if (trueStateIds.length === selectedNode.states.length) {
-      setError("The true-state selection cannot contain every state of the node.");
-      return;
-    }
-    if (configuration.bindings.some((binding) =>
-      binding.faultTreeBasicEvent.workbookId === selectedTree.workbookId &&
-      binding.faultTreeBasicEvent.entityId === basicEventId,
-    )) {
-      setError("That basic event already has an HCL binding.");
-      return;
-    }
-    const faultTreeAddress = { workbookId: selectedTree.workbookId, modelId: selectedTree.modelId };
-    replaceConfiguration({
-      ...configuration,
-      faultTrees: configuration.faultTrees.some((reference) =>
-        reference.workbookId === faultTreeAddress.workbookId && reference.modelId === faultTreeAddress.modelId,
-      ) ? configuration.faultTrees : [...configuration.faultTrees, faultTreeAddress],
-      bindings: [
-        ...configuration.bindings,
-        {
-          id: newId(),
-          faultTreeBasicEvent: {
-            referenceType: "FAULT_TREE_BASIC_EVENT",
-            workbookId: selectedTree.workbookId,
-            entityId: basicEventId,
-          },
-          bayesianNetworkNode: {
-            referenceType: "BAYESIAN_NETWORK_NODE",
-            workbookId: configuration.bayesianNetwork.workbookId,
-            modelId: model.modelId,
-            entityId: selectedNode.id,
-          },
-          trueStateIds: trueStateIds as [string, ...string[]],
-        },
-      ],
-    });
-    setTrueStateIds([]);
-    setError(null);
-  }
-
-  return (
-    <section className="bneditor__panel" aria-label="HCL bindings">
-      <div className="bneditor__panel-head">
-        <div>
-          <h3>Hybrid causal logic bindings</h3>
-          <p>Map fault-tree basic events to the BN states that mean the event is true.</p>
-        </div>
-        {configuration === undefined && editable && (
-          <button type="button" className="bneditor__btn bneditor__btn--primary" onClick={createConfiguration}>
-            Create HCL configuration
-          </button>
-        )}
-      </div>
-      {configuration === undefined ? (
-        <p className="bneditor__empty">No HCL configuration uses this Bayesian network.</p>
-      ) : (
-        <>
-          <div className="bneditor__used-by">
-            <strong>Models using this BN</strong>
-            <span>{configuration.code}</span>
-            {configuration.faultTrees.map((reference) => {
-              const option = faultTreeOptions.find((candidate) =>
-                candidate.workbookId === reference.workbookId && candidate.modelId === reference.modelId,
-              );
-              return <span key={`${reference.workbookId}:${reference.modelId}`}>{option?.modelCode ?? reference.modelId}</span>;
-            })}
-          </div>
-          {editable && (
-            <div className="bneditor__binding-form">
-              <label>
-                <span>Fault tree</span>
-                <select aria-label="Fault tree for binding" value={faultTreeKey} onChange={(event) => setFaultTreeKey(event.target.value)}>
-                  {faultTreeOptions.length === 0 && <option value="">No Systems Analysis fault tree available</option>}
-                  {faultTreeOptions.map((option) => (
-                    <option key={`${option.workbookId}:${option.modelId}`} value={`${option.workbookId}:${option.modelId}`}>
-                      {option.workbookName} · {option.modelCode}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Basic event</span>
-                <select aria-label="Basic event for binding" value={basicEventId} onChange={(event) => setBasicEventId(event.target.value)}>
-                  {(selectedTree?.basicEvents ?? []).map((event) => (
-                    <option key={event.id} value={event.id}>{event.code}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>BN node</span>
-                <select aria-label="BN node for binding" value={nodeId} onChange={(event) => {
-                  setNodeId(event.target.value);
-                  setTrueStateIds([]);
-                }}>
-                  {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
-                </select>
-              </label>
-              <fieldset>
-                <legend>True states</legend>
-                {selectedNode?.states.map((state) => (
-                  <label key={state.id} className="bneditor__check">
-                    <input
-                      type="checkbox"
-                      checked={trueStateIds.includes(state.id)}
-                      onChange={(event) => setTrueStateIds((current) =>
-                        event.target.checked ? [...current, state.id] : current.filter((id) => id !== state.id),
-                      )}
-                    />
-                    {state.code}
-                  </label>
-                ))}
-              </fieldset>
-              <button type="button" className="bneditor__btn bneditor__btn--primary" onClick={addBinding}>Add binding</button>
-            </div>
-          )}
-          <div className="bneditor__binding-list">
-            {configuration.bindings.map((binding) => {
-              const tree = faultTreeOptions.find((option) =>
-                option.workbookId === binding.faultTreeBasicEvent.workbookId &&
-                option.basicEvents.some((event) => event.id === binding.faultTreeBasicEvent.entityId),
-              );
-              const basicEvent = tree?.basicEvents.find((event) => event.id === binding.faultTreeBasicEvent.entityId);
-              const node = model.nodes.find((candidate) => candidate.id === binding.bayesianNetworkNode.entityId);
-              const states = node?.states.filter((state) => binding.trueStateIds.includes(state.id)) ?? [];
-              const invalid = node === undefined || states.length === 0 || states.length === node.states.length;
-              return (
-                <div key={binding.id} className={`bneditor__binding${invalid ? " is-invalid" : ""}`}>
-                  <span>{tree?.modelCode ?? "Missing FT"} / {basicEvent?.code ?? "Missing basic event"}</span>
-                  <span>→</span>
-                  <span>{node?.code ?? "Missing BN node"} = {states.map((state) => state.code).join(" | ") || "No valid state"}</span>
-                  {editable && (
-                    <button type="button" aria-label={`Delete binding ${basicEvent?.code ?? binding.id}`} onClick={() => replaceConfiguration({
-                      ...configuration,
-                      bindings: configuration.bindings.filter((candidate) => candidate.id !== binding.id),
-                    })}>Delete</button>
-                  )}
-                </div>
-              );
-            })}
-            {configuration.bindings.length === 0 && <p className="bneditor__empty">No fault-tree events are bound yet.</p>}
-          </div>
-        </>
-      )}
-      {error !== null && <p className="bneditor__error" role="alert">{error}</p>}
-      {validationMessages.map((message, index) => (
-        <p key={`${message}-${String(index)}`} className="bneditor__error">{message}</p>
-      ))}
-    </section>
-  );
-}
 
 function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const {
@@ -375,10 +163,16 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     workbookId,
     hclConfigurations,
     faultTreeOptions,
+    eventTreeOptions,
+    hclRunning,
+    hclRunError,
+    hclRunResult,
     onModelChange,
     onEvidenceChange,
     onQueryNodeChange,
     onHclConfigurationsChange,
+    onRunHclFaultTree,
+    onRunHclEventTree,
     onRun,
   } = props;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(model.nodes[0]?.id ?? null);
@@ -386,6 +180,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const [edgeContextMenu, setEdgeContextMenu] = useState<EdgeContextMenuState | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const history = useRef<BayesianNetworkModel[]>([]);
   const future = useRef<BayesianNetworkModel[]>([]);
   const importRef = useRef<HTMLInputElement>(null);
@@ -455,8 +250,12 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     commit(next, false);
   }
 
-  function confirmRebuild(message: string): boolean {
-    return window.confirm(`${message}\n\nThe affected CPT will be rebuilt with uniform values. Existing probabilities will not be reinterpreted.`);
+  function confirmRebuild(message: string, action: () => void): void {
+    requestConfirmation({
+      title: "Rebuild probability tables?",
+      message: `${message}\n\nThe affected CPT will be rebuilt with uniform values. Existing probabilities will not be reinterpreted.`,
+      confirmLabel: "Rebuild CPTs",
+    }, action);
   }
 
   function addNewNode(): void {
@@ -470,16 +269,18 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   }
 
   function addState(): void {
-    if (selectedNode === undefined || !confirmRebuild("Adding a state changes this node and every child CPT.")) return;
+    if (selectedNode === undefined) return;
     const code = uniqueCode("STATE", selectedNode.states.map((state) => state.code));
     const updated = {
       ...selectedNode,
       states: [...selectedNode.states, { id: newId(), code, name: "New state" }] as BayesianNetworkNode["states"],
     };
-    commit(rebuildNodeAndChildren({
-      ...model,
-      nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
-    }, updated.id));
+    confirmRebuild("Adding a state changes this node and every child CPT.", () => {
+      commit(rebuildNodeAndChildren({
+        ...model,
+        nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
+      }, updated.id));
+    });
   }
 
   function removeState(stateId: string): void {
@@ -487,29 +288,32 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       setOperationError("A discrete Bayesian-network node requires at least two states.");
       return;
     }
-    if (!confirmRebuild("Removing a state changes this node and every child CPT.")) return;
     const updated = {
       ...selectedNode,
       states: selectedNode.states.filter((state) => state.id !== stateId) as BayesianNetworkNode["states"],
     };
-    commit(rebuildNodeAndChildren({
-      ...model,
-      nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
-    }, updated.id));
+    confirmRebuild("Removing a state changes this node and every child CPT.", () => {
+      commit(rebuildNodeAndChildren({
+        ...model,
+        nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
+      }, updated.id));
+    });
   }
 
   function moveState(stateId: string, direction: -1 | 1): void {
-    if (selectedNode === undefined || !confirmRebuild("Reordering states changes CPT interpretation.")) return;
+    if (selectedNode === undefined) return;
     const index = selectedNode.states.findIndex((state) => state.id === stateId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= selectedNode.states.length) return;
     const states = [...selectedNode.states];
     [states[index], states[nextIndex]] = [states[nextIndex]!, states[index]!];
     const updated = { ...selectedNode, states: states as BayesianNetworkNode["states"] };
-    commit(rebuildNodeAndChildren({
-      ...model,
-      nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
-    }, updated.id));
+    confirmRebuild("Reordering states changes CPT interpretation.", () => {
+      commit(rebuildNodeAndChildren({
+        ...model,
+        nodes: model.nodes.map((node) => node.id === updated.id ? updated : node),
+      }, updated.id));
+    });
   }
 
   function graphCoordinates(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -647,7 +451,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   }
 
   function moveParent(parentNodeId: string, direction: -1 | 1): void {
-    if (selectedNode === undefined || selectedTable === undefined || !confirmRebuild("Reordering parents changes CPT interpretation.")) return;
+    if (selectedNode === undefined || selectedTable === undefined) return;
     const parentIds = [...selectedTable.parents]
       .sort((left, right) => left.order - right.order)
       .map((parent) => parent.nodeId);
@@ -655,7 +459,9 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= parentIds.length) return;
     [parentIds[index], parentIds[nextIndex]] = [parentIds[nextIndex]!, parentIds[index]!];
-    commit(reorderParents(model, selectedNode.id, parentIds));
+    confirmRebuild("Reordering parents changes CPT interpretation.", () => {
+      commit(reorderParents(model, selectedNode.id, parentIds));
+    });
   }
 
   function updateRow(row: BayesianNetworkCptRow): void {
@@ -669,9 +475,15 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   function removeSelectedNode(): void {
     if (selectedNode === undefined) return;
     const impact = model.edges.filter((edge) => edge.parentNodeId === selectedNode.id || edge.childNodeId === selectedNode.id).length;
-    if (!window.confirm(`Delete ${selectedNode.code}? ${String(impact)} connected edge${impact === 1 ? "" : "s"} will also be removed, and child CPTs will be rebuilt.`)) return;
-    commit(deleteNode(model, selectedNode.id));
-    setSelectedNodeId(null);
+    requestConfirmation({
+      title: `Delete ${selectedNode.code}?`,
+      message: `${String(impact)} connected edge${impact === 1 ? "" : "s"} will also be removed, and child CPTs will be rebuilt.`,
+      confirmLabel: "Delete node",
+      tone: "danger",
+    }, () => {
+      commit(deleteNode(model, selectedNode.id));
+      setSelectedNodeId(null);
+    });
   }
 
   function beginDrag(nodeId: string, event: ReactPointerEvent<HTMLButtonElement>): void {
@@ -737,9 +549,14 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       const imported = importKind.current === "XDSL"
         ? importBayesianNetworkXdsl(source, model)
         : { ...importBayesianNetworkJson(source), modelId: model.modelId };
-      if (!window.confirm("Replace the current Bayesian network with the imported model?")) return;
-      commit(imported);
-      setSelectedNodeId(imported.nodes[0]?.id ?? null);
+      requestConfirmation({
+        title: "Replace this Bayesian network?",
+        message: "The imported model will replace the current network, nodes, connections, states, and probability tables.",
+        confirmLabel: "Replace network",
+      }, () => {
+        commit(imported);
+        setSelectedNodeId(imported.nodes[0]?.id ?? null);
+      });
     } catch (error) {
       setOperationError(error instanceof Error ? error.message : "Could not import that Bayesian network.");
     } finally {
@@ -760,7 +577,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     ? []
     : [...selectedTable.parents].sort((left, right) => left.order - right.order);
   const contextEdge = model.edges.find((edge) => edge.id === edgeContextMenu?.edgeId);
-  const hclMessages = validation.filter((issue) => issue.code.startsWith("BN_HCL_")).map((issue) => issue.message);
+  const hclIssues = validation.filter((issue) => issue.code.startsWith("BN_HCL_"));
   const nonHclIssues = validation.filter((issue) => !issue.code.startsWith("BN_HCL_"));
 
   return (
@@ -778,12 +595,12 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </div>
         <div className="bneditor__toolbar" aria-label="Bayesian-network tools">
           <div role="group" aria-label="Bayesian-network history controls">
-            <button type="button" className="bneditor__btn" disabled={!editable || history.current.length === 0} onClick={undo}>Undo</button>
-            <button type="button" className="bneditor__btn" disabled={!editable || future.current.length === 0} onClick={redo}>Redo</button>
+            <button type="button" className="bneditor__icon-btn" aria-label="Undo" title="Undo" disabled={!editable || history.current.length === 0} onClick={undo}><EditorIcon name="undo" /></button>
+            <button type="button" className="bneditor__icon-btn" aria-label="Redo" title="Redo" disabled={!editable || future.current.length === 0} onClick={redo}><EditorIcon name="redo" /></button>
           </div>
           <div role="group" aria-label="Bayesian-network interchange controls">
             <details className="bneditor__file-menu">
-              <summary className="bneditor__btn" role="button" aria-haspopup="menu">File</summary>
+              <summary className="bneditor__icon-btn" role="button" aria-label="File" title="File" aria-haspopup="menu"><EditorIcon name="file" /></summary>
               <div className="bneditor__file-menu-popover" role="menu" aria-label="Bayesian-network file actions">
                 <button type="button" role="menuitem" onClick={(event) => {
                   event.currentTarget.closest("details")?.removeAttribute("open");
@@ -821,31 +638,25 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
 
       {operationError !== null && <p className="bneditor__error" role="alert">{operationError}</p>}
 
-      <div className="bneditor__workspace">
+      <div className={`bneditor__workspace${selectedNode === undefined ? "" : " bneditor__workspace--inspecting"}`}>
         <div ref={canvasRef} className="bneditor__canvas">
           <div className="bneditor__canvas-controls" aria-label="Bayesian-network canvas controls">
-            <div>
-              <button type="button" className="bneditor__btn bneditor__btn--primary" disabled={!editable} onClick={addNewNode}>Add node</button>
-              <button type="button" className="bneditor__btn" disabled={!editable || model.nodes.length === 0} onClick={() => commit(autoArrange(model))}>Auto arrange</button>
-            </div>
-            <div className="bneditor__zoom-controls">
-              <button type="button" className="bneditor__btn" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom(zoom - 0.1)}>−</button>
-              <output aria-label="Zoom level">{Math.round(zoom * 100)}%</output>
-              <button type="button" className="bneditor__btn" aria-label="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom(zoom + 0.1)}>+</button>
-              <button type="button" className="bneditor__btn" disabled={model.nodes.length === 0} onClick={() => {
-                const viewport = viewportRef.current;
-                if (viewport === null) return;
-                setZoom(Math.min((viewport.clientWidth - 32) / graphWidth, (viewport.clientHeight - 32) / graphHeight));
-                viewport.scrollTo({ left: 0, top: 0 });
-              }}>Fit</button>
-            </div>
+            <button type="button" className="bneditor__icon-btn bneditor__icon-btn--primary" aria-label="Add node" title="Add node" disabled={!editable} onClick={addNewNode}><EditorIcon name="add-node" /></button>
+            <button type="button" className="bneditor__icon-btn" aria-label="Auto arrange" title="Auto arrange" disabled={!editable || model.nodes.length === 0} onClick={() => commit(autoArrange(model))}><EditorIcon name="auto-layout" /></button>
+            <span className="bneditor__control-separator" aria-hidden="true" />
+            <button type="button" className="bneditor__icon-btn" aria-label="Zoom out" title="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => setZoom(zoom - 0.1)}><EditorIcon name="zoom-out" /></button>
+            <output className="bneditor__zoom" aria-label="Zoom level">{Math.round(zoom * 100)}%</output>
+            <button type="button" className="bneditor__icon-btn" aria-label="Zoom in" title="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => setZoom(zoom + 0.1)}><EditorIcon name="zoom-in" /></button>
+            <button type="button" className="bneditor__icon-btn" aria-label="Fit" title="Fit to screen" disabled={model.nodes.length === 0} onClick={() => {
+              const viewport = viewportRef.current;
+              if (viewport === null) return;
+              setZoom(Math.min((viewport.clientWidth - 32) / graphWidth, (viewport.clientHeight - 32) / graphHeight));
+              viewport.scrollTo({ left: 0, top: 0 });
+            }}><EditorIcon name="fit" /></button>
           </div>
           <div ref={viewportRef} className="bneditor__viewport" aria-label="Bayesian-network graph">
             {model.nodes.length === 0 ? (
-              <div className="bneditor__graph-empty">
-                <strong>No discrete nodes yet</strong>
-                <span>Use Add node above to begin.</span>
-              </div>
+              <div className="bneditor__graph-empty">Add a node to begin.</div>
             ) : (
               <div className="bneditor__stage" style={{ width: graphWidth * zoom, height: graphHeight * zoom }}>
                 <div ref={stageContentRef} className="bneditor__stage-content" style={{ width: graphWidth, height: graphHeight, transform: `scale(${String(zoom)})` }}>
@@ -946,15 +757,8 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
           )}
         </div>
 
-        <aside className="bneditor__inspector" aria-label="Bayesian-network node inspector">
-          {selectedNode === undefined ? (
-            <p className="bneditor__empty">Select a node to edit its identity, states, parents, and CPT.</p>
-          ) : (
-            <>
-              <div className="bneditor__inspector-head">
-                <div><span>Selected node</span><strong>{selectedNode.code}</strong></div>
-                {editable && <button type="button" className="bneditor__danger" onClick={removeSelectedNode}>Delete node</button>}
-              </div>
+        {selectedNode !== undefined && (
+          <aside className="bneditor__inspector" aria-label="Bayesian-network node inspector">
               <label className="bneditor__field">
                 <span>Code</span>
                 <input value={selectedNode.code} disabled={!editable} onChange={(event) => updateSelectedNode({ ...selectedNode, code: event.target.value })} />
@@ -1007,9 +811,11 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                 ))}
                 {orderedParents.length === 0 && <p className="bneditor__empty">This node has no parents.</p>}
               </div>
-            </>
-          )}
-        </aside>
+              {editable && <div className="bneditor__inspector-actions">
+                <button type="button" className="posnav__btn posnav__btn--sm bneditor__delete-btn" onClick={removeSelectedNode}><EditorIcon name="trash" /><span>Delete node</span></button>
+              </div>}
+          </aside>
+        )}
       </div>
 
       {selectedNode !== undefined && selectedTable !== undefined && (
@@ -1074,8 +880,9 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
       <section className="bneditor__panel" aria-label="Bayesian-network evidence and query">
         <div className="bneditor__panel-head">
           <div><h3>Evidence and exact query</h3><p>Evidence is applied to one state per node. Exact inference runs through PRAXIS and TensorBayes.</p></div>
-          <button type="button" className="bneditor__btn bneditor__btn--primary" disabled={!editable || running || queryNodeId === null || nonHclIssues.some((issue) => issue.severity === "ERROR")} onClick={onRun}>
-            {running ? "Running…" : "Run exact inference"}
+          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || queryNodeId === null || nonHclIssues.some((issue) => issue.severity === "ERROR")} onClick={onRun}>
+            <EditorIcon name="run" />
+            <span>{running ? "Running…" : "Run exact inference"}</span>
           </button>
         </div>
         <div className="bneditor__query-grid">
@@ -1125,14 +932,21 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         )}
       </section>
 
-      <HclBindingsPanel
+      <HclBindingEditor
         model={model}
         editable={editable}
         workbookId={workbookId}
         configurations={hclConfigurations}
         faultTreeOptions={faultTreeOptions}
-        validationMessages={hclMessages}
+        eventTreeOptions={eventTreeOptions}
+        baseEvidence={evidence}
+        validation={hclIssues}
+        running={hclRunning}
+        runError={hclRunError}
+        runResult={hclRunResult}
         onChange={onHclConfigurationsChange}
+        onRunFaultTree={onRunHclFaultTree}
+        onRunEventTree={onRunHclEventTree}
       />
 
       {nonHclIssues.length > 0 && (
@@ -1147,6 +961,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
           ))}
         </section>
       )}
+      {confirmationDialog}
     </div>
   );
 }

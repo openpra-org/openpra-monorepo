@@ -11,7 +11,16 @@ import type {
   BayesianNetworkAnalysisResult,
   BayesianNetworkExecuteResult,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
-import type { BayesianNetworkEvidenceConfiguration } from "interfaces-mef-types/modeling";
+import type {
+  BayesianNetworkEvidenceConfiguration,
+  FaultTreeTopEventReference,
+  WorkbookModelAddress,
+} from "interfaces-mef-types/modeling";
+import type {
+  HclExecuteResult,
+  HclQuantificationResult,
+} from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
+import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
 
 interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
 interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
@@ -151,6 +160,60 @@ async function getEsqBayesianNetworkResult(
   );
 }
 
+async function runEsqHclFaultTree(
+  workbookId: string,
+  configurationId: string,
+  workbookRevision: number,
+  faultTreeTopGate: FaultTreeTopEventReference,
+): Promise<HclExecuteResult> {
+  return postJson<HclExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/fault-tree-runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId: configurationId,
+      workbookRevision,
+      faultTreeTopGate,
+    },
+  );
+}
+
+async function runEsqHclEventTree(
+  workbookId: string,
+  configurationId: string,
+  workbookRevision: number,
+  eventTree: WorkbookModelAddress,
+): Promise<HclExecuteResult> {
+  return postJson<HclExecuteResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/event-tree-runs`,
+    {
+      schemaVersion: "1.0.0",
+      modelId: configurationId,
+      workbookRevision,
+      eventTree,
+    },
+  );
+}
+
+async function getEsqHclFaultTreeResult(
+  workbookId: string,
+  configurationId: string,
+  runId: string,
+): Promise<HclQuantificationResult> {
+  return fetchJson<HclQuantificationResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${runId}/result`,
+  );
+}
+
+async function getEsqHclEventTreeResult(
+  workbookId: string,
+  configurationId: string,
+  runId: string,
+): Promise<EventTreeAnalysisResult> {
+  return fetchJson<EventTreeAnalysisResult>(
+    `/api/esq-workbooks/${workbookId}/hcl-configurations/${configurationId}/runs/${runId}/result`,
+  );
+}
+
 export {
   fetchEsqLinkedInputs,
   getEsqExampleOptions,
@@ -164,6 +227,10 @@ export {
   getEsqDocumentDownload,
   runEsqBayesianNetwork,
   getEsqBayesianNetworkResult,
+  runEsqHclFaultTree,
+  runEsqHclEventTree,
+  getEsqHclFaultTreeResult,
+  getEsqHclEventTreeResult,
   type EsqWorkbookResponse,
   type EsqWorkbookRoleName,
   type EsqExampleOption,

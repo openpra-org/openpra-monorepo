@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
@@ -22,6 +23,8 @@ import {
 } from "../workbooks/workbook-revision";
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
+import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
+import { reconcileExampleEventTreeDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
 
 export interface EsWorkbookResponse {
   workbookId: string;
@@ -61,6 +64,7 @@ function toResponse(doc: EsWorkbookDocument, myRoles: WorkbookRoleName[]): EsWor
 export class EsWorkbooksService {
   constructor(
     @InjectModel(EsWorkbook.name) private readonly esWorkbookModel: Model<EsWorkbookDocument>,
+    @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     @InjectModel(WorkbookSignoff.name) private readonly signoffModel: Model<WorkbookSignoffDocument>,
     private readonly projectsService: ProjectsService,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
@@ -163,7 +167,15 @@ export class EsWorkbooksService {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
     const example = await this.exampleWorkbooksService.getEsBundle(exampleId);
-    const parsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
+    const sourceParsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
+    if (!sourceParsed.success) throw new ForbiddenException(`Example MEF failed validation: ${sourceParsed.error.message}`);
+    const variant = exampleId === "sfr" ? "sy-generic-1" : "sy-generic-2";
+    const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
+    const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
+    const reconciled = syDocument !== null && systems?.success === true
+      ? reconcileExampleEventTreeDependencyReferences(sourceParsed.data, systems.data, syDocument.workbookId)
+      : sourceParsed.data;
+    const parsed = EventSequenceAnalysisSchema.safeParse(reconciled);
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,

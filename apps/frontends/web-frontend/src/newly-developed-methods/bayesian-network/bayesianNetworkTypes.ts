@@ -5,19 +5,13 @@ import type {
   BayesianNetworkModel,
 } from "interfaces-shared-types/newly-developed-methods/bayesian-network";
 import type { ValidationIssue } from "interfaces-shared-types/newly-developed-methods/shared";
+import type {
+  HclEditorRunResult,
+  HclEventTreeOption,
+  HclFaultTreeOption,
+} from "../hybrid-causal-logic";
 
-interface BayesianNetworkFaultTreeOption {
-  workbookId: string;
-  workbookName: string;
-  modelId: string;
-  modelCode: string;
-  modelName: string;
-  basicEvents: Array<{
-    id: string;
-    code: string;
-    name: string;
-  }>;
-}
+type BayesianNetworkFaultTreeOption = HclFaultTreeOption;
 
 interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
@@ -31,10 +25,16 @@ interface BayesianNetworkEditorProps {
   workbookId: string | null;
   hclConfigurations: EsqHclConfiguration[];
   faultTreeOptions: BayesianNetworkFaultTreeOption[];
+  eventTreeOptions: HclEventTreeOption[];
+  hclRunning: boolean;
+  hclRunError: string | null;
+  hclRunResult: HclEditorRunResult | null;
   onModelChange: (model: BayesianNetworkModel) => void;
   onEvidenceChange: (evidence: BayesianNetworkEvidenceConfiguration) => void;
   onQueryNodeChange: (nodeId: string | null) => void;
   onHclConfigurationsChange: (configurations: EsqHclConfiguration[]) => void;
+  onRunHclFaultTree: (configuration: EsqHclConfiguration, faultTree: HclFaultTreeOption) => void;
+  onRunHclEventTree: (configuration: EsqHclConfiguration, eventTree: HclEventTreeOption) => void;
   onRun: () => void;
 }
 

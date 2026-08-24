@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
+import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
 import { ProjectsService } from "../projects/projects.service";
 import { ExampleWorkbooksService } from "../example-workbooks/example-workbooks.service";
 import { WorkbookRolesService, type WorkbookRoleName } from "../workbooks/workbook-roles.service";
@@ -22,6 +23,8 @@ import {
 } from "../workbooks/workbook-revision";
 import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbooks";
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
+import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
+import { reconcileExampleEsqDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
 
 export interface EsqWorkbookResponse {
   workbookId: string;
@@ -57,6 +60,7 @@ function toResponse(doc: EsqWorkbookDocument, myRoles: WorkbookRoleName[]): EsqW
 export class EsqWorkbooksService {
   constructor(
     @InjectModel(EsqWorkbook.name) private readonly esqWorkbookModel: Model<EsqWorkbookDocument>,
+    @InjectModel(SyWorkbook.name) private readonly syWorkbookModel: Model<SyWorkbookDocument>,
     @InjectModel(WorkbookSignoff.name) private readonly signoffModel: Model<WorkbookSignoffDocument>,
     private readonly projectsService: ProjectsService,
     private readonly exampleWorkbooksService: ExampleWorkbooksService,
@@ -181,7 +185,16 @@ export class EsqWorkbooksService {
       throw new ForbiddenException(`Cannot overwrite a workbook in state ${state}`);
     }
     const example = await this.exampleWorkbooksService.getEsqBundle(exampleId);
-    const parsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(example.esq.mef));
+    const sourceParsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(example.esq.mef));
+    if (!sourceParsed.success) throw new ForbiddenException(`Example MEF failed validation: ${sourceParsed.error.message}`);
+    const variant = exampleId === "sfr" ? "sy-generic-1" : "sy-generic-2";
+    const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
+    const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
+    let reconciled = sourceParsed.data;
+    if (syDocument !== null && systems?.success === true) {
+      reconciled = reconcileExampleEsqDependencyReferences(sourceParsed.data, workbookId, systems.data, syDocument.workbookId);
+    }
+    const parsed = EventSequenceQuantificationSchema.safeParse(reconciled);
     if (!parsed.success) throw new ForbiddenException(`Example MEF failed validation: ${parsed.error.message}`);
     const cleaned = {
       ...parsed.data,

@@ -12,6 +12,24 @@
   --esq-red: var(--color-error);     --esq-red-ink: var(--color-error);
 }
 
+.esqbn__network-actions .posnav__btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.esqbn__network-actions .posfield__select {
+  min-width: 0;
+}
+
+.esqbn__add-icon {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 
 /* â”€â”€â”€ Upstream link cards (esqsrc, the six converging elements) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Own prefix rather than the sibling eslink classes, since the ES element's

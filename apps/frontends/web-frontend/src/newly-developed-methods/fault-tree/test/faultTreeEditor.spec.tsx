@@ -564,7 +564,6 @@ describe("FaultTreeEditor", () => {
   it("offers deletion but no authoring from a basic-event context menu", async () => {
     const user = userEvent.setup();
     const onOperation = jest.fn<void, [FaultTreeOperation]>();
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
     render(<FaultTreeEditor {...editorProps({ onOperation })} />);
 
     fireEvent.contextMenu(screen.getByRole("button", { name: /Shared pump failure/i }), {
@@ -577,8 +576,10 @@ describe("FaultTreeEditor", () => {
     expect(within(menu).queryByRole("menuitem", { name: "Add house event" })).not.toBeInTheDocument();
 
     await user.click(within(menu).getByRole("menuitem", { name: "Delete node" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Delete this fault-tree node?" });
+    expect(onOperation).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole("button", { name: "Delete node" }));
     expect(onOperation).toHaveBeenCalledWith({ type: "DELETE_LEAF", leafId: LEAF_ID, subtree: true });
-    confirm.mockRestore();
   });
 
   it("offers the same child-authoring actions from a non-top gate", () => {

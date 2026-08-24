@@ -894,7 +894,7 @@ Keep editor implementations reusable under `newly-developed-methods`, but keep m
 - [x] Host ETs and sequence definitions in ES by importing `newly-developed-methods/event-tree`.
 - [x] Use the same canonical ET import for ESQ ET views and result overlays.
 - [x] Host BNs and the current HCL binding workflow from ESQ Step 05 through the canonical Bayesian-network component.
-- [ ] Extract the HCL binding UI into `newly-developed-methods/hybrid-causal-logic` and have ESQ import the canonical component.
+- [x] Extract the HCL binding UI into `newly-developed-methods/hybrid-causal-logic` and have ESQ import the canonical component.
 - [ ] Link ESQ workbooks to the exact contributing workbooks, model entities, revisions, and immutable analysis runs.
 - [ ] Link RC/RI workbooks to end-state and risk results.
 - [ ] Link hazard PRA workbooks to hazard-conditioned models.
@@ -908,7 +908,7 @@ Keep editor implementations reusable under `newly-developed-methods`, but keep m
 
 - [ ] Create a generic HTGR example with multiple linked system FTs.
 - [ ] Include shared support events and human-failure events.
-- [ ] Include a discrete dependency BN and complete HCL bindings.
+- [x] Include a discrete dependency BN and complete HCL bindings.
 - [ ] Include a ULOF-style ET with safe and release end states.
 - [ ] Include verified independent and HCL results.
 - [x] Run shared interface and Zod tests.
@@ -950,6 +950,7 @@ The following items are explicitly excluded from the initial implementation:
 
 | Date | TODO | Verification | Result |
 | --- | --- | --- | --- |
+| 2026-08-24 | Complete the functional BN/HCL editor and quantifiable examples | Extracted the HCL authoring and execution UI into its canonical method folder; persisted evidence in HCL configurations; added explicit FT inclusion, typed BN-state/basic-event bindings, FT and ET execution controls, and result displays; connected ESQ to project SY/ES models and the workbook-owned run APIs; and seeded both reactor examples with complete dependency BNs, HCL bindings reconciled to their actual SY identities, and a compact linked ET. Frontend/backend/E2E typechecks and lints passed; 16 focused editor tests, 4 seed/reference tests, 27 BN frontend tests, 225 BN/HCL contract tests, and 7 workbook-run tests passed. Docker-backed Chromium passed both the create/edit/save/reload/inference/link/HCL-FT workflow and a shipped-example API flow that executed its BN, HCL FT, and HCL ET | Passed |
 | 2026-08-23 | Reconcile completed editor hosts and pause Phase 8 behind final editor acceptance | Repository inspection confirmed that SY and IE import the sole canonical FT editor, ES and ESQ import the sole canonical ET editor, and ESQ Step 05 hosts the canonical BN editor with its current HCL binding workflow. Split those completed presentation migrations from the still-open typed-reference and dedicated HCL-component work. Added an explicit Docker-backed functional, visual, regression, and manual-acceptance gate for FT, BN, and ET before any remaining Phase 8 TODO may begin. The focused architecture, host, and editor suite passed 7 suites/30 tests; Prettier and `git diff --check` passed | Passed |
 | 2026-08-22 | Complete the Phase 5 fixed-canvas and node-local interaction follow-up | Replaced palette authoring with child creation on every logic-gate menu while keeping leaf menus free of authoring commands; unified event attachment behind one **Add basic event** action with a searchable existing-event chooser and a create-new path; moved deletion into node menus; removed the legend and additional-parent action; made ordinary touchpad/wheel input pan while pinch zooms; overlaid one inspector without resizing the 480 px workspace; and automatically refit content on load/resize/topology/inspector changes. Frontend Jest passed 91 suites/549 tests, both frontend and E2E typechecks passed, both persistent Chromium scenarios passed, generated wide/narrow/HTGR images were reviewed, and `git diff --check` passed | Passed |
 | 2026-08-22 | Complete Phase 5 fault-tree UX and API remediation | Consolidated editor controls and inspection, restored full-size visible connectors, reconciled SFR topology and non-detailed models, added workbook-owned server validation and correct failure/staleness/permission handling, and expanded canonical unit and persistent SFR/HTGR browser coverage. Complete frontend, backend, shared, Playwright, Rust, native-addon, typecheck, lint, build, format, and diff gates passed | Passed |

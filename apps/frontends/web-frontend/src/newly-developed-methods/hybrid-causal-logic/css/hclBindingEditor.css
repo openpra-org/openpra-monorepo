@@ -1,0 +1,97 @@
+.hcleditor__identity,
+.hcleditor__run {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.65fr) minmax(220px, 1.35fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.hcleditor__trees {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #536174;
+  font-size: 12px;
+}
+
+.hcleditor__trees > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #172033;
+}
+
+.hcleditor__identity label,
+.hcleditor__run label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #536174;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.hcleditor__identity input,
+.hcleditor__run select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d7dee8;
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 9px;
+  color: #172033;
+  font: inherit;
+}
+
+.hcleditor__identity svg,
+.hcleditor__run svg {
+  width: 13px;
+  height: 13px;
+}
+
+.hcleditor__run {
+  grid-template-columns: 150px minmax(240px, 1fr) auto;
+  margin: 16px 0 0;
+  border-top: 1px solid #e5e9f0;
+  padding-top: 14px;
+}
+
+.hcleditor__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  border: 1px solid #b9dfce;
+  border-radius: 9px;
+  background: #f2fbf7;
+  padding: 10px 12px;
+  color: #155e45;
+}
+
+.hcleditor__result output {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+}
+
+.hcleditor__result--sequences {
+  display: grid;
+  justify-content: stretch;
+}
+
+.hcleditor__result--sequences > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .hcleditor__identity,
+  .hcleditor__run,
+  .hcleditor__trees {
+    grid-template-columns: 1fr;
+  }
+}

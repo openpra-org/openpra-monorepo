@@ -34,6 +34,10 @@ import {
   ESQ_SR_CATALOG,
 } from "interfaces-mef-types/esq/event-sequence-quantification";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
+import {
+  createExampleDependencyNetwork,
+  createExampleHclConfiguration,
+} from "./dependency-model-seed";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
@@ -923,8 +927,8 @@ export const ESQ_ANALYSIS: EventSequenceQuantification = {
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope event sequence quantification for the Generic-1 SFR, pre-operational stage, capability category CC-II.",
-  bayesianNetworks: [],
-  hclConfigurations: [],
+  bayesianNetworks: [createExampleDependencyNetwork()],
+  hclConfigurations: [createExampleHclConfiguration()],
   familyQuantifications,
   modelIntegration,
   quantificationMethods,

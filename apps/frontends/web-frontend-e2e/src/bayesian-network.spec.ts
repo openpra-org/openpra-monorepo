@@ -22,6 +22,8 @@ interface SyWorkbookResponse {
   mef: {
     systemLogicModels: Array<{
       uuid: string;
+      systemReference?: string;
+      topGate?: { gateId: string } | null;
       leafNodes: Array<{ kind: string; basicEventId?: string }>;
     }>;
     systemBasicEvents: Array<{ uuid: string; code: string }>;
@@ -35,7 +37,12 @@ interface EsqWorkbookResponse {
       modelId: string;
       code: string;
       name: string;
-      nodes: Array<{ id: string; code: string; name: string }>;
+      nodes: Array<{
+        id: string;
+        code: string;
+        name: string;
+        states?: Array<{ id: string; code: string }>;
+      }>;
       edges: Array<{ parentNodeId: string; childNodeId: string }>;
       conditionalProbabilityTables: Array<{
         nodeId: string;
@@ -43,13 +50,34 @@ interface EsqWorkbookResponse {
       }>;
     }>;
     hclConfigurations: Array<{
+      modelId: string;
       bayesianNetwork: { workbookId: string; modelId: string };
+      faultTrees: Array<{ workbookId: string; modelId: string }>;
+      baseEvidence: { observations: Array<{ nodeId: string; stateId: string }> };
       bindings: Array<{
         faultTreeBasicEvent: { workbookId: string; entityId: string };
         bayesianNetworkNode: { workbookId: string; modelId: string; entityId: string };
         trueStateIds: string[];
       }>;
     }>;
+  };
+}
+
+interface EsWorkbookResponse {
+  mef: {
+    eventTrees: Array<{
+      uuid: string;
+      name: string;
+      sequences: Record<string, { uuid: string }>;
+    }>;
+  };
+}
+
+interface AnalysisRunResponse {
+  run: {
+    id: string;
+    status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+    failure?: { message?: string } | null;
   };
 }
 
@@ -287,6 +315,8 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
     await editor.getByRole("button", { name: "Add binding" }).click();
   });
   await expect(editor.getByLabel("HCL bindings")).toContainText("N-1");
+  await editor.getByRole("button", { name: "Run HCL quantification" }).click();
+  await expect(editor.getByLabel("HCL fault-tree result")).toBeVisible();
 
   await page.reload();
   await page.getByRole("button", { name: /Dependencies/ }).click();
@@ -328,6 +358,9 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
   expect(persisted.mef.hclConfigurations).toHaveLength(1);
   expect(persisted.mef.hclConfigurations[0]).toEqual(expect.objectContaining({
     bayesianNetwork: { workbookId: esqWorkbookId, modelId: network.modelId },
+    baseEvidence: {
+      observations: [expect.objectContaining({ nodeId: network.nodes.find(({ name }) => name === "Cause")!.id })],
+    },
     bindings: [expect.objectContaining({
       faultTreeBasicEvent: expect.objectContaining({ workbookId: syWorkbookId, entityId: basicEventId }),
       bayesianNetworkNode: expect.objectContaining({ workbookId: esqWorkbookId, modelId: network.modelId }),
@@ -335,4 +368,122 @@ test("creates, edits, validates, queries, links, and reloads the canonical Bayes
     })],
   }));
   expect(persisted.revision).toBeGreaterThan(1);
+});
+
+test("ships a connected example that runs BN, HCL fault-tree, and HCL event-tree quantification", async () => {
+  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const exampleProject = await json<ProjectResponse>(
+    await api.post("/api/projects", {
+      data: { name: `Bayesian-network example ${suffix}`, mode: "internal-events", pageLayout: "modern" },
+    }),
+    "Create the example acceptance project",
+  );
+
+  try {
+    const syHost = await json<WorkbookResponse>(
+      await api.post(`/api/projects/${exampleProject.id}/workbooks`, {
+        data: { elementCode: "SY", name: "Example systems" },
+      }),
+      "Create the example Systems Analysis workbook",
+    );
+    const esHost = await json<WorkbookResponse>(
+      await api.post(`/api/projects/${exampleProject.id}/workbooks`, {
+        data: { elementCode: "ES", name: "Example event sequences" },
+      }),
+      "Create the example Event Sequence workbook",
+    );
+    const esqHost = await json<WorkbookResponse>(
+      await api.post(`/api/projects/${exampleProject.id}/workbooks`, {
+        data: { elementCode: "ESQ", name: "Example quantification" },
+      }),
+      "Create the example ESQ workbook",
+    );
+
+    const systems = await json<SyWorkbookResponse>(
+      await api.post(`/api/sy-workbooks/${syHost.id}/load-example`, { data: { example: "sfr" } }),
+      "Load the example Systems Analysis workbook",
+    );
+    const eventSequences = await json<EsWorkbookResponse>(
+      await api.post(`/api/es-workbooks/${esHost.id}/load-example`, { data: { example: "sfr" } }),
+      "Load the example Event Sequence workbook",
+    );
+    const quantification = await json<EsqWorkbookResponse>(
+      await api.post(`/api/esq-workbooks/${esqHost.id}/load-example`, { data: { example: "sfr" } }),
+      "Load the example ESQ workbook",
+    );
+
+    const network = quantification.mef.bayesianNetworks.find(({ code }) => code === "BN-RPS-DEPENDENCY")!;
+    const configuration = quantification.mef.hclConfigurations.find(
+      ({ bayesianNetwork }) => bayesianNetwork.modelId === network.modelId,
+    )!;
+    const rpsTree = systems.mef.systemLogicModels.find(({ systemReference }) => systemReference === "SYS-RPS")!;
+    const eventTree = eventSequences.mef.eventTrees.find(
+      ({ name }) => name === "Protection dependency demonstration",
+    )!;
+    expect(configuration.faultTrees).toEqual([{ workbookId: syHost.id, modelId: rpsTree.uuid }]);
+    expect(configuration.bindings).toHaveLength(2);
+
+    const bnExecution = await json<AnalysisRunResponse>(
+      await api.post(`/api/esq-workbooks/${esqHost.id}/bayesian-networks/${network.modelId}/runs`, {
+        data: {
+          schemaVersion: "1.0.0",
+          modelId: network.modelId,
+          workbookRevision: quantification.revision,
+          query: { evidence: configuration.baseEvidence, queryNodeIds: [network.nodes[0]!.id] },
+        },
+      }),
+      "Run the example Bayesian network",
+    );
+    expect(bnExecution.run.status, bnExecution.run.failure?.message).toBe("SUCCEEDED");
+    const bnResult = await json<{ marginals: unknown[] }>(
+      await api.get(`/api/esq-workbooks/${esqHost.id}/bayesian-networks/${network.modelId}/runs/${bnExecution.run.id}/result`),
+      "Read the example Bayesian-network result",
+    );
+    expect(bnResult.marginals).toHaveLength(1);
+
+    const hclFaultTreeExecution = await json<AnalysisRunResponse>(
+      await api.post(`/api/esq-workbooks/${esqHost.id}/hcl-configurations/${configuration.modelId}/fault-tree-runs`, {
+        data: {
+          schemaVersion: "1.0.0",
+          modelId: configuration.modelId,
+          workbookRevision: quantification.revision,
+          faultTreeTopGate: {
+            referenceType: "FAULT_TREE_TOP_EVENT",
+            workbookId: syHost.id,
+            modelId: rpsTree.uuid,
+            entityId: rpsTree.topGate!.gateId,
+          },
+        },
+      }),
+      "Run the example HCL fault tree",
+    );
+    expect(hclFaultTreeExecution.run.status, hclFaultTreeExecution.run.failure?.message).toBe("SUCCEEDED");
+    const hclFaultTreeResult = await json<{ probability: number }>(
+      await api.get(`/api/esq-workbooks/${esqHost.id}/hcl-configurations/${configuration.modelId}/runs/${hclFaultTreeExecution.run.id}/result`),
+      "Read the example HCL fault-tree result",
+    );
+    expect(hclFaultTreeResult.probability).toBeGreaterThanOrEqual(0);
+    expect(hclFaultTreeResult.probability).toBeLessThanOrEqual(1);
+
+    const hclEventTreeExecution = await json<AnalysisRunResponse>(
+      await api.post(`/api/esq-workbooks/${esqHost.id}/hcl-configurations/${configuration.modelId}/event-tree-runs`, {
+        data: {
+          schemaVersion: "1.0.0",
+          modelId: configuration.modelId,
+          workbookRevision: quantification.revision,
+          eventTree: { workbookId: esHost.id, modelId: eventTree.uuid },
+        },
+      }),
+      "Run the example HCL event tree",
+    );
+    expect(hclEventTreeExecution.run.status, hclEventTreeExecution.run.failure?.message).toBe("SUCCEEDED");
+    const hclEventTreeResult = await json<{ sequences: unknown[] }>(
+      await api.get(`/api/esq-workbooks/${esqHost.id}/hcl-configurations/${configuration.modelId}/runs/${hclEventTreeExecution.run.id}/result`),
+      "Read the example HCL event-tree result",
+    );
+    expect(hclEventTreeResult.sequences).toHaveLength(Object.keys(eventTree.sequences).length);
+  } finally {
+    const cleanup = await api.delete(`/api/projects/${exampleProject.id}`);
+    expect(cleanup.status(), "Clean up the example acceptance project").toBe(204);
+  }
 });

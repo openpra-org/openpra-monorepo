@@ -32,6 +32,7 @@ import type {
   FaultTreeSelection,
   FaultTreeTransferTarget,
 } from "./faultTreeTypes";
+import { useEditorConfirmation } from "../shared";
 import "./css/faultTree.css";
 
 const FT = {
@@ -775,6 +776,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   const [contextMenu, setContextMenu] = useState<NodeContextMenuState | null>(null);
   const [basicEventSearch, setBasicEventSearch] = useState("");
   const [operationError, setOperationError] = useState<string | null>(null);
+  const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
 
   useEffect(
     () => setViewport(model.layout.viewport),
@@ -1058,14 +1060,20 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
   };
   const deleteContextNode = (): void => {
     if (contextNode === undefined) return;
-    if (!window.confirm("Delete this node? Orphaned descendants are removed only when they are not shared by another parent.")) return;
-    emit(
-      contextNode.kind === "GATE"
-        ? { type: "DELETE_GATE", gateId: contextNode.id, subtree: true }
-        : { type: "DELETE_LEAF", leafId: contextNode.id, subtree: true },
-    );
     setContextMenu(null);
-    if (selectedId === contextNode.id) onSelectionChange(null);
+    requestConfirmation({
+      title: "Delete this fault-tree node?",
+      message: "Orphaned descendants will be removed only when they are not shared by another parent.",
+      confirmLabel: "Delete node",
+      tone: "danger",
+    }, () => {
+      emit(
+        contextNode.kind === "GATE"
+          ? { type: "DELETE_GATE", gateId: contextNode.id, subtree: true }
+          : { type: "DELETE_LEAF", leafId: contextNode.id, subtree: true },
+      );
+      if (selectedId === contextNode.id) onSelectionChange(null);
+    });
   };
 
   const exportXml = (): void => {
@@ -1580,6 +1588,7 @@ export function FaultTreeEditor(props: FaultTreeEditorProps): JSX.Element {
       )}
 
       <Results analysisResult={analysisResult} resultIsStale={resultIsStale} />
+      {confirmationDialog}
     </div>
   );
 }

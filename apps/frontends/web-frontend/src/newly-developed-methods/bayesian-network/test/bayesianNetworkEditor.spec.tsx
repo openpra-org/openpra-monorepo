@@ -17,6 +17,7 @@ const WORKBOOK_ID = "esq-workbook";
 const FT_WORKBOOK_ID = "sy-workbook";
 const FT_MODEL_ID = "20000000-0000-4000-8000-000000000001";
 const BASIC_EVENT_ID = "20000000-0000-4000-8000-000000000002";
+const TOP_GATE_ID = "20000000-0000-4000-8000-000000000003";
 
 function pointerEvent(
   type: "pointerdown" | "pointermove" | "pointerup",
@@ -33,6 +34,7 @@ const faultTreeOptions: BayesianNetworkFaultTreeOption[] = [{
   modelId: FT_MODEL_ID,
   modelCode: "FT-A",
   modelName: "Fault tree A",
+  topGateId: TOP_GATE_ID,
   basicEvents: [{ id: BASIC_EVENT_ID, code: "BE-PUMP", name: "Pump failure" }],
 }];
 
@@ -57,11 +59,15 @@ function Harness({
   editable = true,
   result = null,
   onRun = jest.fn(),
+  onConfigurationsChange = jest.fn(),
+  onRunHclFaultTree = jest.fn(),
 }: {
   initialModel?: BayesianNetworkModel;
   editable?: boolean;
   result?: BayesianNetworkAnalysisResult | null;
   onRun?: () => void;
+  onConfigurationsChange?: (configurations: EsqHclConfiguration[]) => void;
+  onRunHclFaultTree?: jest.Mock;
 }): JSX.Element {
   const [model, setModel] = useState(initialModel);
   const [evidence, setEvidence] = useState<BayesianNetworkEvidenceConfiguration>({ observations: [] });
@@ -72,6 +78,10 @@ function Harness({
     hclBindings: configurations.flatMap((configuration) => configuration.bindings),
     workbookId: WORKBOOK_ID,
   });
+  function replaceConfigurations(next: EsqHclConfiguration[]): void {
+    setConfigurations(next);
+    onConfigurationsChange(next);
+  }
   return (
     <BayesianNetworkEditor
       model={model}
@@ -85,10 +95,16 @@ function Harness({
       workbookId={WORKBOOK_ID}
       hclConfigurations={configurations}
       faultTreeOptions={faultTreeOptions}
+      eventTreeOptions={[]}
+      hclRunning={false}
+      hclRunError={null}
+      hclRunResult={null}
       onModelChange={setModel}
       onEvidenceChange={setEvidence}
       onQueryNodeChange={setQueryNodeId}
-      onHclConfigurationsChange={setConfigurations}
+      onHclConfigurationsChange={replaceConfigurations}
+      onRunHclFaultTree={onRunHclFaultTree}
+      onRunHclEventTree={jest.fn()}
       onRun={onRun}
     />
   );
@@ -120,6 +136,53 @@ describe("BayesianNetworkEditor", () => {
     expect(screen.getAllByRole("button", { name: /BN node/i })).toHaveLength(3);
   });
 
+  it("uses the shared icon treatment for history, file, and canvas tools", () => {
+    render(<Harness />);
+
+    const toolbar = screen.getByLabelText("Bayesian-network tools");
+    ["Undo", "Redo", "File"].forEach((name) => {
+      const control = within(toolbar).getByRole("button", { name });
+      expect(control).toContainHTML("<svg");
+      expect(control).not.toHaveTextContent(name);
+    });
+
+    const canvas = screen.getByLabelText("Bayesian-network graph").closest(".bneditor__canvas");
+    const controls = screen.getByLabelText("Bayesian-network canvas controls");
+    expect(canvas).toContainElement(controls);
+    ["Add node", "Auto arrange", "Zoom out", "Zoom in", "Fit"].forEach((name) => {
+      expect(within(controls).getByRole("button", { name })).toContainHTML("<svg");
+    });
+
+    const deleteNode = screen.getByRole("button", { name: "Delete node" });
+    const inspector = screen.getByLabelText("Bayesian-network node inspector");
+    expect(deleteNode).toHaveClass("posnav__btn", "posnav__btn--sm", "bneditor__delete-btn");
+    expect(deleteNode).toContainHTML("<svg");
+    expect(inspector.lastElementChild).toContainElement(deleteNode);
+    expect(screen.queryByText("Selected node")).not.toBeInTheDocument();
+
+    ["Run exact inference", "Create HCL configuration"].forEach((name) => {
+      const action = screen.getByRole("button", { name });
+      expect(action).toHaveClass("posnav__btn", "posnav__btn--sm", "posnav__btn--primary");
+      expect(action).toContainHTML("<svg");
+    });
+  });
+
+  it("gives an empty network the full canvas and one brief hint", () => {
+    const emptyModel = testBayesianNetworkModel();
+    emptyModel.nodes = [];
+    emptyModel.edges = [];
+    emptyModel.conditionalProbabilityTables = [];
+    emptyModel.nodePositions = [];
+    render(<Harness initialModel={emptyModel} />);
+
+    const editor = screen.getByTestId("bayesian-network-editor");
+    expect(editor.querySelector(".bneditor__workspace")).not.toHaveClass("bneditor__workspace--inspecting");
+    expect(screen.queryByLabelText("Bayesian-network node inspector")).not.toBeInTheDocument();
+    expect(screen.getByText("Add a node to begin.")).toBeInTheDocument();
+    expect(screen.queryByText("No discrete nodes yet")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Select a node to edit/i)).not.toBeInTheDocument();
+  });
+
   it("groups import and export actions under the File menu", async () => {
     const user = userEvent.setup();
     const inputClick = jest.spyOn(HTMLInputElement.prototype, "click").mockImplementation();
@@ -145,13 +208,16 @@ describe("BayesianNetworkEditor", () => {
 
   it("warns and rebuilds CPTs after a state change", async () => {
     const user = userEvent.setup();
-    const confirm = jest.spyOn(window, "confirm").mockReturnValue(true);
     render(<Harness />);
 
     await user.click(screen.getByRole("button", { name: "Add state" }));
 
+    const dialog = screen.getByRole("alertdialog", { name: "Rebuild probability tables?" });
+    expect(dialog).toHaveTextContent(/will not be reinterpreted/i);
+    expect(screen.getAllByLabelText(/State code/)).toHaveLength(2);
+    await user.click(within(dialog).getByRole("button", { name: "Rebuild CPTs" }));
+
     expect(screen.getAllByLabelText(/State code/)).toHaveLength(3);
-    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/will not be reinterpreted/i));
     const cpt = screen.getByLabelText("CPT for A");
     expect(within(cpt).getByLabelText("A STATE-3 probability")).toHaveValue(1 / 3);
   });
@@ -334,6 +400,29 @@ describe("BayesianNetworkEditor", () => {
     await user.click(screen.getByRole("button", { name: "Add binding" }));
     expect(screen.getByLabelText("HCL bindings")).toHaveTextContent("FT-A / BE-PUMP");
     expect(screen.getByLabelText("HCL bindings")).toHaveTextContent("A = TRUE");
+  });
+
+  it("persists evidence into HCL and runs an explicitly included fault tree", async () => {
+    const user = userEvent.setup();
+    const onConfigurationsChange = jest.fn();
+    const onRunHclFaultTree = jest.fn();
+    render(
+      <Harness
+        onConfigurationsChange={onConfigurationsChange}
+        onRunHclFaultTree={onRunHclFaultTree}
+      />,
+    );
+
+    await user.selectOptions(screen.getByLabelText("Evidence for A"), TEST_ID.aTrue);
+    await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
+    expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.baseEvidence).toEqual({
+      observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }],
+    });
+
+    await user.click(screen.getByRole("button", { name: "Include selected fault tree" }));
+    expect(screen.getByLabelText("Included HCL fault trees")).toHaveTextContent("FT-A");
+    await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));
+    expect(onRunHclFaultTree).toHaveBeenCalledWith(expect.any(Object), faultTreeOptions[0]);
   });
 
   it("keeps mutation controls unavailable in read-only mode", () => {

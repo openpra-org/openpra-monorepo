@@ -11,6 +11,7 @@ import {
   GEN_RC_MEMBERS,
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic.generated";
+import { createExampleDependencyEventTree } from "./dependency-model-seed";
 
 const NOW = "2026-04-22T12:00:00.000Z";
 
@@ -100,7 +101,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     { uuid: "ESF-EARLY", name: "Confinement failure, early release", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-12", representativePlantOperatingStateId: "POS-05", representativePlantResponse: "DHR and confinement both fail, giving the earliest and largest release.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-EARLY"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-EARLY"], similarityBasis: "At CC-II, confirm ESL-4 and ESR-5 (different timing) are not hidden by the chosen worst-case sequence.", implementsSrs: [] },
     { uuid: "ESF-ATWS", name: "Unprotected (ATWS) transients", groupingCriteriaId: "GC-1", representativeInitiatingEventId: "IEG-08", representativePlantOperatingStateId: "POS-01", representativePlantResponse: "The reactor fails to trip; inherent reactivity feedback is credited in the dedicated ATWS tree before the release is resolved.", releaseCategoryIds: ["RC-1"], memberSequenceIds: GEN_FAMILY_MEMBERS["ESF-ATWS"], endState: EndState.RADIONUCLIDE_RELEASE, meanFrequency: GEN_FAMILY_FREQUENCY["ESF-ATWS"], similarityBasis: "Transfers to the ATWS tree (ES-A13); frequency is provisional until that tree is quantified in ESQ.", implementsSrs: [] },
   ],
-  eventTrees: GEN_EVENT_TREES,
+  eventTrees: [...GEN_EVENT_TREES, createExampleDependencyEventTree()],
   dynamicRuns: GEN_DYNAMIC_RUNS,
   operatorActionWindows: [
     {

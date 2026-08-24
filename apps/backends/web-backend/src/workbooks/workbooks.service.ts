@@ -13,6 +13,13 @@ import { Workbook, type WorkbookDocument } from "./workbook.schema";
 import { WorkbookElementRegistry, type WorkbookExampleVariant } from "./workbook-element-registry";
 import { WorkbookRolesService } from "./workbook-roles.service";
 import { AnalyticsService } from "../analytics/analytics.service";
+import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
+import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import {
+  reconcileExampleEsqDependencyReferences,
+  reconcileExampleEventTreeDependencyReferences,
+} from "../example-workbooks/seeds/dependency-model-seed";
 
 function computeInitials(fullName: string): string {
   const parts = fullName.trim().split(" ").filter(Boolean);
@@ -193,7 +200,44 @@ export class WorkbooksService {
         }
       }
     }
+    await this.reconcileGeneratedDependencyExamples(generated);
     return { generated };
+  }
+
+  private async reconcileGeneratedDependencyExamples(generated: GeneratedExampleWorkbook[]): Promise<void> {
+    const variants = [...new Set(generated.map(({ exampleId }) => exampleId))];
+    const syAdapter = this.elementRegistry.tryGet("SY");
+    const esAdapter = this.elementRegistry.tryGet("ES");
+    const esqAdapter = this.elementRegistry.tryGet("ESQ");
+    if (syAdapter === undefined || esqAdapter === undefined) return;
+
+    for (const variant of variants) {
+      const syEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "SY");
+      const esEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "ES");
+      const esqEntry = generated.find((entry) => entry.exampleId === variant && entry.elementCode === "ESQ");
+      if (syEntry?.workbookId === null || syEntry?.workbookId === undefined || esqEntry?.workbookId === null || esqEntry?.workbookId === undefined) continue;
+
+      const systems = await syAdapter.load(syEntry.workbookId);
+      const esq = await esqAdapter.load(esqEntry.workbookId);
+      if (systems === null || esq === null || systems.revision === undefined || esq.revision === undefined) continue;
+      const reconciledEsq = reconcileExampleEsqDependencyReferences(
+        esq.mef as EventSequenceQuantification,
+        esqEntry.workbookId,
+        systems.mef as SystemsAnalysis,
+        syEntry.workbookId,
+      );
+      await esqAdapter.save(esqEntry.workbookId, reconciledEsq, esq.revision);
+
+      if (esAdapter === undefined || esEntry?.workbookId === null || esEntry?.workbookId === undefined) continue;
+      const eventSequences = await esAdapter.load(esEntry.workbookId);
+      if (eventSequences === null || eventSequences.revision === undefined) continue;
+      const reconciledEventSequences = reconcileExampleEventTreeDependencyReferences(
+        eventSequences.mef as EventSequenceAnalysis,
+        systems.mef as SystemsAnalysis,
+        syEntry.workbookId,
+      );
+      await esAdapter.save(esEntry.workbookId, reconciledEventSequences, eventSequences.revision);
+    }
   }
 
   async updateWorkbook(

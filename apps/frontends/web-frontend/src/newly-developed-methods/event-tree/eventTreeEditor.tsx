@@ -13,6 +13,7 @@ import {
   formatExponential,
 } from "./eventTreePresentation";
 import type { EventTreeEditorProps, EventTreeOperation, EventTreeRepresentation } from "./eventTreeTypes";
+import { useEditorConfirmation } from "../shared";
 import "./css/eventTree.css";
 
 const REPRESENTATIONS: Array<{ id: EventTreeRepresentation; label: string }> = [
@@ -63,6 +64,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
   const [future, setFuture] = useState<typeof model[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const events = useMemo(() => orderedFunctionalEvents(model), [model]);
   const presentation = useMemo(
     () => createEventTreePresentation(model, eventSequences, analysisResult),
@@ -142,14 +144,19 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     const resultIds = new Set((analysisResult?.sequences ?? []).map((result) => result.sequenceId));
     const results = removedSequenceIds.filter((id) => resultIds.has(id)).length;
     const message = [
-      `Delete ${functionalEvent.label ?? functionalEvent.name}?`,
       `${String(removedSequenceIds.length)} sequence path${removedSequenceIds.length === 1 ? "" : "s"} will be consolidated.`,
       `${String(classifications)} linked classification${classifications === 1 ? "" : "s"}, ${String(transfers)} transfer${transfers === 1 ? "" : "s"}, and ${String(results)} stored result${results === 1 ? "" : "s"} are affected.`,
       "Unaffected path identifiers and results will be preserved.",
     ].join("\n\n");
-    if (!window.confirm(message)) return;
-    commit({ kind: "DELETE_FUNCTIONAL_EVENT", functionalEventId: functionalEvent.uuid });
-    onSelectionChange(null);
+    requestConfirmation({
+      title: `Delete ${functionalEvent.label ?? functionalEvent.name}?`,
+      message,
+      confirmLabel: "Delete functional event",
+      tone: "danger",
+    }, () => {
+      commit({ kind: "DELETE_FUNCTIONAL_EVENT", functionalEventId: functionalEvent.uuid });
+      onSelectionChange(null);
+    });
   };
 
   const changeBypass = (sequenceId: string, functionalEvent: FunctionalEvent, bypassed: boolean): void => {
@@ -171,8 +178,11 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
     const impact = bypassed
       ? `${String(removedIds.length)} opposite-outcome path${removedIds.length === 1 ? "" : "s"} will be consolidated; ${String(linked)} linked classification${linked === 1 ? "" : "s"} and ${String(transfers)} transfer${transfers === 1 ? "" : "s"} are affected.`
       : `${String(added)} path${added === 1 ? "" : "s"} will be created to restore both outcomes.`;
-    if (!window.confirm(`${verb} ${functionalEvent.label ?? functionalEvent.name} on this route?\n\n${impact}`)) return;
-    commit(operation);
+    requestConfirmation({
+      title: `${verb} ${functionalEvent.label ?? functionalEvent.name} on this route?`,
+      message: impact,
+      confirmLabel: bypassed ? "Bypass event" : "Restore branching",
+    }, () => commit(operation));
   };
 
   const openFunctionalEventContext = (id: string, x: number, y: number): void => {
@@ -415,6 +425,7 @@ function EventTreeEditor(props: EventTreeEditorProps): JSX.Element {
           })()}
         </div>
       )}
+      {confirmationDialog}
     </section>
   );
 }

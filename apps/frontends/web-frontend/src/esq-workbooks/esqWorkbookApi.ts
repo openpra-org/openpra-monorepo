@@ -36,6 +36,25 @@ interface LinkedHrMef { hepQuantifications?: { uuid: string; hfeId?: string; mea
 interface LinkedDaMef { parameters?: { uuid: string; name: string; value: number }[] }
 
 async function fetchEsqLinkedInputs(variant: string): Promise<EsqLinkedInputs> {
+  if (variant === "hcl") {
+    const [ieB, esB, syB] = await Promise.all([
+      fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),
+      fetchJson<{ es: { mef: LinkedEsMef } }>(`/api/example-workbooks/es-bundle?example=${variant}`),
+      fetchJson<{ sy: { mef: LinkedSyMef } }>(`/api/example-workbooks/sy-bundle?example=${variant}`),
+    ]);
+    return {
+      posStates: [],
+      ieGroups: (ieB.ie.mef.initiatingEventGroups ?? []).filter((group) => group.meanFrequency !== undefined).map((group) => ({ id: group.uuid, name: group.name, frequency: group.meanFrequency?.value ?? 0 })),
+      esFamilies: (esB.es.mef.eventSequenceFamilies ?? []).map((family) => ({ id: family.uuid, name: family.name })),
+      eventTrees: esB.es.mef.eventTrees ?? [],
+      eventSequences: esB.es.mef.eventSequences ?? [],
+      dynamicRuns: esB.es.mef.dynamicRuns ?? [],
+      scMissionTimes: [],
+      sySystems: (syB.sy.mef.systemDefinitions ?? []).map((system) => ({ id: system.uuid, name: system.name })),
+      hrActions: [],
+      daParams: [],
+    };
+  }
   const [posB, ieB, esB, scB, syB, hrB, daB] = await Promise.all([
     fetchJson<{ pos: { mef: LinkedPosMef } }>(`/api/example-workbooks/pos-bundle?example=${variant}`),
     fetchJson<{ ie: { mef: LinkedIeMef } }>(`/api/example-workbooks/ie-bundle?example=${variant}`),

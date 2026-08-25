@@ -25,6 +25,7 @@ import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbo
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { reconcileExampleEsqDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
+import { SY_EXAMPLES } from "../example-workbooks/seeds";
 
 export interface EsqWorkbookResponse {
   workbookId: string;
@@ -187,7 +188,7 @@ export class EsqWorkbooksService {
     const example = await this.exampleWorkbooksService.getEsqBundle(exampleId);
     const sourceParsed = EventSequenceQuantificationSchema.safeParse(normalizeEsqMef(example.esq.mef));
     if (!sourceParsed.success) throw new ForbiddenException(`Example MEF failed validation: ${sourceParsed.error.message}`);
-    const variant = exampleId === "sfr" ? "sy-generic-1" : "sy-generic-2";
+    const variant = (SY_EXAMPLES.find((entry) => entry.id === exampleId) ?? SY_EXAMPLES[0]).slug;
     const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
     const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
     let reconciled = sourceParsed.data;

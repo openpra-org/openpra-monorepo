@@ -115,7 +115,13 @@ function EsqWorkbookPage(): JSX.Element {
 
   const esqUuid = data?.esq.uuid ?? "";
   useEffect(() => {
-    const variant = esqUuid === "esq-generic-1" ? "sfr" : esqUuid === "esq-generic-2" ? "htgr" : null;
+    const variant = esqUuid === "esq-generic-1"
+      ? "sfr"
+      : esqUuid === "esq-generic-2"
+        ? "htgr"
+        : esqUuid === "esq-hcl-case-study"
+          ? "hcl"
+          : null;
     if (variant === null) return;
     let cancelled = false;
     fetchEsqLinkedInputs(variant)

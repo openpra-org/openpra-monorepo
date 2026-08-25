@@ -109,29 +109,32 @@ function clampZoom(zoom: number): number {
 function connectionPoint(
   position: { x: number; y: number },
   side: ConnectionSide,
+  height = NODE_HEIGHT,
 ): { x: number; y: number } {
   if (side === "top") return { x: position.x + NODE_WIDTH / 2, y: position.y };
-  if (side === "right") return { x: position.x + NODE_WIDTH, y: position.y + NODE_HEIGHT / 2 };
-  if (side === "bottom") return { x: position.x + NODE_WIDTH / 2, y: position.y + NODE_HEIGHT };
-  return { x: position.x, y: position.y + NODE_HEIGHT / 2 };
+  if (side === "right") return { x: position.x + NODE_WIDTH, y: position.y + height / 2 };
+  if (side === "bottom") return { x: position.x + NODE_WIDTH / 2, y: position.y + height };
+  return { x: position.x, y: position.y + height / 2 };
 }
 
 function edgePath(
   parent: { x: number; y: number },
   child: { x: number; y: number },
+  parentHeight = NODE_HEIGHT,
+  childHeight = NODE_HEIGHT,
 ): string {
-  const parentCenter = { x: parent.x + NODE_WIDTH / 2, y: parent.y + NODE_HEIGHT / 2 };
-  const childCenter = { x: child.x + NODE_WIDTH / 2, y: child.y + NODE_HEIGHT / 2 };
+  const parentCenter = { x: parent.x + NODE_WIDTH / 2, y: parent.y + parentHeight / 2 };
+  const childCenter = { x: child.x + NODE_WIDTH / 2, y: child.y + childHeight / 2 };
   const dx = childCenter.x - parentCenter.x;
   const dy = childCenter.y - parentCenter.y;
   if (Math.abs(dx) >= Math.abs(dy)) {
-    const start = connectionPoint(parent, dx >= 0 ? "right" : "left");
-    const end = connectionPoint(child, dx >= 0 ? "left" : "right");
+    const start = connectionPoint(parent, dx >= 0 ? "right" : "left", parentHeight);
+    const end = connectionPoint(child, dx >= 0 ? "left" : "right", childHeight);
     const controlX = (start.x + end.x) / 2;
     return `M ${String(start.x)} ${String(start.y)} C ${String(controlX)} ${String(start.y)}, ${String(controlX)} ${String(end.y)}, ${String(end.x)} ${String(end.y)}`;
   }
-  const start = connectionPoint(parent, dy >= 0 ? "bottom" : "top");
-  const end = connectionPoint(child, dy >= 0 ? "top" : "bottom");
+  const start = connectionPoint(parent, dy >= 0 ? "bottom" : "top", parentHeight);
+  const end = connectionPoint(child, dy >= 0 ? "top" : "bottom", childHeight);
   const controlY = (start.y + end.y) / 2;
   return `M ${String(start.x)} ${String(start.y)} C ${String(start.x)} ${String(controlY)}, ${String(end.x)} ${String(controlY)}, ${String(end.x)} ${String(end.y)}`;
 }
@@ -189,12 +192,34 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const canvasRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stageContentRef = useRef<HTMLDivElement>(null);
+  const nodeShellRefs = useRef(new Map<string, HTMLDivElement>());
+  const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
+  const [analysisMode, setAnalysisMode] = useState<"QUERY" | "HCL">("QUERY");
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [evidenceSearch, setEvidenceSearch] = useState("");
+  const [posteriorOpen, setPosteriorOpen] = useState(false);
   const importKind = useRef<"XDSL" | "JSON">("XDSL");
   const modelIdRef = useRef(model.modelId);
   const selectedNode = model.nodes.find((node) => node.id === selectedNodeId);
   const selectedTable = model.conditionalProbabilityTables.find((table) => table.nodeId === selectedNodeId);
   const nodeById = useMemo(() => new Map(model.nodes.map((node) => [node.id, node])), [model.nodes]);
   const positionById = useMemo(() => new Map(model.nodePositions.map((entry) => [entry.nodeId, entry.position])), [model.nodePositions]);
+  const evidenceSummary = useMemo(() => {
+    if (evidence.observations.length === 0) return "No evidence";
+    return evidence.observations.map((observation) => {
+      const node = nodeById.get(observation.nodeId);
+      const state = node?.states.find((candidate) => candidate.id === observation.stateId);
+      return `${node?.code ?? observation.nodeId} = ${state?.code ?? observation.stateId}`;
+    }).join(" · ");
+  }, [evidence.observations, nodeById]);
+  const evidenceNodes = useMemo(() => {
+    const query = evidenceSearch.trim().toLowerCase();
+    if (query === "") return model.nodes;
+    return model.nodes.filter((node) =>
+      node.code.toLowerCase().includes(query)
+      || node.name.toLowerCase().includes(query),
+    );
+  }, [evidenceSearch, model.nodes]);
 
   useEffect(() => {
     if (modelIdRef.current === model.modelId) return;
@@ -215,6 +240,26 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     if (selectedNodeId !== null && model.nodes.some((node) => node.id === selectedNodeId)) return;
     setSelectedNodeId(model.nodes[0]?.id ?? null);
   }, [model.nodes, selectedNodeId]);
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver((entries) => {
+      setNodeHeights((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const entry of entries) {
+          const nodeId = (entry.target as HTMLElement).dataset.bnNodeId;
+          if (nodeId === undefined) continue;
+          const height = Math.max(NODE_HEIGHT, Math.ceil(entry.contentRect.height));
+          if (next[nodeId] === height) continue;
+          next[nodeId] = height;
+          changed = true;
+        }
+        return changed ? next : current;
+      });
+    });
+    nodeShellRefs.current.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [model.nodes]);
   useEffect(() => {
     if (edgeContextMenu === null) return undefined;
     const closeOnPointerDown = (event: PointerEvent): void => {
@@ -346,7 +391,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    const start = connectionPoint(position, side);
+    const start = connectionPoint(position, side, nodeHeights[nodeId] ?? NODE_HEIGHT);
     setSelectedNodeId(nodeId);
     setEdgeContextMenu(null);
     setConnectionDrag({
@@ -370,25 +415,26 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     const candidate = model.nodes
       .map((node, index) => ({
         node,
+        height: nodeHeights[node.id] ?? NODE_HEIGHT,
         position: positionById.get(node.id) ?? {
           x: 40 + (index % 3) * 230,
           y: 40 + Math.floor(index / 3) * 140,
         },
       }))
       .reverse()
-      .find(({ node, position }) =>
+      .find(({ node, position, height }) =>
         canConnect(model, parentNodeId, node.id)
         && point.x >= position.x - DOCK_REVEAL_MARGIN
         && point.x <= position.x + NODE_WIDTH + DOCK_REVEAL_MARGIN
         && point.y >= position.y - DOCK_REVEAL_MARGIN
-        && point.y <= position.y + NODE_HEIGHT + DOCK_REVEAL_MARGIN,
+        && point.y <= position.y + height + DOCK_REVEAL_MARGIN,
       );
     if (candidate === undefined) {
       return { candidateNodeId: null, dockSide: null, endpoint: point };
     }
     const nearestDock = CONNECTION_SIDES
       .map((side) => {
-        const endpoint = connectionPoint(candidate.position, side);
+        const endpoint = connectionPoint(candidate.position, side, candidate.height);
         return {
           side,
           endpoint,
@@ -580,7 +626,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
     return [node.id, position] as const;
   }));
   const graphWidth = Math.max(520, ...[...graphPositions.values()].map(({ x }) => x + NODE_WIDTH + 30));
-  const graphHeight = Math.max(320, ...[...graphPositions.values()].map(({ y }) => y + NODE_HEIGHT + 30));
+  const graphHeight = Math.max(320, ...[...graphPositions.entries()].map(([nodeId, { y }]) => y + (nodeHeights[nodeId] ?? NODE_HEIGHT) + 30));
   const zoom = displayZoom;
   const orderedParents = selectedTable === undefined
     ? []
@@ -699,7 +745,12 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                       const parent = graphPositions.get(edge.parentNodeId);
                       const child = graphPositions.get(edge.childNodeId);
                       if (parent === undefined || child === undefined) return null;
-                      const path = edgePath(parent, child);
+                      const path = edgePath(
+                        parent,
+                        child,
+                        nodeHeights[edge.parentNodeId] ?? NODE_HEIGHT,
+                        nodeHeights[edge.childNodeId] ?? NODE_HEIGHT,
+                      );
                       return (
                         <g key={edge.id}>
                           <path
@@ -737,6 +788,10 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
                         className={`bneditor__node-shell${connectionCandidate ? " is-connection-candidate" : ""}${connectionTarget ? " is-connection-target" : ""}`}
                         style={{ left: position.x, top: position.y }}
                         data-bn-node-id={node.id}
+                        ref={(element) => {
+                          if (element === null) nodeShellRefs.current.delete(node.id);
+                          else nodeShellRefs.current.set(node.id, element);
+                        }}
                       >
                         <button
                           type="button"
@@ -906,77 +961,121 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </section>
       )}
 
-      <section className="bneditor__panel" aria-label="Bayesian-network evidence and query">
-        <div className="bneditor__panel-head">
-          <div><h3>Evidence and exact query</h3><p>Evidence is applied to one state per node. Exact inference runs through PRAXIS and TensorBayes.</p></div>
-          <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || queryNodeId === null || nonHclIssues.some((issue) => issue.severity === "ERROR")} onClick={onRun}>
-            <EditorIcon name="run" />
-            <span>{running ? "Running…" : "Run exact inference"}</span>
+      <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
+        <div className="bneditor__scenario">
+          <div>
+            <span>Scenario</span>
+            <strong>{evidenceSummary}</strong>
+          </div>
+          <button
+            type="button"
+            className="posnav__btn posnav__btn--sm"
+            aria-expanded={evidenceOpen}
+            onClick={() => setEvidenceOpen((open) => !open)}
+          >
+            {`Edit evidence${evidence.observations.length === 0 ? "" : ` (${String(evidence.observations.length)})`}`}
           </button>
         </div>
-        <div className="bneditor__query-grid">
-          <label>
-            <span>Query node</span>
-            <select aria-label="Bayesian-network query node" value={queryNodeId ?? ""} onChange={(event) => onQueryNodeChange(event.target.value || null)}>
-              <option value="">Choose a node</option>
-              {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
-            </select>
-          </label>
-          {model.nodes.map((node) => {
-            const observation = evidence.observations.find((candidate) => candidate.nodeId === node.id);
-            return (
-              <label key={node.id}>
-                <span>Evidence · {node.code}</span>
-                <select aria-label={`Evidence for ${node.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => onEvidenceChange({
-                  observations: [
-                    ...evidence.observations.filter((candidate) => candidate.nodeId !== node.id),
-                    ...(event.target.value === "" ? [] : [{ nodeId: node.id, stateId: event.target.value }]),
-                  ],
-                })}>
-                  <option value="">No evidence</option>
-                  {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
-                </select>
+
+        {evidenceOpen && (
+          <div className="bneditor__evidence-popover" role="dialog" aria-label="Evidence editor">
+            <div className="bneditor__evidence-popover-head">
+              <label>
+                <span>Find a node</span>
+                <input type="search" aria-label="Search evidence nodes" placeholder="Search by code or name" value={evidenceSearch} onChange={(event) => setEvidenceSearch(event.target.value)} />
               </label>
-            );
-          })}
-        </div>
-        {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
-        {analysisResult !== null && (
-          <div className="bneditor__posterior" aria-label="Posterior distribution">
-            {analysisResult.marginals.map((marginal) => {
-              const node = nodeById.get(marginal.nodeId);
-              return (
-                <div key={marginal.nodeId}>
-                  <strong>{node?.code ?? marginal.nodeId}</strong>
-                  {marginal.values.map((value) => (
-                    <span key={value.stateId}>
-                      {node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}
-                      <b>{(value.probability * 100).toFixed(4)}%</b>
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
+              <button type="button" className="posnav__btn posnav__btn--sm" onClick={() => setEvidenceOpen(false)}>Close</button>
+            </div>
+            <div className="bneditor__evidence-editor">
+              {evidenceNodes.map((node) => {
+                const observation = evidence.observations.find((candidate) => candidate.nodeId === node.id);
+                return (
+                  <label key={node.id}>
+                    <span>{node.code}</span>
+                    <select aria-label={`Evidence for ${node.code}`} value={observation?.stateId ?? ""} disabled={!editable} onChange={(event) => onEvidenceChange({
+                      observations: [
+                        ...evidence.observations.filter((candidate) => candidate.nodeId !== node.id),
+                        ...(event.target.value === "" ? [] : [{ nodeId: node.id, stateId: event.target.value }]),
+                      ],
+                    })}>
+                      <option value="">No evidence</option>
+                      {node.states.map((state) => <option key={state.id} value={state.id}>{state.code}</option>)}
+                    </select>
+                  </label>
+                );
+              })}
+              {evidenceNodes.length === 0 && <p className="bneditor__empty">No matching nodes.</p>}
+            </div>
           </div>
         )}
-      </section>
 
-      <HclBindingEditor
-        model={model}
-        editable={editable}
-        workbookId={workbookId}
-        configurations={hclConfigurations}
-        faultTreeOptions={faultTreeOptions}
-        eventTreeOptions={eventTreeOptions}
-        baseEvidence={evidence}
-        validation={hclIssues}
-        running={hclRunning}
-        runError={hclRunError}
-        runResult={hclRunResult}
-        onChange={onHclConfigurationsChange}
-        onRunFaultTree={onRunHclFaultTree}
-        onRunEventTree={onRunHclEventTree}
-      />
+        <div className="bneditor__analysis-tabs" role="tablist" aria-label="Analysis mode">
+          <button type="button" role="tab" aria-selected={analysisMode === "QUERY"} className={analysisMode === "QUERY" ? "is-active" : ""} onClick={() => setAnalysisMode("QUERY")}>BN query</button>
+          <button type="button" role="tab" aria-selected={analysisMode === "HCL"} className={analysisMode === "HCL" ? "is-active" : ""} onClick={() => setAnalysisMode("HCL")}>HCL quantification</button>
+        </div>
+
+        <div role="tabpanel" aria-label="BN query" hidden={analysisMode !== "QUERY"}>
+          <div className="bneditor__query-run">
+            <label>
+              <span>Query node</span>
+              <select aria-label="Bayesian-network query node" value={queryNodeId ?? ""} onChange={(event) => onQueryNodeChange(event.target.value || null)}>
+                <option value="">Choose a node</option>
+                {model.nodes.map((node) => <option key={node.id} value={node.id}>{node.code}</option>)}
+              </select>
+            </label>
+            <button type="button" className="posnav__btn posnav__btn--sm posnav__btn--primary" disabled={running || queryNodeId === null || nonHclIssues.some((issue) => issue.severity === "ERROR")} onClick={onRun}>
+              <EditorIcon name="run" />
+              <span>{running ? "Running…" : "Run exact inference"}</span>
+            </button>
+          </div>
+          {runError !== null && <p className="bneditor__error" role="alert">{runError}</p>}
+          {analysisResult !== null && (
+            <div className="bneditor__posterior" aria-label="Posterior distribution">
+              {analysisResult.marginals.map((marginal) => {
+                const node = nodeById.get(marginal.nodeId);
+                const visibleValues = posteriorOpen ? marginal.values : marginal.values.slice(0, 2);
+                return (
+                  <div key={marginal.nodeId}>
+                    <strong>{node?.code ?? marginal.nodeId}</strong>
+                    <span>
+                      {visibleValues.map((value) => (
+                        <span key={value.stateId}>
+                          {node?.states.find((state) => state.id === value.stateId)?.code ?? value.stateId}
+                          <b>{(value.probability * 100).toFixed(4)}%</b>
+                        </span>
+                      ))}
+                    </span>
+                    {marginal.values.length > 2 && (
+                      <button type="button" className="bneditor__posterior-toggle" aria-expanded={posteriorOpen} onClick={() => setPosteriorOpen((open) => !open)}>
+                        {posteriorOpen ? "Hide details" : `View details (+${String(marginal.values.length - 2)})`}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div role="tabpanel" aria-label="HCL quantification" hidden={analysisMode !== "HCL"}>
+          <HclBindingEditor
+            model={model}
+            editable={editable}
+            workbookId={workbookId}
+            configurations={hclConfigurations}
+            faultTreeOptions={faultTreeOptions}
+            eventTreeOptions={eventTreeOptions}
+            baseEvidence={evidence}
+            validation={hclIssues}
+            running={hclRunning}
+            runError={hclRunError}
+            runResult={hclRunResult}
+            onChange={onHclConfigurationsChange}
+            onRunFaultTree={onRunHclFaultTree}
+            onRunEventTree={onRunHclEventTree}
+          />
+        </div>
+      </section>
 
       {nonHclIssues.length > 0 && (
         <section className="bneditor__validation" aria-label="Bayesian-network validation">

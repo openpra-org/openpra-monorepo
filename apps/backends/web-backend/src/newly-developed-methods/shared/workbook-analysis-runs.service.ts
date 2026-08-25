@@ -688,6 +688,27 @@ export class WorkbookAnalysisRunsService {
     };
   }
 
+  private hclFaultTreeBasicEventMembership(
+    faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
+  ): ReadonlyMap<string, ReadonlySet<string>> {
+    return new Map(
+      faultTrees.map(({ source, modelId }) => {
+        const model = source.mef.systemLogicModels.find((candidate) => candidate.uuid === modelId);
+        if (!model) {
+          throw new NotFoundException(`SY fault-tree model '${modelId}' was not found`);
+        }
+        return [
+          modelId,
+          new Set(
+            model.leafNodes
+              .filter((leaf) => leaf.kind === "BASIC_EVENT_REFERENCE")
+              .map((leaf) => leaf.basicEventId),
+          ),
+        ] as const;
+      }),
+    );
+  }
+
   async executeHclFaultTree(
     workbookId: string,
     pathModelId: string,
@@ -710,10 +731,9 @@ export class WorkbookAnalysisRunsService {
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(
       runId,
-      hcl.faultTrees.map(({ source, modelId }) =>
-        adaptOrThrow(() => adaptSyFaultTreeSnapshot(source, modelId)),
-      ),
+      [adaptOrThrow(() => adaptSyFaultTreeSnapshot(selected.source, selected.modelId))],
     );
+    const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     return this.executeRun(
       runId,
@@ -742,7 +762,9 @@ export class WorkbookAnalysisRunsService {
               hcl.configuration.bayesianNetwork.modelId,
             ),
           ),
-          adaptOrThrow(() => adaptEsqHclSnapshot(owner, request.modelId)),
+          adaptOrThrow(() =>
+            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+          ),
         ],
         resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
       },
@@ -785,6 +807,7 @@ export class WorkbookAnalysisRunsService {
         adaptOrThrow(() => adaptSyFaultTreeSnapshot(source, modelId)),
       ),
     );
+    const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const persistedRequest = {
       ...request,
@@ -822,7 +845,9 @@ export class WorkbookAnalysisRunsService {
               hcl.configuration.bayesianNetwork.modelId,
             ),
           ),
-          adaptOrThrow(() => adaptEsqHclSnapshot(owner, request.modelId)),
+          adaptOrThrow(() =>
+            adaptEsqHclSnapshot(owner, request.modelId, faultTreeBasicEventMembership),
+          ),
         ],
         resources: { faultTreeBasicEventCatalogue: faultTrees.resource },
       },

@@ -693,6 +693,24 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
     ]);
   });
 
+  it("limits HCL bindings to fault trees that contain the mapped basic event", () => {
+    const adapted = adaptEsqHclSnapshot(
+      { workbookId: "esq-1", workbookRevision: 9, mef: esqMef },
+      "hcl-1",
+      new Map([
+        ["ft-1", new Set(["be-a"])],
+        ["ft-2", new Set(["be-b"])],
+      ]),
+    );
+
+    expect(adapted["bindings"]).toEqual([
+      expect.objectContaining({
+        id: "binding-1:ft-1",
+        faultTreeBasicEvent: { modelId: "ft-1", entityId: "be-a" },
+      }),
+    ]);
+  });
+
   it("fails deterministically when a requested workbook model cannot be resolved", () => {
     expect(() =>
       adaptSyFaultTreeSnapshot(

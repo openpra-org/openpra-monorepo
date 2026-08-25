@@ -124,6 +124,24 @@ describe("BayesianNetworkEditor", () => {
     expect(screen.queryByText(/backend selector/i)).not.toBeInTheDocument();
   });
 
+  it("keeps evidence and HCL setup behind compact progressive controls", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    expect(screen.getByText("No evidence")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "BN query" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByLabelText("Evidence for A")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create HCL configuration" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit evidence" }));
+    expect(screen.getByLabelText("Evidence editor")).toBeInTheDocument();
+    expect(screen.getByLabelText("Evidence for A")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    expect(screen.getByRole("button", { name: "Create HCL configuration" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Run exact inference" })).not.toBeInTheDocument();
+  });
+
   it("adds a node and supports undo and redo", async () => {
     const user = userEvent.setup();
     render(<Harness />);
@@ -160,11 +178,14 @@ describe("BayesianNetworkEditor", () => {
     expect(inspector.lastElementChild).toContainElement(deleteNode);
     expect(screen.queryByText("Selected node")).not.toBeInTheDocument();
 
-    ["Run exact inference", "Create HCL configuration"].forEach((name) => {
-      const action = screen.getByRole("button", { name });
-      expect(action).toHaveClass("posnav__btn", "posnav__btn--sm", "posnav__btn--primary");
-      expect(action).toContainHTML("<svg");
-    });
+    const inferenceAction = screen.getByRole("button", { name: "Run exact inference" });
+    expect(inferenceAction).toHaveClass("posnav__btn", "posnav__btn--sm", "posnav__btn--primary");
+    expect(inferenceAction).toContainHTML("<svg");
+
+    fireEvent.click(screen.getByRole("tab", { name: "HCL quantification" }));
+    const configurationAction = screen.getByRole("button", { name: "Create HCL configuration" });
+    expect(configurationAction).toHaveClass("posnav__btn", "posnav__btn--sm", "posnav__btn--primary");
+    expect(configurationAction).toContainHTML("<svg");
   });
 
   it("gives an empty network the full canvas and one brief hint", () => {
@@ -397,6 +418,7 @@ describe("BayesianNetworkEditor", () => {
     const onRun = jest.fn();
     render(<Harness result={analysisResult} onRun={onRun} />);
 
+    await user.click(screen.getByRole("button", { name: "Edit evidence" }));
     await user.selectOptions(screen.getByLabelText("Evidence for A"), TEST_ID.aTrue);
     expect(screen.getByRole("button", { name: "BN node Cause" })).toHaveTextContent("Evidence: TRUE");
     await user.selectOptions(screen.getByLabelText("Evidence for A"), "");
@@ -411,6 +433,7 @@ describe("BayesianNetworkEditor", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
     expect(screen.getByRole("button", { name: "Add binding" })).toHaveClass(
       "posnav__btn",
@@ -418,8 +441,10 @@ describe("BayesianNetworkEditor", () => {
       "posnav__btn--primary",
       "hcleditor__add-binding",
     );
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
     expect(screen.getByRole("button", { name: "Delete configuration" })).toHaveClass("hcleditor__aligned-action");
     expect(screen.getByRole("button", { name: "Run HCL quantification" })).toHaveClass("hcleditor__aligned-action");
+    await user.click(screen.getByRole("tab", { name: "Bindings" }));
     await user.click(screen.getByRole("checkbox", { name: "FALSE" }));
     await user.click(screen.getByRole("checkbox", { name: "TRUE" }));
     await user.click(screen.getByRole("button", { name: "Add binding" }));
@@ -442,12 +467,15 @@ describe("BayesianNetworkEditor", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Edit evidence" }));
     await user.selectOptions(screen.getByLabelText("Evidence for A"), TEST_ID.aTrue);
+    await user.click(screen.getByRole("tab", { name: "HCL quantification" }));
     await user.click(screen.getByRole("button", { name: "Create HCL configuration" }));
     expect(onConfigurationsChange.mock.calls.at(-1)?.[0]?.[0]?.baseEvidence).toEqual({
       observations: [{ nodeId: TEST_ID.a, stateId: TEST_ID.aTrue }],
     });
 
+    await user.click(screen.getByRole("tab", { name: "Fault trees" }));
     await user.click(screen.getByRole("button", { name: "Include selected fault tree" }));
     expect(screen.getByLabelText("Included HCL fault trees")).toHaveTextContent("FT-A");
     await user.click(screen.getByRole("button", { name: "Run HCL quantification" }));

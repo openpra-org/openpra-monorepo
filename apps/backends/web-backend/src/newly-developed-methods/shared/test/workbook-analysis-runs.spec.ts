@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { getModelToken, MongooseModule } from "@nestjs/mongoose";
 import { Test } from "@nestjs/testing";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import type { Model } from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import type { AddressInfo } from "node:net";
@@ -26,6 +27,19 @@ import { EsqWorkbook, EsqWorkbookSchema } from "../../../esq-workbooks/esq-workb
 import { EsqWorkbooksController } from "../../../esq-workbooks/esq-workbooks.controller";
 import { EsqWorkbooksService } from "../../../esq-workbooks/esq-workbooks.service";
 import { ProjectsService } from "../../../projects/projects.service";
+import {
+  ES_ANALYSIS_HCL,
+  ESQ_ANALYSIS_HCL,
+  HCL_CASE_EVENT_TREE_IDS,
+  HCL_CASE_FAULT_TREE_MODEL_IDS,
+  HCL_CASE_FAULT_TREE_TOP_GATE_IDS,
+  HCL_CASE_BAYESIAN_IDS,
+  SY_ANALYSIS_HCL,
+} from "../../../example-workbooks/seeds/hcl-case-study-seed";
+import {
+  reconcileExampleEsqDependencyReferences,
+  reconcileExampleEventTreeDependencyReferences,
+} from "../../../example-workbooks/seeds/dependency-model-seed";
 import { createBlankSy } from "../../../sy-workbooks/blank-sy";
 import { SyWorkbook, SyWorkbookSchema } from "../../../sy-workbooks/sy-workbook.schema";
 import { SyWorkbooksController } from "../../../sy-workbooks/sy-workbooks.controller";
@@ -44,6 +58,9 @@ const PROJECT_ID = "project-workbook-method-runs";
 const SY_WORKBOOK_ID = "sy-workbook-runs";
 const ES_WORKBOOK_ID = "es-workbook-runs";
 const ESQ_WORKBOOK_ID = "esq-workbook-runs";
+const HCL_CASE_SY_WORKBOOK_ID = "hcl-case-sy-workbook-runs";
+const HCL_CASE_ES_WORKBOOK_ID = "hcl-case-es-workbook-runs";
+const HCL_CASE_ESQ_WORKBOOK_ID = "hcl-case-esq-workbook-runs";
 
 const FT_OR = "10000000-0000-4000-8000-000000000001";
 const FT_AND = "10000000-0000-4000-8000-000000000002";
@@ -489,7 +506,8 @@ describe("workbook-owned analysis-run APIs", () => {
       controllers: [TestPraetorController],
       providers: [PraxisNativeService],
     }).compile();
-    praetor = praetorModule.createNestApplication();
+    praetor = praetorModule.createNestApplication<NestExpressApplication>();
+    (praetor as NestExpressApplication).useBodyParser("json", { limit: "25mb" });
     await praetor.listen(0, "127.0.0.1");
     const address = praetor.getHttpServer().address() as AddressInfo;
     originalPraetorUrl = process.env["PRAETOR_URL"];
@@ -560,6 +578,36 @@ describe("workbook-owned analysis-run APIs", () => {
       ownerUsername: USERNAME,
       revision: 7,
       mef: createEsqMef(),
+    });
+    await moduleRef.get<Model<unknown>>(getModelToken(SyWorkbook.name)).create({
+      workbookId: HCL_CASE_SY_WORKBOOK_ID,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: structuredClone(SY_ANALYSIS_HCL),
+    });
+    await moduleRef.get<Model<unknown>>(getModelToken(EsWorkbook.name)).create({
+      workbookId: HCL_CASE_ES_WORKBOOK_ID,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: reconcileExampleEventTreeDependencyReferences(
+        structuredClone(ES_ANALYSIS_HCL),
+        SY_ANALYSIS_HCL,
+        HCL_CASE_SY_WORKBOOK_ID,
+      ),
+    });
+    await moduleRef.get<Model<unknown>>(getModelToken(EsqWorkbook.name)).create({
+      workbookId: HCL_CASE_ESQ_WORKBOOK_ID,
+      projectId: PROJECT_ID,
+      ownerUsername: USERNAME,
+      revision: 1,
+      mef: reconcileExampleEsqDependencyReferences(
+        structuredClone(ESQ_ANALYSIS_HCL),
+        HCL_CASE_ESQ_WORKBOOK_ID,
+        SY_ANALYSIS_HCL,
+        HCL_CASE_SY_WORKBOOK_ID,
+      ),
     });
   }, 120_000);
 
@@ -731,6 +779,66 @@ describe("workbook-owned analysis-run APIs", () => {
       expect.objectContaining({ sequenceId: HCL_FS, conditionalProbability: expect.closeTo(0, 12) }),
       expect.objectContaining({ sequenceId: HCL_FF, conditionalProbability: expect.closeTo(0.16, 12) }),
     ]);
+  }, 120_000);
+
+  it("executes the dissertation HCL case-study FT and all three event trees", async () => {
+    const configurationId = HCL_CASE_BAYESIAN_IDS.hclConfiguration;
+    const faultTree = await request(api.getHttpServer())
+      .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/fault-tree-runs`)
+      .send({
+        schemaVersion: "1.0.0",
+        modelId: configurationId,
+        workbookRevision: 1,
+        faultTreeTopGate: {
+          referenceType: "FAULT_TREE_TOP_EVENT",
+          workbookId: HCL_CASE_SY_WORKBOOK_ID,
+          modelId: HCL_CASE_FAULT_TREE_MODEL_IDS.AFW,
+          entityId: HCL_CASE_FAULT_TREE_TOP_GATE_IDS.AFW,
+        },
+      });
+    expect(faultTree.status).toBe(200);
+    const faultTreeResult = await request(api.getHttpServer()).get(
+      `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${faultTree.body.run.id}/result`,
+    );
+    expect(faultTreeResult.status).toBe(200);
+    expect(faultTreeResult.body.probability).toBeGreaterThanOrEqual(0);
+    expect(faultTreeResult.body.probability).toBeLessThanOrEqual(1);
+
+    for (const [treeKey, sequenceCount] of [["LOOP", 20], ["SBO", 12], ["FLEX", 13]] as const) {
+      const eventTree = await request(api.getHttpServer())
+        .post(`/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/event-tree-runs`)
+        .send({
+          schemaVersion: "1.0.0",
+          modelId: configurationId,
+          workbookRevision: 1,
+          eventTree: {
+            workbookId: HCL_CASE_ES_WORKBOOK_ID,
+            modelId: HCL_CASE_EVENT_TREE_IDS[treeKey],
+          },
+        });
+      expect(eventTree.status).toBe(200);
+      const eventTreeResult = await request(api.getHttpServer()).get(
+        `/api/esq-workbooks/${HCL_CASE_ESQ_WORKBOOK_ID}/hcl-configurations/${configurationId}/runs/${eventTree.body.run.id}/result`,
+      );
+      const storedEventTreeRun = await runs.findOne({ id: eventTree.body.run.id }).lean().exec();
+      expect({
+        treeKey,
+        status: eventTreeResult.status,
+        body: eventTreeResult.body,
+        failure: storedEventTreeRun?.failure,
+      }).toEqual({
+        treeKey,
+        status: 200,
+        body: expect.objectContaining({ sequences: expect.any(Array) }),
+        failure: null,
+      });
+      expect(eventTreeResult.body.sequences).toHaveLength(sequenceCount);
+      expect(eventTreeResult.body.sequences.reduce(
+        (sum: number, sequence: { conditionalProbability: number }) =>
+          sum + sequence.conditionalProbability,
+        0,
+      )).toBeCloseTo(1, 10);
+    }
   }, 120_000);
 
   it("persists and retrieves immutable run snapshots with every contributing revision", async () => {

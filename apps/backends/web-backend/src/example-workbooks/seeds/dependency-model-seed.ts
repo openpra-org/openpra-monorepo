@@ -293,29 +293,53 @@ function reconcileExampleEsqDependencyReferences(
   systems: SystemsAnalysis,
   syWorkbookId: string,
 ): EventSequenceQuantification {
-  const references = exampleRpsReferences(systems);
+  const references = analysis.hclConfigurations.some((configuration) => configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration)
+    ? exampleRpsReferences(systems)
+    : null;
+  const localNetworkIds = new Set(analysis.bayesianNetworks.map((network) => network.modelId));
+  const systemModelIds = new Set(systems.systemLogicModels.map((model) => model.uuid));
+  const systemBasicEventIds = new Set(systems.systemBasicEvents.map((event) => event.uuid));
   return {
     ...analysis,
     hclConfigurations: analysis.hclConfigurations.map((configuration) => {
-      if (configuration.modelId !== EXAMPLE_DEPENDENCY_IDS.hclConfiguration) return configuration;
+      const reconciled = configuration.modelId === EXAMPLE_DEPENDENCY_IDS.hclConfiguration && references !== null
+        ? {
+          ...configuration,
+          bayesianNetwork: { workbookId: esqWorkbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network },
+          faultTrees: [{ workbookId: syWorkbookId, modelId: references.modelId }],
+          bindings: configuration.bindings.map((binding) => ({
+            ...binding,
+            faultTreeBasicEvent: {
+              ...binding.faultTreeBasicEvent,
+              workbookId: syWorkbookId,
+              entityId: binding.id === EXAMPLE_DEPENDENCY_IDS.bindingA
+                ? references.divisionAEventId
+                : references.divisionBEventId,
+            },
+            bayesianNetworkNode: {
+              ...binding.bayesianNetworkNode,
+              workbookId: esqWorkbookId,
+              modelId: EXAMPLE_DEPENDENCY_IDS.network,
+            },
+          })),
+        }
+        : configuration;
       return {
-        ...configuration,
-        bayesianNetwork: { workbookId: esqWorkbookId, modelId: EXAMPLE_DEPENDENCY_IDS.network },
-        faultTrees: [{ workbookId: syWorkbookId, modelId: references.modelId }],
-        bindings: configuration.bindings.map((binding) => ({
+        ...reconciled,
+        bayesianNetwork: localNetworkIds.has(reconciled.bayesianNetwork.modelId)
+          ? { ...reconciled.bayesianNetwork, workbookId: esqWorkbookId }
+          : reconciled.bayesianNetwork,
+        faultTrees: reconciled.faultTrees.map((faultTree) => systemModelIds.has(faultTree.modelId)
+          ? { ...faultTree, workbookId: syWorkbookId }
+          : faultTree),
+        bindings: reconciled.bindings.map((binding) => ({
           ...binding,
-          faultTreeBasicEvent: {
-            ...binding.faultTreeBasicEvent,
-            workbookId: syWorkbookId,
-            entityId: binding.id === EXAMPLE_DEPENDENCY_IDS.bindingA
-              ? references.divisionAEventId
-              : references.divisionBEventId,
-          },
-          bayesianNetworkNode: {
-            ...binding.bayesianNetworkNode,
-            workbookId: esqWorkbookId,
-            modelId: EXAMPLE_DEPENDENCY_IDS.network,
-          },
+          faultTreeBasicEvent: systemBasicEventIds.has(binding.faultTreeBasicEvent.entityId)
+            ? { ...binding.faultTreeBasicEvent, workbookId: syWorkbookId }
+            : binding.faultTreeBasicEvent,
+          bayesianNetworkNode: localNetworkIds.has(binding.bayesianNetworkNode.modelId)
+            ? { ...binding.bayesianNetworkNode, workbookId: esqWorkbookId }
+            : binding.bayesianNetworkNode,
         })),
       };
     }),
@@ -327,27 +351,47 @@ function reconcileExampleEventTreeDependencyReferences(
   systems: SystemsAnalysis,
   syWorkbookId: string,
 ): EventSequenceAnalysis {
-  const references = exampleRpsReferences(systems);
+  const references = analysis.eventTrees?.some((tree) => tree.uuid === EXAMPLE_DEPENDENCY_IDS.eventTree) === true
+    ? exampleRpsReferences(systems)
+    : null;
+  const systemModels = new Map(systems.systemLogicModels.map((model) => [model.uuid, model]));
   return {
     ...analysis,
     eventTrees: analysis.eventTrees?.map((tree) => {
-      if (tree.uuid !== EXAMPLE_DEPENDENCY_IDS.eventTree) return tree;
-      const functionalEvent = tree.functionalEvents[EXAMPLE_DEPENDENCY_IDS.functionalEvent];
-      if (functionalEvent === undefined) return tree;
+      let functionalEvents = tree.functionalEvents;
+      if (tree.uuid === EXAMPLE_DEPENDENCY_IDS.eventTree && references !== null) {
+        const functionalEvent = tree.functionalEvents[EXAMPLE_DEPENDENCY_IDS.functionalEvent];
+        if (functionalEvent !== undefined) {
+          functionalEvents = {
+            ...functionalEvents,
+            [functionalEvent.uuid]: {
+              ...functionalEvent,
+              faultTreeTopEvent: {
+                referenceType: "FAULT_TREE_TOP_EVENT",
+                workbookId: syWorkbookId,
+                modelId: references.modelId,
+                entityId: references.topGateId,
+              },
+            },
+          };
+        }
+      }
       return {
         ...tree,
-        functionalEvents: {
-          ...tree.functionalEvents,
-          [functionalEvent.uuid]: {
-            ...functionalEvent,
-            faultTreeTopEvent: {
-              referenceType: "FAULT_TREE_TOP_EVENT",
-              workbookId: syWorkbookId,
-              modelId: references.modelId,
-              entityId: references.topGateId,
-            },
-          },
-        },
+        functionalEvents: Object.fromEntries(Object.entries(functionalEvents).map(([eventId, functionalEvent]) => {
+          const reference = functionalEvent.faultTreeTopEvent;
+          const model = reference === undefined ? undefined : systemModels.get(reference.modelId);
+          return model === undefined || model.topGate === null
+            ? [eventId, functionalEvent]
+            : [eventId, {
+              ...functionalEvent,
+              faultTreeTopEvent: {
+                ...reference,
+                workbookId: syWorkbookId,
+                entityId: model.topGate.gateId,
+              },
+            }];
+        })),
       };
     }),
   };

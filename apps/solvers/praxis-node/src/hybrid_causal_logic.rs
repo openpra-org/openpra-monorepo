@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use praxis::analysis::event_tree_quantification::EventTreeHclContext;
 use praxis::hcl::{quantify_hcl, HclBindingSpec, HclEvidenceSpec, HclModel, HclSettings};
@@ -185,7 +185,7 @@ pub(crate) fn build_event_tree_context(
     let (network, _network_revision) =
         build_network_for_model(request, &snapshot.bayesian_network.model_id)?;
     let graph = network.into_graph()?;
-    let mut bindings = Vec::new();
+    let mut bindings_by_event: HashMap<String, HclBindingSpec> = HashMap::new();
     for binding in snapshot.bindings {
         if !linked_fault_tree_ids.contains(&binding.fault_tree_basic_event.model_id) {
             continue;
@@ -198,12 +198,24 @@ pub(crate) fn build_event_tree_context(
                 snapshot.bayesian_network.model_id
             )));
         }
-        bindings.push(HclBindingSpec {
+        let spec = HclBindingSpec {
             event: binding.fault_tree_basic_event.entity_id,
             node: binding.bayesian_network_node.entity_id,
             true_states: binding.true_state_ids,
-        });
+        };
+        if let Some(existing) = bindings_by_event.get(&spec.event) {
+            if existing != &spec {
+                return Err(PraxisError::Hcl(format!(
+                    "basic event '{}' has conflicting HCL bindings across linked fault trees",
+                    spec.event
+                )));
+            }
+        } else {
+            bindings_by_event.insert(spec.event.clone(), spec);
+        }
     }
+    let mut bindings: Vec<HclBindingSpec> = bindings_by_event.into_values().collect();
+    bindings.sort_by(|left, right| left.event.cmp(&right.event));
     let base_evidence = snapshot
         .base_evidence
         .observations

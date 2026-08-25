@@ -25,6 +25,7 @@ import type { RevisionedWorkbookPatchBody } from "interfaces-shared-types/workbo
 import { WorkbookDependencyDiscoveryService } from "../newly-developed-methods/shared/workbook-dependency-discovery.service";
 import { SyWorkbook, type SyWorkbookDocument } from "../sy-workbooks/sy-workbook.schema";
 import { reconcileExampleEventTreeDependencyReferences } from "../example-workbooks/seeds/dependency-model-seed";
+import { SY_EXAMPLES } from "../example-workbooks/seeds";
 
 export interface EsWorkbookResponse {
   workbookId: string;
@@ -169,7 +170,7 @@ export class EsWorkbooksService {
     const example = await this.exampleWorkbooksService.getEsBundle(exampleId);
     const sourceParsed = EventSequenceAnalysisSchema.safeParse(stripNulls(example.es.mef));
     if (!sourceParsed.success) throw new ForbiddenException(`Example MEF failed validation: ${sourceParsed.error.message}`);
-    const variant = exampleId === "sfr" ? "sy-generic-1" : "sy-generic-2";
+    const variant = (SY_EXAMPLES.find((entry) => entry.id === exampleId) ?? SY_EXAMPLES[0]).slug;
     const syDocument = await this.syWorkbookModel.findOne({ projectId: doc.projectId, "mef.uuid": variant }).exec();
     const systems = syDocument === null ? null : SystemsAnalysisSchema.safeParse(syDocument.mef);
     const reconciled = syDocument !== null && systems?.success === true
@@ -189,9 +190,9 @@ export class EsWorkbooksService {
           $set: {
             previousMefJson: JSON.stringify(doc.mef),
             mef: cleaned,
-            linkedPosWorkbookId: "example",
+            linkedPosWorkbookId: exampleId === "hcl" ? null : "example",
             linkedIeWorkbookId: "example",
-            exampleVariant: exampleId === "sfr" || exampleId === "htgr" ? exampleId : "htgr",
+            exampleVariant: exampleId === "sfr" || exampleId === "htgr" || exampleId === "hcl" ? exampleId : "htgr",
             revision: expectedRevision + 1,
           },
         },

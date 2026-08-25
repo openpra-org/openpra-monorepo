@@ -522,6 +522,7 @@ const adaptEsEventTreeSnapshot = (
 const adaptEsqHclSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
   modelId: string,
+  faultTreeBasicEventIdsByModel?: ReadonlyMap<string, ReadonlySet<string>>,
 ): PraxisModelSnapshot => {
   const configuration = source.mef.hclConfigurations.find(
     (candidate) => candidate.modelId === modelId,
@@ -533,6 +534,12 @@ const adaptEsqHclSnapshot = (
   const bindings = configuration.bindings.flatMap((binding) =>
     configuration.faultTrees
       .filter((faultTree) => faultTree.workbookId === binding.faultTreeBasicEvent.workbookId)
+      .filter((faultTree) =>
+        faultTreeBasicEventIdsByModel === undefined ||
+        faultTreeBasicEventIdsByModel
+          .get(faultTree.modelId)
+          ?.has(binding.faultTreeBasicEvent.entityId) === true
+      )
       .map((faultTree) => ({
         id: `${binding.id}:${faultTree.modelId}`,
         faultTreeBasicEvent: {

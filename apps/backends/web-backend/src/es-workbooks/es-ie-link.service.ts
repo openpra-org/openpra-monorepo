@@ -103,9 +103,16 @@ export class EsIeLinkService {
       return { linkedIeWorkbookId: null, linkedName: null, initiators: [] };
     }
     if (es.linkedIeWorkbookId === EXAMPLE_SENTINEL) {
-      const variant = es.exampleVariant === "htgr" ? "htgr" : "sfr";
+      const variant = es.exampleVariant === "htgr" || es.exampleVariant === "sfr" || es.exampleVariant === "hcl"
+        ? es.exampleVariant
+        : "sfr";
       const bundle = await this.exampleWorkbooksService.getIeBundle(variant);
-      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName: variant === "htgr" ? "Generic HTGR IE Workbook" : "Generic SFR IE Workbook", initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
+      const linkedName = variant === "htgr"
+        ? "Generic HTGR IE Workbook"
+        : variant === "sfr"
+          ? "Generic SFR IE Workbook"
+          : "HCL dissertation case study — Initiating Events";
+      return { linkedIeWorkbookId: EXAMPLE_SENTINEL, linkedName, initiators: this.collectImported(bundle.ie.mef as IeMefShape) };
     }
     const ie = await this.ieWorkbookModel.findOne({ workbookId: es.linkedIeWorkbookId }).exec();
     if (!ie) return { linkedIeWorkbookId: es.linkedIeWorkbookId, linkedName: null, initiators: [] };

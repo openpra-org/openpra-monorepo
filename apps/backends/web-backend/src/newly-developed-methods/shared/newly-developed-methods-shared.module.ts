@@ -6,6 +6,8 @@ import { WorkbooksModule } from "../../workbooks/workbooks.module";
 import { SyWorkbook, SyWorkbookSchema } from "../../sy-workbooks/sy-workbook.schema";
 import { EsWorkbook, EsWorkbookSchema } from "../../es-workbooks/es-workbook.schema";
 import { EsqWorkbook, EsqWorkbookSchema } from "../../esq-workbooks/esq-workbook.schema";
+import { DaWorkbook, DaWorkbookSchema } from "../../da-workbooks/da-workbook.schema";
+import { HrWorkbook, HrWorkbookSchema } from "../../hr-workbooks/hr-workbook.schema";
 import { WorkbookDependencyDiscoveryService } from "./workbook-dependency-discovery.service";
 import { WorkbookAnalysisRunsService } from "./workbook-analysis-runs.service";
 import { ProjectsModule } from "../../projects/projects.module";
@@ -18,6 +20,8 @@ import { ProjectsModule } from "../../projects/projects.module";
       { name: SyWorkbook.name, schema: SyWorkbookSchema },
       { name: EsWorkbook.name, schema: EsWorkbookSchema },
       { name: EsqWorkbook.name, schema: EsqWorkbookSchema },
+      { name: DaWorkbook.name, schema: DaWorkbookSchema },
+      { name: HrWorkbook.name, schema: HrWorkbookSchema },
     ]),
     WorkbooksModule,
     ProjectsModule,

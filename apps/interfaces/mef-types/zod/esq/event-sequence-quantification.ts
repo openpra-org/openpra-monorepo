@@ -14,6 +14,7 @@ import { ImportanceLevelSchema, SensitivityStudySchema, BaseUncertaintyAnalysisS
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
 import { EsqBayesianNetworkSchema, EsqHclConfigurationSchema } from "./workbook-models";
+import { EventSequenceFamilyWorkbookReferenceSchema } from "../modeling/references";
 
 export const DependencyTypeSchema = z.enum(DependencyType);
 export const TruncationMethodSchema = z.enum(TruncationMethod);
@@ -25,6 +26,7 @@ export const EventSequenceFamilyQuantificationSchema = z.object({
   uuid: z.string(),
   name: z.string(),
   eventSequenceFamilyRef: z.string(),
+  eventSequenceFamilyReference: EventSequenceFamilyWorkbookReferenceSchema.optional(),
   crossSourceGroupingJustification: z.string().optional(),
   crossPosGroupingJustification: z.string().optional(),
   dependenciesConsideredInGrouping: z.boolean(),

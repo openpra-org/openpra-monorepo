@@ -31,7 +31,11 @@ import {
   type Stage,
 } from "./syViewData";
 import { ccScore } from "./sySelectors";
-import { useSyWorkbook } from "./syWorkbookContext";
+import {
+  useSyWorkbook,
+  type SyControlledHumanFailureOption,
+  type SyControlledParameterOption,
+} from "./syWorkbookContext";
 import { getSyFaultTreeResult, runSyFaultTree, validateSyFaultTree } from "./syWorkbookApi";
 
 interface SyDrawerContext {
@@ -215,9 +219,45 @@ function toFaultTreeEditorModel(model: SystemLogicModel): FaultTreeEditorModel {
   };
 }
 
-function toFaultTreeEditorCatalogue(events: readonly SystemBasicEvent[]): FaultTreeEditorCatalogue {
+function toFaultTreeEditorCatalogue(
+  events: readonly SystemBasicEvent[],
+  controlledParameters: readonly SyControlledParameterOption[] = [],
+  controlledHumanFailures: readonly SyControlledHumanFailureOption[] = [],
+): FaultTreeEditorCatalogue {
+  const controlledParameterValues = new Map(
+    controlledParameters.map((parameter) => [
+      JSON.stringify([parameter.workbookId, parameter.parameterId]),
+      parameter.value,
+    ]),
+  );
+  const controlledHumanFailureValues = new Map(
+    controlledHumanFailures.map((humanFailure) => [
+      JSON.stringify([
+        humanFailure.workbookId,
+        humanFailure.humanFailureEventId,
+        humanFailure.quantificationId,
+      ]),
+      humanFailure.value,
+    ]),
+  );
   return {
-    basicEvents: events.map(systemBasicEventToFaultTreeBasicEvent),
+    basicEvents: events.map((event) => {
+      const projected = systemBasicEventToFaultTreeBasicEvent(event);
+      if (event.controlledDataSource === undefined) return projected;
+      const controlledValue = event.controlledDataSource.referenceType === "WORKBOOK_PARAMETER"
+        ? controlledParameterValues.get(JSON.stringify([
+            event.controlledDataSource.workbookId,
+            event.controlledDataSource.entityId,
+          ]))
+        : controlledHumanFailureValues.get(JSON.stringify([
+            event.controlledDataSource.workbookId,
+            event.controlledDataSource.entityId,
+            event.controlledDataSource.quantificationId,
+          ]));
+      return controlledValue === undefined
+        ? projected
+        : { ...projected, probability: { ...projected.probability, value: controlledValue } };
+    }),
     presentations: events.map((event) => {
       const failureMode = event.failureMode ?? "";
       return {
@@ -238,7 +278,13 @@ function newSystemBasicEvent(event: FaultTreeEditorCatalogue["basicEvents"][numb
     name: event.name,
     description: event.description,
     eventType: "BASIC",
+    ...(event.probability.controlledDataSource?.referenceType === "HUMAN_FAILURE_EVENT"
+      ? { failureMode: "HUMAN_ERROR" }
+      : {}),
     ...(Number.isFinite(event.probability.value) ? { probability: event.probability.value } : {}),
+    ...(event.probability.controlledDataSource === undefined
+      ? {}
+      : { controlledDataSource: { ...event.probability.controlledDataSource } }),
     repairModeled: false,
     implementsSrs: [],
   };
@@ -249,7 +295,15 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
   setSysId: (id: string) => void;
   openDrawer: (ctx: SyDrawerContext) => void;
 }): JSX.Element {
-  const { sy, shortOf, editable, mutateSy, runtime } = useSyWorkbook();
+  const {
+    sy,
+    shortOf,
+    editable,
+    mutateSy,
+    runtime,
+    controlledParameters,
+    controlledHumanFailures,
+  } = useSyWorkbook();
   const [selection, setSelection] = useState<FaultTreeSelection>(null);
   const [analysisResults, setAnalysisResults] = useState<Record<string, FaultTreeAnalysisResult>>({});
   const [runningModelId, setRunningModelId] = useState<string | null>(null);
@@ -277,7 +331,11 @@ function ModelsScreen({ sysId, setSysId, openDrawer }: {
   const supportSystems = sy.systemDependencies.filter((d) => d.dependentSystem === sysDef.uuid).map((d) => d.supportingSystem);
   const varCrit = (sy.variableSuccessCriteria ?? []).filter((v) => v.systemReference === sysDef.uuid);
   const applicablePos = sysDef.applicablePlantOperatingStates ?? [];
-  const catalogue = toFaultTreeEditorCatalogue(sy.systemBasicEvents);
+  const catalogue = toFaultTreeEditorCatalogue(
+    sy.systemBasicEvents,
+    controlledParameters,
+    controlledHumanFailures,
+  );
   const editorModel = logic === undefined ? null : toFaultTreeEditorModel(logic);
   const editorModels = sy.systemLogicModels.map(toFaultTreeEditorModel);
   const transferTargets = sy.systemLogicModels.flatMap((candidate) =>

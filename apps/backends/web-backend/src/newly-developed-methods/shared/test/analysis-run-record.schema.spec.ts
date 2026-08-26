@@ -10,6 +10,12 @@ describe("AnalysisRunRecordSchema workbook ownership", () => {
     }
   });
 
+  it("stores immutable typed targets and exact contribution references", () => {
+    for (const path of ["target", "contributions"]) {
+      expect(AnalysisRunRecordSchema.path(path).options.immutable).toBe(true);
+    }
+  });
+
   it("contains no project or standalone model revision fields", () => {
     expect(AnalysisRunRecordSchema.path("projectId")).toBeUndefined();
     expect(AnalysisRunRecordSchema.path("modelId")).toBeUndefined();
@@ -23,6 +29,10 @@ describe("AnalysisRunRecordSchema workbook ownership", () => {
       expect.arrayContaining([
         [
           { "owner.workbookId": 1, "owner.modelId": 1, requestedAt: -1 },
+          expect.any(Object),
+        ],
+        [
+          { "owner.workbookId": 1, requestedAt: -1 },
           expect.any(Object),
         ],
       ]),

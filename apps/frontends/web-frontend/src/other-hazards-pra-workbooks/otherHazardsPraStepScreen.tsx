@@ -13,6 +13,7 @@ import {
   type EditorPath,
 } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { WorkbookCueLabel, WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { HazardBayesianNetworkEditor, HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import {
   Drawer,
   Field,
@@ -2099,6 +2100,7 @@ function StoppingCriteria({ setTarget }: { setTarget: (target: EditorTarget) => 
 }
 
 function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
+  const { mef, editable, mutate } = useOtherHazardsPraWorkbook();
   const [target, setTarget] = useState<EditorTarget | null>(null);
   const config = STEP_CONFIG[stepId];
   if (config === undefined)
@@ -2109,8 +2111,12 @@ function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
     );
   const recordSections =
     config.root === undefined ? config.sections : [...config.sections, ...common(config.root)];
+  const updateModels = (hazardConditionedModels: OtherHazardsPRA["hazardConditionedModels"]): void => mutate((current) => ({ ...current, hazardConditionedModels }));
   return (
     <div className="flstep">
+      {stepId === "scenarios" && <Section title="Hazard-conditioned initiating-event fault trees" description="Author initiating-event logic for the retained hazard scenario families."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
+      {stepId === "plant-response" && <Section title="Hazard-conditioned event trees" description="Author response paths, functional events, bypasses, transfers, and end states for retained hazards."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
+      {(stepId === "human-reliability" || stepId === "quantification") && <Section title="Hazard dependency Bayesian networks" description="Model causal and conditional dependencies retained in Other Hazards quantification."><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
       {recordSections.map((item) => (
         <RecordSectionView
           key={`${item.path.join(".")}-${item.title}`}

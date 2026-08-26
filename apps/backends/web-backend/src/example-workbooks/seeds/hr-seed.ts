@@ -8,6 +8,7 @@ import {
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 import { type SRReference, type SRConformance, type HlrId, type PlantStage, type SRStatus } from "interfaces-mef-types/core/pra-common";
 import { ImportanceLevel } from "interfaces-mef-types/core/shared-patterns";
+import { createExampleDependencyNetwork } from "./dependency-model-seed";
 import { HR_SR_CATALOG } from "interfaces-mef-types/hr/human-reliability-analysis";
 
 const NOW = "2026-05-08T12:00:00.000Z";
@@ -521,6 +522,7 @@ export const HR_ANALYSIS: HumanReliabilityAnalysis = {
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope human reliability analysis for the Generic-1 SFR, pre-operational stage, capability category CC-II.",
+  dependencyBayesianNetworks: [createExampleDependencyNetwork()],
   routineActivities,
   preInitiatorScreeningRecords,
   supportSystemInitiatorOperatorContributions,

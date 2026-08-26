@@ -7,6 +7,8 @@ import {
   adaptEsqBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
   adaptSyFaultTreeSnapshot,
+  collectSyFaultTreeControlledDataSources,
+  workbookParameterReferenceKey,
 } from "../praxis-snapshot-adapters";
 
 const syMef = {
@@ -275,6 +277,36 @@ describe("workbook MEF to PRAXIS snapshot adapters", () => {
       expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
     ]);
     expect(syMef).toEqual(before);
+  });
+
+  it("discovers and resolves typed DA-controlled probabilities without using the cached SY value", () => {
+    const mef = structuredClone(syMef);
+    const reference = {
+      referenceType: "WORKBOOK_PARAMETER" as const,
+      workbookId: "da-1",
+      entityId: "parameter-a",
+    };
+    mef.systemBasicEvents[0] = {
+      ...mef.systemBasicEvents[0]!,
+      probability: 0.99,
+      controlledDataSource: reference,
+    };
+    const source = { workbookId: "sy-1", workbookRevision: 7, mef };
+
+    expect(collectSyFaultTreeControlledDataSources(source, "ft-1")).toEqual([reference]);
+    expect(() => adaptSyFaultTreeSnapshot(source, "ft-1")).toThrow(
+      "could not resolve controlled DA parameter",
+    );
+    const adapted = adaptSyFaultTreeSnapshot(source, "ft-1", {
+      controlledDataSourceValues: new Map([[workbookParameterReferenceKey(reference), 0.35]]),
+    });
+    expect(adapted.basicEventCatalogue["basicEvents"]).toEqual([
+      expect.objectContaining({
+        id: "be-a",
+        probability: { value: 0.35, controlledDataSource: reference },
+      }),
+      expect.objectContaining({ id: "be-b", probability: { value: 0.1 } }),
+    ]);
   });
 
   it("recursively inlines transfer subgraphs while preserving shared gates and basic events", () => {

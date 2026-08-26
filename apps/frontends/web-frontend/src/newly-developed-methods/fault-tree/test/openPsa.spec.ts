@@ -88,7 +88,15 @@ function roundTripFixture(): {
         code: "BE_PUMP",
         name: "Pump fails & jams",
         description: "A <shared> event",
-        probability: { value: 0.01 },
+        probability: {
+          value: 0.01,
+          controlledDataSource: {
+            referenceType: "HUMAN_FAILURE_EVENT",
+            workbookId: "hr-workbook",
+            entityId: "hfe-pump",
+            quantificationId: "hep-pump",
+          },
+        },
       },
     ],
     presentations: [
@@ -154,6 +162,7 @@ describe("OpenPSA fault-tree interchange", () => {
     const imported = importOpenPsaFaultTree(xml);
 
     expect(xml).not.toContain("openpra.editor-snapshot");
+    expect(xml).toContain('name="openpra.controlled-reference-type" value="HUMAN_FAILURE_EVENT"');
     expect(imported.model.gates.map(({ gateType }) => gateType)).toEqual([
       "OR",
       "AND",
@@ -167,6 +176,12 @@ describe("OpenPSA fault-tree interchange", () => {
     expect(
       imported.model.gateInputs.filter(({ childId }) => childId === sharedBasicReference?.id),
     ).toHaveLength(3);
+    expect(imported.catalogue.basicEvents[0]?.probability.controlledDataSource).toEqual({
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId: "hr-workbook",
+      entityId: "hfe-pump",
+      quantificationId: "hep-pump",
+    });
   });
 
   it("merges imported events without deleting catalogue entries owned by another tree", () => {

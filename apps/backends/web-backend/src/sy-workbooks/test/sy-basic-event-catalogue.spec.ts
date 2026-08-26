@@ -313,15 +313,25 @@ describe("canonical SY workbook fault-tree storage", () => {
     expect(
       applyFaultTreeBasicEventToSystemBasicEvent(source, { ...projected, code: "EDITED" }),
     ).toEqual({ ...source, code: "EDITED" });
-    expect(() =>
-      applyFaultTreeBasicEventToSystemBasicEvent(source, {
-        ...projected,
-        probability: {
-          value: 0.1,
-          controlledDataSource: { workbookId: "workbook", entityId: "parameter" },
+    const controlled = applyFaultTreeBasicEventToSystemBasicEvent(source, {
+      ...projected,
+      probability: {
+        value: 0.1,
+        controlledDataSource: {
+          referenceType: "WORKBOOK_PARAMETER",
+          workbookId: "workbook",
+          entityId: "parameter",
         },
-      }),
-    ).toThrow("do not support a fault-tree controlled data source");
+      },
+    });
+    expect(controlled).toMatchObject({
+      probability: 0.1,
+      controlledDataSource: {
+        referenceType: "WORKBOOK_PARAMETER",
+        workbookId: "workbook",
+        entityId: "parameter",
+      },
+    });
   });
 
   it("creates blank workbooks with explicit normalized empty collections", () => {

@@ -11,7 +11,7 @@ import {
   GEN_RC_MEMBERS,
   GEN_RC_FREQUENCY,
 } from "./es-seed-dynamic.generated";
-import { createExampleDependencyEventTree } from "./dependency-model-seed";
+import { createExampleDependencyEventTree, createExampleDependencyNetwork } from "./dependency-model-seed";
 
 const NOW = "2026-04-22T12:00:00.000Z";
 
@@ -135,6 +135,7 @@ export const ES_ANALYSIS: EventSequenceAnalysis = {
     },
   ],
   dependencyModels: {
+    bayesianNetworks: [createExampleDependencyNetwork()],
     phenomenologicalDependencies: [
       {
         uuid: "PDM-1",

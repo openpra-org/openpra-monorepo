@@ -2,9 +2,14 @@ import { z } from "zod";
 import type {
   BayesianNetworkNodeReference,
   EventTreeFunctionalEventReference,
+  EventSequenceFamilyQuantificationReference,
+  EventSequenceFamilyWorkbookReference,
   FaultTreeBasicEventCatalogueReference,
   FaultTreeTopEventReference,
   HclBindingReference,
+  HumanFailureEventReference,
+  IntegratedRiskResultReference,
+  RadiologicalConsequenceResultReference,
   WorkbookParameterReference,
   WorkbookCrossReference,
   WorkbookCrossReferenceType,
@@ -18,6 +23,11 @@ const WorkbookCrossReferenceTypeSchema = z.enum([
   "BAYESIAN_NETWORK_NODE",
   "HCL_BINDING",
   "WORKBOOK_PARAMETER",
+  "HUMAN_FAILURE_EVENT",
+  "EVENT_SEQUENCE_FAMILY",
+  "EVENT_SEQUENCE_FAMILY_QUANTIFICATION",
+  "RADIOLOGICAL_CONSEQUENCE_RESULT",
+  "INTEGRATED_RISK_RESULT",
 ]);
 
 const FaultTreeTopEventReferenceSchema = WorkbookModelEntityAddressSchema.extend({
@@ -40,9 +50,43 @@ const HclBindingReferenceSchema = WorkbookModelEntityAddressSchema.extend({
   referenceType: z.literal("HCL_BINDING"),
 }).strict();
 
-const WorkbookParameterReferenceSchema = WorkbookEntityAddressSchema.extend({
-  referenceType: z.literal("WORKBOOK_PARAMETER"),
-}).strict();
+const WorkbookParameterReferenceSchema = z
+  .object({
+    referenceType: z.literal("WORKBOOK_PARAMETER"),
+    workbookId: z.string().trim().min(1),
+    entityId: z.string().trim().min(1),
+  })
+  .strict();
+
+const HumanFailureEventReferenceSchema = z
+  .object({
+    referenceType: z.literal("HUMAN_FAILURE_EVENT"),
+    workbookId: z.string().trim().min(1),
+    entityId: z.string().trim().min(1),
+    quantificationId: z.string().trim().min(1),
+  })
+  .strict();
+
+function workbookScopedDomainReference<TReferenceType extends string>(referenceType: TReferenceType) {
+  return z
+    .object({
+      referenceType: z.literal(referenceType),
+      workbookId: z.string().trim().min(1),
+      entityId: z.string().trim().min(1),
+    })
+    .strict();
+}
+
+// ES/ESQ/RC/RI domain records use controlled human-readable identifiers in
+// existing workbooks (for example ESF-EARLY and RCQ-ESF-EARLY), not UUIDs.
+const EventSequenceFamilyWorkbookReferenceSchema = workbookScopedDomainReference("EVENT_SEQUENCE_FAMILY");
+const EventSequenceFamilyQuantificationReferenceSchema = workbookScopedDomainReference(
+  "EVENT_SEQUENCE_FAMILY_QUANTIFICATION",
+);
+const RadiologicalConsequenceResultReferenceSchema = workbookScopedDomainReference(
+  "RADIOLOGICAL_CONSEQUENCE_RESULT",
+);
+const IntegratedRiskResultReferenceSchema = workbookScopedDomainReference("INTEGRATED_RISK_RESULT");
 
 const WorkbookCrossReferenceSchema = z.discriminatedUnion("referenceType", [
   FaultTreeTopEventReferenceSchema,
@@ -51,6 +95,11 @@ const WorkbookCrossReferenceSchema = z.discriminatedUnion("referenceType", [
   BayesianNetworkNodeReferenceSchema,
   HclBindingReferenceSchema,
   WorkbookParameterReferenceSchema,
+  HumanFailureEventReferenceSchema,
+  EventSequenceFamilyWorkbookReferenceSchema,
+  EventSequenceFamilyQuantificationReferenceSchema,
+  RadiologicalConsequenceResultReferenceSchema,
+  IntegratedRiskResultReferenceSchema,
 ]);
 
 type Expect<T extends true> = T;
@@ -79,6 +128,21 @@ type _AssertHclBindingReference = Expect<
 type _AssertWorkbookParameterReference = Expect<
   Equal<z.infer<typeof WorkbookParameterReferenceSchema>, WorkbookParameterReference>
 >;
+type _AssertHumanFailureEventReference = Expect<
+  Equal<z.infer<typeof HumanFailureEventReferenceSchema>, HumanFailureEventReference>
+>;
+type _AssertEventSequenceFamilyWorkbookReference = Expect<
+  Equal<z.infer<typeof EventSequenceFamilyWorkbookReferenceSchema>, EventSequenceFamilyWorkbookReference>
+>;
+type _AssertEventSequenceFamilyQuantificationReference = Expect<
+  Equal<z.infer<typeof EventSequenceFamilyQuantificationReferenceSchema>, EventSequenceFamilyQuantificationReference>
+>;
+type _AssertRadiologicalConsequenceResultReference = Expect<
+  Equal<z.infer<typeof RadiologicalConsequenceResultReferenceSchema>, RadiologicalConsequenceResultReference>
+>;
+type _AssertIntegratedRiskResultReference = Expect<
+  Equal<z.infer<typeof IntegratedRiskResultReferenceSchema>, IntegratedRiskResultReference>
+>;
 type _AssertWorkbookCrossReference = Expect<
   Equal<z.infer<typeof WorkbookCrossReferenceSchema>, WorkbookCrossReference>
 >;
@@ -91,5 +155,10 @@ export {
   BayesianNetworkNodeReferenceSchema,
   HclBindingReferenceSchema,
   WorkbookParameterReferenceSchema,
+  HumanFailureEventReferenceSchema,
+  EventSequenceFamilyWorkbookReferenceSchema,
+  EventSequenceFamilyQuantificationReferenceSchema,
+  RadiologicalConsequenceResultReferenceSchema,
+  IntegratedRiskResultReferenceSchema,
   WorkbookCrossReferenceSchema,
 };

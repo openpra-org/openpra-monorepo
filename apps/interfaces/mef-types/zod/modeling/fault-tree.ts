@@ -5,7 +5,10 @@ import {
   MethodEntityReferenceSchema,
   WorkbookEntityIdSchema,
 } from "./shared";
-import { WorkbookParameterReferenceSchema } from "./references";
+import {
+  HumanFailureEventReferenceSchema,
+  WorkbookParameterReferenceSchema,
+} from "./references";
 import type {
   FaultTreeAndGate,
   FaultTreeBasicEvent,
@@ -114,7 +117,10 @@ const FaultTreeNodePositionSchema = z
   })
   .strict();
 
-const FaultTreeControlledDataSourceReferenceSchema = WorkbookParameterReferenceSchema;
+const FaultTreeControlledDataSourceReferenceSchema = z.union([
+  WorkbookParameterReferenceSchema,
+  HumanFailureEventReferenceSchema,
+]);
 
 const FaultTreeBasicEventProbabilitySchema = z
   .object({

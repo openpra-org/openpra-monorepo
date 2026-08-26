@@ -50,6 +50,7 @@ export function createBlankSy(name: string, owner: string): SystemsAnalysis {
     },
     systemDependencies: [],
     componentDependencies: [],
+    dependencyBayesianNetworks: [],
     dependencySearchMethodology: {
       uuid: randomUUID(),
       name: "Dependency search methodology",

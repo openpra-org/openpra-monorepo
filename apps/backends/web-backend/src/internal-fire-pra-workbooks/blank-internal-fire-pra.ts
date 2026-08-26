@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import {
   INTERNAL_FIRE_PRA_SR_CATALOG,
   type InternalFireAnalysisRecord,
@@ -75,6 +76,7 @@ export function createBlankInternalFirePra(name: string, owner: string): Interna
     activePeerReviewIds: [],
     activeAuditIds: [],
     praScope: "",
+    hazardConditionedModels: createEmptyHazardConditionedMethodModels(),
     applications: [],
     evidenceRegister: [],
     plantBoundaryAndPartitioning: {

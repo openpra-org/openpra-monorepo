@@ -5,6 +5,10 @@ import { createBlankEsq } from "../../esq-workbooks/blank-esq";
 import { EsqMefAdapter } from "../../esq-workbooks/esq-mef-adapter";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
 import { SyMefAdapter } from "../../sy-workbooks/sy-mef-adapter";
+import { createBlankDa } from "../../da-workbooks/blank-da";
+import { DaMefAdapter } from "../../da-workbooks/da-mef-adapter";
+import { createBlankHr } from "../../hr-workbooks/blank-hr";
+import { HrMefAdapter } from "../../hr-workbooks/hr-mef-adapter";
 import { WorkbookCommentsService } from "../workbook-comments.service";
 import {
   WorkbookElementRegistry,
@@ -86,6 +90,18 @@ const adapterCases: AdapterCase[] = [
     createMef: () => createBlankEsq("ESQ revision", "analyst"),
     createAdapter: (model) =>
       new EsqMefAdapter(model as never, new WorkbookElementRegistry(), {} as never),
+  },
+  {
+    name: "DA",
+    createMef: () => createBlankDa("DA revision", "analyst"),
+    createAdapter: (model) =>
+      new DaMefAdapter(model as never, new WorkbookElementRegistry(), {} as never),
+  },
+  {
+    name: "HRA",
+    createMef: () => createBlankHr("HRA revision", "analyst"),
+    createAdapter: (model) =>
+      new HrMefAdapter(model as never, new WorkbookElementRegistry(), {} as never),
   },
 ];
 

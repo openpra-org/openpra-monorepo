@@ -1,9 +1,14 @@
 import {
   BayesianNetworkNodeReferenceSchema,
+  EventSequenceFamilyQuantificationReferenceSchema,
+  EventSequenceFamilyWorkbookReferenceSchema,
   EventTreeFunctionalEventReferenceSchema,
   FaultTreeBasicEventCatalogueReferenceSchema,
   FaultTreeTopEventReferenceSchema,
   HclBindingReferenceSchema,
+  HumanFailureEventReferenceSchema,
+  IntegratedRiskResultReferenceSchema,
+  RadiologicalConsequenceResultReferenceSchema,
   WorkbookCrossReferenceSchema,
 } from "../..";
 
@@ -38,6 +43,47 @@ const references = [
     schema: HclBindingReferenceSchema,
     reference: { referenceType: "HCL_BINDING", ...modelEntityAddress },
   },
+  {
+    schema: HumanFailureEventReferenceSchema,
+    reference: {
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId: "hr-workbook",
+      entityId: "HFE-POST-001",
+      quantificationId: "HEPQ-HFE-POST-001",
+    },
+  },
+  {
+    schema: EventSequenceFamilyWorkbookReferenceSchema,
+    reference: {
+      referenceType: "EVENT_SEQUENCE_FAMILY",
+      workbookId: "es-workbook",
+      entityId: "ESF-CD",
+    },
+  },
+  {
+    schema: EventSequenceFamilyQuantificationReferenceSchema,
+    reference: {
+      referenceType: "EVENT_SEQUENCE_FAMILY_QUANTIFICATION",
+      workbookId: "esq-workbook",
+      entityId: ENTITY_ID,
+    },
+  },
+  {
+    schema: RadiologicalConsequenceResultReferenceSchema,
+    reference: {
+      referenceType: "RADIOLOGICAL_CONSEQUENCE_RESULT",
+      workbookId: "rc-workbook",
+      entityId: ENTITY_ID,
+    },
+  },
+  {
+    schema: IntegratedRiskResultReferenceSchema,
+    reference: {
+      referenceType: "INTEGRATED_RISK_RESULT",
+      workbookId: "ri-workbook",
+      entityId: ENTITY_ID,
+    },
+  },
 ] as const;
 
 describe("typed cross-workbook references", () => {
@@ -51,6 +97,22 @@ describe("typed cross-workbook references", () => {
     expect(FaultTreeBasicEventCatalogueReferenceSchema.safeParse(reference).success).toBe(true);
     expect(FaultTreeBasicEventCatalogueReferenceSchema.safeParse({ ...reference, modelId: MODEL_ID }).success).toBe(false);
   });
+
+  it("requires an exact HEP quantification for a Human Reliability event", () => {
+    expect(HumanFailureEventReferenceSchema.safeParse({
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId: "hr-workbook",
+      entityId: "HFE-POST-001",
+    }).success).toBe(false);
+  });
+
+  it.each(references.slice(6))(
+    "keeps $reference.referenceType at workbook scope",
+    ({ schema, reference }) => {
+      expect(schema.safeParse(reference).success).toBe(true);
+      expect(schema.safeParse({ ...reference, modelId: MODEL_ID }).success).toBe(false);
+    },
+  );
 
   it.each([
     { referenceType: "FAULT_TREE_TOP_EVENT", workbookId: WORKBOOK_ID, entityId: ENTITY_ID },

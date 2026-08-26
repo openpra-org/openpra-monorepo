@@ -1,34 +1,32 @@
-import { useCallback } from "react";
 import { type DataAnalysis } from "interfaces-mef-types/da/data-analysis";
-import { patchDaWorkbook } from "./daWorkbookApi";
+import {
+  useRevisionedMefPatch,
+  type MefMutator,
+  type RevisionedMefPatcher,
+} from "../workbooks/useRevisionedMefPatch";
+import { getDaWorkbook, patchDaWorkbook, type DaWorkbookResponse } from "./daWorkbookApi";
 
-type Mutator = (draft: DataAnalysis) => DataAnalysis;
-
-interface DaMefPatcher {
-  patch: (mutator: Mutator) => Promise<void>;
-  patchDebounced: (mutator: Mutator) => void;
-}
+type Mutator = MefMutator<DataAnalysis>;
+type DaMefPatcher = RevisionedMefPatcher<DataAnalysis>;
 
 function useDaMefPatch(
   workbookId: string,
   current: DataAnalysis | null,
-  onSuccess: (next: DataAnalysis) => void,
+  currentRevision: number | null,
+  onSuccess: (nextRevision: number) => void,
   onError: (message: string) => void,
+  onResync: (latest: DaWorkbookResponse) => void,
 ): DaMefPatcher {
-  const patch = useCallback(async (mutator: Mutator): Promise<void> => {
-    if (current === null) return;
-    const draft = mutator(current);
-    try {
-      const updated = await patchDaWorkbook(workbookId, current, draft);
-      onSuccess(updated.mef);
-    } catch (err: unknown) {
-      onError((err as { message?: string }).message ?? "Save failed");
-    }
-  }, [workbookId, current, onSuccess, onError]);
-
-  const patchDebounced = useCallback((mutator: Mutator): void => { void patch(mutator); }, [patch]);
-
-  return { patch, patchDebounced };
+  return useRevisionedMefPatch(
+    workbookId,
+    current,
+    currentRevision,
+    patchDaWorkbook,
+    getDaWorkbook,
+    onSuccess,
+    onError,
+    onResync,
+  );
 }
 
 export { useDaMefPatch, type DaMefPatcher, type Mutator };

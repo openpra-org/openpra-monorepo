@@ -39,6 +39,7 @@ export function createBlankEs(name: string, owner: string): EventSequenceAnalysi
       radionuclideBarriers: [],
     },
     keySafetyFunctions: [],
+    dependencyModels: { bayesianNetworks: [] },
     eventSequences: [],
     eventSequenceFamilies: [],
     screeningRecords: [],

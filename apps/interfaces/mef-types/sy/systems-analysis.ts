@@ -5,7 +5,12 @@ import { BasicEvent, DistributionType } from "../core/events";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
-import { FaultTreeDefinition } from "../modeling/fault-tree";
+import {
+  FaultTreeDefinition,
+  type FaultTreeControlledDataSourceReference,
+} from "../modeling/fault-tree";
+import type { HumanFailureEventReference } from "../modeling/references";
+import type { WorkbookBayesianNetwork } from "../modeling/workbook-models";
 
 export type SystemReference = string;
 export type HumanActionReference = string;
@@ -44,6 +49,8 @@ export interface SystemBasicEvent extends BasicEvent {
   repairJustification?: string;
   meanTimeToRepair?: number;
   probabilityModelRef?: string;
+  controlledDataSource?: FaultTreeControlledDataSourceReference;
+  /** @deprecated Unqualified legacy traceability field. */
   dataAnalysisBasicEventRef?: string;
   attributes?: {
     name: string;
@@ -347,6 +354,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
 
 export interface HumanFailureEventIntegration extends Unique {
   hfeReference: HumanActionReference;
+  hfeSource?: HumanFailureEventReference;
   system: SystemReference;
   taskDescription: string;
   hfeType: "PRE_INITIATOR" | "POST_INITIATOR";
@@ -543,6 +551,7 @@ export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.
 
   systemDependencies: SystemDependency[];
   componentDependencies: ComponentDependency[];
+  dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
   dependencySearchMethodology: DependencySearchMethodology;
   commonCauseFailureGroups: CommonCauseFailureGroup[];
   supportSystemNeedAnalyses?: SupportSystemNeedAnalysis[];

@@ -21,11 +21,20 @@ import {
   type SyExampleOption,
 } from "./syWorkbookApi";
 import { SyWorkbench, type SyWorkbenchActions } from "./syWorkbench";
-import { SyWorkbookProvider, type SyWorkbookData, type SyLinkedInputs } from "./syWorkbookContext";
+import {
+  SyWorkbookProvider,
+  type SyControlledHumanFailureOption,
+  type SyControlledParameterOption,
+  type SyWorkbookData,
+  type SyLinkedInputs,
+} from "./syWorkbookContext";
 import { useSyMefPatch } from "./useSyMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { SyDocumentsCard } from "./syDocumentsCard";
 import { type SyPersona } from "./syViewData";
+import { listWorkbooks } from "../workbooks/workbookApi";
+import { getDaWorkbook } from "../da-workbooks/daWorkbookApi";
+import { getHrWorkbook } from "../hr-workbooks/hrWorkbookApi";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   scope: "SY-A1",
@@ -98,6 +107,8 @@ function SyWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<SyExampleOption[]>([]);
+  const [controlledParameters, setControlledParameters] = useState<SyControlledParameterOption[]>([]);
+  const [controlledHumanFailures, setControlledHumanFailures] = useState<SyControlledHumanFailureOption[]>([]);
   const workbookName = data?.sy.name ?? "";
   const workbookVersion = data?.sy.version ?? "1";
 
@@ -124,6 +135,90 @@ function SyWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
+        }
+        try {
+          const listing = await listWorkbooks(workbook.projectId, "DA");
+          const loaded = await Promise.allSettled(
+            listing.workbooks.map(async (entry) => ({
+              entry,
+              workbook: await getDaWorkbook(entry.id),
+            })),
+          );
+          const supported = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+          const options = loaded.flatMap((result): SyControlledParameterOption[] => {
+            if (result.status !== "fulfilled") return [];
+            return result.value.workbook.mef.parameters.flatMap((parameter) => {
+              if (
+                !supported.has(parameter.parameterType) ||
+                !Number.isFinite(parameter.value) ||
+                parameter.value < 0 ||
+                parameter.value > 1
+              ) return [];
+              return [{
+                workbookId: result.value.entry.id,
+                workbookName: result.value.entry.name,
+                parameterId: parameter.uuid,
+                parameterName: parameter.name,
+                parameterType: parameter.parameterType as SyControlledParameterOption["parameterType"],
+                value: parameter.value,
+              }];
+            });
+          });
+          if (!cancelled) {
+            setControlledParameters(options.sort((left, right) =>
+              [left.workbookName, left.parameterName].join(":").localeCompare(
+                [right.workbookName, right.parameterName].join(":"),
+              ),
+            ));
+          }
+        } catch {
+          if (!cancelled) setControlledParameters([]);
+        }
+        try {
+          const listing = await listWorkbooks(workbook.projectId, "HRA");
+          const loaded = await Promise.allSettled(
+            listing.workbooks.map(async (entry) => ({
+              entry,
+              workbook: await getHrWorkbook(entry.id),
+            })),
+          );
+          const options = loaded.flatMap((result): SyControlledHumanFailureOption[] => {
+            if (result.status !== "fulfilled") return [];
+            const humanFailureEvents = new Map(
+              result.value.workbook.mef.humanFailureEvents.map((event) => [event.uuid, event]),
+            );
+            return result.value.workbook.mef.hepQuantifications.flatMap((quantification) => {
+              const humanFailureEvent = humanFailureEvents.get(quantification.hfeId);
+              const value = quantification.meanHep ?? quantification.pointEstimateHep;
+              if (
+                humanFailureEvent === undefined ||
+                value === undefined ||
+                !Number.isFinite(value) ||
+                value < 0 ||
+                value > 1
+              ) return [];
+              return [{
+                workbookId: result.value.entry.id,
+                workbookName: result.value.entry.name,
+                humanFailureEventId: humanFailureEvent.uuid,
+                humanFailureEventName: humanFailureEvent.name,
+                hfeTiming: humanFailureEvent.hfeTiming,
+                quantificationId: quantification.uuid,
+                methodology: quantification.methodology,
+                value,
+                valueKind: quantification.meanHep === undefined ? "POINT_ESTIMATE" : "MEAN",
+              }];
+            });
+          });
+          if (!cancelled) {
+            setControlledHumanFailures(options.sort((left, right) =>
+              [left.workbookName, left.humanFailureEventName, left.methodology].join(":").localeCompare(
+                [right.workbookName, right.humanFailureEventName, right.methodology].join(":"),
+              ),
+            ));
+          }
+        } catch {
+          if (!cancelled) setControlledHumanFailures([]);
         }
       })
       .catch((err: unknown) => {
@@ -251,6 +346,8 @@ function SyWorkbookPage(): JSX.Element {
       editable={editable}
       mutateSy={mutateSy}
       runtime={{ workbookId: id, revision, saveStatus }}
+      controlledParameters={controlledParameters}
+      controlledHumanFailures={controlledHumanFailures}
     >
       <SyWorkbench
         data={data}

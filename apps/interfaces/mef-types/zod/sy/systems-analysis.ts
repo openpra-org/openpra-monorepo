@@ -13,6 +13,9 @@ import {
 } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
 import { CanvasLayoutMetadataSchema, CanvasPositionSchema } from "../modeling/shared";
+import { HumanFailureEventReferenceSchema } from "../modeling/references";
+import { FaultTreeControlledDataSourceReferenceSchema } from "../modeling/fault-tree";
+import { WorkbookBayesianNetworkSchema } from "../modeling/workbook-models";
 import {
   normalizeSystemLogicModel,
   normalizeSystemsAnalysisModels,
@@ -33,6 +36,7 @@ export const SystemBasicEventSchema = z.object({
   repairJustification: z.string().optional(),
   meanTimeToRepair: z.number().optional(),
   probabilityModelRef: z.string().optional(),
+  controlledDataSource: FaultTreeControlledDataSourceReferenceSchema.optional(),
   dataAnalysisBasicEventRef: z.string().optional(),
   attributes: z
     .array(
@@ -503,6 +507,7 @@ export const CommonCauseFailureGroupSchema = z.object({
 export const HumanFailureEventIntegrationSchema = z.object({
   uuid: z.string(),
   hfeReference: z.string(),
+  hfeSource: HumanFailureEventReferenceSchema.optional(),
   system: z.string(),
   taskDescription: z.string(),
   hfeType: z.enum(["PRE_INITIATOR", "POST_INITIATOR"]),
@@ -733,6 +738,7 @@ const CanonicalSystemsAnalysisSchema = z.object({
   plantRepresentationAccuracy: PlantRepresentationAccuracySchema,
   systemDependencies: z.array(SystemDependencySchema),
   componentDependencies: z.array(ComponentDependencySchema),
+  dependencyBayesianNetworks: z.array(WorkbookBayesianNetworkSchema).optional(),
   dependencySearchMethodology: DependencySearchMethodologySchema,
   commonCauseFailureGroups: z.array(CommonCauseFailureGroupSchema),
   supportSystemNeedAnalyses: z.array(SupportSystemNeedAnalysisSchema).optional(),

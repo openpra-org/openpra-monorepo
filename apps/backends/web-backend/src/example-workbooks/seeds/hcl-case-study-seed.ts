@@ -2,6 +2,10 @@ import { createBlankIe } from "../../ie-workbooks/blank-ie";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
 import { createBlankEs } from "../../es-workbooks/blank-es";
 import { createBlankEsq } from "../../esq-workbooks/blank-esq";
+import { createBlankDa } from "../../da-workbooks/blank-da";
+import { createBlankHr } from "../../hr-workbooks/blank-hr";
+import { createBlankRc } from "../../rc-workbooks/blank-rc";
+import { createBlankRi } from "../../ri-workbooks/blank-ri";
 import type {
   InitiatingEventFrequencyQuantification,
   InitiatingEventGroup,
@@ -22,6 +26,10 @@ import type {
   SystemStatus,
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
+import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { DependencyType } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "interfaces-mef-types/esq/workbook-models";
 import type {
@@ -41,17 +49,31 @@ const LOOP_FREQUENCY = 0.837;
 
 const HCL_CASE_IE_UUID = "ie-hcl-case-study";
 const HCL_CASE_SY_UUID = "sy-hcl-case-study";
+const HCL_CASE_DA_UUID = "da-hcl-case-study";
+const HCL_CASE_HR_UUID = "hr-hcl-case-study";
 const HCL_CASE_ES_UUID = "es-hcl-case-study";
 const HCL_CASE_ESQ_UUID = "esq-hcl-case-study";
+const HCL_CASE_RC_UUID = "rc-hcl-case-study";
+const HCL_CASE_RI_UUID = "ri-hcl-case-study";
 const HCL_CASE_ID = "hcl";
 const HCL_CASE_LABEL = "HCL dissertation case study";
 
 const PLACEHOLDER_SY_WORKBOOK_ID = "example-sy-hcl-case-study";
+const PLACEHOLDER_DA_WORKBOOK_ID = "example-da-hcl-case-study";
+const PLACEHOLDER_HR_WORKBOOK_ID = "example-hr-hcl-case-study";
 const PLACEHOLDER_ESQ_WORKBOOK_ID = "example-esq-hcl-case-study";
+const PLACEHOLDER_ES_WORKBOOK_ID = "example-es-hcl-case-study";
+const PLACEHOLDER_RC_WORKBOOK_ID = "example-rc-hcl-case-study";
+const PLACEHOLDER_RI_WORKBOOK_ID = "example-ri-hcl-case-study";
 
 function id(group: number, index: number): string {
   return `${(0xd15c0000 + group).toString(16).padStart(8, "0")}-cafe-4a10-8b00-${index.toString(16).padStart(12, "0")}`;
 }
+
+const HCL_HFE_IDS = {
+  feedBleed: id(5, 1),
+  cooldown: id(5, 2),
+} as const;
 
 const MODEL_KEYS = [
   "EPS",
@@ -159,8 +181,8 @@ const BASIC_EVENT_META: Record<BasicEventKey, { code: string; name: string; prob
   PORV_RANDOM: { code: "PORV-B-RND", name: "Independent PORV-B path failure", probability: 1e-4 },
   SEAL_RANDOM: { code: "RCP-SEAL-RND", name: "Independent RCP seal cooling failure", probability: 2e-4 },
   HPI_RANDOM: { code: "HPI-RND", name: "Independent high-pressure injection failure", probability: 2e-4 },
-  FEED_BLEED_RANDOM: { code: "FNB-RND", name: "Independent feed-and-bleed execution failure", probability: 3e-4 },
-  COOLDOWN_RANDOM: { code: "SBC-RND", name: "Independent cooldown failure", probability: 1e-4 },
+  FEED_BLEED_RANDOM: { code: "FNB-HFE", name: "Operator fails to initiate feed-and-bleed", probability: 3e-4 },
+  COOLDOWN_RANDOM: { code: "SBC-HFE", name: "Operator fails to establish primary and secondary cooldown", probability: 1e-4 },
   RHR_RANDOM: { code: "RHR-RND", name: "Independent residual heat removal failure", probability: 2e-4 },
   HPR_RANDOM: { code: "HPR-RND", name: "Independent high-pressure recirculation failure", probability: 2e-4 },
   FLEX_POWER_RANDOM: { code: "FLEX-PWR-RND", name: "Independent FLEX electrical support failure", probability: 2e-4 },
@@ -168,16 +190,48 @@ const BASIC_EVENT_META: Record<BasicEventKey, { code: string; name: string; prob
   RECOVERY_RANDOM: { code: "RECOVERY-RND", name: "Independent failure of grid or diesel recovery", probability: 4e-4 },
 };
 
-const systemBasicEvents: SystemBasicEvent[] = BASIC_EVENT_KEYS.map((key) => ({
-  uuid: BASIC_EVENT_IDS[key],
-  code: BASIC_EVENT_META[key].code,
-  name: BASIC_EVENT_META[key].name,
-  eventType: "BASIC",
-  failureMode: "OTHER",
-  probability: BASIC_EVENT_META[key].probability,
-  repairModeled: false,
-  implementsSrs: [],
-}));
+const HUMAN_BASIC_EVENT_META: Partial<Record<BasicEventKey, {
+  hfeId: string;
+  quantificationId: string;
+}>> = {
+  FEED_BLEED_RANDOM: {
+    hfeId: HCL_HFE_IDS.feedBleed,
+    quantificationId: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
+  },
+  COOLDOWN_RANDOM: {
+    hfeId: HCL_HFE_IDS.cooldown,
+    quantificationId: `HEPQ-${HCL_HFE_IDS.cooldown}`,
+  },
+};
+
+const systemBasicEvents: SystemBasicEvent[] = BASIC_EVENT_KEYS.map((key) => {
+  const human = HUMAN_BASIC_EVENT_META[key];
+  return {
+    uuid: BASIC_EVENT_IDS[key],
+    code: BASIC_EVENT_META[key].code,
+    name: BASIC_EVENT_META[key].name,
+    eventType: "BASIC",
+    failureMode: human === undefined ? "OTHER" : "HUMAN_ERROR",
+    probability: BASIC_EVENT_META[key].probability,
+    controlledDataSource: human === undefined
+      ? {
+          referenceType: "WORKBOOK_PARAMETER",
+          workbookId: PLACEHOLDER_DA_WORKBOOK_ID,
+          entityId: BASIC_EVENT_IDS[key],
+        }
+      : {
+          referenceType: "HUMAN_FAILURE_EVENT",
+          workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
+          entityId: human.hfeId,
+          quantificationId: human.quantificationId,
+        },
+    ...(human === undefined
+      ? {}
+      : { attributes: [{ name: "hfeReference", value: human.hfeId }] }),
+    repairModeled: false,
+    implementsSrs: [],
+  };
+});
 
 const MODEL_EVENTS: Record<ModelKey, BasicEventKey[]> = {
   EPS: [],
@@ -455,10 +509,43 @@ const SY_ANALYSIS_HCL = {
     lastModifiedBy: OWNER,
   },
   praScope: "Twenty-two top-event fault trees used by the dissertation HCL demonstration.",
+  dependencyBayesianNetworks: [] as EsqBayesianNetwork[],
   systemDefinitions,
   systemToSafetyFunctionMappings: systemDefinitions.map((system) => ({ uuid: `MAP-${system.uuid}`, systemReference: system.uuid, safetyFunctions: [system.name], eventSequences: [], implementsSrs: [] })),
   systemLogicModels,
   systemBasicEvents,
+  humanFailureEventIntegrations: [
+    {
+      uuid: "SY-HFE-HCL-FNB",
+      hfeReference: HCL_HFE_IDS.feedBleed,
+      hfeSource: {
+        referenceType: "HUMAN_FAILURE_EVENT",
+        workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
+        entityId: HCL_HFE_IDS.feedBleed,
+        quantificationId: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
+      },
+      system: `SYS-${MODEL_META.FEED_BLEED.code}`,
+      taskDescription: "Initiate feed-and-bleed cooling after high-pressure injection is challenged.",
+      hfeType: "POST_INITIATOR",
+      isTestMaintenance: false,
+      implementsSrs: [],
+    },
+    {
+      uuid: "SY-HFE-HCL-SBC",
+      hfeReference: HCL_HFE_IDS.cooldown,
+      hfeSource: {
+        referenceType: "HUMAN_FAILURE_EVENT",
+        workbookId: PLACEHOLDER_HR_WORKBOOK_ID,
+        entityId: HCL_HFE_IDS.cooldown,
+        quantificationId: `HEPQ-${HCL_HFE_IDS.cooldown}`,
+      },
+      system: `SYS-${MODEL_META.COOLDOWN.code}`,
+      taskDescription: "Establish primary and secondary cooldown for long-term heat removal.",
+      hfeType: "POST_INITIATOR",
+      isTestMaintenance: false,
+      implementsSrs: [],
+    },
+  ],
   plantRepresentationAccuracy: {
     ...syBase.plantRepresentationAccuracy,
     scope: "OPERATING",
@@ -489,6 +576,146 @@ const SY_ANALYSIS_HCL = {
     evaluationResultsSummary: "Each tree can be run independently or as part of the HCL event-tree calculation.",
     informationSources: "Dissertation source, Figures 9.13–9.17 and Appendix A.",
     praTaskInterfaces: "Top events are linked from the ES functional events and bound to BN states in ESQ.",
+  },
+};
+
+const daBase = createBlankDa("HCL dissertation case study — DA", OWNER);
+
+const DA_ANALYSIS_HCL: DataAnalysis = {
+  ...daBase,
+  uuid: HCL_CASE_DA_UUID,
+  name: "HCL dissertation case study — Data Analysis",
+  created: NOW,
+  modified: NOW,
+  metadata: {
+    ...daBase.metadata,
+    versionInfo: { ...daBase.metadata.versionInfo, lastUpdated: NOW },
+    analysisDate: NOW,
+    analysts: [OWNER],
+    scope: "Point-estimate probability inputs for the non-human fault-tree basic events in the connected HCL case study.",
+    limitations: ["Values reconstructed from the executable dissertation-source example remain provisional until the original source-model package is available."],
+    lastModifiedDate: NOW,
+    lastModifiedBy: OWNER,
+  },
+  praScope: "Authoritative probability parameters consumed by the dissertation-source SY fault trees.",
+  parameters: systemBasicEvents.filter((event) => event.failureMode !== "HUMAN_ERROR").map((event) => ({
+    uuid: event.uuid,
+    name: `${event.code} probability`,
+    description: event.name,
+    parameterType: "PROBABILITY",
+    value: event.probability ?? 0,
+    valueType: "POINT_ESTIMATE",
+    estimationApproach: "GENERIC",
+    basicEventRef: event.uuid,
+    modelSelectionBasis: "Reconstructed point estimate used by the executable dissertation-source HCL example.",
+      dataSources: [{
+        source: "Dissertation-source case-study reconstruction",
+        sourceType: "EXPERT_JUDGMENT",
+      applicabilityAssessment: "Preserves the current executable example input pending recovery of the original model package.",
+    }],
+    implementsSrs: [],
+  })),
+  modelUncertainty: {
+    ...daBase.modelUncertainty,
+    uuid: id(3, 1),
+    name: "HCL case-study data-analysis model uncertainty",
+  },
+  documentation: {
+    ...daBase.documentation,
+    processDescription: "Maintains one revisioned probability parameter for every non-human basic event used by the case-study fault trees.",
+    basicEventProbabilityModels: "Point estimates reproduce the current executable fault-tree inputs; HCL bindings replace the mapped dependency events during hybrid quantification.",
+    genericParameterSources: "Dissertation-source case-study reconstruction.",
+    parameterEstimatesWithUncertainty: "Point estimates are retained without an invented uncertainty distribution because the complete source data package is not public.",
+    modelUncertaintySources: "Unpublished source-model details and the reconstruction of compact fault trees.",
+    asBuiltLimitations: "This temporary example demonstrates the DA-to-SY connection and is not an as-built plant data analysis.",
+    praTaskInterfaces: "Controls the non-human SY basic-event probabilities used by native FT, ET, and HCL runs; HRA controls the two human-error probabilities.",
+  },
+};
+
+const hrBase = createBlankHr("HCL dissertation case study — HRA", OWNER);
+
+const HR_ANALYSIS_HCL: HumanReliabilityAnalysis = {
+  ...hrBase,
+  uuid: HCL_CASE_HR_UUID,
+  name: "HCL dissertation case study — Human Reliability",
+  created: NOW,
+  modified: NOW,
+  metadata: {
+    ...hrBase.metadata,
+    versionInfo: { ...hrBase.metadata.versionInfo, lastUpdated: NOW },
+    analysisDate: NOW,
+    analysts: [OWNER],
+    scope: "Human-error probabilities used by the feed-and-bleed and cooldown fault-tree top events.",
+    limitations: ["The temporary reproduction preserves explicit HRA ownership while the original detailed HRA source package remains unavailable."],
+    lastModifiedDate: NOW,
+    lastModifiedBy: OWNER,
+  },
+  praScope: "Two post-initiator human-failure events used by the connected LOOP–SBO–FLEX demonstration.",
+  dependencyBayesianNetworks: [] as EsqBayesianNetwork[],
+  humanFailureEvents: [
+    {
+      uuid: HCL_HFE_IDS.feedBleed,
+      name: "Fail to initiate feed-and-bleed",
+      hfeTiming: "POST_INITIATOR",
+      description: "The operator does not initiate feed-and-bleed cooling after the required cue.",
+      impactLevel: "SYSTEM",
+      affectedSystems: [`SYS-${MODEL_META.FEED_BLEED.code}`],
+      applicablePlantOperatingStates: ["POS-FULL-POWER"],
+      applicableInitiatingEvents: ["IEG-LOOP-HCL"],
+      responseDetail: {
+        requiredResponse: "Initiate feed-and-bleed cooling.",
+        responseType: "INITIATE",
+        successCriteriaIds: [`SC-${MODEL_META.FEED_BLEED.code}`],
+        procedureReferences: ["CASE-STUDY-FNB"],
+        cueDescription: "High-pressure injection and steam-generator heat removal are unavailable.",
+      },
+      implementsSrs: [],
+    },
+    {
+      uuid: HCL_HFE_IDS.cooldown,
+      name: "Fail to establish cooldown",
+      hfeTiming: "POST_INITIATOR",
+      description: "The operator does not establish primary and secondary cooldown for long-term heat removal.",
+      impactLevel: "SYSTEM",
+      affectedSystems: [`SYS-${MODEL_META.COOLDOWN.code}`],
+      applicablePlantOperatingStates: ["POS-FULL-POWER"],
+      applicableInitiatingEvents: ["IEG-LOOP-HCL"],
+      responseDetail: {
+        requiredResponse: "Establish primary and secondary cooldown.",
+        responseType: "CONTROL",
+        successCriteriaIds: [`SC-${MODEL_META.COOLDOWN.code}`],
+        procedureReferences: ["CASE-STUDY-SBC"],
+        cueDescription: "Long-term core heat removal is required following LOOP progression.",
+      },
+      implementsSrs: [],
+    },
+  ],
+  hepQuantifications: [
+    {
+      uuid: `HEPQ-${HCL_HFE_IDS.feedBleed}`,
+      hfeId: HCL_HFE_IDS.feedBleed,
+      methodology: "Dissertation-source point estimate",
+      assessmentType: "DETAILED_ASSESSMENT",
+      isRiskSignificant: true,
+      pointEstimateHep: BASIC_EVENT_META.FEED_BLEED_RANDOM.probability,
+      implementsSrs: [],
+    },
+    {
+      uuid: `HEPQ-${HCL_HFE_IDS.cooldown}`,
+      hfeId: HCL_HFE_IDS.cooldown,
+      methodology: "Dissertation-source point estimate",
+      assessmentType: "DETAILED_ASSESSMENT",
+      isRiskSignificant: true,
+      pointEstimateHep: BASIC_EVENT_META.COOLDOWN_RANDOM.probability,
+      implementsSrs: [],
+    },
+  ],
+  documentation: {
+    ...hrBase.documentation,
+    processDescription: "Defines and quantifies the two human-error basic events retained in the executable case-study fault trees.",
+    hfeDefinitions: "Feed-and-bleed initiation and primary/secondary cooldown are explicit post-initiator operator responses.",
+    hepMethodologies: "Point estimates preserve the reconstructed dissertation-source probabilities without inventing additional uncertainty.",
+    praTaskInterfaces: "Supplies typed HFE and HEP references to Systems Analysis; native FT, ET, and HCL runs resolve these values from this revisioned workbook.",
   },
 };
 
@@ -808,6 +1035,7 @@ const ES_ANALYSIS_HCL: EventSequenceAnalysis = {
   groupingCriteria: [{ uuid: "GC-HCL-END-STATE", name: "Published end-state grouping", description: "Groups paths as successful stabilization or core damage.", characteristicsConsidered: ["End state", "Transfer destination"] }],
   eventSequenceFamilies,
   eventTrees,
+  dependencyModels: { bayesianNetworks: [] as EsqBayesianNetwork[] },
   plantResponseAnalysisAccuracy: {
     ...esBase.plantResponseAnalysisAccuracy,
     scope: "OPERATING",
@@ -981,6 +1209,10 @@ const bayesianNetwork: EsqBayesianNetwork = {
   layout: { viewport: { x: 0, y: 0, zoom: 0.72 }, mode: "MANUAL", direction: "LEFT_TO_RIGHT" },
 };
 
+SY_ANALYSIS_HCL.dependencyBayesianNetworks.push(bayesianNetwork);
+HR_ANALYSIS_HCL.dependencyBayesianNetworks?.push(bayesianNetwork);
+ES_ANALYSIS_HCL.dependencyModels?.bayesianNetworks?.push(bayesianNetwork);
+
 const hclConfiguration: EsqHclConfiguration = {
   modelId: BN_IDS.hclConfiguration,
   code: "HCL-LOOP-SBO-FLEX",
@@ -1004,6 +1236,42 @@ const hclConfiguration: EsqHclConfiguration = {
   solverSettings: { variableOrder: null, foldConstants: true, spliceNullGates: true },
 };
 
+const hclFamilyQuantifications: EventSequenceQuantification["familyQuantifications"] = [
+  {
+    uuid: "EFQ-HCL-CD",
+    name: "Core-damage reference family",
+    eventSequenceFamilyRef: "ESF-HCL-CD",
+    eventSequenceFamilyReference: { referenceType: "EVENT_SEQUENCE_FAMILY", workbookId: PLACEHOLDER_ES_WORKBOOK_ID, entityId: "ESF-HCL-CD" },
+    dependenciesConsideredInGrouping: true,
+    representativeSequenceSelectionBasis: "Reconstructed reference family used to carry the published baseline-cell contribution through the connected workbooks.",
+    quantificationBasis: "POINT_ESTIMATE",
+    meanFrequency: 2.82e-6,
+    implementsSrs: [],
+  },
+  {
+    uuid: "EFQ-HCL-LOCA",
+    name: "LOCA reference family",
+    eventSequenceFamilyRef: "ESF-HCL-LOCA",
+    eventSequenceFamilyReference: { referenceType: "EVENT_SEQUENCE_FAMILY", workbookId: PLACEHOLDER_ES_WORKBOOK_ID, entityId: "ESF-HCL-LOCA" },
+    dependenciesConsideredInGrouping: true,
+    representativeSequenceSelectionBasis: "Reconstructed non-baseline contribution retained for the temporary end-to-end risk-integration example.",
+    quantificationBasis: "POINT_ESTIMATE",
+    meanFrequency: 6.4e-4,
+    implementsSrs: [],
+  },
+  {
+    uuid: "EFQ-HCL-ATWS",
+    name: "ATWS reference family",
+    eventSequenceFamilyRef: "ESF-HCL-ATWS",
+    eventSequenceFamilyReference: { referenceType: "EVENT_SEQUENCE_FAMILY", workbookId: PLACEHOLDER_ES_WORKBOOK_ID, entityId: "ESF-HCL-ATWS" },
+    dependenciesConsideredInGrouping: true,
+    representativeSequenceSelectionBasis: "Reconstructed non-baseline contribution retained for the temporary end-to-end risk-integration example.",
+    quantificationBasis: "POINT_ESTIMATE",
+    meanFrequency: 3.28e-4,
+    implementsSrs: [],
+  },
+];
+
 const esqBase = createBlankEsq("HCL dissertation case study — ESQ", OWNER);
 
 const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
@@ -1023,6 +1291,7 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
     lastModifiedBy: OWNER,
   },
   praScope: "Exact BN inference and HCL quantification over the linked case-study fault trees and event trees.",
+  familyQuantifications: hclFamilyQuantifications,
   bayesianNetworks: [bayesianNetwork],
   hclConfigurations: [hclConfiguration],
   modelIntegration: {
@@ -1116,13 +1385,204 @@ const ESQ_ANALYSIS_HCL: EventSequenceQuantification = {
   },
 };
 
+const hclConsequenceByFamily = [
+  { familyId: "ESF-HCL-CD", resultId: "RCQ-HCL-CD", releaseCategory: "RC-CORE-DAMAGE", consequence: 1 },
+  { familyId: "ESF-HCL-LOCA", resultId: "RCQ-HCL-LOCA", releaseCategory: "RC-LOCA", consequence: 0.25 },
+  { familyId: "ESF-HCL-ATWS", resultId: "RCQ-HCL-ATWS", releaseCategory: "RC-ATWS", consequence: 0.4 },
+] as const;
+
+const rcBase = createBlankRc("HCL dissertation case study — RC", OWNER);
+const RC_ANALYSIS_HCL: RadiologicalConsequenceAnalysis = {
+  ...rcBase,
+  uuid: HCL_CASE_RC_UUID,
+  name: "HCL dissertation case study — Consequences",
+  created: NOW,
+  modified: NOW,
+  metadata: {
+    ...rcBase.metadata,
+    versionInfo: { ...rcBase.metadata.versionInfo, lastUpdated: NOW },
+    analysisDate: NOW,
+    analysts: [OWNER],
+    scope: "Temporary consequence records that make the connected HCL example quantifiable through Risk Integration.",
+    limitations: ["The consequence index is an explicit verification measure, not a claim that the dissertation supplied a complete offsite-consequence model."],
+    lastModifiedDate: NOW,
+    lastModifiedBy: OWNER,
+  },
+  praScope: "Maps each release-bearing dissertation-source event-sequence family to a transparent reference consequence index.",
+  scope: {
+    ...rcBase.scope,
+    consequenceMetrics: ["Reference consequence index"],
+    metricSelectionApplicationBasis: "A dimensionless verification measure keeps the temporary example focused on the connected quantification workflow.",
+  },
+  releaseCategoryToConsequence: {
+    ...rcBase.releaseCategoryToConsequence,
+    releaseCategoryInputs: hclConsequenceByFamily.map((entry) => ({
+      releaseCategory: entry.releaseCategory,
+      eventSequenceFamilyReferences: [{
+        referenceType: "EVENT_SEQUENCE_FAMILY",
+        workbookId: PLACEHOLDER_ES_WORKBOOK_ID,
+        entityId: entry.familyId,
+      }],
+      releaseCharacteristics: { numberOfPlumes: 1 },
+    })),
+    releaseCategoryAndSourceTermReviewed: true,
+  },
+  consequenceQuantification: {
+    ...rcBase.consequenceQuantification,
+    consequenceCodesUsed: [{ code: "Reference arithmetic", benchmarkBasis: "Closed-form multiplication in the connected regression." }],
+    eventSequenceConsequences: hclConsequenceByFamily.map((entry) => ({
+      uuid: entry.resultId,
+      eventSequenceFamily: entry.familyId,
+      eventSequenceFamilyReference: {
+        referenceType: "EVENT_SEQUENCE_FAMILY",
+        workbookId: PLACEHOLDER_ES_WORKBOOK_ID,
+        entityId: entry.familyId,
+      },
+      releaseCategoryReference: entry.releaseCategory,
+      consequenceResults: [{ metric: "Reference consequence index", meanValue: entry.consequence, unit: "index per event" }],
+      riskSignificance: entry.familyId === "ESF-HCL-CD" ? ImportanceLevel.HIGH : ImportanceLevel.MEDIUM,
+    })),
+    outputReview: { performed: true, indicationsFound: [], acceptanceJustifications: ["The three records reconcile one-to-one with the release-bearing ES families."] },
+    resultsConfirmation: { performed: true, description: "The connected regression independently repeats every frequency-consequence product." },
+  },
+  riskIntegrationFeedback: {
+    analysisRef: "RI-RESULTS-HCL",
+    integratedRiskResultReference: {
+      referenceType: "INTEGRATED_RISK_RESULT",
+      workbookId: PLACEHOLDER_RI_WORKBOOK_ID,
+      entityId: "RI-RESULTS-HCL",
+    },
+    generalFeedback: "The consequence records are linked to the temporary integrated-risk result.",
+  },
+  documentation: {
+    ...rcBase.documentation,
+    processDescription: "Assign one transparent reference consequence to each release-bearing event-sequence family.",
+    inputsDescription: "The ES family/end-state catalogue from the dissertation-source example.",
+    appliedMethods: "Direct reference-index assignment for connection verification.",
+    resultsSummary: "Three linked consequence records are available to RI.",
+    rcqProcess: "The record identity, family identity, and consequence measure are preserved across the RC-to-RI handoff.",
+    praTaskInterfaces: "Consumes ES families and supplies controlled consequence-result references to RI.",
+  },
+};
+
+const riBase = createBlankRi("HCL dissertation case study — RI", OWNER);
+const hclCompiledInputs: RiskIntegration["compiledRiskInputs"] = hclFamilyQuantifications.map((quantification) => {
+  const consequence = hclConsequenceByFamily.find((entry) => entry.familyId === quantification.eventSequenceFamilyRef)!;
+  return {
+    uuid: `RII-${quantification.eventSequenceFamilyRef}`,
+    eventSequenceFamilyRef: quantification.eventSequenceFamilyRef,
+    eventSequenceFamilyReference: {
+      referenceType: "EVENT_SEQUENCE_FAMILY",
+      workbookId: PLACEHOLDER_ES_WORKBOOK_ID,
+      entityId: quantification.eventSequenceFamilyRef,
+    },
+    releaseCategoryRef: consequence.releaseCategory,
+    frequency: typeof quantification.meanFrequency === "number" ? quantification.meanFrequency : quantification.meanFrequency.value,
+    frequencyUnit: "per plant-year",
+    esqFamilyQuantificationRef: quantification.uuid,
+    familyQuantificationReferences: [{
+      referenceType: "EVENT_SEQUENCE_FAMILY_QUANTIFICATION",
+      workbookId: PLACEHOLDER_ESQ_WORKBOOK_ID,
+      entityId: quantification.uuid,
+    }],
+    consequences: [{ metric: "Reference consequence index", meanValue: consequence.consequence, unit: "index per event" }],
+    rcqRecordRef: consequence.resultId,
+    consequenceResultReference: {
+      referenceType: "RADIOLOGICAL_CONSEQUENCE_RESULT",
+      workbookId: PLACEHOLDER_RC_WORKBOOK_ID,
+      entityId: consequence.resultId,
+    },
+    consistentWithEventSequenceAnalysis: true,
+    implementsSrs: [],
+  };
+});
+const hclIntegratedRisk = hclCompiledInputs.reduce(
+  (sum, input) => sum + input.frequency * input.consequences[0]!.meanValue,
+  0,
+);
+
+const RI_ANALYSIS_HCL: RiskIntegration = {
+  ...riBase,
+  uuid: HCL_CASE_RI_UUID,
+  name: "HCL dissertation case study — Integrated Risk",
+  created: NOW,
+  modified: NOW,
+  metadata: {
+    ...riBase.metadata,
+    versionInfo: { ...riBase.metadata.versionInfo, lastUpdated: NOW },
+    analysisDate: NOW,
+    analysts: [OWNER],
+    scope: "Temporary end-to-end integration of the dissertation-source ESQ frequencies and RC reference consequences.",
+    limitations: ["The reference consequence index verifies connectivity and arithmetic; it is not an offsite health-risk result."],
+    lastModifiedDate: NOW,
+    lastModifiedBy: OWNER,
+  },
+  praScope: "Demonstrates controlled ES, ESQ, RC, and RI result linkage and a reproducible sum of frequency-consequence products.",
+  scopeDefinition: {
+    consequenceMeasures: [{ name: "Reference consequence index", description: "Dimensionless temporary verification measure." }],
+    plantOperatingStateRefs: ["POS-FULL-POWER"],
+    hazardGroups: ["SEISMIC", "EXTERNAL_FLOOD", "INTERNAL_FIRE"],
+    radioactiveMaterialSources: ["REACTOR-CORE"],
+    eventSequenceFamilyRefs: hclCompiledInputs.map((input) => input.eventSequenceFamilyRef),
+    releaseCategoryRefs: hclConsequenceByFamily.map((entry) => entry.releaseCategory),
+  },
+  compiledRiskInputs: hclCompiledInputs,
+  integratedRiskResults: {
+    ...riBase.integratedRiskResults,
+    uuid: "RI-RESULTS-HCL",
+    name: "Connected dissertation-source reference result",
+    description: "Closed-form sum of each linked ESQ family frequency multiplied by its linked RC consequence index.",
+    metrics: [{
+      uuid: "METRIC-HCL-REFERENCE",
+      name: "Integrated reference risk",
+      metricType: "CUSTOM",
+      consequenceMeasureRef: "Reference consequence index",
+      value: hclIntegratedRisk,
+      units: "index per plant-year",
+      implementsSrs: [],
+    }],
+    calculationApproach: {
+      sumOfProducts: true,
+      frequencyConsequencePlots: true,
+      justification: "Each family contributes its ESQ mean frequency multiplied by its RC reference consequence.",
+    },
+    aggregationApproach: {
+      description: "Direct family-level sum without additional grouping.",
+      perSourceHazardContributionsIdentified: true,
+      justification: "The three family products are visible and independently reproducible.",
+    },
+  },
+  integrationMethods: [{
+    uuid: "RIM-HCL-SUM",
+    name: "Linked sum of products",
+    description: "Resolve controlled ESQ and RC records, multiply family by family, and sum.",
+    scopeJustification: "Covers all three release-bearing families in the temporary example.",
+    verificationStatus: { verified: true, verificationMethod: "Connected regression and closed-form calculation." },
+    implementsSrs: [],
+  }],
+  documentation: {
+    ...riBase.documentation,
+    processDescription: "Resolve the linked family, frequency-result, and consequence-result references before integration.",
+    inputsDescription: "Three ES families, three ESQ family quantifications, and three RC consequence records.",
+    appliedMethods: "Family-level sum of frequency-consequence products.",
+    resultsSummary: `Integrated reference risk ${hclIntegratedRisk.toExponential(5)} index per plant-year.`,
+    traceabilityToUpstreamContributions: "Every compiled row carries typed ES, ESQ, and RC workbook references.",
+    integratedContributorRollup: "The visible family products sum exactly to the integrated metric.",
+    praTaskInterfaces: "Consumes controlled ESQ and RC results and provides the linked RI result back to RC.",
+  },
+};
+
 export {
   HCL_CASE_ID,
   HCL_CASE_LABEL,
   HCL_CASE_IE_UUID,
   HCL_CASE_SY_UUID,
+  HCL_CASE_DA_UUID,
+  HCL_CASE_HR_UUID,
   HCL_CASE_ES_UUID,
   HCL_CASE_ESQ_UUID,
+  HCL_CASE_RC_UUID,
+  HCL_CASE_RI_UUID,
   MODEL_IDS as HCL_CASE_FAULT_TREE_MODEL_IDS,
   TOP_GATE_IDS as HCL_CASE_FAULT_TREE_TOP_GATE_IDS,
   BASIC_EVENT_IDS as HCL_CASE_BASIC_EVENT_IDS,
@@ -1130,6 +1590,10 @@ export {
   BN_IDS as HCL_CASE_BAYESIAN_IDS,
   IE_ANALYSIS_HCL,
   SY_ANALYSIS_HCL,
+  DA_ANALYSIS_HCL,
+  HR_ANALYSIS_HCL,
   ES_ANALYSIS_HCL,
   ESQ_ANALYSIS_HCL,
+  RC_ANALYSIS_HCL,
+  RI_ANALYSIS_HCL,
 };

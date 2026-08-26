@@ -10,6 +10,7 @@ import { type JSX, useState } from "react";
 import { POSIcon } from "../pos-workbooks/posIcons";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
+import { HazardBayesianNetworkEditor, HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import { Drawer, Field, NumberInput, Section, SelectInput, TextArea, TextInput } from "./highWindsPraFields";
 import { useHighWindsPraWorkbook } from "./highWindsPraWorkbookContext";
 import "../seismic-pra-workbooks/css/seismicPra.css";
@@ -370,11 +371,21 @@ function AnalysisBasis(): JSX.Element {
 }
 
 function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
+  const { mef, editable, mutate } = useHighWindsPraWorkbook();
   const [target, setTarget] = useState<EditorTarget | null>(null);
   const config = STEP_CONFIG[stepId];
   if (config === undefined) return <div className="flempty"><strong>Step configuration unavailable</strong></div>;
   const recordSections = config.root === "riskInterpretation" ? config.sections : [...config.sections, ...common(config.root)];
-  return <div className="flstep">{recordSections.map((item) => <RecordSectionView key={item.title} section={item} setTarget={setTarget} />)}<Editor target={target} onClose={() => setTarget(null)} /></div>;
+  const updateModels = (hazardConditionedModels: HighWindsPRA["hazardConditionedModels"]): void => mutate((current) => ({ ...current, hazardConditionedModels }));
+  return <div className="flstep">
+    {stepId === "plant-response" && <>
+      <Section title="Hazard-conditioned initiating-event fault trees" description="Author the initiating-event logic created or modified by high-wind demand."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
+      <Section title="Hazard-conditioned event trees" description="Author the high-wind response paths, functional events, bypasses, and end states."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
+    </>}
+    {(stepId === "human-reliability" || stepId === "quantification") && <Section title="Hazard dependency Bayesian networks" description="Model causal and conditional dependencies retained in high-wind response quantification."><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
+    {recordSections.map((item) => <RecordSectionView key={item.title} section={item} setTarget={setTarget} />)}
+    <Editor target={target} onClose={() => setTarget(null)} />
+  </div>;
 }
 
 export function HighWindsPraStepScreen({ stepId }: { stepId: string }): JSX.Element {

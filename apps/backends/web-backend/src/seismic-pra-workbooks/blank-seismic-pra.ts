@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import { type BaseModelUncertaintyDocumentation } from "interfaces-mef-types/core/documentation";
 import { type SeismicPRA, SEISMIC_PRA_SR_CATALOG } from "interfaces-mef-types/seismic/seismic-pra";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
@@ -54,6 +55,7 @@ export function createBlankSeismicPra(name: string, owner: string): SeismicPRA {
     activePeerReviewIds: [],
     activeAuditIds: [],
     praScope: "",
+    hazardConditionedModels: createEmptyHazardConditionedMethodModels(),
     applications: [],
     evidenceRegister: [],
     baselinePra: {

@@ -9,6 +9,7 @@ import { InternalFloodPlantResponseModelSchema } from "../flpr/internal-flood-pl
 import { InternalFloodScenariosDevelopmentSchema } from "../flsn/internal-flood-scenarios-development";
 import { InternalFloodSourcesIdentificationAndCharacterizationSchema } from "../flso/internal-flood-sources-identification-and-characterization";
 import { technicalElementSchema } from "../technical-element";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 import { InternalFloodAnalysisRecordSchema, InternalFloodModelUncertaintySchema, InternalFloodPraInterfaceRecordSchema, InternalFloodPraSubelementSchema } from "./internal-flood-pra-common";
 
 export const InternalFloodPraApplicationSchema = InternalFloodAnalysisRecordSchema.extend({
@@ -113,7 +114,7 @@ export const InternalFloodPraExampleDocumentSchema = z.object({
 
 export const InternalFloodPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.INTERNAL_FLOOD_PRA).shape,
-  praScope: z.string(), applications: z.array(InternalFloodPraApplicationSchema), evidenceRegister: z.array(InternalFloodPraEvidenceRecordSchema), baselinePra: InternalFloodBaselinePraDefinitionSchema.optional(),
+  praScope: z.string(), hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels), applications: z.array(InternalFloodPraApplicationSchema), evidenceRegister: z.array(InternalFloodPraEvidenceRecordSchema), baselinePra: InternalFloodBaselinePraDefinitionSchema.optional(),
   plantPartitioning: InternalFloodPlantPartitioningSchema, sourcesIdentificationAndCharacterization: InternalFloodSourcesIdentificationAndCharacterizationSchema,
   scenariosDevelopment: InternalFloodScenariosDevelopmentSchema, initiatingEvents: InternalFloodInitiatingEventsSchema, plantResponseModel: InternalFloodPlantResponseModelSchema,
   humanReliabilityAnalysis: InternalFloodHumanReliabilityAnalysisSchema, eventSequenceQuantification: InternalFloodEventSequenceQuantificationSchema, integration: InternalFloodPraIntegrationSchema,

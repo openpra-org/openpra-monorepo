@@ -1,4 +1,5 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import type { HazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   createHighWindsSrCatalog,
   HighWindsAnalysisRecord,
@@ -1541,6 +1542,7 @@ export interface HighWindsPraExampleDocument {
 
 export interface HighWindsPRA extends TechnicalElement<TechnicalElementTypes.HIGH_WINDS_PRA> {
   praScope: string;
+  hazardConditionedModels: HazardConditionedMethodModels;
   analysisBasis: HighWindsAnalysisBasis;
   hazardScreening: HighWindsHazardScreening;
   windDataAndReferenceBasis: HighWindsWindDataAndReferenceBasis;

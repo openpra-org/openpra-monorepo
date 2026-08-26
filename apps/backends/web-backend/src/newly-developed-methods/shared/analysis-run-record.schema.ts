@@ -9,6 +9,8 @@ import {
   type WorkbookModelSnapshotIdentity,
   type WorkbookSnapshotIdentity,
   type AnalysisRunWorkbookSnapshot,
+  type AnalysisRunTarget,
+  type AnalysisRunContribution,
   AnalysisRunStatusSchema,
   MethodTypeSchema,
 } from "interfaces-shared-types/newly-developed-methods";
@@ -59,6 +61,12 @@ class AnalysisRunRecord {
   @Prop({ type: [Object], required: true, immutable: true })
   workbookSnapshots!: AnalysisRunWorkbookSnapshot[];
 
+  @Prop({ type: Object, default: null, immutable: true })
+  target!: AnalysisRunTarget | null;
+
+  @Prop({ type: [Object], default: null, immutable: true })
+  contributions!: AnalysisRunContribution[] | null;
+
   @Prop({ type: Object, default: null })
   result!: unknown | null;
 }
@@ -66,6 +74,7 @@ class AnalysisRunRecord {
 const AnalysisRunRecordSchema = SchemaFactory.createForClass(AnalysisRunRecord);
 
 AnalysisRunRecordSchema.index({ "owner.workbookId": 1, "owner.modelId": 1, requestedAt: -1 });
+AnalysisRunRecordSchema.index({ "owner.workbookId": 1, requestedAt: -1 });
 
 export { AnalysisRunRecord, AnalysisRunRecordSchema };
 export type { AnalysisRunRecordDocument };

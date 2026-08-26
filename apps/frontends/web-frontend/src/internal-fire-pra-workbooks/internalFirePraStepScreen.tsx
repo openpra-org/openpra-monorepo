@@ -1,5 +1,6 @@
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { composeWorkbookCue } from "../workbooks/workbookCueContent";
+import { HazardBayesianNetworkEditor, HazardEventTreeEditor, HazardFaultTreeEditor } from "../workbooks/hazardConditionedModelEditors";
 import {
   type InternalFireAnalysisRecord,
   type InternalFirePRA,
@@ -338,11 +339,17 @@ const STEP_SECTIONS: Record<string, RecordSection[]> = {
 };
 
 function TechnicalStep({ stepId }: { stepId: string }): JSX.Element {
-  const { mef, editable } = useInternalFirePraWorkbook();
+  const { mef, editable, mutate } = useInternalFirePraWorkbook();
   const editor = useEditor();
   const configs = STEP_SECTIONS[stepId] ?? [];
   const boundary = mef.plantBoundaryAndPartitioning.globalBoundary;
+  const updateModels = (hazardConditionedModels: InternalFirePRA["hazardConditionedModels"]): void => mutate((current) => ({ ...current, hazardConditionedModels }));
   return <div className="flstep">
+    {stepId === "plant-response" && <>
+      <Section title="Fire-conditioned initiating-event fault trees" description="Author initiating-event logic created or modified by fire damage and spurious operation."><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
+      <Section title="Fire-conditioned event trees" description="Author fire response paths, functional events, bypasses, transfers, and end states."><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>
+    </>}
+    {(stepId === "human-reliability" || stepId === "quantification") && <Section title="Fire dependency Bayesian networks" description="Model shared fire conditions, human-response dependencies, and conditional equipment availability."><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /></Section>}
     {stepId === "plant-partitioning" && <Section title="Global fire analysis boundary" description="Include every licensee-controlled location where fire can adversely affect modeled equipment or cables, including multi-unit and multi-source locations, and justify every exclusion." actions={editable ? <EditButton label="Edit global boundary" onClick={() => editor.setTarget({ title: "Global fire analysis boundary", subtitle: "Define the complete included and excluded spatial boundary.", focus: ["plantBoundaryAndPartitioning", "globalBoundary"], inlinePrimitiveArrays: true })} /> : undefined}><div className="sanalysisbasis"><AnalysisRow label="Licensee-controlled area" value={boundary.licenseeControlledAreaDescription} /><AnalysisRow label="Included locations" value={boundary.includedLocationRefs.join(" · ")} /><AnalysisRow label="Reactor units" value={boundary.reactorUnitRefs.join(" · ")} /><AnalysisRow label="Radioactive-material sources" value={boundary.radioactiveMaterialSourceRefs.join(" · ")} /><AnalysisRow label="At-power operating states" value={boundary.atPowerOperatingStateRefs.join(" · ")} /><AnalysisRow label="Multi-unit or multi-source locations" value={boundary.multiUnitOrMultiSourceLocations.join(" · ")} /></div></Section>}
     {configs.map((config) => <RecordSectionView key={config.title} config={config} editor={editor} />)}
     {stepId === "risk-integration" && <Section title="Cross-hazard integration method" description="Define how Internal Fire results are transferred to Risk Integration and how overlap with internal events, seismic, flood, and other hazard results is avoided." actions={editable ? <EditButton label="Edit integration method" onClick={() => editor.setTarget({ title: "Cross-hazard integration", subtitle: "Control the integration method and unresolved interfaces.", focus: ["integration"], visibleRootFields: ["integrationMethod", "unresolvedInterfaces"], inlinePrimitiveArrays: true })} /> : undefined}><div className="sanalysisbasis"><AnalysisRow label="Integration method" value={mef.integration.integrationMethod} /><AnalysisRow label="Unresolved interfaces" value={mef.integration.unresolvedInterfaces.join(" · ")} /></div></Section>}

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { InternalFirePRA } from "../../internal-fire/internal-fire-pra";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   InternalFireAnalysisRecordSchema,
   InternalFireInvestigationSchema,
@@ -873,6 +874,7 @@ export const InternalFirePraExampleDocumentSchema = z.object({
 export const InternalFirePRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.INTERNAL_FIRE_PRA).shape,
   praScope: z.string(),
+  hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels),
   applications: z.array(InternalFirePraApplicationSchema),
   evidenceRegister: z.array(InternalFirePraEvidenceRecordSchema),
   baselinePra: InternalFireBaselinePraDefinitionSchema.optional(),

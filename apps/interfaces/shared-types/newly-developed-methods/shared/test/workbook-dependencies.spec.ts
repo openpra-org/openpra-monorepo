@@ -39,6 +39,15 @@ describe("workbook model dependency contracts", () => {
     ).toBe(true);
   });
 
+  it("accepts Human Reliability as a dependency source host", () => {
+    expect(WorkbookModelDependencySchema.safeParse({
+      ...dependency,
+      sourceHostType: "HRA",
+      sourceWorkbookId: "hr-workbook",
+      path: "/humanFailureEvents/0",
+    }).success).toBe(true);
+  });
+
   it.each([
     { ...dependency, path: "hclConfigurations/0" },
     { ...dependency, sourceHostType: "PROJECT" },

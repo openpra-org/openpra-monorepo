@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import {
   HIGH_WINDS_PRA_SR_CATALOG,
   type HighWindsAnalysisRecord,
@@ -82,6 +83,7 @@ export function createBlankHighWindsPra(name: string, owner: string): HighWindsP
     activePeerReviewIds: [],
     activeAuditIds: [],
     praScope: "",
+    hazardConditionedModels: createEmptyHazardConditionedMethodModels(),
     analysisBasis: {
       siteBasis: {
         ...analysisRecord("W-SITE-001", "High Winds PRA site basis", owner),

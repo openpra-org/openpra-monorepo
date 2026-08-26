@@ -12,11 +12,18 @@ import type { z } from "zod";
 import { EventSequenceAnalysisSchema } from "interfaces-mef-types/zod/es/event-sequence-analysis";
 import { EventSequenceQuantificationSchema } from "interfaces-mef-types/zod/esq/event-sequence-quantification";
 import { SystemsAnalysisSchema } from "interfaces-mef-types/zod/sy/systems-analysis";
+import { DataAnalysisSchema } from "interfaces-mef-types/zod/da/data-analysis";
+import { HumanReliabilityAnalysisSchema } from "interfaces-mef-types/zod/hr/human-reliability-analysis";
 import type { EventSequenceAnalysis } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { DataAnalysis } from "interfaces-mef-types/da/data-analysis";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
 import {
   AnalysisRunMetadataSchema,
+  AnalysisRunProvenanceListSchema,
+  AnalysisRunProvenanceSchema,
+  AnalysisRunTraceSchema,
   BayesianNetworkAnalysisResultSchema,
   BayesianNetworkExecuteRequestSchema,
   EventTreeAnalysisResultSchema,
@@ -30,6 +37,10 @@ import {
 } from "interfaces-shared-types/newly-developed-methods";
 import type {
   AnalysisRunMetadata,
+  AnalysisRunContribution,
+  AnalysisRunProvenanceList,
+  AnalysisRunTarget,
+  AnalysisRunTrace,
   AnalysisRunWorkbookSnapshot,
   BayesianNetworkExecuteRequest,
   EventTreeExecuteRequest,
@@ -38,6 +49,7 @@ import type {
   HclExecuteRequest,
   MethodType,
   WorkbookMethodHostType,
+  WorkbookCrossReference,
   WorkbookModelAddress,
   WorkbookModelSnapshotIdentity,
 } from "interfaces-shared-types/newly-developed-methods";
@@ -47,6 +59,8 @@ import { EsqWorkbook, type EsqWorkbookDocument } from "../../esq-workbooks/esq-w
 import { normalizeEsqMef } from "../../esq-workbooks/esq-mef-normalize";
 import { stripNulls } from "../../pos-workbooks/mef-normalize";
 import { SyWorkbook, type SyWorkbookDocument } from "../../sy-workbooks/sy-workbook.schema";
+import { DaWorkbook, type DaWorkbookDocument } from "../../da-workbooks/da-workbook.schema";
+import { HrWorkbook, type HrWorkbookDocument } from "../../hr-workbooks/hr-workbook.schema";
 import { WorkbookModelAccessService } from "../../workbooks/workbook-model-access.service";
 import {
   assertExpectedWorkbookRevision,
@@ -58,6 +72,8 @@ import {
   adaptEsqBayesianNetworkSnapshot,
   adaptEsqHclSnapshot,
   adaptSyFaultTreeSnapshot,
+  collectSyFaultTreeControlledDataSources,
+  faultTreeControlledDataSourceKey,
   WorkbookPraxisAdapterError,
 } from "./praxis-snapshot-adapters";
 import type {
@@ -198,6 +214,10 @@ export class WorkbookAnalysisRunsService {
     private readonly esWorkbookModel: Model<EsWorkbookDocument>,
     @InjectModel(EsqWorkbook.name)
     private readonly esqWorkbookModel: Model<EsqWorkbookDocument>,
+    @InjectModel(DaWorkbook.name)
+    private readonly daWorkbookModel: Model<DaWorkbookDocument>,
+    @InjectModel(HrWorkbook.name)
+    private readonly hrWorkbookModel: Model<HrWorkbookDocument>,
     private readonly accessService: WorkbookModelAccessService,
     private readonly projectsService: ProjectsService,
     private readonly praetor: PraetorAnalysisClient,
@@ -251,6 +271,137 @@ export class WorkbookAnalysisRunsService {
     };
   }
 
+  private async loadDa(workbookId: string): Promise<LoadedWorkbook<DataAnalysis>> {
+    const document = await this.daWorkbookModel.findOne({ workbookId }).exec();
+    if (!document) throw new NotFoundException("DA workbook not found");
+    const parsed = DataAnalysisSchema.safeParse(stripNulls(document.mef));
+    if (!parsed.success) {
+      throw new BadRequestException(`Stored DA workbook failed validation: ${parsed.error.message}`);
+    }
+    return {
+      hostType: "DA",
+      workbookId,
+      workbookRevision: readWorkbookRevision(document),
+      projectId: document.projectId,
+      ownerUsername: document.ownerUsername,
+      mef: parsed.data,
+      document,
+    };
+  }
+
+  private async loadHr(workbookId: string): Promise<LoadedWorkbook<HumanReliabilityAnalysis>> {
+    const document = await this.hrWorkbookModel.findOne({ workbookId }).exec();
+    if (!document) throw new NotFoundException("HRA workbook not found");
+    const parsed = HumanReliabilityAnalysisSchema.safeParse(stripNulls(document.mef));
+    if (!parsed.success) {
+      throw new BadRequestException(`Stored HRA workbook failed validation: ${parsed.error.message}`);
+    }
+    return {
+      hostType: "HRA",
+      workbookId,
+      workbookRevision: readWorkbookRevision(document),
+      projectId: document.projectId,
+      ownerUsername: document.ownerUsername,
+      mef: parsed.data,
+      document,
+    };
+  }
+
+  private async resolveFaultTreeControlledDataSources(
+    faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
+  ): Promise<{
+    values: ReadonlyMap<string, number>;
+    sources: LoadedWorkbook<unknown>[];
+    references: WorkbookCrossReference[];
+  }> {
+    const references = faultTrees.flatMap(({ source, modelId }) =>
+      adaptOrThrow(() => collectSyFaultTreeControlledDataSources(source, modelId)),
+    );
+    const uniqueReferences = new Map(
+      references.map((reference) => [faultTreeControlledDataSourceKey(reference), reference]),
+    );
+    const daWorkbooks = new Map<string, LoadedWorkbook<DataAnalysis>>();
+    const hrWorkbooks = new Map<string, LoadedWorkbook<HumanReliabilityAnalysis>>();
+    for (const reference of uniqueReferences.values()) {
+      if (reference.referenceType === "WORKBOOK_PARAMETER") {
+        if (!daWorkbooks.has(reference.workbookId)) {
+          daWorkbooks.set(reference.workbookId, await this.loadDa(reference.workbookId));
+        }
+      } else if (!hrWorkbooks.has(reference.workbookId)) {
+        hrWorkbooks.set(reference.workbookId, await this.loadHr(reference.workbookId));
+      }
+    }
+
+    const values = new Map<string, number>();
+    const probabilityParameterTypes = new Set([
+      "PROBABILITY",
+      "UNAVAILABILITY",
+      "HUMAN_ERROR_PROBABILITY",
+    ]);
+    for (const [key, reference] of uniqueReferences) {
+      if (reference.referenceType === "WORKBOOK_PARAMETER") {
+        const workbook = daWorkbooks.get(reference.workbookId)!;
+        const matches = workbook.mef.parameters.filter(
+          (parameter) => parameter.uuid === reference.entityId,
+        );
+        if (matches.length !== 1) {
+          throw new BadRequestException(
+            `DA parameter '${reference.workbookId}:${reference.entityId}' resolved ${matches.length} times; expected exactly once`,
+          );
+        }
+        const parameter = matches[0]!;
+        if (!probabilityParameterTypes.has(parameter.parameterType)) {
+          throw new BadRequestException(
+            `DA parameter '${reference.workbookId}:${reference.entityId}' has type '${parameter.parameterType}', which cannot control a fault-tree probability`,
+          );
+        }
+        if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 1) {
+          throw new BadRequestException(
+            `DA parameter '${reference.workbookId}:${reference.entityId}' must be finite and between zero and one`,
+          );
+        }
+        values.set(key, parameter.value);
+        continue;
+      }
+
+      const workbook = hrWorkbooks.get(reference.workbookId)!;
+      const humanFailureEvents = workbook.mef.humanFailureEvents.filter(
+        (event) => event.uuid === reference.entityId,
+      );
+      if (humanFailureEvents.length !== 1) {
+        throw new BadRequestException(
+          `HRA human-failure event '${reference.workbookId}:${reference.entityId}' resolved ${humanFailureEvents.length} times; expected exactly once`,
+        );
+      }
+      const quantifications = workbook.mef.hepQuantifications.filter(
+        (quantification) => quantification.uuid === reference.quantificationId,
+      );
+      if (quantifications.length !== 1) {
+        throw new BadRequestException(
+          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' resolved ${quantifications.length} times; expected exactly once`,
+        );
+      }
+      const quantification = quantifications[0]!;
+      if (quantification.hfeId !== reference.entityId) {
+        throw new BadRequestException(
+          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' does not quantify human-failure event '${reference.entityId}'`,
+        );
+      }
+      const hep = quantification.meanHep ?? quantification.pointEstimateHep;
+      if (hep === undefined || !Number.isFinite(hep) || hep < 0 || hep > 1) {
+        throw new BadRequestException(
+          `HRA HEP quantification '${reference.workbookId}:${reference.quantificationId}' must provide a finite mean or point estimate between zero and one`,
+        );
+      }
+      values.set(key, hep);
+    }
+    return {
+      values,
+      sources: [...daWorkbooks.values(), ...hrWorkbooks.values()],
+      references: [...uniqueReferences.values()],
+    };
+  }
+
   private async authorizeOwner(
     owner: LoadedWorkbook<unknown>,
     expectedRevision: number,
@@ -286,6 +437,55 @@ export class WorkbookAnalysisRunsService {
       },
       mef: structuredClone(source.mef) as unknown as Record<string, unknown>,
     }));
+  }
+
+  private createAnalysisRunTrace(
+    sources: LoadedWorkbook<unknown>[],
+    target: AnalysisRunTarget,
+    models: WorkbookModelAddress[],
+    entities: WorkbookCrossReference[],
+  ): AnalysisRunTrace {
+    const contributions = new Map<string, AnalysisRunContribution>();
+    uniqueWorkbooks(sources).forEach((source) => {
+      contributions.set(source.workbookId, {
+        hostType: source.hostType,
+        workbook: {
+          workbookId: source.workbookId,
+          workbookRevision: source.workbookRevision,
+        },
+        models: [],
+        entities: [],
+      });
+    });
+
+    models.forEach((model) => {
+      const contribution = contributions.get(model.workbookId);
+      if (contribution === undefined) {
+        throw new BadRequestException(
+          `Contributing model '${model.workbookId}:${model.modelId}' has no immutable workbook source`,
+        );
+      }
+      if (!contribution.models.some((candidate) => candidate.modelId === model.modelId)) {
+        contribution.models.push(model);
+      }
+    });
+    entities.forEach((entity) => {
+      const contribution = contributions.get(entity.workbookId);
+      if (contribution === undefined) {
+        throw new BadRequestException(
+          `Contributing entity '${entity.workbookId}:${entity.entityId}' has no immutable workbook source`,
+        );
+      }
+      const key = JSON.stringify(entity);
+      if (!contribution.entities.some((candidate) => JSON.stringify(candidate) === key)) {
+        contribution.entities.push(entity);
+      }
+    });
+
+    return AnalysisRunTraceSchema.parse({
+      target,
+      contributions: [...contributions.values()],
+    });
   }
 
   private publicResult(
@@ -347,6 +547,7 @@ export class WorkbookAnalysisRunsService {
     envelope: SolverEnvelope,
     resultKind: PublicResultKind,
     acting: ActingUser,
+    trace: AnalysisRunTrace | null = null,
   ): Promise<AnalysisRunMetadata> {
     const context = createImmutableAnalysisRunContext({
       owner,
@@ -372,6 +573,8 @@ export class WorkbookAnalysisRunsService {
       failure: null,
       request: structuredClone(request),
       workbookSnapshots: context.workbookSnapshots,
+      target: trace?.target ?? null,
+      contributions: trace?.contributions ?? null,
       result: null,
     });
 
@@ -473,9 +676,16 @@ export class WorkbookAnalysisRunsService {
     expectPathModel(pathModelId, request.modelId);
     const owner = await this.loadSy(workbookId);
     await this.authorizeOwner(owner, request.workbookRevision, acting);
+    const selectedFaultTrees = [{ source: owner, modelId: request.modelId }];
+    const controlled = await this.resolveFaultTreeControlledDataSources(selectedFaultTrees);
+    await this.authorizeSources(controlled.sources, owner.workbookId, acting);
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(runId, [
-      adaptOrThrow(() => adaptSyFaultTreeSnapshot(owner, request.modelId)),
+      adaptOrThrow(() =>
+        adaptSyFaultTreeSnapshot(owner, request.modelId, {
+          controlledDataSourceValues: controlled.values,
+        }),
+      ),
     ]);
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
     const solverRequest = {
@@ -490,7 +700,7 @@ export class WorkbookAnalysisRunsService {
       identity,
       "FAULT_TREE",
       request as unknown as Record<string, unknown>,
-      [owner],
+      [owner, ...controlled.sources],
       {
         schemaVersion: "1.0.0",
         request: solverRequest,
@@ -514,6 +724,30 @@ export class WorkbookAnalysisRunsService {
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const runId = randomUUID();
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
+    const trace = this.createAnalysisRunTrace(
+      [owner],
+      {
+        targetType: "BAYESIAN_NETWORK_QUERY",
+        model: identity,
+        queryNodeIds: request.query.queryNodeIds,
+        evidenceNodeIds: request.query.evidence.observations.map((observation) => observation.nodeId),
+      },
+      [{ workbookId, modelId: request.modelId }],
+      [
+        ...request.query.queryNodeIds.map((entityId) => ({
+          referenceType: "BAYESIAN_NETWORK_NODE" as const,
+          workbookId,
+          modelId: request.modelId,
+          entityId,
+        })),
+        ...request.query.evidence.observations.map((observation) => ({
+          referenceType: "BAYESIAN_NETWORK_NODE" as const,
+          workbookId,
+          modelId: request.modelId,
+          entityId: observation.nodeId,
+        })),
+      ],
+    );
     return this.executeRun(
       runId,
       identity,
@@ -537,6 +771,7 @@ export class WorkbookAnalysisRunsService {
       },
       "BAYESIAN_NETWORK",
       acting,
+      trace,
     );
   }
 
@@ -620,12 +855,21 @@ export class WorkbookAnalysisRunsService {
     await this.authorizeOwner(owner, request.workbookRevision, acting);
     const eventTreeModelIds = this.eventTreeModelIds(owner, request.modelId);
     const linked = await this.loadEventTreeFaultTrees(owner, request.modelId);
-    await this.authorizeSources(linked.map(({ source }) => source), owner.workbookId, acting);
+    const controlled = await this.resolveFaultTreeControlledDataSources(linked);
+    await this.authorizeSources(
+      [...linked.map(({ source }) => source), ...controlled.sources],
+      owner.workbookId,
+      acting,
+    );
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(
       runId,
       linked.map(({ source, modelId }) =>
-        adaptOrThrow(() => adaptSyFaultTreeSnapshot(source, modelId)),
+        adaptOrThrow(() =>
+          adaptSyFaultTreeSnapshot(source, modelId, {
+            controlledDataSourceValues: controlled.values,
+          }),
+        ),
       ),
     );
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
@@ -634,7 +878,7 @@ export class WorkbookAnalysisRunsService {
       identity,
       "EVENT_TREE",
       request as unknown as Record<string, unknown>,
-      [owner, ...linked.map(({ source }) => source)],
+      [owner, ...linked.map(({ source }) => source), ...controlled.sources],
       {
         schemaVersion: "1.0.0",
         request: {
@@ -709,6 +953,68 @@ export class WorkbookAnalysisRunsService {
     );
   }
 
+  private hclBindingContributionEntities(
+    owner: LoadedWorkbook<EventSequenceQuantification>,
+    configuration: EventSequenceQuantification["hclConfigurations"][number],
+    faultTrees: Array<{ source: LoadedWorkbook<SystemsAnalysis>; modelId: string }>,
+  ): WorkbookCrossReference[] {
+    const memberships = new Map(
+      faultTrees.map(({ source, modelId }) => {
+        const model = source.mef.systemLogicModels.find((candidate) => candidate.uuid === modelId);
+        if (model === undefined) {
+          throw new NotFoundException(`SY fault-tree model '${modelId}' was not found`);
+        }
+        return [
+          `${source.workbookId}:${modelId}`,
+          new Set(
+            model.leafNodes
+              .filter((leaf) => leaf.kind === "BASIC_EVENT_REFERENCE")
+              .map((leaf) => leaf.basicEventId),
+          ),
+        ] as const;
+      }),
+    );
+
+    return configuration.bindings.flatMap((binding) => {
+      const belongsToIncludedTree = faultTrees.some(({ source, modelId }) =>
+        source.workbookId === binding.faultTreeBasicEvent.workbookId &&
+        memberships.get(`${source.workbookId}:${modelId}`)?.has(binding.faultTreeBasicEvent.entityId) === true,
+      );
+      if (!belongsToIncludedTree) return [];
+      return [
+        {
+          referenceType: "HCL_BINDING" as const,
+          workbookId: owner.workbookId,
+          modelId: configuration.modelId,
+          entityId: binding.id,
+        },
+        binding.faultTreeBasicEvent,
+        binding.bayesianNetworkNode,
+      ];
+    });
+  }
+
+  private eventTreeContributionEntities(
+    source: LoadedWorkbook<EventSequenceAnalysis>,
+    modelIds: string[],
+  ): WorkbookCrossReference[] {
+    return modelIds.flatMap((modelId) => {
+      const tree = source.mef.eventTrees?.find((candidate) => candidate.uuid === modelId);
+      if (tree === undefined) throw new NotFoundException(`ES event tree '${modelId}' was not found`);
+      return Object.values(tree.functionalEvents).flatMap((functionalEvent) => [
+        {
+          referenceType: "EVENT_TREE_FUNCTIONAL_EVENT" as const,
+          workbookId: source.workbookId,
+          modelId,
+          entityId: functionalEvent.uuid,
+        },
+        ...(functionalEvent.faultTreeTopEvent === undefined
+          ? []
+          : [functionalEvent.faultTreeTopEvent]),
+      ]);
+    });
+  }
+
   async executeHclFaultTree(
     workbookId: string,
     pathModelId: string,
@@ -726,15 +1032,53 @@ export class WorkbookAnalysisRunsService {
         modelId === request.faultTreeTopGate.modelId,
     );
     if (!selected) throw new BadRequestException("Requested fault tree is not declared by the HCL configuration");
-    const sources = [owner, hcl.bayesian, ...hcl.faultTrees.map(({ source }) => source)];
+    const controlled = await this.resolveFaultTreeControlledDataSources([selected]);
+    const sources = [
+      owner,
+      hcl.bayesian,
+      ...hcl.faultTrees.map(({ source }) => source),
+      ...controlled.sources,
+    ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(
       runId,
-      [adaptOrThrow(() => adaptSyFaultTreeSnapshot(selected.source, selected.modelId))],
+      [
+        adaptOrThrow(() =>
+          adaptSyFaultTreeSnapshot(selected.source, selected.modelId, {
+            controlledDataSourceValues: controlled.values,
+          }),
+        ),
+      ],
     );
     const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
     const identity = { workbookId, modelId: request.modelId, workbookRevision: owner.workbookRevision };
+    const trace = this.createAnalysisRunTrace(
+      sources,
+      {
+        targetType: "HCL_FAULT_TREE",
+        configuration: identity,
+        faultTreeTopEvent: {
+          workbookId: request.faultTreeTopGate.workbookId,
+          workbookRevision: selected.source.workbookRevision,
+          modelId: request.faultTreeTopGate.modelId,
+          entityId: request.faultTreeTopGate.entityId,
+        },
+      },
+      [
+        { workbookId: owner.workbookId, modelId: request.modelId },
+        hcl.configuration.bayesianNetwork,
+        ...hcl.faultTrees.map(({ source, modelId }) => ({
+          workbookId: source.workbookId,
+          modelId,
+        })),
+      ],
+      [
+        request.faultTreeTopGate,
+        ...this.hclBindingContributionEntities(owner, hcl.configuration, hcl.faultTrees),
+        ...controlled.references,
+      ],
+    );
     return this.executeRun(
       runId,
       identity,
@@ -770,6 +1114,7 @@ export class WorkbookAnalysisRunsService {
       },
       "HYBRID_CAUSAL_LOGIC",
       acting,
+      trace,
     );
   }
 
@@ -798,13 +1143,24 @@ export class WorkbookAnalysisRunsService {
         `Event tree links fault tree '${undeclared.modelId}' that is not declared by the HCL configuration`,
       );
     }
-    const sources = [owner, hcl.bayesian, eventTree, ...linked.map(({ source }) => source)];
+    const controlled = await this.resolveFaultTreeControlledDataSources(linked);
+    const sources = [
+      owner,
+      hcl.bayesian,
+      eventTree,
+      ...linked.map(({ source }) => source),
+      ...controlled.sources,
+    ];
     await this.authorizeSources(sources, owner.workbookId, acting);
     const runId = randomUUID();
     const faultTrees = combineFaultTrees(
       runId,
       linked.map(({ source, modelId }) =>
-        adaptOrThrow(() => adaptSyFaultTreeSnapshot(source, modelId)),
+        adaptOrThrow(() =>
+          adaptSyFaultTreeSnapshot(source, modelId, {
+            controlledDataSourceValues: controlled.values,
+          }),
+        ),
       ),
     );
     const faultTreeBasicEventMembership = this.hclFaultTreeBasicEventMembership(hcl.faultTrees);
@@ -813,6 +1169,29 @@ export class WorkbookAnalysisRunsService {
       ...request,
       mode: "HYBRID_CAUSAL_LOGIC",
     } as unknown as Record<string, unknown>;
+    const trace = this.createAnalysisRunTrace(
+      sources,
+      {
+        targetType: "HCL_EVENT_TREE",
+        configuration: identity,
+        eventTree: {
+          workbookId: eventTree.workbookId,
+          workbookRevision: eventTree.workbookRevision,
+          modelId: request.eventTree.modelId,
+        },
+      },
+      [
+        { workbookId: owner.workbookId, modelId: request.modelId },
+        hcl.configuration.bayesianNetwork,
+        ...eventTreeModelIds.map((modelId) => ({ workbookId: eventTree.workbookId, modelId })),
+        ...linked.map(({ source, modelId }) => ({ workbookId: source.workbookId, modelId })),
+      ],
+      [
+        ...this.hclBindingContributionEntities(owner, hcl.configuration, linked),
+        ...this.eventTreeContributionEntities(eventTree, eventTreeModelIds),
+        ...controlled.references,
+      ],
+    );
     return this.executeRun(
       runId,
       identity,
@@ -853,6 +1232,7 @@ export class WorkbookAnalysisRunsService {
       },
       "EVENT_TREE",
       acting,
+      trace,
     );
   }
 
@@ -866,8 +1246,33 @@ export class WorkbookAnalysisRunsService {
         ? await this.loadSy(workbookId)
         : hostType === "ES"
           ? await this.loadEs(workbookId)
-          : await this.loadEsq(workbookId);
+          : hostType === "ESQ"
+            ? await this.loadEsq(workbookId)
+            : hostType === "DA"
+              ? await this.loadDa(workbookId)
+              : await this.loadHr(workbookId);
     await this.projectsService.resolveAccess(workbook.projectId, acting);
+  }
+
+  async listRunProvenance(
+    hostType: WorkbookMethodHostType,
+    workbookId: string,
+    acting: ActingUser,
+  ): Promise<AnalysisRunProvenanceList> {
+    await this.authorizeRunOwner(hostType, workbookId, acting);
+    const records = await this.runModel.find({
+      "owner.workbookId": workbookId,
+      target: { $ne: null },
+      contributions: { $ne: null },
+    }).sort({ requestedAt: -1 }).limit(100).exec();
+    return AnalysisRunProvenanceListSchema.parse({
+      schemaVersion: "1.0.0",
+      runs: records.map((record) => AnalysisRunProvenanceSchema.parse({
+        run: toRunMetadata(record),
+        target: record.target,
+        contributions: record.contributions,
+      })),
+    });
   }
 
   async getRun(

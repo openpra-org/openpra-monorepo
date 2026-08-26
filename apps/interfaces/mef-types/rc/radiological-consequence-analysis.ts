@@ -8,6 +8,10 @@ import {
 } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type {
+  EventSequenceFamilyWorkbookReference,
+  IntegratedRiskResultReference,
+} from "../modeling/references";
 
 export type ReleaseCategoryReference = string;
 export type SourceTermDefinitionReference = string;
@@ -65,6 +69,7 @@ export interface ReleaseCharacteristics {
 export interface ReleaseCategoryInputs {
   releaseCategory: ReleaseCategoryReference;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
+  eventSequenceFamilyReferences?: EventSequenceFamilyWorkbookReference[];
   releaseCharacteristics: ReleaseCharacteristics;
 }
 
@@ -393,6 +398,7 @@ export interface ConsequenceQuantificationAnalysis {
   eventSequenceConsequences: {
     uuid?: string;
     eventSequenceFamily: EventSequenceFamilyReference;
+    eventSequenceFamilyReference?: EventSequenceFamilyWorkbookReference;
     releaseCategoryReference?: ReleaseCategoryReference;
     sourceTermReference?: SourceTermDefinitionReference;
     consequenceResults: {
@@ -452,6 +458,7 @@ export interface ConsequenceQuantificationAnalysis {
 
 export interface RiskIntegrationFeedback {
   analysisRef: string;
+  integratedRiskResultReference?: IntegratedRiskResultReference;
   feedbackDate?: string;
   metricFeedback?: {
     metric: string;

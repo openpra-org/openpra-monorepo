@@ -16,6 +16,7 @@ type BayesianNetworkFaultTreeOption = HclFaultTreeOption;
 interface BayesianNetworkEditorProps {
   model: BayesianNetworkModel;
   editable: boolean;
+  showAnalysis?: boolean;
   evidence: BayesianNetworkEvidenceConfiguration;
   queryNodeId: string | null;
   validation: ValidationIssue[];

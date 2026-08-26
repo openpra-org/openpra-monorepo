@@ -1,5 +1,4 @@
 import type {
-  BayesianNetworkDefinition,
   BayesianNetworkEvidenceConfiguration,
   BayesianNetworkNodeReference,
   FaultTreeBasicEventCatalogueReference,
@@ -7,6 +6,7 @@ import type {
   WorkbookEntityId,
   WorkbookModelAddress,
   WorkbookModelId,
+  WorkbookBayesianNetwork,
 } from "../modeling";
 
 interface EsqWorkbookModelIdentity {
@@ -16,7 +16,7 @@ interface EsqWorkbookModelIdentity {
   description: string;
 }
 
-interface EsqBayesianNetwork extends EsqWorkbookModelIdentity, BayesianNetworkDefinition {}
+interface EsqBayesianNetwork extends EsqWorkbookModelIdentity, WorkbookBayesianNetwork {}
 
 type EsqHclTrueStateIds = [WorkbookEntityId, ...WorkbookEntityId[]];
 

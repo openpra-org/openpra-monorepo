@@ -137,6 +137,25 @@ let mockWorkbookContext: {
     revision: number | null;
     saveStatus: "saving" | "saved" | "failed";
   };
+  controlledParameters: Array<{
+    workbookId: string;
+    workbookName: string;
+    parameterId: string;
+    parameterName: string;
+    parameterType: "PROBABILITY";
+    value: number;
+  }>;
+  controlledHumanFailures: Array<{
+    workbookId: string;
+    workbookName: string;
+    humanFailureEventId: string;
+    humanFailureEventName: string;
+    hfeTiming: "POST_INITIATOR";
+    quantificationId: string;
+    methodology: string;
+    value: number;
+    valueKind: "MEAN";
+  }>;
 };
 
 jest.mock("../syWorkbookContext", () => ({
@@ -156,18 +175,24 @@ function setWorkbookContext({
   workbookId = "sy-workbook",
   revision = 7,
   saveStatus = "saved",
+  controlledParameters = [],
+  controlledHumanFailures = [],
 }: {
   sy?: SystemsAnalysis;
   editable?: boolean;
   workbookId?: string | null;
   revision?: number | null;
   saveStatus?: "saving" | "saved" | "failed";
+  controlledParameters?: typeof mockWorkbookContext.controlledParameters;
+  controlledHumanFailures?: typeof mockWorkbookContext.controlledHumanFailures;
 } = {}): void {
   mockWorkbookContext = {
     sy,
     editable,
     mutateSy: mockMutateSy,
     runtime: { workbookId, revision, saveStatus },
+    controlledParameters,
+    controlledHumanFailures,
     shortOf: (id: string) => (id === SYSTEM_ID ? "RCS" : id),
   };
 }
@@ -269,6 +294,84 @@ describe("ModelsScreen canonical fault-tree host", () => {
       faultTreeModels: [props.model],
     });
     expect(props.validation).toEqual([validationIssue]);
+  });
+
+  it("renders a controlled basic event with the current DA value instead of its cached SY value", () => {
+    const controlledSy = makeAnalysis({
+      systemBasicEvents: [{
+        ...BASIC_EVENT,
+        probability: 0.9,
+        controlledDataSource: {
+          referenceType: "WORKBOOK_PARAMETER",
+          workbookId: "da-workbook",
+          entityId: "parameter-1",
+        },
+      }],
+    });
+    setWorkbookContext({
+      sy: controlledSy,
+      controlledParameters: [{
+        workbookId: "da-workbook",
+        workbookName: "Approved DA",
+        parameterId: "parameter-1",
+        parameterName: "Pump demand failure",
+        parameterType: "PROBABILITY",
+        value: 0.025,
+      }],
+    });
+
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({
+      value: 0.025,
+      controlledDataSource: {
+        referenceType: "WORKBOOK_PARAMETER",
+        workbookId: "da-workbook",
+        entityId: "parameter-1",
+      },
+    });
+  });
+
+  it("renders a human-error event with the current selected HRA quantification", () => {
+    const controlledSy = makeAnalysis({
+      systemBasicEvents: [{
+        ...BASIC_EVENT,
+        failureMode: "HUMAN_ERROR",
+        probability: 0.9,
+        controlledDataSource: {
+          referenceType: "HUMAN_FAILURE_EVENT",
+          workbookId: "hr-workbook",
+          entityId: "hfe-1",
+          quantificationId: "hep-1",
+        },
+      }],
+    });
+    setWorkbookContext({
+      sy: controlledSy,
+      controlledHumanFailures: [{
+        workbookId: "hr-workbook",
+        workbookName: "Approved HRA",
+        humanFailureEventId: "hfe-1",
+        humanFailureEventName: "Operator fails to align cooling",
+        hfeTiming: "POST_INITIATOR",
+        quantificationId: "hep-1",
+        methodology: "THERP",
+        value: 0.037,
+        valueKind: "MEAN",
+      }],
+    });
+
+    render(<ModelsScreen sysId={SYSTEM_ID} setSysId={jest.fn()} openDrawer={jest.fn()} />);
+
+    expect(latestEditorProps().catalogue.basicEvents[0]?.probability).toEqual({
+      value: 0.037,
+      controlledDataSource: {
+        referenceType: "HUMAN_FAILURE_EVENT",
+        workbookId: "hr-workbook",
+        entityId: "hfe-1",
+        quantificationId: "hep-1",
+      },
+    });
   });
 
   it("writes an emitted editor operation back to the selected model and root basic-event catalogue", () => {

@@ -157,6 +157,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
   const {
     model,
     editable,
+    showAnalysis = true,
     evidence,
     queryNodeId,
     validation,
@@ -961,7 +962,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
         </section>
       )}
 
-      <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
+      {showAnalysis && <section className="bneditor__analysis" aria-label="Bayesian-network analysis">
         <div className="bneditor__scenario">
           <div>
             <span>Scenario</span>
@@ -1075,7 +1076,7 @@ function BayesianNetworkEditor(props: BayesianNetworkEditorProps): JSX.Element {
             onRunEventTree={onRunHclEventTree}
           />
         </div>
-      </section>
+      </section>}
 
       {nonHclIssues.length > 0 && (
         <section className="bneditor__validation" aria-label="Bayesian-network validation">

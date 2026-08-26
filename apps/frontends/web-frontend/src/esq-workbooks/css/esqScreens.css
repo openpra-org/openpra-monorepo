@@ -30,6 +30,47 @@
   line-height: 1;
 }
 
+/* Immutable analysis-run provenance */
+.esqrun { margin-top: 14px; }
+.esqrun__head { align-items: center; }
+.esqrun__eyebrow { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-primary); }
+.esqrun__eyebrow svg { width: 13px; height: 13px; }
+.esqrun__count { flex: 0 0 auto; padding: 3px 9px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface-low); font-size: 10px; font-weight: 700; color: var(--color-text-subtle); }
+.esqrun__empty { padding: 14px; border: 1px dashed var(--color-border-strong); border-radius: 9px; font-size: 12px; color: var(--color-text-muted); }
+.esqrun__list { display: flex; flex-direction: column; gap: 8px; }
+.esqrun__item { overflow: hidden; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+.esqrun__item[open] { border-color: var(--color-primary-focus); }
+.esqrun__summary { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.esqrun__summary::-webkit-details-marker { display: none; }
+.esqrun__summary::after { content: "›"; flex: 0 0 auto; font-size: 18px; color: var(--color-text-subtle); transform: rotate(90deg); transition: transform 0.12s ease; }
+.esqrun__item[open] .esqrun__summary::after { transform: rotate(-90deg); }
+.esqrun__status { flex: 0 0 auto; min-width: 66px; padding: 2px 7px; border-radius: 999px; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; }
+.esqrun__status--succeeded { background: rgb(18 197 185 / 0.12); color: var(--color-success); }
+.esqrun__status--failed, .esqrun__status--cancelled { background: rgb(199 56 79 / 0.10); color: var(--color-error); }
+.esqrun__status--queued, .esqrun__status--running { background: var(--color-primary-soft); color: var(--color-primary); }
+.esqrun__summary-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.esqrun__summary-main strong { font-size: 12px; color: var(--color-text); }
+.esqrun__summary-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; color: var(--color-text-muted); }
+.esqrun__time { flex: 0 0 auto; font-size: 10px; color: var(--color-text-subtle); }
+.esqrun__body { display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px; border-top: 1px solid var(--color-border); }
+.esqrun__identity { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 10px; padding-top: 10px; font-size: 10px; color: var(--color-text-subtle); }
+.esqrun code { overflow-wrap: anywhere; font-family: var(--font-data), ui-monospace, monospace; font-size: 10px; color: var(--color-text); }
+.esqrun__sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.esqrun__source { min-width: 0; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-low); }
+.esqrun__source-head { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: center; gap: 7px; }
+.esqrun__host { padding: 2px 6px; border-radius: 5px; background: var(--color-primary-soft); font-size: 9px; font-weight: 800; color: var(--color-primary); }
+.esqrun__revision { font-size: 9px; font-weight: 700; color: var(--color-text-subtle); white-space: nowrap; }
+.esqrun__source-detail { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--color-border); }
+.esqrun__source-detail > summary { cursor: pointer; font-size: 9.5px; font-weight: 700; color: var(--color-text-muted); }
+.esqrun__references { display: grid; gap: 4px; margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--color-border); }
+.esqrun__references > span { font-size: 9px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text-subtle); }
+@media (max-width: 720px) {
+  .esqrun__summary { align-items: flex-start; flex-wrap: wrap; }
+  .esqrun__summary-main { flex-basis: calc(100% - 100px); }
+  .esqrun__time { margin-left: 76px; }
+  .esqrun__identity { grid-template-columns: 1fr; }
+}
+
 
 /* â”€â”€â”€ Upstream link cards (esqsrc, the six converging elements) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Own prefix rather than the sibling eslink classes, since the ES element's

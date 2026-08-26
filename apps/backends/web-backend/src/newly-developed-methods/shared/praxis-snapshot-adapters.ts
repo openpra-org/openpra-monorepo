@@ -6,6 +6,8 @@ import type {
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { EventSequenceQuantification } from "interfaces-mef-types/esq/event-sequence-quantification";
 import type { WorkbookModelAddress } from "interfaces-shared-types/newly-developed-methods";
+import type { WorkbookParameterReference } from "interfaces-mef-types/modeling/references";
+import type { FaultTreeControlledDataSourceReference } from "interfaces-mef-types/modeling/fault-tree";
 import { createHash } from "crypto";
 
 interface WorkbookMefSnapshot<TMef> {
@@ -23,7 +25,30 @@ interface PraxisModelSnapshot extends Record<string, unknown> {
 interface AdaptedFaultTreeSnapshot {
   modelSnapshot: PraxisModelSnapshot;
   basicEventCatalogue: Record<string, unknown>;
+  controlledDataSources: FaultTreeControlledDataSourceReference[];
 }
+
+interface SyFaultTreeAdapterOptions {
+  controlledDataSourceValues?: ReadonlyMap<string, number>;
+  allowUnresolvedControlledDataSources?: boolean;
+}
+
+const faultTreeControlledDataSourceKey = (
+  reference: FaultTreeControlledDataSourceReference,
+): string => JSON.stringify([
+  reference.referenceType,
+  reference.workbookId,
+  reference.entityId,
+  reference.referenceType === "HUMAN_FAILURE_EVENT" ? reference.quantificationId : null,
+]);
+
+const workbookParameterReferenceKey = (
+  reference: Pick<WorkbookParameterReference, "workbookId" | "entityId">,
+): string => faultTreeControlledDataSourceKey({
+  referenceType: "WORKBOOK_PARAMETER",
+  workbookId: reference.workbookId,
+  entityId: reference.entityId,
+});
 
 type WorkbookPraxisAdapterErrorCode =
   | "WORKBOOK_PRAXIS_ADAPTER_ERROR"
@@ -81,6 +106,7 @@ const stableUuid = (value: string): string => {
 const adaptSyFaultTreeSnapshot = (
   source: WorkbookMefSnapshot<SystemsAnalysis>,
   modelId: string,
+  options: SyFaultTreeAdapterOptions = {},
 ): AdaptedFaultTreeSnapshot => {
   const model = findByUuid(source.mef.systemLogicModels, modelId, "SY fault tree");
   if (model.topGate === null) {
@@ -367,12 +393,31 @@ const adaptSyFaultTreeSnapshot = (
     }
   }
 
+  const controlledDataSources = new Map<string, FaultTreeControlledDataSourceReference>();
   const basicEvents = [...referencedBasicEventIds].map((basicEventId) => {
     const event = findByUuid(source.mef.systemBasicEvents, basicEventId, "SY basic event");
-    if (event.probability === undefined || !Number.isFinite(event.probability)) {
+    const controlled = event.controlledDataSource;
+    const resolvedProbability = controlled === undefined
+      ? event.probability
+      : options.controlledDataSourceValues?.get(faultTreeControlledDataSourceKey(controlled));
+    if (controlled !== undefined) {
+      controlledDataSources.set(faultTreeControlledDataSourceKey(controlled), { ...controlled });
+    }
+    if (
+      (resolvedProbability === undefined || !Number.isFinite(resolvedProbability)) &&
+      !(controlled !== undefined && options.allowUnresolvedControlledDataSources === true)
+    ) {
+      if (controlled !== undefined) {
+        throw new WorkbookPraxisAdapterError(
+          `SY basic event '${basicEventId}' could not resolve controlled ${controlled.referenceType === "HUMAN_FAILURE_EVENT" ? "HRA quantification" : "DA parameter"} '${controlled.workbookId}:${controlled.entityId}'`,
+        );
+      }
       throw new WorkbookPraxisAdapterError(`SY basic event '${basicEventId}' has no finite probability`);
     }
-    return systemBasicEventToFaultTreeBasicEvent(event);
+    return systemBasicEventToFaultTreeBasicEvent({
+      ...event,
+      probability: resolvedProbability,
+    });
   });
 
   return {
@@ -395,8 +440,17 @@ const adaptSyFaultTreeSnapshot = (
       projectId: source.workbookId,
       basicEvents,
     },
+    controlledDataSources: [...controlledDataSources.values()],
   };
 };
+
+const collectSyFaultTreeControlledDataSources = (
+  source: WorkbookMefSnapshot<SystemsAnalysis>,
+  modelId: string,
+): FaultTreeControlledDataSourceReference[] =>
+  adaptSyFaultTreeSnapshot(source, modelId, {
+    allowUnresolvedControlledDataSources: true,
+  }).controlledDataSources;
 
 const adaptEsqBayesianNetworkSnapshot = (
   source: WorkbookMefSnapshot<EventSequenceQuantification>,
@@ -570,6 +624,9 @@ const adaptEsqHclSnapshot = (
 
 export {
   WorkbookPraxisAdapterError,
+  collectSyFaultTreeControlledDataSources,
+  workbookParameterReferenceKey,
+  faultTreeControlledDataSourceKey,
   adaptSyFaultTreeSnapshot,
   adaptEsqBayesianNetworkSnapshot,
   adaptEsEventTreeSnapshot,
@@ -579,4 +636,5 @@ export type {
   WorkbookMefSnapshot,
   PraxisModelSnapshot,
   AdaptedFaultTreeSnapshot,
+  SyFaultTreeAdapterOptions,
 };

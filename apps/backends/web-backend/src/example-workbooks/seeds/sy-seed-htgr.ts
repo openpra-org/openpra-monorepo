@@ -5,6 +5,7 @@ import { type SRReference, type SRConformance, type HlrId, type PlantStage, type
 import { ImportanceLevel, type SensitivityStudy } from "interfaces-mef-types/core/shared-patterns";
 import { DistributionType } from "interfaces-mef-types/core/events";
 import { SY_SR_CATALOG } from "interfaces-mef-types/sy/systems-analysis";
+import { createExampleDependencyNetwork } from "./dependency-model-seed";
 
 const NOW = "2026-05-04T12:00:00.000Z";
 const CREATED = "2026-04-22T09:00:00.000Z";
@@ -766,6 +767,7 @@ export const SY_ANALYSIS_HTGR: SystemsAnalysis = SystemsAnalysisSchema.parse({
   activePeerReviewIds: [],
   activeAuditIds: [],
   praScope: "Full-scope systems analysis for the Generic HTGR, pre-operational stage, capability category CC-II.",
+  dependencyBayesianNetworks: [createExampleDependencyNetwork()],
   systemDefinitions,
   variableSuccessCriteria,
   systemToSafetyFunctionMappings,

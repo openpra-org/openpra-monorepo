@@ -6,6 +6,7 @@ import { SHA_SR_CATALOG, SeismicHazardAnalysis } from "../sha/seismic-hazard-ana
 import { SFR_SR_CATALOG, SeismicFragilityAnalysis } from "../sfr/seismic-fragility-analysis";
 import { SPR_SR_CATALOG, SeismicPlantResponseAnalysis } from "../spr/seismic-plant-response-analysis";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import type { HazardConditionedMethodModels } from "../hazard-conditioned-models";
 import { SeismicPraInterfaceRecord, SeismicPraSubelement } from "./seismic-pra-common";
 
 export interface SeismicPraApplication extends Unique, Named {
@@ -337,6 +338,7 @@ export interface SeismicPraExampleDocument {
 
 export interface SeismicPRA extends TechnicalElement<TechnicalElementTypes.SEISMIC_PRA> {
   praScope: string;
+  hazardConditionedModels: HazardConditionedMethodModels;
   applications: SeismicPraApplication[];
   evidenceRegister: SeismicPraEvidenceRecord[];
   baselinePra?: BaselinePraDefinition;

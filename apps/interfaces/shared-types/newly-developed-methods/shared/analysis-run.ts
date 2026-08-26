@@ -1,6 +1,9 @@
 import { z } from "zod";
 import {
   MethodTypeSchema,
+  WorkbookCrossReferenceSchema,
+  WorkbookEntityIdSchema,
+  WorkbookModelAddressSchema,
   WorkbookModelSnapshotIdentitySchema,
   WorkbookSnapshotIdentitySchema,
 } from "./method-model";
@@ -201,6 +204,143 @@ const AnalysisRunMetadataSchema = z
     }
   });
 
+const BayesianNetworkQueryRunTargetSchema = z
+  .object({
+    targetType: z.literal("BAYESIAN_NETWORK_QUERY"),
+    model: WorkbookModelSnapshotIdentitySchema,
+    queryNodeIds: z.array(WorkbookEntityIdSchema).min(1),
+    evidenceNodeIds: z.array(WorkbookEntityIdSchema),
+  })
+  .strict();
+
+const HclFaultTreeRunTargetSchema = z
+  .object({
+    targetType: z.literal("HCL_FAULT_TREE"),
+    configuration: WorkbookModelSnapshotIdentitySchema,
+    faultTreeTopEvent: WorkbookModelSnapshotIdentitySchema.extend({
+      entityId: WorkbookEntityIdSchema,
+    }).strict(),
+  })
+  .strict();
+
+const HclEventTreeRunTargetSchema = z
+  .object({
+    targetType: z.literal("HCL_EVENT_TREE"),
+    configuration: WorkbookModelSnapshotIdentitySchema,
+    eventTree: WorkbookModelSnapshotIdentitySchema,
+  })
+  .strict();
+
+const AnalysisRunTargetSchema = z.discriminatedUnion("targetType", [
+  BayesianNetworkQueryRunTargetSchema,
+  HclFaultTreeRunTargetSchema,
+  HclEventTreeRunTargetSchema,
+]);
+
+const AnalysisRunContributionSchema = z
+  .object({
+    hostType: WorkbookMethodHostTypeSchema,
+    workbook: WorkbookSnapshotIdentitySchema,
+    models: z.array(WorkbookModelAddressSchema),
+    entities: z.array(WorkbookCrossReferenceSchema),
+  })
+  .strict()
+  .superRefine((contribution, context) => {
+    contribution.models.forEach((model, index) => {
+      if (model.workbookId !== contribution.workbook.workbookId) {
+        context.addIssue({
+          code: "custom",
+          path: ["models", index, "workbookId"],
+          message: "Contributing models must belong to the contributing workbook",
+        });
+      }
+    });
+    contribution.entities.forEach((entity, index) => {
+      if (entity.workbookId !== contribution.workbook.workbookId) {
+        context.addIssue({
+          code: "custom",
+          path: ["entities", index, "workbookId"],
+          message: "Contributing entities must belong to the contributing workbook",
+        });
+      }
+    });
+    const modelKeys = contribution.models.map((model) => `${model.workbookId}:${model.modelId}`);
+    if (new Set(modelKeys).size !== modelKeys.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["models"],
+        message: "Contributing model references must be unique",
+      });
+    }
+    const entityKeys = contribution.entities.map((entity) => JSON.stringify(entity));
+    if (new Set(entityKeys).size !== entityKeys.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["entities"],
+        message: "Contributing entity references must be unique",
+      });
+    }
+  });
+
+const AnalysisRunTraceSchema = z
+  .object({
+    target: AnalysisRunTargetSchema,
+    contributions: z.array(AnalysisRunContributionSchema).min(1),
+  })
+  .strict();
+
+const AnalysisRunProvenanceSchema = z
+  .object({
+    run: AnalysisRunMetadataSchema,
+    ...AnalysisRunTraceSchema.shape,
+  })
+  .strict()
+  .superRefine((provenance, context) => {
+    const sourceRevisions = new Map(
+      provenance.run.sourceWorkbooks.map((source) => [source.workbookId, source.workbookRevision]),
+    );
+    const contributionRevisions = new Map(
+      provenance.contributions.map((contribution) => [
+        contribution.workbook.workbookId,
+        contribution.workbook.workbookRevision,
+      ]),
+    );
+    if (
+      sourceRevisions.size !== contributionRevisions.size ||
+      [...sourceRevisions].some(
+        ([workbookId, workbookRevision]) => contributionRevisions.get(workbookId) !== workbookRevision,
+      )
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["contributions"],
+        message: "Run contributions must exactly match every immutable source workbook revision",
+      });
+    }
+
+    const owner = provenance.target.targetType === "BAYESIAN_NETWORK_QUERY"
+      ? provenance.target.model
+      : provenance.target.configuration;
+    if (
+      owner.workbookId !== provenance.run.owner.workbookId ||
+      owner.workbookRevision !== provenance.run.owner.workbookRevision ||
+      owner.modelId !== provenance.run.owner.modelId
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["target"],
+        message: "Run target owner must exactly match the immutable analysis-run owner",
+      });
+    }
+  });
+
+const AnalysisRunProvenanceListSchema = z
+  .object({
+    schemaVersion: AnalysisRunSchemaVersionSchema,
+    runs: z.array(AnalysisRunProvenanceSchema),
+  })
+  .strict();
+
 type AnalysisRunSchemaVersion = z.infer<typeof AnalysisRunSchemaVersionSchema>;
 type AnalysisRunId = z.infer<typeof AnalysisRunIdSchema>;
 type AnalysisRunStatus = z.infer<typeof AnalysisRunStatusSchema>;
@@ -210,6 +350,14 @@ type AnalysisRunWorkbookSnapshot = z.infer<typeof AnalysisRunWorkbookSnapshotSch
 type AnalysisRunWorkbookSnapshots = z.infer<typeof AnalysisRunWorkbookSnapshotsSchema>;
 type ImmutableAnalysisRunContext = z.infer<typeof ImmutableAnalysisRunContextSchema>;
 type AnalysisRunMetadata = z.infer<typeof AnalysisRunMetadataSchema>;
+type BayesianNetworkQueryRunTarget = z.infer<typeof BayesianNetworkQueryRunTargetSchema>;
+type HclFaultTreeRunTarget = z.infer<typeof HclFaultTreeRunTargetSchema>;
+type HclEventTreeRunTarget = z.infer<typeof HclEventTreeRunTargetSchema>;
+type AnalysisRunTarget = z.infer<typeof AnalysisRunTargetSchema>;
+type AnalysisRunContribution = z.infer<typeof AnalysisRunContributionSchema>;
+type AnalysisRunTrace = z.infer<typeof AnalysisRunTraceSchema>;
+type AnalysisRunProvenance = z.infer<typeof AnalysisRunProvenanceSchema>;
+type AnalysisRunProvenanceList = z.infer<typeof AnalysisRunProvenanceListSchema>;
 
 const freezeRecursively = <T>(value: T): T => {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
@@ -233,6 +381,14 @@ export {
   AnalysisRunWorkbookSnapshotsSchema,
   ImmutableAnalysisRunContextSchema,
   AnalysisRunMetadataSchema,
+  BayesianNetworkQueryRunTargetSchema,
+  HclFaultTreeRunTargetSchema,
+  HclEventTreeRunTargetSchema,
+  AnalysisRunTargetSchema,
+  AnalysisRunContributionSchema,
+  AnalysisRunTraceSchema,
+  AnalysisRunProvenanceSchema,
+  AnalysisRunProvenanceListSchema,
   createImmutableAnalysisRunContext,
 };
 export type {
@@ -245,4 +401,12 @@ export type {
   AnalysisRunWorkbookSnapshots,
   ImmutableAnalysisRunContext,
   AnalysisRunMetadata,
+  BayesianNetworkQueryRunTarget,
+  HclFaultTreeRunTarget,
+  HclEventTreeRunTarget,
+  AnalysisRunTarget,
+  AnalysisRunContribution,
+  AnalysisRunTrace,
+  AnalysisRunProvenance,
+  AnalysisRunProvenanceList,
 };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   ExternalFloodAnalysisRecordSchema,
   ExternalFloodEffectTypeSchema,
@@ -591,7 +592,7 @@ const ExampleDocumentSchema = z.object({
 
 export const ExternalFloodPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.EXTERNAL_FLOODING_PRA).shape,
-  praScope: z.string(), analysisBasis: ExternalFloodAnalysisBasisSchema,
+  praScope: z.string(), hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels), analysisBasis: ExternalFloodAnalysisBasisSchema,
   hazardScreening: ExternalFloodHazardScreeningSchema, siteFloodModel: ExternalFloodSiteModelSchema,
   localIntensePrecipitationAnalysis: ExternalFloodLipAnalysisSchema, riverineFloodAnalysis: ExternalFloodRiverineAnalysisSchema,
   damAndImpoundmentAnalysis: ExternalFloodDamAnalysisSchema, surgeSeicheTsunamiAnalysis: ExternalFloodCoastalAnalysisSchema,

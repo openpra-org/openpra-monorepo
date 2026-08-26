@@ -5,6 +5,7 @@ import { ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../c
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
 import type { EsqBayesianNetwork, EsqHclConfiguration } from "./workbook-models";
+import type { EventSequenceFamilyWorkbookReference } from "../modeling/references";
 
 export type EventSequenceReference = string;
 export type EventSequenceFamilyReference = string;
@@ -57,6 +58,7 @@ export enum CircularLogicResolutionMethod {
 
 export interface EventSequenceFamilyQuantification extends Unique, Named {
   eventSequenceFamilyRef: EventSequenceFamilyReference;
+  eventSequenceFamilyReference?: EventSequenceFamilyWorkbookReference;
   crossSourceGroupingJustification?: string;
   crossPosGroupingJustification?: string;
   dependenciesConsideredInGrouping: boolean;

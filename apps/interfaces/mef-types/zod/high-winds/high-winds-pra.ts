@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { HighWindsPRA } from "../../high-winds/high-winds-pra";
 import { TechnicalElementTypes } from "../../technical-element";
 import { technicalElementSchema } from "../technical-element";
+import { HazardConditionedMethodModelsSchema, createEmptyHazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   HighWindsAnalysisRecordSchema,
   HighWindsEffectTypeSchema,
@@ -1463,6 +1464,7 @@ export const HighWindsPraExampleDocumentSchema = z.object({
 export const HighWindsPRASchema = z.object({
   ...technicalElementSchema(TechnicalElementTypes.HIGH_WINDS_PRA).shape,
   praScope: z.string(),
+  hazardConditionedModels: HazardConditionedMethodModelsSchema.default(createEmptyHazardConditionedMethodModels),
   analysisBasis: HighWindsAnalysisBasisSchema,
   hazardScreening: HighWindsHazardScreeningSchema,
   windDataAndReferenceBasis: HighWindsWindDataAndReferenceBasisSchema,

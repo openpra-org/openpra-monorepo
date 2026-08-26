@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard, type AuthenticatedRequest } from "../auth/jwt-auth.guard";
 import { HrWorkbooksService, type HrWorkbookResponse } from "./hr-workbooks.service";
-import { parseWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
+import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 
 
 @Controller("hr-workbooks")
@@ -22,7 +22,7 @@ export class HrWorkbooksController {
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
   ): Promise<HrWorkbookResponse> {
-    return this.hrWorkbooksService.patchMef(id, parseWorkbookPatchBody(body), { username: req.user!.username });
+    return this.hrWorkbooksService.patchMef(id, parseRevisionedWorkbookPatchBody(body), { username: req.user!.username });
   }
 
   @Post(":id/load-example")

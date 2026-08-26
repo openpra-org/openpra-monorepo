@@ -19,6 +19,7 @@ import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
 import { WorkbookSaveIndicator } from "../workbooks/workbookSaveIndicator";
 import { type RevisionedSaveStatus } from "../workbooks/useRevisionedMefPatch";
+import { WorkbookBayesianNetworkCollectionEditor } from "../workbooks/hazardConditionedModelEditors";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/syScreens.css";
 
@@ -288,6 +289,7 @@ function SyWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
+  const { editable, mutateSy } = useSyWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
@@ -387,7 +389,7 @@ function SyWorkbench({
       case "models": return <ModelsScreen sysId={sysId} setSysId={setSysId} openDrawer={setDrawer} />;
       case "failures": return <FailuresScreen openDrawer={setDrawer} />;
       case "ccf": return <CcfScreen openDrawer={setDrawer} />;
-      case "deps": return <DepsScreen openDrawer={setDrawer} />;
+      case "deps": return <><WorkbookBayesianNetworkCollectionEditor networks={data.sy.dependencyBayesianNetworks ?? []} editable={editable} onChange={(dependencyBayesianNetworks) => mutateSy((current) => ({ ...current, dependencyBayesianNetworks }))} /><DepsScreen openDrawer={setDrawer} /></>;
       case "integrity": return <IntegrityScreen stage={stage} openDrawer={setDrawer} />;
       case "uncert": return <UncertScreen openDrawer={setDrawer} />;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;

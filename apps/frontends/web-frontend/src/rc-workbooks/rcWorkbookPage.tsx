@@ -25,6 +25,10 @@ import { useRcMefPatch } from "./useRcMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RcDocumentsCard } from "./rcDocumentsCard";
 import { type RcPersona } from "./rcViewData";
+import {
+  loadEventSequenceFamilySources,
+  type EventSequenceFamilySource,
+} from "../workbooks/riskWorkbookConnections";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   handoff: "RCRE-A1",
@@ -65,6 +69,7 @@ function RcWorkbookPage(): JSX.Element {
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
   const [exampleOptions, setExampleOptions] = useState<RcExampleOption[]>([]);
+  const [eventSequenceFamilySources, setEventSequenceFamilySources] = useState<EventSequenceFamilySource[]>([]);
   const workbookName = data?.rc.name ?? "";
   const workbookVersion = data?.rc.version ?? "1";
 
@@ -95,6 +100,12 @@ function RcWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
+        }
+        try {
+          const sources = await loadEventSequenceFamilySources(workbook.projectId);
+          if (!cancelled) setEventSequenceFamilySources(sources);
+        } catch {
+          if (!cancelled) setEventSequenceFamilySources([]);
         }
       })
       .catch((err: unknown) => {
@@ -178,7 +189,7 @@ function RcWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RcWorkbookProvider data={data} editable={editable} mutateRc={mutateRc}>
+    <RcWorkbookProvider data={data} editable={editable} mutateRc={mutateRc} eventSequenceFamilySources={eventSequenceFamilySources}>
       <RcWorkbench
         data={data}
         persona={persona}

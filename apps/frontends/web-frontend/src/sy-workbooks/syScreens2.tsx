@@ -598,7 +598,14 @@ function DraftScreen({ cc, scores, stage, onSubmitDraft, canSubmit }: {
 }
 
 function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose: () => void }): JSX.Element | null {
-  const { sy, editable, mutateSy, shortOf } = useSyWorkbook();
+  const {
+    sy,
+    editable,
+    mutateSy,
+    shortOf,
+    controlledParameters,
+    controlledHumanFailures,
+  } = useSyWorkbook();
 
   if (context.kind === "exclusion") {
     const def = sy.systemDefinitions.find((x) => x.uuid === context.id);
@@ -1585,6 +1592,28 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
       return Number.isFinite(n) ? n : 0;
     };
     const prob = be.probability ?? 0;
+    const selectedParameterKey = be.controlledDataSource?.referenceType !== "WORKBOOK_PARAMETER"
+      ? ""
+      : JSON.stringify([be.controlledDataSource.workbookId, be.controlledDataSource.entityId]);
+    const selectedParameter = controlledParameters.find((option) =>
+      JSON.stringify([option.workbookId, option.parameterId]) === selectedParameterKey,
+    );
+    const selectedHumanFailureKey = be.controlledDataSource?.referenceType !== "HUMAN_FAILURE_EVENT"
+      ? ""
+      : JSON.stringify([
+          be.controlledDataSource.workbookId,
+          be.controlledDataSource.entityId,
+          be.controlledDataSource.quantificationId,
+        ]);
+    const selectedHumanFailure = controlledHumanFailures.find((option) =>
+      JSON.stringify([
+        option.workbookId,
+        option.humanFailureEventId,
+        option.quantificationId,
+      ]) === selectedHumanFailureKey,
+    );
+    const displayedProbability = selectedParameter?.value ?? selectedHumanFailure?.value ?? prob;
+    const isHumanError = be.failureMode === "HUMAN_ERROR";
     const repairOk = be.repairModeled !== true || (be.repairJustification ?? "").length > 0;
     return (
       <>
@@ -1602,16 +1631,107 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
             <div className="posfield"><label className="posfield__label">Identifier</label><div className="posmono">{be.uuid}</div></div>
             <div className="posfield"><label className="posfield__label">Failure mode</label>
               {editable ? (
-                <select className="posfield__select" value={be.failureMode ?? ""} onChange={(e) => patch({ failureMode: e.target.value })}>
+                <select
+                  className="posfield__select"
+                  value={be.failureMode ?? ""}
+                  onChange={(e) => patch({
+                    failureMode: e.target.value,
+                    controlledDataSource: undefined,
+                    dataAnalysisBasicEventRef: undefined,
+                  })}
+                >
                   {Object.entries(FAILURE_MODE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               ) : <div>{FAILURE_MODE_LABELS[be.failureMode ?? ""] ?? be.failureMode ?? "—"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Probability</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" type="number" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) })} /> : <div className="posmono">{toExp(prob)}</div>}
+            <div className="posfield"><label className="posfield__label">Probability{be.controlledDataSource === undefined ? "" : " (controlled)"}</label>
+              {editable && be.controlledDataSource === undefined ? <WorkbookInput className="posfield__input posmono" type="number" min="0" max="1" step="any" value={prob} onChange={(e) => patch({ probability: num(e.target.value) })} /> : <div className="posmono">{toExp(displayedProbability)}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">Data Analysis reference</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={be.dataAnalysisBasicEventRef ?? ""} onChange={(e) => patch({ dataAnalysisBasicEventRef: e.target.value.length === 0 ? undefined : e.target.value })} /> : <div className="posmono">{be.dataAnalysisBasicEventRef ?? "—"}</div>}
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">{isHumanError ? "Human Reliability event and HEP" : "Data Analysis parameter"}</label>
+              {editable && isHumanError ? (
+                <select
+                  aria-label="Human Reliability event and HEP"
+                  className="posfield__select"
+                  value={selectedHumanFailureKey}
+                  onChange={(event) => {
+                    const option = controlledHumanFailures.find((candidate) =>
+                      JSON.stringify([
+                        candidate.workbookId,
+                        candidate.humanFailureEventId,
+                        candidate.quantificationId,
+                      ]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ controlledDataSource: undefined });
+                      return;
+                    }
+                    patch({
+                      probability: option.value,
+                      controlledDataSource: {
+                        referenceType: "HUMAN_FAILURE_EVENT",
+                        workbookId: option.workbookId,
+                        entityId: option.humanFailureEventId,
+                        quantificationId: option.quantificationId,
+                      },
+                      dataAnalysisBasicEventRef: undefined,
+                    });
+                  }}
+                >
+                  <option value="">Select an HRA event and HEP</option>
+                  {selectedHumanFailure === undefined && selectedHumanFailureKey.length > 0 && (
+                    <option value={selectedHumanFailureKey}>Unavailable linked HRA quantification</option>
+                  )}
+                  {controlledHumanFailures.map((option) => {
+                    const key = JSON.stringify([
+                      option.workbookId,
+                      option.humanFailureEventId,
+                      option.quantificationId,
+                    ]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : editable ? (
+                <select
+                  aria-label="Data Analysis parameter"
+                  className="posfield__select"
+                  value={selectedParameterKey}
+                  onChange={(event) => {
+                    const option = controlledParameters.find((candidate) =>
+                      JSON.stringify([candidate.workbookId, candidate.parameterId]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ controlledDataSource: undefined, dataAnalysisBasicEventRef: undefined });
+                      return;
+                    }
+                    patch({
+                      probability: option.value,
+                      controlledDataSource: {
+                        referenceType: "WORKBOOK_PARAMETER",
+                        workbookId: option.workbookId,
+                        entityId: option.parameterId,
+                      },
+                      dataAnalysisBasicEventRef: undefined,
+                    });
+                  }}
+                >
+                  <option value="">Manual probability</option>
+                  {selectedParameter === undefined && selectedParameterKey.length > 0 && (
+                    <option value={selectedParameterKey}>Unavailable linked parameter</option>
+                  )}
+                  {controlledParameters.map((option) => {
+                    const key = JSON.stringify([option.workbookId, option.parameterId]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.parameterName} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : isHumanError ? (
+                <div>{selectedHumanFailure === undefined
+                  ? be.controlledDataSource === undefined ? "No HRA quantification selected" : "Unavailable linked HRA quantification"
+                  : `${selectedHumanFailure.workbookName} · ${selectedHumanFailure.humanFailureEventName} · ${selectedHumanFailure.methodology}`}</div>
+              ) : (
+                <div>{selectedParameter === undefined
+                  ? be.controlledDataSource === undefined ? "Manual probability" : "Unavailable linked parameter"
+                  : `${selectedParameter.workbookName} · ${selectedParameter.parameterName}`}</div>
+              )}
             </div>
             <div className="posfield"><label className="posfield__label">Repair credited</label>
               {editable ? (
@@ -1659,6 +1779,20 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
         humanFailureEventIntegrations: draft.humanFailureEventIntegrations.filter((x) => x.uuid !== h.uuid),
       }));
     };
+    const selectedHumanFailureKey = h.hfeSource === undefined
+      ? ""
+      : JSON.stringify([
+          h.hfeSource.workbookId,
+          h.hfeSource.entityId,
+          h.hfeSource.quantificationId,
+        ]);
+    const selectedHumanFailure = controlledHumanFailures.find((option) =>
+      JSON.stringify([
+        option.workbookId,
+        option.humanFailureEventId,
+        option.quantificationId,
+      ]) === selectedHumanFailureKey,
+    );
     return (
       <>
         <div className="posdrawer__head posdrawer__head--bare">
@@ -1695,8 +1829,53 @@ function DrawerContent({ context, onClose }: { context: SyDrawerContext; onClose
                 </select>
               ) : <div>{h.isTestMaintenance ? "Yes" : "No"}</div>}
             </div>
-            <div className="posfield"><label className="posfield__label">HR reference</label>
-              {editable ? <WorkbookInput className="posfield__input posmono" value={h.hfeReference} onChange={(e) => patch({ hfeReference: e.target.value })} /> : <div className="posmono">{h.hfeReference}</div>}
+            <div className="posfield posfield-grid--span2"><label className="posfield__label">Human Reliability event and HEP</label>
+              {editable ? (
+                <select
+                  aria-label="Integrated Human Reliability event and HEP"
+                  className="posfield__select"
+                  value={selectedHumanFailureKey}
+                  onChange={(event) => {
+                    const option = controlledHumanFailures.find((candidate) =>
+                      JSON.stringify([
+                        candidate.workbookId,
+                        candidate.humanFailureEventId,
+                        candidate.quantificationId,
+                      ]) === event.target.value,
+                    );
+                    if (option === undefined) {
+                      patch({ hfeReference: "", hfeSource: undefined });
+                      return;
+                    }
+                    patch({
+                      hfeReference: option.humanFailureEventId,
+                      hfeSource: {
+                        referenceType: "HUMAN_FAILURE_EVENT",
+                        workbookId: option.workbookId,
+                        entityId: option.humanFailureEventId,
+                        quantificationId: option.quantificationId,
+                      },
+                      hfeType: option.hfeTiming === "PRE_INITIATOR" ? "PRE_INITIATOR" : "POST_INITIATOR",
+                      ...(h.taskDescription.length === 0
+                        ? { taskDescription: option.humanFailureEventName }
+                        : {}),
+                    });
+                  }}
+                >
+                  <option value="">Select an HRA event and HEP</option>
+                  {selectedHumanFailure === undefined && selectedHumanFailureKey.length > 0 && (
+                    <option value={selectedHumanFailureKey}>Unavailable linked HRA quantification</option>
+                  )}
+                  {controlledHumanFailures.map((option) => {
+                    const key = JSON.stringify([
+                      option.workbookId,
+                      option.humanFailureEventId,
+                      option.quantificationId,
+                    ]);
+                    return <option key={key} value={key}>{option.workbookName} · {option.humanFailureEventName} · {option.methodology} · {toExp(option.value)}</option>;
+                  })}
+                </select>
+              ) : <div>{selectedHumanFailure === undefined ? h.hfeReference || "—" : `${selectedHumanFailure.humanFailureEventName} · ${selectedHumanFailure.methodology} · ${toExp(selectedHumanFailure.value)}`}</div>}
             </div>
           </div>
           {editable && (

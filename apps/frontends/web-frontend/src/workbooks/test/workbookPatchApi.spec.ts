@@ -3,6 +3,8 @@ import { patchIeWorkbook } from "../../ie-workbooks/ieWorkbookApi";
 import { patchSyWorkbook } from "../../sy-workbooks/syWorkbookApi";
 import { patchEsWorkbook } from "../../es-workbooks/esWorkbookApi";
 import { patchEsqWorkbook } from "../../esq-workbooks/esqWorkbookApi";
+import { patchDaWorkbook } from "../../da-workbooks/daWorkbookApi";
+import { patchHrWorkbook } from "../../hr-workbooks/hrWorkbookApi";
 import { type InitiatingEventsAnalysis } from "interfaces-mef-types/ie/initiating-event-analysis";
 
 jest.mock("../../api/client", () => ({
@@ -41,13 +43,15 @@ describe("workbook patch API payload", () => {
     expect(JSON.stringify(mockPatchJson.mock.calls[0]![1])).not.toContain("frequency");
   });
 
-  test("includes the expected workbook revision for SY, ES, and ESQ", async () => {
+  test("includes the expected workbook revision for SY, ES, ESQ, DA, and HRA", async () => {
     const current = { name: "Before" };
     const next = { name: "After" };
     const revisionedPatchers = [
       [patchSyWorkbook, "/api/sy-workbooks/sy-123"],
       [patchEsWorkbook, "/api/es-workbooks/es-123"],
       [patchEsqWorkbook, "/api/esq-workbooks/esq-123"],
+      [patchDaWorkbook, "/api/da-workbooks/da-123"],
+      [patchHrWorkbook, "/api/hr-workbooks/hr-123"],
     ] as const;
     mockPatchJson.mockResolvedValue({ revision: 8, mef: next } as never);
 

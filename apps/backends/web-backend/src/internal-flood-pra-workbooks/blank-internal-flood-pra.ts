@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import { INTERNAL_FLOOD_PRA_SR_CATALOG, type InternalFloodAnalysisRecord, type InternalFloodPRA, type InternalFloodProcessDocumentation } from "interfaces-mef-types/internal-flood/internal-flood-pra";
 import { TechnicalElementTypes } from "interfaces-mef-types/technical-element";
 
@@ -31,7 +32,7 @@ export function createBlankInternalFloodPra(name: string, owner: string): Intern
       status: entry.stages.includes("PRE_OPERATIONAL") ? "PENDING_REVIEW" : "NOT_APPLICABLE", satisfiedByElementPaths: [], evidence: "",
     })),
     internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 }, activePeerReviewIds: [], activeAuditIds: [],
-    praScope: "", applications: [], evidenceRegister: [],
+    praScope: "", hazardConditionedModels: createEmptyHazardConditionedMethodModels(), applications: [], evidenceRegister: [],
     plantPartitioning: {
       analysisBoundary: {
         ...boundary, plantStructureRefs: [], reactorUnitRefs: [], radioactiveMaterialSourceRefs: [], includedBuildings: [],

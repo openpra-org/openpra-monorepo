@@ -24,6 +24,7 @@ import { SyWorkbook, SyWorkbookSchema } from "../../sy-workbooks/sy-workbook.sch
 import { SyWorkbooksService } from "../../sy-workbooks/sy-workbooks.service";
 import { SyDocumentsService } from "../../sy-workbooks/sy-documents.service";
 import { createBlankSy } from "../../sy-workbooks/blank-sy";
+import { DaWorkbookSchema } from "../../da-workbooks/da-workbook.schema";
 import { WorkbookRolesService } from "../workbook-roles.service";
 import { WorkbookSignoff } from "../workbook-signoff.schema";
 import { WorkbookModelAccessService } from "../workbook-model-access.service";
@@ -312,7 +313,7 @@ describe("workbook-owned method-model APIs", () => {
   });
 
   it("persists revision 1 by default in every method-owning workbook schema", () => {
-    for (const schema of [SyWorkbookSchema, EsWorkbookSchema, EsqWorkbookSchema]) {
+    for (const schema of [SyWorkbookSchema, EsWorkbookSchema, EsqWorkbookSchema, DaWorkbookSchema]) {
       const revisionPath = schema.path("revision");
       expect(revisionPath.options).toMatchObject({ required: true, default: 1, min: 1 });
     }

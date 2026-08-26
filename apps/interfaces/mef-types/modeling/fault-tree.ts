@@ -4,7 +4,7 @@ import type {
   MethodEntityReference,
   WorkbookEntityId,
 } from "./shared";
-import type { WorkbookParameterReference } from "./references";
+import type { HumanFailureEventReference, WorkbookParameterReference } from "./references";
 
 interface FaultTreeEntityIdentity {
   id: WorkbookEntityId;
@@ -78,7 +78,9 @@ interface FaultTreeNodePosition {
   position: CanvasPosition;
 }
 
-type FaultTreeControlledDataSourceReference = WorkbookParameterReference;
+type FaultTreeControlledDataSourceReference =
+  | WorkbookParameterReference
+  | HumanFailureEventReference;
 
 interface FaultTreeBasicEventProbability {
   value: number;

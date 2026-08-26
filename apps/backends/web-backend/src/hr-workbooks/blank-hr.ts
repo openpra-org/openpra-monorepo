@@ -44,6 +44,7 @@ export function createBlankHr(name: string, owner: string): HumanReliabilityAnal
       implementsSrs: [],
     },
     dependencyAssessments: [],
+    dependencyBayesianNetworks: [],
     plantRepresentationAccuracy: {
       scope: "PRE_OPERATIONAL",
       accuracy: ImportanceLevel.MEDIUM,

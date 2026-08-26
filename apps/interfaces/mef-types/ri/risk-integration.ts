@@ -9,6 +9,11 @@ import {
 } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type {
+  EventSequenceFamilyQuantificationReference,
+  EventSequenceFamilyWorkbookReference,
+  RadiologicalConsequenceResultReference,
+} from "../modeling/references";
 
 export type EventSequenceReference = string;
 export type EventSequenceFamilyReference = string;
@@ -104,12 +109,14 @@ export interface RiskSignificanceEvaluation extends Unique {
 
 export interface CompiledRiskInput extends Unique {
   eventSequenceFamilyRef: EventSequenceFamilyReference;
+  eventSequenceFamilyReference?: EventSequenceFamilyWorkbookReference;
   releaseCategoryRef?: ReleaseCategoryReference;
   sourceTermDefinitionRef?: SourceTermDefinitionReference;
   frequency: number;
   frequencyUnit?: string;
   frequencyDistribution?: ParameterDistribution;
   esqFamilyQuantificationRef?: string;
+  familyQuantificationReferences?: EventSequenceFamilyQuantificationReference[];
   consequences: {
     metric: string;
     meanValue: number;
@@ -117,6 +124,7 @@ export interface CompiledRiskInput extends Unique {
     distribution?: ParameterDistribution;
   }[];
   rcqRecordRef?: string;
+  consequenceResultReference?: RadiologicalConsequenceResultReference;
   consistentWithEventSequenceAnalysis?: boolean;
   consistentWithMechanisticSourceTerm?: boolean;
   implementsSrs: SRReference[];

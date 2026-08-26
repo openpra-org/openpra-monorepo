@@ -8,6 +8,10 @@ import type {
   EventTree,
 } from "interfaces-mef-types/es/event-sequence-analysis";
 import type { SystemsAnalysis } from "interfaces-mef-types/sy/systems-analysis";
+import type { DataAnalysis, DataAnalysisParameter } from "interfaces-mef-types/da/data-analysis";
+import type { HumanReliabilityAnalysis } from "interfaces-mef-types/hr/human-reliability-analysis";
+import type { RadiologicalConsequenceAnalysis } from "interfaces-mef-types/rc/radiological-consequence-analysis";
+import type { RiskIntegration } from "interfaces-mef-types/ri/risk-integration";
 import { EndState } from "interfaces-mef-types/core/events";
 
 const EXAMPLE_ESQ_WORKBOOK_ID = "example-esq-workbook";
@@ -397,6 +401,332 @@ function reconcileExampleEventTreeDependencyReferences(
   };
 }
 
+function reconcileExampleSyDataAnalysisReferences(
+  analysis: SystemsAnalysis,
+  dataAnalysis: DataAnalysis,
+  daWorkbookId: string,
+): SystemsAnalysis {
+  const parametersByBasicEvent = new Map<string, DataAnalysisParameter>();
+  for (const parameter of dataAnalysis.parameters) {
+    if (parameter.basicEventRef === undefined) continue;
+    if (parametersByBasicEvent.has(parameter.basicEventRef)) {
+      throw new Error(`The example Data Analysis workbook defines more than one parameter for basic event '${parameter.basicEventRef}'.`);
+    }
+    parametersByBasicEvent.set(parameter.basicEventRef, parameter);
+  }
+
+  const supportedTypes = new Set(["PROBABILITY", "UNAVAILABILITY", "HUMAN_ERROR_PROBABILITY"]);
+  let changed = false;
+  const systemBasicEvents = analysis.systemBasicEvents.map((event) => {
+    const parameter = parametersByBasicEvent.get(event.uuid) ?? parametersByBasicEvent.get(event.code);
+    if (parameter === undefined) return event;
+    if (!supportedTypes.has(parameter.parameterType)) {
+      throw new Error(`DA parameter '${parameter.uuid}' cannot control the probability of example basic event '${event.code}'.`);
+    }
+    if (!Number.isFinite(parameter.value) || parameter.value < 0 || parameter.value > 1) {
+      throw new Error(`DA parameter '${parameter.uuid}' must be finite and between zero and one.`);
+    }
+    const reference = event.controlledDataSource;
+    if (
+      event.probability === parameter.value &&
+      reference?.workbookId === daWorkbookId &&
+      reference.entityId === parameter.uuid
+    ) return event;
+    changed = true;
+    return {
+      ...event,
+      probability: parameter.value,
+      controlledDataSource: {
+        referenceType: "WORKBOOK_PARAMETER" as const,
+        workbookId: daWorkbookId,
+        entityId: parameter.uuid,
+      },
+      dataAnalysisBasicEventRef: undefined,
+    };
+  });
+
+  return changed ? { ...analysis, systemBasicEvents } : analysis;
+}
+
+function primaryHepQuantification(
+  humanReliability: HumanReliabilityAnalysis,
+  hfeId: string,
+): HumanReliabilityAnalysis["hepQuantifications"][number] {
+  const candidates = humanReliability.hepQuantifications.filter((entry) => entry.hfeId === hfeId);
+  const conventional = candidates.filter((entry) => entry.uuid === `HEPQ-${hfeId}`);
+  const nonRecoveryIds = new Set(
+    (humanReliability.recoveryActions ?? []).map((action) => action.hepQuantificationId),
+  );
+  const nonRecovery = candidates.filter((entry) => !nonRecoveryIds.has(entry.uuid));
+  const matches = conventional.length > 0
+    ? conventional
+    : nonRecovery.length > 0
+      ? nonRecovery
+      : candidates;
+  if (matches.length !== 1) {
+    throw new Error(
+      `The example Human Reliability workbook resolves human-failure event '${hfeId}' to ${matches.length} primary HEP quantifications; expected exactly one.`,
+    );
+  }
+  const quantification = matches[0]!;
+  const value = quantification.meanHep ?? quantification.pointEstimateHep;
+  if (value === undefined || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(
+      `HRA HEP quantification '${quantification.uuid}' must provide a finite mean or point estimate between zero and one.`,
+    );
+  }
+  return quantification;
+}
+
+function reconcileExampleSyHumanReliabilityReferences(
+  analysis: SystemsAnalysis,
+  humanReliability: HumanReliabilityAnalysis,
+  hrWorkbookId: string,
+): SystemsAnalysis {
+  const humanFailureEvents = new Map(
+    humanReliability.humanFailureEvents.map((event) => [event.uuid, event]),
+  );
+  const references = new Map<string, {
+    quantificationId: string;
+    value: number;
+  }>();
+  const resolve = (hfeId: string): { quantificationId: string; value: number } => {
+    const cached = references.get(hfeId);
+    if (cached !== undefined) return cached;
+    if (!humanFailureEvents.has(hfeId)) {
+      throw new Error(`The example Human Reliability workbook does not define human-failure event '${hfeId}'.`);
+    }
+    const quantification = primaryHepQuantification(humanReliability, hfeId);
+    const resolved = {
+      quantificationId: quantification.uuid,
+      value: (quantification.meanHep ?? quantification.pointEstimateHep)!,
+    };
+    references.set(hfeId, resolved);
+    return resolved;
+  };
+
+  let changed = false;
+  const systemBasicEvents = analysis.systemBasicEvents.map((event) => {
+    if (event.failureMode !== "HUMAN_ERROR") return event;
+    const hfeId = event.attributes?.find((attribute) => attribute.name === "hfeReference")?.value;
+    if (hfeId === undefined || hfeId.length === 0) return event;
+    const resolved = resolve(hfeId);
+    const source = event.controlledDataSource;
+    if (
+      event.probability === resolved.value &&
+      source?.referenceType === "HUMAN_FAILURE_EVENT" &&
+      source.workbookId === hrWorkbookId &&
+      source.entityId === hfeId &&
+      source.quantificationId === resolved.quantificationId
+    ) return event;
+    changed = true;
+    return {
+      ...event,
+      probability: resolved.value,
+      controlledDataSource: {
+        referenceType: "HUMAN_FAILURE_EVENT" as const,
+        workbookId: hrWorkbookId,
+        entityId: hfeId,
+        quantificationId: resolved.quantificationId,
+      },
+      dataAnalysisBasicEventRef: undefined,
+    };
+  });
+
+  const humanFailureEventIntegrations = analysis.humanFailureEventIntegrations.map((integration) => {
+    if (integration.hfeReference.length === 0) return integration;
+    const resolved = resolve(integration.hfeReference);
+    const source = integration.hfeSource;
+    if (
+      source?.workbookId === hrWorkbookId &&
+      source.entityId === integration.hfeReference &&
+      source.quantificationId === resolved.quantificationId
+    ) return integration;
+    changed = true;
+    return {
+      ...integration,
+      hfeSource: {
+        referenceType: "HUMAN_FAILURE_EVENT" as const,
+        workbookId: hrWorkbookId,
+        entityId: integration.hfeReference,
+        quantificationId: resolved.quantificationId,
+      },
+    };
+  });
+
+  return changed
+    ? { ...analysis, systemBasicEvents, humanFailureEventIntegrations }
+    : analysis;
+}
+
+function frequencyValue(value: number | { value: number }): number {
+  return typeof value === "number" ? value : value.value;
+}
+
+function consequenceMetricMatches(left: string, right: string): boolean {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  if (a === b) return true;
+  return [
+    ["latent", "cancer"],
+    ["early", "fatal"],
+    ["boundary", "dose"],
+    ["population", "dose"],
+  ].some((tokens) => tokens.every((token) => a.includes(token) && b.includes(token)));
+}
+
+interface ReconciledExampleRiskWorkbooks {
+  eventSequenceQuantification: EventSequenceQuantification;
+  radiologicalConsequence: RadiologicalConsequenceAnalysis;
+  riskIntegration: RiskIntegration;
+}
+
+/**
+ * Resolves the complete ES -> ESQ/RC -> RI chain after generated workbooks have
+ * real project-local ids. The legacy display fields remain populated for old
+ * workbooks, while the typed references are the durable source of identity.
+ */
+function reconcileExampleRiskResultReferences(
+  eventSequences: EventSequenceAnalysis,
+  esWorkbookId: string,
+  eventSequenceQuantification: EventSequenceQuantification,
+  esqWorkbookId: string,
+  radiologicalConsequence: RadiologicalConsequenceAnalysis,
+  rcWorkbookId: string,
+  riskIntegration: RiskIntegration,
+  riWorkbookId: string,
+): ReconciledExampleRiskWorkbooks {
+  const families = new Map(eventSequences.eventSequenceFamilies.map((family) => [family.uuid, family]));
+  const familyReference = (entityId: string) => ({
+    referenceType: "EVENT_SEQUENCE_FAMILY" as const,
+    workbookId: esWorkbookId,
+    entityId,
+  });
+  const familyQuantifications = eventSequenceQuantification.familyQuantifications.map((quantification) =>
+    families.has(quantification.eventSequenceFamilyRef)
+      ? { ...quantification, eventSequenceFamilyReference: familyReference(quantification.eventSequenceFamilyRef) }
+      : quantification);
+
+  const consequenceRecords = radiologicalConsequence.consequenceQuantification.eventSequenceConsequences.map(
+    (record) => {
+      const family = families.get(record.eventSequenceFamily);
+      if (family === undefined) return record;
+      return {
+        ...record,
+        uuid: record.uuid ?? `RCQ-${record.eventSequenceFamily}`,
+        eventSequenceFamilyReference: familyReference(family.uuid),
+      };
+    },
+  );
+  const consequenceByFamily = new Map(consequenceRecords.map((record) => [record.eventSequenceFamily, record]));
+
+  const releaseCategoryInputs = radiologicalConsequence.releaseCategoryToConsequence.releaseCategoryInputs.map(
+    (input) => ({
+      ...input,
+      eventSequenceFamilyReferences: eventSequences.eventSequenceFamilies
+        .filter((family) => family.releaseCategoryIds?.includes(input.releaseCategory) === true)
+        .map((family) => familyReference(family.uuid)),
+    }),
+  );
+
+  const compiledRiskInputs = riskIntegration.compiledRiskInputs.map((input) => {
+    const family = families.get(input.eventSequenceFamilyRef);
+    if (family === undefined) return input;
+    const quantifications = familyQuantifications.filter(
+      (quantification) => quantification.eventSequenceFamilyRef === family.uuid,
+    );
+    const consequence = consequenceByFamily.get(family.uuid);
+    const consequences = consequence === undefined
+      ? input.consequences
+      : riskIntegration.scopeDefinition.consequenceMeasures.flatMap((measure) => {
+        const result = consequence.consequenceResults.find((candidate) =>
+          consequenceMetricMatches(candidate.metric, measure.name));
+        return result === undefined ? [] : [{
+          metric: measure.name,
+          meanValue: result.meanValue,
+          unit: result.unit,
+          distribution: result.uncertaintyDistribution,
+        }];
+      });
+    const resolvedConsequences = consequences.length > 0 ? consequences : input.consequences;
+    return {
+      ...input,
+      eventSequenceFamilyReference: familyReference(family.uuid),
+      frequency: quantifications.length > 0
+        ? quantifications.reduce((sum, quantification) => sum + frequencyValue(quantification.meanFrequency), 0)
+        : input.frequency,
+      esqFamilyQuantificationRef: quantifications.length > 0
+        ? quantifications.map((quantification) => quantification.uuid).join(" + ")
+        : input.esqFamilyQuantificationRef,
+      familyQuantificationReferences: quantifications.map((quantification) => ({
+        referenceType: "EVENT_SEQUENCE_FAMILY_QUANTIFICATION" as const,
+        workbookId: esqWorkbookId,
+        entityId: quantification.uuid,
+      })),
+      consequences: resolvedConsequences,
+      rcqRecordRef: consequence?.uuid ?? input.rcqRecordRef,
+      consequenceResultReference: consequence?.uuid === undefined ? input.consequenceResultReference : {
+        referenceType: "RADIOLOGICAL_CONSEQUENCE_RESULT" as const,
+        workbookId: rcWorkbookId,
+        entityId: consequence.uuid,
+      },
+      consistentWithEventSequenceAnalysis: true,
+    };
+  });
+
+  const metrics = riskIntegration.integratedRiskResults.metrics.map((metric) => {
+    if (metric.consequenceMeasureRef === undefined || metric.consequenceMeasureRef.length === 0) return metric;
+    const value = compiledRiskInputs.reduce((sum, input) => {
+      const consequence = input.consequences.find((entry) =>
+        consequenceMetricMatches(entry.metric, metric.consequenceMeasureRef!));
+      return sum + input.frequency * (consequence?.meanValue ?? 0);
+    }, 0);
+    return { ...metric, value };
+  });
+
+  const integratedResultReference = {
+    referenceType: "INTEGRATED_RISK_RESULT" as const,
+    workbookId: riWorkbookId,
+    entityId: riskIntegration.integratedRiskResults.uuid,
+  };
+  return {
+    eventSequenceQuantification: {
+      ...eventSequenceQuantification,
+      familyQuantifications,
+    },
+    radiologicalConsequence: {
+      ...radiologicalConsequence,
+      releaseCategoryToConsequence: {
+        ...radiologicalConsequence.releaseCategoryToConsequence,
+        releaseCategoryInputs,
+      },
+      consequenceQuantification: {
+        ...radiologicalConsequence.consequenceQuantification,
+        eventSequenceConsequences: consequenceRecords,
+      },
+      riskIntegrationFeedback: radiologicalConsequence.riskIntegrationFeedback === undefined
+        ? undefined
+        : {
+          ...radiologicalConsequence.riskIntegrationFeedback,
+          analysisRef: riskIntegration.integratedRiskResults.uuid,
+          integratedRiskResultReference: integratedResultReference,
+        },
+    },
+    riskIntegration: {
+      ...riskIntegration,
+      scopeDefinition: {
+        ...riskIntegration.scopeDefinition,
+        eventSequenceFamilyRefs: compiledRiskInputs.map((input) => input.eventSequenceFamilyRef),
+      },
+      compiledRiskInputs,
+      integratedRiskResults: {
+        ...riskIntegration.integratedRiskResults,
+        metrics,
+      },
+    },
+  };
+}
+
 export {
   EXAMPLE_DEPENDENCY_IDS,
   EXAMPLE_ESQ_WORKBOOK_ID,
@@ -404,6 +734,9 @@ export {
   createExampleDependencyNetwork,
   createExampleHclConfiguration,
   createExampleDependencyEventTree,
+  reconcileExampleSyDataAnalysisReferences,
+  reconcileExampleSyHumanReliabilityReferences,
+  reconcileExampleRiskResultReferences,
   reconcileExampleEsqDependencyReferences,
   reconcileExampleEventTreeDependencyReferences,
 };

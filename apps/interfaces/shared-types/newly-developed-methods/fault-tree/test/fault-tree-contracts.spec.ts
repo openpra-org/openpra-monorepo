@@ -157,7 +157,7 @@ describe("fault-tree probability contracts", () => {
     expect(FaultTreeBasicEventProbabilitySchema.safeParse({ value }).success).toBe(false);
   });
 
-  it("accepts an optional UUID-keyed controlled data source", () => {
+  it("accepts an optional workbook-parameter controlled data source", () => {
     const controlledDataSource = {
       referenceType: "WORKBOOK_PARAMETER",
       workbookId: "da-workbook-1",
@@ -167,11 +167,21 @@ describe("fault-tree probability contracts", () => {
     expect(FaultTreeBasicEventProbabilitySchema.safeParse({ value: 0.02, controlledDataSource }).success).toBe(true);
   });
 
+  it("accepts an HRA event with an explicit HEP quantification", () => {
+    expect(FaultTreeControlledDataSourceReferenceSchema.safeParse({
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId: "hr-workbook-1",
+      entityId: "HR-POST-005",
+      quantificationId: "HEPQ-HR-POST-005",
+    }).success).toBe(true);
+  });
+
   it.each([
     { referenceType: "WORKBOOK_PARAMETER", workbookId: "", entityId: PARAMETER_ID },
-    { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook-1", entityId: "DA-PUMP-FAIL" },
+    { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook-1", entityId: "" },
     { referenceType: "BASIC_EVENT", workbookId: "da-workbook-1", entityId: PARAMETER_ID },
     { referenceType: "WORKBOOK_PARAMETER", workbookId: "da-workbook-1", entityId: PARAMETER_ID, parameterName: "Pump failure" },
+    { referenceType: "HUMAN_FAILURE_EVENT", workbookId: "hr-workbook-1", entityId: "HR-POST-005", quantificationId: "" },
   ])("rejects malformed controlled source %#", (controlledDataSource) => {
     expect(FaultTreeControlledDataSourceReferenceSchema.safeParse(controlledDataSource).success).toBe(false);
   });

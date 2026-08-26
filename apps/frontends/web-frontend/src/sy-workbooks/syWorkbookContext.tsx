@@ -37,22 +37,55 @@ interface SyWorkbookRuntime {
   saveStatus: RevisionedSaveStatus;
 }
 
+interface SyControlledParameterOption {
+  workbookId: string;
+  workbookName: string;
+  parameterId: string;
+  parameterName: string;
+  parameterType: "PROBABILITY" | "UNAVAILABILITY" | "HUMAN_ERROR_PROBABILITY";
+  value: number;
+}
+
+interface SyControlledHumanFailureOption {
+  workbookId: string;
+  workbookName: string;
+  humanFailureEventId: string;
+  humanFailureEventName: string;
+  hfeTiming: "PRE_INITIATOR" | "AT_INITIATOR" | "POST_INITIATOR";
+  quantificationId: string;
+  methodology: string;
+  value: number;
+  valueKind: "MEAN" | "POINT_ESTIMATE";
+}
+
 type SyMutator = (sy: SystemsAnalysis) => SystemsAnalysis;
 
 interface SyWorkbookContextValue extends SyWorkbookData {
   editable: boolean;
   runtime: SyWorkbookRuntime;
+  controlledParameters: SyControlledParameterOption[];
+  controlledHumanFailures: SyControlledHumanFailureOption[];
   mutateSy: (mutator: SyMutator) => void;
   shortOf: (id: string) => string;
 }
 
 const SyWorkbookContext = createContext<SyWorkbookContextValue | null>(null);
 
-function SyWorkbookProvider({ data, editable, mutateSy, runtime, children }: {
+function SyWorkbookProvider({
+  data,
+  editable,
+  mutateSy,
+  runtime,
+  controlledParameters,
+  controlledHumanFailures,
+  children,
+}: {
   data: SyWorkbookData;
   editable: boolean;
   mutateSy: (mutator: SyMutator) => void;
   runtime?: SyWorkbookRuntime;
+  controlledParameters?: SyControlledParameterOption[];
+  controlledHumanFailures?: SyControlledHumanFailureOption[];
   children: React.ReactNode;
 }): JSX.Element {
   const value = useMemo<SyWorkbookContextValue>(
@@ -60,13 +93,15 @@ function SyWorkbookProvider({ data, editable, mutateSy, runtime, children }: {
       ...data,
       editable,
       runtime: runtime ?? { workbookId: null, revision: null, saveStatus: "saved" },
+      controlledParameters: controlledParameters ?? [],
+      controlledHumanFailures: controlledHumanFailures ?? [],
       mutateSy,
       shortOf: (id: string): string => {
         const def = data.sy.systemDefinitions.find((d) => d.uuid === id);
         return def?.abbreviation ?? def?.name ?? id;
       },
     }),
-    [data, editable, mutateSy, runtime],
+    [controlledHumanFailures, controlledParameters, data, editable, mutateSy, runtime],
   );
   return <SyWorkbookContext.Provider value={value}>{children}</SyWorkbookContext.Provider>;
 }
@@ -84,4 +119,6 @@ export {
   type SyLinkedInputs,
   type SyMutator,
   type SyWorkbookRuntime,
+  type SyControlledParameterOption,
+  type SyControlledHumanFailureOption,
 };

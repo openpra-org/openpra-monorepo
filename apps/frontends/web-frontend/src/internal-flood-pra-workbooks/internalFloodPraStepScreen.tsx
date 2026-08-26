@@ -13,6 +13,11 @@ import { POSIcon } from "../pos-workbooks/posIcons";
 import { removeStructuredRecord, StructuredEditorDrawer, type EditorPath } from "../seismic-pra-workbooks/seismicPraStructuredEditor";
 import { Drawer, Field, InfoButton, NumberInput, Section, SelectInput, TextArea, TextInput } from "./internalFloodPraFields";
 import { useInternalFloodPraWorkbook } from "./internalFloodPraWorkbookContext";
+import {
+  HazardBayesianNetworkEditor,
+  HazardEventTreeEditor,
+  HazardFaultTreeEditor,
+} from "../workbooks/hazardConditionedModelEditors";
 import "../seismic-pra-workbooks/css/seismicPra.css";
 
 interface EditorTarget {
@@ -496,10 +501,15 @@ function ScenarioDevelopment(): JSX.Element {
 }
 
 function EventFrequency(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const ev = mef.initiatingEvents;
   return <div className="flstep">
+    <HazardFaultTreeEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Scenario groups and initiating events" description="Scenario grouping based on compatible response, success criteria, timing, target effects, and human context, with baseline or new initiating-event mapping." actions={editable ? <AddButton label="Add scenario group" onClick={() => editor.setTarget(collectionTarget(["initiatingEvents", "scenarioGroups"], "scenario group", "Group compatible retained flood scenarios."))} /> : undefined}>
       <TechnicalTable records={ev.scenarioGroups} caption="Scenario groups" empty="No scenario groups" onEdit={(index) => editor.setTarget(collectionTarget(["initiatingEvents", "scenarioGroups"], "scenario group", "Edit members, grouping basis, bounding scenario, scope, and checks.", index))} columns={[{ header: "Scenarios", render: (item) => item.floodScenarioRefs.length }, { header: "Grouping basis", render: (item) => item.groupingBasis.replace(/_/g, " ") }, { header: "Units / sources", render: (item) => `${String(item.reactorUnitRefs.length)} / ${String(item.radioactiveMaterialSourceRefs.length)}` }, { header: "Checks", render: (item) => item.groupingValidityChecks.length }]} />
       <FlowRows rows={ev.initiatingEvents.map((item) => ({ id: item.uuid, from: item.scenarioGroupRef, through: item.newInitiatingEventRequired ? "NEW INITIATOR" : item.initiatingEventType.replace(/_/g, " "), to: item.affectedEventSequenceRefs.join(" · "), status: item.newInitiatingEventRequired ? "NEW" : "MAPPED" }))} onEdit={(index) => editor.setTarget(collectionTarget(["initiatingEvents", "initiatingEvents"], "initiating-event mapping", "Edit the scenario-group initiator and affected baseline event-sequence references.", index))} />
@@ -522,10 +532,15 @@ function EventFrequency(): JSX.Element {
 }
 
 function PlantResponse(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const pr = mef.plantResponseModel;
   return <div className="flstep">
+    <HazardEventTreeEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Flood event-sequence models" description="Baseline reuse, controlled modifications, new initiators, top events, end states, multi-unit logic, and release-family mapping." actions={editable ? <AddButton label="Add sequence model" onClick={() => editor.setTarget(collectionTarget(["plantResponseModel", "eventSequenceModels"], "event-sequence model", "Define the flood-specific sequence logic and outcomes."))} /> : undefined}>
       <div className="flsequences">{pr.eventSequenceModels.map((item, index) => <button type="button" key={item.uuid} onClick={() => editor.setTarget(collectionTarget(["plantResponseModel", "eventSequenceModels"], "event-sequence model", "Edit initiating event, top events, outcomes, and multi-source logic.", index))}><span>{item.modelTreatment}</span><strong>{item.name}</strong><div>{item.topEvents.map((event) => <em key={event.uuid}>{event.name}</em>)}</div><small>{item.sequenceFamilyRefs.join(" · ")}</small></button>)}</div>
     </Section>
@@ -544,11 +559,16 @@ function PlantResponse(): JSX.Element {
 }
 
 function HumanReliability(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const hr = mef.humanReliabilityAnalysis;
   const timingByHfe = new Map(hr.timingAssessments.map((item) => [item.humanFailureEventRef, item]));
   return <div className="flstep">
+    <HazardBayesianNetworkEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Flood-specific human actions and HFEs" description="Baseline and new actions, undesired responses, cues, locations, procedures, crews, equipment, outcomes, and complete HFE definitions." actions={editable ? <SectionActions><AddButton label="Add action" onClick={() => editor.setTarget(collectionTarget(["humanReliabilityAnalysis", "humanActions"], "human action", "Define the flood-specific operator task and context."))} /><AddButton label="Add HFE" onClick={() => editor.setTarget(collectionTarget(["humanReliabilityAnalysis", "humanFailureEvents"], "human failure event", "Define the failed action, scenario scope, event-sequence logic, and dependency candidates."))} /><AddButton label="Add context" onClick={() => editor.setTarget(collectionTarget(["humanReliabilityAnalysis", "performanceContexts"], "performance context", "Define flood-specific cues, stress, access, communication, procedures, workload, and environment."))} /></SectionActions> : undefined}>
       <TechnicalTable records={hr.humanActions} caption="Human actions" empty="No human actions" onEdit={(index) => editor.setTarget(collectionTarget(["humanReliabilityAnalysis", "humanActions"], "human action", "Edit task type, scenario, procedure, crew, cues, equipment, and required outcome.", index))} columns={[{ header: "Type", render: (item) => item.actionType.replace(/_/g, " ") }, { header: "Crew / location", render: (item) => <>{item.crew}<small className="flcellnote">{item.actionLocation}</small></> }, { header: "Cues", render: (item) => <EmptyOrList values={item.cues} /> }, { header: "Cue failures", render: (item) => item.floodInducedCueFailures.length }]} />
       <TechnicalTable records={hr.humanFailureEvents} caption="Human failure events" empty="No human failure events" onEdit={(index) => editor.setTarget(collectionTarget(["humanReliabilityAnalysis", "humanFailureEvents"], "human failure event", "Edit the action linkage, scenario scope, logic, dependencies, and screening basis.", index))} columns={[{ header: "Action / basic event", render: (item) => <>{item.humanActionRef}<small className="flcellnote">{item.basicEventRef}</small></> }, { header: "Failure definition", render: (item) => item.failureDefinition }, { header: "Sequence events", render: (item) => item.affectedEventSequenceRefs.length }, { header: "Areas / POS", render: (item) => `${String(item.floodAreaRefs.length)} / ${String(item.plantOperatingStateRefs.length)}` }]} />
@@ -573,10 +593,15 @@ function HumanReliability(): JSX.Element {
 }
 
 function Quantification(): JSX.Element {
-  const { mef, editable } = useInternalFloodPraWorkbook();
+  const { mef, editable, mutate } = useInternalFloodPraWorkbook();
   const editor = useEditor();
   const esq = mef.eventSequenceQuantification;
   return <div className="flstep">
+    <HazardBayesianNetworkEditor
+      models={mef.hazardConditionedModels}
+      editable={editable}
+      onChange={(hazardConditionedModels) => mutate((current) => ({ ...current, hazardConditionedModels }))}
+    />
     <Section title="Controlled quantification runs" description="Model, code, solver, truncation, sampling, convergence, independent checks, and verification." actions={editable ? <AddButton label="Add run" onClick={() => editor.setTarget(collectionTarget(["eventSequenceQuantification", "quantificationRuns"], "quantification run", "Define numerical settings, convergence, scope, and checks."))} /> : undefined}>
       <TechnicalTable records={esq.quantificationRuns} caption="Quantification runs" empty="No quantification runs" onEdit={(index) => editor.setTarget(collectionTarget(["eventSequenceQuantification", "quantificationRuns"], "quantification run", "Edit model, solver, truncation, sampling, convergence, and verification.", index))} columns={[{ header: "Model / solver", render: (item) => <>{item.modelVersion}<small className="flcellnote">{item.solverVersion}</small></> }, { header: "Truncation", render: (item) => display(item.truncationLimitPerPlantYear, "/plant-year") }, { header: "Samples", render: (item) => display(item.sampleCount) }, { header: "Convergence", render: (item) => `${display(item.convergenceMetric)} ≤ ${display(item.convergenceCriterion)}` }, { header: "Result", render: (item) => <span className={`fltag ${item.converged ? "fltag--good" : "fltag--warn"}`}>{item.converged ? "CONVERGED" : "OPEN"}</span> }]} />
     </Section>

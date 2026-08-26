@@ -17,6 +17,7 @@ import { useHrWorkbook, type HrWorkbookData } from "./hrWorkbookContext";
 import { useAuth } from "../auth/AuthContext";
 import { WorkbookDemoSignCard } from "../workbooks/workbookDemoSignCard";
 import { DockDependsChip } from "../workbooks/workbookInterfaces";
+import { WorkbookBayesianNetworkCollectionEditor } from "../workbooks/hazardConditionedModelEditors";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/hrScreens.css";
 
@@ -287,6 +288,7 @@ function HrWorkbench({
   renderRoster?: () => JSX.Element | null;
   renderDocuments?: () => JSX.Element | null;
 }): JSX.Element {
+  const { editable, mutateHr } = useHrWorkbook();
   const isReviewer = persona === "reviewer";
   const isApprover = persona === "approver";
 
@@ -389,7 +391,7 @@ function HrWorkbench({
       case "respdef": return <RespDefineScreen openDrawer={setDrawer} />;
       case "respquant": return <RespQuantScreen openDrawer={setDrawer} />;
       case "recovery": return <RecoveryScreen openDrawer={setDrawer} />;
-      case "uncert": return <UncertScreen openDrawer={setDrawer} />;
+      case "uncert": return <><WorkbookBayesianNetworkCollectionEditor networks={data.hr.dependencyBayesianNetworks ?? []} editable={editable} onChange={(dependencyBayesianNetworks) => mutateHr((current) => ({ ...current, dependencyBayesianNetworks }))} /><UncertScreen openDrawer={setDrawer} /></>;
       case "draft": return <DraftScreen cc={cc} scores={scores} stage={stage} onSubmitDraft={() => { handleSubmitToApproval(); setStepId("review"); }} canSubmit={isPreparer} />;
       case "review":
       case "approval": return (

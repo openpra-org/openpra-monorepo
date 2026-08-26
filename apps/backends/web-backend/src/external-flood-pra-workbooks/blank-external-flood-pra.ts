@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { createEmptyHazardConditionedMethodModels } from "interfaces-mef-types/hazard-conditioned-models";
 import {
   EXTERNAL_FLOOD_PRA_SR_CATALOG,
   type ExternalFloodAnalysisRecord,
@@ -33,6 +34,7 @@ export function createBlankExternalFloodPra(name: string, owner: string): Extern
       status: entry.stages.includes("PRE_OPERATIONAL") ? "PENDING_REVIEW" : "NOT_APPLICABLE", satisfiedByElementPaths: [], evidence: "",
     })),
     internalReviewComments: { comments: [], openCount: 0, resolvedCount: 0 }, activePeerReviewIds: [], activeAuditIds: [], praScope: "",
+    hazardConditionedModels: createEmptyHazardConditionedMethodModels(),
     analysisBasis: {
       siteBasis: {
         ...analysisRecord("XF-SITE-001", "External Flood PRA site basis", owner), siteBasisType: "SPECIFIC_SITE", siteName: "",

@@ -16,6 +16,7 @@ import type {
   HclEventTreeOption,
   HclFaultTreeOption,
 } from "../newly-developed-methods/hybrid-causal-logic";
+import type { AnalysisRunProvenance } from "interfaces-shared-types/newly-developed-methods";
 import { useEditorConfirmation } from "../newly-developed-methods/shared";
 import { getSyWorkbook } from "../sy-workbooks/syWorkbookApi";
 import { getEsWorkbook } from "../es-workbooks/esWorkbookApi";
@@ -23,6 +24,7 @@ import { listWorkbooks } from "../workbooks/workbookApi";
 import { WorkbookSectionHeading } from "../workbooks/workbookSectionHeading";
 import { useEsqWorkbook } from "./esqWorkbookContext";
 import {
+  getEsqAnalysisRunProvenance,
   getEsqBayesianNetworkResult,
   getEsqHclEventTreeResult,
   getEsqHclFaultTreeResult,
@@ -30,6 +32,7 @@ import {
   runEsqHclEventTree,
   runEsqHclFaultTree,
 } from "./esqWorkbookApi";
+import { EsqAnalysisRunProvenance } from "./esqAnalysisRunProvenance";
 
 function EsqBayesianNetworkWorkspace(): JSX.Element {
   const { esq, editable, mutateEsq, runtime } = useEsqWorkbook();
@@ -45,6 +48,10 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
   const [hclResults, setHclResults] = useState<Record<string, HclEditorRunResult>>({});
   const [runningHclConfigurationId, setRunningHclConfigurationId] = useState<string | null>(null);
   const [hclRunError, setHclRunError] = useState<string | null>(null);
+  const [provenanceRuns, setProvenanceRuns] = useState<AnalysisRunProvenance[]>([]);
+  const [provenanceLoading, setProvenanceLoading] = useState(false);
+  const [provenanceError, setProvenanceError] = useState<string | null>(null);
+  const [provenanceRefresh, setProvenanceRefresh] = useState(0);
   const { requestConfirmation, confirmationDialog } = useEditorConfirmation();
   const model = esq.bayesianNetworks.find((candidate) => candidate.modelId === selectedModelId)
     ?? esq.bayesianNetworks[0];
@@ -133,6 +140,32 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
     return () => { cancelled = true; };
   }, [runtime.projectId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (runtime.workbookId === null) {
+      setProvenanceRuns([]);
+      setProvenanceLoading(false);
+      setProvenanceError(null);
+      return () => { cancelled = true; };
+    }
+    setProvenanceLoading(true);
+    setProvenanceError(null);
+    getEsqAnalysisRunProvenance(runtime.workbookId)
+      .then((response) => {
+        if (!cancelled) setProvenanceRuns(response.runs);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setProvenanceRuns([]);
+          setProvenanceError(error instanceof Error ? error.message : "Could not load immutable analysis runs.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProvenanceLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [provenanceRefresh, runtime.workbookId]);
+
   const validation = model === undefined
     ? []
     : validateBayesianNetworkModel(model, {
@@ -216,6 +249,7 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       setRunError(error instanceof Error ? error.message : "Bayesian-network inference failed.");
     } finally {
       setRunningModelId(null);
+      setProvenanceRefresh((current) => current + 1);
     }
   }
 
@@ -258,6 +292,7 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       setHclRunError(error instanceof Error ? error.message : "HCL fault-tree quantification failed.");
     } finally {
       setRunningHclConfigurationId(null);
+      setProvenanceRefresh((current) => current + 1);
     }
   }
 
@@ -280,11 +315,13 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
       setHclRunError(error instanceof Error ? error.message : "HCL event-tree quantification failed.");
     } finally {
       setRunningHclConfigurationId(null);
+      setProvenanceRefresh((current) => current + 1);
     }
   }
 
   return (
-    <div className="poscard" aria-label="Bayesian-network dependency model">
+    <>
+      <div className="poscard" aria-label="Bayesian-network dependency model">
       <div className="poscard__head">
         <div>
           <WorkbookSectionHeading workbook="ESQ" title="Bayesian dependency network" level={3} />
@@ -329,8 +366,14 @@ function EsqBayesianNetworkWorkspace(): JSX.Element {
           onRun={() => { void run(); }}
         />
       )}
-      {confirmationDialog}
-    </div>
+        {confirmationDialog}
+      </div>
+      <EsqAnalysisRunProvenance
+        runs={provenanceRuns}
+        loading={provenanceLoading}
+        error={provenanceError}
+      />
+    </>
   );
 }
 

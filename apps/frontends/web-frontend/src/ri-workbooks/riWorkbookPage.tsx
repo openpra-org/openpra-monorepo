@@ -25,6 +25,7 @@ import { useRiMefPatch } from "./useRiMefPatch";
 import { LoadExampleModal, UnloadExampleModal } from "../workbooks/exampleWorkbookModal";
 import { RiDocumentsCard } from "./riDocumentsCard";
 import { type RiPersona } from "./riViewData";
+import { loadRiRiskSources, type RiRiskSources } from "../workbooks/riskWorkbookConnections";
 
 const STEP_SR_HINT: Record<string, string | undefined> = {
   converge: "RI-B1",
@@ -63,6 +64,11 @@ function RiWorkbookPage(): JSX.Element {
   const [hasPreviousMef, setHasPreviousMef] = useState(false);
   const [approvalRefresh, setApprovalRefresh] = useState(0);
   const [projectName, setProjectName] = useState<string>("");
+  const [riskSources, setRiskSources] = useState<RiRiskSources>({
+    eventSequenceFamilies: [],
+    familyQuantifications: [],
+    consequenceResults: [],
+  });
   const workbookName = data?.ri.name ?? "";
   const workbookVersion = data?.ri.version ?? "1";
 
@@ -93,6 +99,12 @@ function RiWorkbookPage(): JSX.Element {
           if (!cancelled) setProjectName(project.name);
         } catch {
           if (!cancelled) setProjectName("");
+        }
+        try {
+          const sources = await loadRiRiskSources(workbook.projectId);
+          if (!cancelled) setRiskSources(sources);
+        } catch {
+          if (!cancelled) setRiskSources({ eventSequenceFamilies: [], familyQuantifications: [], consequenceResults: [] });
         }
       })
       .catch((err: unknown) => {
@@ -176,7 +188,7 @@ function RiWorkbookPage(): JSX.Element {
   const canUnloadExample = canLoadExample && hasPreviousMef;
 
   return (
-    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi}>
+    <RiWorkbookProvider data={data} editable={editable} mutateRi={mutateRi} riskSources={riskSources}>
       <RiWorkbench
         data={data}
         persona={persona}

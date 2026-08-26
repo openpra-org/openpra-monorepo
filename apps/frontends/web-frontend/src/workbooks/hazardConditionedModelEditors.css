@@ -1,0 +1,63 @@
+.hazmodels {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.hazmodels__toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hazmodels__toolbar label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: min(28rem, 100%);
+  color: var(--text-secondary, #5d5662);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.hazmodels__toolbar select {
+  min-height: 2.25rem;
+  border: 1px solid var(--border-color, #d9d5dc);
+  border-radius: 0.45rem;
+  background: var(--surface, #fff);
+  color: inherit;
+  padding: 0.35rem 0.55rem;
+}
+
+.hazmodels__toolbar > div {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.hazmodels__delete {
+  color: var(--danger-color, #a32929);
+}
+
+.hazmodels__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 4.5rem;
+  border: 1px dashed var(--border-color, #d9d5dc);
+  border-radius: 0.65rem;
+  padding: 1rem;
+  color: var(--text-secondary, #5d5662);
+}
+
+.hazmodels__empty span {
+  flex: 1;
+}
+
+@media (max-width: 760px) {
+  .hazmodels__toolbar,
+  .hazmodels__empty {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

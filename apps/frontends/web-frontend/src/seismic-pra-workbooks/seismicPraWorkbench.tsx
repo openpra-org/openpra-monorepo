@@ -28,6 +28,11 @@ import {
 } from "./seismicPraScreens";
 import { InfoButton } from "./seismicPraFields";
 import { composeWorkbookCue } from "../workbooks/workbookCueContent";
+import {
+  HazardBayesianNetworkEditor,
+  HazardEventTreeEditor,
+  HazardFaultTreeEditor,
+} from "../workbooks/hazardConditionedModelEditors";
 import "../workbooks/css/workbookWorkspace.css";
 import "./css/seismicPra.css";
 
@@ -150,6 +155,10 @@ function ConformanceDock({ mobileOpen, onClose }: { mobileOpen: boolean; onClose
 }
 
 function Screen({ id, actions, renderApprovalTable, renderSignCard, renderRoster }: { id: string; actions?: WorkflowActions; renderApprovalTable?: () => ReactNode; renderSignCard?: () => ReactNode; renderRoster?: () => ReactNode }): JSX.Element {
+  const { mef, editable, mutate } = useSeismicPraWorkbook();
+  const updateModels = (hazardConditionedModels: typeof mef.hazardConditionedModels): void => {
+    mutate((current) => ({ ...current, hazardConditionedModels }));
+  };
   switch (id) {
     case "scope": return <ScopeScreen />;
     case "hazard-basis": return <EvidenceBaseScreen />;
@@ -159,9 +168,9 @@ function Screen({ id, actions, renderApprovalTable, renderSignCard, renderRoster
     case "hazard-results": return <SelResponseScreen />;
     case "secondary-hazards": return <PlantConfigurationScreen />;
     case "sel-response": return <FragilityDevelopmentScreen />;
-    case "thresholds": return <PlantResponseModelScreen />;
-    case "fragility-results": return <HumanReliabilityScreen />;
-    case "plant-model": return <AnnualRiskQuantificationScreen />;
+    case "thresholds": return <><HazardFaultTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><HazardEventTreeEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><PlantResponseModelScreen /></>;
+    case "fragility-results": return <><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><HumanReliabilityScreen /></>;
+    case "plant-model": return <><HazardBayesianNetworkEditor models={mef.hazardConditionedModels} editable={editable} onChange={updateModels} /><AnnualRiskQuantificationScreen /></>;
     case "human-reliability": return <RiskInterpretationScreen />;
     case "quantification": return <RiskIntegrationBaselineScreen />;
     case "draft": return <DraftScreen actions={actions} />;

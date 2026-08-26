@@ -21,6 +21,7 @@ import type {
   HclQuantificationResult,
 } from "interfaces-shared-types/newly-developed-methods/hybrid-causal-logic";
 import type { EventTreeAnalysisResult } from "interfaces-shared-types/newly-developed-methods/event-tree";
+import type { AnalysisRunProvenanceList } from "interfaces-shared-types/newly-developed-methods";
 
 interface LinkedPosMef { plantOperatingStates?: { uuid: string; name: string; operatingMode?: string; meanDurationHours: number }[] }
 interface LinkedIeMef { initiatingEventGroups?: { uuid: string; name: string; meanFrequency?: { value: number } }[] }
@@ -105,6 +106,14 @@ async function patchEsqWorkbook(
     expectedRevision,
     operations: createWorkbookPatch(current, mef),
   });
+}
+
+async function getEsqAnalysisRunProvenance(
+  workbookId: string,
+): Promise<AnalysisRunProvenanceList> {
+  return fetchJson<AnalysisRunProvenanceList>(
+    `/api/esq-workbooks/${workbookId}/analysis-runs`,
+  );
 }
 
 interface EsqExampleOption {
@@ -237,6 +246,7 @@ export {
   fetchEsqLinkedInputs,
   getEsqExampleOptions,
   getEsqWorkbook,
+  getEsqAnalysisRunProvenance,
   patchEsqWorkbook,
   loadEsqExample,
   unloadEsqExample,

@@ -517,7 +517,12 @@ function systemBasicEventToFaultTreeBasicEvent(event: SystemBasicEvent): FaultTr
     code: event.code,
     name: event.name,
     description: event.description ?? "",
-    probability: { value: event.probability ?? Number.NaN },
+    probability: {
+      value: event.probability ?? Number.NaN,
+      ...(event.controlledDataSource === undefined
+        ? {}
+        : { controlledDataSource: { ...event.controlledDataSource } }),
+    },
   };
 }
 
@@ -529,9 +534,6 @@ function applyFaultTreeBasicEventToSystemBasicEvent(
   if (event.id !== current.uuid) {
     throw new Error("A fault-tree basic-event edit cannot change its SY catalogue id");
   }
-  if (event.probability.controlledDataSource !== undefined) {
-    throw new Error("SY basic events do not support a fault-tree controlled data source");
-  }
   const probability = Number.isFinite(event.probability.value) ? event.probability.value : undefined;
   return {
     ...current,
@@ -541,6 +543,9 @@ function applyFaultTreeBasicEventToSystemBasicEvent(
       ? {}
       : { description: event.description }),
     ...(probability === undefined ? { probability: undefined } : { probability }),
+    ...(event.probability.controlledDataSource === undefined
+      ? { controlledDataSource: undefined }
+      : { controlledDataSource: { ...event.probability.controlledDataSource } }),
   };
 }
 

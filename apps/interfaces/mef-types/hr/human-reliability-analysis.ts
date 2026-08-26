@@ -3,6 +3,7 @@ import { Unique, Named } from "../core/meta";
 import { SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentation, PreOperationalAssumption, PlantRepresentationAccuracy } from "../core/documentation";
 import { HlrId, PlantStage, SRReference } from "../core/pra-common";
+import type { WorkbookBayesianNetwork } from "../modeling/workbook-models";
 
 export type PlantOperatingStateReference = string;
 export type InitiatingEventReference = string;
@@ -247,6 +248,7 @@ export interface HumanReliabilityAnalysis
   preInitiatorRecoveryCredits?: PreInitiatorRecoveryCredit[];
   jointHepFloor: JointHepFloor;
   dependencyAssessments: HfeDependencyAssessment[];
+  dependencyBayesianNetworks?: WorkbookBayesianNetwork[];
   hepConsistencyReviews?: HepConsistencyReview[];
   errorForcingContexts?: ErrorForcingContext[];
 

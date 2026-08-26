@@ -1,5 +1,6 @@
 import type {
   FaultTreeBasicEvent,
+  FaultTreeControlledDataSourceReference,
   FaultTreeGate,
   FaultTreeGateInput,
   FaultTreeLeafNode,
@@ -363,8 +364,13 @@ function exportOpenPsaFaultTree(
         metadataXml({
           ...entityMetadata(basicEvent),
           "openpra.kind": "BASIC_EVENT",
+          "openpra.controlled-reference-type": controlled?.referenceType,
           "openpra.controlled-workbook-id": controlled?.workbookId,
           "openpra.controlled-entity-id": controlled?.entityId,
+          "openpra.controlled-quantification-id":
+            controlled?.referenceType === "HUMAN_FAILURE_EVENT"
+              ? controlled.quantificationId
+              : undefined,
         }),
         "  ",
       ),
@@ -543,6 +549,43 @@ function finiteNumber(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function controlledDataSourceFromMetadata(
+  metadata: ReadonlyMap<string, string>,
+  warnings: string[],
+): FaultTreeControlledDataSourceReference | undefined {
+  const referenceType = metadata.get("openpra.controlled-reference-type");
+  const workbookId = metadata.get("openpra.controlled-workbook-id")?.trim();
+  const entityId = metadata.get("openpra.controlled-entity-id")?.trim();
+  const quantificationId = metadata.get("openpra.controlled-quantification-id")?.trim();
+  const hasControlledMetadata =
+    referenceType !== undefined ||
+    workbookId !== undefined ||
+    entityId !== undefined ||
+    quantificationId !== undefined;
+  if (!hasControlledMetadata) return undefined;
+  if (!workbookId || !entityId) {
+    warnings.push("Ignored an incomplete OpenPRA controlled-data-source reference.");
+    return undefined;
+  }
+  if (referenceType === undefined || referenceType === "WORKBOOK_PARAMETER") {
+    return { referenceType: "WORKBOOK_PARAMETER", workbookId, entityId };
+  }
+  if (referenceType === "HUMAN_FAILURE_EVENT") {
+    if (!quantificationId) {
+      warnings.push("Ignored a Human Reliability reference without an HEP quantification id.");
+      return undefined;
+    }
+    return {
+      referenceType: "HUMAN_FAILURE_EVENT",
+      workbookId,
+      entityId,
+      quantificationId,
+    };
+  }
+  warnings.push(`Ignored unsupported controlled-data-source type '${referenceType}'.`);
+  return undefined;
 }
 
 interface StandardImportState {
@@ -835,12 +878,16 @@ function importStandardFaultTree(tree: Element): OpenPsaFaultTreeImport {
         `Basic event ${name} probability must be between 0 and 1`,
       );
     }
+    const controlledDataSource = controlledDataSourceFromMetadata(metadata, state.warnings);
     state.basicEvents.push({
       id,
       code: bounded(metadata.get("openpra.code"), name, 64),
       name: bounded(metadata.get("openpra.name"), definitionLabel(element) ?? name, 200),
       description: (metadata.get("openpra.description") ?? "").slice(0, 10_000),
-      probability: { value: probability },
+      probability: {
+        value: probability,
+        ...(controlledDataSource === undefined ? {} : { controlledDataSource }),
+      },
     });
     addDefinitionName(state.basicEventIdsByName, name, id);
   }

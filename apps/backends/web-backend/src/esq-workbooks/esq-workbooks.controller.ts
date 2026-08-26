@@ -4,7 +4,10 @@ import { EsqWorkbooksService, type EsqWorkbookResponse } from "./esq-workbooks.s
 import { parseRevisionedWorkbookPatchBody } from "../workbooks/workbook-mef-patch";
 import { parseExpectedWorkbookRevision } from "../workbooks/workbook-revision";
 import { WorkbookAnalysisRunsService } from "../newly-developed-methods/shared/workbook-analysis-runs.service";
-import type { AnalysisRunMetadata } from "interfaces-shared-types/newly-developed-methods";
+import type {
+  AnalysisRunMetadata,
+  AnalysisRunProvenanceList,
+} from "interfaces-shared-types/newly-developed-methods";
 
 @Controller("esq-workbooks")
 @UseGuards(JwtAuthGuard)
@@ -18,6 +21,17 @@ export class EsqWorkbooksController {
   @HttpCode(HttpStatus.OK)
   get(@Param("id") id: string, @Req() req: AuthenticatedRequest): Promise<EsqWorkbookResponse> {
     return this.esqWorkbooksService.findOne(id, { username: req.user!.username });
+  }
+
+  @Get(":id/analysis-runs")
+  @HttpCode(HttpStatus.OK)
+  listAnalysisRuns(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<AnalysisRunProvenanceList> {
+    return this.analysisRunsService.listRunProvenance("ESQ", id, {
+      username: req.user!.username,
+    });
   }
 
   @Patch(":id")

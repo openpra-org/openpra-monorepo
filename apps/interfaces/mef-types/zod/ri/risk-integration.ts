@@ -6,6 +6,11 @@ import { ParameterDistributionSchema } from "../core/events";
 import { ImportanceLevelSchema, SensitivityStudySchema } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import {
+  EventSequenceFamilyQuantificationReferenceSchema,
+  EventSequenceFamilyWorkbookReferenceSchema,
+  RadiologicalConsequenceResultReferenceSchema,
+} from "../modeling/references";
 
 export const RiskMetricSchema = z.object({
   uuid: z.string(),
@@ -102,12 +107,14 @@ export const RiskSignificanceEvaluationSchema = z.object({
 export const CompiledRiskInputSchema = z.object({
   uuid: z.string(),
   eventSequenceFamilyRef: z.string(),
+  eventSequenceFamilyReference: EventSequenceFamilyWorkbookReferenceSchema.optional(),
   releaseCategoryRef: z.string().optional(),
   sourceTermDefinitionRef: z.string().optional(),
   frequency: z.number(),
   frequencyUnit: z.string().optional(),
   frequencyDistribution: ParameterDistributionSchema.optional(),
   esqFamilyQuantificationRef: z.string().optional(),
+  familyQuantificationReferences: z.array(EventSequenceFamilyQuantificationReferenceSchema).optional(),
   consequences: z.array(
     z.object({
       metric: z.string(),
@@ -117,6 +124,7 @@ export const CompiledRiskInputSchema = z.object({
     }),
   ),
   rcqRecordRef: z.string().optional(),
+  consequenceResultReference: RadiologicalConsequenceResultReferenceSchema.optional(),
   consistentWithEventSequenceAnalysis: z.boolean().optional(),
   consistentWithMechanisticSourceTerm: z.boolean().optional(),
   implementsSrs: z.array(SRReferenceSchema),

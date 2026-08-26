@@ -6,6 +6,10 @@ import { ParameterDistributionSchema } from "../core/events";
 import { ImportanceLevelSchema, SensitivityStudySchema } from "../core/shared-patterns";
 import { BaseModelUncertaintyDocumentationSchema, PreOperationalAssumptionSchema } from "../core/documentation";
 import { SRReferenceSchema } from "../core/pra-common";
+import {
+  EventSequenceFamilyWorkbookReferenceSchema,
+  IntegratedRiskResultReferenceSchema,
+} from "../modeling/references";
 
 export const RcSubElementSchema = z.enum(["RCRE", "RCPA", "RCME", "RCAD", "RCDO", "RCHE", "RCEC", "RCQ"]);
 
@@ -70,6 +74,7 @@ export const ReleaseCharacteristicsSchema = z.object({
 export const ReleaseCategoryInputsSchema = z.object({
   releaseCategory: z.string(),
   sourceTermDefinitionRef: z.string().optional(),
+  eventSequenceFamilyReferences: z.array(EventSequenceFamilyWorkbookReferenceSchema).optional(),
   releaseCharacteristics: ReleaseCharacteristicsSchema,
 });
 
@@ -461,6 +466,7 @@ export const ConsequenceQuantificationAnalysisSchema = z.object({
     z.object({
       uuid: z.string().optional(),
       eventSequenceFamily: z.string(),
+      eventSequenceFamilyReference: EventSequenceFamilyWorkbookReferenceSchema.optional(),
       releaseCategoryReference: z.string().optional(),
       sourceTermReference: z.string().optional(),
       consequenceResults: z.array(
@@ -541,6 +547,7 @@ export const ConsequenceQuantificationAnalysisSchema = z.object({
 
 export const RcRiskIntegrationFeedbackSchema = z.object({
   analysisRef: z.string(),
+  integratedRiskResultReference: IntegratedRiskResultReferenceSchema.optional(),
   feedbackDate: z.string().optional(),
   metricFeedback: z
     .array(

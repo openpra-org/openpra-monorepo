@@ -7,6 +7,7 @@ import {
 } from "interfaces-mef-types/external-flood/external-flood-pra";
 import { synchronizeExternalFloodPraDerivedRegisters } from "interfaces-mef-types/external-flood/external-flood-pra-validation";
 import { createBlankExternalFloodPra } from "../../external-flood-pra-workbooks/blank-external-flood-pra";
+import { createHazardConditionedMethodModels } from "./hazard-conditioned-method-model-seed";
 
 type Variant = "HTGR" | "SFR";
 
@@ -177,6 +178,7 @@ export function createExternalFloodPraSeed(variant: Variant): ExternalFloodPRA {
   const keyFunction = htgr ? "Passive reactor cavity cooling and helium inventory retention" : "Passive decay-heat removal and sodium boundary integrity";
   const elevation = htgr ? 201.17 : 188.42;
   const mef = createBlankExternalFloodPra(`${siteName} External Flood PRA`, owner);
+  mef.hazardConditionedModels = createHazardConditionedMethodModels("XF", "External flood");
 
   mef.uuid = `${variant}-EXTERNAL-FLOOD-PRA-2026`;
   mef.name = `${siteName} External Flood PRA`;

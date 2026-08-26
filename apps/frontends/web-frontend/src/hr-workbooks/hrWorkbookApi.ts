@@ -36,6 +36,7 @@ interface HrWorkbookResponse {
   workbookId: string;
   projectId: string;
   ownerUsername: string;
+  revision: number;
   mef: HumanReliabilityAnalysis;
   myRoles: HrWorkbookRoleName[];
   hasPreviousMef: boolean;
@@ -46,8 +47,16 @@ async function getHrWorkbook(workbookId: string): Promise<HrWorkbookResponse> {
   return fetchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`);
 }
 
-async function patchHrWorkbook(workbookId: string, current: HumanReliabilityAnalysis, mef: HumanReliabilityAnalysis): Promise<HrWorkbookResponse> {
-  return patchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`, { operations: createWorkbookPatch(current, mef) });
+async function patchHrWorkbook(
+  workbookId: string,
+  expectedRevision: number,
+  current: HumanReliabilityAnalysis,
+  mef: HumanReliabilityAnalysis,
+): Promise<HrWorkbookResponse> {
+  return patchJson<HrWorkbookResponse>(`/api/hr-workbooks/${workbookId}`, {
+    expectedRevision,
+    operations: createWorkbookPatch(current, mef),
+  });
 }
 
 interface HrExampleOption {

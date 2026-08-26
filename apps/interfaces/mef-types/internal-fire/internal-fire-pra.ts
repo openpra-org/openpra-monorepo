@@ -1,4 +1,5 @@
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import type { HazardConditionedMethodModels } from "../hazard-conditioned-models";
 import {
   createInternalFireSrCatalog,
   InternalFireAnalysisRecord,
@@ -872,6 +873,7 @@ export interface InternalFirePraExampleDocument {
 
 export interface InternalFirePRA extends TechnicalElement<TechnicalElementTypes.INTERNAL_FIRE_PRA> {
   praScope: string;
+  hazardConditionedModels: HazardConditionedMethodModels;
   applications: InternalFirePraApplication[];
   evidenceRegister: InternalFirePraEvidenceRecord[];
   baselinePra?: InternalFireBaselinePraDefinition;
